@@ -37,6 +37,11 @@ int main(int argc, char **argv) {
 
     const config_t *cfg = config_get();
 
+    /* Open the timestamped game log (logs/<datetime>.game.log) before
+     * anything logs. A copyover successor lands here too, so every server
+     * generation naturally starts its own file. */
+    log_open();
+
     srand((unsigned int)time(NULL));
 
     /* Fail fast: confirm the DB is reachable before opening the listening

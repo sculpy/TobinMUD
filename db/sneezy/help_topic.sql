@@ -36,5 +36,6 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('west', 'Usage: west (or just w)\n\nWalks you west. See `help movement`.', 'seed'),
 ('up', 'Usage: up (or just u)\n\nWalks you up. See `help movement`.', 'seed'),
 ('down', 'Usage: down (or just d)\n\nWalks you down. See `help movement`.', 'seed'),
+('log', 'Usage: log [lines] | log search <text> | log rotate | log list\n\nLevel 59+ only: reads the server''s game log from in game. Bare `log`\nshows the last 20 lines (or `log 50` for more, up to 100). `search`\nfinds lines containing your text, case-insensitively. `rotate` closes\nthe current file and starts a fresh <datetime>.game.log. `list` shows\nall log files in the logs/ directory.', 'seed'),
 ('edit', 'Usage: edit [field] [args]   (level 56+ builders)\n\nEdits the room you are standing in; every change saves to the\ndatabase immediately. Bare `edit` shows the room summary.\n\n  edit name <text>          -- set the room title\n  edit description          -- line editor (`.` saves, `~` aborts)\n  edit sector_type [n]      -- show or set the sector number\n  edit exit <dir> <toroom>  -- link an exit; creates the target room\n                               if needed and fixes the reverse exit\n  edit exit <dir> -1        -- delete an exit', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;

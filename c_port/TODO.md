@@ -91,9 +91,11 @@ persistence. Sequenced by dependency:
       landed with it. Deferred edit fields: doors/locks, flags, extra
       descriptions, river/teleport/height/capacity/spec, the VT100 menu
       mode, sector-name table.
-- [ ] Watch item: `smoke_test_combat.py` flaked once on a freshly-booted VM
-      (cold caches; "immortal can attack" timing) and passed twice on rerun
-      (2026-07-03). If it recurs, widen that test's recv windows.
+- [ ] Watch item (downgraded 2026-07-03): the two one-off test flakes
+      (combat, limbs_cmd) both happened in sweeps that were running while a
+      copyover deploy froze the world for 5s. Rule: never hot-deploy during
+      a sweep. If a flake ever happens WITHOUT that overlap, then widen
+      recv windows.
 - [ ] **C. Objects** — `obj_t` (the planned 15-category collapse), DB load,
       immortal `oload`, player get/drop/inventory, object persistence.
       Includes drop-equipment-on-death (user direction, Session 14) and
