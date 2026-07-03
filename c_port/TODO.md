@@ -209,6 +209,15 @@ persistence. Sequenced by dependency:
       to it (collapse the per-direction stub topics). Same for `help '`
       → the say topic. Mechanism: resolve the query through the command
       table's alias→handler mapping before the topic lookup.
+- [ ] **Mortal/immortal toggle** — an immortal can become mortal and
+      re-immort AT WILL (e.g. `mortal` / `immort` commands): play-testing
+      as a real mortal (wait states apply, killable, no immortal commands
+      or log/wizhelp visibility) without losing their rank. Design: keep
+      the TRUE level stored (player file) and suspend it to an effective
+      mortal level; the re-immort command must gate on the stored true
+      level, not the effective one — the one deliberate exception to
+      "commands above your level are invisible". Death while mortal must
+      not eat the stored rank.
 - [ ] **attack/kill alias** — full aliases of each other, CONFIRMED: for
       immortals BOTH are the instant slay (attack gains the instakill);
       for mortals both start normal combat. One handler, two table rows.
