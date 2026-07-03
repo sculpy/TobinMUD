@@ -166,25 +166,17 @@ persistence. Sequenced by dependency:
 
 **Tier 3 — small, well-bounded changes:**
 - [x] **damage.h constants** — done 2026-07-03 (include/damage.h, verbatim enum).
-      into Tobin for future expansion (constants only, no behavior yet).
 - [x] **Help-file upkeep habit** — CLAUDE.md house rule; practiced in this batch.
-      modified, update the help topics in the same change; evaluate at
-      every commit. (Also added to CLAUDE.md house rules.)
 - [x] **Log gates** — done 2026-07-03: log tail/search/list 54+, rotate 59+.
-      functionality (tail/search/list) drops to 54+.
 - [x] **promote gate → 58+** — done 2026-07-03.
 - [x] **`exits` command** — done 2026-07-03 (destinations named).
 - [x] **Colorized say** — done 2026-07-03 (cyan framing, message as typed).
-      `<c>You say, "<z><message><z>"` (name/wrapper colored, message as
-      typed).
 - [x] **Hide wizhelp from mortals** — done 2026-07-03 (min_level 51).
 - [ ] **Immortal room-info display** — all immortals see the room vnum and
       sector type in look's room-name line, e.g. `[43] Imperia [sector 0]`
       (format: `[room vnum] room name [other requested info]`, extensible
       as more room fields become interesting). Mortals see the plain name.
       Touch: cmd_look.c only (being_is_immortal on the viewer).
-      listed at all (set its min_level to 51); general principle: players
-      only ever see help for what they can use.
 
 ### Gameplay roadmap (user-specified, 2026-07-03)
 
