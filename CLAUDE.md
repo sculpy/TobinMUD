@@ -47,6 +47,9 @@ freeze makes tests flake).
   documented in STATUS.md's decisions table.
 - Zero-warning builds; every feature ships with a smoke test; full suite
   before commit.
+- Help topics are updated IN THE SAME CHANGE as the feature they document
+  (new command → new topic; changed behavior → refreshed topic). Evaluate
+  at every commit.
 - Test fixture names: 3-15 letters only (name validation), unique via the
   base-26 time suffix pattern in any existing test.
 - Immortal-tier gates: 51+ basic (goto/promote), 56+ content editors

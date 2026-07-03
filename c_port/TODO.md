@@ -105,6 +105,82 @@ persistence. Sequenced by dependency:
 - [ ] **E. Zone resets** — periodic respawn of mobs/objects per zone so
       built content stays populated.
 
+### Batch 2 roadmap (user-specified, 2026-07-03) — ordered by engine impact + complexity
+
+**Tier 1 — new engine systems (heaviest):**
+- [ ] **Shops + money** — shopkeeper buy/sell, a shop editor, and a money
+      system (GOLD COIN ONLY as the currency). Depends on Phase 2C objects
+      existing first. Original's shop tables are already in the seed DB.
+- [ ] **TobinMUD identity + DB rename** — rename the database `sneezy` →
+      `tobin` (init-db.sh, config defaults, db/ paths, docs); rebrand as
+      **TobinMUD**, credited as a "Derivative of SneezyMUD and DikuMUD" in
+      README/LICENSE attribution. Everything else is original work.
+      (Reverses the Session-1 decision that kept the DB name — now
+      deliberate and user-directed. Wide but mechanical; coordinate the
+      rename on all boxes at once.)
+- [ ] **Vitality** — new stat: each MOVE costs 1 vitality; regenerates
+      slowly alongside HP in the same regen tick. TAKE FROM SNEEZY (the
+      original's move points). Persistence like hp (player_progress
+      column), show in score/prompt.
+- [ ] **Terrain** — room terrain (builds on the existing sector int) gets
+      names in redit and MODIFIES VITALITY COST of movement per terrain
+      type. Depends on vitality. Original's TerrainInfo table is the
+      source.
+- [ ] **Diseases** — modest list affecting players AND mobs, from the
+      original's disease.h for inspiration; immortals are immune. Needs an
+      affect/tick mechanism (pulse-driven), cure path TBD.
+- [ ] **Body types** — port body.h's body-type concept (different
+      creatures have different limb sets) — pairs with mobs (Phase 2D)
+      and the limb system.
+- [ ] **Socials/actions** — port the original's lib/actions file (smile,
+      nod, wave, ... the classic socials) and its command machinery.
+
+**Tier 2 — meaningful extensions of existing systems:**
+- [ ] **Limbs.h gap review** — compare our 13-limb system against the
+      original's limbs.h and implement whatever's missing and sensible
+      (weighted hit locations, PART_* flags, etc).
+- [ ] **Player-state logging** — log item get/drop (once objects exist)
+      and any player-state/pfile change, so `log search <name>` tells a
+      player's story. Design a helper so every mutation site logs
+      uniformly.
+- [ ] **Typed logs** — port the original log.h's log-type taxonomy
+      (LOG_MISC, LOG_FILE, etc); every log line gets a type and `log
+      search` can filter by type.
+- [ ] **Tips system** — `tips` command + periodic tip echoes to players
+      (pulse-driven), a per-player newbie toggle to receive them, and
+      `tipedit` (53+) to edit tips in game. DB-backed like help topics.
+- [ ] **PK opt-in flag** — player-file flag: opt out of PvP (mob kills
+      only). BOTH characters must have opted IN for attack/kill to work
+      between players. Toggle command + persistence + combat gate.
+- [ ] **Personalized immortal log messages (57+)** — per-immortal flavor
+      on log lines, inspired by the original's LOG_JESUS / LOG_PEEL /
+      LOG_LOW channels in log.h.
+- [ ] **docs/systems storage review** — read E:\New MUD\docs\systems for
+      how the original stored things; apply the lessons. RULE: always
+      prefer the DB for data storage.
+- [ ] **Function comment headers sweep** — every function gets a header
+      comment: what it's for + cross-references to functions it affects /
+      that depend on it. Codebase-wide, then maintained as a habit.
+- [ ] **Systems documentation** — implement the equivalent of the
+      original's doc/systems README for the TobinMUD base.
+
+**Tier 3 — small, well-bounded changes:**
+- [ ] **damage.h constants** — port the original's damage-type constants
+      into Tobin for future expansion (constants only, no behavior yet).
+- [ ] **Help-file upkeep habit** — whenever anything is implemented or
+      modified, update the help topics in the same change; evaluate at
+      every commit. (Also added to CLAUDE.md house rules.)
+- [ ] **Log gates** — `log rotate` isolated to 59+; all other log
+      functionality (tail/search/list) drops to 54+.
+- [ ] **promote gate → 58+** (currently 51+).
+- [ ] **`exits` command** — display available exits from the current room.
+- [ ] **Colorized say** — the say wrapper text in cyan:
+      `<c>You say, "<z><message><z>"` (name/wrapper colored, message as
+      typed).
+- [ ] **Hide wizhelp from mortals** — mortals shouldn't see `wizhelp`
+      listed at all (set its min_level to 51); general principle: players
+      only ever see help for what they can use.
+
 ### Gameplay roadmap (user-specified, 2026-07-03)
 
 - [x] **Log filename format change** — **done 2026-07-03**:
