@@ -180,6 +180,57 @@ persistence. Sequenced by dependency:
       column, so this adds the field to room.h + room_repo load/save (and
       keeps redit's save from zeroing it), then the cmd_look branch.
 
+### Batch 3 roadmap (user-specified, 2026-07-03 evening) — ordered by engine impact + complexity
+
+- [ ] **Account menu rework** — lettered command table: `C` connect/play a
+      character, `D` delete, `N` new character, `Q` quit the game;
+      case-insensitive (c == C). This is the ONE place `q` may alias quit.
+      NOTE: biggest ripple of the batch — every smoke test logs in through
+      the menu ("new"/numbers), so either keep the old inputs working
+      alongside the letters or update all ~28 tests' login helpers.
+      (Interpretation to confirm: C = connect an existing character, since
+      N already creates new.)
+- [ ] **Prompt toggle** — `prompt <stat>` customizes what the prompt line
+      shows, e.g. `prompt hp` → `HP: 25 > `. Needs a per-player prompt
+      spec (persisted in the player file), and the game-loop prompter
+      renders it instead of the bare "> ". Start with hp; design for
+      vitality/xp/gold joining later.
+- [ ] **Handedness** — at character creation choose left- or right-handed:
+      primary hand hits harder, secondary hits weaker (combat modifier in
+      combat_strike). New creation step + player-file column; pairs with
+      the finger/hand limbs.
+- [ ] **IP logging** — capture the peer IP at accept() (getpeername),
+      carry it on the descriptor, and include it in the [INFO]/log lines
+      for connect, disconnect/link-drop, AND player death. Immortal-only
+      visibility (the log command's 54+ gate already covers the logs;
+      any in-game display of IPs must check immortal too).
+- [ ] **Help alias resolution** — `help nw` shows the northeast/…
+      northwest topic; one topic per command with all aliases resolving
+      to it (collapse the per-direction stub topics). Same for `help '`
+      → the say topic. Mechanism: resolve the query through the command
+      table's alias→handler mapping before the topic lookup.
+- [ ] **attack/kill alias** — they behave identically for mortals; make
+      one the alias of the other. NUANCE: for immortals `kill` is the
+      instant slay — decide whether attack aliases kill (immortals
+      instakill on attack too) or kill aliases attack with the immortal
+      branch preserved in the shared handler.
+- [ ] **Duplicate character names disallowed** — on creation, check for
+      an existing player with that name (any account) and re-prompt
+      cleanly. (Uniqueness is already assumed throughout; this makes the
+      rejection explicit and friendly rather than a failed insert.)
+- [ ] **TobinMUD ASCII banner** — shown on connect, before the account
+      menu:
+      ```
+      ___________   ___.   .__           _____   ____ ___________
+      \\__    ___/___\\_ |__ |__| ____    /     \\ |    |   \\______ \\
+        |    | /  _ \\| __ \\|  |/    \\  /  \\ /  \\|    |   /|    |  \\
+        |    |(  <_> ) \\_\\ \\  |   |  \\/    Y    \\    |  / |    `   \\
+        |____| \\____/|___  /__|___|  /\\____|__  /______/ /_______  /
+                         \\/        \\/         \\/                 \\/
+      ```
+      (Backslashes must be escaped in the C string; tests key on
+      "Account name:" which stays.)
+
 ### Gameplay roadmap (user-specified, 2026-07-03)
 
 - [x] **Log filename format change** — **done 2026-07-03**:
