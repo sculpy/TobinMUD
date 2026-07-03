@@ -114,9 +114,14 @@ bool cmd_wizhelp(descriptor_t *d, const char *args) {
     if (n < 0)
         n = 0;
 
+    /* Same secrecy rule as help/cmd_dispatch (user requirement): an
+     * immortal only sees the commands their own level already grants --
+     * what the next promotion unlocks stays unknown until it happens. The
+     * [N+] tag therefore only ever shows levels at or below the caller's. */
+    int level = d->character->progress.level;
     bool any = false;
     for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
-        if (cmds[i].min_level <= MORTAL_LEVEL_MAX)
+        if (cmds[i].min_level <= MORTAL_LEVEL_MAX || cmds[i].min_level > level)
             continue;
         any = true;
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-10s [%d+] %s\r\n",
