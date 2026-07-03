@@ -5,10 +5,11 @@
      table's abbreviation matching).
   2. `wizhelp` refuses a mortal caller with a clear rejection message
      rather than silently doing nothing.
-  3. `wizhelp` for an immortal (hand-promoted via the DB, same pattern as
-     every other immortal-only test) shows the immortal-only command
-     section -- currently empty ("none yet"), since no command in Tobin
-     is min_level-gated to immortals yet.
+  3. A mortal's `help` must NOT list immortal-only commands (cmd_dispatch()
+     hides over-level commands entirely as of Phase 2A).
+  4. `wizhelp` for an immortal (hand-promoted via the DB, same pattern as
+     every other immortal-only test) lists the real immortal-only commands
+     (`goto`, `promote`), and the immortal's `help` includes them too.
 
     python3 tests/smoke_test_help.py [host] [port]
 """
@@ -74,12 +75,15 @@ check("Available commands" in out, "help shows a header")
 for cmd in MORTAL_COMMANDS:
     check(cmd in out, f"help lists '{cmd}'")
 
+check("goto" not in out and "promote" not in out,
+      "a mortal's help does not leak immortal-only commands")
+
 # --- Part 2: a mortal calling wizhelp is rejected, not ignored ---
 send_line(sA, "wizhelp")
 out = recv_all(sA)
 check("not privileged" in out, "a mortal calling wizhelp is rejected with a clear message")
 
-# --- Part 3: an immortal calling wizhelp sees the (currently empty) list ---
+# --- Part 3: an immortal sees the real immortal-only list ---
 subprocess.run(
     ["mariadb", "sneezy", "-e",
      f"UPDATE player_progress SET level=51 WHERE player_id=(SELECT id FROM player WHERE name='{nameA}');"],
@@ -98,7 +102,11 @@ recv_all(sA)
 send_line(sA, "wizhelp")
 out = recv_all(sA)
 check("Immortal-only commands" in out, "an immortal calling wizhelp sees the immortal-only header")
-check("none yet" in out, "wizhelp honestly reports no immortal-only commands exist yet")
+check("goto" in out and "promote" in out, "wizhelp lists the real immortal-only commands")
+
+send_line(sA, "help")
+out = recv_all(sA)
+check("goto" in out and "promote" in out, "an immortal's help includes the immortal commands")
 
 sA.close()
 print("=== ALL CHECKS PASSED ===")

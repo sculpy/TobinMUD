@@ -59,16 +59,34 @@ here and log details there.
       in `colorstring_translate()` (no bleed past a message that forgets `<z>`),
       found during the interactive pass. Suite fully green 18/18, first time.
 
-## Phase 2 (pick a direction)
+## Phase 2: immortal/builder tools (user-chosen direction, 2026-07-03)
 
-- [ ] **NPC/mob support** — combat and levels were designed to extend into
-      this; unlocks a real kill-XP economy (replacing the placeholder curve).
-- [ ] **`obj/` equipment design** — collapse 98 classes to ~15 categories,
-      tagged union populated from DB val0..val3. Must include from day one:
-      defeated characters drop carried equipment in the room where they died
-      (user-stated direction, Session 14).
-- [ ] Wire equipment slots to the existing 13-limb enum when `obj/` lands
-      (don't invent a second slot enum).
+In-game world building: room/object/mob editing, zone management, object
+persistence. Sequenced by dependency:
+
+- [x] **A. Immortal command infrastructure** — **done 2026-07-03**:
+      `min_level` enforced in `cmd_dispatch()` (over-level commands are
+      invisible, not refused); `promote <name> [level]` (live-applies to
+      online targets, works offline, can't exceed promoter's level);
+      `goto <vnum>`; `help` filters by caller level; `wizhelp` shows
+      real content with per-command level requirements.
+- [x] **A2. DB-backed help topics + `hedit`** (user idea, same day):
+      `help <topic>` shows prose from the new `help_topic` table (seeded
+      for every current command); `hedit <topic>` is a level-56+ in-game
+      line editor ('.' saves, '~' aborts) — Tobin's first in-game content
+      editor, the pattern Phase B's room editor will reuse.
+- [ ] **B. Room editing** — in-game `redit`-style editing (name, description,
+      sector, exits) persisted to MariaDB; digging new rooms/vnums. Zones are
+      DB-backed (the world already lives in MariaDB), not original-style
+      flatfile zonefiles.
+- [ ] **C. Objects** — `obj_t` (the planned 15-category collapse), DB load,
+      immortal `oload`, player get/drop/inventory, object persistence.
+      Includes drop-equipment-on-death (user direction, Session 14) and
+      wiring equipment slots to the existing 13-limb enum (no second enum).
+- [ ] **D. Mobs** — `THING_MOB`, `mload`, mob editing, mob combat — unlocks
+      the real kill-XP economy (replacing the placeholder curve).
+- [ ] **E. Zone resets** — periodic respawn of mobs/objects per zone so
+      built content stays populated.
 
 ## Deferred decisions (blocked on choosing, not on code)
 

@@ -57,4 +57,10 @@ bool player_progress_load(long player_id, progress_t *out);
 /* Upserts (insert-or-replace) the player_progress row for player_id. */
 bool player_progress_save(long player_id, const progress_t *progress);
 
+/* Sets the persisted level of any player by exact name -- deliberately NOT
+ * scoped to an account, unlike everything else here: this backs the
+ * immortal-only `promote` command, which acts across accounts. Returns
+ * false if no such player exists (or on DB error). */
+bool player_set_level_by_name(const char *name, int level);
+
 #endif

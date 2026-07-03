@@ -5,6 +5,7 @@
 
 #include "account.h"
 #include "being.h"
+#include "help_repo.h"
 #include "player_repo.h"
 
 /* C replacement for the Descriptor class (sys/connect.h/.cc) -- still a
@@ -67,6 +68,14 @@ typedef struct descriptor {
 
     /* CONN_CHAR_DELETE_CONFIRM scratch. */
     char delete_char_name[PLAYER_NAME_LEN];
+
+    /* `hedit` line-editor state (cmd_hedit.c starts it; descriptor.c's
+     * CONN_PLAYING case intercepts every line while editing_help is set:
+     * "." saves, "~" aborts, anything else is appended). */
+    bool editing_help;
+    char help_edit_topic[HELP_TOPIC_NAME_LEN];
+    char help_edit_buf[HELP_BODY_MAX];
+    int help_edit_len;
 
     being_t *character;
 

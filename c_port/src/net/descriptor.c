@@ -263,6 +263,7 @@ void descriptor_leave_to_menu(descriptor_t *d) {
         being_destroy(d->character); /* also removes it from its room */
         d->character = NULL;
     }
+    d->editing_help = false; /* a mid-edit defeat/quit discards the edit */
     d->state = CONN_ACCOUNT_MENU;
     show_account_menu(d);
 }
@@ -553,6 +554,42 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_PLAYING: {
+            /* `hedit` line editor swallows every line while active --
+             * commands (including quit!) don't work until the editor is
+             * closed with "." (save) or "~" (abort). */
+            if (d->editing_help) {
+                if (strcmp(line, ".") == 0) {
+                    if (help_topic_save(d->help_edit_topic, d->help_edit_buf,
+                                        d->character ? d->character->base.name : "")) {
+                        char msg[96];
+                        snprintf(msg, sizeof(msg), "Help topic '%s' saved.\r\n",
+                                 d->help_edit_topic);
+                        descriptor_send(d, msg);
+                    } else {
+                        descriptor_send(d, "Saving failed -- topic unchanged.\r\n");
+                    }
+                    d->editing_help = false;
+                    descriptor_send(d, "\r\n> ");
+                    return true;
+                }
+                if (strcmp(line, "~") == 0) {
+                    d->editing_help = false;
+                    descriptor_send(d, "Edit aborted -- topic unchanged.\r\n\r\n> ");
+                    return true;
+                }
+                size_t add = strlen(line);
+                if ((size_t)d->help_edit_len + add + 2 < sizeof(d->help_edit_buf)) {
+                    memcpy(d->help_edit_buf + d->help_edit_len, line, add);
+                    d->help_edit_len += (int)add;
+                    d->help_edit_buf[d->help_edit_len++] = '\n';
+                    d->help_edit_buf[d->help_edit_len] = '\0';
+                } else {
+                    descriptor_send(d, "Help text is full -- '.' to save or '~' to abort.\r\n");
+                }
+                descriptor_send(d, "] ");
+                return true;
+            }
+
             bool keep_going = cmd_dispatch(d, line);
             /* `quit!` transitions away from CONN_PLAYING (to the account
              * menu, which sends its own trailing prompt) -- only add ours

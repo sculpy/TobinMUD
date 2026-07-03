@@ -29,6 +29,11 @@ static const cmd_entry_t COMMANDS[] = {
     { "limbs",   cmd_limbs,   "Show the current health of all your limbs.",         MORTAL_LEVEL_MIN },
     { "help",    cmd_help,    "List available commands.",                           MORTAL_LEVEL_MIN },
     { "wizhelp", cmd_wizhelp, "List immortal-only commands.",                       MORTAL_LEVEL_MIN },
+    { "goto",    cmd_goto,    "Teleport to a room by vnum.",                        IMMORTAL_LEVEL_MIN },
+    { "promote", cmd_promote, "Set a player's level (up to your own).",             IMMORTAL_LEVEL_MIN },
+    /* NOTE: must stay after "help" in this table -- "h"/"he"/"hel" should
+     * abbreviate to help (first match wins), "hed"+ reaches hedit. */
+    { "hedit",   cmd_hedit,   "Edit a help topic in the line editor.",              HELP_EDIT_MIN_LEVEL },
 };
 #define NUM_COMMANDS (sizeof(COMMANDS) / sizeof(COMMANDS[0]))
 
@@ -84,8 +89,16 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
         return true;
     }
 
+    /* min_level enforcement (Phase 2A): commands above the caller's level
+     * are skipped during matching entirely, so a mortal typing "goto" gets
+     * the same "Huh?!" as any nonexistent command (and "g" can never
+     * abbreviate to it) -- immortal commands are invisible, not merely
+     * refused, matching the original's commandInfo::minLevel dispatch gate. */
+    int level = d->character ? d->character->progress.level : MORTAL_LEVEL_MIN;
     size_t verb_len = strlen(verb);
     for (size_t k = 0; k < NUM_COMMANDS; k++) {
+        if (COMMANDS[k].min_level > level)
+            continue;
         if (strncmp(COMMANDS[k].name, verb, verb_len) == 0)
             return COMMANDS[k].fn(d, args);
     }

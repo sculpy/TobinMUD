@@ -21,13 +21,20 @@ bool cmd_say(descriptor_t *d, const char *args);
 bool cmd_limbs(descriptor_t *d, const char *args);
 bool cmd_help(descriptor_t *d, const char *args);
 bool cmd_wizhelp(descriptor_t *d, const char *args);
+bool cmd_goto(descriptor_t *d, const char *args);
+bool cmd_promote(descriptor_t *d, const char *args);
+bool cmd_hedit(descriptor_t *d, const char *args);
+
+/* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
+ * immortals and up, not every 51+ immortal. */
+#define HELP_EDIT_MIN_LEVEL 56
 
 /* One row of cmd_table.c's dispatch table -- shared with cmd_help.c so
- * `help`/`wizhelp` can enumerate it without duplicating the list. `help`
- * is display-only metadata for now: min_level isn't enforced by
- * cmd_dispatch() (nothing currently needs it to be, since no command is
- * actually restricted to immortals the way the original's real
- * commandInfo::minLevel gates dispatch -- see STATUS.md). */
+ * `help`/`wizhelp` can enumerate it without duplicating the list.
+ * min_level is ENFORCED by cmd_dispatch() as of Phase 2A: a command above
+ * the caller's level is skipped during matching entirely, so to a mortal
+ * an immortal command is indistinguishable from one that doesn't exist
+ * ("Huh?!") -- same as the original's commandInfo::minLevel dispatch gate. */
 typedef struct {
     const char *name;
     bool (*fn)(descriptor_t *, const char *);

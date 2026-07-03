@@ -212,3 +212,30 @@ bool player_progress_save(long player_id, const progress_t *progress) {
     db_close(db);
     return ok;
 }
+
+bool player_set_level_by_name(const char *name, int level) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    long player_id = -1;
+    if (db_query(db, "select id from player where name='%s'", name) && db_fetch_row(db))
+        player_id = atol(db_get(db, "id"));
+
+    if (player_id < 0) {
+        db_close(db);
+        return false;
+    }
+
+    /* A Tobin-created player always has a progress row (player_create seeds
+     * one), but tolerate a missing row anyway with the same 100/100 HP
+     * defaults the manual promotion SQL has used since Session 11. */
+    bool ok = db_query(db,
+        "insert into player_progress (player_id, level, experience, hp, max_hp) "
+        "values (%i, %i, 0, 100, 100) "
+        "on duplicate key update level=%i",
+        (int)player_id, level, level);
+
+    db_close(db);
+    return ok;
+}
