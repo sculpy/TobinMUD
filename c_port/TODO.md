@@ -124,8 +124,8 @@ persistence. Sequenced by dependency:
       the builder's range?).
 - [ ] **Builder access at 51+** — ALL immortals (51+) can edit rooms, mobs,
       objects, and zonefiles: lower redit's gate 56→51, and land oedit /
-      medit / zedit at 51 too. (hedit/help topics stay 56 unless directed
-      otherwise — user listed rooms/mobs/objects/zonefiles specifically.)
+      medit / zedit at 51 too. **hedit (help topics) stays 56+ — user
+      confirmed 2026-07-03.**
 - [ ] **`news` (everyone) + `newsedit` (54+)** — announcements shown newest
       first. DB table (id, created_at, author, title/body), `news` shows
       recent items, `newsedit` uses the shared line editor. Consider
