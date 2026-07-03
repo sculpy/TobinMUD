@@ -30,15 +30,23 @@ static const char *ansi_for_tag(char c) {
     }
 }
 
+static const char ANSI_RESET[] = "\033[0m";
+
 size_t colorstring_translate_maxlen(size_t src_len) {
     /* Worst case is ~7/3 bytes per source byte (every "<X>" -> up to
-     * "\033[1;31m"); *7 is a generously safe upper bound, not a tight one. */
-    return src_len * 7 + 1;
+     * "\033[1;31m") plus a possible trailing auto-reset; *7 is a
+     * generously safe upper bound, not a tight one. */
+    return src_len * 7 + sizeof(ANSI_RESET);
 }
 
 size_t colorstring_translate(const char *src, char *dst, size_t dst_size, bool color_on) {
     size_t len = strlen(src);
     size_t si = 0, di = 0;
+    /* Deviation from the original (which trusts content to reset itself):
+     * remember the last color code emitted, and if the message ends still
+     * "inside" a color, append a reset so a missing <z> can't bleed into
+     * the prompt and every message after it. Explicit <z> is unaffected. */
+    const char *last_code = NULL;
 
     while (si < len) {
         if (src[si] == '<' && si + 2 < len && src[si + 2] == '>') {
@@ -50,6 +58,7 @@ size_t colorstring_translate(const char *src, char *dst, size_t dst_size, bool c
                         memcpy(dst + di, code, code_len);
                         di += code_len;
                     }
+                    last_code = code;
                 }
                 /* color off -> tag is stripped (nothing written) */
                 si += 3;
@@ -68,6 +77,14 @@ size_t colorstring_translate(const char *src, char *dst, size_t dst_size, bool c
         if (di + 1 < dst_size)
             dst[di++] = src[si];
         si++;
+    }
+
+    if (last_code != NULL && strcmp(last_code, ANSI_RESET) != 0) {
+        size_t reset_len = sizeof(ANSI_RESET) - 1;
+        if (di + reset_len < dst_size) {
+            memcpy(dst + di, ANSI_RESET, reset_len);
+            di += reset_len;
+        }
     }
 
     if (di < dst_size)

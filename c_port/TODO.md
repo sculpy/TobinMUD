@@ -29,10 +29,12 @@ here and log details there.
 
 ## The long-standing one
 
-- [ ] **Real interactive client pass** — everything to date is verified only by
-      scripted raw-socket tests. Connect with real telnet/Mudlet, poke at the
-      menus, point-buy, combat, color. Open since Session 1; now that the VM
-      is on the LAN there's no excuse left.
+- [x] **Real interactive client pass** — **happened 2026-07-02/03**, Session 20:
+      user connected with a real client against the home VM; account creation,
+      character creation, relog, level reload, say, color tags, and PvP combat
+      (limb destruction, hit penalties, defeat-to-menu) all exercised by hand.
+      First finding (`<n>` vs `<z>`, color bleed) already fixed. Keep playing —
+      more UX findings welcome — but the "never touched by a human" era is over.
   - [x] The `IAC SB ... SE` split-across-reads parsing gap — **fixed and
         verified 2026-07-02** (resumable parser state on `descriptor_t`,
         new `tests/smoke_test_telnet_iac.py`). Mudlet-class clients safe.
@@ -52,10 +54,10 @@ here and log details there.
       it, Tobin doesn't.
 - [ ] Delete-character password reconfirmation (original asks for the account
       password again, Tobin only asks for typed `YES`).
-- [ ] Make `smoke_test_color.py` self-contained — it needs `<X>`-tagged
-      content in the DB and fails on any fresh seed (expected-fail today,
-      confirmed again on the home VM 2026-07-02). Add a small always-present
-      tagged string somewhere testable.
+- [x] `smoke_test_color.py` self-contained — **done 2026-07-03**: rewritten to
+      inject tags via `say` (no DB staging needed). Also added color auto-reset
+      in `colorstring_translate()` (no bleed past a message that forgets `<z>`),
+      found during the interactive pass. Suite fully green 18/18, first time.
 
 ## Phase 2 (pick a direction)
 
