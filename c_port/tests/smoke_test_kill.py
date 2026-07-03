@@ -16,7 +16,7 @@ import time
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
-_suffix = str(int(time.time()) % 100000)
+_suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
 
 def recv_all(sock, timeout=1.0):
@@ -87,8 +87,8 @@ sA.close()
 sB.close()
 
 # --- Part 2: immortal `kill` is an instant, one-shot slay ---
-sImm, nameImm = make_player("Immortal")
-sTarget, nameTarget = make_player("Target")
+sImm, nameImm = make_player("Imm")
+sTarget, nameTarget = make_player("Tgt")
 
 subprocess.run(
     ["mariadb", "sneezy", "-e",

@@ -94,18 +94,23 @@ bool player_delete(const char *name, long account_id) {
     return ok;
 }
 
-bool player_list_by_account(long account_id, char names[][PLAYER_NAME_LEN], int max, int *count) {
+bool player_list_by_account(long account_id, char names[][PLAYER_NAME_LEN], int levels[], int max, int *count) {
     *count = 0;
 
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return false;
 
-    bool ok = db_query(db, "select name from player where account_id=%i order by name limit %i",
-                        (int)account_id, max);
+    bool ok = db_query(db,
+                       "select p.name, coalesce(pp.level, 1) as level"
+                       " from player p left join player_progress pp on pp.player_id = p.id"
+                       " where p.account_id=%i order by p.name limit %i",
+                       (int)account_id, max);
     if (ok) {
         while (*count < max && db_fetch_row(db)) {
             snprintf(names[*count], PLAYER_NAME_LEN, "%s", db_get(db, "name"));
+            if (levels)
+                levels[*count] = atoi(db_get(db, "level"));
             (*count)++;
         }
     }

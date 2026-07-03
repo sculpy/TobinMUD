@@ -12,7 +12,7 @@ import time
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
-_suffix = str(int(time.time()) % 100000)
+_suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
 
 def recv_all(sock, timeout=1.0):
@@ -88,7 +88,7 @@ def reconnect(s, name):
 
 
 # Mortal: level 1 default, and level 50 (the mortal ceiling).
-s1, name1 = make_player("Mortal1")
+s1, name1 = make_player("Mone")
 send_line(s1, "score")
 out = recv_all(s1)
 check("Level:         1" in out, "fresh character shows 'Level: 1'")
@@ -111,7 +111,7 @@ tiers = [
 ]
 
 for level, expected_title in tiers:
-    s, name = make_player(f"L{level}")
+    s, name = make_player("L" + "".join(chr(ord("a") + int(dd)) for dd in str(level)))
     set_level(name, level)
     s = reconnect(s, name)
 

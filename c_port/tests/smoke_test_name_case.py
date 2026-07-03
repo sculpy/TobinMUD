@@ -13,7 +13,7 @@ import time
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
-_suffix = str(int(time.time()) % 100000)
+_suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
 
 def recv_all(sock, timeout=1.0):
@@ -98,6 +98,38 @@ send_line(sMixed, "look")
 out = recv_all(sMixed)
 check(f"{expected_upper} is here" in out,
       "look shows another player's name in proper case in the room listing")
+
+# --- Name validation (Session 20): 3-15 letters only, same rule as the
+# original's _parse_name_safe(). Each bad name is rejected and re-prompted;
+# a good name afterwards still works on the same connection. ---
+sVal = socket.create_connection((host, port), timeout=5)
+recv_all(sVal)
+send_line(sVal, f"CaseTesterVal{_suffix}")
+recv_all(sVal)
+send_line(sVal, "casetestpw123")
+recv_all(sVal)
+send_line(sVal, "new")
+recv_all(sVal)
+
+for bad, why in [
+    (f"Bad{_suffix}123", "a name containing digits is rejected"),
+    ("Bad guy", "a name containing a space is rejected"),
+    ("Bad-guy", "a name containing punctuation is rejected"),
+    ("Ab", "a 2-letter name is rejected (minimum is 3)"),
+    ("Toolongofanamexx", "a 16-letter name is rejected (maximum is 15)"),
+]:
+    send_line(sVal, bad)
+    out = recv_all(sVal)
+    check("Names must be 3 to 15 letters" in out, why)
+
+valid_name = f"Goodguy{_suffix}"
+send_line(sVal, valid_name)
+recv_all(sVal)
+send_line(sVal, "done")
+out = recv_all(sVal)
+check(f"Welcome, {valid_name.capitalize()}" in out,
+      "a valid letters-only name still creates fine after rejections")
+sVal.close()
 
 sLower.close()
 sUpper.close()

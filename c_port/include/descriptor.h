@@ -58,6 +58,7 @@ typedef struct descriptor {
     /* CONN_ACCOUNT_MENU scratch: character list cached for this visit to
      * the menu, refreshed every time the menu is (re-)shown. */
     char char_list[MAX_CHARS_PER_ACCOUNT][PLAYER_NAME_LEN];
+    int char_levels[MAX_CHARS_PER_ACCOUNT];
     int char_count;
 
     /* CONN_CHAR_CREATE_NAME / CONN_CHAR_CREATE_ATTRS scratch. */

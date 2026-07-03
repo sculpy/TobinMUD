@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 
 #include "descriptor.h"
@@ -129,6 +130,14 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
     if (!self || !self->base.roomp || !name || !*name)
         return NULL;
 
+    /* Exact name first, so "Clau" always means the player literally named
+     * Clau even if a Claudius is also in the room; then fall back to prefix
+     * matching ("kill clau" -> Claudius), same abbreviation convention the
+     * command parser has used since Session 9 and the original's
+     * is_abbrev()-based get_char_room targeting. First prefix match in room
+     * order wins. */
+    being_t *prefix_match = NULL;
+    size_t name_len = strlen(name);
     for (thing_t *t = self->base.roomp->base.stuff_head; t; t = t->stuff_next) {
         if (t == &self->base)
             continue;
@@ -136,8 +145,10 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
             continue;
         if (strcasecmp(t->name, name) == 0)
             return (being_t *)t;
+        if (!prefix_match && strncasecmp(t->name, name, name_len) == 0)
+            prefix_match = (being_t *)t;
     }
-    return NULL;
+    return prefix_match;
 }
 
 void combat_instakill(being_t *attacker, being_t *target) {

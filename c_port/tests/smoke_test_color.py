@@ -17,7 +17,7 @@ import time
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
-_suffix = str(int(time.time()) % 100000)
+_suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
 
 def recv_all_bytes(sock, timeout=1.0):

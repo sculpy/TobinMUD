@@ -32,9 +32,11 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs);
 bool player_delete(const char *name, long account_id);
 
 /* Lists up to `max` character names owned by account_id into `names`
- * (each PLAYER_NAME_LEN bytes), sets *count to how many were found.
- * Returns false only on a DB error. */
-bool player_list_by_account(long account_id, char names[][PLAYER_NAME_LEN], int max, int *count);
+ * (each PLAYER_NAME_LEN bytes) and each one's level into `levels` (may be
+ * NULL if the caller doesn't want them; a player somehow missing its
+ * player_progress row reports level 1), sets *count to how many were
+ * found. Returns false only on a DB error. */
+bool player_list_by_account(long account_id, char names[][PLAYER_NAME_LEN], int levels[], int max, int *count);
 
 /* The room vnum this player should load into (from `player.load_room`).
  * Returns -1 if the player doesn't exist under that account. */

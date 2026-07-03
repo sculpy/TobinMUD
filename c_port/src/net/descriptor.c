@@ -1,5 +1,6 @@
 #include "descriptor.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -224,15 +225,25 @@ static int attrs_allocated(const attrs_t *a) {
 
 /* Refreshes d->char_list from the DB and prints the account menu. */
 static void show_account_menu(descriptor_t *d) {
-    player_list_by_account(d->account.account_id, d->char_list, MAX_CHARS_PER_ACCOUNT, &d->char_count);
+    player_list_by_account(d->account.account_id, d->char_list, d->char_levels,
+                           MAX_CHARS_PER_ACCOUNT, &d->char_count);
 
     char out[2048];
     int n = snprintf(out, sizeof(out), "\r\n-- Your characters --\r\n");
     if (d->char_count == 0) {
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  (none yet)\r\n");
     } else {
-        for (int i = 0; i < d->char_count && (size_t)n < sizeof(out); i++)
-            n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s\r\n", i + 1, d->char_list[i]);
+        for (int i = 0; i < d->char_count && (size_t)n < sizeof(out); i++) {
+            /* Same convention as `who`: immortals show their rank title,
+             * mortals show the level number. */
+            const char *title = being_level_title(d->char_levels[i]);
+            if (title)
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s (%s)\r\n",
+                              i + 1, d->char_list[i], title);
+            else
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s (Level %d)\r\n",
+                              i + 1, d->char_list[i], d->char_levels[i]);
+        }
     }
     if ((size_t)n < sizeof(out)) {
         snprintf(out + n, sizeof(out) - (size_t)n,
@@ -439,6 +450,23 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 d->state = CONN_ACCOUNT_MENU;
                 show_account_menu(d);
                 return true;
+            }
+            /* Same rule as the original's _parse_name_safe() (misc/parse.cc):
+             * 3-15 characters, letters only. (Its illegal-name/mob-name
+             * blocklists are not ported -- no such lists exist in Tobin.) */
+            {
+                size_t name_len = strlen(line);
+                bool name_ok = name_len >= 3 && name_len <= 15;
+                for (size_t i = 0; name_ok && i < name_len; i++) {
+                    if (!isalpha((unsigned char)line[i]))
+                        name_ok = false;
+                }
+                if (!name_ok) {
+                    descriptor_send(d,
+                        "Names must be 3 to 15 letters -- no numbers, spaces, or symbols.\r\n"
+                        "New character name (or 'quit!' to cancel): ");
+                    return true;
+                }
             }
             snprintf(d->new_char_name, sizeof(d->new_char_name), "%s", line);
             being_normalize_name(d->new_char_name);

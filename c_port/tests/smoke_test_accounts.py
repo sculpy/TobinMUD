@@ -25,7 +25,7 @@ port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 # account/character from a previous (possibly failed) run -- character
 # names are globally unique in the DB, not just per-account, so these need
 # the same run-unique suffix as the account name, not hardcoded literals.
-_suffix = sys.argv[3] if len(sys.argv) > 3 else str(int(time.time()) % 100000)
+_suffix = sys.argv[3] if len(sys.argv) > 3 else "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 account_name = f"AttrTester{_suffix}"
 char1_name = f"Attrius{_suffix}"
 char2_name = f"Secondus{_suffix}"
@@ -105,6 +105,8 @@ recv_all(s2)
 step(s2, "account name (existing)", account_name)
 out = step(s2, "password (existing account) -> menu", password)
 check(char1_name in out, f"{char1_name} shows up in the account menu on a fresh login")
+check(f"{char1_name} (Level 1)" in out,
+      "the menu lists each character's level next to the name")
 
 step(s2, "create second character", "new")
 step(s2, "second character name -> attr screen", char2_name)
