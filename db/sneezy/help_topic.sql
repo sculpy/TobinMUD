@@ -66,6 +66,10 @@ UPDATE `help_topic` SET `body` = 'Usage: promote <name> [level]\n\nLevel 58+ onl
 UPDATE `help_topic` SET `body` = 'Usage: say <message>   (shorthand: ''<message>)\n\nSays something to everyone in your room. The apostrophe shorthand\nneeds no space: ''hello says "hello". The say framing shows in cyan;\nyour message shows as typed, including any color tags you use.'
   WHERE `name` = 'say' AND `updated_by` = 'seed';
 
+-- Migration: immortal look header ([vnum] name [sector] [flags]).
+UPDATE `help_topic` SET `body` = 'Usage: look\n\nShows the room you are in: its name, description, obvious exits, and\neveryone standing there with you. You also look automatically whenever\nyou enter the world. Immortals additionally see the room''s vnum,\nsector type, and flags in the header line.'
+  WHERE `name` = 'look' AND `updated_by` = 'seed';
+
 -- Migration: redit dropped to 51+ (every immortal builds).
 UPDATE `help_topic` SET `body` = 'Usage: redit [field] [args]   (level 51+ builders)\n\nEdits the room you are standing in; every change saves to the\ndatabase immediately. Bare `redit` shows the room summary.\n\n  redit name <text>          -- set the room title\n  redit description          -- line editor (`.` saves, `~` aborts)\n  redit sector_type [n]      -- show or set the sector number\n  redit exit <dir> <toroom>  -- link an exit; creates the target room\n                                if needed and fixes the reverse exit\n  redit exit <dir> -1        -- delete an exit'
   WHERE `name` = 'redit' AND `updated_by` = 'seed';

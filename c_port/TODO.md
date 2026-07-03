@@ -172,7 +172,7 @@ persistence. Sequenced by dependency:
 - [x] **`exits` command** — done 2026-07-03 (destinations named).
 - [x] **Colorized say** — done 2026-07-03 (cyan framing, message as typed).
 - [x] **Hide wizhelp from mortals** — done 2026-07-03 (min_level 51).
-- [ ] **Immortal room-info display** — all immortals see the room vnum,
+- [x] **Immortal room-info display** — done 2026-07-03: immortals see
       sector type, AND room flags in look's room-name line, e.g.
       `[43] Imperia [sector 0] [flags 0]` (format: `[room vnum] room name
       [other requested info]`, extensible). Mortals see the plain name.

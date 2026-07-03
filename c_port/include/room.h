@@ -24,6 +24,8 @@ typedef struct room {
     int vnum;
     char description[ROOM_DESCRIPTION_MAX];
     int sector;
+    int room_flag;              /* original's room_flag bitmask -- carried +
+                                 * shown to immortals; no behavior yet */
     int exits[ROOM_NUM_EXITS];  /* destination vnum per direction, -1 = no exit */
 } room_t;
 

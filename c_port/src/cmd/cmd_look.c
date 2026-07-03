@@ -15,7 +15,16 @@ bool cmd_look(descriptor_t *d, const char *args) {
     room_t *r = d->character->base.roomp;
 
     char out[ROOM_DESCRIPTION_MAX + 512];
-    int n = snprintf(out, sizeof(out), "\r\n%s\r\n%s\r\n", r->base.name, r->description);
+    int n;
+    /* Immortals get the builder's header -- vnum, sector, flags around the
+     * room name (user spec: "[room vnum] room name [other info]"); mortals
+     * see the plain name. */
+    if (being_is_immortal(d->character)) {
+        n = snprintf(out, sizeof(out), "\r\n[%d] %s [sector %d] [flags %d]\r\n%s\r\n",
+                     r->vnum, r->base.name, r->sector, r->room_flag, r->description);
+    } else {
+        n = snprintf(out, sizeof(out), "\r\n%s\r\n%s\r\n", r->base.name, r->description);
+    }
     if (n < 0)
         n = 0;
 

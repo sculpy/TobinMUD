@@ -10,9 +10,11 @@ room_t *room_repo_load(int vnum) {
         return NULL;
 
     room_t *r = NULL;
-    if (db_query(db, "select vnum, name, description, sector from room where vnum=%i", vnum)
+    if (db_query(db, "select vnum, name, description, sector, room_flag from room where vnum=%i", vnum)
         && db_fetch_row(db)) {
         r = room_create(vnum, db_get(db, "name"), db_get(db, "description"), atoi(db_get(db, "sector")));
+        if (r)
+            r->room_flag = atoi(db_get(db, "room_flag"));
     }
     db_close(db);
     if (!r)
@@ -53,10 +55,10 @@ bool room_repo_save(const room_t *r) {
         "insert into room (vnum, x, y, z, name, description, zone, room_flag, "
         "sector, teletime, teletarg, telelook, river_speed, river_dir, "
         "capacity, height, spec) "
-        "values (%i, 0, 0, 0, '%s', '%s', NULL, 0, %i, 0, 0, 0, 0, 0, 0, 0, 0) "
-        "on duplicate key update name='%s', description='%s', sector=%i",
-        r->vnum, r->base.name, r->description, r->sector,
-        r->base.name, r->description, r->sector);
+        "values (%i, 0, 0, 0, '%s', '%s', NULL, %i, %i, 0, 0, 0, 0, 0, 0, 0, 0) "
+        "on duplicate key update name='%s', description='%s', sector=%i, room_flag=%i",
+        r->vnum, r->base.name, r->description, r->room_flag, r->sector,
+        r->base.name, r->description, r->sector, r->room_flag);
 
     db_close(db);
     return ok;
