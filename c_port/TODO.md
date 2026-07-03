@@ -178,6 +178,11 @@ persistence. Sequenced by dependency:
       `<c>You say, "<z><message><z>"` (name/wrapper colored, message as
       typed).
 - [x] **Hide wizhelp from mortals** — done 2026-07-03 (min_level 51).
+- [ ] **Immortal room-info display** — all immortals see the room vnum and
+      sector type in look's room-name line, e.g. `[43] Imperia [sector 0]`
+      (format: `[room vnum] room name [other requested info]`, extensible
+      as more room fields become interesting). Mortals see the plain name.
+      Touch: cmd_look.c only (being_is_immortal on the viewer).
       listed at all (set its min_level to 51); general principle: players
       only ever see help for what they can use.
 
