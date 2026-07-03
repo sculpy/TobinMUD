@@ -56,6 +56,15 @@ typedef struct descriptor {
      * DB-persisted (revisit once there's an account-settings concept). */
     bool color_enabled;
 
+    /* Set by descriptor_send() whenever output goes to this connection;
+     * the game loop turns it into exactly one fresh "> " prompt per
+     * iteration for playing, non-editing connections -- so asynchronous
+     * output (says, combat rounds, arrivals, broadcasts) always leaves
+     * the player with a prompt (Session 21, user requirement). Command
+     * replies no longer append their own prompt; this is the single
+     * prompt authority. */
+    bool needs_prompt;
+
     /* CONN_ACCOUNT_MENU scratch: character list cached for this visit to
      * the menu, refreshed every time the menu is (re-)shown. */
     char char_list[MAX_CHARS_PER_ACCOUNT][PLAYER_NAME_LEN];

@@ -130,6 +130,18 @@ int game_loop_run(int port, const char *copyover_file) {
 
         pulse_count++;
         pulse_scheduler_run(pulse_count);
+
+        /* The single prompt authority (Session 21): any playing,
+         * non-editing connection that received output this iteration --
+         * from its own command, someone's say, a combat round, a
+         * broadcast -- gets exactly one fresh prompt. Written directly
+         * via socket_write so it doesn't re-mark needs_prompt. */
+        for (descriptor_t *p = g_descriptors; p; p = p->next) {
+            if (p->needs_prompt && p->state == CONN_PLAYING && p->edit_kind == EDIT_NONE) {
+                socket_write(p->fd, "\r\n> ", 4);
+                p->needs_prompt = false;
+            }
+        }
     }
 
     log_info("Shutting down.");

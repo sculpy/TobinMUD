@@ -109,7 +109,9 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     };
     char taunt[224];
     int t = rand() % (int)(sizeof(DEATH_TAUNTS) / sizeof(DEATH_TAUNTS[0]));
-    int n = snprintf(taunt, sizeof(taunt), "\r\n");
+    /* [INFO] channel prefix (user requirement) -- cyan when color is on,
+     * stripped to plain "[INFO]" when off. */
+    int n = snprintf(taunt, sizeof(taunt), "\r\n<c>[INFO]<z> ");
     n += snprintf(taunt + n, sizeof(taunt) - (size_t)n, DEATH_TAUNTS[t],
                   loser->base.name, winner->base.name);
     snprintf(taunt + n, sizeof(taunt) - (size_t)n, "\r\n");

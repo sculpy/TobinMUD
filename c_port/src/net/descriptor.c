@@ -99,8 +99,7 @@ descriptor_t *descriptor_copyover_adopt(int fd, long account_id, int room_vnum,
 
     d->state = CONN_PLAYING;
     descriptor_send(d, "\r\nThe world reforms around you -- copyover complete!\r\n");
-    cmd_dispatch(d, "look");
-    descriptor_send(d, "\r\n> ");
+    cmd_dispatch(d, "look"); /* prompt comes from the game loop's prompter */
     log_info("Copyover: restored %s (fd %d).", b->base.name, fd);
     return d;
 }
@@ -131,11 +130,25 @@ void descriptor_destroy(descriptor_t *d) {
         /* A vanishing player shouldn't just silently blink out of the
          * room (user requirement) -- this is the link-drop path; a
          * deliberate quit! announces separately in cmd_quit.c. */
+        char msg[160];
         if (d->character->base.roomp) {
-            char msg[128];
             snprintf(msg, sizeof(msg), "%s has lost their link.\r\n",
                      d->character->base.name);
             descriptor_room_echo(d->character->base.roomp, d->character, msg);
+        }
+        /* Link-drops are logged, and the log line is repeated to every
+         * immortal online -- except those mid-editor, whose screen must
+         * not be corrupted (user requirement, Session 21; same idea as
+         * the original's vlogf-to-imms). */
+        log_info("%s has lost their link.", d->character->base.name);
+        snprintf(msg, sizeof(msg), "[LOG] %s has lost their link.\r\n",
+                 d->character->base.name);
+        for (descriptor_t *it = g_descriptors; it; it = it->next) {
+            if (it == d || it->state != CONN_PLAYING || !it->character)
+                continue;
+            if (!being_is_immortal(it->character) || it->edit_kind != EDIT_NONE)
+                continue;
+            descriptor_send(it, msg);
         }
         being_destroy(d->character);
     }
@@ -182,6 +195,7 @@ void descriptor_send(descriptor_t *d, const char *msg) {
     socket_write(d->fd, normalized, out);
     free(normalized);
     free(colored);
+    d->needs_prompt = true; /* the game loop's prompter picks this up */
 }
 
 static bool is_password_state(conn_state_t s) {
@@ -404,8 +418,7 @@ static void enter_world(descriptor_t *d, being_t *b) {
     descriptor_send(d, welcome);
 
     d->state = CONN_PLAYING;
-    cmd_dispatch(d, "look");
-    descriptor_send(d, "\r\n> ");
+    cmd_dispatch(d, "look"); /* prompt comes from the game loop's prompter */
 }
 
 static bool handle_line(descriptor_t *d, const char *line) {
@@ -667,12 +680,11 @@ static bool handle_line(descriptor_t *d, const char *line) {
                         }
                     }
                     d->edit_kind = EDIT_NONE;
-                    descriptor_send(d, "\r\n> ");
-                    return true;
+                    return true; /* loop prompter takes over again */
                 }
                 if (strcmp(line, "~") == 0) {
                     d->edit_kind = EDIT_NONE;
-                    descriptor_send(d, "Edit aborted -- nothing changed.\r\n\r\n> ");
+                    descriptor_send(d, "Edit aborted -- nothing changed.\r\n");
                     return true;
                 }
                 size_t add = strlen(line);
@@ -688,14 +700,12 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 return true;
             }
 
-            bool keep_going = cmd_dispatch(d, line);
-            /* `quit!` transitions away from CONN_PLAYING (to the account
-             * menu, which sends its own trailing prompt) -- only add ours
-             * if the command left us still playing, to avoid a double
-             * prompt. */
-            if (keep_going && d->state == CONN_PLAYING)
-                descriptor_send(d, "\r\n> ");
-            return keep_going;
+            /* No explicit prompt here anymore (Session 21): the game
+             * loop's prompter sends one "> " per iteration to any playing,
+             * non-editing connection that received output -- covering both
+             * command replies and asynchronous output (says, combat
+             * rounds, broadcasts) uniformly. */
+            return cmd_dispatch(d, line);
         }
 
         case CONN_CLOSED:

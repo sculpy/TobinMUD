@@ -42,8 +42,14 @@ static bool do_move(descriptor_t *d, int dir) {
         return true;
     }
 
+    /* "exits to the north" for compass directions (user-specified
+     * phrasing), "exits upward/downward" where "to the up" won't parse. */
+    static const char *const EXIT_PHRASES[ROOM_NUM_EXITS] = {
+        "exits to the north", "exits to the east", "exits to the south",
+        "exits to the west", "exits upward", "exits downward",
+    };
     char msg[128];
-    snprintf(msg, sizeof(msg), "%s leaves %s.\r\n", ch->base.name, DIR_NAMES[dir]);
+    snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, EXIT_PHRASES[dir]);
     descriptor_room_echo(from, ch, msg);
 
     thing_set_room(&ch->base, to);

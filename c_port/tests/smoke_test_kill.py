@@ -125,6 +125,9 @@ check(proper(nameTarget) in outTarget, "the slain character still exists and is 
 outObs = recv_all(sObs, timeout=1.0)
 check(proper(nameTarget) in outObs and proper(nameImm) in outObs,
       "a bystander receives the global death taunt naming victim and killer")
+check("[INFO]" in outObs, "the death taunt arrives on the [INFO] channel")
+check(outObs.rstrip().endswith(">"),
+      "the unsolicited broadcast still leaves the bystander at a prompt")
 
 out = step(sImm, "immortal acts again IMMEDIATELY -- should NOT be blocked (no wait-state was ever applied)", "score")
 check("still recovering" not in out, "instakill never applied a wait-state to the immortal")
