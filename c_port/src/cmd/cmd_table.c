@@ -32,8 +32,10 @@ static const cmd_entry_t COMMANDS[] = {
     { "goto",    cmd_goto,    "Teleport to a room by vnum.",                        IMMORTAL_LEVEL_MIN },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             IMMORTAL_LEVEL_MIN },
     /* NOTE: must stay after "help" in this table -- "h"/"he"/"hel" should
-     * abbreviate to help (first match wins), "hed"+ reaches hedit. */
+     * abbreviate to help (first match wins), "hed"+ reaches hedit. Same
+     * deal for copyover after color: "c"/"co" reach color, "cop"+ this. */
     { "hedit",   cmd_hedit,   "Edit a help topic in the line editor.",              HELP_EDIT_MIN_LEVEL },
+    { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected.", COPYOVER_MIN_LEVEL },
 };
 #define NUM_COMMANDS (sizeof(COMMANDS) / sizeof(COMMANDS[0]))
 

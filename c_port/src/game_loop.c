@@ -2,8 +2,10 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdio.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include "descriptor.h"
 #include "log.h"
@@ -17,21 +19,73 @@
 #define OPT_USEC 100000
 
 static volatile sig_atomic_t g_shutdown = 0;
+static int g_listen_fd = -1;
+
+int game_loop_listen_fd(void) {
+    return g_listen_fd;
+}
 
 static void handle_sigint(int sig) {
     (void)sig;
     g_shutdown = 1;
 }
 
-int game_loop_run(int port) {
+/* Adopts the listening socket and every player connection recorded in the
+ * copyover recovery file (see cmd_copyover.c for the writer and the file
+ * format). Returns false if the file can't be read/parsed -- the caller
+ * then opens a fresh listening socket as if this were a cold boot. */
+static bool copyover_recover(const char *file, main_socket_t *ms) {
+    FILE *f = fopen(file, "r");
+    if (!f) {
+        log_error("copyover: cannot open recovery file '%s'", file);
+        return false;
+    }
+
+    char line[512];
+    if (!fgets(line, sizeof(line), f)
+        || sscanf(line, "listen %d", &ms->listen_fd) != 1
+        || ms->listen_fd < 0) {
+        log_error("copyover: bad recovery file header");
+        fclose(f);
+        return false;
+    }
+
+    int restored = 0, dropped = 0;
+    while (fgets(line, sizeof(line), f)) {
+        int fd, room_vnum, color;
+        long account_id;
+        char char_name[64], account_name[80];
+        if (sscanf(line, "conn %d %ld %d %d %63s %79[^\r\n]",
+                   &fd, &account_id, &room_vnum, &color, char_name, account_name) != 6)
+            continue;
+        if (descriptor_copyover_adopt(fd, account_id, room_vnum, color != 0,
+                                      char_name, account_name))
+            restored++;
+        else
+            dropped++;
+    }
+    fclose(f);
+    unlink(file);
+    log_info("Copyover recovery: %d connection(s) restored, %d dropped.", restored, dropped);
+    return true;
+}
+
+int game_loop_run(int port, const char *copyover_file) {
     main_socket_t ms;
-    if (!main_socket_open(&ms, port))
+    ms.listen_fd = -1;
+
+    bool recovered = copyover_file && copyover_recover(copyover_file, &ms);
+    if (!recovered && !main_socket_open(&ms, port))
         return 1;
+    g_listen_fd = ms.listen_fd;
 
     signal(SIGINT, handle_sigint);
     signal(SIGPIPE, SIG_IGN);
 
-    log_info("Listening on port %d. Press Ctrl+C to stop.", port);
+    if (recovered)
+        log_info("Copyover complete -- still listening on port %d.", port);
+    else
+        log_info("Listening on port %d. Press Ctrl+C to stop.", port);
 
     long pulse_count = 0;
 

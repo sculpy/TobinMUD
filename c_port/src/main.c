@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "combat.h"
@@ -10,7 +11,14 @@
 #include "regen.h"
 #include "wait_tick.h"
 
-int main(void) {
+int main(int argc, char **argv) {
+    /* --copyover <file>: we are the exec()'d successor of a `copyover`
+     * command (cmd_copyover.c) -- adopt the recovery file's sockets
+     * instead of opening fresh ones. */
+    const char *copyover_file = NULL;
+    if (argc >= 3 && strcmp(argv[1], "--copyover") == 0)
+        copyover_file = argv[2];
+
     const config_t *cfg = config_get();
 
     srand((unsigned int)time(NULL));
@@ -33,7 +41,7 @@ int main(void) {
     pulse_register(COMBAT_ROUND_PULSES, combat_process_run);
     pulse_register(REGEN_PULSES, regen_tick_run);
 
-    int rc = game_loop_run(cfg->telnet_port);
+    int rc = game_loop_run(cfg->telnet_port, copyover_file);
 
     db_shutdown();
     return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;

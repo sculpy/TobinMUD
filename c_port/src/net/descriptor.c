@@ -46,6 +46,65 @@ descriptor_t *descriptor_create(int fd) {
     return d;
 }
 
+descriptor_t *descriptor_copyover_adopt(int fd, long account_id, int room_vnum,
+                                        bool color_enabled, const char *char_name,
+                                        const char *account_name) {
+    account_t acct;
+    if (!account_load(account_name, &acct) || acct.account_id != account_id) {
+        log_error("copyover: account '%s' (#%ld) not restorable", account_name, account_id);
+        close(fd);
+        return NULL;
+    }
+
+    being_t *b = player_load(char_name, account_id);
+    if (!b) {
+        log_error("copyover: character '%s' not restorable", char_name);
+        close(fd);
+        return NULL;
+    }
+
+    descriptor_t *d = calloc(1, sizeof(*d));
+    if (!d) {
+        being_destroy(b);
+        close(fd);
+        return NULL;
+    }
+    d->fd = fd;
+    d->color_enabled = color_enabled;
+    d->account = acct;
+    d->character = b;
+    b->desc = d;
+    d->next = g_descriptors;
+    g_descriptors = d;
+
+    /* Put them back where they were standing (not their load_room -- an
+     * immortal mid-goto shouldn't snap home), with the usual lazy room
+     * load and a fallback to room 1. */
+    room_t *r = world_get_room(room_vnum);
+    if (!r) {
+        r = room_repo_load(room_vnum);
+        if (r)
+            world_register_room(r);
+    }
+    if (!r) {
+        r = world_get_room(1);
+        if (!r) {
+            r = room_repo_load(1);
+            if (r)
+                world_register_room(r);
+        }
+    }
+    if (r)
+        thing_set_room(&b->base, r);
+
+    d->state = CONN_PLAYING;
+    descriptor_send(d, "\r\nThe world reforms around you -- copyover complete!\r\n");
+    cmd_dispatch(d, "look");
+    descriptor_send(d, "\r\n> ");
+    log_info("Copyover: restored %s (fd %d).", b->base.name, fd);
+    return d;
+}
+
 void descriptor_destroy(descriptor_t *d) {
     if (!d)
         return;

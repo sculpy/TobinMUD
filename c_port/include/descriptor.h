@@ -86,6 +86,17 @@ extern descriptor_t *g_descriptors;
 
 descriptor_t *descriptor_create(int fd);
 
+/* Rebuilds a playing descriptor around an fd inherited across a copyover
+ * exec() (see cmd_copyover.c / game_loop.c): reloads the account and
+ * character from the DB, places the character back in room_vnum, and
+ * resumes CONN_PLAYING with a "copyover complete" message. No telnet
+ * re-negotiation -- the client negotiated on its original connect and the
+ * socket never closed. Returns NULL (and closes fd) if the account or
+ * character can't be reloaded. */
+descriptor_t *descriptor_copyover_adopt(int fd, long account_id, int room_vnum,
+                                        bool color_enabled, const char *char_name,
+                                        const char *account_name);
+
 /* Unlinks from g_descriptors, closes the socket, frees the character (if
  * any) and the descriptor itself. */
 void descriptor_destroy(descriptor_t *d);

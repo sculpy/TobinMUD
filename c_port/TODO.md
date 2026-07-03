@@ -26,6 +26,10 @@ here and log details there.
       (replaces the scp'd copy).
 - [ ] Consider a systemd unit (or at least a start script) for `tobin_c` on
       the VM so it survives reboots without manual relaunch.
+- [x] **`copyover` hot reboot (user idea, 2026-07-03)** — in-game
+      Administrator+ (59) command reboots the server binary in place with
+      zero disconnects (fd inheritance across exec). Deploys are now:
+      rebuild, then `copyover` in-game — no more cold restarts.
 
 ## The long-standing one
 

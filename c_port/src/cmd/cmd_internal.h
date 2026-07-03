@@ -24,10 +24,15 @@ bool cmd_wizhelp(descriptor_t *d, const char *args);
 bool cmd_goto(descriptor_t *d, const char *args);
 bool cmd_promote(descriptor_t *d, const char *args);
 bool cmd_hedit(descriptor_t *d, const char *args);
+bool cmd_copyover(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */
 #define HELP_EDIT_MIN_LEVEL 56
+
+/* `copyover` reboots the server binary in place -- the most consequential
+ * command there is, so it's gated at Administrator (59) and up. */
+#define COPYOVER_MIN_LEVEL 59
 
 /* One row of cmd_table.c's dispatch table -- shared with cmd_help.c so
  * `help`/`wizhelp` can enumerate it without duplicating the list.
