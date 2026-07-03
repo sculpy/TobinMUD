@@ -107,6 +107,17 @@ persistence. Sequenced by dependency:
 
 ### Gameplay roadmap (user-specified, 2026-07-03)
 
+- [ ] **Log filename format change** — rename from
+      `<YYYY-MM-DD_HH-MM-SS>.game.log` to
+      `<2-digit day><2-digit month><2-digit year>.<hour12><minute><AM/PM>.log`
+      (user spec 2026-07-03), e.g. `030726.0945AM.log`
+      (strftime `%d%m%y.%I%M%p.log`). Ripple: log.c's name builder, `log
+      list`'s ".game.log" filter (becomes ".log" — careful not to match
+      tobin_c.log if it ever lands in logs/), smoke_test_logs.py's glob,
+      and the .gitignore already covers it via logs/. Two rotations within
+      the same minute now reopen the same file (append) — same benign
+      behavior as today's same-second case, just a wider window.
+
 - [ ] **Ten directions** — add Southeast, Southwest, Northeast, Northwest to
       the existing N/S/E/W/Up/Down (total 10). Abbreviations: n, s, e, w,
       u, d, se, sw, ne, nw ("ne" doesn't prefix-collide with "north", so
