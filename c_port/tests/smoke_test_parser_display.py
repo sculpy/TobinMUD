@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""Smoke test for three related fixes:
+  1. Abbreviation-based command parsing (e.g. "sc" reaches "score", "l"
+     reaches "look") -- but "quit" is deliberately excluded, only the
+     exact literal "quit!" works (covered more thoroughly in the other
+     smoke_test_quit*.py files; this file just spot-checks that "qu"
+     does NOT reach quit).
+  2. A trailing "> " prompt shown after every command while playing.
+  3. CRLF normalization: room descriptions (DB-sourced, Unix line endings
+     internally) must render with a real \\r\\n before every line, not a
+     bare \\n -- checked at the raw-byte level, not just substring matching.
+
+    python3 tests/smoke_test_parser_display.py [host] [port]
+"""
+import socket
+import sys
+import time
+
+host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
+port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
+_suffix = str(int(time.time()) % 100000)
+account_name = f"ParserTester{_suffix}"
+char_name = f"Parser{_suffix}"
+password = "parsertestpw123"
+
+
+def recv_all_bytes(sock, timeout=1.0):
+    sock.settimeout(timeout)
+    chunks = []
+    try:
+        while True:
+            data = sock.recv(4096)
+            if not data:
+                break
+            chunks.append(data)
+    except socket.timeout:
+        pass
+    return b"".join(chunks)
+
+
+def recv_all(sock, timeout=1.0):
+    return recv_all_bytes(sock, timeout).decode(errors="replace")
+
+
+def send_line(sock, line):
+    sock.sendall((line + "\r\n").encode())
+
+
+def step(sock, label, line):
+    send_line(sock, line)
+    out = recv_all(sock)
+    print(f"=== {label} ===")
+    print(out)
+    return out
+
+
+def check(condition, message):
+    if not condition:
+        raise AssertionError(message)
+    print(f">>> OK: {message}")
+
+
+s = socket.create_connection((host, port), timeout=5)
+recv_all(s)
+step(s, "account name", account_name)
+step(s, "password -> menu", password)
+step(s, "new", "new")
+step(s, "char name -> attr screen", char_name)
+out = step(s, "done -> playing (auto look)", "done")
+check(out.rstrip().endswith(">"), "auto-look after character creation ends with a prompt")
+
+# --- 1. Abbreviation matching ---
+out = step(s, "'l' should reach look", "l")
+check("Imperia" in out, "'l' abbreviates to look")
+
+out = step(s, "'w' should reach who", "w")
+check("Who's online" in out, "'w' abbreviates to who")
+
+out = step(s, "'sc' should reach score", "sc")
+check(char_name in out and "Strength" in out, "'sc' abbreviates to score")
+
+out = step(s, "'sco' should also reach score", "sco")
+check("Strength" in out, "'sco' (longer prefix) also abbreviates to score")
+
+out = step(s, "'qu' must NOT reach quit", "qu")
+check("Huh?!" in out, "'qu' does not abbreviate to quit -- quit is excluded from the parser")
+
+# --- 2. Trailing prompt after every command ---
+out = step(s, "look shows a trailing prompt", "look")
+check(out.rstrip().endswith(">"), "look's output ends with a prompt")
+
+out = step(s, "who shows a trailing prompt", "who")
+check(out.rstrip().endswith(">"), "who's output ends with a prompt")
+
+out = step(s, "score shows a trailing prompt", "score")
+check(out.rstrip().endswith(">"), "score's output ends with a prompt")
+
+out = step(s, "even an unknown command shows a trailing prompt", "gibberish")
+check(out.rstrip().endswith(">"), "unknown-command output ends with a prompt too")
+
+# --- 3. CRLF normalization, checked at the raw-byte level ---
+send_line(s, "look")
+raw = recv_all_bytes(s)
+print(f"=== look (raw bytes) ===\n{raw!r}")
+# Every '\n' must be immediately preceded by '\r' -- no bare LFs anywhere,
+# including inside the room description text itself (which is DB-sourced
+# with Unix line endings baked in).
+bare_lf_positions = [i for i in range(len(raw)) if raw[i:i+1] == b"\n" and raw[i-1:i] != b"\r"]
+check(bare_lf_positions == [], f"no bare LF (missing \\r) anywhere in the room output, found at {bare_lf_positions}")
+check(b"\r\n" in raw, "sanity check: the output does contain proper CRLF sequences")
+
+s.close()
+print("=== ALL CHECKS PASSED ===")

@@ -1,0 +1,16 @@
+# Build output
+c_port/build/
+code/sneezy
+
+# Runtime artifacts
+*.log
+nohup.out
+__pycache__/
+*.pyc
+
+# Packaging artifacts
+tobin_takehome.zip
+
+# Claude Code local state
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

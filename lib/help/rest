@@ -1,0 +1,21 @@
+Syntax: rest {object}
+
+Rest causes you to stretch yourself out as if you were sleeping but
+remain conscious.  While resting, you will receive the benefit of an
+increased regeneration rate for the duration of the period that you
+are resting.
+
+Various objects can be rested on.  These objects will increase your
+regeneration even further as they provide a comfortable place to rest.
+Obviously, the object must be big enough to rest on, as you can't stretch
+out and get comfortable on just anything.  Also, objects designed for
+small creatures may prove to be a bit too uncomfortable to provide any
+benefit.
+
+To stop resting, merely stand up or change to some other position.
+
+For details on how recovery works, what bonuses can apply while resting,
+and how the various classes are affected, see HELP RECOVERY.
+
+See Also: RECOVERY, SLEEP, SIT, STAND, CRAWL, ENCAMP
+Related Topics: MOVEMENT

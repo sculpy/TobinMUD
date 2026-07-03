@@ -1,0 +1,388 @@
+#36350
+Vasco - Gnomish Wonders - Ladybird Den~
+36426 30 2 1
+
+* there are a million doors in this zone
+D 0 36356 1 2        Tunnel Through Molten Lava -> Brick-walled Antechamber
+D 0 36357 3 2        Brick-walled Antechamber -> Tunnel Through Molten Lava
+D 0 36358 1 2        A Cavernous Underground Room -> A Musty Underground Prison
+D 0 36358 2 2        A Cavernous Underground Room -> A Foul-smelling Treasure Room
+D 0 36359 0 2        A Foul-smelling Treasure Room -> A Cavernous Underground Room
+D 0 36360 1 2        A Musty Underground Prison -> A Prison Cell
+D 0 36360 3 2        A Musty Underground Prison -> A Cavernous Underground Room
+D 0 36361 3 2        A Prison Cell -> A Musty Underground Prison
+D 0 36362 0 2        Quiet Marble Hall -> Before a Set of Large Wooden Doors
+D 0 36372 5 1        A Narrow Descending Tunnel -> A Slow, Wide Underground River
+D 0 36374 5 1        The Top of a Colossal Tower -> Top of a Long Spiral Staircase
+D 0 36376 0 1        A Well Beneath a Gigantic Underground Waterfall -> Fire-filled Walkway
+D 0 36377 4 1        A Slow, Wide Underground River -> A Narrow Descending Tunnel
+D 0 36388 2 1        Long, Steep Spiral Stairs -> Tiny Maintenance Closet
+D 0 36389 0 1        Tiny Maintenance Closet -> Long, Steep Spiral Stairs
+D 0 36396 2 1        The Bottom of a Large Pit -> Fire-filled Walkway
+D 0 36397 0 1        Fire-filled Walkway -> The Bottom of a Large Pit
+D 0 36398 5 1        Fire-filled Walkway -> Tunnel Through Molten Lava
+D 0 36399 2 1        Fire-filled Walkway -> A Well Beneath a Gigantic Underground Waterfall
+D 0 36400 4 1        Tunnel Through Molten Lava -> Fire-filled Walkway
+D 0 36401 0 1        Royal Antechamber -> Throne Room
+D 0 36402 2 1        Throne Room -> Royal Antechamber
+D 0 36402 4 1        Throne Room -> Long Spiral Staircase
+D 0 36403 5 1        Long Spiral Staircase -> Throne Room
+D 0 36407 4 1        Top of a Long Spiral Staircase -> The Top of a Colossal Tower
+D 0 36408 2 2        Before a Set of Large Wooden Doors -> Quiet Marble Hall
+D 0 36418 1 1        Path Between a Large Tower and a Mountain -> Before A Hole In A Large Log
+
+*local set - Ladybirds
+X 1  1    36409           	a small band of black down [finger-left]
+X 1  2    36409           	a small band of black down [finger-left]
+X 1  3    36404           	a leather choker covered in black down [neck]
+X 1  4    36400            a dull chainmail vest lined with dark green felt [body]
+X 1  5    36403           	a skullcap of dark green leather [head]
+X 1  6   36408           	a pair of quilted dark green leather pants [leg-right]
+X 1  10  36405          	a fingerless glove of dark green calfskin
+X 1  11  36405          	a fingerless glove of dark green calfskin [hand-left]
+X 1  12  36402          	a dark green armband of crocheted hemp
+X 1  13  36402          	a dark green armband of crocheted hemp [arm-left]
+X 1  14  36401          	a houndstooth overcoat with short sleeves [back]
+X 1  15  36406          	a wide belt of dark green leather [waist]
+X 1  16  36407          	a bracer of grey and brown
+X 1  17  36407          	a bracer of grey and brown felt [wrist-left]
+X 1  18  36352		egg shell
+X 1  19  36427          	a short black dirk [hold-left]
+
+*local set - Pantherskin
+X 2  1 	  36423          a ring made from a small strip of panther skin
+X 2  2 	  36423          a ring made from a small strip of panther skin [finger-left]
+X 2  3 	  36421          a necklet of panther skin [neck]
+X 2  4 	  36414          a vest of panther skin [body]
+X 2  5    36422          a tight-fitting hood of panther skin [head]
+X 2  6 	  36417          a panther skin legging
+X 2  7 	  36417          a panther skin legging [leg-left]
+X 2  8 	  36416          a small boot of panther skin
+X 2  9 	  36416          a small boot of panther skin [foot-left]
+X 2  10  36419          a fingerless glove of panther skin
+X 2  11  36419          a fingerless glove of panther skin [hand-left]
+X 2  12  36410          a sleeve of panther skin
+X 2  13  36410          a sleeve of panther skin [arm-left]
+X 2  14  36415          a cape of panther skin [back]
+X 2  15  36420          a sash of panther skin [waist]
+X 2  17  36418          a bracer of panther skin [wrist-left]
+X 2  18  36424          a flask of panther blood [hold-right]
+X 2  19	  36427          a short black dirk [hold-left]
+
+* local set - Fine Gnomemail
+X 3 3    36361          a throatguard of fine gnomemail plate [neck]
+X 3 4    36360          a breastplate of fine gnomemail plate [body]
+X 3 5    36362          a fine gnomemail helm [head]
+X 3 6    36355          a greave of fine gnomemail plate
+X 3 7    36355          a greave of fine gnomemail plate [leg-left]
+X 3 8    36354          a boot of fine gnomemail plate
+X 3 9    36354          a boot of fine gnomemail plate [foot-left]
+X 3 10  36356          a gauntlet of fine gnomemail plate
+X 3 11  36356          a gauntlet of fine gnomemail plate [hand-left]
+X 3 12  36357          an armlet of fine gnomemail plate
+X 3 13  36357          an armlet of fine gnomemail plate [arm-left]
+X 3 14  36359          a red cape of the Royal Gnome Cadre [back]
+X 3 15  36358          a girth of fine gnomemail plate [waist]
+X 3 16  36353          a bracer of fine gnomemail plate
+X 3 17  36353          a bracer of fine gnomemail plate [wrist-left]
+X 3 18  36363          a shield of the Royal Gnome Cadre [hold-right]
+X 3 19  36350          a short scimitar with a thick blade [hold-left]
+
+*red-phoenix
+X 4 1 44807 ring feathers bright red phoenix (L24) [inferno]
+X 4 2 44807 ring feathers bright red phoenix (L24) [inferno]
+X 4 3 44814 pendant phoenix egg golden chain (L27)
+X 4 4 44813 robe bright red phoenix feathers [gnome] (L40)
+X 4 5 44815 cowl red phoenix down [gnome] (L40)
+X 4 6 44808 legging red phoenix down [gnome] (L10)
+X 4 7 44808 legging red phoenix down [gnome] (L10)
+X 4 8 44804 boot red phoenix down [gnome] (L40)
+X 4 9 44804 boot red phoenix down [gnome] (L40)
+X 4 10 44811 glove red phoenix down [gnome] (L40)
+X 4 11 44811 glove red phoenix down [gnome] (L40)
+X 4 12 44812 sleeve red phoenix down [gnome] (L40)
+X 4 13 44812 sleeve red phoenix down [gnome] (L40)
+X 4 14 44805 cloak swirling red [gnome] (L40)
+X 4 15 44810 belt bright red phoenix feathers [gnome] (L40)
+X 4 16 44809 bracelet bright red phoenix feathers [gnome]
+X 4 17 44809 bracelet bright red phoenix feathers [gnome]
+X 4 18 44806 egg phoenix glowing red (L10)
+X 4 19 44816 dagger living flames (L47)
+
+*translucent-green
+X 5 1 35447		ring
+X 5 2 35447
+X 5 3 35448		torc
+X 5 4 35449		gambeson
+X 5 5 35459 		hood
+X 5 6 35458		legging
+X 5 7 35458
+X 5 10	35452		glove
+X 5 11 35452
+X 5 12	35453		armband
+X 5 13 35453
+X 5 14	35454		cape
+X 5 15 35455		belt
+X 5 16 35456		bracer
+X 5 17	35456
+
+* props and portals
+O 0 36378 1 36369       a glowing portal
+O 0 36379 1 36402       a huge throne
+O 0 36377 1 36406       a glowing portal
+
+* mobs without eq loads
+M 0 36353 1 36350       an ominous-looking jellyfish
+M 0 36352 2 36350       a huge red fish with a gigantic mouth
+M 0 36352 1 36352       a huge red fish with a gigantic mouth
+M 0 36353 1 36355       an ominous-looking jellyfish
+M 0 36352 2 36355       a huge red fish with a gigantic mouth
+M 0 36355 1 36358       Vermithrax
+M 0 36359 1 36361       Princess Clementine
+M 0 36351 1 36366       a flying fish
+M 0 36351 2 36377       a flying fish
+M 0 36353 4 36377       an ominous-looking jellyfish
+M 0 36351 2 36377       a flying fish
+M 0 36353 8 36377       an ominous-looking jellyfish
+
+M 0 36350 1 36381       a mushroom warrior
+M 0 36350 1 36382       a mushroom warrior
+
+* mobs with eq loads
+M 0 36366 1 36406       Gnefrod, the royal gnome mage
+Z 0 4 5
+M 0 36354 2 36359       a member of The Green Ladybirds
+Z 0 1 5
+*? 0 99 0 I
+I 1 36427 9999 19	      prop dirk
+M 0 36354 4 36359       a member of The Green Ladybirds
+Z 0 1 5
+*? 0 99 0 I
+I 1 36427 9999 19	      prop dirk
+M 0 36356 1 36360       Tarfox, Captain of the Green Ladybirds
+Z 0 1 5
+? 0 3 0 E
+E 1 34036 9999 19         a vampiric dagger [hold-left]
+*? 0 99 0 I
+I 1 36427 9999          19	prop dirk
+M 0 36367 1 36362       a soldier of the Elite Gnome Cadre
+Z 0 3 5
+
+M 0 36367 1 36363       a soldier of the Elite Gnome Cadre
+Z 0 3 5
+
+M 0 36367 1 36364       a soldier of the Elite Gnome Cadre
+Z 0 3 5
+
+M 0 36367 1 36365       a soldier of the Elite Gnome Cadre
+Z 0 3 5
+
+M 0 36369 1 36368       the ghost of an Elite Gnome Cadre soldier
+Z 0 3 5
+
+M 0 36354 1 36369       a member of The Green Ladybirds
+I 1 36427 9999 19	        prop dirk
+Z 0 1 5
+
+M 0 36354 2 36370       a member of The Green Ladybirds
+I 1 36427 9999 19	        prop dirk
+Z 0 1 5
+
+M 0 36354 4 36370       a member of The Green Ladybirds
+I 1 36427 9999 19	        prop dirk
+Z 0 1 5
+
+M 0 36354 1 36371       a member of The Green Ladybirds
+I 1 36427 9999 19	        prop dirk
+Z 0 1 5
+
+M 0 36369 1 36375       the ghost of an Elite Gnome Cadre soldier
+Z 0 3 5
+
+M 0 36370 1 36376       the ghost of Gnario, captain of the Elite Gnome Cadre
+? 0 5 0 E
+E 1 36383 9999 19        vermilion longsword [hold-left]
+Z 0 5 5		translucent
+Z 0 3 5		gnomemail
+
+M 0 36369 1 36378       the ghost of an Elite Gnome Cadre soldier
+Z 0 3 5
+
+
+M 0 36361 1 36380       a hunched gnome shaman
+E 1 36413 9999 18         a holy spear ornamented with feathers [hold-right]
+Z 0 2 5
+
+M 0 36361 2 36381       a hunched gnome shaman
+E 1 36413 9999 18         a holy spear ornamented with feathers [hold-right]
+Z 0 2 5
+
+M 0 36362 2 36382       an entranced shaman
+? 0 5 0 E
+E 1 36424 9999 18         a flask of panther blood [hold-right]
+Z 0 2 5
+
+M 0 36363 2 36383       a wild-eyed shaman
+? 0 5 0 E
+E 1 36424 9999 18         a flask of panther blood [hold-right]
+Z 0 2 5
+
+M 0 36363 4 36383       a wild-eyed shaman
+? 0 5 0 E
+E 1 36424 9999 18         a flask of panther blood [hold-right]
+Z 0 2 5
+
+M 0 36363 1 36384       a wild-eyed shaman
+? 0 5 0 E
+E 1 36424 9999 18         a flask of panther blood [hold-right]
+Z 0 2 5
+
+M 0 36363 1 36385       a wild-eyed shaman
+? 0 5 0 E
+E 1 36424 9999 18         a flask of panther blood [hold-right]
+Z 0 2 5
+
+M 0 36367 1 36387       a soldier of the Elite Gnome Cadre
+Z 0 3 5
+
+M 0 36365 1 36391       a burly gnome savage
+? 0 5 0 E
+E 1 36413 9999 18         a holy spear ornamented with feathers [hold-right]
+Z 0 2 5
+
+M 0 36365 1 36393       a burly gnome savage
+? 0 3 0 E
+E 1 36413 9999 18         a holy spear ornamented with feathers [hold-right]
+Z 0 2 5
+
+M 0 36365 1 36395       a burly gnome savage
+? 0 5 0 E
+E 1 36413 9999 18         a holy spear ornamented with feathers [hold-right]
+Z 0 2 5
+
+M 0 36365 1 36396       a burly gnome savage
+? 0 5 0 E
+E 1 36413 9999 18         a holy spear ornamented with feathers [hold-right]
+Z 0 2 5
+
+M 0 36354 2 36397       a member of The Green Ladybirds
+I 1 36427 9999 19	        prop dirk
+Z 0 1 5
+
+M 0 36354 4 36397       a member of The Green Ladybirds
+I 1 36427 9999 19	        prop dirk
+Z 0 1 5
+
+M 0 36358 1 36398       Mortis, second lieutenant of the Green Ladybirds
+? 0 3 0 E
+E 1 36411 9999 19         a short black mace [hold-left]
+Z 0 1 5
+
+M 0 36360 1 36399       Noefris, third lieutentant of the Green Ladybirds
+I 1 36427 9999 19	        prop dirk
+? 0 3 0 E
+E 1 36381 9999 19		      bone misericord
+Z 0 1 5
+
+M 0 36367 1 36401       a soldier of the Elite Gnome Cadre
+Z 0 3 5
+
+M 0 36367 1 36401       a soldier of the Elite Gnome Cadre
+Z 0 3 5
+
+M 0 36367 2 36402       a soldier of the Elite Gnome Cadre
+G 1 36428 1               a fine gnomish key
+Z 0 3 5
+
+M 0 36371 1 36402       a shaken soldier of the Elite Gnome Cadre
+Z 0 3 5
+
+M 0 36368 1 36402       King Gnumble
+I 1 36382 9999 19	        prop flail
+? 0 3 0 E
+E 1 36365 9999 5          a helm with a frog-faced visor [head]
+? 0 3 0 E
+E 1 36366 9999 3          a shiny magic whistle on a chain [neck]
+? 0 3 0 E
+E 1 36367 9999 4          a star-emblazoned breastplate [body]
+? 0 3 0 E
+E 1 36375 9999 14         a bright yellow cape [back]
+? 0 3 0 E
+E 1 36370 9999 13         an armlet covered in green fungus [arm-left]
+? 0 3 0 E
+E 1 36373 9999 17         a bracer covered with red fungus [wrist-left]
+? 0 3 0 E
+E 1 36371 9999 11         a white glove with some floral embroidery
+? 0 3 0 E
+E 1 36364 9999 2          a ring of regeneration [finger-left]
+? 0 3 0 E
+E 1 36369 9999 15         a powerful-looking raccoon tail [waist]
+? 0 3 0 E
+E 1 36374 9999 6          a pair of tanuki-skin trousers [leg-right]
+? 0 3 0 E
+E 1 36374 9999 7          a pair of tanuki-skin trousers [leg-left]
+? 0 3 0 E
+E 1 36372 9999 9          an oversized boot of green platemail [foot-left]
+? 0 3 0 E
+E 1 36368 9999 18         a spiked turtle shell [hold-right]
+? 0 3 0 E
+E 1 36382 9999 19         an ice-covered flail [hold-left]
+Z 0 3 5
+C 1 36367 2 36402       a soldier of the Elite Gnome Cadre
+Z 0 3 5
+
+M 0 36367 1 36408       a soldier of the Elite Gnome Cadre
+G 1 36428 1               a fine gnomish key
+Z 0 3 5
+
+M 0 34038 1 36418       Rothwar
+? 0 3 0 E
+E 1 34062 9999 5          a bizarre headband [head]
+? 0 3 0 E
+E 1 34061 9999 3          a bizarre necklace [neck]
+? 0 3 0 E
+E 1 34060 9999 4          a bizarre breastplate [body]
+? 0 3 0 E
+E 1 34051 9999 14         a bizarre backpiece [back]
+? 0 3 0 E
+E 1 34059 9999 13         a bizarre armband [arm-left]
+? 0 3 0 E
+E 1 34056 9999 17         a bizarre wristband [wrist-left]
+? 0 3 0 E
+E 1 34058 9999 11         a bizarre fistguard [hand-left]
+? 0 3 0 E
+E 1 34053 9999 2          a ring with a bizarre setting [finger-left]
+? 0 3 0 E
+E 1 34057 9999 15         a bizarre thong-belt [waist]
+? 0 3 0 E
+E 1 34055 9999 7          a bizarre legging [leg-left]
+? 0 3 0 E
+E 1 34054 9999 9          a bizarre ankle-wrap [foot-left]
+? 0 3 0 E
+E 1 34052 9999 18         a bizarre shield [hold-right]
+? 0 3 0 E
+E 1 34063 9999 19         a dull, wide saber [hold-left]
+
+M 0 36372 2 36421       an intense-looking shaman
+? 0 3 0 E
+E 1 36413 9999 18         a holy spear ornamented with feathers
+? 0 5 0 E
+E 1 36425 1 5          panther mask
+? 0 3 0 E
+E 1 36426 9999 10         panther paw glove
+? 0 3 0 E
+E 1 36426 9999 11         panther paw glove [hand-left]
+Z 0 2 5
+
+M 0 36372 4 36421       an intense-looking shaman
+? 0 5 0 E
+E 1 36413 9999 18         a holy spear ornamented with feathers
+? 0 3 0 E
+E 1 36426 9999 10         panther paw glove
+? 0 3 0 E
+E 1 36426 9999 11         panther paw glove [hand-left]
+? 0 5 0 E
+E 1 36425 1 5          panther mask
+Z 0 2 5
+
+S

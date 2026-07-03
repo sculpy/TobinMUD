@@ -1,0 +1,3 @@
+#! /bin/sh
+echo Seeking email address "$1"
+grep -il "$1" account/*/*/account

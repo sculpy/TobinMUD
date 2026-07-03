@@ -1,0 +1,52 @@
+#ifndef TOBIN_THING_H
+#define TOBIN_THING_H
+
+/* C replacement for misc/thing.h's TThing.  TThing is the abstract root of
+ * every game entity (rooms, beings, objects) with 199 virtual methods, the
+ * vast majority of which are never actually overridden by more than one or
+ * two kinds -- habitual `virtual`, not real polymorphism (confirmed by
+ * reading thing.h directly). We flatten this with:
+ *
+ *   - a `kind` tag enum (this already exists by hand in the original as
+ *     TThing::getKind() / TThingKind)
+ *   - "C-style inheritance": every concrete type embeds struct thing as its
+ *     literal first member, so a `being_t*`/`room_t*` is always safely
+ *     castable to `thing_t*` and back (same trick as GObject/CPython)
+ *
+ * Phase 1 only needs enough fields to support login + look + who, not the
+ * full field surface of the original TThing -- more gets added as later
+ * phases (obj/, combat, etc) land. See c_port/STATUS.md for what's next.
+ */
+
+typedef enum {
+    THING_ROOM,
+    THING_PC,
+    THING_MOB,
+    THING_COUNT
+} thing_kind_t;
+
+typedef struct thing {
+    thing_kind_t kind;
+    int id;                    /* room vnum / player id / mob vnum, per kind */
+    char name[64];
+    char short_descr[128];
+
+    struct thing *parent;      /* room/container I'm inside of */
+    struct thing *stuff_head;  /* intrusive list: things I contain */
+    struct thing *stuff_next;  /* intrusive list: next sibling in my parent's stuff */
+
+    struct room *roomp;        /* room I'm currently in (NULL for rooms themselves) */
+} thing_t;
+
+/* Adds `t` to `parent`'s contents list and sets t->parent. */
+void thing_move_to(thing_t *t, thing_t *parent);
+
+/* Removes `t` from whatever parent it's currently in, if any. */
+void thing_remove_from_parent(thing_t *t);
+
+/* Moves `t` into room `r`'s contents list and sets t->roomp. `r` must be a
+ * room_t*, passed as `struct room *` here to avoid a header dependency on
+ * room.h -- safe because room_t embeds thing_t as its first member. */
+void thing_set_room(thing_t *t, struct room *r);
+
+#endif
