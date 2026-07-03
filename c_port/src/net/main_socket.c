@@ -1,6 +1,8 @@
 #include "net.h"
 
+#include <arpa/inet.h>
 #include <netinet/in.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -48,13 +50,18 @@ void main_socket_close(main_socket_t *ms) {
     }
 }
 
-int main_socket_accept(main_socket_t *ms) {
+int main_socket_accept(main_socket_t *ms, char *ip, size_t ip_size) {
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
 
     int fd = accept(ms->listen_fd, (struct sockaddr *)&client_addr, &client_len);
     if (fd < 0)
         return -1;
+
+    if (ip && ip_size > 0) {
+        if (!inet_ntop(AF_INET, &client_addr.sin_addr, ip, (socklen_t)ip_size))
+            snprintf(ip, ip_size, "?");
+    }
 
     socket_set_nonblocking(fd);
     socket_set_keepalive(fd, true);

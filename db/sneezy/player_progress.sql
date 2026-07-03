@@ -19,6 +19,7 @@ CREATE TABLE `player_progress` (
   `experience` bigint(20) NOT NULL DEFAULT 0,
   `hp` int(11) NOT NULL DEFAULT 20,
   `max_hp` int(11) NOT NULL DEFAULT 20,
+  `true_level` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`player_id`),
   CONSTRAINT `fk_player_progress_player_id` FOREIGN KEY (`player_id`) REFERENCES `player` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

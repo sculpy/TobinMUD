@@ -69,9 +69,10 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
             player_progress_save(it->character->player_id, &it->character->progress);
 
             int room_vnum = it->character->base.roomp ? it->character->base.roomp->vnum : 1;
-            fprintf(f, "conn %d %ld %d %d %s %s\n",
+            fprintf(f, "conn %d %ld %d %d %s %s %s\n",
                     it->fd, it->account.account_id, room_vnum,
-                    it->color_enabled ? 1 : 0, it->character->base.name,
+                    it->color_enabled ? 1 : 0,
+                    it->ip[0] ? it->ip : "?", it->character->base.name,
                     it->account.name);
             descriptor_send(it, "\r\nTime stops for a moment as the world is reborn...\r\n");
         } else {

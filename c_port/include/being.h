@@ -59,6 +59,12 @@ typedef struct {
     long experience;
     int hp;
     int max_hp;
+    /* Mortal/immortal toggle (Session 21): while an immortal plays as a
+     * mortal, their real rank is parked here (0 = not suspended). Every
+     * level check in the game reads `level`, so mortality is total; only
+     * cmd_immort consults true_level -- the one deliberate exception to
+     * "commands above your level are invisible". */
+    int true_level;
 } progress_t;
 
 /* Per-limb hit points. A simplified stand-in for the original's real

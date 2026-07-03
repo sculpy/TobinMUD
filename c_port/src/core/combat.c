@@ -7,6 +7,7 @@
 #include <strings.h>
 
 #include "descriptor.h"
+#include "log.h"
 #include "player_repo.h"
 #include "room.h"
 #include "thing.h"
@@ -97,6 +98,12 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         tell(winner, "You have defeated %s!\r\n", loser->base.name);
         tell(loser, "You have been defeated by %s!\r\nYou are DEAD!\r\n", winner->base.name);
     }
+
+    /* Death goes to the log with the loser's IP (user requirement --
+     * immortal-visible only, via the log command's gate). */
+    log_info("%s has been %s by %s. [%s]", loser->base.name,
+             slain ? "slain" : "defeated", winner->base.name,
+             loser->desc ? loser->desc->ip : "?");
 
     /* A death is world news (user requirement): everyone playing -- not
      * just the room -- gets a teasing announcement. Winner and loser are

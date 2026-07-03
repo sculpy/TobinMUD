@@ -22,6 +22,8 @@ CREATE TABLE `player` (
   `guild_id` int(11) DEFAULT NULL,
   `guildrank` int(11) DEFAULT NULL,
   `load_room` int(11) DEFAULT NULL,
+  `handed` tinyint(4) NOT NULL DEFAULT 1,
+  `prompt_flags` int(11) NOT NULL DEFAULT 0,
   `last_logon` int(11) DEFAULT NULL,
   `nutrition` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),

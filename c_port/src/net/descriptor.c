@@ -59,7 +59,8 @@ descriptor_t *descriptor_create(int fd) {
 }
 
 descriptor_t *descriptor_copyover_adopt(int fd, long account_id, int room_vnum,
-                                        bool color_enabled, const char *char_name,
+                                        bool color_enabled, const char *peer_ip,
+                                        const char *char_name,
                                         const char *account_name) {
     account_t acct;
     if (!account_load(account_name, &acct) || acct.account_id != account_id) {
@@ -83,6 +84,7 @@ descriptor_t *descriptor_copyover_adopt(int fd, long account_id, int room_vnum,
     }
     d->fd = fd;
     d->color_enabled = color_enabled;
+    snprintf(d->ip, sizeof(d->ip), "%s", peer_ip ? peer_ip : "?");
     d->account = acct;
     d->character = b;
     b->desc = d;
@@ -152,9 +154,9 @@ void descriptor_destroy(descriptor_t *d) {
          * immortal online -- except those mid-editor, whose screen must
          * not be corrupted (user requirement, Session 21; same idea as
          * the original's vlogf-to-imms). */
-        log_info("%s has lost their link.", d->character->base.name);
-        snprintf(msg, sizeof(msg), "[LOG] %s has lost their link.\r\n",
-                 d->character->base.name);
+        log_info("%s has lost their link. [%s]", d->character->base.name, d->ip);
+        snprintf(msg, sizeof(msg), "[LOG] %s has lost their link. [%s]\r\n",
+                 d->character->base.name, d->ip);
         for (descriptor_t *it = g_descriptors; it; it = it->next) {
             if (it == d || it->state != CONN_PLAYING || !it->character)
                 continue;
@@ -429,6 +431,7 @@ static void enter_world(descriptor_t *d, being_t *b) {
     snprintf(welcome, sizeof(welcome), "Welcome, %s!\r\n", b->base.name);
     descriptor_send(d, welcome);
 
+    log_info("%s has entered the game. [%s]", b->base.name, d->ip);
     d->state = CONN_PLAYING;
     cmd_dispatch(d, "look"); /* prompt comes from the game loop's prompter */
 }

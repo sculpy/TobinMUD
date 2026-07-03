@@ -136,6 +136,12 @@ send_line(sImm, "log search zzzznosuchstringzzz")
 out = recv_all(sImm)
 check("0 matches" in out, "a search with no hits reports 0 matches")
 
+# IP logging (Session 21): connections and drops carry the peer address.
+send_line(sImm, "log search 127.0.0.1")
+out = recv_all(sImm)
+check("from 127.0.0.1" in out or "[127.0.0.1]" in out,
+      "log lines carry the peer IP (connect/drop entries)")
+
 # --- Part 4: rotate + list (rotate needs 59) ---
 set_level(nameImm, 59)
 sImm.close()

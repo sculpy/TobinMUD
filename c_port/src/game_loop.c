@@ -54,12 +54,13 @@ static bool copyover_recover(const char *file, main_socket_t *ms) {
     while (fgets(line, sizeof(line), f)) {
         int fd, room_vnum, color;
         long account_id;
-        char char_name[64], account_name[80];
-        if (sscanf(line, "conn %d %ld %d %d %63s %79[^\r\n]",
-                   &fd, &account_id, &room_vnum, &color, char_name, account_name) != 6)
+        char peer_ip[46], char_name[64], account_name[80];
+        if (sscanf(line, "conn %d %ld %d %d %45s %63s %79[^\r\n]",
+                   &fd, &account_id, &room_vnum, &color, peer_ip, char_name,
+                   account_name) != 7)
             continue;
         if (descriptor_copyover_adopt(fd, account_id, room_vnum, color != 0,
-                                      char_name, account_name))
+                                      peer_ip, char_name, account_name))
             restored++;
         else
             dropped++;
@@ -112,9 +113,12 @@ int game_loop_run(int port, const char *copyover_file) {
 
         if (FD_ISSET(ms.listen_fd, &readfds)) {
             int fd;
-            while ((fd = main_socket_accept(&ms)) >= 0) {
-                log_info("New connection (fd %d).", fd);
-                descriptor_create(fd);
+            char peer_ip[46];
+            while ((fd = main_socket_accept(&ms, peer_ip, sizeof(peer_ip))) >= 0) {
+                log_info("New connection (fd %d) from %s.", fd, peer_ip);
+                descriptor_t *nd = descriptor_create(fd);
+                if (nd)
+                    snprintf(nd->ip, sizeof(nd->ip), "%s", peer_ip);
             }
         }
 

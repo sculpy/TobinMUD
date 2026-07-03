@@ -198,17 +198,17 @@ persistence. Sequenced by dependency:
       primary hand hits harder, secondary hits weaker (combat modifier in
       combat_strike). New creation step + player-file column; pairs with
       the finger/hand limbs.
-- [ ] **IP logging** — capture the peer IP at accept() (getpeername),
+- [x] **IP logging** — done 2026-07-03: peer IP captured at accept(),
       carry it on the descriptor, and include it in the [INFO]/log lines
       for connect, disconnect/link-drop, AND player death. Immortal-only
       visibility (the log command's 54+ gate already covers the logs;
       any in-game display of IPs must check immortal too).
-- [ ] **Help alias resolution** — `help nw` shows the northeast/…
+- [x] **Help alias resolution** — done 2026-07-03: `help nw` shows the
       northwest topic; one topic per command with all aliases resolving
       to it (collapse the per-direction stub topics). Same for `help '`
       → the say topic. Mechanism: resolve the query through the command
       table's alias→handler mapping before the topic lookup.
-- [ ] **Mortal/immortal toggle** — an immortal can become mortal and
+- [x] **Mortal/immortal toggle** — done 2026-07-03: an immortal can become mortal and
       re-immort AT WILL (e.g. `mortal` / `immort` commands): play-testing
       as a real mortal (wait states apply, killable, no immortal commands
       or log/wizhelp visibility) without losing their rank. Design: keep

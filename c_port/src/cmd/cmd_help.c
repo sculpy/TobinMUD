@@ -32,6 +32,20 @@ bool cmd_help(descriptor_t *d, const char *args) {
             for (char *p = topic; *p; p++)
                 *p = (char)tolower((unsigned char)*p);
 
+            /* Alias resolution (user spec): the short forms land on the
+             * canonical topic -- one help file per command family. */
+            static const struct { const char *alias, *canon; } ALIASES[] = {
+                { "ne", "northeast" }, { "nw", "northwest" },
+                { "se", "southeast" }, { "sw", "southwest" },
+                { "'", "say" },
+            };
+            for (size_t a = 0; a < sizeof(ALIASES) / sizeof(ALIASES[0]); a++) {
+                if (strcmp(topic, ALIASES[a].alias) == 0) {
+                    snprintf(topic, sizeof(topic), "%s", ALIASES[a].canon);
+                    break;
+                }
+            }
+
             char resolved[HELP_TOPIC_NAME_LEN];
             char body[HELP_BODY_MAX];
             if (help_topic_find(topic, resolved, sizeof(resolved), body, sizeof(body))) {
@@ -75,6 +89,8 @@ bool cmd_help(descriptor_t *d, const char *args) {
     for (int lvl = level; lvl >= MORTAL_LEVEL_MIN; ) {
         int next_lvl = MORTAL_LEVEL_MIN - 1;
         for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
+            if (!cmds[i].help)
+                continue; /* NULL help = deliberately unlisted (aliases, immort) */
             if (cmds[i].min_level == lvl)
                 n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-10s %s\r\n",
                               cmds[i].name, cmds[i].help);

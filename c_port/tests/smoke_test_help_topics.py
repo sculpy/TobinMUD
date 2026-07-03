@@ -94,6 +94,14 @@ send_line(s, "help zzznotopic")
 out = recv_all(s)
 check("No help available" in out, "an unknown topic is rejected")
 
+# Alias resolution (Session 21): short forms land on the canonical topic.
+send_line(s, "help nw")
+out = recv_all(s)
+check("-- Help: northwest --" in out, "help nw resolves to the northwest topic")
+send_line(s, "help '")
+out = recv_all(s)
+check("-- Help: say --" in out, "help ' resolves to the say topic")
+
 send_line(s, "help goto")
 out = recv_all(s)
 check("No help available" in out,

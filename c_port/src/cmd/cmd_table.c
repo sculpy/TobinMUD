@@ -37,10 +37,10 @@ static const cmd_entry_t COMMANDS[] = {
     { "northwest", cmd_northwest, "Walk northwest.",                                MORTAL_LEVEL_MIN },
     { "southeast", cmd_southeast, "Walk southeast.",                                MORTAL_LEVEL_MIN },
     { "southwest", cmd_southwest, "Walk southwest.",                                MORTAL_LEVEL_MIN },
-    { "ne",        cmd_northeast, "Walk northeast (alias).",                        MORTAL_LEVEL_MIN },
-    { "nw",        cmd_northwest, "Walk northwest (alias).",                        MORTAL_LEVEL_MIN },
-    { "se",        cmd_southeast, "Walk southeast (alias).",                        MORTAL_LEVEL_MIN },
-    { "sw",        cmd_southwest, "Walk southwest (alias).",                        MORTAL_LEVEL_MIN },
+    { "ne",        cmd_northeast, NULL,                                             MORTAL_LEVEL_MIN },
+    { "nw",        cmd_northwest, NULL,                                             MORTAL_LEVEL_MIN },
+    { "se",        cmd_southeast, NULL,                                             MORTAL_LEVEL_MIN },
+    { "sw",        cmd_southwest, NULL,                                             MORTAL_LEVEL_MIN },
     { "look",    cmd_look,    "Look around the room you're in.",                    MORTAL_LEVEL_MIN },
     /* "e" is east; "ex"+ reaches exits. */
     { "exits",   cmd_exits,   "List this room's exits and where they lead.",        MORTAL_LEVEL_MIN },
@@ -69,6 +69,12 @@ static const cmd_entry_t COMMANDS[] = {
     /* "log" needs its three letters ("l" look, "li" limbs, "lo" look). */
     { "redit",   cmd_edit,    "Edit the room you are standing in (builder).",       BUILD_MIN_LEVEL },
     { "log",     cmd_log,     "Read, search, list, or rotate the game logs.",       LOG_MIN_LEVEL },
+    /* Mortality toggle: mortal is a normal 51+ command; immort is
+     * registered at MORTAL level (NULL help = unlisted) and gates itself
+     * on the STORED true level -- see cmd_mortal.c. "i" reaches immort;
+     * "m" reaches mortal (hidden from real mortals by min_level). */
+    { "mortal",  cmd_mortal,  "Walk the world as a mortal (immort to return).",     IMMORTAL_LEVEL_MIN },
+    { "immort",  cmd_immort,  NULL,                                                 MORTAL_LEVEL_MIN },
 };
 #define NUM_COMMANDS (sizeof(COMMANDS) / sizeof(COMMANDS[0]))
 

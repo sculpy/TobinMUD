@@ -35,6 +35,11 @@ typedef struct descriptor {
     int fd;
     conn_state_t state;
 
+    /* Peer address, captured at accept() (or inherited across a copyover
+     * via the recovery file). Appears in log lines only -- immortal eyes
+     * (the log command's gate); never in player-visible room messages. */
+    char ip[46];
+
     /* raw telnet byte buffer, persists across process_input() calls since
      * reads are non-blocking and a line may arrive split across packets */
     unsigned char raw[DESC_RAW_BUF];
@@ -106,7 +111,8 @@ descriptor_t *descriptor_create(int fd);
  * socket never closed. Returns NULL (and closes fd) if the account or
  * character can't be reloaded. */
 descriptor_t *descriptor_copyover_adopt(int fd, long account_id, int room_vnum,
-                                        bool color_enabled, const char *char_name,
+                                        bool color_enabled, const char *peer_ip,
+                                        const char *char_name,
                                         const char *account_name);
 
 /* Unlinks from g_descriptors, closes the socket, frees the character (if

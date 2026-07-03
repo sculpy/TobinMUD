@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+#include "log.h"
+
 /* `quit!` while playing leaves the current character and returns to the
  * account menu -- it does NOT disconnect. Only reachable via the exact,
  * full literal "quit!" (see cmd_table.c -- deliberately excluded from
@@ -23,6 +25,8 @@ bool cmd_quit(descriptor_t *d, const char *args) {
         snprintf(msg, sizeof(msg), "%s has left the game.\r\n", d->character->base.name);
         descriptor_room_echo(d->character->base.roomp, d->character, msg);
     }
+    if (d->character)
+        log_info("%s has left the game. [%s]", d->character->base.name, d->ip);
 
     descriptor_leave_to_menu(d);
     return true; /* stay connected -- back at the account menu */
