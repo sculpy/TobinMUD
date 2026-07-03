@@ -17,4 +17,11 @@ int game_loop_run(int port, const char *copyover_file);
  * keep accepting connections without rebinding the port. */
 int game_loop_listen_fd(void);
 
+/* Absolute path of this server binary, resolved from argv[0] at startup
+ * (main.c). cmd_copyover.c execs THIS PATH, deliberately not
+ * /proc/self/exe: after a rebuild replaces the file, /proc/self/exe still
+ * points at the deleted old inode and a copyover would relaunch the OLD
+ * code -- the path resolves to whatever is freshly built there instead. */
+const char *tobin_binary_path(void);
+
 #endif

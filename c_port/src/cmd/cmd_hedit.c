@@ -24,15 +24,15 @@ bool cmd_hedit(descriptor_t *d, const char *args) {
     for (char *p = topic; *p; p++)
         *p = (char)tolower((unsigned char)*p);
 
-    snprintf(d->help_edit_topic, sizeof(d->help_edit_topic), "%s", topic);
-    d->help_edit_buf[0] = '\0';
-    d->help_edit_len = 0;
+    snprintf(d->edit_topic, sizeof(d->edit_topic), "%s", topic);
+    d->edit_buf[0] = '\0';
+    d->edit_len = 0;
 
     char existing[HELP_BODY_MAX];
     bool exists = help_topic_load_exact(topic, existing, sizeof(existing));
     if (exists) {
-        snprintf(d->help_edit_buf, sizeof(d->help_edit_buf), "%s", existing);
-        d->help_edit_len = (int)strlen(d->help_edit_buf);
+        snprintf(d->edit_buf, sizeof(d->edit_buf), "%s", existing);
+        d->edit_len = (int)strlen(d->edit_buf);
     }
 
     char head[192];
@@ -47,6 +47,6 @@ bool cmd_hedit(descriptor_t *d, const char *args) {
             descriptor_send(d, "\r\n");
     }
     descriptor_send(d, "] ");
-    d->editing_help = true;
+    d->edit_kind = EDIT_HELP_TOPIC;
     return true;
 }

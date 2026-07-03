@@ -96,9 +96,14 @@ check("return to the character menu" in out, "quit! sends the return-to-menu mes
 # (the account menu re-listing) rather than a timeout/EOF.
 check("Your characters" in out, "account menu shown, connection still alive")
 
+# The observer (same room) is told about the departure -- a quit must not
+# be a silent evaporation (Session 21).
+time.sleep(0.3)
+out2 = recv_all(s2, timeout=1.0)
+check("has left the game" in out2, "the room is told when someone quits")
+
 # Even though still connected, the quitter should vanish from `who` --
 # they're no longer "in the world", just parked at the account menu.
-time.sleep(0.3)
 send_line(s2, "who")
 out = recv_all(s2)
 check(char_name not in out, "quitter disappears from who after quit! (menu), even though still connected")

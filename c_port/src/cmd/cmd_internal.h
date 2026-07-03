@@ -25,6 +25,13 @@ bool cmd_goto(descriptor_t *d, const char *args);
 bool cmd_promote(descriptor_t *d, const char *args);
 bool cmd_hedit(descriptor_t *d, const char *args);
 bool cmd_copyover(descriptor_t *d, const char *args);
+bool cmd_north(descriptor_t *d, const char *args);
+bool cmd_east(descriptor_t *d, const char *args);
+bool cmd_south(descriptor_t *d, const char *args);
+bool cmd_west(descriptor_t *d, const char *args);
+bool cmd_up(descriptor_t *d, const char *args);
+bool cmd_down(descriptor_t *d, const char *args);
+bool cmd_edit(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */
@@ -33,6 +40,10 @@ bool cmd_copyover(descriptor_t *d, const char *args);
 /* `copyover` reboots the server binary in place -- the most consequential
  * command there is, so it's gated at Administrator (59) and up. */
 #define COPYOVER_MIN_LEVEL 59
+
+/* `edit` (the room builder) shares hedit's content-editing tier -- stands
+ * in for the original's POWER_EDIT wiz-power + per-builder room ranges. */
+#define BUILD_MIN_LEVEL 56
 
 /* One row of cmd_table.c's dispatch table -- shared with cmd_help.c so
  * `help`/`wizhelp` can enumerate it without duplicating the list.

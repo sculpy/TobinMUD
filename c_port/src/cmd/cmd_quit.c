@@ -17,6 +17,13 @@ bool cmd_quit(descriptor_t *d, const char *args) {
              d->character ? d->character->base.name : "the game");
     descriptor_send(d, msg);
 
+    /* The room shouldn't watch someone silently evaporate (user
+     * requirement). Announced before leave_to_menu frees the character. */
+    if (d->character && d->character->base.roomp) {
+        snprintf(msg, sizeof(msg), "%s has left the game.\r\n", d->character->base.name);
+        descriptor_room_echo(d->character->base.roomp, d->character, msg);
+    }
+
     descriptor_leave_to_menu(d);
     return true; /* stay connected -- back at the account menu */
 }

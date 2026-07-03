@@ -73,8 +73,15 @@ check(out.rstrip().endswith(">"), "auto-look after character creation ends with 
 out = step(s, "'l' should reach look", "l")
 check("Imperia" in out, "'l' abbreviates to look")
 
-out = step(s, "'w' should reach who", "w")
-check("Who's online" in out, "'w' abbreviates to who")
+# Movement sits above who in the table (classic Diku): the single letter
+# 'w' means WEST now; who needs 'wh'. Either outcome of the walk (moving,
+# or "can't go that way") proves 'w' matched west rather than who.
+out = step(s, "'w' should reach west (movement), not who", "w")
+check("Who's online" not in out and "Huh?!" not in out,
+      "'w' abbreviates to west, not who")
+
+out = step(s, "'wh' should reach who", "wh")
+check("Who's online" in out, "'wh' abbreviates to who")
 
 out = step(s, "'sc' should reach score", "sc")
 check(char_name in out and "Strength" in out, "'sc' abbreviates to score")

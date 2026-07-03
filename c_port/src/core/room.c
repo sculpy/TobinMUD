@@ -4,6 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+const char *const DIR_NAMES[ROOM_NUM_EXITS] = {
+    "north", "east", "south", "west", "up", "down",
+};
+
+/* Original: constants.cc rev_dirs (first six entries). */
+const int REV_DIR[ROOM_NUM_EXITS] = { 2, 3, 0, 1, 5, 4 };
+
 room_t *room_create(int vnum, const char *name, const char *description, int sector) {
     room_t *r = calloc(1, sizeof(*r));
     if (!r)

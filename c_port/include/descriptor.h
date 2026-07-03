@@ -69,13 +69,16 @@ typedef struct descriptor {
     /* CONN_CHAR_DELETE_CONFIRM scratch. */
     char delete_char_name[PLAYER_NAME_LEN];
 
-    /* `hedit` line-editor state (cmd_hedit.c starts it; descriptor.c's
-     * CONN_PLAYING case intercepts every line while editing_help is set:
-     * "." saves, "~" aborts, anything else is appended). */
-    bool editing_help;
-    char help_edit_topic[HELP_TOPIC_NAME_LEN];
-    char help_edit_buf[HELP_BODY_MAX];
-    int help_edit_len;
+    /* Shared line-editor state (the classic DikuMUD string editor: "."
+     * alone saves, "~" alone aborts, anything else appends). cmd_hedit.c
+     * arms it for help topics, cmd_edit.c for room descriptions;
+     * descriptor.c's CONN_PLAYING case intercepts every line while
+     * edit_kind != EDIT_NONE and routes the save by kind. */
+    enum { EDIT_NONE = 0, EDIT_HELP_TOPIC, EDIT_ROOM_DESC } edit_kind;
+    char edit_topic[HELP_TOPIC_NAME_LEN]; /* EDIT_HELP_TOPIC target */
+    int edit_room_vnum;                   /* EDIT_ROOM_DESC target */
+    char edit_buf[HELP_BODY_MAX];         /* == ROOM_DESCRIPTION_MAX, see room.h */
+    int edit_len;
 
     being_t *character;
 
@@ -108,6 +111,11 @@ void descriptor_destroy(descriptor_t *d);
 bool descriptor_process_input(descriptor_t *d);
 
 void descriptor_send(descriptor_t *d, const char *msg);
+
+/* Sends `msg` to every connected player in room `r` except `except` (may
+ * be NULL to include everyone). Shared by movement, quit/link-drop, and
+ * combat announcements. */
+void descriptor_room_echo(struct room *r, being_t *except, const char *msg);
 
 /* Unloads the current character (freed, removed from its room) and returns
  * this connection to the account menu -- used by the `quit!` command while

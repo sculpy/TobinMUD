@@ -1,3 +1,5 @@
+#include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -11,7 +13,21 @@
 #include "regen.h"
 #include "wait_tick.h"
 
+static char g_binary_path[PATH_MAX];
+
+const char *tobin_binary_path(void) {
+    return g_binary_path[0] ? g_binary_path : "/proc/self/exe";
+}
+
 int main(int argc, char **argv) {
+    /* Resolve our own path NOW (cwd never changes) so copyover can exec
+     * the file at this path -- picking up a rebuilt binary -- rather than
+     * /proc/self/exe, which pins the possibly-stale inode we booted from.
+     * Copyover successors are exec'd with the full path as argv[0], so the
+     * chain keeps resolving across generations. */
+    if (argc >= 1 && !realpath(argv[0], g_binary_path))
+        g_binary_path[0] = '\0';
+
     /* --copyover <file>: we are the exec()'d successor of a `copyover`
      * command (cmd_copyover.c) -- adopt the recovery file's sockets
      * instead of opening fresh ones. */

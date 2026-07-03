@@ -6,14 +6,8 @@ here and log details there.
 
 ## In flight right now
 
-- [ ] **Deploy + verify the copyover 5-second warning** — code and test are
-      committed (cmd_copyover.c announces to everyone then sleep(5) before
-      the exec; smoke_test_copyover.py expects the warning) but NOT yet
-      built/deployed/verified: the session ended before the regression run
-      finished. Next session: rebuild on the VM, deploy via in-game
-      copyover, run smoke_test_copyover.py + full suite. Server was shut
-      down for the night 2026-07-03 (relaunch command in STATUS.md /
-      memory).
+- [x] Copyover 5-second warning — **deployed + verified 2026-07-03 (morning)**:
+      all 14 copyover checks pass including the warning; full suite green.
 
 - [x] `dnf upgrade` on the home VM — **done 2026-07-02** (647 packages, kernel
       7.0.14; root-caused the slowness to e1000 NIC emulation and switched to
@@ -88,10 +82,18 @@ persistence. Sequenced by dependency:
       for every current command); `hedit <topic>` is a level-56+ in-game
       line editor ('.' saves, '~' aborts) — Tobin's first in-game content
       editor, the pattern Phase B's room editor will reuse.
-- [ ] **B. Room editing** — in-game `redit`-style editing (name, description,
-      sector, exits) persisted to MariaDB; digging new rooms/vnums. Zones are
-      DB-backed (the world already lives in MariaDB), not original-style
-      flatfile zonefiles.
+- [x] **B. Room editing — done 2026-07-03** (user direction: "take the
+      interface from sneezy"): `edit` is a port of the original doEdit
+      (name/description/sector_type/exit fields, prefix-matched; exit
+      auto-creates missing rooms and fixes reverse exits; -1 deletes),
+      level 56+, immediate MariaDB persistence. Movement commands
+      (n/e/s/w/u/d, top of the command table) and look's "Obvious exits"
+      landed with it. Deferred edit fields: doors/locks, flags, extra
+      descriptions, river/teleport/height/capacity/spec, the VT100 menu
+      mode, sector-name table.
+- [ ] Watch item: `smoke_test_combat.py` flaked once on a freshly-booted VM
+      (cold caches; "immortal can attack" timing) and passed twice on rerun
+      (2026-07-03). If it recurs, widen that test's recv windows.
 - [ ] **C. Objects** — `obj_t` (the planned 15-category collapse), DB load,
       immortal `oload`, player get/drop/inventory, object persistence.
       Includes drop-equipment-on-death (user direction, Session 14) and

@@ -19,6 +19,15 @@
  * "quit!" (see cmd_dispatch below), so a mistyped or abbreviated command
  * can never accidentally leave the character. */
 static const cmd_entry_t COMMANDS[] = {
+    /* Movement first, like classic Diku command tables: the single letters
+     * n/e/s/w/u/d must always mean movement, so these outrank say ("s"),
+     * who ("w"), and everything else in abbreviation matching. */
+    { "north",   cmd_north,   "Walk north.",                                        MORTAL_LEVEL_MIN },
+    { "east",    cmd_east,    "Walk east.",                                         MORTAL_LEVEL_MIN },
+    { "south",   cmd_south,   "Walk south.",                                        MORTAL_LEVEL_MIN },
+    { "west",    cmd_west,    "Walk west.",                                         MORTAL_LEVEL_MIN },
+    { "up",      cmd_up,      "Walk up.",                                           MORTAL_LEVEL_MIN },
+    { "down",    cmd_down,    "Walk down.",                                         MORTAL_LEVEL_MIN },
     { "look",    cmd_look,    "Look around the room you're in.",                    MORTAL_LEVEL_MIN },
     { "who",     cmd_who,     "List everyone currently playing.",                   MORTAL_LEVEL_MIN },
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },
@@ -36,6 +45,8 @@ static const cmd_entry_t COMMANDS[] = {
      * deal for copyover after color: "c"/"co" reach color, "cop"+ this. */
     { "hedit",   cmd_hedit,   "Edit a help topic in the line editor.",              HELP_EDIT_MIN_LEVEL },
     { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected.", COPYOVER_MIN_LEVEL },
+    /* "e" reaches east (movement, above); "ed"+ reaches edit. */
+    { "edit",    cmd_edit,    "Edit the room you are standing in (builder).",       BUILD_MIN_LEVEL },
 };
 #define NUM_COMMANDS (sizeof(COMMANDS) / sizeof(COMMANDS[0]))
 

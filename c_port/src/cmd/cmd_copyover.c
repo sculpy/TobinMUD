@@ -65,7 +65,7 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
         if (it->state == CONN_PLAYING && it->character) {
             it->character->fighting = NULL;
             it->character->wait_pulses = 0;
-            it->editing_help = false; /* editor buffers don't survive exec */
+            it->edit_kind = EDIT_NONE; /* editor buffers don't survive exec */
             player_progress_save(it->character->player_id, &it->character->progress);
 
             int room_vnum = it->character->base.roomp ? it->character->base.roomp->vnum : 1;
@@ -81,11 +81,17 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
     }
     fclose(f);
 
-    execl("/proc/self/exe", "tobin_c", "--copyover", COPYOVER_FILE, (char *)NULL);
+    /* Exec by PATH, not /proc/self/exe: the path resolves to a freshly
+     * rebuilt binary, while /proc/self/exe would pin the deleted old inode
+     * after a rebuild and silently relaunch the OLD code (found the hard
+     * way -- see STATUS.md Session 21). argv[0] carries the full path so
+     * the successor can resolve it again for the next copyover. */
+    const char *binpath = tobin_binary_path();
+    execl(binpath, binpath, "--copyover", COPYOVER_FILE, (char *)NULL);
 
     /* Only reachable if exec itself failed -- undo everything and let the
      * world carry on as it was. */
-    log_error("copyover: exec of /proc/self/exe failed");
+    log_error("copyover: exec of '%s' failed", binpath);
     unlink(COPYOVER_FILE);
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
         if (!(it->state == CONN_PLAYING && it->character))

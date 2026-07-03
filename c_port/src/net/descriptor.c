@@ -105,6 +105,18 @@ descriptor_t *descriptor_copyover_adopt(int fd, long account_id, int room_vnum,
     return d;
 }
 
+void descriptor_room_echo(struct room *r, being_t *except, const char *msg) {
+    if (!r)
+        return;
+    for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_PC || (except && t == &except->base))
+            continue;
+        being_t *other = (being_t *)t;
+        if (other->desc)
+            descriptor_send(other->desc, msg);
+    }
+}
+
 void descriptor_destroy(descriptor_t *d) {
     if (!d)
         return;
@@ -115,8 +127,18 @@ void descriptor_destroy(descriptor_t *d) {
     if (*cur)
         *cur = d->next;
 
-    if (d->character)
+    if (d->character) {
+        /* A vanishing player shouldn't just silently blink out of the
+         * room (user requirement) -- this is the link-drop path; a
+         * deliberate quit! announces separately in cmd_quit.c. */
+        if (d->character->base.roomp) {
+            char msg[128];
+            snprintf(msg, sizeof(msg), "%s has lost their link.\r\n",
+                     d->character->base.name);
+            descriptor_room_echo(d->character->base.roomp, d->character, msg);
+        }
         being_destroy(d->character);
+    }
 
     close(d->fd);
     free(d);
@@ -322,7 +344,7 @@ void descriptor_leave_to_menu(descriptor_t *d) {
         being_destroy(d->character); /* also removes it from its room */
         d->character = NULL;
     }
-    d->editing_help = false; /* a mid-edit defeat/quit discards the edit */
+    d->edit_kind = EDIT_NONE; /* a mid-edit defeat/quit discards the edit */
     d->state = CONN_ACCOUNT_MENU;
     show_account_menu(d);
 }
@@ -613,37 +635,54 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_PLAYING: {
-            /* `hedit` line editor swallows every line while active --
+            /* The shared line editor swallows every line while active --
              * commands (including quit!) don't work until the editor is
              * closed with "." (save) or "~" (abort). */
-            if (d->editing_help) {
+            if (d->edit_kind != EDIT_NONE) {
                 if (strcmp(line, ".") == 0) {
-                    if (help_topic_save(d->help_edit_topic, d->help_edit_buf,
-                                        d->character ? d->character->base.name : "")) {
-                        char msg[96];
-                        snprintf(msg, sizeof(msg), "Help topic '%s' saved.\r\n",
-                                 d->help_edit_topic);
-                        descriptor_send(d, msg);
-                    } else {
-                        descriptor_send(d, "Saving failed -- topic unchanged.\r\n");
+                    if (d->edit_kind == EDIT_HELP_TOPIC) {
+                        if (help_topic_save(d->edit_topic, d->edit_buf,
+                                            d->character ? d->character->base.name : "")) {
+                            char msg[96];
+                            snprintf(msg, sizeof(msg), "Help topic '%s' saved.\r\n",
+                                     d->edit_topic);
+                            descriptor_send(d, msg);
+                        } else {
+                            descriptor_send(d, "Saving failed -- topic unchanged.\r\n");
+                        }
+                    } else { /* EDIT_ROOM_DESC */
+                        room_t *r = world_get_room(d->edit_room_vnum);
+                        if (r) {
+                            snprintf(r->description, sizeof(r->description), "%s", d->edit_buf);
+                            if (room_repo_save(r)) {
+                                char msg[96];
+                                snprintf(msg, sizeof(msg),
+                                         "Room %d's description saved.\r\n", r->vnum);
+                                descriptor_send(d, msg);
+                            } else {
+                                descriptor_send(d, "Saving failed -- the DB rejected it.\r\n");
+                            }
+                        } else {
+                            descriptor_send(d, "That room is gone -- nothing saved.\r\n");
+                        }
                     }
-                    d->editing_help = false;
+                    d->edit_kind = EDIT_NONE;
                     descriptor_send(d, "\r\n> ");
                     return true;
                 }
                 if (strcmp(line, "~") == 0) {
-                    d->editing_help = false;
-                    descriptor_send(d, "Edit aborted -- topic unchanged.\r\n\r\n> ");
+                    d->edit_kind = EDIT_NONE;
+                    descriptor_send(d, "Edit aborted -- nothing changed.\r\n\r\n> ");
                     return true;
                 }
                 size_t add = strlen(line);
-                if ((size_t)d->help_edit_len + add + 2 < sizeof(d->help_edit_buf)) {
-                    memcpy(d->help_edit_buf + d->help_edit_len, line, add);
-                    d->help_edit_len += (int)add;
-                    d->help_edit_buf[d->help_edit_len++] = '\n';
-                    d->help_edit_buf[d->help_edit_len] = '\0';
+                if ((size_t)d->edit_len + add + 2 < sizeof(d->edit_buf)) {
+                    memcpy(d->edit_buf + d->edit_len, line, add);
+                    d->edit_len += (int)add;
+                    d->edit_buf[d->edit_len++] = '\n';
+                    d->edit_buf[d->edit_len] = '\0';
                 } else {
-                    descriptor_send(d, "Help text is full -- '.' to save or '~' to abort.\r\n");
+                    descriptor_send(d, "The text is full -- '.' to save or '~' to abort.\r\n");
                 }
                 descriptor_send(d, "] ");
                 return true;

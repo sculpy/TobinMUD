@@ -89,6 +89,7 @@ sB.close()
 # --- Part 2: immortal `kill` is an instant, one-shot slay ---
 sImm, nameImm = make_player("Imm")
 sTarget, nameTarget = make_player("Tgt")
+sObs, nameObs = make_player("Obs")  # a bystander for the global death taunt
 
 subprocess.run(
     ["mariadb", "sneezy", "-e",
@@ -119,9 +120,16 @@ check("You are DEAD!" in outTarget, "the slain target sees the DEAD message")
 check("Your characters" in outTarget, "the slain target is dropped at the account menu, not respawned in-world")
 check(proper(nameTarget) in outTarget, "the slain character still exists and is listed in the account menu")
 
+# The whole world (here: the bystander) gets a teasing death announcement
+# naming both parties -- neither winner nor loser receives it themselves.
+outObs = recv_all(sObs, timeout=1.0)
+check(proper(nameTarget) in outObs and proper(nameImm) in outObs,
+      "a bystander receives the global death taunt naming victim and killer")
+
 out = step(sImm, "immortal acts again IMMEDIATELY -- should NOT be blocked (no wait-state was ever applied)", "score")
 check("still recovering" not in out, "instakill never applied a wait-state to the immortal")
 
 sImm.close()
 sTarget.close()
+sObs.close()
 print("=== ALL CHECKS PASSED ===")

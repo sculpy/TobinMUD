@@ -28,5 +28,13 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('goto', 'Usage: goto <room vnum>\n\nImmortals only: teleport directly to any room by its vnum. Useful\nvnums: 0 (The Void), 1 (Imperia).', 'seed'),
 ('promote', 'Usage: promote <name> [level]\n\nImmortals only: set another player''s level (default 51, the first\nimmortal rank). You cannot set anyone above your own level, and the\nname must be typed in full. Works on offline players too; an online\ntarget changes immediately and is told. Also demotes.', 'seed'),
 ('hedit', 'Usage: hedit <topic>\n\nLevel 56+ only: edit (or create) a help topic in a line editor. Any\nexisting text is shown first; lines you type are appended. Finish\nwith a single `.` on its own line to save, or `~` to abort without\nsaving. Topics are stored in the database and shown by `help <topic>`.', 'seed'),
-('quit!', 'Usage: quit!   (must be typed exactly, with the !)\n\nWhile playing: leaves your character and returns to the account menu.\nAt the account menu: disconnects. It is never matched by abbreviation\nand nothing else starts with q -- a typo can never quit you.', 'seed')
+('quit!', 'Usage: quit!   (must be typed exactly, with the !)\n\nWhile playing: leaves your character and returns to the account menu.\nAt the account menu: disconnects. It is never matched by abbreviation\nand nothing else starts with q -- a typo can never quit you.', 'seed'),
+('movement', 'Usage: north / east / south / west / up / down\n\nWalks you through the room''s exits (shown by `look` as "Obvious\nexits"). The single letters n/e/s/w/u/d always mean movement. You\ncannot walk while fighting.', 'seed'),
+('north', 'Usage: north (or just n)\n\nWalks you north. See `help movement`.', 'seed'),
+('east', 'Usage: east (or just e)\n\nWalks you east. See `help movement`.', 'seed'),
+('south', 'Usage: south (or just s)\n\nWalks you south. See `help movement`.', 'seed'),
+('west', 'Usage: west (or just w)\n\nWalks you west. See `help movement`.', 'seed'),
+('up', 'Usage: up (or just u)\n\nWalks you up. See `help movement`.', 'seed'),
+('down', 'Usage: down (or just d)\n\nWalks you down. See `help movement`.', 'seed'),
+('edit', 'Usage: edit [field] [args]   (level 56+ builders)\n\nEdits the room you are standing in; every change saves to the\ndatabase immediately. Bare `edit` shows the room summary.\n\n  edit name <text>          -- set the room title\n  edit description          -- line editor (`.` saves, `~` aborts)\n  edit sector_type [n]      -- show or set the sector number\n  edit exit <dir> <toroom>  -- link an exit; creates the target room\n                               if needed and fixes the reverse exit\n  edit exit <dir> -1        -- delete an exit', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;

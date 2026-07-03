@@ -19,6 +19,19 @@ bool cmd_look(descriptor_t *d, const char *args) {
     if (n < 0)
         n = 0;
 
+    if ((size_t)n < sizeof(out)) {
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "Obvious exits:");
+        int any_exit = 0;
+        for (int i = 0; i < ROOM_NUM_EXITS && (size_t)n < sizeof(out); i++) {
+            if (r->exits[i] < 0)
+                continue;
+            any_exit = 1;
+            n += snprintf(out + n, sizeof(out) - (size_t)n, " %s", DIR_NAMES[i]);
+        }
+        if ((size_t)n < sizeof(out))
+            n += snprintf(out + n, sizeof(out) - (size_t)n, "%s\r\n", any_exit ? "" : " none");
+    }
+
     int any = 0;
     for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
         if (t == &d->character->base)

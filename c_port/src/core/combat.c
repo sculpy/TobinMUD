@@ -98,6 +98,29 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         tell(loser, "You have been defeated by %s!\r\nYou are DEAD!\r\n", winner->base.name);
     }
 
+    /* A death is world news (user requirement): everyone playing -- not
+     * just the room -- gets a teasing announcement. Winner and loser are
+     * excluded; they already got their own lines above. */
+    static const char *const DEATH_TAUNTS[] = {
+        "The gods pause their board game to note that %s has been slain by %s.",
+        "%s is dead. %s looks insufferably pleased about it.",
+        "A distant bell tolls once for %s. %s rang it.",
+        "%s's limbs are now a matter of public record, courtesy of %s.",
+    };
+    char taunt[224];
+    int t = rand() % (int)(sizeof(DEATH_TAUNTS) / sizeof(DEATH_TAUNTS[0]));
+    int n = snprintf(taunt, sizeof(taunt), "\r\n");
+    n += snprintf(taunt + n, sizeof(taunt) - (size_t)n, DEATH_TAUNTS[t],
+                  loser->base.name, winner->base.name);
+    snprintf(taunt + n, sizeof(taunt) - (size_t)n, "\r\n");
+    for (descriptor_t *it = g_descriptors; it; it = it->next) {
+        if (it->state != CONN_PLAYING || !it->character)
+            continue;
+        if (it->character == winner || it->character == loser)
+            continue;
+        descriptor_send(it, taunt);
+    }
+
     if (loser->desc)
         descriptor_leave_to_menu(loser->desc);
 }
