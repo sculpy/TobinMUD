@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <time.h>
 
 static FILE *g_log_file = NULL;
@@ -54,11 +55,16 @@ bool log_open(void) {
     time_t now = time(NULL);
     struct tm tm_buf;
     localtime_r(&now, &tm_buf);
+    /* DDMMYY.HHMM<AM/PM>.log, e.g. 030726.0921AM.log (user spec). A
+     * second open within the same minute (rotate, quick restart) gets a
+     * -2/-3/... suffix so rotation always starts a genuinely fresh file. */
     char stamp[32];
-    strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", &tm_buf);
+    strftime(stamp, sizeof(stamp), "%d%m%y.%I%M%p", &tm_buf);
 
     char path[LOG_PATH_MAX];
-    snprintf(path, sizeof(path), "%s/%s.game.log", LOG_DIR, stamp);
+    snprintf(path, sizeof(path), "%s/%s.log", LOG_DIR, stamp);
+    for (int seq = 2; access(path, F_OK) == 0 && seq < 1000; seq++)
+        snprintf(path, sizeof(path), "%s/%s-%d.log", LOG_DIR, stamp, seq);
 
     FILE *f = fopen(path, "a");
     if (!f) {
@@ -75,8 +81,8 @@ bool log_open(void) {
 }
 
 bool log_rotate(void) {
-    /* A rotate within the same second reopens the same filename in append
-     * mode -- harmless, and real rotations are minutes apart anyway. */
+    /* log_open() guarantees a fresh filename even within the same minute
+     * (the -N suffix), so a rotate is always a real rotation. */
     char old_path[LOG_PATH_MAX];
     snprintf(old_path, sizeof(old_path), "%s", g_log_path);
     if (!log_open())

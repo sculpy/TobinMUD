@@ -125,7 +125,8 @@ static void log_list(descriptor_t *d) {
     struct dirent *e;
     int shown = 0;
     while ((e = readdir(dir)) && (size_t)n < sizeof(out) - 96) {
-        if (!strstr(e->d_name, ".game.log"))
+        size_t nl = strlen(e->d_name);
+        if (nl < 4 || strcmp(e->d_name + nl - 4, ".log") != 0)
             continue;
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s%s\r\n", e->d_name,
                       strcmp(e->d_name, cur) == 0 ? "   <- current" : "");

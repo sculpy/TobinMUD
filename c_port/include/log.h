@@ -7,9 +7,10 @@ void log_info(const char *fmt, ...);
 void log_error(const char *fmt, ...);
 
 /* Game log files (Session 21, user requirement): every log line also goes
- * to a file under LOG_DIR, named <YYYY-MM-DD_HH-MM-SS>.game.log from its
- * creation time. Console (stdout/stderr) output is unchanged -- the file
- * is in addition, so the nohup capture still works. */
+ * to a file under LOG_DIR, named <DDMMYY>.<HHMM AM/PM>.log (e.g.
+ * 030726.0921AM.log) from its creation time. Console (stdout/stderr)
+ * output is unchanged -- the file is in addition, so the nohup capture
+ * still works. */
 #define LOG_DIR "logs"
 #define LOG_PATH_MAX 128
 

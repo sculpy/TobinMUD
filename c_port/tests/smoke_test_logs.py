@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Smoke test for the game log system (Session 21):
-  1. Log files live in logs/ named <datetime>.game.log.
+  1. Log files live in logs/ named DDMMYY.HHMM<AM/PM>.log (user spec).
   2. Gate: mortals and a level-58 get Huh?! for `log`; 59 works.
   3. `log` tails the current file; `log search <text>` finds a known
      line (a link-drop we caused with a unique character name).
@@ -85,8 +85,8 @@ def relog(name):
 
 # --- Part 1: the files exist where they should ---
 # (Test runs on the server box; server cwd is c_port/, so logs/ is here.)
-files = glob.glob("logs/*.game.log")
-check(files, "logs/ contains <datetime>.game.log files")
+files = glob.glob("logs/*.log")
+check(files, "logs/ contains .log files")
 
 # --- Part 2: the gate ---
 sImm, nameImm = make_player("Imm")
@@ -114,7 +114,7 @@ check("-- Help: log --" in out and "rotate" in out,
 # --- Part 3: tail and search ---
 send_line(sImm, "log")
 out = recv_all(sImm)
-check(".game.log (last" in out, "bare log tails the current file with a header")
+check(".log (last" in out, "bare log tails the current file with a header")
 check("INFO" in out or "ERROR" in out, "the tail shows real log lines")
 
 # Cause a distinctive log line: a link-drop by a uniquely named character.
@@ -144,7 +144,7 @@ check("0 matches" in out, "after rotation the old line is not in the CURRENT fil
 send_line(sImm, "log list")
 out = recv_all(sImm)
 check("<- current" in out, "log list marks the current file")
-check(out.count(".game.log") >= 2, "log list shows the rotated-away file too")
+check(out.count(".log") >= 2, "log list shows the rotated-away file too")
 
 # hygiene
 set_level(nameImm, 1)
