@@ -6,11 +6,11 @@ here and log details there.
 
 ## In flight right now
 
-- [ ] Finish `dnf upgrade` on the home VM (user running it; parallel downloads
-      now enabled). Afterwards: reboot, relaunch `tobin_c`, rerun one smoke
-      test to confirm the updated system is healthy.
-- [ ] If the update pulled a new kernel: verify VirtualBox Guest Additions
-      still build/load (networking is unaffected either way).
+- [x] `dnf upgrade` on the home VM — **done 2026-07-02** (647 packages, kernel
+      7.0.14; root-caused the slowness to e1000 NIC emulation and switched to
+      virtio-net, ~150x faster; VM bumped to 12 GB RAM / 4 CPUs). Rebooted,
+      rebuilt, relaunched `tobin_c`, full suite re-verified.
+- [x] Guest Additions after kernel update — verified responding on 7.0.14.
 - [ ] Install a telnet/MUD client on the Windows machines that will connect
       (`Enable-WindowsOptionalFeature -Online -FeatureName TelnetClient`,
       or Mudlet for proper ANSI color).
@@ -33,10 +33,9 @@ here and log details there.
       scripted raw-socket tests. Connect with real telnet/Mudlet, poke at the
       menus, point-buy, combat, color. Open since Session 1; now that the VM
       is on the LAN there's no excuse left.
-  - [ ] While doing this with Mudlet/MUSHclient: the known `IAC SB ... SE`
-        split-across-reads parsing gap in `descriptor.c` becomes a real risk
-        (those clients proactively negotiate NAWS/TTYPE). Fix = resumable
-        subnegotiation parser.
+  - [x] The `IAC SB ... SE` split-across-reads parsing gap — **fixed and
+        verified 2026-07-02** (resumable parser state on `descriptor_t`,
+        new `tests/smoke_test_telnet_iac.py`). Mudlet-class clients safe.
 
 ## Near-term gameplay follow-ups (small, well-defined)
 

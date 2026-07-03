@@ -1,6 +1,6 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-02 — Session 19 (13th limb: genitalia)
+Last updated: 2026-07-02 — Session 20 (home dev environment, git repo, IAC SB parser fix)
 
 ## Quick orientation
 
@@ -9,11 +9,21 @@ Last updated: 2026-07-02 — Session 19 (13th limb: genitalia)
 - Build: `cd c_port && cmake -B build && cmake --build build` (Linux/Fedora — see README.md)
 - Run: `./build/tobin_c`, requires MariaDB reachable — see README.md for env vars
 - DB schema: unchanged, see `../db/sneezy/*.sql` and `../db/README.md`
-- **Dev/test box**: db.kullit.com (10.0.0.12), Fedora Linux 44, `root` login, key-based
-  SSH already set up (same box `../talker.c` runs on). A copy of this whole tree lives
-  at `~/NewMUD/` there (`db/` + `c_port/`), kept in sync manually via `scp` — remember
-  to push local changes there before rebuilding remotely, and pull back anything (like
-  new test scripts) written directly on the box.
+- **Two dev/test environments as of Session 20** — which one to use depends on where
+  the user says they are ("at work" vs "at home"):
+  - **Work**: db.kullit.com (10.0.0.12), Fedora Linux 44, `root` login (a matching
+    `mud` user is planned), key-based SSH already set up (same box `../talker.c` runs
+    on). Copy of the tree at `~/NewMUD/`.
+  - **Home**: VirtualBox VM "NUDServer" on the user's Windows machine, Fedora 44,
+    bridged virtio NIC, static IP 192.168.254.200, user `mud`, key-based SSH.
+    Copy of the tree at `~/NewMUD/`. 12 GB RAM / 4 CPUs. Server on port 4000,
+    log at `~/NewMUD/tobin_c.log`.
+  - **Sync is now via git** (Session 20): private GitHub repo
+    `github.com/sculpy/tobin-mud`, repo root at the top of the whole tree (one level
+    above `c_port/`). Commit+push when leaving a location, pull on arrival. The two
+    Linux boxes' `~/NewMUD` copies predate the repo and are still plain copies —
+    convert them to clones when convenient; until then sync them with `scp` (and run
+    `sed -i 's/\r\$//'` on `.sh` files copied from Windows).
   - Server is a plain foreground process; run detached with
     `setsid nohup ./build/tobin_c > /root/NewMUD/tobin_c.log 2>&1 < /dev/null &`.
   - **Gotcha**: `pkill -f build/tobin_c` will also kill whatever *other* shell command
@@ -100,7 +110,7 @@ Last updated: 2026-07-02 — Session 19 (13th limb: genitalia)
 - [x] **Account/character menu built + verified live**: `tests/smoke_test_accounts.py` covers new-account → empty menu → create character → point-buy (including overspend rejection) → play → `score` shows the persisted allocation → reconnect → menu shows the character → create a second character → delete the first with `YES` confirmation → reconnect again and confirm the deletion persisted and the surviving character is unaffected. All passed. `tests/smoke_test.py` and `smoke_test_login.py` updated to go through the new menu flow and re-verified (including the multi-user `who` and wrong-password checks from before).
 - [x] **Character-name ownership is now enforced** (was an open item) — every `player_repo.c` lookup/mutation is scoped by `account_id`.
 - [ ] Verified with scripted raw-socket sessions, not yet with a real interactive `telnet`/Mudlet/etc client — the byte-level protocol is identical, but worth a manual pass too (this now matters more, since the menu/point-buy UX is exactly the kind of thing that benefits from an actual human trying it).
-- [ ] `IAC SB ... SE` telnet subnegotiation split across two reads can be mis-parsed by `drain_lines()` in `descriptor.c` (state isn't preserved across calls for that one case). Low risk (we never request subnegotiation-based options), but worth a resumable-parser fix before relying on fancier telnet clients (MUSHclient, Mudlet, etc. that proactively send NAWS/TTYPE).
+- [x] `IAC SB ... SE` telnet subnegotiation split across two reads — **fixed Session 20**: resumable parser state (`in_subneg`/`subneg_prev` on `descriptor_t`), verified by the new `tests/smoke_test_telnet_iac.py` (deliberately splits a TTYPE subnegotiation mid-payload across two TCP sends, plus regression guards for the already-working split WILL/DO and lone-IAC rewind paths). Mudlet/MUSHclient-class clients are now safe.
 - [ ] No account-creation password confirmation step (type it twice) — original has one, this doesn't yet.
 - [ ] No delete-time password reconfirmation — original's delete-character flow asks for the account password again before deleting; this port only asks for a typed `YES`. Consider adding if accidental/malicious deletion becomes a real concern.
 - [ ] If a character is deleted while a *different* session has it actively loaded/playing, that session isn't kicked or notified — not handled (edge case, unlikely at this scale, but noted).
@@ -229,6 +239,16 @@ User pointed out the Session 17 limb list was missing genitalia.
 - Updated `tests/smoke_test_limbs.py` and `tests/smoke_test_limbs_cmd.py`'s hardcoded limb-name lists and the `== 12` exact-count assertion (now `== 13`).
 - Rebuilt clean (zero warnings), restarted `tobin_c`, ran the full 16-file regression suite — all pass.
 - Next: same as Session 17/18's "Next" items.
+
+### Session 20 — 2026-07-02 — Home dev environment (VirtualBox VM), private git repo, IAC SB resumable parser fix
+First session run from the user's home machine (sessions now declare "at work" vs "at home" to pick the environment — see Quick orientation above). Mostly infrastructure, plus one real code fix.
+
+- **Home VM stood up end-to-end**: VirtualBox VM "NUDServer" (Fedora 44) on the user's Windows machine. Fixed its unreachability (guest had a static LAN IP while the VM was on NAT — switched the VM to bridged networking over the host's Wi-Fi, live via `VBoxManage controlvm`), set up key-based SSH (user `mud`), verified all build packages present, copied the tree to `~/NewMUD/`, seeded the DBs (19,209 rooms, same as work), built clean (zero warnings), and ran the full suite as a baseline: 16/17 pass, with `smoke_test_color.py` failing exactly as documented for any fresh seed (needs hand-staged `<X>` content — reconfirmed, still an open item).
+- **VM performance work**: diagnosed dnf updates crawling at ~60 KB/s while the host got 3.6 MB/s — root cause was VirtualBox's default e1000 (`82540EM`) NIC emulation. Switched to **virtio-net** (needs poweroff): ~9.5 MB/s after, ~150x. Also bumped the VM to 12 GB RAM / 4 CPUs while it was down, and ran a full `dnf upgrade` (647 packages, new kernel 7.0.14; Guest Additions survived). `max_parallel_downloads=5` set in dnf.conf. MariaDB/sshd/server all verified healthy after reboot.
+- **Private git repo**: `github.com/sculpy/tobin-mud` (GitHub, private), repo root at the top of the whole tree. `.gitattributes` forces LF on `.sh`/`.sql`/`.py`; `core.autocrlf=false` repo-local. This replaces manual scp as the home↔work sync mechanism. First commits: full tree (3,741 files), TODO update, then this session's fix.
+- **`TODO.md` added** (`c_port/TODO.md`): running checklist complementing STATUS.md — STATUS records what happened, TODO tracks what's next.
+- **IAC SB split-across-reads fix** (the real code change): `drain_lines()` lost its place if an `IAC SB ... IAC SE` subnegotiation arrived split across two `read()`s — the "inside SB" state wasn't preserved, so the tail of the subnegotiation leaked into the player's line buffer as typed garbage. Plain telnet never triggers it; Mudlet/MUSHclient-class clients proactively send TTYPE/NAWS subnegotiations and would have. Fix: `bool in_subneg` + `unsigned char subneg_prev` persisted on `descriptor_t` (calloc'd, so zero-init), with the resume check at the top of the parse loop; scan semantics for complete sequences unchanged. New `tests/smoke_test_telnet_iac.py` (6 checks): whole NAWS subnegotiation, TTYPE subnegotiation deliberately split mid-payload across two sends with a 0.4s gap, and split WILL/DO + lone-IAC regression guards. Rebuilt clean, new test passes, full 18-file suite re-run: 17 pass + the one documented color expected-fail.
+- Next: **the interactive client pass is now unblocked and next up** (user confirmed) — real telnet/Mudlet from the user's Windows machine against the home VM, IAC handling now safe for fancy clients. Then the rest of TODO.md.
 
 ### Session 9 — 2026-07-02 — Abbreviation parser, CRLF fix, command prompt, quit! hardening
 Four related changes from user feedback in one pass:
