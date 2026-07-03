@@ -42,7 +42,19 @@ descriptor_t *descriptor_create(int fd) {
     };
     socket_write(fd, (const char *)negotiate, sizeof(negotiate));
 
-    descriptor_send(d, "Welcome to Tobin (C port, walking skeleton).\r\nAccount name: ");
+    /* The TobinMUD banner (user-supplied art, Session 21). The <_> in the
+     * O of "Tobin" is an unrecognized color tag and passes through
+     * literally by design. */
+    descriptor_send(d,
+        "\r\n"
+        "___________   ___.   .__           _____   ____ ___________\r\n"
+        "\\__    ___/___\\_ |__ |__| ____    /     \\ |    |   \\______ \\\r\n"
+        "  |    | /  _ \\| __ \\|  |/    \\  /  \\ /  \\|    |   /|    |  \\\r\n"
+        "  |    |(  <_> ) \\_\\ \\  |   |  \\/    Y    \\    |  / |    `   \\\r\n"
+        "  |____| \\____/|___  /__|___|  /\\____|__  /______/ /_______  /\r\n"
+        "                   \\/        \\/         \\/                 \\/\r\n"
+        "\r\nTobinMUD -- a derivative of SneezyMUD and DikuMUD.\r\n\r\n"
+        "Account name: ");
     return d;
 }
 
@@ -559,6 +571,15 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 if (!name_ok) {
                     descriptor_send(d,
                         "Names must be 3 to 15 letters -- no numbers, spaces, or symbols.\r\n"
+                        "New character name (or 'quit!' to cancel): ");
+                    return true;
+                }
+                /* Duplicate names are not allowed anywhere in the world
+                 * (user spec) -- checked across ALL accounts, before the
+                 * point-buy screen rather than as a failed insert later. */
+                if (player_name_exists(line)) {
+                    descriptor_send(d,
+                        "That name is already taken.\r\n"
                         "New character name (or 'quit!' to cancel): ");
                     return true;
                 }

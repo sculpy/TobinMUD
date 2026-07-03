@@ -46,6 +46,11 @@ int player_load_room(const char *name, long account_id);
  * (cmd_loadroom.c). Account-scoped like the other player mutations. */
 bool player_set_load_room(const char *name, long account_id, int vnum);
 
+/* True if ANY account owns a character with this name (case-insensitive
+ * via the column collation) -- backs the duplicate-name rejection at
+ * character creation (descriptor.c). */
+bool player_name_exists(const char *name);
+
 /* Loads persisted attributes for player_id into *out. Returns false (and
  * leaves *out untouched) if no player_attrs row exists. */
 bool player_attrs_load(long player_id, attrs_t *out);

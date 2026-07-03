@@ -217,14 +217,14 @@ persistence. Sequenced by dependency:
       level, not the effective one — the one deliberate exception to
       "commands above your level are invisible". Death while mortal must
       not eat the stored rank.
-- [ ] **attack/kill alias** — full aliases of each other, CONFIRMED: for
+- [x] **attack/kill alias** — done 2026-07-03: full aliases; for
       immortals BOTH are the instant slay (attack gains the instakill);
       for mortals both start normal combat. One handler, two table rows.
-- [ ] **Duplicate character names disallowed** — on creation, check for
+- [x] **Duplicate character names disallowed** — done 2026-07-03: check for
       an existing player with that name (any account) and re-prompt
       cleanly. (Uniqueness is already assumed throughout; this makes the
       rejection explicit and friendly rather than a failed insert.)
-- [ ] **TobinMUD ASCII banner** — shown on connect, before the account
+- [x] **TobinMUD ASCII banner** — done 2026-07-03: shown on connect, before the account
       menu:
       ```
       ___________   ___.   .__           _____   ____ ___________

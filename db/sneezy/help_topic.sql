@@ -19,8 +19,8 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('who', 'Usage: who\n\nLists everyone currently playing, with their level (or immortal rank\ntitle) shown in brackets before their name.', 'seed'),
 ('score', 'Usage: score\n\nShows your character sheet: attributes, level, experience, and hit\npoints. Limbs appear here only once they are hurt -- see `help limbs`\nfor the full breakdown any time.', 'seed'),
 ('color', 'Usage: color [on|off]\n\nToggles ANSI color rendering for your connection. With no argument,\nshows the current setting. Color tags in the world (like <r>this<z>)\nrender as real colors when on and are stripped when off.', 'seed'),
-('attack', 'Usage: attack <player>\n\nStarts a fight with another player in your room. Combat resolves in\nrounds of about a second each; every hit lands on a specific limb.\nYou can abbreviate the target''s name: `attack clau` reaches Claudius.', 'seed'),
-('kill', 'Usage: kill <player>\n\nFor mortals this is identical to `attack`. For immortals it is an\ninstant slay -- no rounds, no wait, the target simply dies.', 'seed'),
+('attack', 'Usage: attack <player>   (alias: kill -- identical)\n\nMortals: starts a fight with another player in your room; combat\nresolves in rounds, every hit lands on a specific limb, and you can\nabbreviate the target''s name (`attack clau` reaches Claudius).\nImmortals: an instant slay -- no rounds, no wait, the target dies.', 'seed'),
+('kill', 'Usage: kill <player>   (alias: attack -- identical)\n\nMortals: starts a fight with another player in your room; combat\nresolves in rounds, every hit lands on a specific limb, and you can\nabbreviate the target''s name (`kill clau` reaches Claudius).\nImmortals: an instant slay -- no rounds, no wait, the target dies.', 'seed'),
 ('say', 'Usage: say <message>   (shorthand: ''<message>)\n\nSays something to everyone in your room. The apostrophe shorthand\nneeds no space: ''hello says "hello".', 'seed'),
 ('limbs', 'Usage: limbs\n\nShows the health of all thirteen of your limbs as percentages, with\nan injury note on any limb below 20%. A destroyed limb (0%) makes\nyour own attacks less accurate until you are made whole again.', 'seed'),
 ('help', 'Usage: help [topic]\n\nWith no argument, lists every command available to you. With a topic\n(any command name, abbreviations welcome), shows its full help text.', 'seed'),
@@ -69,6 +69,12 @@ UPDATE `help_topic` SET `body` = 'Usage: say <message>   (shorthand: ''<message>
 -- Migration: immortal look header ([vnum] name [sector] [flags]).
 UPDATE `help_topic` SET `body` = 'Usage: look\n\nShows the room you are in: its name, description, obvious exits, and\neveryone standing there with you. You also look automatically whenever\nyou enter the world. Immortals additionally see the room''s vnum,\nsector type, and flags in the header line.'
   WHERE `name` = 'look' AND `updated_by` = 'seed';
+
+-- Migration: attack/kill are full aliases (immortals instakill on both).
+UPDATE `help_topic` SET `body` = 'Usage: attack <player>   (alias: kill -- identical)\n\nMortals: starts a fight with another player in your room; combat\nresolves in rounds, every hit lands on a specific limb, and you can\nabbreviate the target''s name (`attack clau` reaches Claudius).\nImmortals: an instant slay -- no rounds, no wait, the target dies.'
+  WHERE `name` = 'attack' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: kill <player>   (alias: attack -- identical)\n\nMortals: starts a fight with another player in your room; combat\nresolves in rounds, every hit lands on a specific limb, and you can\nabbreviate the target''s name (`kill clau` reaches Claudius).\nImmortals: an instant slay -- no rounds, no wait, the target dies.'
+  WHERE `name` = 'kill' AND `updated_by` = 'seed';
 
 -- Migration: redit dropped to 51+ (every immortal builds).
 UPDATE `help_topic` SET `body` = 'Usage: redit [field] [args]   (level 51+ builders)\n\nEdits the room you are standing in; every change saves to the\ndatabase immediately. Bare `redit` shows the room summary.\n\n  redit name <text>          -- set the room title\n  redit description          -- line editor (`.` saves, `~` aborts)\n  redit sector_type [n]      -- show or set the sector number\n  redit exit <dir> <toroom>  -- link an exit; creates the target room\n                                if needed and fixes the reverse exit\n  redit exit <dir> -1        -- delete an exit'

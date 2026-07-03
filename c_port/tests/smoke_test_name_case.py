@@ -131,6 +131,26 @@ check(f"Welcome, {valid_name.capitalize()}" in out,
       "a valid letters-only name still creates fine after rejections")
 sVal.close()
 
+# --- Duplicate names are rejected across ALL accounts (Session 21) ---
+sDup = socket.create_connection((host, port), timeout=5)
+greeting = recv_all(sDup)
+check("TobinMUD" in greeting, "the connect banner announces TobinMUD")
+send_line(sDup, f"CaseTesterDup{_suffix}")
+recv_all(sDup)
+send_line(sDup, "casetestpw123")
+recv_all(sDup)
+send_line(sDup, "new")
+recv_all(sDup)
+send_line(sDup, valid_name)  # taken by the OTHER account just above
+out = recv_all(sDup)
+check("already taken" in out, "a duplicate character name is rejected (cross-account)")
+send_line(sDup, f"Freshguy{_suffix}")
+recv_all(sDup)
+send_line(sDup, "done")
+out = recv_all(sDup)
+check("Welcome, Freshguy" in out, "a unique name still creates after the rejection")
+sDup.close()
+
 sLower.close()
 sUpper.close()
 sMixed.close()

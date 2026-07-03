@@ -47,8 +47,10 @@ static const cmd_entry_t COMMANDS[] = {
     { "who",     cmd_who,     "List everyone currently playing.",                   MORTAL_LEVEL_MIN },
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },
     { "color",   cmd_color,   "Toggle ANSI color rendering on or off.",             MORTAL_LEVEL_MIN },
-    { "attack",  cmd_attack,  "Attack another player in the room.",                 MORTAL_LEVEL_MIN },
-    { "kill",    cmd_kill,    "Attack another player (instant for immortals).",     MORTAL_LEVEL_MIN },
+    /* attack and kill are FULL aliases (user spec): one handler, both
+     * instakill for immortals, both normal combat for mortals. */
+    { "attack",  cmd_kill,    "Attack another player (instant slay for immortals).", MORTAL_LEVEL_MIN },
+    { "kill",    cmd_kill,    "Attack another player (instant slay for immortals).", MORTAL_LEVEL_MIN },
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
     { "limbs",   cmd_limbs,   "Show the current health of all your limbs.",         MORTAL_LEVEL_MIN },
     { "help",    cmd_help,    "List available commands.",                           MORTAL_LEVEL_MIN },

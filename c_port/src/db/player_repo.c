@@ -135,6 +135,16 @@ int player_load_room(const char *name, long account_id) {
     return room_vnum;
 }
 
+bool player_name_exists(const char *name) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool found = db_query(db, "select id from player where name='%s'", name)
+                 && db_fetch_row(db);
+    db_close(db);
+    return found;
+}
+
 bool player_set_load_room(const char *name, long account_id, int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

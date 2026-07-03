@@ -183,8 +183,10 @@ level_line = [l for l in out.splitlines() if "Level:" in l]
 check(level_line and "Immortal" in level_line[0],
       "score marks the character as immortal via the rank title")
 
-out = step(sImm, "immortal attacks", f"attack {nameTarget}")
-check(f"You attack {proper(nameTarget)}" in out, "immortal can attack")
+# attack == kill (full aliases): for an immortal both are the instant slay.
+out = step(sImm, "immortal attacks (instant slay -- attack aliases kill)", f"attack {nameTarget}")
+check(f"You have slain {proper(nameTarget)}" in out,
+      "immortal 'attack' is the instant slay, same as kill")
 
 out = step(sImm, "immortal acts again IMMEDIATELY -- should NOT be blocked", "score")
 check("still recovering" not in out, "immortal is never blocked by the wait-state, even right after attacking")
