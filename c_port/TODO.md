@@ -19,9 +19,11 @@ here and log details there.
 
 - [ ] Create the `mud` user on the work box (db.kullit.com) to match the home
       VM (user's stated plan, 2026-07-02).
-- [ ] Decide how to keep home (`E:\New MUD`) and work copies in sync — manual
-      scp both ways works but is easy to fumble; a git repo (even a private
-      remote) would make home/work handoff and history much safer.
+- [x] Home/work sync: **done 2026-07-02** — private GitHub repo
+      `github.com/sculpy/tobin-mud`, repo root at the top of the tree
+      (`E:\New MUD` at home). Workflow: commit+push when leaving a location,
+      pull on arrival. First work-side step: clone it on the work box
+      (replaces the scp'd copy).
 - [ ] Consider a systemd unit (or at least a start script) for `tobin_c` on
       the VM so it survives reboots without manual relaunch.
 
