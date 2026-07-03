@@ -182,14 +182,13 @@ persistence. Sequenced by dependency:
 
 ### Batch 3 roadmap (user-specified, 2026-07-03 evening) — ordered by engine impact + complexity
 
-- [ ] **Account menu rework** — lettered command table: `C` connect/play a
-      character, `D` delete, `N` new character, `Q` quit the game;
-      case-insensitive (c == C). This is the ONE place `q` may alias quit.
-      NOTE: biggest ripple of the batch — every smoke test logs in through
-      the menu ("new"/numbers), so either keep the old inputs working
-      alongside the letters or update all ~28 tests' login helpers.
-      (Interpretation to confirm: C = connect an existing character, since
-      N already creates new.)
+- [ ] **Account menu rework** — lettered command table, CONFIRMED: `C`
+      connect an EXISTING character, `N` new character creation, `D`
+      delete, `Q` quit the game; case-insensitive (c == C). This is the
+      ONE place `q` may alias quit. NOTE: biggest ripple of the batch —
+      every smoke test logs in through the menu ("new"/numbers), so either
+      keep the old inputs working alongside the letters or update all ~28
+      tests' login helpers.
 - [ ] **Prompt toggle** — `prompt <stat>` customizes what the prompt line
       shows, e.g. `prompt hp` → `HP: 25 > `. Needs a per-player prompt
       spec (persisted in the player file), and the game-loop prompter
