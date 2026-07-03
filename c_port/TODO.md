@@ -209,11 +209,9 @@ persistence. Sequenced by dependency:
       to it (collapse the per-direction stub topics). Same for `help '`
       → the say topic. Mechanism: resolve the query through the command
       table's alias→handler mapping before the topic lookup.
-- [ ] **attack/kill alias** — they behave identically for mortals; make
-      one the alias of the other. NUANCE: for immortals `kill` is the
-      instant slay — decide whether attack aliases kill (immortals
-      instakill on attack too) or kill aliases attack with the immortal
-      branch preserved in the shared handler.
+- [ ] **attack/kill alias** — full aliases of each other, CONFIRMED: for
+      immortals BOTH are the instant slay (attack gains the instakill);
+      for mortals both start normal combat. One handler, two table rows.
 - [ ] **Duplicate character names disallowed** — on creation, check for
       an existing player with that name (any account) and re-prompt
       cleanly. (Uniqueness is already assumed throughout; this makes the
