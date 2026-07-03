@@ -10,7 +10,7 @@
 #include "room_repo.h"
 #include "world.h"
 
-/* `edit <field> <args>` -- the room builder, a port of the original's
+/* `redit <field> <args>` (renamed from `edit` at user request) -- the room builder, a port of the original's
  * TPerson::doEdit() interface (misc/create_rooms.cc, "Original edit code
  * from Silly, May 1992"): field names matched by prefix, `edit name <text>`
  * inline, `edit description` dropping into the string editor, and
@@ -96,7 +96,7 @@ bool cmd_edit(descriptor_t *d, const char *args) {
      * (n/d/s/e), so even one-letter prefixes are unambiguous. */
     if (strncasecmp("name", field, flen) == 0) {
         if (!*rest) {
-            descriptor_send(d, "Usage: edit name <new room title>\r\n");
+            descriptor_send(d, "Usage: redit name <new room title>\r\n");
             return true;
         }
         snprintf(r->base.name, sizeof(r->base.name), "%s", rest);
@@ -138,7 +138,7 @@ bool cmd_edit(descriptor_t *d, const char *args) {
         if (!*rest) {
             char msg[96];
             snprintf(msg, sizeof(msg),
-                     "Current sector type: %d. Usage: edit sector_type <number>\r\n",
+                     "Current sector type: %d. Usage: redit sector_type <number>\r\n",
                      r->sector);
             descriptor_send(d, msg);
             return true;
@@ -158,7 +158,7 @@ bool cmd_edit(descriptor_t *d, const char *args) {
         char dir_tok[16];
         int toroom;
         if (sscanf(rest, "%15s %d", dir_tok, &toroom) != 2) {
-            descriptor_send(d, "Syntax : edit exit <dir> <toroom>   (-1 deletes the exit)\r\n");
+            descriptor_send(d, "Syntax : redit exit <dir> <toroom>   (-1 deletes the exit)\r\n");
             return true;
         }
         int dir = parse_dir(dir_tok);

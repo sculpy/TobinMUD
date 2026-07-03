@@ -110,6 +110,8 @@ send_line(sA, "help")
 out = recv_all(sA)
 check("goto" in out and "promote" in out, "an immortal's help includes the immortal commands")
 check("hedit" not in out, "a level-51's help does not reveal hedit either")
+check(out.index("goto") < out.index("look"),
+      "help lists higher-level commands first (goto before the mortal commands)")
 
 sA.close()
 print("=== ALL CHECKS PASSED ===")

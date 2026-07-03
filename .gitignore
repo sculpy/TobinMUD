@@ -8,6 +8,10 @@ nohup.out
 __pycache__/
 *.pyc
 
+# Game log files (logs/<datetime>.game.log) -- never commit server logs
+c_port/logs/
+logs/
+
 # Packaging artifacts
 tobin_takehome.zip
 

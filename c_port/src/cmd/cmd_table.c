@@ -45,9 +45,8 @@ static const cmd_entry_t COMMANDS[] = {
      * deal for copyover after color: "c"/"co" reach color, "cop"+ this. */
     { "hedit",   cmd_hedit,   "Edit a help topic in the line editor.",              HELP_EDIT_MIN_LEVEL },
     { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected.", COPYOVER_MIN_LEVEL },
-    /* "e" reaches east (movement, above); "ed"+ reaches edit. Same deal
-     * for log after look/limbs: "l" look, "li" limbs, "lo" look, "log" this. */
-    { "edit",    cmd_edit,    "Edit the room you are standing in (builder).",       BUILD_MIN_LEVEL },
+    /* "log" needs its three letters ("l" look, "li" limbs, "lo" look). */
+    { "redit",   cmd_edit,    "Edit the room you are standing in (builder).",       BUILD_MIN_LEVEL },
     { "log",     cmd_log,     "Read, search, list, or rotate the game logs.",       LOG_MIN_LEVEL },
 };
 #define NUM_COMMANDS (sizeof(COMMANDS) / sizeof(COMMANDS[0]))

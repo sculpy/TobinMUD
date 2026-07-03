@@ -69,12 +69,19 @@ bool cmd_help(descriptor_t *d, const char *args) {
 
     /* Only list what this caller can actually use -- cmd_dispatch() hides
      * over-level commands entirely (Phase 2A), so listing them here would
-     * leak their existence to mortals. */
-    for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
-        if (cmds[i].min_level > level)
-            continue;
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-10s %s\r\n",
-                      cmds[i].name, cmds[i].help);
+     * leak their existence to mortals. Sorted highest-min_level first
+     * (user request): an immortal's privileged commands lead the list,
+     * mortal commands follow in table order. */
+    for (int lvl = level; lvl >= MORTAL_LEVEL_MIN; ) {
+        int next_lvl = MORTAL_LEVEL_MIN - 1;
+        for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
+            if (cmds[i].min_level == lvl)
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-10s %s\r\n",
+                              cmds[i].name, cmds[i].help);
+            else if (cmds[i].min_level < lvl && cmds[i].min_level > next_lvl)
+                next_lvl = cmds[i].min_level;
+        }
+        lvl = next_lvl;
     }
     /* `quit!` is deliberately excluded from cmd_table.c's dispatch table
      * (see its comment there) -- listed here as a hardcoded extra line so
@@ -117,15 +124,22 @@ bool cmd_wizhelp(descriptor_t *d, const char *args) {
     /* Same secrecy rule as help/cmd_dispatch (user requirement): an
      * immortal only sees the commands their own level already grants --
      * what the next promotion unlocks stays unknown until it happens. The
-     * [N+] tag therefore only ever shows levels at or below the caller's. */
+     * [N+] tag therefore only ever shows levels at or below the caller's.
+     * Sorted highest-min_level first, same as help. */
     int level = d->character->progress.level;
     bool any = false;
-    for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
-        if (cmds[i].min_level <= MORTAL_LEVEL_MAX || cmds[i].min_level > level)
-            continue;
-        any = true;
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-10s [%d+] %s\r\n",
-                      cmds[i].name, cmds[i].min_level, cmds[i].help);
+    for (int lvl = level; lvl > MORTAL_LEVEL_MAX; ) {
+        int next_lvl = MORTAL_LEVEL_MAX;
+        for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
+            if (cmds[i].min_level == lvl) {
+                any = true;
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-10s [%d+] %s\r\n",
+                              cmds[i].name, cmds[i].min_level, cmds[i].help);
+            } else if (cmds[i].min_level < lvl && cmds[i].min_level > next_lvl) {
+                next_lvl = cmds[i].min_level;
+            }
+        }
+        lvl = next_lvl;
     }
     if (!any && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n,

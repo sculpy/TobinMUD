@@ -104,6 +104,13 @@ set_level(nameImm, 59)
 sImm.close()
 sImm = relog(nameImm)
 
+# The log commands are documented: help log shows the topic (only for
+# those who can see the command at all -- 59+).
+send_line(sImm, "help log")
+out = recv_all(sImm)
+check("-- Help: log --" in out and "rotate" in out,
+      "help log shows the log command's help topic")
+
 # --- Part 3: tail and search ---
 send_line(sImm, "log")
 out = recv_all(sImm)

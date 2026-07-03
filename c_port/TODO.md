@@ -105,6 +105,23 @@ persistence. Sequenced by dependency:
 - [ ] **E. Zone resets** — periodic respawn of mobs/objects per zone so
       built content stays populated.
 
+### The `*edit` editor family (user-defined naming convention, 2026-07-03)
+
+Every in-game editor follows the same name pattern and (so far) the same
+line-editor/field-command interaction model. First letters are all
+distinct, so each gets its single-letter abbreviation for those leveled
+enough to see it:
+
+- [x] `redit` — rooms (Session 21; renamed from `edit` to fit the family)
+- [x] `hedit` — help topics (Session 20)
+- [ ] `oedit` — objects (lands with Phase 2C)
+- [ ] `zedit` — zones (lands with Phase 2E; zone table already in the DB)
+- [ ] `medit` — mobs (lands with Phase 2D; assumed wanted to complete the
+      set — confirm)
+- [ ] `pedit` — player files (level/attrs/hp/location of any player,
+      replacing one-off SQL; effectively an admin superset of `promote`)
+- [ ] `aedit` — accounts (rename, password reset, list characters)
+
 ## Deferred decisions (blocked on choosing, not on code)
 
 - [ ] Which ~8-10 `disc/` disciplines to keep (proposal in STATUS.md
