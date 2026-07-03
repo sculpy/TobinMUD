@@ -30,11 +30,13 @@ bool cmd_score(descriptor_t *d, const char *args) {
              "  Constitution:  %d\r\n"
              "  Intelligence:  %d\r\n"
              "  Wisdom:        %d\r\n"
-             "  Charisma:      %d\r\n",
+             "  Charisma:      %d\r\n"
+             "  Handedness:    %s\r\n",
              d->character->base.name,
              level_field,
              p->experience, p->hp, p->max_hp,
-             a->strength, a->dexterity, a->constitution, a->intelligence, a->wisdom, a->charisma);
+             a->strength, a->dexterity, a->constitution, a->intelligence, a->wisdom, a->charisma,
+             d->character->handed_right ? "right" : "left");
     if (n < 0)
         n = 0;
 

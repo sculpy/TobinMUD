@@ -96,6 +96,17 @@ check("Huh?!" in out, "'qu' does not abbreviate to quit -- quit is excluded from
 out = step(s, "look shows a trailing prompt", "look")
 check(out.rstrip().endswith(">"), "look's output ends with a prompt")
 
+# Prompt customization (Session 21): prompt hp puts HP in the prompt.
+out = step(s, "toggle hp into the prompt", "prompt hp")
+check("now show hit points" in out, "prompt hp confirms the toggle")
+out = step(s, "prompt now shows HP", "look")
+tail = out.rstrip()
+check(tail.endswith(">") and "HP:" in tail[-20:], "the prompt line carries HP: <n>")
+out = step(s, "toggle hp back off", "prompt hp")
+check("no longer" in out, "prompt hp toggles back off")
+out = step(s, "prompt is plain again", "look")
+check("HP:" not in out.rstrip()[-20:], "the plain prompt returns")
+
 out = step(s, "who shows a trailing prompt", "who")
 check(out.rstrip().endswith(">"), "who's output ends with a prompt")
 

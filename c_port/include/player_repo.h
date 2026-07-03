@@ -24,7 +24,7 @@ being_t *player_load(const char *name, long account_id);
  * attrs is NULL). Returns a freshly-allocated being_t. Fails if the name
  * is already taken (player.name is globally unique) or the account has
  * already reached MAX_CHARS_PER_ACCOUNT. */
-being_t *player_create(const char *name, long account_id, const attrs_t *attrs);
+being_t *player_create(const char *name, long account_id, const attrs_t *attrs, int handed_right);
 
 /* Deletes a player (and, via ON DELETE CASCADE, its player_attrs row) --
  * but only if it's owned by account_id. Returns false if not found/not
@@ -50,6 +50,9 @@ bool player_set_load_room(const char *name, long account_id, int vnum);
  * via the column collation) -- backs the duplicate-name rejection at
  * character creation (descriptor.c). */
 bool player_name_exists(const char *name);
+
+/* Persists the prompt customization bitmask (cmd_prompt.c). */
+bool player_set_prompt_flags(long player_id, int flags);
 
 /* Loads persisted attributes for player_id into *out. Returns false (and
  * leaves *out untouched) if no player_attrs row exists. */

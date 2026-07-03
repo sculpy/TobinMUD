@@ -55,10 +55,13 @@ static room_t *get_or_load_room(int vnum) {
 }
 
 static void show_room_summary(descriptor_t *d, room_t *r) {
-    char out[1024];
+    char flagbuf[256];
+    char out[1280];
     int n = snprintf(out, sizeof(out),
-                     "\r\nRoom Name: %s\r\nNumber: %d\r\nSector Type: %d\r\nExits:",
-                     r->base.name, r->vnum, r->sector);
+                     "\r\nRoom Name: %s\r\nNumber: %d\r\nSector Type: %d (%s)\r\n"
+                     "Flags: %s\r\nExits:",
+                     r->base.name, r->vnum, r->sector, sector_name(r->sector),
+                     room_flag_names(r->room_flag, flagbuf, sizeof(flagbuf)));
     bool any = false;
     for (int i = 0; i < ROOM_NUM_EXITS && (size_t)n < sizeof(out); i++) {
         if (r->exits[i] < 0)
@@ -136,15 +139,15 @@ bool cmd_edit(descriptor_t *d, const char *args) {
 
     if (strncasecmp("sector_type", field, flen) == 0) {
         if (!*rest) {
-            char msg[96];
+            char msg[128];
             snprintf(msg, sizeof(msg),
-                     "Current sector type: %d. Usage: redit sector_type <number>\r\n",
-                     r->sector);
+                     "Current sector type: %d (%s). Usage: redit sector_type <0-%d>\r\n",
+                     r->sector, sector_name(r->sector), MAX_SECTOR_TYPES - 1);
             descriptor_send(d, msg);
             return true;
         }
         int s = atoi(rest);
-        if (s < 0 || s > 99) {
+        if (s < 0 || s >= MAX_SECTOR_TYPES) {
             descriptor_send(d, "That sector choice is invalid, please try again.\r\n");
             return true;
         }

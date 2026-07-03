@@ -20,8 +20,11 @@ bool cmd_look(descriptor_t *d, const char *args) {
      * room name (user spec: "[room vnum] room name [other info]"); mortals
      * see the plain name. */
     if (being_is_immortal(d->character)) {
-        n = snprintf(out, sizeof(out), "\r\n[%d] %s [sector %d] [flags %d]\r\n%s\r\n",
-                     r->vnum, r->base.name, r->sector, r->room_flag, r->description);
+        char flagbuf[256];
+        n = snprintf(out, sizeof(out), "\r\n[%d] %s [%s] [flags: %s]\r\n%s\r\n",
+                     r->vnum, r->base.name, sector_name(r->sector),
+                     room_flag_names(r->room_flag, flagbuf, sizeof(flagbuf)),
+                     r->description);
     } else {
         n = snprintf(out, sizeof(out), "\r\n%s\r\n%s\r\n", r->base.name, r->description);
     }

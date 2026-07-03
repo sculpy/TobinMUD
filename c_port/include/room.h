@@ -1,6 +1,8 @@
 #ifndef TOBIN_ROOM_H
 #define TOBIN_ROOM_H
 
+#include <stddef.h>
+
 #include "thing.h"
 
 /* C replacement for the TRoom slice of misc/thing.h + the `room` DB table
@@ -18,6 +20,17 @@
  * (north->south etc), a straight port of the original's rev_dirs. */
 extern const char *const DIR_NAMES[ROOM_NUM_EXITS];
 extern const int REV_DIR[ROOM_NUM_EXITS];
+
+/* Sector-type names, a straight port of the original's sectorTypeT
+ * (misc/enum.h, 61 entries, SECT_SUBARCTIC=0 .. SECT_DEAD_WOODS=60).
+ * Out-of-range values render as "unknown". */
+#define MAX_SECTOR_TYPES 61
+const char *sector_name(int sector);
+
+/* Renders the set ROOM_* flag bits (original misc/room.h, 22 bits) into
+ * buf as space-separated names ("always-lit indoors ..."), or "none".
+ * Returns buf for convenience. */
+const char *room_flag_names(int flags, char *buf, size_t size);
 
 typedef struct room {
     thing_t base;               /* first member -- see thing.h */

@@ -41,6 +41,7 @@ bool cmd_exits(descriptor_t *d, const char *args);
 bool cmd_loadroom(descriptor_t *d, const char *args);
 bool cmd_mortal(descriptor_t *d, const char *args);
 bool cmd_immort(descriptor_t *d, const char *args);
+bool cmd_prompt(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */

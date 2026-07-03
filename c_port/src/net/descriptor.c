@@ -356,9 +356,11 @@ static void show_account_menu(descriptor_t *d) {
     }
     if ((size_t)n < sizeof(out)) {
         snprintf(out + n, sizeof(out) - (size_t)n,
-                 "\r\nType a number to play, 'new' to create a character%s,\r\n"
-                 "or 'quit!' to disconnect.\r\n\r\n> ",
-                 d->char_count > 0 ? ", 'delete <name>' to remove one" : "");
+                 "\r\n  C [number|name] -- connect a character\r\n"
+                 "  N               -- create a new character\r\n"
+                 "  D <name>        -- delete a character\r\n"
+                 "  Q               -- quit the game\r\n"
+                 "(Letters work in either case; a bare number still connects too.)\r\n\r\n> ");
     }
     descriptor_send(d, out);
 }
@@ -389,6 +391,7 @@ static void show_attr_screen(descriptor_t *d) {
              "Net pool: %d points. Commands:\r\n"
              "  str/dex/con/int/wis/cha <amount>   set that attribute's adjustment,\r\n"
              "                                      e.g. \"str 30\" or \"wis -20\"\r\n"
+             "  hand left|right                    choose your primary hand (default right)\r\n"
              "  reset                              clear all adjustments\r\n"
              "  done                                finish and create the character\r\n"
              "  quit!                               cancel and return to the character menu\r\n\r\n"
@@ -398,10 +401,12 @@ static void show_attr_screen(descriptor_t *d) {
              "  Intelligence:  %3d\r\n"
              "  Wisdom:        %3d\r\n"
              "  Charisma:      %3d\r\n"
+             "  Handedness:    %s\r\n"
              "Points remaining: %d\r\n\r\n> ",
              d->new_char_name, ATTR_BASE, ATTR_DELTA_CAP, ATTR_POOL,
              d->new_char_attrs.strength, d->new_char_attrs.dexterity, d->new_char_attrs.constitution,
              d->new_char_attrs.intelligence, d->new_char_attrs.wisdom, d->new_char_attrs.charisma,
+             d->new_char_handed ? "right" : "left",
              remaining);
     descriptor_send(d, out);
 }
@@ -486,19 +491,72 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 return true;
             }
 
-            if (strcasecmp(line, "new") == 0) {
+            /* Lettered menu commands (user spec, Session 21): C connect,
+             * N new, D delete, Q quit -- case-insensitive; the menu is the
+             * ONE place a bare q may quit. The pre-letter inputs (bare
+             * number, "new", "delete <name>", "quit!") all keep working. */
+            char letter = (char)tolower((unsigned char)line[0]);
+            bool single = (line[1] == '\0');
+
+            if (strcasecmp(line, "new") == 0 || (single && letter == 'n')) {
                 descriptor_send(d, "New character name (or 'quit!' to cancel): ");
                 d->state = CONN_CHAR_CREATE_NAME;
                 return true;
             }
 
-            if (strcasecmp(line, "quit!") == 0) {
+            if (strcasecmp(line, "quit!") == 0 || (single && letter == 'q')) {
                 descriptor_send(d, "Goodbye!\r\n");
                 return false; /* actually disconnect -- unlike `quit!` while playing */
             }
 
-            if (strncasecmp(line, "delete", 6) == 0 && (line[6] == '\0' || line[6] == ' ')) {
-                const char *target = line + 6;
+            if (letter == 'c' && (single || line[1] == ' ')) {
+                const char *arg = line + 1;
+                while (*arg == ' ')
+                    arg++;
+                const char *pick = NULL;
+                if (!*arg) {
+                    if (d->char_count == 1) {
+                        pick = d->char_list[0];
+                    } else {
+                        descriptor_send(d, d->char_count == 0
+                            ? "No characters yet -- N creates one.\r\n"
+                            : "Connect which one? C <number or name>\r\n");
+                        show_account_menu(d);
+                        return true;
+                    }
+                } else {
+                    char *cend = NULL;
+                    long cnum = strtol(arg, &cend, 10);
+                    if (cend != arg && *cend == '\0' && cnum >= 1 && cnum <= d->char_count) {
+                        pick = d->char_list[cnum - 1];
+                    } else {
+                        for (int i = 0; i < d->char_count; i++) {
+                            if (strcasecmp(d->char_list[i], arg) == 0) {
+                                pick = d->char_list[i];
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!pick) {
+                    descriptor_send(d, "No such character. C <number or name>\r\n");
+                    show_account_menu(d);
+                    return true;
+                }
+                being_t *b = player_load(pick, d->account.account_id);
+                if (!b) {
+                    descriptor_send(d, "That character could not be loaded.\r\n");
+                    show_account_menu(d);
+                    return true;
+                }
+                enter_world(d, b);
+                return true;
+            }
+
+            if ((strncasecmp(line, "delete", 6) == 0 && (line[6] == '\0' || line[6] == ' '))
+                || (letter == 'd' && (single || line[1] == ' '))) {
+                const char *target = line + (tolower((unsigned char)line[0]) == 'd'
+                                             && strncasecmp(line, "delete", 6) != 0 ? 1 : 6);
                 while (*target == ' ')
                     target++;
                 if (!*target) {
@@ -539,7 +597,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 return true;
             }
 
-            descriptor_send(d, "Huh? Type a number, 'new', 'delete <name>', or 'quit!'.\r\n");
+            descriptor_send(d, "Huh? C connects, N creates, D <name> deletes, Q quits.\r\n");
             show_account_menu(d);
             return true;
         }
@@ -590,6 +648,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
             snprintf(d->new_char_name, sizeof(d->new_char_name), "%s", line);
             being_normalize_name(d->new_char_name);
             d->new_char_attrs = (attrs_t){ ATTR_BASE, ATTR_BASE, ATTR_BASE, ATTR_BASE, ATTR_BASE, ATTR_BASE };
+            d->new_char_handed = 1; /* right unless chosen otherwise */
             d->state = CONN_CHAR_CREATE_ATTRS;
             show_attr_screen(d);
             return true;
@@ -603,8 +662,25 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 return true;
             }
 
+            /* Handedness choice (Session 21): optional, default right. */
+            if (strncasecmp(line, "hand", 4) == 0) {
+                char hd[16];
+                if (sscanf(line + 4, "%15s", hd) == 1
+                    && (strcasecmp(hd, "left") == 0 || strcasecmp(hd, "l") == 0)) {
+                    d->new_char_handed = 0;
+                } else if (sscanf(line + 4, "%15s", hd) == 1
+                           && (strcasecmp(hd, "right") == 0 || strcasecmp(hd, "r") == 0)) {
+                    d->new_char_handed = 1;
+                } else {
+                    descriptor_send(d, "Usage: hand left | hand right\r\n");
+                }
+                show_attr_screen(d);
+                return true;
+            }
+
             if (strcasecmp(line, "done") == 0) {
-                being_t *b = player_create(d->new_char_name, d->account.account_id, &d->new_char_attrs);
+                being_t *b = player_create(d->new_char_name, d->account.account_id,
+                                           &d->new_char_attrs, d->new_char_handed);
                 if (!b) {
                     descriptor_send(d, "Could not create that character (name may already be taken).\r\n");
                     d->state = CONN_ACCOUNT_MENU;

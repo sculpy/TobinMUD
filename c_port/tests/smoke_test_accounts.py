@@ -87,6 +87,11 @@ check("Points remaining: 30" in out, "full pool (30) available before spending")
 out = step(s, "allocate strength (exhausts the pool)", "str 30")
 check("Points remaining: 0" in out, "strength at +30 exactly spends the 30-point pool")
 
+# Handedness (Session 21): optional choice on this screen, default right.
+send_line(s, "hand left")
+out = recv_all(s)
+check("Handedness:    left" in out, "hand left flips the attr screen's handedness line")
+
 out = step(s, "overspend rejected", "dex 5")
 check("Not enough points remaining" in out, "spending more than what's left is rejected")
 
@@ -94,6 +99,7 @@ out = step(s, "finish creation", "done")
 check(f"Welcome, {char1_name}" in out, "'done' creates the character and enters the world")
 
 out = step(s, "score", "score")
+check("Handedness:    left" in out, "score shows the chosen left-handedness")
 check("Strength:      150" in out and "Dexterity:     120" in out,
       "score shows the persisted point-buy allocation")
 

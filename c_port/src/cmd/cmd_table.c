@@ -60,6 +60,8 @@ static const cmd_entry_t COMMANDS[] = {
     { "goto",    cmd_goto,    "Teleport to a room by vnum.",                        IMMORTAL_LEVEL_MIN },
     /* "l" look, "li" limbs, "lo" look, "loa"+ loadroom, "log" log. */
     { "loadroom", cmd_loadroom, "Set the room your character logs in at.",          IMMORTAL_LEVEL_MIN },
+    /* "p"/"pr"/"pro" reach prompt; "prom"+ reaches promote. */
+    { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp).",                 MORTAL_LEVEL_MIN },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
     /* NOTE: must stay after "help" in this table -- "h"/"he"/"hel" should
      * abbreviate to help (first match wins), "hed"+ reaches hedit. Same

@@ -182,19 +182,19 @@ persistence. Sequenced by dependency:
 
 ### Batch 3 roadmap (user-specified, 2026-07-03 evening) — ordered by engine impact + complexity
 
-- [ ] **Account menu rework** — lettered command table, CONFIRMED: `C`
+- [x] **Account menu rework** — done 2026-07-03: `C`
       connect an EXISTING character, `N` new character creation, `D`
       delete, `Q` quit the game; case-insensitive (c == C). This is the
       ONE place `q` may alias quit. NOTE: biggest ripple of the batch —
       every smoke test logs in through the menu ("new"/numbers), so either
       keep the old inputs working alongside the letters or update all ~28
       tests' login helpers.
-- [ ] **Prompt toggle** — `prompt <stat>` customizes what the prompt line
+- [x] **Prompt toggle** — done 2026-07-03: `prompt hp` customizes what the prompt line
       shows, e.g. `prompt hp` → `HP: 25 > `. Needs a per-player prompt
       spec (persisted in the player file), and the game-loop prompter
       renders it instead of the bare "> ". Start with hp; design for
       vitality/xp/gold joining later.
-- [ ] **Handedness** — at character creation choose left- or right-handed:
+- [x] **Handedness** — done 2026-07-03: at character creation choose left- or right-handed:
       primary hand hits harder, secondary hits weaker (combat modifier in
       combat_strike). New creation step + player-file column; pairs with
       the finger/hand limbs.

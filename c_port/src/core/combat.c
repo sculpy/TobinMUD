@@ -51,6 +51,13 @@ static void combat_strike(being_t *attacker, being_t *defender) {
     }
 
     int dmg = 1 + (attacker->attrs.strength - ATTR_BASE) / 4 + (rand() % 6);
+
+    /* Handedness (Session 21): strikes alternate hands; the primary hand
+     * hits harder (+1), the off-hand weaker (-1). Which hand is primary
+     * comes from handed_right chosen at creation. */
+    dmg += attacker->off_hand_next ? -1 : 1;
+    attacker->off_hand_next = !attacker->off_hand_next;
+
     if (dmg < 1)
         dmg = 1;
 

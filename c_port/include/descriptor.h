@@ -79,6 +79,7 @@ typedef struct descriptor {
     /* CONN_CHAR_CREATE_NAME / CONN_CHAR_CREATE_ATTRS scratch. */
     char new_char_name[PLAYER_NAME_LEN];
     attrs_t new_char_attrs;
+    int new_char_handed; /* 1 right (default), 0 left */
 
     /* CONN_CHAR_DELETE_CONFIRM scratch. */
     char delete_char_name[PLAYER_NAME_LEN];

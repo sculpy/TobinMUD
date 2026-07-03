@@ -18,12 +18,16 @@ being_t *player_load(const char *name, long account_id) {
         return NULL;
 
     being_t *b = NULL;
-    if (db_query(db, "select id, name, account_id, load_room from player "
+    if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags from player "
                       "where name='%s' and account_id=%i",
                  name, (int)account_id)
         && db_fetch_row(db)) {
         long player_id = atol(db_get(db, "id"));
         b = being_create_pc(db_get(db, "name"), account_id, player_id);
+        if (b) {
+            b->handed_right = atoi(db_get(db, "handed"));
+            b->prompt_flags = atoi(db_get(db, "prompt_flags"));
+        }
     }
 
     db_close(db);
@@ -36,7 +40,7 @@ being_t *player_load(const char *name, long account_id) {
     return b;
 }
 
-being_t *player_create(const char *name, long account_id, const attrs_t *attrs) {
+being_t *player_create(const char *name, long account_id, const attrs_t *attrs, int handed_right) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return NULL;
@@ -56,15 +60,16 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs) 
     }
 
     bool ok = db_query(db,
-        "insert into player (name, talens, account_id, load_room, nutrition) "
-        "values ('%s', 0, %i, %i, 100)",
-        name, (int)account_id, DEFAULT_LOAD_ROOM);
+        "insert into player (name, talens, account_id, load_room, nutrition, handed) "
+        "values ('%s', 0, %i, %i, 100, %i)",
+        name, (int)account_id, DEFAULT_LOAD_ROOM, handed_right ? 1 : 0);
 
     being_t *b = NULL;
     if (ok) {
         long player_id = db_last_insert_id(db);
         b = being_create_pc(name, account_id, player_id);
         if (b) {
+            b->handed_right = handed_right ? 1 : 0;
             if (attrs)
                 b->attrs = *attrs;
             player_attrs_save(player_id, &b->attrs);
@@ -259,6 +264,16 @@ bool player_set_level_by_name(const char *name, int level) {
         "on duplicate key update level=%i",
         (int)player_id, level, level);
 
+    db_close(db);
+    return ok;
+}
+
+bool player_set_prompt_flags(long player_id, int flags) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "update player set prompt_flags=%i where id=%i",
+                       flags, (int)player_id);
     db_close(db);
     return ok;
 }

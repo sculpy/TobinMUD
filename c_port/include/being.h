@@ -67,6 +67,10 @@ typedef struct {
     int true_level;
 } progress_t;
 
+/* Prompt customization bits (player.prompt_flags, cmd_prompt.c; rendered
+ * by the game loop's prompter). */
+#define PROMPT_FLAG_HP 1
+
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in
  * misc/being.h, driven by `wearSlotT`'s 13 equipment-aligned slots plus
@@ -120,6 +124,15 @@ typedef struct being {
     attrs_t attrs;
     progress_t progress;
     limb_state_t limbs[LIMB_COUNT];
+
+    /* Handedness (Session 21): 1 = right (default), 0 = left. The primary
+     * hand hits harder, the off-hand weaker; strikes alternate hands via
+     * the transient off_hand_next (not persisted, like fighting). */
+    int handed_right;
+    bool off_hand_next;
+
+    /* Prompt customization bitmask (PROMPT_FLAG_*), player.prompt_flags. */
+    int prompt_flags;
 
     /* Combat (PvP only for now, see STATUS.md -- no NPCs/mobs exist yet).
      * `fighting` is a live in-memory pointer, never persisted (meaningless

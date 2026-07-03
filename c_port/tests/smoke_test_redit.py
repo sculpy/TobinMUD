@@ -102,7 +102,7 @@ sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
 send_line(s, f"goto {BASE}")
 out = recv_all(s)
 check("Sandbox Origin" in out, "goto lands in the SQL-bootstrapped sandbox room")
-check(f"[{BASE}]" in out and "[sector 0]" in out and "[flags 0]" in out,
+check(f"[{BASE}]" in out and "[subarctic]" in out and "[flags: none]" in out,
       "an immortal's look shows the [vnum] name [sector] [flags] header")
 
 # --- Part 2: bare edit shows the summary ---
@@ -123,7 +123,7 @@ out = recv_all(s)
 check("Sector type set" in out, "redit sector_type sets the sector")
 send_line(s, "redit sector_type")
 out = recv_all(s)
-check("Current sector type: 3" in out, "redit sector_type with no arg shows the value")
+check("Current sector type: 3 (arctic road)" in out, "redit sector_type with no arg shows number and name")
 
 send_line(s, "redit description")
 out = recv_all(s)

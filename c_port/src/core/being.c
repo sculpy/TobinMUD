@@ -20,6 +20,7 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
     b->attrs.strength = b->attrs.dexterity = b->attrs.constitution =
         b->attrs.intelligence = b->attrs.wisdom = b->attrs.charisma = ATTR_BASE;
 
+    b->handed_right = 1; /* right-handed default */
     b->progress.level = MORTAL_LEVEL_MIN;
     b->progress.experience = 0;
     b->progress.max_hp = being_calc_max_hp(b);

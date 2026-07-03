@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "being.h"
 #include "descriptor.h"
 #include "log.h"
 #include "net.h"
@@ -57,8 +58,16 @@ static bool copyover_recover(const char *file, main_socket_t *ms) {
         char peer_ip[46], char_name[64], account_name[80];
         if (sscanf(line, "conn %d %ld %d %d %45s %63s %79[^\r\n]",
                    &fd, &account_id, &room_vnum, &color, peer_ip, char_name,
-                   account_name) != 7)
+                   account_name) != 7) {
+            /* Unparseable (e.g. an older recovery-file format): CLOSE the
+             * inherited fd rather than leaking it -- an unowned open
+             * socket looks like a hung MUD to the client on its far end
+             * (learned the hard way, Session 21). */
+            if (sscanf(line, "conn %d", &fd) == 1 && fd >= 0)
+                close(fd);
+            dropped++;
             continue;
+        }
         if (descriptor_copyover_adopt(fd, account_id, room_vnum, color != 0,
                                       peer_ip, char_name, account_name))
             restored++;
@@ -142,7 +151,16 @@ int game_loop_run(int port, const char *copyover_file) {
          * via socket_write so it doesn't re-mark needs_prompt. */
         for (descriptor_t *p = g_descriptors; p; p = p->next) {
             if (p->needs_prompt && p->state == CONN_PLAYING && p->edit_kind == EDIT_NONE) {
-                socket_write(p->fd, "\r\n> ", 4);
+                /* Prompt customization (cmd_prompt.c): render the player's
+                 * chosen stats ahead of the "> ". */
+                if (p->character && (p->character->prompt_flags & PROMPT_FLAG_HP)) {
+                    char pbuf[48];
+                    int pn = snprintf(pbuf, sizeof(pbuf), "\r\nHP: %d > ",
+                                      p->character->progress.hp);
+                    socket_write(p->fd, pbuf, (size_t)pn);
+                } else {
+                    socket_write(p->fd, "\r\n> ", 4);
+                }
                 p->needs_prompt = false;
             }
         }
