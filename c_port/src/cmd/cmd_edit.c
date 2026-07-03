@@ -163,7 +163,8 @@ bool cmd_edit(descriptor_t *d, const char *args) {
         }
         int dir = parse_dir(dir_tok);
         if (dir < 0) {
-            descriptor_send(d, "Direction must be north/east/south/west/up/down (or 0-5).\r\n");
+            descriptor_send(d, "Direction must be north/east/south/west/up/down/"
+                               "northeast/northwest/southeast/southwest (or 0-9).\r\n");
             return true;
         }
 

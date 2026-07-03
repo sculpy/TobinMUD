@@ -7,11 +7,12 @@
  * (db/sneezy/room.sql). Phase 1 keeps only the fields needed for `look`. */
 
 #define ROOM_DESCRIPTION_MAX 4096
-/* First 6 slots of the original dirTypeT, IN ITS ORDER: north(0), east(1),
- * south(2), west(3), up(4), down(5) -- confirmed against constants.cc's
- * rev_dirs table. The original's four diagonals (NE/NW/SE/SW, 6-9) are not
- * carried; room_repo drops those exit rows on load. */
-#define ROOM_NUM_EXITS 6
+/* The original dirTypeT's full set, IN ITS ORDER: north(0), east(1),
+ * south(2), west(3), up(4), down(5), northeast(6), northwest(7),
+ * southeast(8), southwest(9) -- confirmed against constants.cc's rev_dirs
+ * table. All 10 carried as of Session 21 (the seed DB's diagonal exit
+ * rows load again instead of being dropped). */
+#define ROOM_NUM_EXITS 10
 
 /* "north", "east", ... indexed by direction; and each direction's reverse
  * (north->south etc), a straight port of the original's rev_dirs. */

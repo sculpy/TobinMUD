@@ -31,6 +31,10 @@ bool cmd_south(descriptor_t *d, const char *args);
 bool cmd_west(descriptor_t *d, const char *args);
 bool cmd_up(descriptor_t *d, const char *args);
 bool cmd_down(descriptor_t *d, const char *args);
+bool cmd_northeast(descriptor_t *d, const char *args);
+bool cmd_northwest(descriptor_t *d, const char *args);
+bool cmd_southeast(descriptor_t *d, const char *args);
+bool cmd_southwest(descriptor_t *d, const char *args);
 bool cmd_edit(descriptor_t *d, const char *args);
 bool cmd_log(descriptor_t *d, const char *args);
 

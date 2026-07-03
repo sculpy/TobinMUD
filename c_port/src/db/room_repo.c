@@ -18,9 +18,9 @@ room_t *room_repo_load(int vnum) {
     if (!r)
         return NULL;
 
-    /* Exits are a separate table; direction indices 0-5 are N/E/S/W/U/D
-     * (original dirTypeT order -- see room.h); the original's diagonal
-     * directions 6-9 are dropped here, Tobin doesn't model them. */
+    /* Exits are a separate table; direction indices 0-9 are the original
+     * dirTypeT order (see room.h) -- all ten load, including the
+     * diagonals restored in Session 21. */
     db_conn_t *db2 = db_open(DB_TOBIN);
     if (db2 && db_query(db2, "select direction, destination from roomexit where vnum=%i", vnum)) {
         while (db_fetch_row(db2)) {

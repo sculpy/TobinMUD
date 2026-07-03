@@ -47,6 +47,8 @@ static bool do_move(descriptor_t *d, int dir) {
     static const char *const EXIT_PHRASES[ROOM_NUM_EXITS] = {
         "exits to the north", "exits to the east", "exits to the south",
         "exits to the west", "exits upward", "exits downward",
+        "exits to the northeast", "exits to the northwest",
+        "exits to the southeast", "exits to the southwest",
     };
     char msg[128];
     snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, EXIT_PHRASES[dir]);
@@ -66,3 +68,7 @@ bool cmd_south(descriptor_t *d, const char *args) { (void)args; return do_move(d
 bool cmd_west(descriptor_t *d, const char *args)  { (void)args; return do_move(d, 3); }
 bool cmd_up(descriptor_t *d, const char *args)    { (void)args; return do_move(d, 4); }
 bool cmd_down(descriptor_t *d, const char *args)  { (void)args; return do_move(d, 5); }
+bool cmd_northeast(descriptor_t *d, const char *args) { (void)args; return do_move(d, 6); }
+bool cmd_northwest(descriptor_t *d, const char *args) { (void)args; return do_move(d, 7); }
+bool cmd_southeast(descriptor_t *d, const char *args) { (void)args; return do_move(d, 8); }
+bool cmd_southwest(descriptor_t *d, const char *args) { (void)args; return do_move(d, 9); }

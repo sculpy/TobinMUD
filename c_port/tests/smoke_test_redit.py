@@ -176,6 +176,19 @@ send_line(s, "north")
 out = recv_all(s)
 check("You can't go that way." in out, "the deleted exit no longer works")
 
+# --- Part 4b: diagonals (Session 21, all ten directions) ---
+send_line(s, f"redit exit northeast {BASE + 2}")
+out = recv_all(s)
+check("Creating room" in out and "Making new exit back" in out,
+      "a diagonal exit auto-creates its room and reverse (southwest) exit")
+send_line(s, "ne")
+out = recv_all(s)
+check("An unfinished room" in out, "'ne' walks northeast into the new room")
+send_line(s, "sw")
+out = recv_all(s)
+check("The Builder's Workshop" in out, "'sw' walks the reverse southwest exit home")
+outW = recv_all(s, timeout=0.3)  # drain
+
 # --- Part 5: persistence across a DB reload (fresh login re-reads rooms) ---
 # The room registry caches in memory; verify the DB rows directly instead.
 out = subprocess.run(

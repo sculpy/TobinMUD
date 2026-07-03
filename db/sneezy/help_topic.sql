@@ -36,6 +36,10 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('west', 'Usage: west (or just w)\n\nWalks you west. See `help movement`.', 'seed'),
 ('up', 'Usage: up (or just u)\n\nWalks you up. See `help movement`.', 'seed'),
 ('down', 'Usage: down (or just d)\n\nWalks you down. See `help movement`.', 'seed'),
+('northeast', 'Usage: northeast (or just ne)\n\nWalks you northeast. See `help movement`.', 'seed'),
+('northwest', 'Usage: northwest (or just nw)\n\nWalks you northwest. See `help movement`.', 'seed'),
+('southeast', 'Usage: southeast (or just se)\n\nWalks you southeast. See `help movement`.', 'seed'),
+('southwest', 'Usage: southwest (or just sw)\n\nWalks you southwest. See `help movement`.', 'seed'),
 ('log', 'Usage: log [lines] | log search <text> | log rotate | log list\n\nLevel 59+ only: reads the server''s game log from in game. Bare `log`\nshows the last 20 lines (or `log 50` for more, up to 100). `search`\nfinds lines containing your text, case-insensitively. `rotate` closes\nthe current file and starts a fresh <datetime>.game.log. `list` shows\nall log files in the logs/ directory.', 'seed'),
 ('redit', 'Usage: redit [field] [args]   (level 56+ builders)\n\nEdits the room you are standing in; every change saves to the\ndatabase immediately. Bare `redit` shows the room summary.\n\n  redit name <text>          -- set the room title\n  redit description          -- line editor (`.` saves, `~` aborts)\n  redit sector_type [n]      -- show or set the sector number\n  redit exit <dir> <toroom>  -- link an exit; creates the target room\n                                if needed and fixes the reverse exit\n  redit exit <dir> -1        -- delete an exit', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
@@ -44,3 +48,9 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 -- drop the stale seed topic so it can't leak to mortals (no `edit`
 -- command exists to gate it anymore). Hand-edited topics are spared.
 DELETE FROM `help_topic` WHERE `name` = 'edit' AND `updated_by` = 'seed';
+
+-- Migration: all ten directions (Session 21). ON DUPLICATE KEY UPDATE
+-- name=name deliberately never touches existing rows, so the seed
+-- movement topic needs an explicit refresh (hand-edited copies spared).
+UPDATE `help_topic` SET `body` = 'Usage: north / east / south / west / up / down /\n       northeast / northwest / southeast / southwest\n\nWalks you through the room''s exits (shown by `look` as "Obvious\nexits"). Shortcuts: n, s, e, w, u, d, ne, nw, se, sw. You cannot walk\nwhile fighting.'
+  WHERE `name` = 'movement' AND `updated_by` = 'seed';

@@ -112,16 +112,12 @@ persistence. Sequenced by dependency:
       a second open in the same minute gets a -2/-3 suffix so rotation
       always yields a genuinely fresh file.
 
-- [ ] **Ten directions** — add Southeast, Southwest, Northeast, Northwest to
-      the existing N/S/E/W/Up/Down (total 10). Abbreviations: n, s, e, w,
-      u, d, se, sw, ne, nw ("ne" doesn't prefix-collide with "north", so
-      plain table ordering works; keep north/south/east/west above their
-      diagonal cousins). The original's dirTypeT has exactly these 10 (dirs
-      6-9), rev_dirs already covers them, and the seed DB's roomexit rows
-      for dirs 6-9 are currently DROPPED on load (room_repo.c) — this
-      change restores real seed-world content, not just new commands.
-      Touches: ROOM_NUM_EXITS 6→10, DIR_NAMES/REV_DIR, movement commands,
-      redit's parse_dir, look's exits line.
+- [x] **Ten directions** — **done 2026-07-03**: NE/NW/SE/SW added (original
+      dirTypeT dirs 6-9, rev_dirs ported); the seed DB's diagonal exit rows
+      now load instead of being dropped — real world content restored.
+      Correction to the original note: "ne" is NOT a prefix of
+      "northeast", so the two-letter forms (ne/nw/se/sw) are explicit
+      alias rows in the command table, classic Diku style.
 - [ ] **`dig`** — create rooms just by walking: a builder-walk mode where
       moving into a nonexistent exit auto-creates the room and reverse exit
       (redit's exit machinery already does the create+reverse-fix; dig

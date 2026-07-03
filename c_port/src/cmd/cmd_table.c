@@ -28,6 +28,19 @@ static const cmd_entry_t COMMANDS[] = {
     { "west",    cmd_west,    "Walk west.",                                         MORTAL_LEVEL_MIN },
     { "up",      cmd_up,      "Walk up.",                                           MORTAL_LEVEL_MIN },
     { "down",    cmd_down,    "Walk down.",                                         MORTAL_LEVEL_MIN },
+    /* Diagonals AFTER the cardinals so "n"/"s" stay north/south. The
+     * two-letter forms are NOT prefixes of the long names ("ne" vs
+     * "no-rtheast"), so they get explicit alias rows -- the classic Diku
+     * arrangement. "se"/"sw" sit above say/score in matching order but
+     * don't collide ("sa"/"sc" still reach those). */
+    { "northeast", cmd_northeast, "Walk northeast.",                                MORTAL_LEVEL_MIN },
+    { "northwest", cmd_northwest, "Walk northwest.",                                MORTAL_LEVEL_MIN },
+    { "southeast", cmd_southeast, "Walk southeast.",                                MORTAL_LEVEL_MIN },
+    { "southwest", cmd_southwest, "Walk southwest.",                                MORTAL_LEVEL_MIN },
+    { "ne",        cmd_northeast, "Walk northeast (alias).",                        MORTAL_LEVEL_MIN },
+    { "nw",        cmd_northwest, "Walk northwest (alias).",                        MORTAL_LEVEL_MIN },
+    { "se",        cmd_southeast, "Walk southeast (alias).",                        MORTAL_LEVEL_MIN },
+    { "sw",        cmd_southwest, "Walk southwest (alias).",                        MORTAL_LEVEL_MIN },
     { "look",    cmd_look,    "Look around the room you're in.",                    MORTAL_LEVEL_MIN },
     { "who",     cmd_who,     "List everyone currently playing.",                   MORTAL_LEVEL_MIN },
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },
