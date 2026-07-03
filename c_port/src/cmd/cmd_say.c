@@ -1,6 +1,7 @@
 #include "cmd_internal.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "room.h"
 #include "thing.h"
@@ -23,8 +24,15 @@ bool cmd_say(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* If the message might contain color tags, close it with <z> BEFORE
+     * the closing quote, so the quote mark and everything after stay
+     * uncolored even when the speaker never reset (user finding, Session
+     * 20). Plain messages get nothing appended -- their output stays
+     * byte-identical. */
+    const char *close = strchr(args, '<') ? "<z>" : "";
+
     char msg[320];
-    snprintf(msg, sizeof(msg), "You say, \"%s\"\r\n", args);
+    snprintf(msg, sizeof(msg), "You say, \"%s%s\"\r\n", args, close);
     descriptor_send(d, msg);
 
     room_t *r = d->character->base.roomp;
@@ -34,7 +42,7 @@ bool cmd_say(descriptor_t *d, const char *args) {
         being_t *other = (being_t *)t;
         if (!other->desc)
             continue;
-        snprintf(msg, sizeof(msg), "%s says, \"%s\"\r\n", d->character->base.name, args);
+        snprintf(msg, sizeof(msg), "%s says, \"%s%s\"\r\n", d->character->base.name, args, close);
         descriptor_send(other->desc, msg);
     }
 

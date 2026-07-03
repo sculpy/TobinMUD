@@ -86,10 +86,24 @@ check(b"\x1b[35m" in rawB and b"\x1b[31m" in rawB,
 idxA = rawA.rfind(b"\x1b[31m")
 check(rawA.find(b"\x1b[0m", idxA) != -1,
       "a message ending still-colored gets an ANSI reset appended (no bleed)")
+# The say wrapper's closing quote must NOT be colored, and the reset must
+# land before the line break, not on the next line (user findings, S20).
+check(b'\x1b[0m"' in rawA,
+      "the closing quote of a tagged say is uncolored (reset precedes it)")
+check(rawA.find(b"\x1b[0m", idxA) < rawA.find(b"\r\n", idxA),
+      "the reset lands before the line break, not after it")
 send_line(sA, "say plain follow-up")
 rawA2 = recv_all_bytes(sA)
 check(b"\x1b[35m" not in rawA2 and b"\x1b[31m" not in rawA2,
       "the next message carries no leftover color codes of its own")
+check(b"\x1b[0m" not in rawA2, "a plain say has no reset bytes injected into it")
+
+# A message ENDING in a bare color tag must not paint the quote either.
+send_line(sA, "say trailing tag <r>")
+rawA3 = recv_all_bytes(sA)
+idx3 = rawA3.rfind(b"\x1b[31m")
+check(idx3 != -1 and rawA3.find(b'\x1b[0m"', idx3) != -1,
+      "a say ending in a bare color tag still closes uncolored")
 
 # --- Part 3: color off -- tags stripped entirely, no ANSI, no raw tags ---
 send_line(sB, "color off")

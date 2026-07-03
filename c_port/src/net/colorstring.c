@@ -82,7 +82,15 @@ size_t colorstring_translate(const char *src, char *dst, size_t dst_size, bool c
     if (last_code != NULL && strcmp(last_code, ANSI_RESET) != 0) {
         size_t reset_len = sizeof(ANSI_RESET) - 1;
         if (di + reset_len < dst_size) {
-            memcpy(dst + di, ANSI_RESET, reset_len);
+            /* Land the reset BEFORE any trailing line break, not after it
+             * (user finding, Session 20): a reset that arrives on the next
+             * line leaves the break itself colored, and picky clients
+             * (Windows telnet among them) paint artifacts from that. */
+            size_t p = di;
+            while (p > 0 && (dst[p - 1] == '\n' || dst[p - 1] == '\r'))
+                p--;
+            memmove(dst + p + reset_len, dst + p, di - p);
+            memcpy(dst + p, ANSI_RESET, reset_len);
             di += reset_len;
         }
     }
