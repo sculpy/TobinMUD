@@ -74,24 +74,11 @@ recv_all(s)
 send_line(s, "done")
 recv_all(s)
 
-# --- Part 1: the gate ---
+# --- Part 1: the gate (51+ as of the Tier-3 follow-up) ---
 send_line(s, "redit")
 check("Huh?!" in recv_all(s), "a mortal typing redit gets Huh?! (hidden)")
 
 set_level(name, 51)
-s.close()
-s = socket.create_connection((host, port), timeout=5)
-recv_all(s)
-send_line(s, name)
-recv_all(s)
-send_line(s, pw)
-recv_all(s)
-send_line(s, "1")
-recv_all(s)
-send_line(s, "redit")
-check("Huh?!" in recv_all(s), "a level-51 immortal still can't redit (gate is 56)")
-
-set_level(name, 56)
 s.close()
 s = socket.create_connection((host, port), timeout=5)
 recv_all(s)

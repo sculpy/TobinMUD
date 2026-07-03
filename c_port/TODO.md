@@ -199,7 +199,7 @@ persistence. Sequenced by dependency:
       (redit's exit machinery already does the create+reverse-fix; dig
       wires it to movement). Vnum selection strategy needed (next free in
       the builder's range?).
-- [ ] **Builder access at 51+** — ALL immortals (51+) can edit rooms, mobs,
+- [ ] **Builder access at 51+** (redit part DONE 2026-07-03) — ALL immortals (51+) can edit rooms, mobs,
       objects, and zonefiles: lower redit's gate 56→51, and land oedit /
       medit / zedit at 51 too. **hedit (help topics) stays 56+ — user
       confirmed 2026-07-03.**

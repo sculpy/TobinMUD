@@ -38,6 +38,7 @@ bool cmd_southwest(descriptor_t *d, const char *args);
 bool cmd_edit(descriptor_t *d, const char *args);
 bool cmd_log(descriptor_t *d, const char *args);
 bool cmd_exits(descriptor_t *d, const char *args);
+bool cmd_loadroom(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */
@@ -47,9 +48,10 @@ bool cmd_exits(descriptor_t *d, const char *args);
  * command there is, so it's gated at Administrator (59) and up. */
 #define COPYOVER_MIN_LEVEL 59
 
-/* `edit` (the room builder) shares hedit's content-editing tier -- stands
- * in for the original's POWER_EDIT wiz-power + per-builder room ranges. */
-#define BUILD_MIN_LEVEL 56
+/* `redit` (the room builder): 51+ -- every immortal builds (user spec,
+ * Session 21; future oedit/medit/zedit land at 51 too). Help editing
+ * (hedit) stays at its own higher tier. */
+#define BUILD_MIN_LEVEL 51
 
 /* `log` (read/search/list the game log files): 54+; `log rotate` alone is
  * isolated to 59+ (both user-specified, Tier 3). */

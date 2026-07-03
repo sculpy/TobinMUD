@@ -42,7 +42,8 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('southwest', 'Usage: southwest (or just sw)\n\nWalks you southwest. See `help movement`.', 'seed'),
 ('log', 'Usage: log [lines] | log search <text> | log rotate | log list\n\nLevel 54+: reads the server''s game log from in game. Bare `log` shows\nthe last 20 lines (or `log 50` for more, up to 100). `search` finds\nlines containing your text, case-insensitively. `list` shows all log\nfiles in the logs/ directory. `rotate` (level 59+ only) closes the\ncurrent file and starts a fresh one.', 'seed'),
 ('exits', 'Usage: exits\n\nLists this room''s exits and the name of the place each one leads to.\n(`look` shows the same directions as a one-line summary.)', 'seed'),
-('redit', 'Usage: redit [field] [args]   (level 56+ builders)\n\nEdits the room you are standing in; every change saves to the\ndatabase immediately. Bare `redit` shows the room summary.\n\n  redit name <text>          -- set the room title\n  redit description          -- line editor (`.` saves, `~` aborts)\n  redit sector_type [n]      -- show or set the sector number\n  redit exit <dir> <toroom>  -- link an exit; creates the target room\n                                if needed and fixes the reverse exit\n  redit exit <dir> -1        -- delete an exit', 'seed')
+('loadroom', 'Usage: loadroom [vnum]\n\nImmortals only: sets the room your character enters the game in at\nlogin (e.g. `loadroom 43`). Bare `loadroom` shows the current setting.\nThe room must exist.', 'seed'),
+('redit', 'Usage: redit [field] [args]   (level 51+ builders)\n\nEdits the room you are standing in; every change saves to the\ndatabase immediately. Bare `redit` shows the room summary.\n\n  redit name <text>          -- set the room title\n  redit description          -- line editor (`.` saves, `~` aborts)\n  redit sector_type [n]      -- show or set the sector number\n  redit exit <dir> <toroom>  -- link an exit; creates the target room\n                                if needed and fixes the reverse exit\n  redit exit <dir> -1        -- delete an exit', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- Migration: the room builder was renamed edit -> redit (Session 21);
@@ -64,3 +65,7 @@ UPDATE `help_topic` SET `body` = 'Usage: promote <name> [level]\n\nLevel 58+ onl
   WHERE `name` = 'promote' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Usage: say <message>   (shorthand: ''<message>)\n\nSays something to everyone in your room. The apostrophe shorthand\nneeds no space: ''hello says "hello". The say framing shows in cyan;\nyour message shows as typed, including any color tags you use.'
   WHERE `name` = 'say' AND `updated_by` = 'seed';
+
+-- Migration: redit dropped to 51+ (every immortal builds).
+UPDATE `help_topic` SET `body` = 'Usage: redit [field] [args]   (level 51+ builders)\n\nEdits the room you are standing in; every change saves to the\ndatabase immediately. Bare `redit` shows the room summary.\n\n  redit name <text>          -- set the room title\n  redit description          -- line editor (`.` saves, `~` aborts)\n  redit sector_type [n]      -- show or set the sector number\n  redit exit <dir> <toroom>  -- link an exit; creates the target room\n                                if needed and fixes the reverse exit\n  redit exit <dir> -1        -- delete an exit'
+  WHERE `name` = 'redit' AND `updated_by` = 'seed';

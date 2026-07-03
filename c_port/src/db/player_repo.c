@@ -135,6 +135,18 @@ int player_load_room(const char *name, long account_id) {
     return room_vnum;
 }
 
+bool player_set_load_room(const char *name, long account_id, int vnum) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db, "update player set load_room=%i where name='%s' and account_id=%i",
+                       vnum, name, (int)account_id);
+
+    db_close(db);
+    return ok;
+}
+
 bool player_attrs_load(long player_id, attrs_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

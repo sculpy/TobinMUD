@@ -151,6 +151,32 @@ send_line(sMort, "goto 0")
 out = recv_all(sMort)
 check("Huh?!" in out, "a demoted player immediately loses immortal commands")
 
+# --- Part 4: loadroom (51+) sets where the character logs in ---
+send_line(sMort, "loadroom 0")
+out = recv_all(sMort)
+check("Huh?!" in out, "a mortal typing loadroom gets Huh?! (hidden)")
+
+send_line(sImm, "loadroom")
+out = recv_all(sImm)
+check("You currently load into room" in out, "bare loadroom shows the current setting")
+
+send_line(sImm, "loadroom 99999999")
+out = recv_all(sImm)
+check("No room with vnum" in out, "loadroom to a nonexistent room is rejected")
+
+send_line(sImm, "loadroom 0")
+out = recv_all(sImm)
+check("enter the game in room 0" in out, "loadroom 0 confirms with the room name")
+
+send_line(sImm, "quit!")
+recv_all(sImm)
+send_line(sImm, "1")
+out = recv_all(sImm)
+check("The Void" in out, "re-entering the game lands in the new load room (The Void)")
+
+send_line(sImm, "loadroom 1")  # restore
+recv_all(sImm)
+
 sImm.close()
 sMort.close()
 print("=== ALL CHECKS PASSED ===")
