@@ -67,19 +67,24 @@ sA, nameA = make_player("A")
 sB, nameB = make_player("B")
 
 # --- Part 1: `say` ---
+# The say wrapper is cyan (Session 21): ANSI escapes sit between the
+# framing and the message, so check the pieces, not one literal string.
 send_line(sA, "say Hello there, everyone!")
 outA = recv_all(sA)
 outB = recv_all(sB)
-check('You say, "Hello there, everyone!"' in outA, "the speaker sees their own message with 'You say,'")
-check(f'{proper(nameA)} says, "Hello there, everyone!"' in outB,
+check('You say, "' in outA and 'Hello there, everyone!' in outA,
+      "the speaker sees their own message with 'You say,'")
+check(f'{proper(nameA)} says, "' in outB and 'Hello there, everyone!' in outB,
       "the other player in the room sees '<Name> says,' with the same message")
+check("\x1b[36m" in outB, "the say framing arrives cyan")
 
 # --- Part 2: `'` shorthand, no space required ---
 send_line(sB, "'Hi back at you!")
 outA = recv_all(sA)
 outB = recv_all(sB)
-check('You say, "Hi back at you!"' in outB, "the ' shorthand shows the speaker their own message")
-check(f'{proper(nameB)} says, "Hi back at you!"' in outA,
+check('You say, "' in outB and 'Hi back at you!' in outB,
+      "the ' shorthand shows the speaker their own message")
+check(f'{proper(nameB)} says, "' in outA and 'Hi back at you!' in outA,
       "the ' shorthand reaches the other player in the room with the same message")
 
 # --- Part 3: empty say is rejected, not silently ignored ---

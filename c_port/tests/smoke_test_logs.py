@@ -94,15 +94,20 @@ sImm, nameImm = make_player("Imm")
 send_line(sImm, "log")
 check("Huh?!" in recv_all(sImm), "a mortal typing log gets Huh?! (hidden)")
 
-set_level(nameImm, 58)
+set_level(nameImm, 53)
 sImm.close()
 sImm = relog(nameImm)
 send_line(sImm, "log")
-check("Huh?!" in recv_all(sImm), "even a level-58 can't read logs (gate is 59)")
+check("Huh?!" in recv_all(sImm), "a level-53 can't read logs (gate is 54)")
 
-set_level(nameImm, 59)
+set_level(nameImm, 54)
 sImm.close()
 sImm = relog(nameImm)
+
+# 54 can read but NOT rotate (rotate is isolated to 59+).
+send_line(sImm, "log rotate")
+out = recv_all(sImm)
+check("requires level 59" in out, "a level-54 is refused log rotation")
 
 # The log commands are documented: help log shows the topic (only for
 # those who can see the command at all -- 59+).
@@ -131,10 +136,13 @@ send_line(sImm, "log search zzzznosuchstringzzz")
 out = recv_all(sImm)
 check("0 matches" in out, "a search with no hits reports 0 matches")
 
-# --- Part 4: rotate + list ---
+# --- Part 4: rotate + list (rotate needs 59) ---
+set_level(nameImm, 59)
+sImm.close()
+sImm = relog(nameImm)
 send_line(sImm, "log rotate")
 out = recv_all(sImm)
-check("Now writing to logs/" in out, "log rotate announces the new file")
+check("Now writing to logs/" in out, "log rotate announces the new file (at 59)")
 
 time.sleep(0.2)
 send_line(sImm, f"log search {nameVictim}")

@@ -96,7 +96,9 @@ send_line(sA, "say plain follow-up")
 rawA2 = recv_all_bytes(sA)
 check(b"\x1b[35m" not in rawA2 and b"\x1b[31m" not in rawA2,
       "the next message carries no leftover color codes of its own")
-check(b"\x1b[0m" not in rawA2, "a plain say has no reset bytes injected into it")
+# The say wrapper itself is cyan as of Session 21 -- a plain say carries
+# the framing's cyan+reset but nothing from previous messages.
+check(b"\x1b[36m" in rawA2, "a plain say carries the cyan say framing")
 
 # A message ENDING in a bare color tag must not paint the quote either.
 send_line(sA, "say trailing tag <r>")

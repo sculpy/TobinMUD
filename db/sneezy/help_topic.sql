@@ -40,7 +40,8 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('northwest', 'Usage: northwest (or just nw)\n\nWalks you northwest. See `help movement`.', 'seed'),
 ('southeast', 'Usage: southeast (or just se)\n\nWalks you southeast. See `help movement`.', 'seed'),
 ('southwest', 'Usage: southwest (or just sw)\n\nWalks you southwest. See `help movement`.', 'seed'),
-('log', 'Usage: log [lines] | log search <text> | log rotate | log list\n\nLevel 59+ only: reads the server''s game log from in game. Bare `log`\nshows the last 20 lines (or `log 50` for more, up to 100). `search`\nfinds lines containing your text, case-insensitively. `rotate` closes\nthe current file and starts a fresh <datetime>.game.log. `list` shows\nall log files in the logs/ directory.', 'seed'),
+('log', 'Usage: log [lines] | log search <text> | log rotate | log list\n\nLevel 54+: reads the server''s game log from in game. Bare `log` shows\nthe last 20 lines (or `log 50` for more, up to 100). `search` finds\nlines containing your text, case-insensitively. `list` shows all log\nfiles in the logs/ directory. `rotate` (level 59+ only) closes the\ncurrent file and starts a fresh one.', 'seed'),
+('exits', 'Usage: exits\n\nLists this room''s exits and the name of the place each one leads to.\n(`look` shows the same directions as a one-line summary.)', 'seed'),
 ('redit', 'Usage: redit [field] [args]   (level 56+ builders)\n\nEdits the room you are standing in; every change saves to the\ndatabase immediately. Bare `redit` shows the room summary.\n\n  redit name <text>          -- set the room title\n  redit description          -- line editor (`.` saves, `~` aborts)\n  redit sector_type [n]      -- show or set the sector number\n  redit exit <dir> <toroom>  -- link an exit; creates the target room\n                                if needed and fixes the reverse exit\n  redit exit <dir> -1        -- delete an exit', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
@@ -54,3 +55,12 @@ DELETE FROM `help_topic` WHERE `name` = 'edit' AND `updated_by` = 'seed';
 -- movement topic needs an explicit refresh (hand-edited copies spared).
 UPDATE `help_topic` SET `body` = 'Usage: north / east / south / west / up / down /\n       northeast / northwest / southeast / southwest\n\nWalks you through the room''s exits (shown by `look` as "Obvious\nexits"). Shortcuts: n, s, e, w, u, d, ne, nw, se, sw. You cannot walk\nwhile fighting.'
   WHERE `name` = 'movement' AND `updated_by` = 'seed';
+
+-- Migration: Tier 3 gate changes (Session 21) -- log split 54/59 and
+-- promote raised to 58; refresh the seed topics in existing DBs.
+UPDATE `help_topic` SET `body` = 'Usage: log [lines] | log search <text> | log rotate | log list\n\nLevel 54+: reads the server''s game log from in game. Bare `log` shows\nthe last 20 lines (or `log 50` for more, up to 100). `search` finds\nlines containing your text, case-insensitively. `list` shows all log\nfiles in the logs/ directory. `rotate` (level 59+ only) closes the\ncurrent file and starts a fresh one.'
+  WHERE `name` = 'log' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: promote <name> [level]\n\nLevel 58+ only: set another player''s level (default 51, the first\nimmortal rank). You cannot set anyone above your own level, and the\nname must be typed in full. Works on offline players too; an online\ntarget changes immediately and is told. Also demotes.'
+  WHERE `name` = 'promote' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: say <message>   (shorthand: ''<message>)\n\nSays something to everyone in your room. The apostrophe shorthand\nneeds no space: ''hello says "hello". The say framing shows in cyan;\nyour message shows as typed, including any color tags you use.'
+  WHERE `name` = 'say' AND `updated_by` = 'seed';

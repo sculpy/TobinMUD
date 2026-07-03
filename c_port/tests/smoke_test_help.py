@@ -22,7 +22,7 @@ host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
-MORTAL_COMMANDS = ["look", "who", "score", "color", "attack", "kill", "say", "limbs", "help", "wizhelp", "quit!"]
+MORTAL_COMMANDS = ["look", "exits", "who", "score", "color", "attack", "kill", "say", "limbs", "help", "quit!"]
 
 
 def recv_all(sock, timeout=1.0):
@@ -75,13 +75,13 @@ check("Available commands" in out, "help shows a header")
 for cmd in MORTAL_COMMANDS:
     check(cmd in out, f"help lists '{cmd}'")
 
-check("goto" not in out and "promote" not in out,
-      "a mortal's help does not leak immortal-only commands")
+check("goto" not in out and "promote" not in out and "wizhelp" not in out,
+      "a mortal's help does not leak immortal-only commands (wizhelp included)")
 
-# --- Part 2: a mortal calling wizhelp is rejected, not ignored ---
+# --- Part 2: wizhelp is INVISIBLE to mortals (Tier 3) ---
 send_line(sA, "wizhelp")
 out = recv_all(sA)
-check("not privileged" in out, "a mortal calling wizhelp is rejected with a clear message")
+check("Huh?!" in out, "a mortal typing wizhelp gets Huh?! (hidden, not just refused)")
 
 # --- Part 3: an immortal sees the real immortal-only list ---
 subprocess.run(
@@ -102,14 +102,15 @@ recv_all(sA)
 send_line(sA, "wizhelp")
 out = recv_all(sA)
 check("Immortal-only commands" in out, "an immortal calling wizhelp sees the immortal-only header")
-check("goto" in out and "promote" in out, "wizhelp lists the real immortal-only commands")
-check("hedit" not in out,
-      "a level-51's wizhelp does NOT reveal higher-level commands (hedit is 56+)")
+check("goto" in out, "wizhelp lists the level-51 immortal commands")
+check("hedit" not in out and "promote" not in out,
+      "a level-51's wizhelp does NOT reveal higher-level commands (hedit 56+, promote 58+)")
 
 send_line(sA, "help")
 out = recv_all(sA)
-check("goto" in out and "promote" in out, "an immortal's help includes the immortal commands")
-check("hedit" not in out, "a level-51's help does not reveal hedit either")
+check("goto" in out, "an immortal's help includes their immortal commands")
+check("hedit" not in out and "promote" not in out,
+      "a level-51's help does not reveal hedit (56+) or promote (58+)")
 check(out.index("goto") < out.index("look"),
       "help lists higher-level commands first (goto before the mortal commands)")
 

@@ -37,6 +37,7 @@ bool cmd_southeast(descriptor_t *d, const char *args);
 bool cmd_southwest(descriptor_t *d, const char *args);
 bool cmd_edit(descriptor_t *d, const char *args);
 bool cmd_log(descriptor_t *d, const char *args);
+bool cmd_exits(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */
@@ -50,8 +51,13 @@ bool cmd_log(descriptor_t *d, const char *args);
  * in for the original's POWER_EDIT wiz-power + per-builder room ranges. */
 #define BUILD_MIN_LEVEL 56
 
-/* `log` (read/search/rotate the game log files): 59+, user-specified. */
-#define LOG_MIN_LEVEL 59
+/* `log` (read/search/list the game log files): 54+; `log rotate` alone is
+ * isolated to 59+ (both user-specified, Tier 3). */
+#define LOG_MIN_LEVEL 54
+#define LOG_ROTATE_MIN_LEVEL 59
+
+/* `promote`: 58+ (user-specified, Tier 3 -- was 51+). */
+#define PROMOTE_MIN_LEVEL 58
 
 /* One row of cmd_table.c's dispatch table -- shared with cmd_help.c so
  * `help`/`wizhelp` can enumerate it without duplicating the list.

@@ -165,19 +165,19 @@ persistence. Sequenced by dependency:
       original's doc/systems README for the TobinMUD base.
 
 **Tier 3 — small, well-bounded changes:**
-- [ ] **damage.h constants** — port the original's damage-type constants
+- [x] **damage.h constants** — done 2026-07-03 (include/damage.h, verbatim enum).
       into Tobin for future expansion (constants only, no behavior yet).
-- [ ] **Help-file upkeep habit** — whenever anything is implemented or
+- [x] **Help-file upkeep habit** — CLAUDE.md house rule; practiced in this batch.
       modified, update the help topics in the same change; evaluate at
       every commit. (Also added to CLAUDE.md house rules.)
-- [ ] **Log gates** — `log rotate` isolated to 59+; all other log
+- [x] **Log gates** — done 2026-07-03: log tail/search/list 54+, rotate 59+.
       functionality (tail/search/list) drops to 54+.
-- [ ] **promote gate → 58+** (currently 51+).
-- [ ] **`exits` command** — display available exits from the current room.
-- [ ] **Colorized say** — the say wrapper text in cyan:
+- [x] **promote gate → 58+** — done 2026-07-03.
+- [x] **`exits` command** — done 2026-07-03 (destinations named).
+- [x] **Colorized say** — done 2026-07-03 (cyan framing, message as typed).
       `<c>You say, "<z><message><z>"` (name/wrapper colored, message as
       typed).
-- [ ] **Hide wizhelp from mortals** — mortals shouldn't see `wizhelp`
+- [x] **Hide wizhelp from mortals** — done 2026-07-03 (min_level 51).
       listed at all (set its min_level to 51); general principle: players
       only ever see help for what they can use.
 

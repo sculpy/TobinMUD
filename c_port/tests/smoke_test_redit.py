@@ -187,6 +187,12 @@ check("An unfinished room" in out, "'ne' walks northeast into the new room")
 send_line(s, "sw")
 out = recv_all(s)
 check("The Builder's Workshop" in out, "'sw' walks the reverse southwest exit home")
+
+# `exits` (Tier 3) lists directions with destination names.
+send_line(s, "exits")
+out = recv_all(s)
+check("northeast" in out and "An unfinished room" in out,
+      "exits lists the diagonal exit with its destination's name")
 outW = recv_all(s, timeout=0.3)  # drain
 
 # --- Part 5: persistence across a DB reload (fresh login re-reads rooms) ---

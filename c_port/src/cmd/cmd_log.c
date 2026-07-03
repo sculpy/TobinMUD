@@ -173,6 +173,12 @@ bool cmd_log(descriptor_t *d, const char *args) {
         return true;
     }
     if (strncasecmp("rotate", sub, slen) == 0 && slen >= 1) {
+        /* Rotation is isolated above the rest of the log command (user
+         * spec, Tier 3): 54+ can read/search/list, only 59+ may rotate. */
+        if (!d->character || d->character->progress.level < LOG_ROTATE_MIN_LEVEL) {
+            descriptor_send(d, "Log rotation requires level 59.\r\n");
+            return true;
+        }
         if (log_rotate()) {
             char msg[LOG_PATH_MAX + 48];
             snprintf(msg, sizeof(msg), "Log rotated. Now writing to %s\r\n",

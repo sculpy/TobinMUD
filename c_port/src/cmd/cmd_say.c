@@ -24,15 +24,15 @@ bool cmd_say(descriptor_t *d, const char *args) {
         return true;
     }
 
-    /* If the message might contain color tags, close it with <z> BEFORE
-     * the closing quote, so the quote mark and everything after stay
-     * uncolored even when the speaker never reset (user finding, Session
-     * 20). Plain messages get nothing appended -- their output stays
-     * byte-identical. */
-    const char *close = strchr(args, '<') ? "<z>" : "";
-
-    char msg[320];
-    snprintf(msg, sizeof(msg), "You say, \"%s%s\"\r\n", args, close);
+    /* Colorized wrapper (user spec, Tier 3): the say framing -- name,
+     * "say(s)," and the opening quote -- renders cyan, reset before the
+     * message so the player's text shows as typed (including their own
+     * color tags), and a final <z> before the closing quote so an
+     * unterminated tag can never color the quote or bleed onward (the
+     * Session 20 finding, preserved). Tags strip cleanly when color is
+     * off. */
+    char msg[336];
+    snprintf(msg, sizeof(msg), "<c>You say, \"<z>%s<z>\"\r\n", args);
     descriptor_send(d, msg);
 
     room_t *r = d->character->base.roomp;
@@ -42,7 +42,8 @@ bool cmd_say(descriptor_t *d, const char *args) {
         being_t *other = (being_t *)t;
         if (!other->desc)
             continue;
-        snprintf(msg, sizeof(msg), "%s says, \"%s%s\"\r\n", d->character->base.name, args, close);
+        snprintf(msg, sizeof(msg), "<c>%s says, \"<z>%s<z>\"\r\n",
+                 d->character->base.name, args);
         descriptor_send(other->desc, msg);
     }
 

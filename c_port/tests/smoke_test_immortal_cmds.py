@@ -75,10 +75,10 @@ for attempt in ["goto 0", "promote somebody", "g 0"]:
     out = recv_all(sMort)
     check("Huh?!" in out, f"a mortal typing '{attempt}' gets Huh?! (command hidden)")
 
-# --- Bootstrap the immortal (level 55 so the above-own-level cap is testable) ---
+# --- Bootstrap the immortal (level 58 so the above-own-level cap is testable) ---
 subprocess.run(
     ["mariadb", "sneezy", "-e",
-     f"UPDATE player_progress SET level=55 WHERE player_id=(SELECT id FROM player WHERE name='{nameImm}');"],
+     f"UPDATE player_progress SET level=58 WHERE player_id=(SELECT id FROM player WHERE name='{nameImm}');"],
     check=True,
 )
 sImm.close()

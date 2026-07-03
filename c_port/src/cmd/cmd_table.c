@@ -42,6 +42,8 @@ static const cmd_entry_t COMMANDS[] = {
     { "se",        cmd_southeast, "Walk southeast (alias).",                        MORTAL_LEVEL_MIN },
     { "sw",        cmd_southwest, "Walk southwest (alias).",                        MORTAL_LEVEL_MIN },
     { "look",    cmd_look,    "Look around the room you're in.",                    MORTAL_LEVEL_MIN },
+    /* "e" is east; "ex"+ reaches exits. */
+    { "exits",   cmd_exits,   "List this room's exits and where they lead.",        MORTAL_LEVEL_MIN },
     { "who",     cmd_who,     "List everyone currently playing.",                   MORTAL_LEVEL_MIN },
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },
     { "color",   cmd_color,   "Toggle ANSI color rendering on or off.",             MORTAL_LEVEL_MIN },
@@ -50,9 +52,11 @@ static const cmd_entry_t COMMANDS[] = {
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
     { "limbs",   cmd_limbs,   "Show the current health of all your limbs.",         MORTAL_LEVEL_MIN },
     { "help",    cmd_help,    "List available commands.",                           MORTAL_LEVEL_MIN },
-    { "wizhelp", cmd_wizhelp, "List immortal-only commands.",                       MORTAL_LEVEL_MIN },
+    /* Hidden from mortals entirely (Tier 3): players only ever see help
+     * for what they can use. */
+    { "wizhelp", cmd_wizhelp, "List immortal-only commands.",                       IMMORTAL_LEVEL_MIN },
     { "goto",    cmd_goto,    "Teleport to a room by vnum.",                        IMMORTAL_LEVEL_MIN },
-    { "promote", cmd_promote, "Set a player's level (up to your own).",             IMMORTAL_LEVEL_MIN },
+    { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
     /* NOTE: must stay after "help" in this table -- "h"/"he"/"hel" should
      * abbreviate to help (first match wins), "hed"+ reaches hedit. Same
      * deal for copyover after color: "c"/"co" reach color, "cop"+ this. */
