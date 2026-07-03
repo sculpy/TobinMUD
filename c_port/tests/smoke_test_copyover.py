@@ -117,7 +117,10 @@ recv_all(sLogin)  # sitting at the account-name prompt
 
 # --- The copyover itself ---
 send_line(sImm, "copyover")
-time.sleep(3)  # exec + DB reconnect + recovery
+warn = recv_all(sImm, timeout=2.0)
+check("COPYOVER in 5 seconds" in warn,
+      "everyone is warned 5 seconds before the copyover")
+time.sleep(7)  # the 5s warning window + exec + DB reconnect + recovery
 
 out_imm = recv_all(sImm, timeout=2.0)
 check("world is reborn" in out_imm or "Time stops" in out_imm,

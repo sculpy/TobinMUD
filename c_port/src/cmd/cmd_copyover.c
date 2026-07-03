@@ -40,6 +40,17 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* 5-second warning to every connection (user requirement), then a
+     * literal sleep: the select loop is blocked for the duration, so no
+     * command can run and no combat round can resolve in the window --
+     * the "lock out everything" guarantee is the sleep itself. The
+     * warning bytes are written to the sockets immediately (socket_write
+     * is direct), so players see it before the freeze. */
+    for (descriptor_t *it = g_descriptors; it; it = it->next)
+        descriptor_send(it,
+            "\r\n*** COPYOVER in 5 seconds -- the world is about to be reborn. ***\r\n");
+    sleep(5);
+
     FILE *f = fopen(COPYOVER_FILE, "w");
     if (!f) {
         descriptor_send(d, "Copyover failed: cannot write the recovery file.\r\n");

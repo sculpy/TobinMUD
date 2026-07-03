@@ -6,6 +6,15 @@ here and log details there.
 
 ## In flight right now
 
+- [ ] **Deploy + verify the copyover 5-second warning** — code and test are
+      committed (cmd_copyover.c announces to everyone then sleep(5) before
+      the exec; smoke_test_copyover.py expects the warning) but NOT yet
+      built/deployed/verified: the session ended before the regression run
+      finished. Next session: rebuild on the VM, deploy via in-game
+      copyover, run smoke_test_copyover.py + full suite. Server was shut
+      down for the night 2026-07-03 (relaunch command in STATUS.md /
+      memory).
+
 - [x] `dnf upgrade` on the home VM — **done 2026-07-02** (647 packages, kernel
       7.0.14; root-caused the slowness to e1000 NIC emulation and switched to
       virtio-net, ~150x faster; VM bumped to 12 GB RAM / 4 CPUs). Rebooted,
