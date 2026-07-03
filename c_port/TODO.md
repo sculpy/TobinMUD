@@ -172,11 +172,13 @@ persistence. Sequenced by dependency:
 - [x] **`exits` command** — done 2026-07-03 (destinations named).
 - [x] **Colorized say** — done 2026-07-03 (cyan framing, message as typed).
 - [x] **Hide wizhelp from mortals** — done 2026-07-03 (min_level 51).
-- [ ] **Immortal room-info display** — all immortals see the room vnum and
-      sector type in look's room-name line, e.g. `[43] Imperia [sector 0]`
-      (format: `[room vnum] room name [other requested info]`, extensible
-      as more room fields become interesting). Mortals see the plain name.
-      Touch: cmd_look.c only (being_is_immortal on the viewer).
+- [ ] **Immortal room-info display** — all immortals see the room vnum,
+      sector type, AND room flags in look's room-name line, e.g.
+      `[43] Imperia [sector 0] [flags 0]` (format: `[room vnum] room name
+      [other requested info]`, extensible). Mortals see the plain name.
+      Note: room_t doesn't carry `room_flag` yet — the room table has the
+      column, so this adds the field to room.h + room_repo load/save (and
+      keeps redit's save from zeroing it), then the cmd_look branch.
 
 ### Gameplay roadmap (user-specified, 2026-07-03)
 
