@@ -105,6 +105,53 @@ persistence. Sequenced by dependency:
 - [ ] **E. Zone resets** — periodic respawn of mobs/objects per zone so
       built content stays populated.
 
+### Gameplay roadmap (user-specified, 2026-07-03)
+
+- [ ] **Ten directions** — add Southeast, Southwest, Northeast, Northwest to
+      the existing N/S/E/W/Up/Down (total 10). Abbreviations: n, s, e, w,
+      u, d, se, sw, ne, nw ("ne" doesn't prefix-collide with "north", so
+      plain table ordering works; keep north/south/east/west above their
+      diagonal cousins). The original's dirTypeT has exactly these 10 (dirs
+      6-9), rev_dirs already covers them, and the seed DB's roomexit rows
+      for dirs 6-9 are currently DROPPED on load (room_repo.c) — this
+      change restores real seed-world content, not just new commands.
+      Touches: ROOM_NUM_EXITS 6→10, DIR_NAMES/REV_DIR, movement commands,
+      redit's parse_dir, look's exits line.
+- [ ] **`dig`** — create rooms just by walking: a builder-walk mode where
+      moving into a nonexistent exit auto-creates the room and reverse exit
+      (redit's exit machinery already does the create+reverse-fix; dig
+      wires it to movement). Vnum selection strategy needed (next free in
+      the builder's range?).
+- [ ] **Builder access at 51+** — ALL immortals (51+) can edit rooms, mobs,
+      objects, and zonefiles: lower redit's gate 56→51, and land oedit /
+      medit / zedit at 51 too. (hedit/help topics stay 56 unless directed
+      otherwise — user listed rooms/mobs/objects/zonefiles specifically.)
+- [ ] **`news` (everyone) + `newsedit` (54+)** — announcements shown newest
+      first. DB table (id, created_at, author, title/body), `news` shows
+      recent items, `newsedit` uses the shared line editor. Consider
+      showing unseen news at login later.
+- [ ] **Positions** — sitting, standing, resting, sleeping, fighting, etc.
+      for players AND mobs. Port from the original's positionTypeT
+      (POSITION_DEAD..POSITION_STANDING ladder) — it gates what commands
+      are legal and modifies combat (hitting a sitting target is easier).
+      Commands: sit, stand, rest, sleep, wake.
+- [ ] **Classes** — start with warrior, cleric, thief, monk, mage. Stat
+      affinities (user spec): mage = high INT, lower STR; warrior = high
+      CON+STR, can dump CHA+WIS; thief = high DEX, lower STR; cleric =
+      high WIS, lower STR+DEX; monk = STR+CON, lower CHA. TAKE FROM SNEEZY:
+      port the class definitions and use the original's formulas for
+      class stat bonuses (misc/ class tables), mapped onto Tobin's 6-stat
+      system. Chosen at character creation; shows in score/who.
+- [ ] **Races** — for players and mobs. Players get a small curated list;
+      mobs can be anything. TAKE FROM SNEEZY: race definitions and race
+      stat bonuses from the original's race tables.
+- [ ] **Game balance layer + `gameedit` (60 ONLY)** — race and class
+      contribute PERCENTAGE bonuses; a level-60-only `gameedit` command
+      tunes balance parameters live, in 0.1% increments. `gameedit` must
+      BYPASS abbreviation matching (exact full word required, same
+      mechanism as quit!) — a balance change must never happen by typo.
+      Parameters persist in the DB so they survive copyovers/reboots.
+
 ### The `*edit` editor family (user-defined naming convention, 2026-07-03)
 
 Every in-game editor follows the same name pattern and (so far) the same
