@@ -32,7 +32,7 @@ bool cmd_say(descriptor_t *d, const char *args) {
      * Session 20 finding, preserved). Tags strip cleanly when color is
      * off. */
     char msg[336];
-    snprintf(msg, sizeof(msg), "<c>You say, \"<z>%s<z>\"\r\n", args);
+    snprintf(msg, sizeof(msg), "<c>You say, \"<z>%s<c>\"<z>\r\n", args);
     descriptor_send(d, msg);
 
     room_t *r = d->character->base.roomp;
@@ -42,7 +42,7 @@ bool cmd_say(descriptor_t *d, const char *args) {
         being_t *other = (being_t *)t;
         if (!other->desc)
             continue;
-        snprintf(msg, sizeof(msg), "<c>%s says, \"<z>%s<z>\"\r\n",
+        snprintf(msg, sizeof(msg), "<c>%s says, \"<z>%s<c>\"<z>\r\n",
                  d->character->base.name, args);
         descriptor_send(other->desc, msg);
     }
