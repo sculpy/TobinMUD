@@ -48,6 +48,8 @@ recv_all(s)
 send_line(s, acct)
 recv_all(s)
 send_line(s, "menupw")
+recv_all(s)
+send_line(s, "menupw")  # confirm password (Session 21)
 out = recv_all(s)
 check("C [number|name]" in out, "the menu shows the lettered command table")
 

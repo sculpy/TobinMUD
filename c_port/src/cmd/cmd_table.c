@@ -71,6 +71,8 @@ static const cmd_entry_t COMMANDS[] = {
     /* "log" needs its three letters ("l" look, "li" limbs, "lo" look). */
     { "redit",   cmd_edit,    "Edit the room you are standing in (builder).",       BUILD_MIN_LEVEL },
     { "log",     cmd_log,     "Read, search, list, or rotate the game logs.",       LOG_MIN_LEVEL },
+    /* "u" is up (movement); "us"+ reaches users. */
+    { "users",   cmd_users,   "List all connections with IPs and states.",          USERS_MIN_LEVEL },
     /* Mortality toggle: mortal is a normal 51+ command; immort is
      * registered at MORTAL level (NULL help = unlisted) and gates itself
      * on the STORED true level -- see cmd_mortal.c. "i" reaches immort;

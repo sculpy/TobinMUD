@@ -49,6 +49,8 @@ def make_player(name):
     recv_all(s)
     send_line(s, "abbrevpw123")
     recv_all(s)
+    send_line(s, "abbrevpw123")  # confirm password (Session 21)
+    recv_all(s)
     send_line(s, "new")
     recv_all(s)
     send_line(s, name)

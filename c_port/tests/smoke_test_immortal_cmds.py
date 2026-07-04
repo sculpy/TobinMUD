@@ -57,6 +57,8 @@ def make_player(tag):
     recv_all(s)
     send_line(s, pw)
     recv_all(s)
+    send_line(s, pw)  # confirm password (Session 21)
+    recv_all(s)
     send_line(s, "new")
     recv_all(s)
     send_line(s, name)
@@ -176,6 +178,16 @@ check("The Void" in out, "re-entering the game lands in the new load room (The V
 
 send_line(sImm, "loadroom 1")  # restore
 recv_all(sImm)
+
+# --- Part 5: users (58+) -- the connection roster ---
+send_line(sMort, "users")
+check("Huh?!" in recv_all(sMort), "a mortal typing users gets Huh?! (hidden)")
+
+send_line(sImm, "users")
+out = recv_all(sImm)
+check(nameImm.capitalize() in out and "127.0.0.1" in out and "playing" in out,
+      "users lists this connection with IP and state")
+check("connection" in out, "users reports the connection count")
 
 sImm.close()
 sMort.close()

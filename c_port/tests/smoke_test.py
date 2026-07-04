@@ -43,6 +43,8 @@ print("=== after account name ===")
 print(recv_all(s).decode(errors="replace"))
 
 send_line(s, "smoketestpw123")
+send_line(s, "smoketestpw123")  # confirm password (Session 21)
+print(recv_all(s).decode(errors="replace"))
 print("=== after password (new account) -> account menu ===")
 print(recv_all(s).decode(errors="replace"))
 

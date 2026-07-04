@@ -57,7 +57,7 @@ here and log details there.
       do these two together).
 - [ ] Mid-fight persistence: HP and limb HP are only saved at combat defeat;
       a mid-fight disconnect reloads at last-saved values.
-- [ ] Account-creation password confirmation (type it twice) — original has
+- [x] Account-creation password confirmation — done 2026-07-03 (type twice, mismatch re-prompts; original has
       it, Tobin doesn't.
 - [ ] Delete-character password reconfirmation (original asks for the account
       password again, Tobin only asks for typed `YES`).

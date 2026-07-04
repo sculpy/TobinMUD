@@ -53,7 +53,7 @@ freeze makes tests flake).
 - Test fixture names: 3-15 letters only (name validation), unique via the
   base-26 time suffix pattern in any existing test.
 - Immortal-tier gates: 51+ basics + building (goto, wizhelp, loadroom,
-  redit), 54+ log reading, 56+ help editing (hedit), 58+ promote, 59+
+  redit), 54+ log reading, 56+ help editing (hedit), 58+ promote/users, 59+
   operations (copyover, log rotate). Commands above the caller's level
   are invisible, not refused.
 - The `*edit` editor family: redit/hedit exist; oedit, zedit, medit,

@@ -54,6 +54,8 @@ def make_player(tag):
     recv_all(s)
     send_line(s, pw)
     recv_all(s)
+    send_line(s, pw)  # confirm password (Session 21)
+    recv_all(s)
     send_line(s, "new")
     recv_all(s)
     send_line(s, name)

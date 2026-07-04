@@ -42,6 +42,7 @@ bool cmd_loadroom(descriptor_t *d, const char *args);
 bool cmd_mortal(descriptor_t *d, const char *args);
 bool cmd_immort(descriptor_t *d, const char *args);
 bool cmd_prompt(descriptor_t *d, const char *args);
+bool cmd_users(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */
@@ -63,6 +64,9 @@ bool cmd_prompt(descriptor_t *d, const char *args);
 
 /* `promote`: 58+ (user-specified, Tier 3 -- was 51+). */
 #define PROMOTE_MIN_LEVEL 58
+
+/* `users` (connection roster with IPs): 58+, user-specified. */
+#define USERS_MIN_LEVEL 58
 
 /* One row of cmd_table.c's dispatch table -- shared with cmd_help.c so
  * `help`/`wizhelp` can enumerate it without duplicating the list.

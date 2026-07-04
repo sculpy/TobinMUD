@@ -213,7 +213,8 @@ void descriptor_send(descriptor_t *d, const char *msg) {
 }
 
 static bool is_password_state(conn_state_t s) {
-    return s == CONN_GET_PASSWORD || s == CONN_GET_NEW_PASSWORD;
+    return s == CONN_GET_PASSWORD || s == CONN_GET_NEW_PASSWORD
+        || s == CONN_CONFIRM_PASSWORD;
 }
 
 /* Consumes as much of d->raw[d->raw_pos .. d->raw_len) as forms complete
@@ -344,14 +345,23 @@ static void show_account_menu(descriptor_t *d) {
     } else {
         for (int i = 0; i < d->char_count && (size_t)n < sizeof(out); i++) {
             /* Same convention as `who`: immortals show their rank title,
-             * mortals show the level number. */
+             * mortals show the level number. A character already in the
+             * world (on any connection) is marked (user request). */
+            bool online = false;
+            for (descriptor_t *it = g_descriptors; it && !online; it = it->next) {
+                if (it->state == CONN_PLAYING && it->character
+                    && strcasecmp(it->character->base.name, d->char_list[i]) == 0)
+                    online = true;
+            }
             const char *title = being_level_title(d->char_levels[i]);
             if (title)
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s (%s)\r\n",
-                              i + 1, d->char_list[i], title);
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s (%s)%s\r\n",
+                              i + 1, d->char_list[i], title,
+                              online ? " (connected)" : "");
             else
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s (Level %d)\r\n",
-                              i + 1, d->char_list[i], d->char_levels[i]);
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s (Level %d)%s\r\n",
+                              i + 1, d->char_list[i], d->char_levels[i],
+                              online ? " (connected)" : "");
         }
     }
     if ((size_t)n < sizeof(out)) {
@@ -475,7 +485,24 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 descriptor_send(d, "Too short -- choose a password (3+ characters): ");
                 return true;
             }
-            if (!account_create(d->account_name, line, &d->account)) {
+            /* Confirmation step (user request; the original has one):
+             * stash the first entry, ask again, create only on a match. */
+            snprintf(d->new_password, sizeof(d->new_password), "%s", line);
+            descriptor_send(d, "Retype the password to confirm: ");
+            d->state = CONN_CONFIRM_PASSWORD;
+            return true;
+        }
+
+        case CONN_CONFIRM_PASSWORD: {
+            if (strcmp(line, d->new_password) != 0) {
+                memset(d->new_password, 0, sizeof(d->new_password));
+                descriptor_send(d, "The passwords do not match. Choose a password (3+ characters): ");
+                d->state = CONN_GET_NEW_PASSWORD;
+                return true;
+            }
+            bool created = account_create(d->account_name, d->new_password, &d->account);
+            memset(d->new_password, 0, sizeof(d->new_password)); /* don't keep plaintext */
+            if (!created) {
                 descriptor_send(d, "Could not create that account.\r\nAccount name: ");
                 d->state = CONN_GET_ACCOUNT_NAME;
                 return true;

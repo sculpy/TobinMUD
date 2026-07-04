@@ -20,6 +20,7 @@ typedef enum {
     CONN_GET_ACCOUNT_NAME,
     CONN_GET_PASSWORD,
     CONN_GET_NEW_PASSWORD,
+    CONN_CONFIRM_PASSWORD,
     CONN_ACCOUNT_MENU,
     CONN_CHAR_CREATE_NAME,
     CONN_CHAR_CREATE_ATTRS,
@@ -54,6 +55,7 @@ typedef struct descriptor {
     char line[DESC_LINE_MAX];
 
     char account_name[80];
+    char new_password[64]; /* CONN_CONFIRM_PASSWORD scratch, zeroed after use */
     account_t account;
 
     /* Per-connection color preference (see colorstring.h) -- deliberately
