@@ -79,7 +79,7 @@ recv_all(s)
 # A mortal's look shows the plain room name -- no builder header.
 send_line(s, "look")
 out = recv_all(s)
-check("Imperia" in out and "[1]" not in out and "[sector" not in out,
+check("Center Square" in out and "[100]" not in out and "[sector" not in out,
       "a mortal's look has no vnum/sector/flags header")
 
 # --- Part 1: the gate (51+ as of the Tier-3 follow-up) ---

@@ -72,7 +72,7 @@ check(out.rstrip().endswith(">"), "auto-look after character creation ends with 
 
 # --- 1. Abbreviation matching ---
 out = step(s, "'l' should reach look", "l")
-check("Imperia" in out, "'l' abbreviates to look")
+check("Center Square" in out, "'l' abbreviates to look (new default load room 100)")
 
 # Movement sits above who in the table (classic Diku): the single letter
 # 'w' means WEST now; who needs 'wh'. Either outcome of the walk (moving,
