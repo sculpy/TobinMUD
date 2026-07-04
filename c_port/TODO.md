@@ -6,6 +6,11 @@ here and log details there.
 
 ## In flight right now
 
+- [ ] **Run the full 30-file sweep first thing next session** — the last two
+      deploys of 2026-07-03 (cyan closing quote; mortal/immortal default
+      load-room split) were verified with targeted tests only; the VM was
+      shut down before the closing full sweep could run. Expected green.
+
 - [x] Copyover 5-second warning — **deployed + verified 2026-07-03 (morning)**:
       all 14 copyover checks pass including the warning; full suite green.
 
