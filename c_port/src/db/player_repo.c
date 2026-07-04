@@ -10,7 +10,7 @@
  * exists in the seed data (db/sneezy/room.sql) and has a real description,
  * unlike vnum 0 ("The Void"). Revisit once zone-aware character creation
  * (starting city selection etc) is ported. */
-#define DEFAULT_LOAD_ROOM 100
+#define DEFAULT_LOAD_ROOM DEFAULT_LOAD_ROOM_MORTAL
 
 being_t *player_load(const char *name, long account_id) {
     db_conn_t *db = db_open(DB_TOBIN);

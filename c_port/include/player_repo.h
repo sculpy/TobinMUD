@@ -12,6 +12,13 @@
  * the owning account_id to enforce that. */
 
 #define PLAYER_NAME_LEN 64 /* matches thing_t.name's size, see thing.h */
+
+/* Default landing rooms (user spec): mortals start/return to Center
+ * Square; immortals whose load_room is still the mortal default land in
+ * room 1 (Imperia, the immortal entryway) instead -- an explicit
+ * `loadroom` choice (any room but 100) overrides both. */
+#define DEFAULT_LOAD_ROOM_MORTAL 100
+#define DEFAULT_LOAD_ROOM_IMMORTAL 1
 #define MAX_CHARS_PER_ACCOUNT 10
 
 /* Loads a player by character name, but ONLY if it's owned by account_id.

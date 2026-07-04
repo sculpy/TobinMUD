@@ -179,6 +179,7 @@ recv_all(sImm)
 send_line(sImm, "combattestpw123")
 out = step(sImm, "log back in -- should show the promoted character in the menu", "1")
 check("Welcome" in out, "reconnected and playing as the promoted character")
+step(sImm, "immortals default to room 1 now -- rejoin the target in 100", "goto 100")
 
 out = step(sImm, "score shows immortal status", "score")
 level_line = [l for l in out.splitlines() if "Level:" in l]

@@ -107,6 +107,7 @@ recv_all(sImm)
 send_line(sImm, "killtestpw123")
 out = step(sImm, "log back in as the promoted immortal", "1")
 check("Welcome" in out, "reconnected and playing as the promoted character")
+step(sImm, "rejoin the target in Center Square", "goto 100")
 
 out = step(sImm, "immortal kills the target", f"kill {nameTarget}")
 check(f"You have slain {proper(nameTarget)}" in out, "immortal 'kill' produces the instant-slay message, not 'attack'")

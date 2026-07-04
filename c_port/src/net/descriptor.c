@@ -429,7 +429,12 @@ static void enter_world(descriptor_t *d, being_t *b) {
 
     int room_vnum = player_load_room(b->base.name, d->account.account_id);
     if (room_vnum < 0)
-        room_vnum = 1;
+        room_vnum = DEFAULT_LOAD_ROOM_MORTAL;
+    /* Immortals default home to room 1 (user spec) -- only when their
+     * stored load room is still the mortal default; an explicit loadroom
+     * choice wins. */
+    if (being_is_immortal(b) && room_vnum == DEFAULT_LOAD_ROOM_MORTAL)
+        room_vnum = DEFAULT_LOAD_ROOM_IMMORTAL;
 
     room_t *r = world_get_room(room_vnum);
     if (!r) {
