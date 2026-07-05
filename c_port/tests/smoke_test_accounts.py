@@ -75,7 +75,9 @@ step(s, "password (first entry)", password)
 out = step(s, "MISMATCHED confirmation", password + "x")
 check("do not match" in out, "a mismatched confirmation re-prompts for the password")
 step(s, "password again", password)
-out = step(s, "confirm password -> account menu", password)
+out = step(s, "confirm password -> color prompt", password)
+check("color" in out.lower(), "a new account is asked about color after the password")
+out = step(s, "answer color prompt -> account menu", "y")
 check("(none yet)" in out, "brand-new account starts with an empty character list")
 
 step(s, "choose 'new'", "new")
@@ -103,7 +105,7 @@ out = step(s, "finish creation", "done")
 check(f"Welcome, {char1_name}" in out, "'done' creates the character and enters the world")
 
 out = step(s, "score", "score")
-check("Handedness:    left" in out, "score shows the chosen left-handedness")
+check("You are left handed" in out, "score shows the chosen left-handedness")
 check("Strength:      150" in out and "Dexterity:     120" in out,
       "score shows the persisted point-buy allocation")
 

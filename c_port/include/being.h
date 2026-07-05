@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #ifndef TOBIN_BEING_H
 #define TOBIN_BEING_H
 
@@ -30,6 +34,8 @@
 #define ATTR_POOL 30       /* net points spendable across all 6 attributes */
 #define ATTR_DELTA_CAP 30  /* max amount any single attribute can be raised or lowered from base */
 #define ATTR_MAX  250      /* absolute per-attribute ceiling, defense-in-depth beyond the delta cap */
+
+#define BEING_TITLE_LEN 80 /* matches player.title varchar(80) */
 
 typedef struct {
     int strength;
@@ -117,6 +123,52 @@ const char *limb_name(limb_t limb);
  * (combat.c), so the wording is identical wherever it shows up. */
 const char *limb_status_text(int pct);
 
+/* Body position (original positionTypeT, misc/being.h). Players control the
+ * standing/sitting/resting/sleeping rungs via sit/stand/rest/sleep/wake; the
+ * lower rungs (dead/incap/...) and mounted/flying are reserved for future
+ * use. "Fighting" is not stored -- it is derived from the `fighting` pointer
+ * so combat never has to touch this field. */
+typedef enum {
+    POSITION_DEAD,
+    POSITION_MORTALLYW,
+    POSITION_INCAP,
+    POSITION_STUNNED,
+    POSITION_SLEEPING,
+    POSITION_RESTING,
+    POSITION_SITTING,
+    POSITION_ENGAGED,
+    POSITION_FIGHTING,
+    POSITION_CRAWLING,
+    POSITION_STANDING,
+    POSITION_MOUNTED,
+    POSITION_FLYING
+} position_t;
+
+/* Display name ("Standing", "Sleeping", ...) for a position. */
+const char *position_name(position_t p);
+
+/* Gender (original sexTypeT, misc/being.h -- SEX_NEUTER/SEX_MALE/SEX_FEMALE).
+ * Chosen at character creation; drives pronoun selection. Persisted in
+ * player.gender as 0/1/2 so the enum values must stay stable. */
+typedef enum {
+    GENDER_NEUTER = 0,
+    GENDER_MALE   = 1,
+    GENDER_FEMALE = 2
+} gender_t;
+
+#define BEING_APPEARANCE_LEN 256 /* matches player.appearance varchar(255) + NUL */
+
+/* Display name ("male"/"female"/"neuter") for a gender. */
+const char *gender_name(gender_t g);
+
+/* Pronouns for a gender, mirroring the original's HSHR/HMHR/HESH helpers:
+ *   gender_subject -> he / she / it   (subject:   "he smiles")
+ *   gender_object  -> him / her / it  (object:    "you hit him")
+ *   gender_possess -> his / her / its (possessive:"his sword") */
+const char *gender_subject(gender_t g);
+const char *gender_object(gender_t g);
+const char *gender_possess(gender_t g);
+
 typedef struct being {
     thing_t base;        /* first member -- see thing.h */
     long account_id;
@@ -133,6 +185,24 @@ typedef struct being {
 
     /* Prompt customization bitmask (PROMPT_FLAG_*), player.prompt_flags. */
     int prompt_flags;
+
+    /* Player-settable title shown after the name in who (player.title). Empty
+     * = no title. Set via the `title` command (cmd_title.c). The original's
+     * title is a free-text descriptor ("the Brave", "floats here bleeding");
+     * Tobin keeps the same free-form model, length-capped to the DB column. */
+    char title[BEING_TITLE_LEN];
+
+    /* Gender (player.gender) -- chosen at creation, drives pronouns. */
+    gender_t gender;
+
+    /* Free-text self-description (player.appearance), set at creation and
+     * shown by `look <player>`/`score`. Empty = none set. */
+    char appearance[BEING_APPEARANCE_LEN];
+
+    /* Body position (sit/stand/rest/sleep/wake). Default STANDING; not
+     * persisted -- you wake up standing on login. "Fighting" is derived from
+     * `fighting`, never stored here. */
+    position_t position;
 
     /* Combat (PvP only for now, see STATUS.md -- no NPCs/mobs exist yet).
      * `fighting` is a live in-memory pointer, never persisted (meaningless
@@ -157,6 +227,10 @@ void being_destroy(being_t *b);
 /* True iff b->progress.level >= IMMORTAL_LEVEL_MIN. */
 bool being_is_immortal(const being_t *b);
 
+/* A word describing b's health as a fraction of max HP ("near death" ...
+ * "perfect"), from the original's prompt_mesg[]. Shown in `score`. */
+const char *being_health_word(const being_t *b);
+
 /* b's limb HP as a 0-100 percentage of that limb's max_hp. Returns 0 for
  * an invalid being/limb. */
 int being_limb_pct(const being_t *b, limb_t limb);
@@ -173,6 +247,11 @@ bool being_has_destroyed_limb(const being_t *b);
  * mortal level (< IMMORTAL_LEVEL_MIN) -- callers fall back to showing the
  * raw level number in that case. */
 const char *being_level_title(int level);
+
+/* Color tag for an immortal's rank tier, used to tint their name in who and
+ * score: 51-53 <c>, 54-56 <C>, 57-58 <p>, 59+ <P>; "" for a mortal. Pair
+ * with a "<z>" reset after the coloured text. */
+const char *being_rank_color(int level);
 
 /* Normalizes a character name to proper case in place (first letter
  * uppercase, rest lowercase) -- e.g. "TESTGUY" or "testguy" both become

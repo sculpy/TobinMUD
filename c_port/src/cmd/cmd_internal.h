@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #ifndef CMD_INTERNAL_H
 #define CMD_INTERNAL_H
 
@@ -17,6 +21,7 @@ bool cmd_quit(descriptor_t *d, const char *args);
 bool cmd_color(descriptor_t *d, const char *args);
 bool cmd_attack(descriptor_t *d, const char *args);
 bool cmd_kill(descriptor_t *d, const char *args);
+bool cmd_flee(descriptor_t *d, const char *args);
 bool cmd_say(descriptor_t *d, const char *args);
 bool cmd_limbs(descriptor_t *d, const char *args);
 bool cmd_help(descriptor_t *d, const char *args);
@@ -42,7 +47,25 @@ bool cmd_loadroom(descriptor_t *d, const char *args);
 bool cmd_mortal(descriptor_t *d, const char *args);
 bool cmd_immort(descriptor_t *d, const char *args);
 bool cmd_prompt(descriptor_t *d, const char *args);
+bool cmd_title(descriptor_t *d, const char *args);
+bool cmd_toggle(descriptor_t *d, const char *args);
+bool cmd_exec(descriptor_t *d, const char *args);
 bool cmd_users(descriptor_t *d, const char *args);
+bool cmd_news(descriptor_t *d, const char *args);
+bool cmd_addnews(descriptor_t *d, const char *args);
+bool cmd_stand(descriptor_t *d, const char *args);
+bool cmd_sit(descriptor_t *d, const char *args);
+bool cmd_rest(descriptor_t *d, const char *args);
+bool cmd_sleep(descriptor_t *d, const char *args);
+bool cmd_wake(descriptor_t *d, const char *args);
+bool cmd_catchup(descriptor_t *d, const char *args);
+bool cmd_wiznews(descriptor_t *d, const char *args);
+bool cmd_edwiznews(descriptor_t *d, const char *args);
+bool cmd_socials(descriptor_t *d, const char *args);
+bool cmd_wiznet(descriptor_t *d, const char *args);
+bool cmd_system(descriptor_t *d, const char *args);
+bool cmd_mudstats(descriptor_t *d, const char *args);
+bool cmd_multiplay(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */
@@ -51,6 +74,9 @@ bool cmd_users(descriptor_t *d, const char *args);
 /* `copyover` reboots the server binary in place -- the most consequential
  * command there is, so it's gated at Administrator (59) and up. */
 #define COPYOVER_MIN_LEVEL 59
+
+/* `exec` runs shell commands on the host box -- Implementor-only (60). */
+#define EXEC_MIN_LEVEL 60
 
 /* `redit` (the room builder): 51+ -- every immortal builds (user spec,
  * Session 21; future oedit/medit/zedit land at 51 too). Help editing
@@ -67,6 +93,12 @@ bool cmd_users(descriptor_t *d, const char *args);
 
 /* `users` (connection roster with IPs): 58+, user-specified. */
 #define USERS_MIN_LEVEL 58
+
+/* `addnews` (post a news item): 56+, user-specified. */
+#define ADDNEWS_MIN_LEVEL 56
+
+/* `multiplay` (toggle the mortal-multiplay game flag): 59+, user-specified. */
+#define MULTIPLAY_MIN_LEVEL 59
 
 /* One row of cmd_table.c's dispatch table -- shared with cmd_help.c so
  * `help`/`wizhelp` can enumerate it without duplicating the list.

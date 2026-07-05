@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #ifndef TOBIN_ROOM_REPO_H
 #define TOBIN_ROOM_REPO_H
 
@@ -23,10 +27,10 @@ bool room_repo_exists(int vnum);
  * step, since Tobin's world lives in MariaDB. */
 bool room_repo_save(const room_t *r);
 
-/* Upserts one exit (vnum, dir) -> dest. The roomexit FK requires `dest`
- * to already exist as a room row. Door fields are written as
- * none/zero -- Tobin has no doors yet. */
-bool room_repo_save_exit(int vnum, int dir, int dest);
+/* Upserts one exit (vnum, dir) -> dest, with its door type (doorTypeT) and
+ * condition bitmask. The roomexit FK requires `dest` to already exist as a
+ * room row. */
+bool room_repo_save_exit(int vnum, int dir, int dest, int door_type, int condition);
 
 /* Deletes one exit row. True even if it didn't exist. */
 bool room_repo_delete_exit(int vnum, int dir);

@@ -1,6 +1,5 @@
 # Build output
 c_port/build/
-code/sneezy
 
 # Runtime artifacts
 *.log
@@ -14,6 +13,13 @@ logs/
 
 # Packaging artifacts
 tobin_takehome.zip
+
+# Upstream SneezyMUD reference clone -- re-clone per location; not part of
+# tobin-mud, and far too large to commit.
+sneezymud-master/
+
+# Loose class-reference scratch notes dumped at the repo root.
+*skills.txt
 
 # Claude Code local state
 .claude/settings.local.json

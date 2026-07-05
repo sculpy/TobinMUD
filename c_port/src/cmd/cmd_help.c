@@ -1,12 +1,41 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "cmd_internal.h"
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
 #include "being.h"
 #include "help_repo.h"
+
+static int cmp_name(const void *a, const void *b) {
+    return strcasecmp(*(const char *const *)a, *(const char *const *)b);
+}
+
+/* Sends `names` (count `cnt`) sorted alphabetically in three columns, under
+ * `header` and followed by `footer`. Shared by help and wizhelp. */
+static void send_columns(descriptor_t *d, const char **names, int cnt,
+                         const char *header, const char *footer) {
+    qsort(names, (size_t)cnt, sizeof(names[0]), cmp_name);
+
+    char out[2048];
+    size_t n = (size_t)snprintf(out, sizeof(out), "%s", header);
+    for (int i = 0; i < cnt && n < sizeof(out); i++) {
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s", names[i]);
+        if (i % 3 == 2)
+            n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0, "\r\n");
+    }
+    if (cnt % 3 != 0 && n < sizeof(out))
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "\r\n");
+    if (footer && n < sizeof(out))
+        snprintf(out + n, sizeof(out) - n, "%s", footer);
+    descriptor_send(d, out);
+}
 
 /* `help`: lists every available command with a one-line description.
  * Deliberately NOT a port of the original's `help` (TBeing::doHelp(),
@@ -46,26 +75,97 @@ bool cmd_help(descriptor_t *d, const char *args) {
                 }
             }
 
+            /* `help edit` -- a live index of the ed* editor family, so a
+             * builder can find the editor they want and its real help topic.
+             * Auto-updates as ed* commands are added (no hand-maintained
+             * list). */
+            if (strcmp(topic, "edit") == 0) {
+                const char *ednames[64];
+                int edc = 0;
+                for (int i = 0; i < count && edc < 64; i++) {
+                    if (cmds[i].help && cmds[i].min_level <= level
+                        && strncmp(cmds[i].name, "ed", 2) == 0)
+                        ednames[edc++] = cmds[i].name;
+                }
+                if (edc == 0) {
+                    descriptor_send(d, "There are no editor commands available to you.\r\n");
+                    return true;
+                }
+                send_columns(d, ednames, edc, "\r\n-- Editor (ed*) commands --\r\n",
+                             "\r\nType 'help <name>' (e.g. help edroom) for each editor's details.\r\n");
+                return true;
+            }
+
             char resolved[HELP_TOPIC_NAME_LEN];
             char body[HELP_BODY_MAX];
             if (help_topic_find(topic, resolved, sizeof(resolved), body, sizeof(body))) {
                 /* Don't let a topic leak a command that's hidden from this
                  * caller (cmd_dispatch() hides over-level commands). */
                 bool hidden = false;
+                const cmd_entry_t *match = NULL;
                 for (int i = 0; i < count; i++) {
-                    if (strcasecmp(cmds[i].name, resolved) == 0
-                        && cmds[i].min_level > level) {
-                        hidden = true;
+                    if (strcasecmp(cmds[i].name, resolved) == 0) {
+                        match = &cmds[i];
+                        if (cmds[i].min_level > level)
+                            hidden = true;
                         break;
                     }
                 }
                 if (!hidden) {
-                    char head[64];
-                    snprintf(head, sizeof(head), "\r\n-- Help: %s --\r\n", resolved);
+                    char head[80];
+                    snprintf(head, sizeof(head), "\r\n<c>-- Help: %s --<z>\r\n", resolved);
                     descriptor_send(d, head);
-                    descriptor_send(d, body);
-                    if (body[0] && body[strlen(body) - 1] != '\n')
-                        descriptor_send(d, "\r\n");
+
+                    /* Split a leading "Usage: <syntax>" line out of the body:
+                     * the syntax goes into the colorized footer, the rest is
+                     * the description (user-specified help format). */
+                    char syntax[128];
+                    const char *desc = body;
+                    syntax[0] = '\0';
+                    if (strncasecmp(body, "Usage:", 6) == 0) {
+                        const char *nl = strchr(body, '\n');
+                        const char *s = body + 6;
+                        while (*s == ' ')
+                            s++;
+                        size_t slen = nl ? (size_t)(nl - s) : strlen(s);
+                        while (slen > 0 && s[slen - 1] == '\r')
+                            slen--;
+                        if (slen >= sizeof(syntax))
+                            slen = sizeof(syntax) - 1;
+                        memcpy(syntax, s, slen);
+                        syntax[slen] = '\0';
+                        if (nl) {
+                            desc = nl + 1;
+                            while (*desc == '\r' || *desc == '\n')
+                                desc++; /* skip the blank line after Usage */
+                        } else {
+                            desc = body + strlen(body);
+                        }
+                    }
+                    if (syntax[0] == '\0' && match)
+                        snprintf(syntax, sizeof(syntax), "%s", match->name);
+
+                    /* Magenta description body. The <m>...<z> pair MUST be in a
+                     * single send: colorstring auto-appends a reset when a
+                     * message ends mid-color, so splitting <m> off would reset
+                     * it immediately. Trailing newlines trimmed to one. */
+                    size_t dlen = strlen(desc);
+                    while (dlen > 0 && (desc[dlen - 1] == '\n' || desc[dlen - 1] == '\r'))
+                        dlen--;
+                    char shown[HELP_BODY_MAX + 32];
+                    snprintf(shown, sizeof(shown), "<m>%.*s<z>\r\n", (int)dlen, desc);
+                    descriptor_send(d, shown);
+
+                    /* Cyan-labelled Syntax / Minimum Level footer -- commands
+                     * only (prose topics have no table entry, so no footer).
+                     * Labels right-aligned to 14 chars (user-specified). */
+                    if (match) {
+                        char footer[192];
+                        snprintf(footer, sizeof(footer),
+                                 "\r\n<c>       Syntax:<z> %s\r\n<c>Minimum Level:<z> %d\r\n",
+                                 syntax, match->min_level);
+                        descriptor_send(d, footer);
+                    }
                     return true;
                 }
             }
@@ -76,40 +176,23 @@ bool cmd_help(descriptor_t *d, const char *args) {
         }
     }
 
-    char out[2048];
-    int n = snprintf(out, sizeof(out), "\r\n-- Available commands --\r\n");
-    if (n < 0)
-        n = 0;
-
-    /* Only list what this caller can actually use -- cmd_dispatch() hides
-     * over-level commands entirely (Phase 2A), so listing them here would
-     * leak their existence to mortals. Sorted highest-min_level first
-     * (user request): an immortal's privileged commands lead the list,
-     * mortal commands follow in table order. */
-    for (int lvl = level; lvl >= MORTAL_LEVEL_MIN; ) {
-        int next_lvl = MORTAL_LEVEL_MIN - 1;
-        for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
-            if (!cmds[i].help)
-                continue; /* NULL help = deliberately unlisted (aliases, immort) */
-            if (cmds[i].min_level == lvl)
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-10s %s\r\n",
-                              cmds[i].name, cmds[i].help);
-            else if (cmds[i].min_level < lvl && cmds[i].min_level > next_lvl)
-                next_lvl = cmds[i].min_level;
-        }
-        lvl = next_lvl;
+    /* List only what this caller can actually use (over-level commands are
+     * hidden entirely -- Phase 2A). Names only, sorted alphabetically, in
+     * three columns; `help <command>` gives the details. */
+    const char *names[256];
+    int cnt = 0;
+    for (int i = 0; i < count && cnt < 255; i++) {
+        if (!cmds[i].help)
+            continue; /* NULL help = deliberately unlisted (aliases, immort) */
+        if (cmds[i].min_level <= level)
+            names[cnt++] = cmds[i].name;
     }
-    /* `quit!` is deliberately excluded from cmd_table.c's dispatch table
-     * (see its comment there) -- listed here as a hardcoded extra line so
-     * it isn't missing from the list players actually see. */
-    if ((size_t)n < sizeof(out))
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-10s %s\r\n",
-                      "quit!", "Leave your character, or disconnect (must be typed in full).");
-    if ((size_t)n < sizeof(out))
-        n += snprintf(out + n, sizeof(out) - (size_t)n,
-                      "\r\nType 'help <command>' for details on any of these.\r\n");
+    /* `quit!` is deliberately excluded from cmd_table.c's dispatch table, so
+     * add it by hand -- otherwise it'd be missing from the list. */
+    names[cnt++] = "quit!";
 
-    descriptor_send(d, out);
+    send_columns(d, names, cnt, "\r\n-- Available commands --\r\n",
+                 "\r\nType 'help <command>' for details on any of these.\r\n");
     return true;
 }
 
@@ -131,36 +214,28 @@ bool cmd_wizhelp(descriptor_t *d, const char *args) {
 
     int count;
     const cmd_entry_t *cmds = cmd_table_entries(&count);
-
-    char out[1024];
-    int n = snprintf(out, sizeof(out), "\r\n-- Immortal-only commands --\r\n");
-    if (n < 0)
-        n = 0;
-
-    /* Same secrecy rule as help/cmd_dispatch (user requirement): an
-     * immortal only sees the commands their own level already grants --
-     * what the next promotion unlocks stays unknown until it happens. The
-     * [N+] tag therefore only ever shows levels at or below the caller's.
-     * Sorted highest-min_level first, same as help. */
     int level = d->character->progress.level;
-    bool any = false;
-    for (int lvl = level; lvl > MORTAL_LEVEL_MAX; ) {
-        int next_lvl = MORTAL_LEVEL_MAX;
-        for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
-            if (cmds[i].min_level == lvl) {
-                any = true;
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-10s [%d+] %s\r\n",
-                              cmds[i].name, cmds[i].min_level, cmds[i].help);
-            } else if (cmds[i].min_level < lvl && cmds[i].min_level > next_lvl) {
-                next_lvl = cmds[i].min_level;
-            }
-        }
-        lvl = next_lvl;
-    }
-    if (!any && (size_t)n < sizeof(out))
-        n += snprintf(out + n, sizeof(out) - (size_t)n,
-                      "  (none yet -- no commands are currently immortal-only)\r\n");
 
-    descriptor_send(d, out);
+    /* Secrecy rule (user requirement): an immortal only sees the immortal
+     * commands their own level already grants -- what a future promotion
+     * unlocks stays unknown until it happens. Names only, alphabetical, in
+     * three columns; no level tag (user request). */
+    const char *names[256];
+    int cnt = 0;
+    for (int i = 0; i < count && cnt < 256; i++) {
+        if (!cmds[i].help)
+            continue;
+        if (cmds[i].min_level > MORTAL_LEVEL_MAX && cmds[i].min_level <= level)
+            names[cnt++] = cmds[i].name;
+    }
+
+    if (cnt == 0) {
+        descriptor_send(d,
+            "\r\n-- Immortal-only commands --\r\n"
+            "  (none yet -- no commands are currently immortal-only)\r\n");
+        return true;
+    }
+    send_columns(d, names, cnt, "\r\n-- Immortal-only commands --\r\n",
+                 "\r\nType 'help <command>' for details on any of these.\r\n");
     return true;
 }

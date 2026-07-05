@@ -95,7 +95,11 @@ for _ in range(8):
         # (already proven if found_injury_in_limbs_cmd is already True, or
         # we just try B below instead).
         break
-    limb_lines = [l for l in out.splitlines() if any(limb in l for limb in LIMB_NAMES)]
+    # Only count actual limb-listing lines (a limb name AND a percentage) --
+    # interleaved combat strike messages also mention limb names but never
+    # carry a "%", so this ignores them and keeps the count reliable.
+    limb_lines = [l for l in out.splitlines()
+                  if "%" in l and any(limb in l for limb in LIMB_NAMES)]
     check(len(limb_lines) == 13 or len(limb_lines) == 0,
           "limbs always lists all 13 limbs, never a partial set")
     if any("%  --" in l for l in limb_lines):

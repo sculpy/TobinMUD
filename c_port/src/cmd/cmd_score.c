@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "cmd_internal.h"
 
 #include <stdio.h>
@@ -19,26 +23,37 @@ bool cmd_score(descriptor_t *d, const char *args) {
     else
         snprintf(level_field, sizeof(level_field), "%d", p->level);
 
-    char out[1024];
+    const char *pos = d->character->fighting ? "Fighting"
+                                             : position_name(d->character->position);
+    /* Tint the Level/rank field by immortal rank tier (mortals: no color) --
+     * the name itself stays uncolored (user spec). */
+    const char *col = being_rank_color(p->level);
+    const char *reset = col[0] ? "<z>" : "";
+
+    char out[1536];
     int n = snprintf(out, sizeof(out),
-             "\r\n-- %s --\r\n"
-             "  Level:         %s\r\n"
+             "  Name:          %s\t  Level:         %s%s%s\r\n"
              "  Experience:    %ld\r\n"
-             "  HP:            %d/%d\r\n"
-             "  Strength:      %d\r\n"
-             "  Dexterity:     %d\r\n"
-             "  Constitution:  %d\r\n"
-             "  Intelligence:  %d\r\n"
-             "  Wisdom:        %d\r\n"
-             "  Charisma:      %d\r\n"
-             "  Handedness:    %s\r\n",
+             "  HP:            %d/%d (%s)\r\n"
+             "  Position:      %s\r\n"
+             "  Characteristics:\r\n"
+			 "  Strength:      %d\t  Intelligence:  %d\r\n"
+             "  Dexterity:     %d\t  Wisdom:        %d\r\n"
+             "  Constitution:  %d\t  Charisma:      %d\r\n"
+             "  You are %s handed.  Gender: %s\r\n",
              d->character->base.name,
-             level_field,
-             p->experience, p->hp, p->max_hp,
-             a->strength, a->dexterity, a->constitution, a->intelligence, a->wisdom, a->charisma,
-             d->character->handed_right ? "right" : "left");
+			 col, level_field, reset,
+             p->experience, p->hp, p->max_hp, being_health_word(d->character), pos,
+             a->strength, a->intelligence, a->dexterity, a->wisdom, a->constitution, a->charisma,
+             d->character->handed_right ? "right" : "left",
+             gender_name(d->character->gender));
     if (n < 0)
         n = 0;
+
+    /* Appearance, if the player set one at creation. */
+    if (d->character->appearance[0] && (size_t)n < sizeof(out))
+        n += snprintf(out + n, sizeof(out) - (size_t)n,
+                      "  Appearance:    %s\r\n", d->character->appearance);
 
     /* A limb only shows up here at all once it's hurt (< 20% health, per
      * limb_status_text()) -- a fully healthy character has no Limbs

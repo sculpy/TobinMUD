@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "player_repo.h"
 
 #include <stdio.h>
@@ -18,7 +22,8 @@ being_t *player_load(const char *name, long account_id) {
         return NULL;
 
     being_t *b = NULL;
-    if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags from player "
+    if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
+                      "title, gender, appearance from player "
                       "where name='%s' and account_id=%i",
                  name, (int)account_id)
         && db_fetch_row(db)) {
@@ -27,6 +32,9 @@ being_t *player_load(const char *name, long account_id) {
         if (b) {
             b->handed_right = atoi(db_get(db, "handed"));
             b->prompt_flags = atoi(db_get(db, "prompt_flags"));
+            snprintf(b->title, sizeof(b->title), "%s", db_get(db, "title"));
+            b->gender = (gender_t)atoi(db_get(db, "gender"));
+            snprintf(b->appearance, sizeof(b->appearance), "%s", db_get(db, "appearance"));
         }
     }
 
@@ -40,7 +48,8 @@ being_t *player_load(const char *name, long account_id) {
     return b;
 }
 
-being_t *player_create(const char *name, long account_id, const attrs_t *attrs, int handed_right) {
+being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
+                       int handed_right, gender_t gender, const char *appearance) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return NULL;
@@ -60,9 +69,10 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs, 
     }
 
     bool ok = db_query(db,
-        "insert into player (name, talens, account_id, load_room, nutrition, handed) "
-        "values ('%s', 0, %i, %i, 100, %i)",
-        name, (int)account_id, DEFAULT_LOAD_ROOM, handed_right ? 1 : 0);
+        "insert into player (name, talens, account_id, load_room, nutrition, handed, gender, appearance) "
+        "values ('%s', 0, %i, %i, 100, %i, %i, '%s')",
+        name, (int)account_id, DEFAULT_LOAD_ROOM, handed_right ? 1 : 0,
+        (int)gender, appearance ? appearance : "");
 
     being_t *b = NULL;
     if (ok) {
@@ -70,6 +80,8 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs, 
         b = being_create_pc(name, account_id, player_id);
         if (b) {
             b->handed_right = handed_right ? 1 : 0;
+            b->gender = gender;
+            snprintf(b->appearance, sizeof(b->appearance), "%s", appearance ? appearance : "");
             if (attrs)
                 b->attrs = *attrs;
             player_attrs_save(player_id, &b->attrs);
@@ -157,6 +169,25 @@ bool player_set_load_room(const char *name, long account_id, int vnum) {
 
     bool ok = db_query(db, "update player set load_room=%i where name='%s' and account_id=%i",
                        vnum, name, (int)account_id);
+
+    db_close(db);
+    return ok;
+}
+
+bool player_set_title(const char *name, long account_id, const char *title) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    /* An empty title clears the column (SQL NULL); db_query's %s escapes the
+     * free-form title text, so no injection through player-supplied strings. */
+    bool ok;
+    if (title && title[0])
+        ok = db_query(db, "update player set title='%s' where name='%s' and account_id=%i",
+                      title, name, (int)account_id);
+    else
+        ok = db_query(db, "update player set title=NULL where name='%s' and account_id=%i",
+                      name, (int)account_id);
 
     db_close(db);
     return ok;

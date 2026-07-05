@@ -1,2 +1,0 @@
-Second attempt at object caching to increase boot speed.  Seems
-to be working ok and cuts off about 2 minutes.

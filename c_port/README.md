@@ -1,7 +1,7 @@
 # Tobin — C port
 
-A from-scratch C rewrite of `../code/` (SneezyMUD, a DikuMUD-derived C++ MUD
-server). See [`STATUS.md`](STATUS.md) for the architecture decisions,
+A from-scratch C rewrite of the upstream `../sneezymud-master/` (SneezyMUD, a
+DikuMUD-derived C++ MUD server). See [`STATUS.md`](STATUS.md) for the architecture decisions,
 per-module port status, and full session-by-session log — **read that first**
 if you're picking this up fresh.
 
@@ -15,15 +15,16 @@ minimal player-vs-player combat. No objects, disciplines, or spec-procs yet.
 
 Everything needed to build and run Tobin is two directories, taken together:
 
-- `c_port/` — this directory: all source code, the build files, and the tests.
-- `db/` (one level up) — the MariaDB seed data (world/room definitions,
-  schema-only tables for accounts/players/etc.). Tobin will not boot without
-  a database loaded from this.
+- `c_port/` — this directory: all source code, the build files, the tests,
+  and Tobin's own DB schema under `c_port/db/`.
+- `sneezymud-master/` (one level up) — the upstream SneezyMUD clone, which
+  carries the MariaDB world seed data under `sneezymud-master/db/` (world/room
+  definitions, schema-only base tables for accounts/players/etc.). Tobin will
+  not boot without a database seeded from it.
 
 If you were handed a standalone copy (e.g. a zip) rather than the full repo,
-make sure both `c_port/` and `db/` are present as siblings — the build/run
-instructions below assume that layout (`db/init-db.sh` is referenced as
-`../db/init-db.sh` from inside `c_port/`).
+make sure both `c_port/` and `sneezymud-master/` are present as siblings —
+the build/run instructions below assume that layout.
 
 Tobin targets **Linux only** (POSIX sockets, `select()`, glibc/libxcrypt
 `crypt()`) — it isn't built or tested on Windows or macOS. If you're on
@@ -54,18 +55,20 @@ sudo dnf install gcc make cmake mariadb-connector-c-devel mariadb-server pkgconf
 
 ## Database setup
 
-Start MariaDB, then seed it from the `db/` directory at the repo root (run
-from the repo root, not from `c_port/`):
+Start MariaDB, then seed it in two steps — the upstream world first, then
+Tobin's own tables on top (run from the repo root):
 
 ```bash
 sudo systemctl start mariadb   # or `mariadb-install-db` first on a brand-new install
-db/init-db.sh                  # grants access to your current OS user
-# or: db/init-db.sh myuser     # to use a different MariaDB user
+sneezymud-master/db/init-db.sh          # upstream seed; grants your OS user
+# or: sneezymud-master/db/init-db.sh myuser
+c_port/db/apply-tobin-schema.sh         # Tobin tables + migrations
 ```
 
 This creates and seeds both the `sneezy` and `immortal` databases (19,209
-rooms plus mobs/objects/shops/zones — the world won't function without it).
-See [`../db/README.md`](../db/README.md) for details.
+rooms plus mobs/objects/shops/zones — the world won't function without it),
+then adds Tobin's help/attrs/progress tables. See
+[`db/README.md`](db/README.md) for details.
 
 ## Build
 

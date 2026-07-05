@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #ifndef TOBIN_COLORSTRING_H
 #define TOBIN_COLORSTRING_H
 

@@ -1,3 +1,0 @@
-'shoot' now works as described in the help file - if you shoot
-in a direction without specifying a target, you will shoot
-at the first target in that direction.

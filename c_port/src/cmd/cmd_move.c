@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "cmd_internal.h"
 
 #include <stdio.h>
@@ -23,6 +27,11 @@ static bool do_move(descriptor_t *d, int dir) {
     if (ch->fighting) {
         /* Same rule as the original's doMove: no walking out of a fight. */
         descriptor_send(d, "No way! You are fighting for your life!\r\n");
+        return true;
+    }
+    if (ch->position != POSITION_STANDING) {
+        /* Must be on your feet to travel (original doMove position gate). */
+        descriptor_send(d, "You are in no position to move -- try standing up first.\r\n");
         return true;
     }
 

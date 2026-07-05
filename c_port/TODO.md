@@ -1,320 +1,350 @@
 # Tobin — TODO
 
-Last updated: 2026-07-02 (home session — VM setup). Companion to STATUS.md:
-STATUS.md records what happened; this file tracks what's next. Check items off
-here and log details there.
+Last updated: 2026-07-05. Companion to STATUS.md, which holds the full
+session log, decisions, and history — **this file tracks only what's NEXT.**
+Completed items are pruned from here as they land (find them in STATUS.md).
 
-## In flight right now
+All in-game editors are menu-driven, like character creation — see the
+[[editors-menu-driven]] memory. The user provides a wireframe for each.
+Editor commands are named **`ed<noun>`** (user 2026-07-05): `edroom` (rooms),
+`edhelp` (help), `ednews` (news), `edwiznews` (wiznews); future
+`edobject`/`edmob`/`edzone`/`edplayer`/`edaccount`. Read-only viewers keep
+plain names (`news`, `wiznews`).
 
-- [ ] **Run the full 30-file sweep first thing next session** — the last two
-      deploys of 2026-07-03 (cyan closing quote; mortal/immortal default
-      load-room split) were verified with targeted tests only; the VM was
-      shut down before the closing full sweep could run. Expected green.
+## Buildable now (no blocked dependencies)
 
-- [x] Copyover 5-second warning — **deployed + verified 2026-07-03 (morning)**:
-      all 14 copyover checks pass including the warning; full suite green.
+Self-contained — no need for the object/mob systems. Keep working through
+these; each ships with a smoke test + (if player-facing) a news entry.
 
-- [x] `dnf upgrade` on the home VM — **done 2026-07-02** (647 packages, kernel
-      7.0.14; root-caused the slowness to e1000 NIC emulation and switched to
-      virtio-net, ~150x faster; VM bumped to 12 GB RAM / 4 CPUs). Rebooted,
-      rebuilt, relaunched `tobin_c`, full suite re-verified.
-- [x] Guest Additions after kernel update — verified responding on 7.0.14.
-- [ ] Install a telnet/MUD client on the Windows machines that will connect
-      (`Enable-WindowsOptionalFeature -Online -FeatureName TelnetClient`,
-      or Mudlet for proper ANSI color).
+### User batch 2026-07-05 (late night, follow-ups #2) — working these next
 
-## Environment / workflow
+- [x] **Idle disconnect: immortals immune** — done 2026-07-05 (built, pending
+      deploy): "do both" per user. Added `descriptor_idle_timeout` pulse (60s)
+      that disconnects playing MORTALS idle > IDLE_DISCONNECT_SECS (30 min)
+      with a message; immortals never idle-dropped. Also made the keepalive
+      NOP more aggressive (30s -> 12s) to survive tight NAT/router windows.
+- [x] **Typed logs (LOG_GAME + personalized)** — done 2026-07-05 (built,
+      pending deploy): `log_type_t` enum in log.h (LOG_SILENT, LOG_GAME
+      generic, LOG_PIO, LOG_COMBAT, LOG_BUG, LOG_DB, LOG_EDIT, LOG_JESUS) +
+      `log_type_name`/`log_type_personal_name`. New `game_log(type, fmt, ...)`
+      (in descriptor.c): writes the file line tagged with the type and echoes
+      a cyan `<c>[TYPE]<z>` line to non-editing immortals -- except LOG_SILENT
+      (file only) and personalized types (LOG_JESUS -> only the immortal named
+      Jesus). The link-loss broadcast now goes through `game_log(LOG_PIO,...)`
+      (tag `[PIO]` instead of `[LOG]`; notify test updated). Other events
+      (quit/delete/bug) can adopt game_log with their type as they land.
+- [x] **Title `<N>` substitution** — done 2026-07-05 (built, pending deploy):
+      `title_with_name()` in cmd_who.c replaces every `<N>`/`<n>` token with
+      the character's name anywhere in the title; when present the title shows
+      alone (name embedded), else `Name title` as before. Other color tags
+      pass through untouched.
+- [x] **Abbreviation → closest command (incl. socials)** — done 2026-07-05
+      (built, pending deploy): `social_try` now prefix-matches like the command
+      table (first match wins), so `poi`/`poin` -> `point`. Commands are still
+      tried before socials, so a real command always wins.
+- [x] **`exec` (level 60 only)** — done 2026-07-05: `cmd_exec.c` runs host
+      shell commands (Implementor-only). Fenced 3 ways: a blocklist refuses
+      dangerous commands (rm/kill/reboot/mkfs/dd/sudo/tobin_c/mariadb/etc.),
+      every command runs under `timeout 10` so it can't freeze the game loop,
+      and each use is logged (EXEC:/EXEC REFUSED:). Output capped at 8KB.
+      `smoke_test_exec.py`.
+- [x] **Help format: colorized Syntax/Minimum Level** — done 2026-07-05
+      (built, pending deploy): `help <cmd>` now shows the description in
+      magenta `<m>...<z>`, then `<c>       Syntax:<z> <syntax>` and
+      `<c>Minimum Level:<z> <n>` (right-aligned cyan labels). Syntax is parsed
+      out of the body's leading `Usage:` line (fallback: command name); level
+      from the command table. Prose topics get just the magenta body.
+- [x] **`flee`** — done 2026-07-05 (built, pending deploy): `cmd_flee.c` --
+      while fighting, ~2/3 chance to bolt through a random real exit; on
+      success both sides stop fighting and you move to a neighbouring room, on
+      failure you stay locked in. `smoke_test_flee.py`, help topic.
+- [x] **`toggle`** — done 2026-07-05: `cmd_toggle.c` with an extensible
+      TOGGLES[] table. Bare `toggle` lists switches + values; `toggle <name>`
+      (abbrev ok) flips one. Player toggles (color, hp) affect only you; game
+      toggles (multiplay) are hidden from and locked to <55 and flippable by
+      55+. New features add a row. `smoke_test_toggle.py`.
+- [~] **Colorize displays tastefully (ongoing habit)** — standing guideline
+      (saved to memory: tobin-colorize-habit). Applied to new output (toggle,
+      flee, exec, help format) using lowercase dim codes; keep doing it.
 
-- [ ] Create the `mud` user on the work box (db.kullit.com) to match the home
-      VM (user's stated plan, 2026-07-02).
-- [x] Home/work sync: **done 2026-07-02** — private GitHub repo
-      `github.com/sculpy/tobin-mud`, repo root at the top of the tree
-      (`E:\New MUD` at home). Workflow: commit+push when leaving a location,
-      pull on arrival. First work-side step: clone it on the work box
-      (replaces the scp'd copy).
-- [ ] Consider a systemd unit (or at least a start script) for `tobin_c` on
-      the VM so it survives reboots without manual relaunch.
-- [x] **`copyover` hot reboot (user idea, 2026-07-03)** — in-game
-      Administrator+ (59) command reboots the server binary in place with
-      zero disconnects (fd inheritance across exec). Deploys are now:
-      rebuild, then `copyover` in-game — no more cold restarts.
+  NOTE: added `<m>`/`<M>` as magenta aliases for `<p>`/`<P>` in colorstring.c
+  (the user's help format uses `<m>`), and made `help <cmd>` render its body
+  in magenta with cyan Syntax/Minimum Level labels.
 
-## The long-standing one
+### User batch 2026-07-05 (evening) — working these first
 
-- [x] **Real interactive client pass** — **happened 2026-07-02/03**, Session 20:
-      user connected with a real client against the home VM; account creation,
-      character creation, relog, level reload, say, color tags, and PvP combat
-      (limb destruction, hit penalties, defeat-to-menu) all exercised by hand.
-      First finding (`<n>` vs `<z>`, color bleed) already fixed. Keep playing —
-      more UX findings welcome — but the "never touched by a human" era is over.
-  - [x] The `IAC SB ... SE` split-across-reads parsing gap — **fixed and
-        verified 2026-07-02** (resumable parser state on `descriptor_t`,
-        new `tests/smoke_test_telnet_iac.py`). Mudlet-class clients safe.
+- [x] **wizhelp: usable-only + reformat** — done 2026-07-05: wizhelp already
+      filtered to usable commands; removed the `[NN+]` level tag and made it a
+      three-column alphabetical list of command names.
+- [x] **help / wizhelp in three columns, alphabetical** — done 2026-07-05:
+      shared `send_columns()` in cmd_help.c (qsort + 3-col); names only,
+      `help <cmd>` for details.
+- [x] **Prompt newline** — done 2026-07-05: the game-loop prompt is now
+      `\r\n\r\n> ` (a blank line before each prompt). NOTE: this yields two
+      blank lines when the preceding output ends in a newline -- confirm one
+      is not enough if it looks like too much whitespace.
+- [x] **Keepalive** — done 2026-07-05: `descriptor_keepalive` pulse (main.c,
+      ~30s) sends an IAC NOP to every connection so idle players aren't dropped
+      by NAT/router timeouts. Verified live (NOP received); not in the sweep
+      (a 30s timer would slow it).
+- [x] **`wiznet`** — done 2026-07-05: immortal-only broadcast to all online
+      immortals (`cmd_wiznet.c`). `smoke_test_wizcomm.py`.
+- [x] **`system`** — done 2026-07-05: immortal-only global echo -- sender sees
+      `system <msg>`, everyone else the bare `<msg>` (`cmd_system.c`).
+- [ ] **Socials → DB + full Sneezy set + `edsocial` (55+)** — move socials
+      from the compiled table to a DB table; port the full social set from
+      `sneezymud-master/lib/actions`; add `edsocial` (55+, menu-driven ed*
+      editor) to edit them in game.
 
-## Near-term gameplay follow-ups (small, well-defined)
+### User batch 2026-07-05 (late) — working these next
 
-- [ ] XP awarded on kill — `combat_defeat()` → `progress_add_xp()`, one-liner
-      once a reward number is chosen.
-- [ ] In-game immortal promotion path (`promote <name>` or similar) — today
-      the only way to reach level 51+ is manual SQL.
-- [ ] Enforce `min_level` in `cmd_dispatch()` once the first genuinely
-      immortal-only command exists (promote is the natural candidate —
-      do these two together).
-- [ ] Mid-fight persistence: HP and limb HP are only saved at combat defeat;
-      a mid-fight disconnect reloads at last-saved values.
-- [x] Account-creation password confirmation — done 2026-07-03 (type twice, mismatch re-prompts; original has
-      it, Tobin doesn't.
-- [ ] Delete-character password reconfirmation (original asks for the account
-      password again, Tobin only asks for typed `YES`).
-- [x] `smoke_test_color.py` self-contained — **done 2026-07-03**: rewritten to
-      inject tags via `say` (no DB staging needed). Also added color auto-reset
-      in `colorstring_translate()` (no bleed past a message that forgets `<z>`),
-      found during the interactive pass. Suite fully green 18/18, first time.
+- [x] **Lose the `[ wiznet ]` prefix** — done 2026-07-05: wiznet shows just
+      `<Name>: <msg>` in purple.
+- [x] **`mudstats`** — done 2026-07-05: `cmd_mudstats.c` reports room/mob/obj
+      counts from the DB. `smoke_test_mudstats.py`.
+- [x] **Idle flag** — done 2026-07-05: `descriptor.last_active` (set on each
+      input); `who` shows `(idle)` after 5 min, any command clears it.
+      `smoke_test_idle.py` (active-not-flagged; the 5-min appearance is
+      logic/manual-verified, too slow for the sweep).
+- [x] **Log quit/deletes** — quit + link-drop already logged; character delete
+      now logs too (2026-07-05). Account-delete logging lands with `wipe`
+      (there's no account-delete flow yet).
+- [x] **Daily log files + 21-day retention** — done 2026-07-05: one
+      `<YYYY-MM-DD>.log` per day, appended across reboots/copyovers; `*.log`
+      older than 21 days pruned (by mtime) at each open; `log rotate` now just
+      re-opens the day's file. `smoke_test_logs.py` updated.
+- [ ] **`wipe` (59+)** — wipe a pfile or an account; requires a password to
+      execute; only *lower*-level characters may be targeted (a 59 cannot wipe
+      another 59, etc.). Destructive -- confirm + password gate.
+- [x] **`;` wiznet shorthand** — done 2026-07-05: `;<msg>` broadcasts to
+      immortals (cmd_dispatch special-case, like `'` for say).
+- [ ] **`alias` command** — players define their own aliases, stored on the
+      ACCOUNT and shared across that account's characters. Scoped by tier: an
+      immortal's aliases apply only to their immortal characters; a mortal's
+      apply to all mortal characters on the account. Needs a DB table
+      (account_id, tier, name, expansion), an `alias` command (add/list/remove),
+      and alias expansion in cmd_dispatch before command matching.
+- [x] **Immortal color tiers in who/score** — done 2026-07-05:
+      `being_rank_color()` (51-53 `<c>`, 54-56 `<C>`, 57-58 `<p>`, 59+ `<P>`)
+      tints the name in who and score.
+- [x] **`goto <char>`** — done 2026-07-05: goto now accepts a player name and
+      teleports to that online being's room (mobs too, once they exist).
+- [x] **`help edit`** — done 2026-07-05: dynamic index of `ed*` commands the
+      caller can use (auto-updates as editors are added), pointing to each
+      one's `help <name>`.
+- [x] **Multiplay control** — done 2026-07-05: `multiplay <on|off>` (59+)
+      game flag persisted in `game_config`; enter_world refuses a mortal
+      account's second connected character when off; immortals exempt.
+      `smoke_test_multiplay.py`.
+- [ ] **Holdable items + `point` social** (BLOCKED on Objects/2C) — players
+      grab/hold items in hand (primary, then secondary); a `point` social
+      shows "X points at you with his/her/its <primary-hand item>". Needs the
+      object system. (Basic no-arg `point` -> "You point around randomly." is
+      buildable now, in the night batch below.)
 
-## Phase 2: immortal/builder tools (user-chosen direction, 2026-07-03)
+### User batch 2026-07-05 (night, follow-ups) — working these now
 
-In-game world building: room/object/mob editing, zone management, object
-persistence. Sequenced by dependency:
+- [x] **who/score: color the bracket, not the name** — done 2026-07-05: the
+      rank-tier color now wraps the `[ Implementor ]` bracket in who and the
+      `Level:` field in score; the name is uncolored. `smoke_test_level_titles`
+      updated to strip ANSI for format checks + assert the bracket (not the
+      name) is colored.
+- [x] **Help footer: Usage + Level** — done 2026-07-05: viewing `help <cmd>`
+      auto-appends `Usage: <name>` and `Level: <min_level>` from the command
+      table (cmd_help.c); prose topics with no command entry get no footer.
+- [x] **Colored [LOG] tag** — done 2026-07-05: the immortal link-loss
+      broadcast now carries a cyan `<c>[LOG]<z>` tag (verified live). Future
+      log broadcasts (quit/delete display) route through the same single tag;
+      a per-category taxonomy stays with the Typed-logs item.
 
-- [x] **A. Immortal command infrastructure** — **done 2026-07-03**:
-      `min_level` enforced in `cmd_dispatch()` (over-level commands are
-      invisible, not refused); `promote <name> [level]` (live-applies to
-      online targets, works offline, can't exceed promoter's level);
-      `goto <vnum>`; `help` filters by caller level; `wizhelp` shows
-      real content with per-command level requirements.
-- [x] **A2. DB-backed help topics + `hedit`** (user idea, same day):
-      `help <topic>` shows prose from the new `help_topic` table (seeded
-      for every current command); `hedit <topic>` is a level-56+ in-game
-      line editor ('.' saves, '~' aborts) — Tobin's first in-game content
-      editor, the pattern Phase B's room editor will reuse.
-- [x] **B. Room editing — done 2026-07-03** (user direction: "take the
-      interface from sneezy"): `edit` is a port of the original doEdit
-      (name/description/sector_type/exit fields, prefix-matched; exit
-      auto-creates missing rooms and fixes reverse exits; -1 deletes),
-      level 56+, immediate MariaDB persistence. Movement commands
-      (n/e/s/w/u/d, top of the command table) and look's "Obvious exits"
-      landed with it. Deferred edit fields: doors/locks, flags, extra
-      descriptions, river/teleport/height/capacity/spec, the VT100 menu
-      mode, sector-name table.
-- [ ] Watch item (downgraded 2026-07-03): the two one-off test flakes
-      (combat, limbs_cmd) both happened in sweeps that were running while a
-      copyover deploy froze the world for 5s. Rule: never hot-deploy during
-      a sweep. If a flake ever happens WITHOUT that overlap, then widen
-      recv windows.
-- [ ] **C. Objects** — `obj_t` (the planned 15-category collapse), DB load,
-      immortal `oload`, player get/drop/inventory, object persistence.
-      Includes drop-equipment-on-death (user direction, Session 14) and
-      wiring equipment slots to the existing 13-limb enum (no second enum).
-- [ ] **D. Mobs** — `THING_MOB`, `mload`, mob editing, mob combat — unlocks
-      the real kill-XP economy (replacing the placeholder curve).
-- [ ] **E. Zone resets** — periodic respawn of mobs/objects per zone so
-      built content stays populated.
+  NOTE: also fixed `smoke_test_immortal_cmds` — `goto <non-numeric>` is now a
+  player lookup ("No one named..."), so the stale "Usage: goto" expectation
+  was updated (bare `goto` still shows usage).
 
-### Batch 2 roadmap (user-specified, 2026-07-03) — ordered by engine impact + complexity
+### User batch 2026-07-05 (night) — buildable now
 
-**Tier 1 — new engine systems (heaviest):**
-- [ ] **Shops + money** — shopkeeper buy/sell, a shop editor, and a money
-      system (GOLD COIN ONLY as the currency). Depends on Phase 2C objects
-      existing first. Original's shop tables are already in the seed DB.
-- [ ] **TobinMUD identity + DB rename** — rename the database `sneezy` →
-      `tobin` (init-db.sh, config defaults, db/ paths, docs); rebrand as
-      **TobinMUD**, credited as a "Derivative of SneezyMUD and DikuMUD" in
-      README/LICENSE attribution. Everything else is original work.
-      (Reverses the Session-1 decision that kept the DB name — now
-      deliberate and user-directed. Wide but mechanical; coordinate the
-      rename on all boxes at once.)
-- [ ] **Vitality** — new stat: each MOVE costs 1 vitality; regenerates
-      slowly alongside HP in the same regen tick. TAKE FROM SNEEZY (the
-      original's move points). Persistence like hp (player_progress
-      column), show in score/prompt.
-- [ ] **Terrain** — room terrain (builds on the existing sector int) gets
-      names in redit and MODIFIES VITALITY COST of movement per terrain
-      type. Depends on vitality. Original's TerrainInfo table is the
-      source.
-- [ ] **Diseases** — modest list affecting players AND mobs, from the
-      original's disease.h for inspiration; immortals are immune. Needs an
-      affect/tick mechanism (pulse-driven), cure path TBD.
-- [ ] **Body types** — port body.h's body-type concept (different
-      creatures have different limb sets) — pairs with mobs (Phase 2D)
-      and the limb system.
-- [ ] **Socials/actions** — port the original's lib/actions file (smile,
-      nod, wave, ... the classic socials) and its command machinery.
+- [x] **Player titles + who args** — done 2026-07-05: `title <text>` sets a
+      free-form title shown after the name in `who` (`title none` clears it),
+      persisted in `player.title` (already an upstream column; `being.title`
+      + `player_set_title()` load/save). `who` now takes an argument:
+      `who imm[ortals]` / `who mort[als]` scope by rank, any other word is a
+      case-insensitive name-substring filter, empty result prints a "No one
+      matching" line. `cmd_title.c`, help topics for `title`/`who`,
+      `smoke_test_title.py`.
+- [x] **Gender + pronouns** — done 2026-07-05 (built, pending deploy): pick
+      `gender male|female|neuter` on the creation screen (default neuter),
+      stored in `player.gender` (migration). `gender_t` + `gender_name` /
+      `gender_subject` (he/she/it) / `gender_object` (him/her/it) /
+      `gender_possess` (his/her/its) helpers in being.c; shown on the score
+      sheet. Socials/combat can adopt the pronoun helpers as their messages
+      grow. `smoke_test_gender.py`.
+- [x] **Appearance** — done 2026-07-05 (built, pending deploy): set with
+      `appearance <text>` on the creation screen, stored in
+      `player.appearance` (migration, varchar(255)). Shown on your own score
+      sheet and to others via `look <player>` (a neuter/no-appearance target
+      gives a gender-aware "nothing special about him/her/it"). Full `examine`
+      stays with the objects batch.
+- [ ] **Color preference at account creation** — ask on/off during account
+      creation; persist it (currently color is per-connection only).
+- [ ] **`rules` + `edrules` (59+)** — DB-backed numbered rules (like news/help):
+      `rules` lists them, `rules <n>` shows rule n's text, `edrules` (59+)
+      edits/adds them. Displays game toggles + what's allowed/not.
+- [x] **Color/name tag help** — done 2026-07-05: `help colors` lists every
+      `<x>` color tag with examples.
+- [ ] **`bug` + `delbug` (59+)** — players file bugs (stored with submitter +
+      date); a 59+ command lists/removes them. DB-backed.
+- [ ] **Newbie channel + flag** — a chat channel for newbies; a `newbie` flag
+      auto-on for anyone under level 5, toggleable (default on).
+- [x] **`point` (no arg)** — done 2026-07-05: basic `point` social ("You point
+      around randomly." / "You point at X."). The held-item form ("...with his
+      <item>") is objects-blocked above.
+- [ ] **`wipe` master password** — the pending `wipe` command's password is a
+      compile-time master password (settable in code).
 
-**Tier 2 — meaningful extensions of existing systems:**
-- [ ] **Limbs.h gap review** — compare our 13-limb system against the
-      original's limbs.h and implement whatever's missing and sensible
-      (weighted hit locations, PART_* flags, etc).
-- [ ] **Player-state logging** — log item get/drop (once objects exist)
-      and any player-state/pfile change, so `log search <name>` tells a
-      player's story. Design a helper so every mutation site logs
-      uniformly.
-- [ ] **Typed logs** — port the original log.h's log-type taxonomy
-      (LOG_MISC, LOG_FILE, etc); every log line gets a type and `log
-      search` can filter by type.
-- [ ] **Tips system** — `tips` command + periodic tip echoes to players
-      (pulse-driven), a per-player newbie toggle to receive them, and
-      `tipedit` (53+) to edit tips in game. DB-backed like help topics.
-- [ ] **PK opt-in flag** — player-file flag: opt out of PvP (mob kills
-      only). BOTH characters must have opted IN for attack/kill to work
-      between players. Toggle command + persistence + combat gate.
-- [ ] **Personalized immortal log messages (57+)** — per-immortal flavor
-      on log lines, inspired by the original's LOG_JESUS / LOG_PEEL /
-      LOG_LOW channels in log.h.
-- [ ] **docs/systems storage review** — read E:\New MUD\docs\systems for
-      how the original stored things; apply the lessons. RULE: always
-      prefer the DB for data storage.
-- [ ] **Function comment headers sweep** — every function gets a header
-      comment: what it's for + cross-references to functions it affects /
-      that depend on it. Codebase-wide, then maintained as a habit.
-- [ ] **Systems documentation** — implement the equivalent of the
-      original's doc/systems README for the TobinMUD base.
+### User batch 2026-07-05 (night) — BLOCKED on Objects (Phase 2C)
 
-**Tier 3 — small, well-bounded changes:**
-- [x] **damage.h constants** — done 2026-07-03 (include/damage.h, verbatim enum).
-- [x] **Help-file upkeep habit** — CLAUDE.md house rule; practiced in this batch.
-- [x] **Log gates** — done 2026-07-03: log tail/search/list 54+, rotate 59+.
-- [x] **promote gate → 58+** — done 2026-07-03.
-- [x] **`exits` command** — done 2026-07-03 (destinations named).
-- [x] **Colorized say** — done 2026-07-03 (cyan framing, message as typed).
-- [x] **Hide wizhelp from mortals** — done 2026-07-03 (min_level 51).
-- [x] **Immortal room-info display** — done 2026-07-03: immortals see
-      sector type, AND room flags in look's room-name line, e.g.
-      `[43] Imperia [sector 0] [flags 0]` (format: `[room vnum] room name
-      [other requested info]`, extensible). Mortals see the plain name.
-      Note: room_t doesn't carry `room_flag` yet — the room table has the
-      column, so this adds the field to room.h + room_repo load/save (and
-      keeps redit's save from zeroing it), then the cmd_look branch.
+- [ ] **Money system** — gold-coin currency + commodities (ingots, nuggets,
+      shards of gold/silver/obsidian/...). Repurpose Sneezy's talens/components
+      for inspiration. Future: mobs drop them (economy), used in skills
+      (repair, spell/prayer fuel). Needs objects.
+- [ ] **Liquids** — drinkable liquids; pouring one out pools on the ground
+      (from Sneezy). Needs objects/containers.
+- [ ] **`fill`** — fill a container from a liquid pool. Needs liquids+objects.
+- [ ] **`switch`** — swap primary/secondary held items. Needs holdable items.
+- [ ] **`examine`** — look closer at things (extra descriptions). Needs room/
+      object extra descriptions (partly objects, partly redit extra-desc item).
 
-### Batch 3 roadmap (user-specified, 2026-07-03 evening) — ordered by engine impact + complexity
+### User batch 2026-07-05 (night) — BLOCKED on Classes
 
-- [x] **Account menu rework** — done 2026-07-03: `C`
-      connect an EXISTING character, `N` new character creation, `D`
-      delete, `Q` quit the game; case-insensitive (c == C). This is the
-      ONE place `q` may alias quit. NOTE: biggest ripple of the batch —
-      every smoke test logs in through the menu ("new"/numbers), so either
-      keep the old inputs working alongside the letters or update all ~28
-      tests' login helpers.
-- [x] **Prompt toggle** — done 2026-07-03: `prompt hp` customizes what the prompt line
-      shows, e.g. `prompt hp` → `HP: 25 > `. Needs a per-player prompt
-      spec (persisted in the player file), and the game-loop prompter
-      renders it instead of the bare "> ". Start with hp; design for
-      vitality/xp/gold joining later.
-- [x] **Handedness** — done 2026-07-03: at character creation choose left- or right-handed:
-      primary hand hits harder, secondary hits weaker (combat modifier in
-      combat_strike). New creation step + player-file column; pairs with
-      the finger/hand limbs.
-- [x] **IP logging** — done 2026-07-03: peer IP captured at accept(),
-      carry it on the descriptor, and include it in the [INFO]/log lines
-      for connect, disconnect/link-drop, AND player death. Immortal-only
-      visibility (the log command's 54+ gate already covers the logs;
-      any in-game display of IPs must check immortal too).
-- [x] **Help alias resolution** — done 2026-07-03: `help nw` shows the
-      northwest topic; one topic per command with all aliases resolving
-      to it (collapse the per-direction stub topics). Same for `help '`
-      → the say topic. Mechanism: resolve the query through the command
-      table's alias→handler mapping before the topic lookup.
-- [x] **Mortal/immortal toggle** — done 2026-07-03: an immortal can become mortal and
-      re-immort AT WILL (e.g. `mortal` / `immort` commands): play-testing
-      as a real mortal (wait states apply, killable, no immortal commands
-      or log/wizhelp visibility) without losing their rank. Design: keep
-      the TRUE level stored (player file) and suspend it to an effective
-      mortal level; the re-immort command must gate on the stored true
-      level, not the effective one — the one deliberate exception to
-      "commands above your level are invisible". Death while mortal must
-      not eat the stored rank.
-- [x] **attack/kill alias** — done 2026-07-03: full aliases; for
-      immortals BOTH are the instant slay (attack gains the instakill);
-      for mortals both start normal combat. One handler, two table rows.
-- [x] **Duplicate character names disallowed** — done 2026-07-03: check for
-      an existing player with that name (any account) and re-prompt
-      cleanly. (Uniqueness is already assumed throughout; this makes the
-      rejection explicit and friendly rather than a failed insert.)
-- [x] **TobinMUD ASCII banner** — done 2026-07-03: shown on connect, before the account
-      menu:
-      ```
-      ___________   ___.   .__           _____   ____ ___________
-      \\__    ___/___\\_ |__ |__| ____    /     \\ |    |   \\______ \\
-        |    | /  _ \\| __ \\|  |/    \\  /  \\ /  \\|    |   /|    |  \\
-        |    |(  <_> ) \\_\\ \\  |   |  \\/    Y    \\    |  / |    `   \\
-        |____| \\____/|___  /__|___|  /\\____|__  /______/ /_______  /
-                         \\/        \\/         \\/                 \\/
-      ```
-      (Backslashes must be escaped in the C string; tests key on
-      "Account name:" which stays.)
+- [ ] **Druid class** — add druid to the selectable classes (lands with the
+      Classes system).
 
-### Gameplay roadmap (user-specified, 2026-07-03)
 
-- [x] **Log filename format change** — **done 2026-07-03**:
-      `<DDMMYY>.<hour12><minute><AM/PM>.log` (e.g. `030726.0945AM.log`);
-      a second open in the same minute gets a -2/-3 suffix so rotation
-      always yields a genuinely fresh file.
+      the regen tick (weight by position, like HP already does). New
+      `player_progress` column; show in score/prompt. Take from Sneezy.
+- [ ] **Terrain movement cost** — each sector type modifies the vitality cost
+      of moving into it (original `TerrainInfo`). Depends on Vitality.
+- [x] **Socials/actions** — done 2026-07-05: 15 socials (smile/nod/wave/bow/
+      cheer/poke/...) in `socials.c`, checked in dispatch after the command
+      table; untargeted + targeted forms; `socials` lists them. Room echoes
+      go through `descriptor_notify` (held for editors). More can be added to
+      the table; a DB-backed/editable social set (`edsocial`?) is future work.
+- [x] **Health strings** — done 2026-07-05: `being_health_word()` maps HP%
+      to a word (near death ... perfect); shown in `score`'s HP line.
+      Optional follow-up: also show it in the prompt (prompt-flag system).
+- [ ] **PK opt-in flag** — player flag; BOTH players must have opted in for
+      attack/kill between players. Toggle command + persistence + combat gate.
+- [ ] **Tips system** — `tips` command + periodic tip echoes (pulse-driven),
+      per-player newbie toggle, `tipedit` (53+). DB-backed like news/help.
+- [ ] **Typed logs** — `log.h` log-type taxonomy; every log line gets a type,
+      `log search` can filter by type.
+- [ ] **`dig`** — builder-walk: moving into a nonexistent exit auto-creates
+      the room + reverse exit (redit's exit machinery already does this).
+      Needs a next-free-vnum strategy.
+- [ ] **`edplayer`** (player files) — menu-driven editor for a player's
+      level/attrs/hp/location, replacing one-off SQL. Admin superset of promote.
+- [ ] **`edaccount`** (accounts) — menu-driven: rename, password reset, list chars.
+- [x] **wiznews** — done 2026-07-05: an immortal-only (51+) news channel like
+      `news`; `edwiznews` posts items that concern immortals. Parallel to
+      news/ednews.
+- [x] **ed* rename** — done 2026-07-05: redit→edroom, hedit→edhelp,
+      addnews→ednews (command names, help topics, tests, editor prompts).
+- [ ] **Diseases** — modest list affecting players (immortals immune);
+      pulse-driven affect/tick, cure path TBD (`disease.h` for inspiration).
+- [ ] **News follow-ups** — edit/delete existing news in-game (addnews only
+      creates); show unseen news at login (per-player last-seen).
+- [ ] **redit Extra Descriptions** — keyword extra descs (`roomextra` table
+      exists): list/add/edit/delete + delete-all (Sneezy redit items 6 & 10).
+- [ ] **Door mechanics** — the door type + condition data now persists but
+      nothing uses it: open/close/lock/unlock (`doorIntentT`), movement
+      blocking on closed doors, secret exits hidden from look/exits. The key
+      half (locks) needs objects — defer that.
+- [ ] **Positions polish** — a hit bonus vs. a non-standing target (the
+      original makes a sitting/sleeping foe easier to hit); we deferred the
+      combat-formula change when Positions landed.
+- [ ] **Personalized immortal log messages (57+)** — per-immortal flavor on
+      log lines (`log.h` LOG_JESUS/LOG_PEEL/LOG_LOW inspiration).
 
-- [x] **Ten directions** — **done 2026-07-03**: NE/NW/SE/SW added (original
-      dirTypeT dirs 6-9, rev_dirs ported); the seed DB's diagonal exit rows
-      now load instead of being dropped — real world content restored.
-      Correction to the original note: "ne" is NOT a prefix of
-      "northeast", so the two-letter forms (ne/nw/se/sw) are explicit
-      alias rows in the command table, classic Diku style.
-- [ ] **`dig`** — create rooms just by walking: a builder-walk mode where
-      moving into a nonexistent exit auto-creates the room and reverse exit
-      (redit's exit machinery already does the create+reverse-fix; dig
-      wires it to movement). Vnum selection strategy needed (next free in
-      the builder's range?).
-- [ ] **Builder access at 51+** (redit part DONE 2026-07-03) — ALL immortals (51+) can edit rooms, mobs,
-      objects, and zonefiles: lower redit's gate 56→51, and land oedit /
-      medit / zedit at 51 too. **hedit (help topics) stays 56+ — user
-      confirmed 2026-07-03.**
-- [ ] **`news` (everyone) + `newsedit` (54+)** — announcements shown newest
-      first. DB table (id, created_at, author, title/body), `news` shows
-      recent items, `newsedit` uses the shared line editor. Consider
-      showing unseen news at login later.
-- [ ] **Positions** — sitting, standing, resting, sleeping, fighting, etc.
-      for players AND mobs. Port from the original's positionTypeT
-      (POSITION_DEAD..POSITION_STANDING ladder) — it gates what commands
-      are legal and modifies combat (hitting a sitting target is easier).
-      Commands: sit, stand, rest, sleep, wake.
-- [ ] **Classes** — start with warrior, cleric, thief, monk, mage. Stat
-      affinities (user spec): mage = high INT, lower STR; warrior = high
-      CON+STR, can dump CHA+WIS; thief = high DEX, lower STR; cleric =
-      high WIS, lower STR+DEX; monk = STR+CON, lower CHA. TAKE FROM SNEEZY:
-      port the class definitions and use the original's formulas for
-      class stat bonuses (misc/ class tables), mapped onto Tobin's 6-stat
-      system. Chosen at character creation; shows in score/who.
-- [ ] **Races** — for players and mobs. Players get a small curated list;
-      mobs can be anything. TAKE FROM SNEEZY: race definitions and race
-      stat bonuses from the original's race tables.
-- [ ] **Game balance layer + `gameedit` (60 ONLY)** — race and class
-      contribute PERCENTAGE bonuses; a level-60-only `gameedit` command
-      tunes balance parameters live, in 0.1% increments. `gameedit` must
-      BYPASS abbreviation matching (exact full word required, same
-      mechanism as quit!) — a balance change must never happen by typo.
-      Parameters persist in the DB so they survive copyovers/reboots.
+## Small near-term gameplay follow-ups
 
-### The `*edit` editor family (user-defined naming convention, 2026-07-03)
+- [ ] **XP on kill** — `combat_defeat()` → `progress_add_xp()`, one-liner once
+      a reward number is chosen.
+- [ ] **Mid-fight persistence** — HP and limb HP are only saved at defeat; a
+      mid-fight disconnect reloads at last-saved values.
+- [ ] **Delete-character password reconfirmation** — original re-asks the
+      account password before deleting; Tobin only asks for typed `YES`.
 
-Every in-game editor follows the same name pattern and (so far) the same
-line-editor/field-command interaction model. First letters are all
-distinct, so each gets its single-letter abbreviation for those leveled
-enough to see it:
+## Blocked on Objects / Mobs (Phase 2C/2D/2E)
 
-- [x] `redit` — rooms (Session 21; renamed from `edit` to fit the family)
-- [x] `hedit` — help topics (Session 20)
-- [ ] `oedit` — objects (lands with Phase 2C)
-- [ ] `zedit` — zones (lands with Phase 2E; zone table already in the DB)
-- [ ] `medit` — mobs (lands with Phase 2D; assumed wanted to complete the
-      set — confirm)
-- [ ] `pedit` — player files (level/attrs/hp/location of any player,
-      replacing one-off SQL; effectively an admin superset of `promote`)
-- [ ] `aedit` — accounts (rename, password reset, list characters)
+- [ ] **Objects (2C)** — `obj_t` (planned 15-category collapse), DB load,
+      `oload`, get/drop/inventory, persistence, drop-equipment-on-death,
+      equipment slots wired to the existing 13-limb enum (no second enum).
+- [ ] **`oedit`** — object editor (menu-driven). Sneezy's `update_obj_menu`
+      has 21 fields (see STATUS / create_objs.cc).
+- [ ] **Mobs (2D)** — `THING_MOB`, `mload`, mob combat — unlocks the real
+      kill-XP economy. `medit` (Sneezy's 30-field `send_mob_menu`).
+- [ ] **Zone resets (2E)** — periodic respawn per zone. `zedit` (zone table
+      already in the DB).
+- [ ] **Shops + money** — shopkeeper buy/sell, shop editor, GOLD-COIN-ONLY
+      currency (shop tables already in the seed DB). Needs objects.
+- [ ] **Player-state logging** — log get/drop + pfile changes so `log search
+      <name>` tells a player's story. Needs objects; design a uniform helper.
+- [ ] **Body types** — `body.h` body-type concept (creatures have different
+      limb sets). Pairs with mobs + limbs.
+
+## Bigger systems (need design / a decision)
+
+- [ ] **Classes** — warrior/cleric/thief/monk/mage, chosen at creation, shown
+      in score/who. Stat affinities (user spec): mage high INT / low STR;
+      warrior high CON+STR, dump CHA+WIS; thief high DEX / low STR; cleric
+      high WIS / low STR+DEX; monk STR+CON / low CHA. Port Sneezy's class
+      tables/formulas onto Tobin's 6-stat set. (Ignore DISC_* for now.)
+- [ ] **Races** — curated player list + open mob list; race stat bonuses from
+      Sneezy's race tables.
+- [ ] **Game balance layer + `gameedit` (60 ONLY)** — race/class PERCENTAGE
+      bonuses; a level-60 live tuner in 0.1% increments, exact-word like
+      `quit!` (never by typo), DB-persisted. Needs classes+races.
+- [ ] **Limbs → `wearSlotT`** — reshape the 13-limb enum toward Sneezy's
+      `wearSlotT` (back, wrist, hand vs finger, HOLD, EX_* for mobs). **Open
+      question:** keep the Tobin-added `genitalia` slot? include HOLD/EX for
+      players or mobs only? Own focused pass; touches combat/score/limbs.
+- [ ] **Limbs.h gap review** — weighted hit locations, PART_* flags, etc.
+      (overlaps the wearSlotT item).
+- [ ] **TobinMUD identity + DB rename** — rename DB `sneezy` → `tobin`
+      (init-db.sh, config defaults, docs); rebrand credited as "Derivative of
+      SneezyMUD and DikuMUD". Wide but mechanical; coordinate on all boxes.
+
+## Chores / infra
+
+- [ ] Create the `mud` user on the work box (db.kullit.com).
+- [x] Auto-restart `tobin_c` if it dies — done 2026-07-05: the user added a
+      crontab to the `mud` user that checks whether the MUD is running and
+      starts it if not. (Deploys still `pkill; sleep 1; restart` fast, before
+      any cron tick, so there's no double-launch.)
+- [ ] Install a MUD client (Mudlet, for ANSI color) on the Windows machines.
+- [ ] **docs/systems review** — read `sneezymud-master/docs/systems` for how
+      the original stored things; apply the lessons. RULE: prefer the DB.
+- [ ] **Systems documentation** — a doc/systems README for the TobinMUD base.
+- [ ] **Function comment headers sweep** — a header comment per function (what
+      it's for + cross-refs to what it affects / depends on), then a habit.
+
+## Reference material (Sneezy enums, provided 2026-07-04)
+
+Upstream enums the user pasted, staged for the features above (kept in this
+conversation and in `sneezymud-master`): `positionTypeT` (done), `prompt_mesg`
+(health strings), `classInfo` (classes), `body_flags` (limb conditions),
+`wearSlotT` (limbs), `heraldcodes`/`heraldcolors` (immortal color/heraldry),
+`doorTypeT`/`doorIntentT`/`doorUniqueT` + `exit_bits` (door mechanics).
 
 ## Deferred decisions (blocked on choosing, not on code)
 
-- [ ] Which ~8-10 `disc/` disciplines to keep (proposal in STATUS.md
-      decisions table).
-- [ ] Which 1-2 `task/` professions to keep.
-- [ ] Hospital mechanic for destroyed limbs — "needs medical attention" is
-      currently flavor text; only cure is death/respawn.
-- [ ] Whether the destroyed-limb hit penalty should scale with the number of
-      destroyed limbs (flat -15 today) — decide after real playtesting.
-- [ ] Immortal-vs-immortal `kill` guard ("can't slay equal/higher level") —
-      original has it; irrelevant until immortals can meet in normal play.
+- [ ] Which ~8-10 `disc/` disciplines to keep; which 1-2 `task/` professions.
+- [ ] Hospital mechanic for destroyed limbs (only cure now is death/respawn).
+- [ ] Whether the destroyed-limb hit penalty scales with count (flat -15 now).
+- [ ] Immortal-vs-immortal `kill` guard (can't slay equal/higher level).
+
+## Standing rules (learned)
+
+- Never hot-deploy while a regression sweep is running (the restart/copyover
+  freeze makes unrelated tests flake — burned us twice).
+- Every player-facing change gets a `news.sql` entry (no numbers). See CLAUDE.md.

@@ -72,10 +72,18 @@ sImm, nameImm = make_player("Imm")
 sMort, nameMort = make_player("Mort")
 
 # --- Part 1: immortal commands are invisible to mortals ---
-for attempt in ["goto 0", "promote somebody", "g 0"]:
+# NOTE: single-letter "g" now abbreviates to the `grin` social (socials gained
+# prefix matching), so it no longer falls through to Huh?! -- goto stays hidden
+# because a mortal can't reach it by its full name either.
+for attempt in ["goto 0", "got 0", "promote somebody"]:
     send_line(sMort, attempt)
     out = recv_all(sMort)
     check("Huh?!" in out, f"a mortal typing '{attempt}' gets Huh?! (command hidden)")
+# "g" resolves to a social (grin) rather than leaking the immortal goto command.
+send_line(sMort, "g")
+out = recv_all(sMort)
+check("Huh?!" not in out and "grin" in out.lower(),
+      "single-letter 'g' abbreviates to the grin social, not goto")
 
 # --- Bootstrap the immortal (level 58 so the above-own-level cap is testable) ---
 subprocess.run(
@@ -106,9 +114,15 @@ send_line(sImm, "goto 99999999")
 out = recv_all(sImm)
 check("No room with vnum" in out, "goto to a nonexistent vnum is rejected")
 
-send_line(sImm, "goto nowhere")
+# A non-numeric argument is now treated as a player name (goto <char>), so an
+# unknown name reports that no such being is online -- not a usage error.
+send_line(sImm, "goto nobodyhere")
 out = recv_all(sImm)
-check("Usage: goto" in out, "goto with a non-numeric argument shows usage")
+check("No one named" in out, "goto <unknown player> reports nobody by that name")
+# Bare goto (no argument at all) still shows usage.
+send_line(sImm, "goto")
+out = recv_all(sImm)
+check("Usage: goto" in out, "goto with no argument shows usage")
 
 # --- Part 3: promote ---
 send_line(sImm, f"promote {nameMort} 60")

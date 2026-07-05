@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "cmd.h"
 
 #include <ctype.h>
@@ -5,6 +9,7 @@
 
 #include "being.h"
 #include "cmd_internal.h"
+#include "socials.h"
 
 /* First-word command dispatch with DikuMUD-style abbreviation matching:
  * any non-empty prefix of a command's name dispatches to it (e.g. "sc" or
@@ -51,7 +56,36 @@ static const cmd_entry_t COMMANDS[] = {
      * instakill for immortals, both normal combat for mortals. */
     { "attack",  cmd_kill,    "Attack another player (instant slay for immortals).", MORTAL_LEVEL_MIN },
     { "kill",    cmd_kill,    "Attack another player (instant slay for immortals).", MORTAL_LEVEL_MIN },
+    { "flee",    cmd_flee,    "Try to escape a fight through a random exit.",        MORTAL_LEVEL_MIN },
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
+    /* Positions. Prefix notes: "s"=south; "sa"=say, "sc"=score, "se/sw"=
+     * diagonals; "si"=sit, "sl"=sleep, "st"=stand; "r"=rest (no other r
+     * command); "w"=west, so "wa"=wake. */
+    { "stand",   cmd_stand,   "Stand up.",                                          MORTAL_LEVEL_MIN },
+    { "sit",     cmd_sit,     "Sit down.",                                          MORTAL_LEVEL_MIN },
+    { "rest",    cmd_rest,    "Sit down and rest (heals faster).",                  MORTAL_LEVEL_MIN },
+    { "sleep",   cmd_sleep,   "Lie down and sleep (heals fastest).",                MORTAL_LEVEL_MIN },
+    { "wake",    cmd_wake,    "Wake up from sleep.",                                MORTAL_LEVEL_MIN },
+    /* "s"/"so" are south (movement); "soc"+ reaches socials. */
+    { "socials", cmd_socials, "List the socials you can use (smile, wave, ...).",   MORTAL_LEVEL_MIN },
+    /* "m"/"mo" reach mortal; "mu"+ reaches mudstats. */
+    { "mudstats", cmd_mudstats, "Show basic statistics about the game world.",       MORTAL_LEVEL_MIN },
+    /* "mud"->mudstats, "mul"->multiplay. */
+    { "multiplay", cmd_multiplay, "Toggle whether mortals may multiplay (59+).",      MULTIPLAY_MIN_LEVEL },
+    /* "c"/"co" reach color/copyover; "cat"+ reaches catchup. Immortal-only:
+     * only immortals use editors, so only they ever hold messages. */
+    { "catchup", cmd_catchup, "Replay game messages missed while editing.",         IMMORTAL_LEVEL_MIN },
+    /* Immortal news channel. "wizh"->wizhelp, "wizn"->wiznews. "edw"->edwiznews. */
+    { "wiznews", cmd_wiznews, "Read the immortal news channel.",                     IMMORTAL_LEVEL_MIN },
+    { "edwiznews", cmd_edwiznews, "Post immortal news (headline + story).",          ADDNEWS_MIN_LEVEL },
+    /* "wizne" is ambiguous with wiznews (above, so it wins); "wiznet" full. */
+    { "wiznet",  cmd_wiznet,  "Broadcast a message to all online immortals.",        IMMORTAL_LEVEL_MIN },
+    /* "s"/"so" are south/socials; "sy"+ reaches system. */
+    { "system",  cmd_system,  "Broadcast an atmosphere line to everyone.",           IMMORTAL_LEVEL_MIN },
+    /* "n"/"ne"/"nw" are movement (above); "new"/"news" reach news. */
+    { "news",    cmd_news,    "Read the latest game news (news [10|20|50|100]).",   MORTAL_LEVEL_MIN },
+    /* "a"/"at" reach attack (above); "add"+ reaches addnews. */
+    { "ednews",  cmd_addnews, "Post a news item (headline + story).",               ADDNEWS_MIN_LEVEL },
     { "limbs",   cmd_limbs,   "Show the current health of all your limbs.",         MORTAL_LEVEL_MIN },
     { "help",    cmd_help,    "List available commands.",                           MORTAL_LEVEL_MIN },
     /* Hidden from mortals entirely (Tier 3): players only ever see help
@@ -63,13 +97,16 @@ static const cmd_entry_t COMMANDS[] = {
     /* "p"/"pr"/"pro" reach prompt; "prom"+ reaches promote. */
     { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp).",                 MORTAL_LEVEL_MIN },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
+    { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
+    { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
     /* NOTE: must stay after "help" in this table -- "h"/"he"/"hel" should
      * abbreviate to help (first match wins), "hed"+ reaches hedit. Same
      * deal for copyover after color: "c"/"co" reach color, "cop"+ this. */
-    { "hedit",   cmd_hedit,   "Edit a help topic in the line editor.",              HELP_EDIT_MIN_LEVEL },
+    { "edhelp",  cmd_hedit,   "Edit a help topic in the line editor.",              HELP_EDIT_MIN_LEVEL },
     { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected.", COPYOVER_MIN_LEVEL },
+    { "exec",    cmd_exec,    "Run a shell command on the host box (Implementor).", EXEC_MIN_LEVEL },
     /* "log" needs its three letters ("l" look, "li" limbs, "lo" look). */
-    { "redit",   cmd_edit,    "Edit the room you are standing in (builder).",       BUILD_MIN_LEVEL },
+    { "edroom",  cmd_edit,    "Edit a room -- the one you're in, or edroom <vnum>.", BUILD_MIN_LEVEL },
     { "log",     cmd_log,     "Read, search, list, or rotate the game logs.",       LOG_MIN_LEVEL },
     /* "u" is up (movement); "us"+ reaches users. */
     { "users",   cmd_users,   "List all connections with IPs and states.",          USERS_MIN_LEVEL },
@@ -105,6 +142,14 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
      * verb token). */
     if (*line == '\'') {
         strcpy(verb, "say");
+        args = line + 1;
+        while (*args == ' ')
+            args++;
+    } else if (*line == ';') {
+        /* `;` is the one-character shorthand for `wiznet` (same idea as `'`
+         * for say). Immortal-only like wiznet itself -- a mortal typing it
+         * just falls through to the "Huh?!" path below. */
+        strcpy(verb, "wiznet");
         args = line + 1;
         while (*args == ' ')
             args++;
@@ -147,6 +192,11 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
         if (strncmp(COMMANDS[k].name, verb, verb_len) == 0)
             return COMMANDS[k].fn(d, args);
     }
+
+    /* Socials (smile/nod/wave/...) are checked after the command table, so a
+     * real command always wins -- classic DikuMUD ordering. */
+    if (social_try(d, verb, args))
+        return true;
 
     descriptor_send(d, "Huh?!\r\n");
     return true;

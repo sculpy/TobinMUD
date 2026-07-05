@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #ifndef TOBIN_PLAYER_REPO_H
 #define TOBIN_PLAYER_REPO_H
 
@@ -31,7 +35,8 @@ being_t *player_load(const char *name, long account_id);
  * attrs is NULL). Returns a freshly-allocated being_t. Fails if the name
  * is already taken (player.name is globally unique) or the account has
  * already reached MAX_CHARS_PER_ACCOUNT. */
-being_t *player_create(const char *name, long account_id, const attrs_t *attrs, int handed_right);
+being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
+                       int handed_right, gender_t gender, const char *appearance);
 
 /* Deletes a player (and, via ON DELETE CASCADE, its player_attrs row) --
  * but only if it's owned by account_id. Returns false if not found/not
@@ -52,6 +57,10 @@ int player_load_room(const char *name, long account_id);
 /* Sets `player.load_room` -- backs the immortal `loadroom` command
  * (cmd_loadroom.c). Account-scoped like the other player mutations. */
 bool player_set_load_room(const char *name, long account_id, int vnum);
+
+/* Sets `player.title` -- backs the player `title` command (cmd_title.c).
+ * A NULL/empty title clears the column (SQL NULL). Account-scoped. */
+bool player_set_title(const char *name, long account_id, const char *title);
 
 /* True if ANY account owns a character with this name (case-insensitive
  * via the column collation) -- backs the duplicate-name rejection at

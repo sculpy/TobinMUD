@@ -1,4 +1,8 @@
-#include "cmd_internal.h"
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
+ #include "cmd_internal.h"
 
 #include <stdio.h>
 
@@ -22,10 +26,20 @@ bool cmd_attack(descriptor_t *d, const char *args) {
         return true;
     }
 
+    if (d->character->position == POSITION_SLEEPING) {
+        descriptor_send(d, "You can't fight in your sleep!\r\n");
+        return true;
+    }
+
     being_t *target = combat_find_room_target(d->character, args);
     if (!target) {
         descriptor_send(d, "They aren't here.\r\n");
         return true;
+    }
+
+    if (d->character->position != POSITION_STANDING) {
+        d->character->position = POSITION_STANDING;
+        descriptor_send(d, "You scramble to your feet.\r\n");
     }
 
     d->character->fighting = target;
@@ -37,7 +51,7 @@ bool cmd_attack(descriptor_t *d, const char *args) {
     descriptor_send(d, msg);
     if (target->desc) {
         snprintf(msg, sizeof(msg), "%s attacks you!\r\n", d->character->base.name);
-        descriptor_send(target->desc, msg);
+        descriptor_notify(target->desc, msg);
     }
 
     return true;

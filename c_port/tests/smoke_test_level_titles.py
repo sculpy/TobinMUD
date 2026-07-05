@@ -5,6 +5,7 @@
 
     python3 tests/smoke_test_level_titles.py [host] [port]
 """
+import re
 import socket
 import subprocess
 import sys
@@ -13,6 +14,15 @@ import time
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
+
+_ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(s):
+    """Immortal rank tiers now color the who bracket / score Level field, so
+    format assertions run on the color-stripped text (color presence itself
+    is covered by smoke_test_immmisc.py)."""
+    return _ANSI.sub("", s)
 
 
 def recv_all(sock, timeout=1.0):
@@ -118,17 +128,24 @@ for level, expected_title in tiers:
     s = reconnect(s, name)
 
     send_line(s, "score")
-    out = recv_all(s)
+    raw = recv_all(s)
+    out = strip_ansi(raw)
     check(f"Level:         {expected_title}" in out, f"level {level} score shows '{expected_title}'")
     check(f"Level:         {level}" not in out, f"level {level} score does NOT show the raw number")
 
     send_line(s, "who")
-    out = recv_all(s)
+    raw = recv_all(s)
+    out = strip_ansi(raw)
     width = 13
     pad = width - len(expected_title)
     left, right = pad // 2, pad - pad // 2
     bracketed = f"[{' ' * left}{expected_title}{' ' * right}]"
     check(f"{bracketed} {proper(name)}" in out, f"level {level} who shows '{bracketed}' next to the name")
+    # The name must NOT be colored; the rank color wraps the bracket instead.
+    # In the raw stream an ANSI reset should sit right after the bracket's ']'
+    # and immediately before the (uncolored) name.
+    check(f"]\x1b[0m {proper(name)}" in raw,
+          f"level {level} who colors the bracket, not the name")
 
     s.close()
 

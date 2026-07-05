@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "game_loop.h"
 
 #include <errno.h>
@@ -150,16 +154,19 @@ int game_loop_run(int port, const char *copyover_file) {
          * broadcast -- gets exactly one fresh prompt. Written directly
          * via socket_write so it doesn't re-mark needs_prompt. */
         for (descriptor_t *p = g_descriptors; p; p = p->next) {
-            if (p->needs_prompt && p->state == CONN_PLAYING && p->edit_kind == EDIT_NONE) {
+            if (p->needs_prompt && p->state == CONN_PLAYING && p->edit_kind == EDIT_NONE
+                && p->page_len == 0) {
                 /* Prompt customization (cmd_prompt.c): render the player's
                  * chosen stats ahead of the "> ". */
+                /* A blank line separates the previous output from the prompt
+                 * (user request: insert a \r\n before each new prompt). */
                 if (p->character && (p->character->prompt_flags & PROMPT_FLAG_HP)) {
                     char pbuf[48];
-                    int pn = snprintf(pbuf, sizeof(pbuf), "\r\nHP: %d > ",
+                    int pn = snprintf(pbuf, sizeof(pbuf), "\r\n\r\nHP: %d > ",
                                       p->character->progress.hp);
                     socket_write(p->fd, pbuf, (size_t)pn);
                 } else {
-                    socket_write(p->fd, "\r\n> ", 4);
+                    socket_write(p->fd, "\r\n\r\n> ", 6);
                 }
                 p->needs_prompt = false;
             }

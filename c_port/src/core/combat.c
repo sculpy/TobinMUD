@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "combat.h"
 
 #include <stdarg.h>
@@ -22,7 +26,7 @@ static void tell(being_t *b, const char *fmt, ...) {
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
-    descriptor_send(b->desc, buf);
+    descriptor_notify(b->desc, buf); /* held if the recipient is editing */
 }
 
 /* A destroyed limb (0% HP) penalizes its owner's own offense -- flat,
@@ -130,11 +134,13 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
                   loser->base.name, winner->base.name);
     snprintf(taunt + n, sizeof(taunt) - (size_t)n, "\r\n");
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
-        if (it->state != CONN_PLAYING || !it->character)
+        /* Everyone whose character is in the world -- including editors, who
+         * get it held (descriptor_notify), not lost. */
+        if (!it->character)
             continue;
         if (it->character == winner || it->character == loser)
             continue;
-        descriptor_send(it, taunt);
+        descriptor_notify(it, taunt);
     }
 
     if (loser->desc)

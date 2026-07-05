@@ -1,14 +1,29 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-03 — Session 21 (movement, room builder `edit`, copyover binary-path fix)
+Last updated: 2026-07-05 — Session 23. This session, in order:
+- color tiers, `goto <char>`, `help edit`, multiplay control, `point` social
+- player `title` (+ `<N>` name substitution) & `who` filter args
+- who/score color the rank BRACKET, not the name
+- gender + pronouns + appearance at creation (`look <player>`, score)
+- color preference asked at account creation, persisted (backward-compatible
+  color prompt via re-dispatch)
+- idle: mortal idle-timeout (30m) w/ immortal immunity + tighter 12s keepalive
+- colorized help format: magenta `<m>` body + cyan `Syntax:`/`Minimum Level:`
+  (Syntax parsed from the body's Usage line); added `<m>`/`<M>` magenta alias
+- social abbreviation (`poi`->`point`; socials now prefix-match like commands)
+- `flee` (combat escape), `toggle` (unified player/game switches),
+  `exec` (lvl-60 host shell: blocklist + `timeout` + audit log)
+- typed logs: `log_type_t` + `game_log()`; link-loss now `[PIO]` (was `[LOG]`)
+Habit going forward: tastefully colorize player/immort output with LOWERCASE
+color codes (see memory: tobin-colorize-habit).
 
 ## Quick orientation
 
-- Original C++ source: `../code/code/` (sys, misc, obj, disc, spec, cmd, game, task)
+- Original C++ source: `../sneezymud-master/code/code/` (sys, misc, obj, disc, spec, cmd, game, task) — a fresh upstream clone, the reference to verify against (Session 22 consolidated the old scattered `code/`/`lib/`/`db/` copies into this one tree)
 - This port: `c_port/`
 - Build: `cd c_port && cmake -B build && cmake --build build` (Linux/Fedora — see README.md)
 - Run: `./build/tobin_c`, requires MariaDB reachable — see README.md for env vars
-- DB schema: unchanged, see `../db/sneezy/*.sql` and `../db/README.md`
+- DB schema: upstream world seed under `../sneezymud-master/db/sneezy/` (unchanged); Tobin's own tables/migrations under `c_port/db/` (see `c_port/db/README.md`). Seed = `sneezymud-master/db/init-db.sh` then `c_port/db/apply-tobin-schema.sh`.
 - **Two dev/test environments as of Session 20** — which one to use depends on where
   the user says they are ("at work" vs "at home"):
   - **Work**: db.kullit.com (10.0.0.12), Fedora Linux 44, `root` login (a matching
@@ -283,6 +298,319 @@ Phase 2B: the room builder, with the user directing "take the interface from sne
 - **Batch 3 (user-specified, all 10 items shipped 2026-07-03 evening)**: TobinMUD ASCII banner + derivative tagline on connect; duplicate character names rejected cross-account at creation; attack/kill full aliases (immortals instakill on both); help alias resolution (nw/ne/se/sw/' land on canonical topics; alias rows unlisted via NULL help); IP logging (peer address captured at accept, carried across copyover in the recovery file, logged on connect/enter/leave/link-drop/death — immortal-visible via the log gate); mortal/immortal at-will toggle (true rank parked in player_progress.true_level; effective mortality is total; immort gates on stored rank and answers real mortals with the unknown-command Huh — the one deliberate exception to command invisibility); handedness at creation (hand left/right, default right, player.handed; combat alternates hands, primary +1/off-hand -1); prompt hp (player.prompt_flags bitmask rendered by the loop prompter); lettered account menu (C/N/D/Q case-insensitive, bare c connects an only character, the ONE place bare q quits; legacy inputs kept so no test flows broke); named sectors + flags in the immortal room header and redit (original 61-entry sectorTypeT + 22 ROOM_* bits ported — born of the user meeting "[sector 60] [flags 408009]" and asking what it meant: dead woods, and ten flags). Also: db/sneezy/tobin_migrations.sql (idempotent ALTERs) established for schema evolution; **copyover recovery now closes unparseable inherited fds** — the leak made an orphaned client look like a hung MUD (diagnosed live on the user's own session after the wave-A format change).
 - **Evening follow-ups (all user-specified, all shipped 2026-07-03)**: `users` (58+ connection roster: character/account/IP/state, mid-editor marked); account-creation password confirmation (type twice, mismatch re-prompts, scratch zeroed — every test creation flow across 28 files updated to type twice); `(connected)` marker in the account menu for characters already in the world; say framing finalized as `<c>You say, "<z>msg<c>"<z>` (closing quote cyan too); default load rooms split — mortals to Center Square (100), immortals to Imperia (1) when unset, explicit loadroom overrides. Suite is 30 files, fully green.
 - Next: Phase 2C (objects) per TODO.md; Batch 2 Tier 1 systems (vitality, terrain, typed logs, news) queued; consider doors and the remaining edit fields when they become real.
+
+### Session 22 — 2026-07-04 — `redit <vnum>`: edit any room from anywhere
+User report: "redit 100 said huh?" — they expected `redit <vnum>` to open room 100 for editing without walking there. Root cause: the original's `doEdit` (and Tobin's port) only ever edits `ch->roomp` (the room you're standing in) — the first token was always parsed as a *field name*, so `redit 100` matched no field. (Standing below level 51 would also make `redit` invisible and yield the literal "Huh?!"; the fix covers both.)
+
+- **`cmd_edit.c`**: an optional leading room number now targets that room. If `args` begins with a digit, it's read as a vnum, the room is loaded via the existing `get_or_load_room()` (the same plumbing `goto` uses — cached-or-DB-loaded, then registered in the world), and all subsequent editing operates on it; the builder is **not** moved. A missing vnum is reported ("There is no room N to edit.") and **not** created (creation stays with `redit exit`/future `dig`). Bare `redit`, or any `redit <field>` (field names never start with a digit), still edits the current room exactly as before — a pure superset, no behavior change to existing usage. Remote description edits persist correctly because the line editor already keys its save off `d->edit_room_vnum` (set to the target room's vnum), and `world_get_room()` finds the just-registered room.
+- **Deliberate deviation from the original** (documented here per house rule): the original requires `goto`-then-`edit`; Tobin lets you skip the goto. Justified — `goto` already resolves rooms by vnum, so this reuses that path and is a strict builder convenience.
+- Help/one-liner updated in the same change: `cmd_table.c` redit description, the in-game `redit` summary now hints "Prefix a room number to edit it from anywhere", and the `redit` help topic (seed INSERT + a new idempotent migration in `db/sneezy/help_topic.sql`) documents `redit [<vnum>]`.
+- **Test**: `tests/smoke_test_redit.py` gains a Part 6 — from the sandbox origin, `redit <BASE+2> name` renames a remote room, a follow-up `look` proves the builder didn't move, `redit <BASE+2>` (no field) shows the remote room's summary, walking there confirms the rename landed, and `redit 999999998` on a nonexistent room reports it without creating it.
+
+**`/clear` in the shared line editor (same session, user request):** the editor (`descriptor.c`'s `CONN_PLAYING` case) that both `redit description` and `hedit` drive preloaded the existing text and only ever *appended* — there was no way to wipe it and retype. Added a `/clear` line command (alongside `.`=save and `~`=abort) that empties `edit_buf`/`edit_len` (including the preloaded content) and keeps editing; nothing is written until `.` saves. Both entry-point prompts (`cmd_edit.c`, `cmd_hedit.c`) now advertise it, and the `redit`/`hedit` help topics were updated (seed + migration). `smoke_test_redit.py`'s description part gained a clear-then-retype check that confirms the old preloaded text is gone from the saved result. Benefits `hedit` for free since the editor is shared.
+- **Built + deployed + verified** on the home Fedora VM (SSH, 192.168.254.200): clean zero-warning build, help_topic migrations applied, cold-restarted, and the full sweep run green (26 assertion suites pass; `smoke_test.py`/`smoke_test_login.py` are legacy no-assertion scripts that print `=== done ===`, not the `ALL CHECKS PASSED` sentinel — not failures).
+
+**Tree cleanup (same session, user-directed):** the repo root held an old,
+scattered copy of the upstream SneezyMUD (`code/`, `lib/`, `docs/`,
+`cmake/`, `scripts/`, `db/`, plus the root `CMakeLists.txt`/`Makefile`/
+`CMakePresets.json`/`README.md`/`LICENSE.txt`, all byte-identical to
+upstream). The user dropped in a fresh upstream clone at `sneezymud-master/`,
+so all of that redundant copy — plus the unrelated `talker.c` chat server —
+was deleted. Tobin's own 4 schema files (`help_topic`, `player_attrs`,
+`player_progress`, `tobin_migrations`) moved out of the deleted `db/sneezy/`
+into **`c_port/db/sneezy/`** (with a new `c_port/db/README.md` and
+`c_port/db/apply-tobin-schema.sh`). `c_port/` has no build/runtime
+dependency on anything outside itself (its `db/sneezy/*.sql` source-comment
+references resolve relative to `c_port/`), so the build is unaffected; only
+the two-step seed workflow changed (see Quick orientation above). Root now
+holds just `CLAUDE.md`, `c_port/`, and `sneezymud-master/`. Not yet pushed
+to the Fedora box — on pull there, the box's tree restructures too, but its
+already-seeded live DB is unaffected (only a re-seed uses the new workflow).
+
+**Menu-driven redit (same session, user request + wireframe):** the whole
+`*edit` family is being converted to menu-driven editors "like the character
+creation menu", starting with `redit`. This replaces the one-shot command
+form (`redit name X`, `redit exit ...`) entirely — `redit [<vnum>]` now drops
+into a **`CONN_REDIT_*` connection-state machine** in `descriptor.c`,
+structured exactly like character creation. User decisions (locked): (1)
+**working-copy model** — edits mutate `d->redit_work` only; **(S)ave** applies
+the copy to the live room + DB; **(Q)uit** warns on unsaved changes
+(Save/Discard/Cancel); (2) **menu-only** — the command form is retired; (3)
+**(C)lear room out** blanks name/desc/terrain/flags **and** exits (removing
+neighbours' reverse exits), behind a yes/no confirm. Menu shape is the user's
+wireframe: (R)oom name, room (F)lags submenu (toggle by bit), (T)errain
+submenu (61 sectors), (D)escription (the shared line editor, now with
+`/clear`), (E)xits submenu (pick a direction → target vnum; missing rooms
+auto-create on save, reverse exits auto-fixed), (C)lear, (S)ave, (Q)uit.
+- Implementation: new `CONN_REDIT_*` states + `room_t redit_work`/`redit_dirty`
+  working-copy fields on `descriptor_t`; `descriptor_redit_begin()` (loads +
+  copies the room, shows the menu); render helpers `show_redit_{menu,flags,
+  terrain,exits}`; `redit_save`/`redit_apply_exits` (diffs working vs live
+  exits, auto-creates targets, fixes/removes reverse exits)/`redit_clear`. The
+  shared string editor was factored into `editor_feed()` (`.`/`~`/`/clear`/
+  append), now used by both the redit description sub-state and `hedit`. New
+  `room_flag_count()`/`room_flag_name()` accessors for the flag submenu.
+  `cmd_edit.c` shrank to a thin launcher. The old `EDIT_ROOM_DESC` line-editor
+  path in `CONN_PLAYING` is gone (room descriptions edit through the menu now).
+- **Subsumes** this session's earlier `redit <vnum>` and `/clear` work — both
+  live inside the menu now (`redit <vnum>` = open the menu for that room;
+  `/clear` = the description editor's buffer wipe).
+- Test: `smoke_test_redit.py` fully rewritten to drive the menu (31 checks) —
+  gate, menu render, each field submenu, working-copy save with auto-create +
+  reverse-fix, walking the new link, quit-discard leaving the DB untouched,
+  and clear-room-out blanking the room + removing the neighbour's reverse
+  exit. Green, plus the full sweep green. Help topic rewritten (seed +
+  migration) to describe the menu.
+- **Next for the family:** this `CONN_REDIT_*` shell is the template for
+  `oedit`/`zedit`/`medit`/`pedit`/`aedit` (TODO.md's `*edit` family) — build
+  each on the same working-copy + submenu pattern.
+
+**redit → Sneezy menu format + capacity/height + doors (same session, from
+the user's `create_rooms.cc` reference):** reformatted the redit menu to
+Sneezy's `update_room_menu` style — a `Room Name / Number / Sector Type`
+header then a **numbered** field menu (1 Name, 2 Description, 3 Flags, 4
+Sector Type, 5 Exits, 6 Max Capacity, 7 Room Height) with `C/S/Q` actions
+(replacing the earlier lettered menu). New room fields **Max Capacity** and
+**Room Height** wired to the existing `room.capacity`/`room.height` columns
+(added to `room_t`, `room_repo` load/save). **Doors on exits**: the Exits
+submenu is now two-level — pick a direction → per-exit menu (Target vnum /
+Door type / Conditions / Remove). Door type is a numbered choose-one from
+`door_types[]` (None/Door/Trapdoor/Gate/.../Hatch, 11); conditions are a
+numbered `[x]` toggle from `exit_bits[]` (Closed/Locked/Secret/.../Jammed,
+11). Both persist to the `roomexit.type`/`condition_flag` columns (previously
+written as zero); `room_repo_save_exit()` gained `door_type`/`condition`
+params. New `door_type_name/count`, `exit_cond_name/count/names` accessors in
+room.c. Movement/look still key off `exits[]` only (doors have no gameplay
+effect yet — open/close/lock and movement-blocking are queued in TODO). One
+bug caught by the test: `redit_save()` initially didn't copy capacity/height
+from the working copy to the live room (saved as 0) — fixed.
+- Test: `smoke_test_redit.py` rewritten for the numbered menu (31 checks) —
+  every field 1–7, the two-level exit editor with door type + condition, DB
+  verification of dest/type/condition + capacity/height, walking the link,
+  quit-discard, and clear-room-out. Green; full sweep green. `redit` help
+  topic updated (seed + migration) to the numbered layout.
+- **Queued to TODO** (from the same user reference drop): redit Extra
+  Descriptions + Room Spec; door *mechanics* (open/close/lock, movement
+  blocking, `doorIntentT`/`doorUniqueT`, keys); Positions (`positionTypeT`);
+  health strings (`prompt_mesg`); Classes (`classInfo`); body/limb flags;
+  Limbs→`wearSlotT` (with an open genitalia/HOLD/EX question); herald colors.
+
+**All-caps flags/sectors + `news` system (same session, user requests):**
+- **Display**: room flags and sector types now render in ALL CAPS straight
+  from the enum name tables (`SECTOR_NAMES`/`ROOM_FLAG_NAMES` in room.c
+  uppercased; flags now match the upstream `room_bits[]` exactly). The redit
+  "Sector Type:" line shows the name only (e.g. `TEMPERATE HILLS`), no number.
+  `cmd_look`'s immortal header picks this up for free (same accessors). The
+  selection submenus keep their numbers (those are pick indices, not names).
+  New CLAUDE.md house rule records this.
+- **News**: new DB-backed `news` command (everyone) — `news.sql` table
+  (id/created_at/author/title/body, UNIQUE title for idempotent re-seed),
+  `news_repo.c` (`news_repo_recent`, newest-first), `cmd_news.c`. **No dates
+  or numbers are rendered** — per the user rule, news items carry no numbers
+  at all; ordering conveys recency. Seeded with three player-facing entries
+  (room builder, doors, the news command itself). Help topic added.
+- **House rule (user-directed)**: every code change that affects a player's
+  ability to play, changes a command, or adds a zone gets a `news` entry
+  appended to `news.sql` in the same change, player-facing prose with NO
+  numbers. Recorded in CLAUDE.md and enforced by `smoke_test_news.py` (which
+  asserts the rendered news contains zero digits).
+- Tests: `smoke_test_news.py` (new — reads news, newest-first order, the
+  no-digits guard, help topic); `smoke_test_redit.py` updated for the
+  all-caps sector/flag display. Both green; full sweep green.
+
+**News follow-ups + bracketed flag/sector display (same session, user
+requests):**
+- **`news [lines]`** — the `news` command now takes an optional line count
+  (news 10 / 20 / 50 / 100, default 20, cap 100); `cmd_news` renders up to
+  ~40 items then trims the output to the requested line count. No count is
+  echoed (news carries no numbers).
+- **`addnews <headline>`** (level 56+, new `ADDNEWS_MIN_LEVEL`) — posts a news
+  item in-game: the argument is the headline, the body is typed into the
+  shared line editor (new `EDIT_NEWS` edit_kind, `d->news_title` scratch), and
+  on save is inserted via new `news_repo_add()` (author = poster's name; the
+  UNIQUE title means a duplicate headline fails cleanly). This is the
+  `newsedit`-style tool from the roadmap, named `addnews` per the user.
+- **Bracketed flag/sector display** (user spec): `room_flag_names()` now
+  renders each flag in its own bracket — `[ ALWAYS-LIT ] [ INDOORS ]` — and
+  the display sites wrap them: flags in purple `<p>..<z>`, sector in cyan
+  `<c>[ NAME ]<z>`. Applied in both the redit menu header and `cmd_look`'s
+  immortal header (the old `[flags: x x x]` form is gone). A `news.sql` entry
+  was added for the news changes (house rule).
+- Tests: `smoke_test_news.py` extended (line-count, addnews gate + post +
+  read-back); `smoke_test_redit.py` updated for the `[ NAME ]` bracket
+  format. Both green.
+
+**Output pager (same session, user request "just news should give the whole
+thing with pagination options"):** `news` now shows the WHOLE feed a page at
+a time instead of truncating. New reusable pager on `descriptor_t`
+(`page_buf`/`page_len`/`page_pos`/`page_size`) + `descriptor_page_start()` /
+`descriptor_page_next()`: long output is buffered and released `page_size`
+lines at a time with a `[ ENTER for more, Q to stop ]` prompt. While a page
+is pending, `CONN_PLAYING` routes each input line to the pager (ENTER = next,
+Q = stop) before any command/editor handling, and the game-loop prompter is
+gated on `page_len == 0` so no stray `> ` appears mid-page. `news [n]` sets
+the page size (default 20, clamp 5–100). The pager is generic -- `log`/`help`
+can adopt it later. `smoke_test_news.py` updated to page through the feed
+(and fully drain the pager between commands, or the next command would be
+swallowed by a pending more-prompt).
+
+**Positions (same session, TODO item — first of the "work off the TODO"
+pass):** sit / stand / rest / sleep / wake. New `position_t` on `being_t`
+(the original's `positionTypeT` ladder; players use the standing/sitting/
+resting/sleeping rungs), default STANDING, **not persisted** (you wake up
+standing on login). New `cmd_position.c` (5 handlers + room echoes, guarded
+against changing position mid-fight); `position_name()` + `POSITION_NAMES[]`
+in being.c. Gates: movement requires STANDING (`cmd_move.c`); `look` is
+blocked while asleep (`cmd_look.c`); attacking auto-stands from sit/rest and
+is refused while asleep (`cmd_attack.c`). `score` shows a Position line --
+**"Fighting" is derived from the `fighting` pointer**, never stored, so
+combat.c was untouched. Regen weights by position (`regen.c`: sleeping x3,
+resting x2, sitting x1.5). Help topics (positions + each command) + a news
+entry added. **Zero combat.c changes.** `smoke_test_positions.py` covers the
+transitions, move/look gates, score display, and the fighting-derived
+position + can't-sit-while-fighting (the last two poll `score`/`sit` with a
+retry to ride out global-pulse combat-round timing; fighters are HP-boosted
+via SQL so the fight can't end mid-check). Full sweep green.
+
+**Health strings + a stale-test fix (same session, next TODO item):**
+`being_health_word()` (being.c, from the original's `prompt_mesg[]`) maps HP%
+to a word; `score`'s HP line now reads `HP: 25/25 (perfect)` ... down to
+`(near death)`. Help/news updated; `smoke_test_positions.py` asserts
+`(perfect)` at full HP. **Caught a latent issue while deploying:** the score
+sheet had an *uncommitted, improved* two-column format in the working tree
+(`Name:` header + `You are left handed.`) that the box hadn't been running --
+my Positions deploy carried it over, breaking `smoke_test_name_case.py` and
+`smoke_test_accounts.py`, which still asserted the old committed format
+(`-- Name --` / `Handedness: left`). Those three assertions were updated to
+the current format (the improvement is kept; the HP-parsing regexes in
+combat/regen tests already stop at `%d/%d`, so the `(word)` suffix is safe).
+This session's "work off the TODO" pass so far: TODO.md fully reorganized;
+Positions and Health strings shipped.
+
+**Held messages -- no game interruptions while editing (same session, user
+request):** anyone in an editor (the redit menu / hedit / addnews) no longer
+gets game messages pushed at them; they buffer and are reviewed on demand.
+New per-descriptor held buffer (`held[64]` of `{when, text}` + `held_count`)
+and `descriptor_notify()` -- "deliver async, or hold if the recipient is in an
+editor" (`descriptor_in_editor()` = any `CONN_REDIT_*` state or `edit_kind !=
+NONE`). **Every asynchronous send-site was routed through it**: room echoes
+(say/movement/quit/link-drop), combat `tell()` (all hit/miss messages), the
+death-taunt broadcast, the `[LOG]`-to-immortals link-drop notice, and the
+attack notice. The death-taunt and `[LOG]` loops previously *skipped*
+non-playing/editing people (message lost) -- now they deliver-or-hold so
+nothing is dropped. New `catchup` command replays and clears the buffer; on
+leaving an editor you're told "N messages arrived ... type catchup". A pulse
+(`descriptor_held_expire`, registered every ~10s in main.c) drops anything
+older than `HELD_MSG_TTL` (5 min). `smoke_test_held.py`: a builder in redit
+gets a roommate's `say` held (not shown), is told on exit, and `catchup`
+replays then empties. Help topic + news entry added.
+- **Refined (same session, user follow-up):** the feature is **immortal-only**
+  (mortals never open an editor) -- `catchup` is now gated at
+  `IMMORTAL_LEVEL_MIN`. And **`[LOG]` lines are never held** -- the
+  `[LOG]`-to-immortals broadcast reverted to send-or-skip (skips editing
+  immortals) rather than hold, since logs are always available via the `log`
+  command and would only bury the say/tell messages that matter in catchup.
+  The "Edit in Peace" news entry was removed (immortal-only, not player news).
+  `smoke_test_held.py` gained a link-drop that confirms the `[LOG]` line is
+  NOT in catchup.
+- **Infra:** the user added a crontab on the `mud` account that restarts
+  `tobin_c` if it isn't running (closes the "start script survives reboots"
+  TODO). Deploys stay `pkill; sleep 1; restart` so they beat any cron tick.
+
+**`ed*` editor rename + wiznews channel (same session, user requests, logged
+to TODO first per the new TODO-driven workflow [[workflow-todo-driven]]):**
+- **Rename:** the editor command convention flipped from `*edit` to
+  **`ed<noun>`** -- `redit`→`edroom`, `hedit`→`edhelp`, `addnews`→`ednews`
+  (command-table names, usage strings, the `[edroom]` menu prompt, all help
+  topics, and every smoke test's command sends). Help topics renamed via seed
+  + a DELETE migration for the old `redit`/`hedit`/`addnews` seed rows.
+  Internal C identifiers (`show_redit_menu`, `redit_work`, `EDIT_ROOM_DESC`,
+  the `cmd_edit`/`cmd_hedit`/`cmd_addnews` function names, `smoke_test_redit.py`
+  filename) were left as-is -- only the user-facing command names changed.
+- **wiznews:** a level-51+ immortal news channel, read exactly like `news`
+  (paged, newest-first) but from a separate `wiznews` table (`wiznews.sql`),
+  posted with **`edwiznews`** (56+). `news_repo_recent`/`news_repo_add` gained
+  a `bool wiz` selecting the `wiznews` vs `news` table (two literal queries to
+  stay warning-free); new `EDIT_WIZNEWS` edit_kind. Immortal news stays out of
+  the public feed. `smoke_test_wiznews.py` covers the gate, read, post, and
+  channel separation. Future editors follow the convention:
+  `edobject`/`edmob`/`edzone`/`edplayer`/`edaccount`.
+- **Workflow note:** the user established that their commands go into TODO.md
+  first, then I work the list autonomously ([[workflow-todo-driven]] memory).
+
+**Socials (same session, next TODO item):** 15 emotes (smile, grin, laugh,
+nod, shake, wave, bow, wink, grovel, shrug, cheer, cackle, poke, comfort,
+thank) in a compiled table (`socials.c`), checked in `cmd_dispatch()` **after**
+the command table (classic Diku ordering, so a real command always wins).
+Each has an untargeted form (self + room) and a targeted form (`smile <name>`
+-> self/target/room), the target found by case-insensitive prefix among room
+PCs. Room echoes use `descriptor_room_echo`/`descriptor_notify` so they're
+held for anyone editing. New `socials` command lists the verbs. Help topic +
+news entry; `smoke_test_socials.py` (two mortals in Center Square) covers
+untargeted, targeted, the list, and the absent-target rejection. Full sweep
+green.
+
+**help/wizhelp 3-column + prompt newline (same session, user batch):**
+`help` and `wizhelp` now list command names **alphabetically in three
+columns** via a shared `send_columns()` (qsort) in cmd_help.c -- names only,
+`help <cmd>` for details. `wizhelp` dropped the `[NN+]` level tag (user
+request) and keeps its usable-only filter (a level-51 sees only their seven
+51-level commands, confirmed against the user's example). The game-loop prompt
+gained a leading blank line (`\r\n\r\n> ` / `\r\n\r\nHP: %d > `). Remaining in
+the user's evening batch: keepalive (anti-idle), `wiznet` (immortal channel),
+`system` (global echo), and socials-to-DB + full Sneezy set + `edsocial`.
+
+**wiznet + system + keepalive (same session, user batch):** `wiznet <msg>`
+(`cmd_wiznet.c`, 51+) broadcasts to all online immortals (a private staff
+channel, held for editors); `system <msg>` (`cmd_system.c`, 51+) echoes a bare
+atmosphere line to everyone (sender sees it prefixed `system <msg>`). Both via
+`descriptor_notify` so editors get them held. Keepalive: `descriptor_keepalive`
+pulse (main.c, ~30s) sends an IAC NOP to every connection so idle players
+aren't dropped by NAT/router timeouts (verified live -- NOP received; not in
+the sweep since a 30s timer would slow it). `smoke_test_wizcomm.py` covers
+wiznet/system (reach, gates, sender-vs-recipient). **6 of the 7 evening-batch
+items done; only socials-to-DB + full Sneezy set + `edsocial` remains** -- a
+bigger feature (move the compiled social table to DB, port
+`sneezymud-master/lib/actions`, add the 55+ menu-driven `edsocial`).
+
+**Late user batch 2026-07-05 (partial):** `[wiznet]` tag removed (wiznet shows
+`<Name>: <msg>` in purple); **`mudstats`** (`cmd_mudstats.c`) reports
+room/mob/obj counts from the DB; **idle flag** -- `descriptor.last_active` set
+on every input line (handle_line) + on create/copyover-adopt, and `who`
+appends ` (idle)` when now-last_active > 300s, cleared by any command;
+**character-delete logging** added (quit + link-drop were already logged;
+account-delete will come with `wipe`). Tests: `smoke_test_mudstats.py`,
+`smoke_test_idle.py`, updated `smoke_test_wizcomm.py`. **Still queued:** daily
+log files + 21-day retention, `wipe` (59+, password-gated, lower-level targets
+only), and the objects-blocked holdable-items + `point` social.
+
+**Daily logs + `;` shorthand (same session):** logs are now one
+`<YYYY-MM-DD>.log` per calendar day (log.c), appended across every
+reboot/copyover/rotate instead of a new file each boot; `log_prune_old()`
+drops any `*.log` not modified in 21 days at each open; `log rotate` (59+)
+re-opens the day's file rather than starting a new one (`cmd_log.c` message +
+`smoke_test_logs.py` updated; also cleaned ~90 old-format log files off the
+box during the transition). `;` is a one-character shorthand for `wiznet`
+(cmd_dispatch special-case like `'`→say), immortal-only. **Remaining user
+items:** `alias` (account-scoped, tier-aware -- DB table + expansion in
+dispatch), `wipe` (59+, password + lower-level guards), and objects-blocked
+holdable-items + `point`.
+
+**More user items 2026-07-05:** immortal **color tiers** in who/score
+(`being_rank_color()`: 51-53 `<c>`, 54-56 `<C>`, 57-58 `<p>`, 59+ `<P>`);
+**`goto <player>`** teleports to an online being's room (not just a vnum);
+**`help edit`** is a live index of the `ed*` editors; **multiplay** control --
+`multiplay <on|off>` (59+, persisted in a new `game_config` table), enter_world
+refuses a mortal account's second connected character when off, immortals
+exempt (`multiplay.c`/`multiplay.h`, loaded at boot in main.c); the **`point`**
+social (no-arg "point around randomly", held-item form deferred to objects);
+and a **`help colors`** topic listing every `<x>` color tag. Tests:
+`smoke_test_immmisc.py` (goto-player, help-edit, rank color),
+`smoke_test_multiplay.py`. A large **night batch** of ~20 more requests was
+logged to TODO.md (buildable: titles/who-args, gender+pronouns, appearance,
+color-at-creation, rules/edrules, bug/delbug, newbie channel; objects-blocked:
+money/commodities, liquids, fill, switch, examine; classes-blocked: druid).
+- Next: same queue as Session 21 (Phase 2C objects; Batch 2 Tier 1 systems).
 
 ### Session 9 — 2026-07-02 — Abbreviation parser, CRLF fix, command prompt, quit! hardening
 Four related changes from user feedback in one pass:

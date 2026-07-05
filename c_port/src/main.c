@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +11,9 @@
 #include "combat.h"
 #include "config.h"
 #include "db.h"
+#include "descriptor.h"
 #include "game_loop.h"
+#include "multiplay.h"
 #include "log.h"
 #include "pulse.h"
 #include "regen.h"
@@ -58,9 +64,14 @@ int main(int argc, char **argv) {
     db_close(probe);
     log_info("Database connection OK.");
 
+    multiplay_load(); /* restore the persisted multiplay game flag */
+
     pulse_register(1, wait_tick_run);
     pulse_register(COMBAT_ROUND_PULSES, combat_process_run);
     pulse_register(REGEN_PULSES, regen_tick_run);
+    pulse_register(100, descriptor_held_expire); /* ~10s: expire held msgs past TTL */
+    pulse_register(120, descriptor_keepalive);   /* ~12s: telnet NOP anti-idle (aggressive, survives tight NAT windows) */
+    pulse_register(600, descriptor_idle_timeout);/* ~60s: idle-out mortals (immortals immune) */
 
     int rc = game_loop_run(cfg->telnet_port, copyover_file);
 

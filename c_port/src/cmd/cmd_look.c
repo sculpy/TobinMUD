@@ -1,17 +1,70 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "cmd_internal.h"
 
 #include <stdio.h>
+#include <string.h>
+#include <strings.h>
 
+#include "being.h"
 #include "room.h"
 #include "thing.h"
 
-bool cmd_look(descriptor_t *d, const char *args) {
-    (void)args;
+/* `look <name>` -- describe another player in the room. Matches a PC by
+ * case-insensitive name prefix (self included, so `look <ownname>` works).
+ * Shows their appearance if set, else a gender-aware "nothing special" line. */
+static bool look_at_target(descriptor_t *d, const char *args) {
+    char tok[64];
+    if (sscanf(args, "%63s", tok) != 1)
+        return false;
 
+    room_t *r = d->character->base.roomp;
+    size_t len = strlen(tok);
+    being_t *tgt = NULL;
+    for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_PC)
+            continue;
+        if (strncasecmp(t->name, tok, len) == 0) {
+            tgt = (being_t *)t;
+            break;
+        }
+    }
+    if (!tgt) {
+        descriptor_send(d, "You don't see anyone by that name here.\r\n");
+        return true;
+    }
+
+    char out[BEING_APPEARANCE_LEN + 128];
+    if (tgt->appearance[0])
+        snprintf(out, sizeof(out), "You look at %s.\r\n%s\r\n",
+                 tgt->base.name, tgt->appearance);
+    else
+        snprintf(out, sizeof(out),
+                 "You look at %s.\r\nYou see nothing special about %s.\r\n",
+                 tgt->base.name,
+                 tgt == d->character ? "yourself" : gender_object(tgt->gender));
+    descriptor_send(d, out);
+    return true;
+}
+
+bool cmd_look(descriptor_t *d, const char *args) {
     if (!d->character || !d->character->base.roomp) {
         descriptor_send(d, "You are nowhere.\r\n");
         return true;
     }
+    if (d->character->position == POSITION_SLEEPING) {
+        descriptor_send(d, "You can't see anything -- you're fast asleep!\r\n");
+        return true;
+    }
+
+    /* `look <name>` describes a player in the room; bare `look` shows it. */
+    while (*args == ' ')
+        args++;
+    if (*args)
+        return look_at_target(d, args);
+
     room_t *r = d->character->base.roomp;
 
     char out[ROOM_DESCRIPTION_MAX + 512];
@@ -21,7 +74,7 @@ bool cmd_look(descriptor_t *d, const char *args) {
      * see the plain name. */
     if (being_is_immortal(d->character)) {
         char flagbuf[256];
-        n = snprintf(out, sizeof(out), "\r\n[%d] %s [%s] [flags: %s]\r\n%s\r\n",
+        n = snprintf(out, sizeof(out), "\r\n[%d] %s <c>[ %s ]<z> <p>%s<z>\r\n%s\r\n",
                      r->vnum, r->base.name, sector_name(r->sector),
                      room_flag_names(r->room_flag, flagbuf, sizeof(flagbuf)),
                      r->description);

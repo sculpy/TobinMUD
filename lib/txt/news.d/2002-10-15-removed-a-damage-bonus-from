@@ -1,3 +1,0 @@
-Removed a damage bonus from archery.  A multiplier of up to
-500% was being added, depending on range.  I think this is
-the cause of ranged damage being so high.

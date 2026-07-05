@@ -1,5 +1,10 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "log.h"
 
+#include <dirent.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -7,8 +12,32 @@
 #include <unistd.h>
 #include <time.h>
 
+#define LOG_RETENTION_DAYS 21
+
 static FILE *g_log_file = NULL;
 static char g_log_path[LOG_PATH_MAX] = "";
+
+/* Deletes any *.log in LOG_DIR not modified within LOG_RETENTION_DAYS days --
+ * so we keep three weeks of daily logs and no more. Called at each open. */
+static void log_prune_old(void) {
+    DIR *dir = opendir(LOG_DIR);
+    if (!dir)
+        return;
+    time_t now = time(NULL);
+    struct dirent *de;
+    while ((de = readdir(dir)) != NULL) {
+        size_t len = strlen(de->d_name);
+        if (len < 5 || strcmp(de->d_name + len - 4, ".log") != 0)
+            continue;
+        char p[LOG_PATH_MAX + 260]; /* room for LOG_DIR + '/' + a 255-char name */
+        snprintf(p, sizeof(p), "%s/%s", LOG_DIR, de->d_name);
+        struct stat st;
+        if (stat(p, &st) == 0
+            && now - st.st_mtime > (time_t)LOG_RETENTION_DAYS * 86400)
+            unlink(p);
+    }
+    closedir(dir);
+}
 
 static void log_line(FILE *out, const char *level, const char *fmt, va_list ap) {
     time_t now = time(NULL);
@@ -49,22 +78,39 @@ void log_error(const char *fmt, ...) {
     va_end(ap);
 }
 
+const char *log_type_name(log_type_t type) {
+    switch (type) {
+        case LOG_SILENT: return "SILENT";
+        case LOG_PIO:    return "PIO";
+        case LOG_COMBAT: return "COMBAT";
+        case LOG_BUG:    return "BUG";
+        case LOG_DB:     return "DB";
+        case LOG_EDIT:   return "EDIT";
+        case LOG_JESUS:  return "JESUS";
+        case LOG_GAME:
+        default:         return "GAME";
+    }
+}
+
+const char *log_type_personal_name(log_type_t type) {
+    return type == LOG_JESUS ? "Jesus" : NULL;
+}
+
 bool log_open(void) {
     mkdir(LOG_DIR, 0755); /* EEXIST is fine */
+    log_prune_old();
 
     time_t now = time(NULL);
     struct tm tm_buf;
     localtime_r(&now, &tm_buf);
-    /* DDMMYY.HHMM<AM/PM>.log, e.g. 030726.0921AM.log (user spec). A
-     * second open within the same minute (rotate, quick restart) gets a
-     * -2/-3/... suffix so rotation always starts a genuinely fresh file. */
-    char stamp[32];
-    strftime(stamp, sizeof(stamp), "%d%m%y.%I%M%p", &tm_buf);
+    /* One <YYYY-MM-DD>.log per calendar day (user spec) -- every reboot,
+     * copyover, or rotate on the same day appends to the same file, so the
+     * day's log is never fragmented and there's no time in the name. */
+    char stamp[16];
+    strftime(stamp, sizeof(stamp), "%Y-%m-%d", &tm_buf);
 
     char path[LOG_PATH_MAX];
     snprintf(path, sizeof(path), "%s/%s.log", LOG_DIR, stamp);
-    for (int seq = 2; access(path, F_OK) == 0 && seq < 1000; seq++)
-        snprintf(path, sizeof(path), "%s/%s-%d.log", LOG_DIR, stamp, seq);
 
     FILE *f = fopen(path, "a");
     if (!f) {
@@ -81,13 +127,13 @@ bool log_open(void) {
 }
 
 bool log_rotate(void) {
-    /* log_open() guarantees a fresh filename even within the same minute
-     * (the -N suffix), so a rotate is always a real rotation. */
-    char old_path[LOG_PATH_MAX];
-    snprintf(old_path, sizeof(old_path), "%s", g_log_path);
+    /* Daily log files (one <date>.log per calendar day) are managed
+     * automatically, so a manual rotate just re-opens the current day's file
+     * and prunes anything past the retention window -- it no longer starts a
+     * separate file (that would fragment the day's log, contrary to spec). */
     if (!log_open())
         return false;
-    log_info("Rotated from %s", old_path[0] ? old_path : "(console only)");
+    log_info("Log re-opened; daily file is %s.", g_log_path);
     return true;
 }
 

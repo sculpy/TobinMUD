@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "cmd_internal.h"
 
 #include <ctype.h>
@@ -18,7 +22,7 @@ bool cmd_hedit(descriptor_t *d, const char *args) {
 
     char topic[HELP_TOPIC_NAME_LEN];
     if (sscanf(args, "%31s", topic) != 1) {
-        descriptor_send(d, "Usage: hedit <topic>\r\n");
+        descriptor_send(d, "Usage: edhelp <topic>\r\n");
         return true;
     }
     for (char *p = topic; *p; p++)
@@ -38,7 +42,8 @@ bool cmd_hedit(descriptor_t *d, const char *args) {
     char head[192];
     snprintf(head, sizeof(head),
              "\r\n-- Editing help topic '%s' (%s) --\r\n"
-             "Type lines to append. '.' alone saves, '~' alone aborts.\r\n",
+             "Type lines to append. '.' alone saves, '~' alone aborts, "
+             "'/clear' wipes the buffer.\r\n",
              topic, exists ? "existing text below" : "new topic");
     descriptor_send(d, head);
     if (exists) {

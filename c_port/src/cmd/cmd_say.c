@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "cmd_internal.h"
 
 #include <stdio.h>
@@ -44,7 +48,7 @@ bool cmd_say(descriptor_t *d, const char *args) {
             continue;
         snprintf(msg, sizeof(msg), "<c>%s says, \"<z>%s<c>\"<z>\r\n",
                  d->character->base.name, args);
-        descriptor_send(other->desc, msg);
+        descriptor_notify(other->desc, msg);
     }
 
     return true;

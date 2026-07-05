@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "regen.h"
 
 #include "being.h"
@@ -10,7 +14,17 @@
 static int regen_amount(const being_t *b) {
     int bonus = (b->attrs.constitution - ATTR_BASE) / 20;
     int amount = 1 + bonus;
-    return amount < 1 ? 1 : amount;
+    if (amount < 1)
+        amount = 1;
+    /* Rest and sleep speed healing (original hitGain() weights by position);
+     * sitting a little, standing none. */
+    if (b->position == POSITION_SLEEPING)
+        amount *= 3;
+    else if (b->position == POSITION_RESTING)
+        amount *= 2;
+    else if (b->position == POSITION_SITTING)
+        amount += amount / 2;
+    return amount;
 }
 
 void regen_tick_run(long pulse_num) {

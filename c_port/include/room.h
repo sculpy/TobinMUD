@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #ifndef TOBIN_ROOM_H
 #define TOBIN_ROOM_H
 
@@ -32,6 +36,25 @@ const char *sector_name(int sector);
  * Returns buf for convenience. */
 const char *room_flag_names(int flags, char *buf, size_t size);
 
+/* Per-bit access to the ROOM_* flag table, for the flag-toggle submenu in
+ * the room builder. `bit` in [0, room_flag_count()); out of range -> "?". */
+int room_flag_count(void);
+const char *room_flag_name(int bit);
+
+/* Exit door types (original doorTypeT, misc/room.h) -- None/Door/Trapdoor/
+ * ... Chosen when editing a room exit. */
+#define MAX_DOOR_TYPES 11
+int door_type_count(void);
+const char *door_type_name(int t);
+
+/* Exit condition bits (original exit_bits, MAX_DOOR_CONDITIONS) --
+ * Closed/Locked/Secret/... A per-exit bitmask, edited by toggle. */
+#define MAX_EXIT_CONDITIONS 11
+int exit_cond_count(void);
+const char *exit_cond_name(int bit);
+/* Renders the set condition bits into buf, space-separated, or "none". */
+const char *exit_cond_names(int flags, char *buf, size_t size);
+
 typedef struct room {
     thing_t base;               /* first member -- see thing.h */
     int vnum;
@@ -39,7 +62,11 @@ typedef struct room {
     int sector;
     int room_flag;              /* original's room_flag bitmask -- carried +
                                  * shown to immortals; no behavior yet */
+    int capacity;               /* room `capacity` column (moblim); builder-set */
+    int height;                 /* room `height` column; builder-set */
     int exits[ROOM_NUM_EXITS];  /* destination vnum per direction, -1 = no exit */
+    int exit_door[ROOM_NUM_EXITS]; /* doorTypeT per exit (0 = DOOR_NONE) */
+    int exit_cond[ROOM_NUM_EXITS]; /* exit condition bitmask per exit */
 } room_t;
 
 room_t *room_create(int vnum, const char *name, const char *description, int sector);

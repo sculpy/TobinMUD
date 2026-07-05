@@ -69,7 +69,7 @@ sLower = create_account_and_character("Lower", lower_name)
 
 send_line(sLower, "score")
 out = recv_all(sLower)
-check(f"-- {expected_lower} --" in out, "all-lowercase input is capitalized in score's header")
+check(f"Name:          {expected_lower}" in out, "all-lowercase input is capitalized in score's header")
 check(lower_name not in out, "the raw lowercase form does not appear in score")
 
 send_line(sLower, "who")
@@ -83,7 +83,7 @@ sUpper = create_account_and_character("Upper", upper_name)
 
 send_line(sUpper, "score")
 out = recv_all(sUpper)
-check(f"-- {expected_upper} --" in out, "all-caps input is capitalized, not left all-caps, in score")
+check(f"Name:          {expected_upper}" in out, "all-caps input is capitalized, not left all-caps, in score")
 
 # Mixed-case input -> "Mixedguy".
 mixed_name = f"MiXeDgUy{_suffix}"
@@ -92,7 +92,7 @@ sMixed = create_account_and_character("Mixed", mixed_name)
 
 send_line(sMixed, "score")
 out = recv_all(sMixed)
-check(f"-- {expected_mixed} --" in out, "mixed-case input is normalized to proper case in score")
+check(f"Name:          {expected_mixed}" in out, "mixed-case input is normalized to proper case in score")
 
 # `look` shows another player's name in proper case in the room listing --
 # Upper and Mixed both land in the same default room on creation.

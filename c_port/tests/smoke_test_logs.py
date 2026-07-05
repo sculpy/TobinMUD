@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Smoke test for the game log system (Session 21):
-  1. Log files live in logs/ named DDMMYY.HHMM<AM/PM>.log (user spec).
+  1. Log files live in logs/ named <YYYY-MM-DD>.log -- one per calendar day,
+     appended across reboots/copyovers/rotates (logs older than 21 days are
+     pruned at open).
   2. Gate: mortals and a level-58 get Huh?! for `log`; 59 works.
   3. `log` tails the current file; `log search <text>` finds a known
      line (a link-drop we caused with a unique character name).
-  4. `log rotate` starts a fresh file (announced by name); the old
-     unique string is no longer in the CURRENT file; `log list` shows
-     multiple files with the current one marked.
+  4. `log rotate` (59+) re-opens the day's file (daily logs aren't fragmented);
+     the old line is still present; `log list` marks the current file.
 
     python3 tests/smoke_test_logs.py [host] [port]
 """
@@ -150,17 +151,19 @@ sImm.close()
 sImm = relog(nameImm)
 send_line(sImm, "log rotate")
 out = recv_all(sImm)
-check("Now writing to logs/" in out, "log rotate announces the new file (at 59)")
+check("one file per day" in out and "re-opened logs/" in out,
+      "log rotate re-opens the day's file (daily logs, at 59)")
 
 time.sleep(0.2)
 send_line(sImm, f"log search {nameVictim}")
 out = recv_all(sImm)
-check("0 matches" in out, "after rotation the old line is not in the CURRENT file")
+check(nameVictim.capitalize() in out,
+      "the old line is still present -- one continuous file per day, not rotated away")
 
 send_line(sImm, "log list")
 out = recv_all(sImm)
 check("<- current" in out, "log list marks the current file")
-check(out.count(".log") >= 2, "log list shows the rotated-away file too")
+check(out.count(".log") >= 1, "log list shows the day's log file")
 
 # hygiene
 set_level(nameImm, 1)

@@ -1,3 +1,8 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
+
 #ifndef TOBIN_ACCOUNT_H
 #define TOBIN_ACCOUNT_H
 
@@ -10,6 +15,7 @@ typedef struct {
     long account_id;
     char name[80];
     char passwd[256]; /* crypt() hash, e.g. "$6$..." */
+    bool color_pref;  /* ANSI color on/off, chosen at account creation */
 } account_t;
 
 /* Case-insensitive by name, mirrors the original's `where name=lower(...)`.
@@ -22,5 +28,9 @@ bool account_create(const char *name, const char *plain_password, account_t *out
 
 /* Verifies a plaintext password against the account's stored crypt() hash. */
 bool account_verify_password(const account_t *acct, const char *plain_password);
+
+/* Persists the ANSI color preference (account.color_pref). Backs the color
+ * prompt at account creation and the `color on|off` command. */
+bool account_set_color(long account_id, bool color_on);
 
 #endif

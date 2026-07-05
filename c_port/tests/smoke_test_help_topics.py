@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Smoke test for DB-backed help topics and the `hedit` editor:
+"""Smoke test for DB-backed help topics and the `edhelp` editor:
   1. `help <command>` shows the seeded topic body (exact and by prefix);
      an unknown topic is rejected; a mortal asking for an immortal-only
      command's topic gets "no help" (no existence leak).
-  2. `hedit` is invisible to mortals AND to ordinary 51-55 immortals --
+  2. `edhelp` is invisible to mortals AND to ordinary 51-55 immortals --
      its gate is level 56+ (user-specified).
   3. The editor works end-to-end: create a topic, type lines, '.' saves,
      `help <topic>` then shows it; re-edit preloads the existing text;
@@ -66,7 +66,7 @@ def login(name, pw):
 
 
 name = f"Helpedit{_suffix}"
-pw = "hedittestpw"
+pw = "edhelptestpw"
 s = socket.create_connection((host, port), timeout=5)
 recv_all(s)
 send_line(s, name)
@@ -109,17 +109,17 @@ out = recv_all(s)
 check("No help available" in out,
       "a mortal asking about an immortal-only command's topic gets no leak")
 
-# --- Part 2: hedit gating ---
-send_line(s, "hedit whatever")
+# --- Part 2: edhelp gating ---
+send_line(s, "edhelp whatever")
 out = recv_all(s)
-check("Huh?!" in out, "a mortal typing hedit gets Huh?! (hidden)")
+check("Huh?!" in out, "a mortal typing edhelp gets Huh?! (hidden)")
 
 set_level(name, 51)
 s.close()
 s = login(name, pw)
-send_line(s, "hedit whatever")
+send_line(s, "edhelp whatever")
 out = recv_all(s)
-check("Huh?!" in out, "a level-51 immortal still can't use hedit (gate is 56)")
+check("Huh?!" in out, "a level-51 immortal still can't use edhelp (gate is 56)")
 send_line(s, "help goto")
 out = recv_all(s)
 check("-- Help: goto --" in out, "the 51 immortal CAN read the goto topic now")
@@ -130,9 +130,9 @@ s = login(name, pw)
 
 # --- Part 3: the editor, end to end ---
 topic = f"lore{_suffix}"
-send_line(s, f"hedit {topic}")
+send_line(s, f"edhelp {topic}")
 out = recv_all(s)
-check("new topic" in out, "hedit on a new topic says it's new")
+check("new topic" in out, "edhelp on a new topic says it's new")
 
 send_line(s, "The world of Tobin was carved from")
 recv_all(s)
@@ -147,7 +147,7 @@ out = recv_all(s)
 check("carved from" in out and "older world" in out,
       "help <topic> shows the freshly saved body")
 
-send_line(s, f"hedit {topic}")
+send_line(s, f"edhelp {topic}")
 out = recv_all(s)
 check("existing text below" in out and "carved from" in out,
       "re-editing preloads and shows the existing text")

@@ -105,16 +105,18 @@ send_line(sA, "wizhelp")
 out = recv_all(sA)
 check("Immortal-only commands" in out, "an immortal calling wizhelp sees the immortal-only header")
 check("goto" in out, "wizhelp lists the level-51 immortal commands")
-check("hedit" not in out and "promote" not in out,
-      "a level-51's wizhelp does NOT reveal higher-level commands (hedit 56+, promote 58+)")
+check("edhelp" not in out and "promote" not in out,
+      "a level-51's wizhelp does NOT reveal higher-level commands (edhelp 56+, promote 58+)")
+check("[51+]" not in out and "[51 +]" not in out,
+      "wizhelp no longer shows the level tag")
 
 send_line(sA, "help")
 out = recv_all(sA)
 check("goto" in out, "an immortal's help includes their immortal commands")
-check("hedit" not in out and "promote" not in out,
-      "a level-51's help does not reveal hedit (56+) or promote (58+)")
-check(out.index("goto") < out.index("look"),
-      "help lists higher-level commands first (goto before the mortal commands)")
+check("edhelp" not in out and "promote" not in out,
+      "a level-51's help does not reveal edhelp (56+) or promote (58+)")
+check(out.index("catchup") < out.index("goto") < out.index("look"),
+      "help lists commands alphabetically (catchup < goto < look)")
 
 sA.close()
 print("=== ALL CHECKS PASSED ===")

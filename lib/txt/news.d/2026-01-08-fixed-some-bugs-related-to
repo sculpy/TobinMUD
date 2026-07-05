@@ -1,3 +1,0 @@
-Fixed some bugs related to gangrene. It should no longer cure itself
-automatically right after being applied, and should be curable by the
-doctor in the Grimhaven hospital.

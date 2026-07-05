@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
-"""Smoke test for the room builder (`edit`, port of Sneezy's doEdit) and
-the movement commands:
-  1. Gate: mortals and 51s get Huh?! for `edit`; 56 works.
-  2. Bare `edit` shows the room summary (name/number/sector/exits).
-  3. `edit name`, `edit sector_type`, and `edit description` (line editor)
-     change the live room AND persist across a re-look/DB reload.
-  4. `edit exit <dir> <toroom>` auto-creates a missing target room and
-     fixes the reverse exit; movement (north/south) walks the new link
-     both ways; look shows "Obvious exits"; `edit exit <dir> -1` deletes.
-  5. Movement letters: 'n' walks north; walking into a wall says so.
+"""Smoke test for the menu-driven room builder (edroom) -- the CONN_REDIT_*
+working-copy editor, formatted like Sneezy's update_room_menu (numbered
+fields) with door-type/condition editing on exits.
 
-All editing happens in freshly created sandbox rooms at high vnums --
-the seeded world (rooms 0/1/...) is never modified.
+Covered:
+  1. Gate: a mortal typing `edroom` gets Huh?! (hidden below BUILD_MIN_LEVEL).
+  2. `edroom`/`edroom <vnum>` opens the numbered menu for the current/named room.
+  3. Fields 1-7: Name, Description (line editor + /clear), Flags toggle,
+     Sector Type, Exits, Max Capacity, Room Height -- each changes the
+     working copy and shows in the re-rendered menu, marking it unsaved.
+  4. Exits submenu: pick a direction -> per-exit menu (Target / Door type /
+     Conditions / Remove). Target to a not-yet-existing vnum + a door type +
+     a condition; (S)ave auto-creates the target, fixes the reverse exit,
+     and persists dest+type+condition. Movement walks the new link.
+  5. (Q)uit + (D)iscard leaves the DB untouched.
+  6. (C)lear room out blanks the room AND its exits (+ neighbour reverse).
 
-    python3 tests/smoke_test_redit.py [host] [port]
+All editing happens in SQL-bootstrapped sandbox rooms at high vnums
+(900000+); the seeded world is never touched.
+
+    python3 tests/smoke_test_edroom.py [host] [port]
 """
 import socket
 import subprocess
@@ -23,7 +29,6 @@ import time
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
-# Sandbox vnums: far above the seed's range, varied per run.
 BASE = 900000 + (int(time.time()) % 90000)
 
 
@@ -45,6 +50,11 @@ def send_line(sock, line):
     sock.sendall((line + "\r\n").encode())
 
 
+def cmd(sock, line, timeout=1.0):
+    send_line(sock, line)
+    return recv_all(sock, timeout)
+
+
 def check(condition, message):
     if not condition:
         raise AssertionError(message)
@@ -55,157 +65,151 @@ def sql(stmt):
     subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
 
 
+def query(stmt):
+    return subprocess.run(["mariadb", "-N", "sneezy", "-e", stmt],
+                          check=True, capture_output=True, text=True).stdout
+
+
 def set_level(name, level):
-    sql(f"UPDATE player_progress SET level={level} WHERE player_id=(SELECT id FROM player WHERE name='{name}');")
+    sql(f"UPDATE player_progress SET level={level} WHERE player_id="
+        f"(SELECT id FROM player WHERE name='{name}');")
 
 
-name = f"Builder{_suffix}"
-pw = "reditpw"
+name = f"Menued{_suffix}"
+pw = "edroompw"
+
 s = socket.create_connection((host, port), timeout=5)
 recv_all(s)
-send_line(s, name)
-recv_all(s)
-send_line(s, pw)
-recv_all(s)
-send_line(s, pw)  # confirm password (Session 21)
-recv_all(s)
-send_line(s, "new")
-recv_all(s)
-send_line(s, name)
-recv_all(s)
-send_line(s, "done")
-recv_all(s)
+send_line(s, name); recv_all(s)
+send_line(s, pw); recv_all(s)
+send_line(s, pw); recv_all(s)
+send_line(s, "new"); recv_all(s)
+send_line(s, name); recv_all(s)
+send_line(s, "done"); recv_all(s)
 
-# A mortal's look shows the plain room name -- no builder header.
-send_line(s, "look")
-out = recv_all(s)
-check("Center Square" in out and "[100]" not in out and "[sector" not in out,
-      "a mortal's look has no vnum/sector/flags header")
-
-# --- Part 1: the gate (51+ as of the Tier-3 follow-up) ---
-send_line(s, "redit")
-check("Huh?!" in recv_all(s), "a mortal typing redit gets Huh?! (hidden)")
+check("Huh?!" in cmd(s, "edroom"), "a mortal typing edroom gets Huh?! (hidden)")
 
 set_level(name, 51)
 s.close()
 s = socket.create_connection((host, port), timeout=5)
 recv_all(s)
-send_line(s, name)
-recv_all(s)
-send_line(s, pw)
-recv_all(s)
-send_line(s, "1")
-recv_all(s)
+send_line(s, name); recv_all(s)
+send_line(s, pw); recv_all(s)
+send_line(s, "1"); recv_all(s)
+cmd(s, "color off")   # strip <c>/<z> tags so menu text is clean for matching
 
-# --- Sandbox bootstrap: create the first room via SQL, goto it ---
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
     f"VALUES ({BASE},0,0,0,'Sandbox Origin','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
-send_line(s, f"goto {BASE}")
-out = recv_all(s)
-check("Sandbox Origin" in out, "goto lands in the SQL-bootstrapped sandbox room")
-check(f"[{BASE}]" in out and "[subarctic]" in out and "[flags: none]" in out,
-      "an immortal's look shows the [vnum] name [sector] [flags] header")
+check("Sandbox Origin" in cmd(s, f"goto {BASE}"),
+      "goto lands in the SQL-bootstrapped sandbox room")
 
-# --- Part 2: bare edit shows the summary ---
-send_line(s, "redit")
-out = recv_all(s)
-check("Room Name: Sandbox Origin" in out and f"Number: {BASE}" in out,
-      "bare redit shows the room summary (Sneezy's info block)")
-check("NONE" in out, "the summary shows no exits yet")
+# --- 2: numbered menu opens (Sneezy layout) ---
+out = cmd(s, "edroom")
+check(f"Number: {BASE}" in out and "Menu:" in out and "1) Name" in out
+      and "6) Max Capacity" in out and "[edroom]" in out,
+      "edroom opens the Sneezy-style numbered menu")
 
-# --- Part 3: name, sector, description ---
-send_line(s, f"redit name The Builder's Workshop")
-out = recv_all(s)
-check("New Room Title: The Builder's Workshop" in out,
-      "redit name confirms with the original's 'New Room Title' message")
+# --- 3: fields 1,4,3,6,7 (name, sector, flags, capacity, height) ---
+cmd(s, "1")                                        # name
+out = cmd(s, "The Menu Workshop")
+check("Room Name: The Menu Workshop" in out and "unsaved changes" in out,
+      "1) Name sets the name and marks unsaved")
 
-send_line(s, "redit sector_type 3")
-out = recv_all(s)
-check("Sector type set" in out, "redit sector_type sets the sector")
-send_line(s, "redit sector_type")
-out = recv_all(s)
-check("Current sector type: 3 (arctic road)" in out, "redit sector_type with no arg shows number and name")
+cmd(s, "4")                                        # sector
+out = cmd(s, "3")                                  # arctic road
+check("[ ARCTIC ROAD ]" in out and "(arctic road)" not in out,
+      "4) Sector Type shows the all-caps enum name in a [ ] bracket, no number")
 
-send_line(s, "redit description")
-out = recv_all(s)
-check("Editing room" in out, "redit description opens the line editor")
-send_line(s, "Sawdust and fresh vnums hang in the air.")
-recv_all(s)
-send_line(s, ".")
-out = recv_all(s)
-check("description saved" in out, "'.' saves the description")
-send_line(s, "look")
-out = recv_all(s)
-check("Sawdust and fresh vnums" in out, "look shows the new description immediately")
+cmd(s, "3")                                        # flags
+cmd(s, "3")                                        # toggle indoors (bit 3)
+out = cmd(s, "")                                   # back to menu
+check("[ INDOORS ]" in out, "3) Flags toggles INDOORS on, each flag bracketed")
 
-# --- Part 4: exits -- auto-create, reverse fix, walk, delete ---
-send_line(s, f"redit exit north {BASE + 1}")
-out = recv_all(s)
-check("Exit room does not exist. Creating room" in out,
-      "a missing exit target is auto-created (original behavior)")
-check("Fixing opposite directions" in out and "Making new exit back" in out,
-      "the reverse exit is fixed automatically (original behavior)")
+cmd(s, "6")                                        # capacity
+out = cmd(s, "25")
+check("Max Capacity: 25" in out, "6) Max Capacity persists into the menu")
 
-send_line(s, "look")
-out = recv_all(s)
-check("Obvious exits: north" in out, "look now shows the new exit")
+cmd(s, "7")                                        # height
+out = cmd(s, "12")
+check("Room Height: 12" in out, "7) Room Height persists into the menu")
 
-send_line(s, "north")
-out = recv_all(s)
-check("An unfinished room" in out, "walking north lands in the auto-created room")
-send_line(s, "redit")
-out = recv_all(s)
-check(f"south->{BASE}" in out, "the auto-created room's reverse (south) exit points home")
+# --- 3d: description (2) with /clear ---
+out = cmd(s, "2")
+check("Editing description" in out, "2) Description opens the line editor")
+cmd(s, "junk that will be cleared")
+check("Buffer cleared" in cmd(s, "/clear"), "/clear wipes the description buffer")
+cmd(s, "A tidy menu-built room.")
+out = cmd(s, ".")
+check("A tidy menu-built room" in out and "junk that will be cleared" not in out,
+      "2)+/clear replaces the description")
 
-send_line(s, "s")
-out = recv_all(s)
-check("The Builder's Workshop" in out, "'s' (single letter) walks back south")
+# --- 4: exits submenu -> per-exit menu -> target/door/condition ---
+out = cmd(s, "5")                                  # exits list
+check("choose a direction" in out, "5) Exits opens the direction list")
+out = cmd(s, "north")                              # -> per-exit menu
+check("Exit north" in out and "1) Target room" in out and "2) Door type" in out,
+      "picking a direction opens the per-exit menu")
+cmd(s, "1")                                        # target
+out = cmd(s, str(BASE + 1))
+check("created on save" in out and "Target: " + str(BASE + 1) in out,
+      "1) Target sets a not-yet-existing target (warned)")
+cmd(s, "2")                                        # door type
+out = cmd(s, "1")                                  # Door
+check("Door: Door" in out, "2) Door type sets the door to 'Door'")
+cmd(s, "3")                                        # conditions
+cmd(s, "0")                                        # toggle Closed (bit 0)
+out = cmd(s, "")                                   # back to per-exit menu
+check("Cond: Closed" in out, "3) Conditions toggles 'Closed' on")
+cmd(s, "")                                         # back to exits list
+out = cmd(s, "")                                   # back to main menu
+check(f"north->{BASE + 1}/Door" in out, "the menu summarizes the exit with its door")
 
-send_line(s, "east")
-out = recv_all(s)
-check("You can't go that way." in out, "walking into a wall is rejected")
+out = cmd(s, "S")
+check("Room saved" in out, "S) Save persists the working copy")
 
-send_line(s, f"redit exit north -1")
-out = recv_all(s)
-check("Deleting exit." in out, "redit exit <dir> -1 deletes the exit")
-send_line(s, "north")
-out = recv_all(s)
-check("You can't go that way." in out, "the deleted exit no longer works")
+# DB verification
+row = query(f"SELECT name, sector, room_flag, capacity, height FROM room WHERE vnum={BASE};").split("\t")
+check(row[0] == "The Menu Workshop" and row[1] == "3" and row[2] == "8"
+      and row[3] == "25" and row[4].strip() == "12",
+      "name/sector/flags(8)/capacity(25)/height(12) persisted")
+ex = query(f"SELECT destination, type, condition_flag FROM roomexit WHERE vnum={BASE} AND direction=0;").split("\t")
+check(ex[0] == str(BASE + 1) and ex[1] == "1" and ex[2].strip() == "1",
+      "north exit persisted with door type 1 (Door) and condition 1 (Closed)")
+check(query(f"SELECT COUNT(*) FROM room WHERE vnum={BASE + 1};").strip() == "1",
+      "the missing exit target was auto-created on save")
+check(query(f"SELECT destination FROM roomexit WHERE vnum={BASE + 1} AND direction=2;").strip()
+      == str(BASE), "the reverse (south) exit was fixed automatically")
 
-# --- Part 4b: diagonals (Session 21, all ten directions) ---
-send_line(s, f"redit exit northeast {BASE + 2}")
-out = recv_all(s)
-check("Creating room" in out and "Making new exit back" in out,
-      "a diagonal exit auto-creates its room and reverse (southwest) exit")
-send_line(s, "ne")
-out = recv_all(s)
-check("An unfinished room" in out, "'ne' walks northeast into the new room")
-send_line(s, "sw")
-out = recv_all(s)
-check("The Builder's Workshop" in out, "'sw' walks the reverse southwest exit home")
+check("Leaving the room editor" in cmd(s, "Q"), "Q) leaves cleanly when saved")
+check("An unfinished room" in cmd(s, "north"), "walking north lands in the auto-created room")
+check("The Menu Workshop" in cmd(s, "south"), "walking south returns to the workshop")
 
-# `exits` (Tier 3) lists directions with destination names.
-send_line(s, "exits")
-out = recv_all(s)
-check("northeast" in out and "An unfinished room" in out,
-      "exits lists the diagonal exit with its destination's name")
-outW = recv_all(s, timeout=0.3)  # drain
+# --- 5: quit-discard leaves the DB untouched ---
+cmd(s, "edroom")
+cmd(s, "1")
+out = cmd(s, "This name must not persist")
+check("unsaved changes" in out, "an edit marks the session dirty")
+out = cmd(s, "Q")
+check("(S)ave, (D)iscard, (C)ancel" in out, "Q with unsaved changes prompts")
+check("Leaving the room editor" in cmd(s, "D"), "D)iscard leaves without saving")
+check(query(f"SELECT name FROM room WHERE vnum={BASE};").strip() == "The Menu Workshop",
+      "the discarded name change never reached the DB")
 
-# --- Part 5: persistence across a DB reload (fresh login re-reads rooms) ---
-# The room registry caches in memory; verify the DB rows directly instead.
-out = subprocess.run(
-    ["mariadb", "-N", "sneezy", "-e",
-     f"SELECT name, sector FROM room WHERE vnum={BASE}; "
-     f"SELECT COUNT(*) FROM roomexit WHERE vnum={BASE} AND direction=0; "
-     f"SELECT destination FROM roomexit WHERE vnum={BASE + 1} AND direction=2;"],
-    check=True, capture_output=True, text=True).stdout
-check("The Builder's Workshop" in out and "3" in out,
-      "name and sector persisted to the DB")
-check("0" in out.splitlines()[1], "the deleted north exit is gone from the DB")
-check(str(BASE) in out.splitlines()[2], "the reverse exit row persisted in the DB")
+# --- 6: clear room out blanks room + exits (+ neighbour reverse) ---
+cmd(s, f"edroom {BASE + 1}")
+out = cmd(s, "C")
+check("(yes/no)" in out, "C) asks for confirmation")
+check("blanked" in cmd(s, "yes"), "C) blanks the working copy after confirmation")
+cmd(s, "S")
+cmd(s, "Q")
+check(query(f"SELECT name FROM room WHERE vnum={BASE + 1};").strip() == "An unfinished room",
+      "cleared room is blanked in the DB")
+check(query(f"SELECT COUNT(*) FROM roomexit WHERE vnum={BASE + 1};").strip() == "0",
+      "cleared room's own exits are gone")
+check(query(f"SELECT COUNT(*) FROM roomexit WHERE vnum={BASE} AND direction=0;").strip() == "0",
+      "the neighbour's reverse exit (BASE north) was removed too")
 
-# hygiene: back to mortal
 set_level(name, 1)
 s.close()
 print("=== ALL CHECKS PASSED ===")

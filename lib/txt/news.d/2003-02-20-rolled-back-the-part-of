@@ -1,2 +1,0 @@
-Rolled back the part of the internal changes that I think was
-causing the bugs.  Everything should be ok now.

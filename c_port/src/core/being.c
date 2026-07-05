@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "being.h"
 
 #include <ctype.h>
@@ -21,6 +25,7 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
         b->attrs.intelligence = b->attrs.wisdom = b->attrs.charisma = ATTR_BASE;
 
     b->handed_right = 1; /* right-handed default */
+    b->position = POSITION_STANDING;
     b->progress.level = MORTAL_LEVEL_MIN;
     b->progress.experience = 0;
     b->progress.max_hp = being_calc_max_hp(b);
@@ -73,6 +78,18 @@ const char *being_level_title(int level) {
     return "Implementor"; /* 60+ */
 }
 
+const char *being_rank_color(int level) {
+    if (level >= 59)
+        return "<P>"; /* 59+ */
+    if (level >= 57)
+        return "<p>"; /* 57-58 */
+    if (level >= 54)
+        return "<C>"; /* 54-56 */
+    if (level >= IMMORTAL_LEVEL_MIN)
+        return "<c>"; /* 51-53 */
+    return ""; /* mortal */
+}
+
 int being_get_wait(const being_t *b) {
     if (!b)
         return 0;
@@ -96,6 +113,72 @@ static const char *LIMB_NAMES[LIMB_COUNT] = {
     "head", "neck", "left arm", "right arm", "left finger", "right finger",
     "body", "waist", "genitalia", "right leg", "left leg", "left foot", "right foot",
 };
+
+/* position_types[] (misc/being.cc), indexed by position_t. */
+static const char *const POSITION_NAMES[] = {
+    "Dead", "Mortally wounded", "Incapacitated", "Stunned", "Sleeping",
+    "Resting", "Sitting", "Engaged", "Fighting", "Crawling", "Standing",
+    "Mounted", "Flying",
+};
+
+const char *position_name(position_t p) {
+    if (p < 0 || (size_t)p >= sizeof(POSITION_NAMES) / sizeof(POSITION_NAMES[0]))
+        return "Standing";
+    return POSITION_NAMES[p];
+}
+
+const char *gender_name(gender_t g) {
+    switch (g) {
+        case GENDER_MALE:   return "male";
+        case GENDER_FEMALE: return "female";
+        case GENDER_NEUTER:
+        default:            return "neuter";
+    }
+}
+
+const char *gender_subject(gender_t g) {
+    switch (g) {
+        case GENDER_MALE:   return "he";
+        case GENDER_FEMALE: return "she";
+        case GENDER_NEUTER:
+        default:            return "it";
+    }
+}
+
+const char *gender_object(gender_t g) {
+    switch (g) {
+        case GENDER_MALE:   return "him";
+        case GENDER_FEMALE: return "her";
+        case GENDER_NEUTER:
+        default:            return "it";
+    }
+}
+
+const char *gender_possess(gender_t g) {
+    switch (g) {
+        case GENDER_MALE:   return "his";
+        case GENDER_FEMALE: return "her";
+        case GENDER_NEUTER:
+        default:            return "its";
+    }
+}
+
+const char *being_health_word(const being_t *b) {
+    if (!b || b->progress.max_hp <= 0)
+        return "unknown";
+    int pct = (int)(((long)b->progress.hp * 100) / b->progress.max_hp);
+    if (pct > 100)   return "heroic";   /* above max (future: buffs) */
+    if (pct >= 100)  return "perfect";
+    if (pct >= 90)   return "excellent";
+    if (pct >= 75)   return "good";
+    if (pct >= 60)   return "injured";
+    if (pct >= 50)   return "hurt";
+    if (pct >= 40)   return "wounded";
+    if (pct >= 30)   return "bad";
+    if (pct >= 20)   return "awful";
+    if (pct >= 10)   return "horrid";
+    return "near death";
+}
 
 const char *limb_name(limb_t limb) {
     if (limb < 0 || limb >= LIMB_COUNT)

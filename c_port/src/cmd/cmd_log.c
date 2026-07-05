@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "cmd_internal.h"
 
 #include <ctype.h>
@@ -180,8 +184,9 @@ bool cmd_log(descriptor_t *d, const char *args) {
             return true;
         }
         if (log_rotate()) {
-            char msg[LOG_PATH_MAX + 48];
-            snprintf(msg, sizeof(msg), "Log rotated. Now writing to %s\r\n",
+            char msg[LOG_PATH_MAX + 64];
+            snprintf(msg, sizeof(msg),
+                     "Logs are one file per day now; re-opened %s.\r\n",
                      log_current_path());
             descriptor_send(d, msg);
         } else {

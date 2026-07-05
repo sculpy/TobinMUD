@@ -1,4 +1,0 @@
-Syntax: compare <object> <object>
-
-Will compare two objects and report relative information about them.
-Compare relies on your evaluate skill to determine what is shown.

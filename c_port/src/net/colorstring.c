@@ -1,3 +1,7 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
 #include "colorstring.h"
 
 #include <string.h>
@@ -17,8 +21,8 @@ static const char *ansi_for_tag(char c) {
         case 'B': return "\033[1;34m";
         case 'y': case 'o': return "\033[33m";
         case 'Y': case 'O': return "\033[1;33m";
-        case 'p': return "\033[35m";
-        case 'P': return "\033[1;35m";
+        case 'p': case 'm': return "\033[35m"; /* 'm' = magenta alias for 'p' (purple) */
+        case 'P': case 'M': return "\033[1;35m";
         case 'c': return "\033[36m";
         case 'C': return "\033[1;36m";
         case 'w': return "\033[37m";
