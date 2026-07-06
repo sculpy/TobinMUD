@@ -45,6 +45,34 @@ const char *sector_name(int sector) {
     return SECTOR_NAMES[sector];
 }
 
+/* Substring keyword match against the sector's name, most-specific rule
+ * first (e.g. "ARCTIC CITY" is civilization-gray, not cold-cyan). See the
+ * declaration comment in room.h for the category groupings. */
+char sector_color(int sector) {
+    const char *name = sector_name(sector);
+    if (strstr(name, "LAVA") || strstr(name, "FIRE"))
+        return 'r';
+    if (strstr(name, "CITY") || strstr(name, "ROAD") || strstr(name, "BUILDING")
+        || strstr(name, "MOUNTAIN") || strstr(name, "CLIMBING") || strstr(name, "CAVE")
+        || strstr(name, "SOLID"))
+        return 'w'; /* stone/structure -- no black/gray (<k>/<K>) in this map */
+    if (strstr(name, "OCEAN") || strstr(name, "RIVER") || strstr(name, "UNDERWATER")
+        || strstr(name, "BEACH") || strstr(name, "ICEFLOW"))
+        return 'b';
+    if (strstr(name, "ARCTIC") || strstr(name, "TUNDRA") || strstr(name, "ATMOSPHERE"))
+        return 'c';
+    if (strstr(name, "DESERT") || strstr(name, "SAVANNAH") || strstr(name, "VELDT"))
+        return 'y';
+    if (strstr(name, "SWAMP") || strstr(name, "MARSH"))
+        return 'g';
+    if (strstr(name, "JUNGLE") || strstr(name, "RAINFOREST") || strstr(name, "FOREST")
+        || strstr(name, "GRASSLAND") || strstr(name, "PLAINS") || strstr(name, "HILLS"))
+        return 'g';
+    if (strstr(name, "ASTRAL"))
+        return 'p';
+    return 'w';
+}
+
 /* ROOM_* flag bit names (original room_bits[], misc/room.h, bits 0-21),
  * displayed all-caps straight from the upstream table. */
 static const char *const ROOM_FLAG_NAMES[22] = {

@@ -30,10 +30,16 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       this) -- see the field comment in `being.h`. `smoke_test_setsev.py`
       (help topic added too; no news entry -- immortal-only, same precedent
       as `toggle`/`exec`/`wiznet`).
-- [ ] **Colorize room name + description by sector** — tint the room display
-      by its sector type: the room NAME may be BRIGHT-colored, but the room
-      DESCRIPTION must use only lowercase (dim) color codes. Per-sector color
-      map; applies in `look`.
+- [x] **Colorize room name + description by sector** — done 2026-07-06:
+      `sector_color()` (room.c) buckets each of the 61 sector types by
+      keyword (lava/fire->red, city/road/building->white, mountain/cave/
+      solid rock->gray, ocean/river/beach->blue, arctic/atmosphere->cyan,
+      desert->yellow, swamp/forest/jungle/grassland/plains/hills->green,
+      astral->purple, else->white). `cmd_look.c` wraps the room NAME in the
+      bright (uppercase) tag and the DESCRIPTION in the dim (lowercase) one,
+      for both the mortal and immortal-builder-header display paths.
+      `smoke_test_sector_color.py` (raw-byte ANSI checks, mortal + immortal
+      paths); help topic updated.
 - [ ] **Editor `format` option** — add a `format` command to every menu-driven
       `ed*` editor that reflows long text bodies to the game's column width
       (word-wrap to the display width). Shared helper across editors.

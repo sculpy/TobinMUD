@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS `help_topic` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
-('look', 'Usage: look\n\nShows the room you are in: its name, description, and everyone\nstanding there with you. You also look automatically whenever you\nenter the world.', 'seed'),
+('look', 'Usage: look\n\nShows the room you are in: its name, description, and everyone\nstanding there with you. You also look automatically whenever you\nenter the world. The name and description are tinted by the room''s\nterrain -- a snowy waste reads differently from a jungle or a city\nstreet.', 'seed'),
 ('who', 'Usage: who [name|immortals|mortals]\n\nLists everyone currently playing, with their level (or immortal rank\ntitle) shown in brackets before their name and any personal title after\nit. With an argument, filters the list: `who imm` shows only immortals,\n`who mort` only mortals, and any other word matches part of a name.', 'seed'),
 ('title', 'Usage: title [text]\n\nSets the free-form title shown in who. Normally it trails your name\n("Yourname the Brave"). Include <N> anywhere and it is replaced by your\nname, and the title is shown on its own -- e.g.\n`title You are not paranoid, <N> really is out to get you!`. `title`\nwith no text, or `title none`, clears it. Saved with your character.', 'seed'),
 ('toggle', 'Usage: toggle [name]\n\nWith no argument, lists your on/off switches and their current values.\n`toggle <name>` flips one (abbreviations welcome). Player toggles like\ncolor and hp affect only you; game toggles like multiplay are global\nand only 55+ immortals may change them.', 'seed'),
@@ -168,3 +168,7 @@ UPDATE `help_topic` SET `body` = 'Usage: color [on|off]\n\nToggles ANSI color re
 -- Migration: title gained <N> name substitution (2026-07-05).
 UPDATE `help_topic` SET `body` = 'Usage: title [text]\n\nSets the free-form title shown in who. Normally it trails your name\n("Yourname the Brave"). Include <N> anywhere and it is replaced by your\nname, and the title is shown on its own -- e.g.\n`title You are not paranoid, <N> really is out to get you!`. `title`\nwith no text, or `title none`, clears it. Saved with your character.'
   WHERE `name` = 'title' AND `updated_by` = 'seed';
+
+-- Migration: look's room name/description are now tinted by sector (2026-07-06).
+UPDATE `help_topic` SET `body` = 'Usage: look\n\nShows the room you are in: its name, description, and everyone\nstanding there with you. You also look automatically whenever you\nenter the world. The name and description are tinted by the room''s\nterrain -- a snowy waste reads differently from a jungle or a city\nstreet.'
+  WHERE `name` = 'look' AND `updated_by` = 'seed';

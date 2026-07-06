@@ -12,6 +12,16 @@ Last updated: 2026-07-06 — Session 26. This session, in order:
   off actually stops that immortal's `[BUG]` echoes via a real `bug` post,
   while a second immortal still sees them) + a help topic. Deployed to
   db.kullit.com under the `mud` account, rebuilt clean, full sweep green.
+- **Sector-tinted `look`**: new `sector_color()` (`room.c`) buckets each of
+  the 61 sector types by keyword into a base color letter (lava/fire->red,
+  city/road/building->white, mountain/cave/solid rock->gray, ocean/river/
+  beach->blue, arctic/atmosphere->cyan, desert->yellow, swamp/forest/
+  jungle/grassland/plains/hills->green, astral->purple, else->white).
+  `cmd_look.c` now wraps the room NAME in the bright (uppercase) tag and
+  the DESCRIPTION in the dim (lowercase) one, in both the mortal and
+  immortal-builder-header display paths. `smoke_test_sector_color.py`
+  (raw-byte ANSI checks, both paths) + help topic update. Rebuilt clean,
+  deployed, verified live.
 
 Last updated: 2026-07-06 — Session 24. This session, in order:
 - deployed + verified `bug`/`delbug`, `newbie` channel (PLR_NEWBIE pflag),

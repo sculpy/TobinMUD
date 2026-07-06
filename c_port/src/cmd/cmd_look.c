@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -67,6 +68,11 @@ bool cmd_look(descriptor_t *d, const char *args) {
 
     room_t *r = d->character->base.roomp;
 
+    /* Tint the room by its sector: the NAME gets the bright (uppercase)
+     * variant, the DESCRIPTION only the dim (lowercase) one (user spec). */
+    char dim = sector_color(r->sector);
+    char bright = (char)toupper((unsigned char)dim);
+
     char out[ROOM_DESCRIPTION_MAX + 512];
     int n;
     /* Immortals get the builder's header -- vnum, sector, flags around the
@@ -74,12 +80,13 @@ bool cmd_look(descriptor_t *d, const char *args) {
      * see the plain name. */
     if (being_is_immortal(d->character)) {
         char flagbuf[256];
-        n = snprintf(out, sizeof(out), "\r\n[%d] %s <c>[ %s ]<z> <p>%s<z>\r\n%s\r\n",
-                     r->vnum, r->base.name, sector_name(r->sector),
+        n = snprintf(out, sizeof(out), "\r\n[%d] <%c>%s<z> <c>[ %s ]<z> <p>%s<z>\r\n<%c>%s<z>\r\n",
+                     r->vnum, bright, r->base.name, sector_name(r->sector),
                      room_flag_names(r->room_flag, flagbuf, sizeof(flagbuf)),
-                     r->description);
+                     dim, r->description);
     } else {
-        n = snprintf(out, sizeof(out), "\r\n%s\r\n%s\r\n", r->base.name, r->description);
+        n = snprintf(out, sizeof(out), "\r\n<%c>%s<z>\r\n<%c>%s<z>\r\n",
+                     bright, r->base.name, dim, r->description);
     }
     if (n < 0)
         n = 0;

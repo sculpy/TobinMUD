@@ -31,6 +31,17 @@ extern const int REV_DIR[ROOM_NUM_EXITS];
 #define MAX_SECTOR_TYPES 61
 const char *sector_name(int sector);
 
+/* Lowercase base color-tag letter (see colorstring.h) for a sector, grouped
+ * by what the sector name implies (lava/fire -> red, city/road/building/
+ * mountain/cave/solid rock -> white, ocean/river/beach -> blue, arctic/
+ * atmosphere -> cyan, desert -> yellow, swamp/forest/jungle/grassland/
+ * plains/hills -> green, astral -> purple, anything else -> white).
+ * Deliberately never returns 'k'/'K' (gray/black, user spec) -- unreadable
+ * on a black terminal background. `look` uses the uppercase (bright) tag
+ * for the room name and this lowercase (dim) one for the description --
+ * see cmd_look.c. */
+char sector_color(int sector);
+
 /* Renders the set ROOM_* flag bits (original misc/room.h, 22 bits) into
  * buf as space-separated names ("always-lit indoors ..."), or "none".
  * Returns buf for convenience. */
