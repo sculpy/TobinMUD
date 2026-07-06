@@ -77,6 +77,10 @@ typedef struct {
  * by the game loop's prompter). */
 #define PROMPT_FLAG_HP 1
 
+/* Player flag bits (player.pflags). PLR_NEWBIE = on the newbie help channel
+ * (default on; toggle off with `toggle newbie`). More flags join here. */
+#define PLR_NEWBIE 1
+
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in
  * misc/being.h, driven by `wearSlotT`'s 13 equipment-aligned slots plus
@@ -185,6 +189,9 @@ typedef struct being {
 
     /* Prompt customization bitmask (PROMPT_FLAG_*), player.prompt_flags. */
     int prompt_flags;
+
+    /* Player flags bitmask (PLR_*), player.pflags. */
+    int pflags;
 
     /* Player-settable title shown after the name in who (player.title). Empty
      * = no title. Set via the `title` command (cmd_title.c). The original's

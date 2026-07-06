@@ -1,5 +1,16 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-06 — Session 24. This session, in order:
+- deployed + verified `bug`/`delbug`, `newbie` channel (PLR_NEWBIE pflag),
+  `rules`/`edrules` (59+, `EDIT_RULES` line editor) — all green on the home VM
+- fixed a real `smoke_test_kill.py` flake: the bystander's post-broadcast read
+  now waits for THIS fight's death taunt + a trailing prompt (was a fixed 1s
+  window that lost the prompt under load / got fooled by concurrent taunts) —
+  8/8 sequential, full sweep clean
+- wrote `ENVIRONMENT.md` (repo root): execution-ordered home⇄work relocation +
+  from-scratch work-server (`db.kullit.com`) setup incl. creating the `mud` user
+- Committed the session's backlog (bug/newbie/rules) + the above.
+
 Last updated: 2026-07-05 — Session 23. This session, in order:
 - color tiers, `goto <char>`, `help edit`, multiplay control, `point` social
 - player `title` (+ `<N>` name substitution) & `who` filter args

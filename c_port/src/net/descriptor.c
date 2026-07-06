@@ -22,6 +22,7 @@
 #include "multiplay.h"
 #include "news_repo.h"
 #include "room_repo.h"
+#include "rules_repo.h"
 #include "world.h"
 
 descriptor_t *g_descriptors = NULL;
@@ -1706,6 +1707,14 @@ static bool handle_line(descriptor_t *d, const char *line) {
                         else
                             descriptor_send(d,
                                 "Posting failed (that headline may already exist).\r\n");
+                    } else if (d->edit_kind == EDIT_RULES) {
+                        if (rules_repo_upsert(d->rule_num, d->news_title, d->edit_buf, who)) {
+                            char msg[64];
+                            snprintf(msg, sizeof(msg), "Rule %d saved.\r\n", d->rule_num);
+                            descriptor_send(d, msg);
+                        } else {
+                            descriptor_send(d, "Saving the rule failed.\r\n");
+                        }
                     } else if (help_topic_save(d->edit_topic, d->edit_buf, who)) {
                         char msg[96];
                         snprintf(msg, sizeof(msg), "Help topic '%s' saved.\r\n",

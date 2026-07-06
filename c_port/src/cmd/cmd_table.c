@@ -82,10 +82,14 @@ static const cmd_entry_t COMMANDS[] = {
     { "wiznet",  cmd_wiznet,  "Broadcast a message to all online immortals.",        IMMORTAL_LEVEL_MIN },
     /* "s"/"so" are south/socials; "sy"+ reaches system. */
     { "system",  cmd_system,  "Broadcast an atmosphere line to everyone.",           IMMORTAL_LEVEL_MIN },
-    /* "n"/"ne"/"nw" are movement (above); "new"/"news" reach news. */
+    /* "n"/"ne"/"nw" are movement (above); "new"/"news" reach news, "newb"+
+     * reaches newbie (must stay AFTER news so "new" still means news). */
     { "news",    cmd_news,    "Read the latest game news (news [10|20|50|100]).",   MORTAL_LEVEL_MIN },
+    { "newbie",  cmd_newbie,  "Chat on the newbie help channel (newbie <msg>).",    MORTAL_LEVEL_MIN },
+    { "rules",   cmd_rules,   "Read the game rules (rules, or rules <number>).",     MORTAL_LEVEL_MIN },
     /* "a"/"at" reach attack (above); "add"+ reaches addnews. */
     { "ednews",  cmd_addnews, "Post a news item (headline + story).",               ADDNEWS_MIN_LEVEL },
+    { "edrules", cmd_edrules, "Write a numbered game rule (edrules <n> <title>).",  EDRULES_MIN_LEVEL },
     { "limbs",   cmd_limbs,   "Show the current health of all your limbs.",         MORTAL_LEVEL_MIN },
     { "help",    cmd_help,    "List available commands.",                           MORTAL_LEVEL_MIN },
     /* Hidden from mortals entirely (Tier 3): players only ever see help
@@ -99,12 +103,14 @@ static const cmd_entry_t COMMANDS[] = {
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
     { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
+    { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
     /* NOTE: must stay after "help" in this table -- "h"/"he"/"hel" should
      * abbreviate to help (first match wins), "hed"+ reaches hedit. Same
      * deal for copyover after color: "c"/"co" reach color, "cop"+ this. */
     { "edhelp",  cmd_hedit,   "Edit a help topic in the line editor.",              HELP_EDIT_MIN_LEVEL },
     { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected.", COPYOVER_MIN_LEVEL },
     { "exec",    cmd_exec,    "Run a shell command on the host box (Implementor).", EXEC_MIN_LEVEL },
+    { "delbug",  cmd_delbug,  "Delete a handled bug report by id.",                 DELBUG_MIN_LEVEL },
     /* "log" needs its three letters ("l" look, "li" limbs, "lo" look). */
     { "edroom",  cmd_edit,    "Edit a room -- the one you're in, or edroom <vnum>.", BUILD_MIN_LEVEL },
     { "log",     cmd_log,     "Read, search, list, or rotate the game logs.",       LOG_MIN_LEVEL },

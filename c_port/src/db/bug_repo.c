@@ -1,0 +1,64 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
+#include "bug_repo.h"
+
+#include <stdio.h>
+
+#include "db.h"
+
+bool bug_repo_add(const char *submitter, const char *body) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    /* %s params are escaped by db_query, so free-form report text is safe. */
+    bool ok = db_query(db, "insert into bug (submitter, body) values ('%s', '%s')",
+                       submitter ? submitter : "", body ? body : "");
+
+    db_close(db);
+    return ok;
+}
+
+bool bug_repo_list(char *out, size_t size, int limit) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    size_t n = 0;
+    out[0] = '\0';
+    bool any = false;
+
+    if (db_query(db, "select id, date(created_at) as day, submitter, body "
+                     "from bug order by id desc limit %i", limit)) {
+        while (db_fetch_row(db)) {
+            /* "#12 [2026-07-05] Testguy: the door won't open" -- id/date in a
+             * dim cyan tag, then the submitter and report text. */
+            n += (size_t)snprintf(out + n, size > n ? size - n : 0,
+                                  "<c>#%s [%s]<z> <w>%s<z>: %s\r\n",
+                                  db_get(db, "id"), db_get(db, "day"),
+                                  db_get(db, "submitter"), db_get(db, "body"));
+            any = true;
+            if (n >= size)
+                break;
+        }
+    }
+
+    db_close(db);
+    return any;
+}
+
+bool bug_repo_delete(int id) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    /* db_query reports success even when zero rows match, so confirm the bug
+     * exists first -- that way delbug can honestly say "no such bug". */
+    bool found = db_query(db, "select 1 from bug where id=%i", id) && db_fetch_row(db);
+    bool ok = found && db_query(db, "delete from bug where id=%i", id);
+
+    db_close(db);
+    return ok;
+}

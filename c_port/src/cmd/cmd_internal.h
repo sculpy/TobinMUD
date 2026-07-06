@@ -50,6 +50,11 @@ bool cmd_prompt(descriptor_t *d, const char *args);
 bool cmd_title(descriptor_t *d, const char *args);
 bool cmd_toggle(descriptor_t *d, const char *args);
 bool cmd_exec(descriptor_t *d, const char *args);
+bool cmd_bug(descriptor_t *d, const char *args);
+bool cmd_delbug(descriptor_t *d, const char *args);
+bool cmd_newbie(descriptor_t *d, const char *args);
+bool cmd_rules(descriptor_t *d, const char *args);
+bool cmd_edrules(descriptor_t *d, const char *args);
 bool cmd_users(descriptor_t *d, const char *args);
 bool cmd_news(descriptor_t *d, const char *args);
 bool cmd_addnews(descriptor_t *d, const char *args);
@@ -77,6 +82,12 @@ bool cmd_multiplay(descriptor_t *d, const char *args);
 
 /* `exec` runs shell commands on the host box -- Implementor-only (60). */
 #define EXEC_MIN_LEVEL 60
+
+/* `delbug` removes a handled bug report -- Administrator (59) and up. */
+#define DELBUG_MIN_LEVEL 59
+
+/* `edrules` writes the numbered game rules -- Administrator (59) and up. */
+#define EDRULES_MIN_LEVEL 59
 
 /* `redit` (the room builder): 51+ -- every immortal builds (user spec,
  * Session 21; future oedit/medit/zedit land at 51 too). Help editing

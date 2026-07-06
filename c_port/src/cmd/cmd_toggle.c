@@ -52,6 +52,20 @@ static void tg_hp_set(descriptor_t *d, bool v) {
     player_set_prompt_flags(d->character->player_id, d->character->prompt_flags);
 }
 
+/* --- newbie: on the newbie help channel (player.pflags bit) --- */
+static bool tg_newbie_get(descriptor_t *d) {
+    return d->character && (d->character->pflags & PLR_NEWBIE);
+}
+static void tg_newbie_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->pflags |= PLR_NEWBIE;
+    else
+        d->character->pflags &= ~PLR_NEWBIE;
+    player_set_pflags(d->character->player_id, d->character->pflags);
+}
+
 /* --- multiplay: global game toggle (55+) --- */
 static bool tg_multiplay_get(descriptor_t *d) { (void)d; return multiplay_allowed(); }
 static void tg_multiplay_set(descriptor_t *d, bool v) { (void)d; multiplay_set(v); }
@@ -59,6 +73,7 @@ static void tg_multiplay_set(descriptor_t *d, bool v) { (void)d; multiplay_set(v
 static const toggle_t TOGGLES[] = {
     { "color",     "ANSI color rendering",          false, tg_color_get,     tg_color_set },
     { "hp",        "hit points shown in prompt",    false, tg_hp_get,        tg_hp_set },
+    { "newbie",    "on the newbie help channel",    false, tg_newbie_get,    tg_newbie_set },
     { "multiplay", "one account, many characters",  true,  tg_multiplay_get, tg_multiplay_set },
 };
 #define NUM_TOGGLES (sizeof(TOGGLES) / sizeof(TOGGLES[0]))

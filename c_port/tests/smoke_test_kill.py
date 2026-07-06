@@ -33,6 +33,26 @@ def recv_all(sock, timeout=1.0):
     return b"".join(chunks).decode(errors="replace")
 
 
+def recv_until(sock, predicate, deadline=5.0):
+    """Accumulate output until `predicate(buf)` holds or the deadline passes.
+
+    A bystander's prompt after an *unsolicited* broadcast is emitted on the
+    game-loop iteration AFTER the message, so under server load the gap
+    between the broadcast and its trailing prompt can exceed a single fixed
+    recv() idle window. Waiting on an explicit predicate (rather than one
+    1s window) tests the real behavior -- "the broadcast naming THIS fight's
+    parties arrives and leaves the bystander at a prompt" -- without being
+    fooled by game-loop latency or by an unrelated global broadcast landing
+    first."""
+    end = time.time() + deadline
+    buf = ""
+    while time.time() < end:
+        buf += recv_all(sock, timeout=0.5)
+        if predicate(buf):
+            break
+    return buf
+
+
 def send_line(sock, line):
     sock.sendall((line + "\r\n").encode())
 
@@ -125,7 +145,10 @@ check(proper(nameTarget) in outTarget, "the slain character still exists and is 
 
 # The whole world (here: the bystander) gets a teasing death announcement
 # naming both parties -- neither winner nor loser receives it themselves.
-outObs = recv_all(sObs, timeout=1.0)
+outObs = recv_until(
+    sObs,
+    lambda b: proper(nameTarget) in b and proper(nameImm) in b
+    and b.rstrip().endswith(">"))
 check(proper(nameTarget) in outObs and proper(nameImm) in outObs,
       "a bystander receives the global death taunt naming victim and killer")
 check("[INFO]" in outObs, "the death taunt arrives on the [INFO] channel")

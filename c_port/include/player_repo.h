@@ -70,6 +70,9 @@ bool player_name_exists(const char *name);
 /* Persists the prompt customization bitmask (cmd_prompt.c). */
 bool player_set_prompt_flags(long player_id, int flags);
 
+/* Persists the player-flags bitmask (player.pflags, PLR_*). */
+bool player_set_pflags(long player_id, int flags);
+
 /* Loads persisted attributes for player_id into *out. Returns false (and
  * leaves *out untouched) if no player_attrs row exists. */
 bool player_attrs_load(long player_id, attrs_t *out);

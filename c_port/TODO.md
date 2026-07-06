@@ -16,6 +16,22 @@ plain names (`news`, `wiznews`).
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.
 
+### User batch 2026-07-06 (morning queue) — working these next
+
+- [ ] **Port `setsev` log severity** — find `setsev` in `sneezymud-master`
+      and port the already-implemented log-severity model over (severity
+      levels on log lines, etc.). Fold into the typed-logs system (`log.h`).
+- [ ] **Colorize room name + description by sector** — tint the room display
+      by its sector type: the room NAME may be BRIGHT-colored, but the room
+      DESCRIPTION must use only lowercase (dim) color codes. Per-sector color
+      map; applies in `look`.
+- [ ] **Editor `format` option** — add a `format` command to every menu-driven
+      `ed*` editor that reflows long text bodies to the game's column width
+      (word-wrap to the display width). Shared helper across editors.
+- [ ] **`set` + `@set` commands** — examine Sneezy's `set` / `@set` (immortal
+      field-setter on players/objs/mobs/rooms) and implement equivalents in the
+      c_port. Confirm the intended field scope + level gate before building.
+
 ### User batch 2026-07-05 (late night, follow-ups #2) — working these next
 
 - [x] **Idle disconnect: immortals immune** — done 2026-07-05 (built, pending
@@ -184,17 +200,28 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       sheet and to others via `look <player>` (a neuter/no-appearance target
       gives a gender-aware "nothing special about him/her/it"). Full `examine`
       stays with the objects batch.
-- [ ] **Color preference at account creation** — ask on/off during account
-      creation; persist it (currently color is per-connection only).
-- [ ] **`rules` + `edrules` (59+)** — DB-backed numbered rules (like news/help):
-      `rules` lists them, `rules <n>` shows rule n's text, `edrules` (59+)
-      edits/adds them. Displays game toggles + what's allowed/not.
+- [x] **Color preference at account creation** — done 2026-07-05: a
+      `CONN_GET_COLOR_PREF` step asks on/off during account creation and
+      persists it in `account.color_pref` (migration + `account_set_color`);
+      the login handshake is backward-compatible (only exact yes/no/blank is
+      treated as the answer, else defaults ON and re-dispatches the line).
+- [x] **`rules` + `edrules` (59+)** — done 2026-07-05: DB-backed numbered rules
+      (like news/help). `rules` lists them, `rules <n>` shows rule n's body in
+      magenta, `edrules <n> <title>` (59+) writes one through the shared line
+      editor (`EDIT_RULES`). `rules` table + `rules_repo.c`, help topics,
+      `smoke_test_rules.py`. Deployed + verified (8/8).
 - [x] **Color/name tag help** — done 2026-07-05: `help colors` lists every
       `<x>` color tag with examples.
-- [ ] **`bug` + `delbug` (59+)** — players file bugs (stored with submitter +
-      date); a 59+ command lists/removes them. DB-backed.
-- [ ] **Newbie channel + flag** — a chat channel for newbies; a `newbie` flag
-      auto-on for anyone under level 5, toggleable (default on).
+- [x] **`bug` + `delbug` (59+)** — done 2026-07-05: `bug <text>` files a report
+      (stored with submitter + date, echoed to immortals as a typed `[BUG]`
+      log); bare `bug` lists reports for immortals (usage for mortals);
+      `delbug <id>` (59+) removes one. `bug` table + `bug_repo.c`, help topics,
+      `smoke_test_bug.py`.
+- [x] **Newbie channel + flag** — done 2026-07-05: `newbie <msg>` is a help
+      channel reaching everyone with the `PLR_NEWBIE` flag (new `player.pflags`
+      bitmask, default on so newcomers start on it). Toggle off/on with
+      `toggle newbie` (persisted); you must be on the channel to speak.
+      `cmd_newbie.c`, help topic, `smoke_test_newbie.py`.
 - [x] **`point` (no arg)** — done 2026-07-05: basic `point` social ("You point
       around randomly." / "You point at X."). The held-item form ("...with his
       <item>") is objects-blocked above.

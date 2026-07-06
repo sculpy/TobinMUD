@@ -124,10 +124,11 @@ typedef struct descriptor {
      * descriptor.c's CONN_PLAYING case intercepts every line while
      * edit_kind != EDIT_NONE and routes the save by kind. */
     enum { EDIT_NONE = 0, EDIT_HELP_TOPIC, EDIT_ROOM_DESC, EDIT_NEWS,
-           EDIT_WIZNEWS } edit_kind;
+           EDIT_WIZNEWS, EDIT_RULES } edit_kind;
     char edit_topic[HELP_TOPIC_NAME_LEN]; /* EDIT_HELP_TOPIC target */
     int edit_room_vnum;                   /* EDIT_ROOM_DESC target */
-    char news_title[128];                 /* EDIT_NEWS headline (addnews) */
+    char news_title[128];                 /* EDIT_NEWS headline (addnews); reused as EDIT_RULES title */
+    int rule_num;                         /* EDIT_RULES target rule number (edrules) */
     char edit_buf[HELP_BODY_MAX];         /* == ROOM_DESCRIPTION_MAX, see room.h */
     int edit_len;
 

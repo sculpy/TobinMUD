@@ -30,3 +30,8 @@ ALTER TABLE `player`
 -- at account creation and remembered; the `color` command persists changes.
 ALTER TABLE `account`
   ADD COLUMN IF NOT EXISTS `color_pref` tinyint(4) NOT NULL DEFAULT 1;
+
+-- Player flags bitmask (Session 23): bit 0 = PLR_NEWBIE (on the newbie help
+-- channel). Defaults to 1 so new players start on the channel; toggleable.
+ALTER TABLE `player`
+  ADD COLUMN IF NOT EXISTS `pflags` int(11) NOT NULL DEFAULT 1;

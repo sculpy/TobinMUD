@@ -23,7 +23,7 @@ being_t *player_load(const char *name, long account_id) {
 
     being_t *b = NULL;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
-                      "title, gender, appearance from player "
+                      "title, gender, appearance, pflags from player "
                       "where name='%s' and account_id=%i",
                  name, (int)account_id)
         && db_fetch_row(db)) {
@@ -35,6 +35,7 @@ being_t *player_load(const char *name, long account_id) {
             snprintf(b->title, sizeof(b->title), "%s", db_get(db, "title"));
             b->gender = (gender_t)atoi(db_get(db, "gender"));
             snprintf(b->appearance, sizeof(b->appearance), "%s", db_get(db, "appearance"));
+            b->pflags = atoi(db_get(db, "pflags"));
         }
     }
 
@@ -81,6 +82,7 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
         if (b) {
             b->handed_right = handed_right ? 1 : 0;
             b->gender = gender;
+            b->pflags = PLR_NEWBIE; /* new players start on the newbie channel */
             snprintf(b->appearance, sizeof(b->appearance), "%s", appearance ? appearance : "");
             if (attrs)
                 b->attrs = *attrs;
@@ -304,6 +306,16 @@ bool player_set_prompt_flags(long player_id, int flags) {
     if (!db)
         return false;
     bool ok = db_query(db, "update player set prompt_flags=%i where id=%i",
+                       flags, (int)player_id);
+    db_close(db);
+    return ok;
+}
+
+bool player_set_pflags(long player_id, int flags) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "update player set pflags=%i where id=%i",
                        flags, (int)player_id);
     db_close(db);
     return ok;
