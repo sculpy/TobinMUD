@@ -40,9 +40,15 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       for both the mortal and immortal-builder-header display paths.
       `smoke_test_sector_color.py` (raw-byte ANSI checks, mortal + immortal
       paths); help topic updated.
-- [ ] **Editor `format` option** — add a `format` command to every menu-driven
-      `ed*` editor that reflows long text bodies to the game's column width
-      (word-wrap to the display width). Shared helper across editors.
+- [x] **Editor `format` option** — done 2026-07-06: `/format` (matching the
+      existing `/clear` slash convention) reflows the shared editor buffer
+      (`editor_format()` in descriptor.c) to `EDITOR_FORMAT_WIDTH` (78)
+      columns, joining/re-breaking words but preserving blank-line
+      paragraph breaks. One shared implementation in `editor_feed()` covers
+      every `ed*` editor (edroom's description field, edhelp, ednews,
+      edwiznews, edrules) automatically, since they all route through it.
+      `smoke_test_editor_format.py` (via edhelp); all editor intro
+      messages + help topics mention it now.
 - [ ] **`set` + `@set` commands** — examine Sneezy's `set` / `@set` (immortal
       field-setter on players/objs/mobs/rooms) and implement equivalents in the
       c_port. Confirm the intended field scope + level gate before building.

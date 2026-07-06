@@ -656,8 +656,81 @@ static void enter_world(descriptor_t *d, being_t *b) {
  * DB, (Q)uit can discard. Replaces the old one-shot `redit <field> <args>`
  * command form. Menu shape is the user's wireframe. */
 
+/* Column width every ed* editor's `/format` wraps prose to -- a
+ * conservative width safe on any real terminal, matching the assumption
+ * cmd_help.c's send_columns() already makes about display width. */
+#define EDITOR_FORMAT_WIDTH 78
+
+/* Reflows d->edit_buf into hard-wrapped lines at EDITOR_FORMAT_WIDTH
+ * columns: words are re-joined and re-broken to the width, but a blank
+ * line (2+ consecutive newlines) is kept as a paragraph break. The
+ * original line breaks *within* a paragraph are discarded -- the classic
+ * MUD editor "type without worrying about line length, then format"
+ * convenience. Tobin-specific (no equivalent in the original -- see
+ * TODO.md). */
+static void editor_format(descriptor_t *d) {
+    char out[HELP_BODY_MAX];
+    size_t oi = 0;
+    size_t col = 0;
+    bool at_para_start = true;
+    const char *p = d->edit_buf;
+
+    while (*p && oi + 1 < sizeof(out)) {
+        int newlines = 0;
+        while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
+            if (*p == '\n')
+                newlines++;
+            p++;
+        }
+        if (!*p)
+            break;
+
+        if (newlines >= 2 && !at_para_start) {
+            if (oi + 2 >= sizeof(out))
+                break;
+            out[oi++] = '\n';
+            out[oi++] = '\n';
+            col = 0;
+            at_para_start = true;
+        }
+
+        const char *wstart = p;
+        while (*p && *p != ' ' && *p != '\t' && *p != '\n' && *p != '\r')
+            p++;
+        size_t wlen = (size_t)(p - wstart);
+
+        if (!at_para_start) {
+            if (col + 1 + wlen > EDITOR_FORMAT_WIDTH) {
+                if (oi + 1 >= sizeof(out))
+                    break;
+                out[oi++] = '\n';
+                col = 0;
+            } else {
+                if (oi + 1 >= sizeof(out))
+                    break;
+                out[oi++] = ' ';
+                col++;
+            }
+        }
+
+        if (oi + wlen >= sizeof(out))
+            break;
+        memcpy(out + oi, wstart, wlen);
+        oi += wlen;
+        col += wlen;
+        at_para_start = false;
+    }
+    if (oi + 1 < sizeof(out))
+        out[oi++] = '\n';
+    out[oi] = '\0';
+
+    memcpy(d->edit_buf, out, oi + 1);
+    d->edit_len = (int)oi;
+}
+
 /* Shared string-editor line handling ("." save / "~" abort / "/clear" wipe /
- * else append into edit_buf). The caller owns what SAVE and ABORT mean. */
+ * "/format" reflow / else append into edit_buf). The caller owns what SAVE
+ * and ABORT mean. */
 typedef enum { EDITOR_CONTINUE, EDITOR_SAVE, EDITOR_ABORT } editor_action_t;
 
 static editor_action_t editor_feed(descriptor_t *d, const char *line) {
@@ -669,6 +742,13 @@ static editor_action_t editor_feed(descriptor_t *d, const char *line) {
         d->edit_buf[0] = '\0';
         d->edit_len = 0;
         descriptor_send(d, "Buffer cleared.\r\n] ");
+        return EDITOR_CONTINUE;
+    }
+    if (strcmp(line, "/format") == 0) {
+        editor_format(d);
+        char out[HELP_BODY_MAX + 64];
+        snprintf(out, sizeof(out), "Reformatted:\r\n%s] ", d->edit_buf);
+        descriptor_send(d, out);
         return EDITOR_CONTINUE;
     }
     size_t add = strlen(line);
@@ -1401,7 +1481,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                         d->edit_len = (int)strlen(d->edit_buf);
                         descriptor_send(d,
                             "\r\n-- Editing description. '.' saves, '~' cancels, "
-                            "'/clear' wipes the buffer. --\r\n");
+                            "'/clear' wipes, '/format' reflows to width. --\r\n");
                         if (w->description[0]) {
                             descriptor_send(d, w->description);
                             if (w->description[strlen(w->description) - 1] != '\n')

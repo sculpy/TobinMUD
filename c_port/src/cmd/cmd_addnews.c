@@ -18,7 +18,8 @@ bool cmd_addnews(descriptor_t *d, const char *args) {
     if (!args || !args[0]) {
         descriptor_send(d,
             "Usage: ednews <headline>\r\n"
-            "Then type the story; '.' saves, '~' aborts, '/clear' wipes.\r\n");
+            "Then type the story; '.' saves, '~' aborts, '/clear' wipes, "
+            "'/format' reflows to width.\r\n");
         return true;
     }
 
@@ -29,7 +30,8 @@ bool cmd_addnews(descriptor_t *d, const char *args) {
     char head[320];
     snprintf(head, sizeof(head),
         "\r\n-- Writing news: \"%s\" --\r\n"
-        "Type the story. '.' saves, '~' aborts, '/clear' wipes the buffer.\r\n] ",
+        "Type the story. '.' saves, '~' aborts, '/clear' wipes, "
+        "'/format' reflows to width.\r\n] ",
         d->news_title);
     descriptor_send(d, head);
     d->edit_kind = EDIT_NEWS;

@@ -1,6 +1,6 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-06 — Session 26. This session, in order:
+Last updated: 2026-07-06 — Sessions 26-28. This session, in order:
 - **`setsev`** (port of `misc/immortal.cc`'s `doSetsev()`): per-immortal
   opt-out from `game_log()`'s `[TAG]` echoes. New `being_t.severity` bitmask
   (default: every type on); bare `setsev` lists game/pio/combat/bug/db/edit
@@ -14,14 +14,32 @@ Last updated: 2026-07-06 — Session 26. This session, in order:
   db.kullit.com under the `mud` account, rebuilt clean, full sweep green.
 - **Sector-tinted `look`**: new `sector_color()` (`room.c`) buckets each of
   the 61 sector types by keyword into a base color letter (lava/fire->red,
-  city/road/building->white, mountain/cave/solid rock->gray, ocean/river/
-  beach->blue, arctic/atmosphere->cyan, desert->yellow, swamp/forest/
-  jungle/grassland/plains/hills->green, astral->purple, else->white).
-  `cmd_look.c` now wraps the room NAME in the bright (uppercase) tag and
-  the DESCRIPTION in the dim (lowercase) one, in both the mortal and
-  immortal-builder-header display paths. `smoke_test_sector_color.py`
-  (raw-byte ANSI checks, both paths) + help topic update. Rebuilt clean,
-  deployed, verified live.
+  city/road/building/mountain/cave/solid rock->white, ocean/river/beach->
+  blue, arctic/atmosphere->cyan, desert->yellow, swamp/forest/jungle/
+  grassland/plains/hills->green, astral->purple, else->white). Deliberately
+  never returns black/gray (`<k>`/`<K>`, unreadable on a dark terminal --
+  an earlier pass used it for the mountain/cave group; fixed same-session
+  per user feedback). `cmd_look.c` now wraps the room NAME in the bright
+  (uppercase) tag and the DESCRIPTION in the dim (lowercase) one, in both
+  the mortal and immortal-builder-header display paths.
+  `smoke_test_sector_color.py` (raw-byte ANSI checks, both paths) + help
+  topic update. Rebuilt clean, deployed, verified live.
+- **Editor `/format`**: new `editor_format()` (descriptor.c), wired into
+  the shared `editor_feed()` alongside `.`/`~`/`/clear` -- reflows the
+  in-progress buffer to `EDITOR_FORMAT_WIDTH` (78) columns, re-joining and
+  re-breaking words while keeping blank-line paragraph breaks. Because
+  every `ed*` editor (edroom's description, edhelp, ednews, edwiznews,
+  edrules) already routes through this one shared function, all five get
+  `/format` for free from a single change. `smoke_test_editor_format.py`
+  (via edhelp: confirms a long unwrapped line is untouched until `/format`
+  is invoked, the reflowed buffer has no over-width lines, paragraph
+  breaks and every word survive, and the reformatted text -- not the
+  original -- is what `.` actually saves). All 5 editor intro messages
+  and their help topics updated to mention it.
+- **Flake note**: `smoke_test_parser_display.py` failed once mid-sweep
+  (auto-look prompt check) then passed cleanly on two immediate reruns and
+  a full clean sweep (51 passed, 0 failed) -- transient, not a regression
+  from any of this session's changes; not touching that test.
 
 Last updated: 2026-07-06 — Session 24. This session, in order:
 - deployed + verified `bug`/`delbug`, `newbie` channel (PLR_NEWBIE pflag),
