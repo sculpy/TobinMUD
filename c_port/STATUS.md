@@ -1,6 +1,6 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-06 — Sessions 26-30. This session, in order:
+Last updated: 2026-07-06 — Sessions 26-31. This session, in order:
 - **`setsev`** (port of `misc/immortal.cc`'s `doSetsev()`): per-immortal
   opt-out from `game_log()`'s `[TAG]` echoes. New `being_t.severity` bitmask
   (default: every type on); bare `setsev` lists game/pio/combat/bug/db/edit
@@ -78,6 +78,32 @@ Last updated: 2026-07-06 — Sessions 26-30. This session, in order:
   invisible at the caller's level, so the check verifies nothing actually
   changed rather than asserting a specific error string -- validation,
   every field, persistence via reconnect, online live-sync) + help topic.
+- **Door mechanics**: the door type/condition data every exit already
+  carried (set via `edroom`) finally does something. New `open`/`close
+  <direction>` (`cmd_open.c`) toggle the exit's `EXIT_COND_CLOSED` bit
+  (new named bit constants in `room.h`, alongside `_LOCKED`/`_SECRET`);
+  `cmd_move.c` blocks movement through a closed door ("The door is
+  closed."); `cmd_look.c`/`cmd_exits.c` hide any exit with the Secret bit
+  set from their listings (still walkable if you know the direction).
+  `open` refuses a Locked door -- there's no way to lock/unlock one yet
+  (that needs a key, which needs the object system; deferred). **Door
+  state is per-exit, not mirrored to the reverse exit** -- confirmed by
+  checking `edroom`'s own exit auto-fix logic first: a newly auto-created
+  reverse exit already gets its own independent, doorless condition
+  bitmask rather than copying the forward exit's, so per-direction
+  independence is the existing data-model assumption, not a gap this
+  session introduced. `smoke_test_doors.py` (SQL-bootstrapped sandbox
+  rooms, same discipline as `smoke_test_redit.py`) covers secret-exit
+  hiding, movement blocking, open/close confirmation and error cases
+  (no exit, no door, already open/closed), DB persistence, and that a
+  secret exit is still walkable. New `open`/`close` help topics; `exits`
+  updated to mention secret-hiding. **Real interaction found by the first
+  post-feature sweep** (not a flake): `smoke_test_redit.py` sets an
+  exit's condition to Closed while testing the Conditions toggle, then
+  walks through it -- previously a no-op cosmetic flag, now a real block.
+  Fixed the test to `open` the door first, matching what a real player
+  would now have to do; this is the feature working as intended, not a
+  bug.
 - **Flake note**: `smoke_test_parser_display.py` failed once mid-sweep
   (auto-look prompt check) then passed cleanly on two immediate reruns and
   a full clean sweep (51 passed, 0 failed) -- transient, not a regression

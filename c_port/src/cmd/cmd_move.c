@@ -50,6 +50,10 @@ static bool do_move(descriptor_t *d, int dir) {
         descriptor_send(d, "You can't go that way.\r\n");
         return true;
     }
+    if (from->exit_door[dir] != 0 && (from->exit_cond[dir] & EXIT_COND_CLOSED)) {
+        descriptor_send(d, "The door is closed.\r\n");
+        return true;
+    }
 
     /* "exits to the north" for compass directions (user-specified
      * phrasing), "exits upward/downward" where "to the up" won't parse. */

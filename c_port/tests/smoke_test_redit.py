@@ -182,6 +182,11 @@ check(query(f"SELECT destination FROM roomexit WHERE vnum={BASE + 1} AND directi
       == str(BASE), "the reverse (south) exit was fixed automatically")
 
 check("Leaving the room editor" in cmd(s, "Q"), "Q) leaves cleanly when saved")
+# The north exit's door was set to the Closed condition above (door
+# mechanics, Session 31) -- open it before walking through, matching how
+# a real player would have to.
+check("You open the door to the north" in cmd(s, "open north"),
+      "the door saved as Closed can be opened before walking through")
 check("An unfinished room" in cmd(s, "north"), "walking north lands in the auto-created room")
 check("The Menu Workshop" in cmd(s, "south"), "walking south returns to the workshop")
 

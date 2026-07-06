@@ -328,10 +328,17 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       creates); show unseen news at login (per-player last-seen).
 - [ ] **redit Extra Descriptions** — keyword extra descs (`roomextra` table
       exists): list/add/edit/delete + delete-all (Sneezy redit items 6 & 10).
-- [ ] **Door mechanics** — the door type + condition data now persists but
-      nothing uses it: open/close/lock/unlock (`doorIntentT`), movement
-      blocking on closed doors, secret exits hidden from look/exits. The key
-      half (locks) needs objects — defer that.
+- [x] **Door mechanics** — done 2026-07-06: `open`/`close <direction>`
+      (`cmd_open.c`), movement blocking on a closed door (`cmd_move.c`:
+      "The door is closed."), and secret exits hidden from `look`'s
+      Obvious-exits line and `exits` (still walkable if you know the
+      direction). New `EXIT_COND_CLOSED`/`_LOCKED`/`_SECRET` bit constants
+      in `room.h`. Door/condition state is per-exit, NOT mirrored to the
+      reverse exit -- matches how `edroom`'s own auto-created reverse
+      exits already work (independent door state per direction), not an
+      oversight. `open` refuses a Locked door; unlock/lock commands are
+      still deferred (need a key, which needs objects). `smoke_test_
+      doors.py` + 3 new help topics (`open`, `close`, updated `exits`).
 - [ ] **Positions polish** — a hit bonus vs. a non-standing target (the
       original makes a sitting/sleeping foe easier to hit); we deferred the
       combat-formula change when Positions landed.

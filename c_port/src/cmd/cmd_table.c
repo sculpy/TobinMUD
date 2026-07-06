@@ -49,6 +49,9 @@ static const cmd_entry_t COMMANDS[] = {
     { "look",    cmd_look,    "Look around the room you're in.",                    MORTAL_LEVEL_MIN },
     /* "e" is east; "ex"+ reaches exits. */
     { "exits",   cmd_exits,   "List this room's exits and where they lead.",        MORTAL_LEVEL_MIN },
+    /* "o" is unused, so "open" gets it; "c" is color's, "cl"+ reaches close. */
+    { "open",    cmd_open,    "Open a door (open <direction>).",                    MORTAL_LEVEL_MIN },
+    { "close",   cmd_close,   "Close a door (close <direction>).",                  MORTAL_LEVEL_MIN },
     { "who",     cmd_who,     "List everyone currently playing.",                   MORTAL_LEVEL_MIN },
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },
     { "color",   cmd_color,   "Toggle ANSI color rendering on or off.",             MORTAL_LEVEL_MIN },

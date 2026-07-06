@@ -74,6 +74,8 @@ bool cmd_multiplay(descriptor_t *d, const char *args);
 bool cmd_setsev(descriptor_t *d, const char *args);
 bool cmd_edplayer(descriptor_t *d, const char *args);
 bool cmd_set(descriptor_t *d, const char *args);
+bool cmd_open(descriptor_t *d, const char *args);
+bool cmd_close(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */

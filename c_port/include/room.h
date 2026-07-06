@@ -66,6 +66,14 @@ const char *exit_cond_name(int bit);
 /* Renders the set condition bits into buf, space-separated, or "none". */
 const char *exit_cond_names(int flags, char *buf, size_t size);
 
+/* Named bits for the three conditions door mechanics actually act on
+ * (open/close/movement-blocking/hiding) -- see cmd_move.c, cmd_open.c,
+ * cmd_look.c, cmd_exits.c. The rest (Trapped, Caved-In, ...) are still
+ * builder-editable via redit's toggle submenu but have no behavior yet. */
+#define EXIT_COND_CLOSED (1 << 0)
+#define EXIT_COND_LOCKED (1 << 1)
+#define EXIT_COND_SECRET (1 << 2)
+
 typedef struct room {
     thing_t base;               /* first member -- see thing.h */
     int vnum;

@@ -30,6 +30,8 @@ bool cmd_exits(descriptor_t *d, const char *args) {
     for (int i = 0; i < ROOM_NUM_EXITS && (size_t)n < sizeof(out); i++) {
         if (r->exits[i] < 0)
             continue;
+        if (r->exit_cond[i] & EXIT_COND_SECRET)
+            continue; /* undiscovered -- still walkable if you know the direction */
         any = true;
         room_t *to = world_get_room(r->exits[i]);
         if (!to) {
