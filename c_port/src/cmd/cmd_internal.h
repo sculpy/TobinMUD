@@ -72,6 +72,8 @@ bool cmd_system(descriptor_t *d, const char *args);
 bool cmd_mudstats(descriptor_t *d, const char *args);
 bool cmd_multiplay(descriptor_t *d, const char *args);
 bool cmd_setsev(descriptor_t *d, const char *args);
+bool cmd_edplayer(descriptor_t *d, const char *args);
+bool cmd_set(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */
@@ -111,6 +113,14 @@ bool cmd_setsev(descriptor_t *d, const char *args);
 
 /* `multiplay` (toggle the mortal-multiplay game flag): 59+, user-specified. */
 #define MULTIPLAY_MIN_LEVEL 59
+
+/* `edplayer`: Administrator (58+), matching `promote`'s tier -- it's an
+ * admin superset of promote (TODO.md). */
+#define EDPLAYER_MIN_LEVEL 58
+
+/* `set`: Administrator (58+), same tier as edplayer -- its one-shot,
+ * scriptable sibling (user spec: build both). */
+#define SET_MIN_LEVEL 58
 
 /* One row of cmd_table.c's dispatch table -- shared with cmd_help.c so
  * `help`/`wizhelp` can enumerate it without duplicating the list.

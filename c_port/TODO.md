@@ -7,9 +7,9 @@ Completed items are pruned from here as they land (find them in STATUS.md).
 All in-game editors are menu-driven, like character creation — see the
 [[editors-menu-driven]] memory. The user provides a wireframe for each.
 Editor commands are named **`ed<noun>`** (user 2026-07-05): `edroom` (rooms),
-`edhelp` (help), `ednews` (news), `edwiznews` (wiznews); future
-`edobject`/`edmob`/`edzone`/`edplayer`/`edaccount`. Read-only viewers keep
-plain names (`news`, `wiznews`).
+`edhelp` (help), `ednews` (news), `edwiznews` (wiznews), `edplayer`
+(players); future `edobject`/`edmob`/`edzone`/`edaccount`. Read-only
+viewers keep plain names (`news`, `wiznews`).
 
 ## Buildable now (no blocked dependencies)
 
@@ -49,9 +49,22 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       edwiznews, edrules) automatically, since they all route through it.
       `smoke_test_editor_format.py` (via edhelp); all editor intro
       messages + help topics mention it now.
-- [ ] **`set` + `@set` commands** — examine Sneezy's `set` / `@set` (immortal
-      field-setter on players/objs/mobs/rooms) and implement equivalents in the
-      c_port. Confirm the intended field scope + level gate before building.
+- [x] **`set` + `@set` commands** — done 2026-07-06, as two commands: the
+      menu-driven `edplayer` (see below) plus a one-shot `set <name> <field>
+      <value>` (`cmd_set.c`, same 58+ gate) for quick scriptable single-field
+      edits -- user confirmed both were wanted, not one instead of the other.
+      `set` covers the same fields as `edplayer` (level/xp/hp/attributes/
+      gender/title/loadroom/handed), same admin-wide-by-name reach and
+      online-target live sync. The original's 1279-line `@set` covers
+      classes/factions/objects/mobs/rooms Tobin doesn't have, so neither
+      command attempts that. Note: `set` (exact 3 letters) had to be placed
+      BEFORE `setsev` in `cmd_table.c` -- both start with "set", first match
+      wins, and `set` needs to win that exact typo/abbreviation. Refactored
+      the attribute-name-to-field lookup (`attr_field`, previously `static`
+      in `descriptor.c`) into a public `attrs_field()` in `being.c`/`being.h`
+      so `edplayer`, character creation, and `set` all share one copy.
+      `smoke_test_set.py` (gate, validation, every field, persistence via
+      reconnect, online live-sync) + help topic.
 
 ### User batch 2026-07-05 (late night, follow-ups #2) — working these next
 
@@ -289,8 +302,20 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - [ ] **`dig`** — builder-walk: moving into a nonexistent exit auto-creates
       the room + reverse exit (redit's exit machinery already does this).
       Needs a next-free-vnum strategy.
-- [ ] **`edplayer`** (player files) — menu-driven editor for a player's
-      level/attrs/hp/location, replacing one-off SQL. Admin superset of promote.
+- [x] **`edplayer`** (player files) — done 2026-07-06: menu-driven editor
+      (58+, matching `promote`'s tier) for level, experience, HP/max HP,
+      attributes, gender, title, load room, and handedness -- an admin
+      superset of `promote`. Works on any player by exact name, online or
+      offline (`player_load_admin()`, not account-scoped). Unlike `edroom`
+      the working copy is a DB snapshot, not a live pointer (players
+      aren't kept resident like rooms are) -- (S)ave writes it back to the
+      DB and, if the target happens to be online right now, syncs their
+      live `being_t` too (no relog needed), matching `promote`'s own
+      online-target courtesy. New `player_load_admin()` / `player_set_
+      gender_by_name()` / `player_set_handed_by_name()` / `player_set_
+      appearance_by_name()` in `player_repo.c`. `smoke_test_edplayer.py`
+      (gate, every field, save-persists via reconnect, live sync to an
+      already-connected session, and discard-truly-discards) + help topic.
 - [ ] **`edaccount`** (accounts) — menu-driven: rename, password reset, list chars.
 - [x] **wiznews** — done 2026-07-05: an immortal-only (51+) news channel like
       `news`; `edwiznews` posts items that concern immortals. Parallel to
@@ -362,7 +387,9 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ## Chores / infra
 
-- [ ] Create the `mud` user on the work box (db.kullit.com).
+- [x] Create the `mud` user on the work box (db.kullit.com) — done
+      2026-07-06, along with a dedicated SSH keypair for it; root access
+      to that box is retired (see ENVIRONMENT.md).
 - [x] Auto-restart `tobin_c` if it dies — done 2026-07-05: the user added a
       crontab to the `mud` user that checks whether the MUD is running and
       starts it if not. (Deploys still `pkill; sleep 1; restart` fast, before
@@ -373,6 +400,10 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - [ ] **Systems documentation** — a doc/systems README for the TobinMUD base.
 - [ ] **Function comment headers sweep** — a header comment per function (what
       it's for + cross-refs to what it affects / depends on), then a habit.
+- [ ] **STATUS.md's "Module port status" table is stale** — the `cmd/`
+      row still says "11/66 ported" (list: look/who/score/quit!/color/
+      attack/kill/say/limbs/help/wizhelp); there are 40+ `cmd_*.c` files
+      now. Needs a dedicated audit pass, not a quick fix mid-feature.
 
 ## Reference material (Sneezy enums, provided 2026-07-04)
 

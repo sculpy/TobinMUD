@@ -49,6 +49,24 @@ typedef enum {
     CONN_REDIT_DESC,
     CONN_REDIT_CLEAR_CONFIRM,
     CONN_REDIT_QUIT_CONFIRM,
+    /* Menu-driven player editor (edplayer) -- same working-copy shape as
+     * redit, but the working copy is a snapshot loaded via
+     * player_load_admin() (players aren't kept resident in memory like
+     * rooms are), not a live pointer: (S)ave writes the snapshot back to
+     * the DB tables (and syncs the live being_t too, if that player
+     * happens to be online right now), (Q)uit just discards it. See
+     * descriptor_edplayer_begin() and the CONN_EDPLAYER_* cases in
+     * descriptor.c. */
+    CONN_EDPLAYER_MENU,
+    CONN_EDPLAYER_LEVEL,
+    CONN_EDPLAYER_XP,
+    CONN_EDPLAYER_HP,
+    CONN_EDPLAYER_ATTRS,
+    CONN_EDPLAYER_GENDER,
+    CONN_EDPLAYER_TITLE,
+    CONN_EDPLAYER_LOADROOM,
+    CONN_EDPLAYER_HANDED,
+    CONN_EDPLAYER_QUIT_CONFIRM,
     CONN_PLAYING,
     CONN_CLOSED
 } conn_state_t;
@@ -150,6 +168,16 @@ typedef struct descriptor {
     bool redit_dirty;    /* unsaved field changes since entry / last save */
     int redit_exit_dir;  /* CONN_REDIT_EXIT_TARGET: direction being set */
 
+    /* Menu-driven player editor working copy (CONN_EDPLAYER_*). Unlike
+     * redit_work this is a DB snapshot (player_load_admin()), not a live
+     * pointer -- see the CONN_EDPLAYER_MENU enum comment. edplayer_work's
+     * own account_id/player_id fields identify which row (S)ave writes
+     * back to; edplayer_load_room holds player.load_room, which isn't part
+     * of being_t. */
+    being_t edplayer_work;
+    int edplayer_load_room;
+    bool edplayer_dirty;
+
     being_t *character;
 
     /* Time (epoch seconds) of the last input line -- who shows "(idle)" after
@@ -205,6 +233,13 @@ void descriptor_page_start(descriptor_t *d, const char *text, int page_size);
  * shows the redit menu (entering CONN_REDIT_MENU). Returns false if no such
  * room exists. Caller (cmd_edit.c) owns the level gate. */
 bool descriptor_redit_begin(descriptor_t *d, int vnum);
+
+/* Opens the menu-driven player editor on the player named `name` (any
+ * account, per player_load_admin()), copies their persisted fields into
+ * the descriptor's working copy, and shows the edplayer menu (entering
+ * CONN_EDPLAYER_MENU). Returns false if no such player exists. Caller
+ * (cmd_edplayer.c) owns the level gate. */
+bool descriptor_edplayer_begin(descriptor_t *d, const char *name);
 
 /* Sends `msg` to every connected player in room `r` except `except` (may
  * be NULL to include everyone). Shared by movement, quit/link-drop, and

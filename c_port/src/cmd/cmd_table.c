@@ -101,6 +101,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* "p"/"pr"/"pro" reach prompt; "prom"+ reaches promote. */
     { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp).",                 MORTAL_LEVEL_MIN },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
+    { "edplayer", cmd_edplayer, "Edit a player's level/xp/hp/attrs/gender/title/location.", EDPLAYER_MIN_LEVEL },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
     { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
@@ -114,8 +115,11 @@ static const cmd_entry_t COMMANDS[] = {
     /* "log" needs its three letters ("l" look, "li" limbs, "lo" look). */
     { "edroom",  cmd_edit,    "Edit a room -- the one you're in, or edroom <vnum>.", BUILD_MIN_LEVEL },
     { "log",     cmd_log,     "Read, search, list, or rotate the game logs.",       LOG_MIN_LEVEL },
-    /* "se" is already an explicit southeast alias (above), so the shortest
-     * abbreviation that reaches this is "set". */
+    /* "se" is already an explicit southeast alias (above). "set" must come
+     * BEFORE "setsev" here -- both start with "set", and first match in
+     * table order wins, so "set" needs to win the exact 3-letter typo it
+     * shares with "setsev"'s own shortest abbreviation. */
+    { "set",     cmd_set,     "Set one field on a player (set <name> <field> <value>).", SET_MIN_LEVEL },
     { "setsev",  cmd_setsev,  "View or flip which log types echo to you.",          IMMORTAL_LEVEL_MIN },
     /* "u" is up (movement); "us"+ reaches users. */
     { "users",   cmd_users,   "List all connections with IPs and states.",          USERS_MIN_LEVEL },

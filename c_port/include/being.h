@@ -46,6 +46,12 @@ typedef struct {
     int charisma;
 } attrs_t;
 
+/* Maps an attribute token ("str"/"strength", "dex"/"dexterity", ...,
+ * case-insensitive) to its field in *a, or NULL if `tok` isn't one.
+ * Shared by the character-creation attr screen, `edplayer`, and `set`
+ * (descriptor.c / cmd_set.c) so the name list lives in exactly one place. */
+int *attrs_field(attrs_t *a, const char *tok);
+
 /* Levels: 50 mortal + 10 immortal, directly mirroring the original's
  * MAX_MORT=50 / GOD_LEVEL1=51 / MAX_IMMORT=60 (misc/defs.h). Unlike the
  * original (which is per-class, tied to a 9-class multiclass system Tobin

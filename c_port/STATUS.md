@@ -1,6 +1,6 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-06 — Sessions 26-28. This session, in order:
+Last updated: 2026-07-06 — Sessions 26-30. This session, in order:
 - **`setsev`** (port of `misc/immortal.cc`'s `doSetsev()`): per-immortal
   opt-out from `game_log()`'s `[TAG]` echoes. New `being_t.severity` bitmask
   (default: every type on); bare `setsev` lists game/pio/combat/bug/db/edit
@@ -36,6 +36,48 @@ Last updated: 2026-07-06 — Sessions 26-28. This session, in order:
   breaks and every word survive, and the reformatted text -- not the
   original -- is what `.` actually saves). All 5 editor intro messages
   and their help topics updated to mention it.
+- **`edplayer`** (menu-driven player editor, 58+, matching `promote`'s
+  tier): built instead of a separate one-shot `set`/`@set` command, per
+  user direction -- the original's 1279-line `@set` covers classes/
+  factions/objects/mobs/rooms Tobin doesn't have, and the realistic
+  subset (level/attrs/hp/gender/title/location) already overlapped with
+  this already-planned editor. Covers level, experience, HP/max HP,
+  attributes, gender, title, load room, and handedness -- everything a
+  player record currently persists. Works on any player by exact name,
+  online or offline (`player_load_admin()`, admin-wide like
+  `player_set_level_by_name()`). **Unlike `edroom`, the working copy is a
+  DB snapshot, not a live pointer** -- players aren't kept resident in
+  memory the way rooms are, so there's no `world_get_room()`-equivalent to
+  point at. (S)ave writes the snapshot back to `player_progress`/
+  `player_attrs`/`player` and, if that player happens to be connected and
+  playing right now, also syncs their live `being_t` directly (same
+  online-target courtesy `promote` already gives) -- so an online edit
+  takes effect with no relog. New `player_load_admin()`,
+  `player_set_gender_by_name()`, `player_set_handed_by_name()`,
+  `player_set_appearance_by_name()` in `player_repo.c` (the title/load-room
+  setters were already account-scoped, reused with the looked-up
+  account_id). `smoke_test_edplayer.py` (gate at 58, nonexistent-name
+  rejection, every field settable and reflected in the menu, save
+  persists via a fresh reconnect, the live-sync case against an
+  already-connected session, and Quit's (D)iscard truly discarding an
+  unsaved change) + help topic.
+- **`set`** (one-shot sibling of `edplayer`): `set <name> <field> <value>`
+  (`cmd_set.c`, 58+, same as `edplayer`) -- the user confirmed both a menu
+  editor AND a scriptable one-liner were wanted for `set`/`@set`, not one
+  instead of the other. Same field list as `edplayer` (level/xp/hp/
+  attributes/gender/title/loadroom/handed), same admin-wide-by-exact-name
+  reach and online-target live sync. Table-order gotcha: `set` (the exact
+  3-letter name) had to be placed BEFORE `setsev` in `cmd_table.c` --
+  otherwise a level-58 caller typing "set" would match "setsev" instead
+  (both start with "set", first table match wins) -- documented inline.
+  Refactored the attribute-name lookup (`attr_field`, previously `static`
+  in `descriptor.c`, used only by character creation) into a public
+  `attrs_field()` in `being.c`/`being.h` so character creation, `edplayer`,
+  and `set` share one copy instead of three. `smoke_test_set.py` (gate --
+  including the documented prefix-collision quirk when "set" itself is
+  invisible at the caller's level, so the check verifies nothing actually
+  changed rather than asserting a specific error string -- validation,
+  every field, persistence via reconnect, online live-sync) + help topic.
 - **Flake note**: `smoke_test_parser_display.py` failed once mid-sweep
   (auto-look prompt check) then passed cleanly on two immediate reruns and
   a full clean sweep (51 passed, 0 failed) -- transient, not a regression

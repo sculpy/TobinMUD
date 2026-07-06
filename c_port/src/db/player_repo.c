@@ -274,6 +274,74 @@ bool player_progress_save(long player_id, const progress_t *progress) {
     return ok;
 }
 
+being_t *player_load_admin(const char *name, int *out_load_room) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return NULL;
+
+    being_t *b = NULL;
+    int load_room = -1;
+    if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
+                      "title, gender, appearance, pflags from player "
+                      "where name='%s'",
+                 name)
+        && db_fetch_row(db)) {
+        long player_id = atol(db_get(db, "id"));
+        long account_id = atol(db_get(db, "account_id"));
+        b = being_create_pc(db_get(db, "name"), account_id, player_id);
+        if (b) {
+            b->handed_right = atoi(db_get(db, "handed"));
+            b->prompt_flags = atoi(db_get(db, "prompt_flags"));
+            snprintf(b->title, sizeof(b->title), "%s", db_get(db, "title"));
+            b->gender = (gender_t)atoi(db_get(db, "gender"));
+            snprintf(b->appearance, sizeof(b->appearance), "%s", db_get(db, "appearance"));
+            b->pflags = atoi(db_get(db, "pflags"));
+            load_room = atoi(db_get(db, "load_room"));
+        }
+    }
+
+    db_close(db);
+
+    if (b) {
+        player_attrs_load(b->player_id, &b->attrs);
+        player_progress_load(b->player_id, &b->progress);
+    }
+    if (out_load_room)
+        *out_load_room = load_room;
+
+    return b;
+}
+
+bool player_set_gender_by_name(const char *name, gender_t gender) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "update player set gender=%i where name='%s'",
+                       (int)gender, name);
+    db_close(db);
+    return ok;
+}
+
+bool player_set_handed_by_name(const char *name, int handed_right) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "update player set handed=%i where name='%s'",
+                       handed_right ? 1 : 0, name);
+    db_close(db);
+    return ok;
+}
+
+bool player_set_appearance_by_name(const char *name, const char *appearance) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "update player set appearance='%s' where name='%s'",
+                       appearance ? appearance : "", name);
+    db_close(db);
+    return ok;
+}
+
 bool player_set_level_by_name(const char *name, int level) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

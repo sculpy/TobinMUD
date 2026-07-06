@@ -7,9 +7,20 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 
 #include "descriptor.h"
 #include "log.h"
+
+int *attrs_field(attrs_t *a, const char *tok) {
+    if (strcasecmp(tok, "str") == 0 || strcasecmp(tok, "strength") == 0) return &a->strength;
+    if (strcasecmp(tok, "dex") == 0 || strcasecmp(tok, "dexterity") == 0) return &a->dexterity;
+    if (strcasecmp(tok, "con") == 0 || strcasecmp(tok, "constitution") == 0) return &a->constitution;
+    if (strcasecmp(tok, "int") == 0 || strcasecmp(tok, "intelligence") == 0) return &a->intelligence;
+    if (strcasecmp(tok, "wis") == 0 || strcasecmp(tok, "wisdom") == 0) return &a->wisdom;
+    if (strcasecmp(tok, "cha") == 0 || strcasecmp(tok, "charisma") == 0) return &a->charisma;
+    return NULL;
+}
 
 being_t *being_create_pc(const char *name, long account_id, long player_id) {
     being_t *b = calloc(1, sizeof(*b));

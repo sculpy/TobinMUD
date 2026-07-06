@@ -485,18 +485,6 @@ bool descriptor_process_input(descriptor_t *d) {
     return drain_lines(d);
 }
 
-/* Maps an attribute token ("str", "strength", ...) to the matching field
- * in `a`, or NULL for an unrecognized token. */
-static int *attr_field(attrs_t *a, const char *tok) {
-    if (strcasecmp(tok, "str") == 0 || strcasecmp(tok, "strength") == 0) return &a->strength;
-    if (strcasecmp(tok, "dex") == 0 || strcasecmp(tok, "dexterity") == 0) return &a->dexterity;
-    if (strcasecmp(tok, "con") == 0 || strcasecmp(tok, "constitution") == 0) return &a->constitution;
-    if (strcasecmp(tok, "int") == 0 || strcasecmp(tok, "intelligence") == 0) return &a->intelligence;
-    if (strcasecmp(tok, "wis") == 0 || strcasecmp(tok, "wisdom") == 0) return &a->wisdom;
-    if (strcasecmp(tok, "cha") == 0 || strcasecmp(tok, "charisma") == 0) return &a->charisma;
-    return NULL;
-}
-
 static int attrs_allocated(const attrs_t *a) {
     return (a->strength - ATTR_BASE) + (a->dexterity - ATTR_BASE) + (a->constitution - ATTR_BASE) +
            (a->intelligence - ATTR_BASE) + (a->wisdom - ATTR_BASE) + (a->charisma - ATTR_BASE);
@@ -1066,6 +1054,78 @@ bool descriptor_redit_begin(descriptor_t *d, int vnum) {
     return true;
 }
 
+static void show_edplayer_menu(descriptor_t *d) {
+    being_t *w = &d->edplayer_work;
+    char out[900];
+    snprintf(out, sizeof(out),
+             "\r\n<c>Editing player:<z> %s\r\n\r\n"
+             "   1) Level: %d              2) Experience: %ld\r\n"
+             "   3) HP/Max HP: %d/%d       4) Attributes (str/dex/con/int/wis/cha)\r\n"
+             "   5) Gender: %s      6) Title: %s\r\n"
+             "   7) Load Room: %d          8) Handedness: %s\r\n\r\n"
+             "   S) Save    Q) Quit%s\r\n[edplayer] ",
+             w->base.name, w->progress.level, w->progress.experience,
+             w->progress.hp, w->progress.max_hp,
+             gender_name(w->gender), w->title[0] ? w->title : "(none)",
+             d->edplayer_load_room, w->handed_right ? "right" : "left",
+             d->edplayer_dirty ? "\r\n   <c>* unsaved changes *<z>" : "");
+    descriptor_send(d, out);
+    d->state = CONN_EDPLAYER_MENU;
+}
+
+/* Writes the working copy back to the DB, and -- if that player happens to
+ * be connected and playing right now -- syncs their live being_t too, so
+ * the change takes effect without a relog (same courtesy `promote` gives
+ * an online target). */
+static void edplayer_save(descriptor_t *d) {
+    being_t *w = &d->edplayer_work;
+    bool ok = player_progress_save(w->player_id, &w->progress)
+        && player_attrs_save(w->player_id, &w->attrs)
+        && player_set_title(w->base.name, w->account_id, w->title)
+        && player_set_load_room(w->base.name, w->account_id, d->edplayer_load_room)
+        && player_set_gender_by_name(w->base.name, w->gender)
+        && player_set_handed_by_name(w->base.name, w->handed_right);
+    if (!ok) {
+        descriptor_send(d, "Save failed -- the DB rejected part of it.\r\n");
+        return;
+    }
+    for (descriptor_t *it = g_descriptors; it; it = it->next) {
+        if (it->state == CONN_PLAYING && it->character
+            && strcasecmp(it->character->base.name, w->base.name) == 0) {
+            it->character->progress = w->progress;
+            it->character->attrs = w->attrs;
+            snprintf(it->character->title, sizeof(it->character->title), "%s", w->title);
+            it->character->gender = w->gender;
+            it->character->handed_right = w->handed_right;
+            break;
+        }
+    }
+    d->edplayer_dirty = false;
+    descriptor_send(d, "Player saved.\r\n");
+}
+
+static void edplayer_leave(descriptor_t *d) {
+    d->state = CONN_PLAYING;
+    d->edplayer_dirty = false;
+    descriptor_send(d, "Leaving the player editor.\r\n");
+    descriptor_editor_exit_notice(d);
+}
+
+bool descriptor_edplayer_begin(descriptor_t *d, const char *name) {
+    int load_room = -1;
+    being_t *loaded = player_load_admin(name, &load_room);
+    if (!loaded)
+        return false;
+    d->edplayer_work = *loaded;
+    d->edplayer_work.desc = NULL;    /* never a live connection of our own */
+    d->edplayer_work.fighting = NULL;
+    being_destroy(loaded);
+    d->edplayer_load_room = load_room;
+    d->edplayer_dirty = false;
+    show_edplayer_menu(d);
+    return true;
+}
+
 static bool handle_line(descriptor_t *d, const char *line) {
     d->last_active = (long)time(NULL); /* any input clears the (idle) flag */
     switch (d->state) {
@@ -1416,7 +1476,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 return true;
             }
 
-            int *field = attr_field(&d->new_char_attrs, tok);
+            int *field = attrs_field(&d->new_char_attrs, tok);
             if (!field) {
                 descriptor_send(d, "Unknown attribute. Try: str, dex, con, int, wis, cha.\r\n");
                 show_attr_screen(d);
@@ -1755,6 +1815,235 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 redit_leave(d);
             } else {
                 show_redit_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_EDPLAYER_MENU: {
+            being_t *w = &d->edplayer_work;
+            if (isdigit((unsigned char)line[0])) {
+                switch (atoi(line)) {
+                    case 1:
+                        descriptor_send(d, "\r\nEnter new level (blank to cancel): ");
+                        d->state = CONN_EDPLAYER_LEVEL;
+                        break;
+                    case 2:
+                        descriptor_send(d, "\r\nEnter new experience (blank to cancel): ");
+                        d->state = CONN_EDPLAYER_XP;
+                        break;
+                    case 3:
+                        descriptor_send(d, "\r\nEnter HP and Max HP, e.g. \"25 25\" (blank to cancel): ");
+                        d->state = CONN_EDPLAYER_HP;
+                        break;
+                    case 4: {
+                        char msg[256];
+                        snprintf(msg, sizeof(msg),
+                            "\r\n-- Attributes for %s -- <attr> <value> (str/dex/con/int/wis/cha,\r\n"
+                            "1-%d), or 'done' to return: --\r\n"
+                            "  Str %d  Dex %d  Con %d  Int %d  Wis %d  Cha %d\r\n] ",
+                            w->base.name, ATTR_MAX, w->attrs.strength, w->attrs.dexterity,
+                            w->attrs.constitution, w->attrs.intelligence, w->attrs.wisdom,
+                            w->attrs.charisma);
+                        descriptor_send(d, msg);
+                        d->state = CONN_EDPLAYER_ATTRS;
+                        break;
+                    }
+                    case 5:
+                        descriptor_send(d, "\r\nEnter gender: male, female, or neuter (blank to cancel): ");
+                        d->state = CONN_EDPLAYER_GENDER;
+                        break;
+                    case 6:
+                        descriptor_send(d, "\r\nEnter new title, or 'none' to clear (blank to cancel): ");
+                        d->state = CONN_EDPLAYER_TITLE;
+                        break;
+                    case 7:
+                        descriptor_send(d, "\r\nEnter new load-room vnum (blank to cancel): ");
+                        d->state = CONN_EDPLAYER_LOADROOM;
+                        break;
+                    case 8:
+                        descriptor_send(d, "\r\nEnter handedness: left or right (blank to cancel): ");
+                        d->state = CONN_EDPLAYER_HANDED;
+                        break;
+                    default:
+                        descriptor_send(d, "Pick a menu number (1-8), or S/Q.\r\n");
+                        show_edplayer_menu(d);
+                        break;
+                }
+                return true;
+            }
+            switch ((char)toupper((unsigned char)line[0])) {
+                case 'S':
+                    edplayer_save(d);
+                    show_edplayer_menu(d);
+                    break;
+                case 'Q':
+                    if (d->edplayer_dirty) {
+                        descriptor_send(d,
+                            "\r\nYou have unsaved changes. (S)ave, (D)iscard, (C)ancel: ");
+                        d->state = CONN_EDPLAYER_QUIT_CONFIRM;
+                    } else {
+                        edplayer_leave(d);
+                    }
+                    break;
+                default:
+                    descriptor_send(d, "Pick a menu number (1-8), or S/Q.\r\n");
+                    show_edplayer_menu(d);
+                    break;
+            }
+            return true;
+        }
+
+        case CONN_EDPLAYER_LEVEL: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= MORTAL_LEVEL_MIN && v <= IMMORTAL_LEVEL_MAX) {
+                    d->edplayer_work.progress.level = (int)v;
+                    d->edplayer_dirty = true;
+                } else {
+                    char msg[96];
+                    snprintf(msg, sizeof(msg), "Level must be between %d and %d.\r\n",
+                             MORTAL_LEVEL_MIN, IMMORTAL_LEVEL_MAX);
+                    descriptor_send(d, msg);
+                }
+            }
+            show_edplayer_menu(d);
+            return true;
+        }
+
+        case CONN_EDPLAYER_XP: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->edplayer_work.progress.experience = v;
+                    d->edplayer_dirty = true;
+                } else {
+                    descriptor_send(d, "Experience must be a non-negative number.\r\n");
+                }
+            }
+            show_edplayer_menu(d);
+            return true;
+        }
+
+        case CONN_EDPLAYER_HP: {
+            if (line[0]) {
+                int hp = 0, max_hp = 0;
+                if (sscanf(line, "%d %d", &hp, &max_hp) == 2 && hp >= 0 && max_hp >= 1 && hp <= max_hp) {
+                    d->edplayer_work.progress.hp = hp;
+                    d->edplayer_work.progress.max_hp = max_hp;
+                    d->edplayer_dirty = true;
+                } else {
+                    descriptor_send(d, "Usage: <hp> <max hp>, with 0 <= hp <= max hp and max hp >= 1.\r\n");
+                }
+            }
+            show_edplayer_menu(d);
+            return true;
+        }
+
+        case CONN_EDPLAYER_ATTRS: {
+            if (strcasecmp(line, "done") == 0) {
+                show_edplayer_menu(d);
+                return true;
+            }
+            char tok[32];
+            int value = 0;
+            if (sscanf(line, "%31s %d", tok, &value) != 2) {
+                descriptor_send(d, "Usage: <attr> <value>, or 'done'.\r\n");
+            } else {
+                int *field = attrs_field(&d->edplayer_work.attrs, tok);
+                if (!field) {
+                    descriptor_send(d, "Unknown attribute. Try: str, dex, con, int, wis, cha.\r\n");
+                } else if (value < 1 || value > ATTR_MAX) {
+                    char msg[64];
+                    snprintf(msg, sizeof(msg), "Value must be between 1 and %d.\r\n", ATTR_MAX);
+                    descriptor_send(d, msg);
+                } else {
+                    *field = value;
+                    d->edplayer_dirty = true;
+                }
+            }
+            char msg[256];
+            being_t *w = &d->edplayer_work;
+            snprintf(msg, sizeof(msg),
+                "  Str %d  Dex %d  Con %d  Int %d  Wis %d  Cha %d\r\n] ",
+                w->attrs.strength, w->attrs.dexterity, w->attrs.constitution,
+                w->attrs.intelligence, w->attrs.wisdom, w->attrs.charisma);
+            descriptor_send(d, msg);
+            return true;
+        }
+
+        case CONN_EDPLAYER_GENDER: {
+            if (line[0]) {
+                if (strcasecmp(line, "male") == 0 || strcasecmp(line, "m") == 0) {
+                    d->edplayer_work.gender = GENDER_MALE;
+                    d->edplayer_dirty = true;
+                } else if (strcasecmp(line, "female") == 0 || strcasecmp(line, "f") == 0) {
+                    d->edplayer_work.gender = GENDER_FEMALE;
+                    d->edplayer_dirty = true;
+                } else if (strcasecmp(line, "neuter") == 0 || strcasecmp(line, "n") == 0) {
+                    d->edplayer_work.gender = GENDER_NEUTER;
+                    d->edplayer_dirty = true;
+                } else {
+                    descriptor_send(d, "Usage: male, female, or neuter.\r\n");
+                }
+            }
+            show_edplayer_menu(d);
+            return true;
+        }
+
+        case CONN_EDPLAYER_TITLE: {
+            if (line[0]) {
+                if (strcasecmp(line, "none") == 0)
+                    d->edplayer_work.title[0] = '\0';
+                else
+                    snprintf(d->edplayer_work.title, sizeof(d->edplayer_work.title), "%s", line);
+                d->edplayer_dirty = true;
+            }
+            show_edplayer_menu(d);
+            return true;
+        }
+
+        case CONN_EDPLAYER_LOADROOM: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->edplayer_load_room = (int)v;
+                    d->edplayer_dirty = true;
+                } else {
+                    descriptor_send(d, "Load room must be a non-negative vnum.\r\n");
+                }
+            }
+            show_edplayer_menu(d);
+            return true;
+        }
+
+        case CONN_EDPLAYER_HANDED: {
+            if (line[0]) {
+                if (strcasecmp(line, "left") == 0 || strcasecmp(line, "l") == 0) {
+                    d->edplayer_work.handed_right = 0;
+                    d->edplayer_dirty = true;
+                } else if (strcasecmp(line, "right") == 0 || strcasecmp(line, "r") == 0) {
+                    d->edplayer_work.handed_right = 1;
+                    d->edplayer_dirty = true;
+                } else {
+                    descriptor_send(d, "Usage: left or right.\r\n");
+                }
+            }
+            show_edplayer_menu(d);
+            return true;
+        }
+
+        case CONN_EDPLAYER_QUIT_CONFIRM: {
+            char c = (char)toupper((unsigned char)line[0]);
+            if (c == 'S') {
+                edplayer_save(d);
+                edplayer_leave(d);
+            } else if (c == 'D') {
+                edplayer_leave(d);
+            } else {
+                show_edplayer_menu(d);
             }
             return true;
         }

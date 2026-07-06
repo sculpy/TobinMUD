@@ -94,4 +94,19 @@ bool player_progress_save(long player_id, const progress_t *progress);
  * false if no such player exists (or on DB error). */
 bool player_set_level_by_name(const char *name, int level);
 
+/* Loads a player by exact name, ANY account (unlike player_load) -- backs
+ * the immortal-only `edplayer` command, which (like `promote`) acts across
+ * accounts. Also loads attrs/progress like player_load does. *out_load_room
+ * (may be NULL) receives player.load_room, which isn't part of being_t.
+ * Returns NULL if no such player exists. Caller owns the result
+ * (being_destroy). */
+being_t *player_load_admin(const char *name, int *out_load_room);
+
+/* Admin-wide (not account-scoped) setters for the fields player_load_admin
+ * exposes but that had no post-creation setter yet -- back `edplayer`,
+ * same not-account-scoped precedent as player_set_level_by_name. */
+bool player_set_gender_by_name(const char *name, gender_t gender);
+bool player_set_handed_by_name(const char *name, int handed_right);
+bool player_set_appearance_by_name(const char *name, const char *appearance);
+
 #endif
