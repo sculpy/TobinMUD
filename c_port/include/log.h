@@ -28,6 +28,11 @@ typedef enum {
     LOG_JESUS        /* personalized: only the immortal named "Jesus" sees it */
 } log_type_t;
 
+/* Default value of being_t.severity (see cmd_setsev.c / game_log()): every
+ * real (non-silent) type ON, so a fresh login sees everything an immortal
+ * saw before per-type opt-out existed. */
+#define LOG_SEVERITY_DEFAULT ((1 << (LOG_JESUS + 1)) - 1)
+
 /* Display tag for a log type ("GAME", "PIO", ...); used for the file line and
  * the [TAG] echoed to immortals. */
 const char *log_type_name(log_type_t type);

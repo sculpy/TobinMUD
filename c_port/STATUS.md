@@ -1,5 +1,18 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-06 — Session 26. This session, in order:
+- **`setsev`** (port of `misc/immortal.cc`'s `doSetsev()`): per-immortal
+  opt-out from `game_log()`'s `[TAG]` echoes. New `being_t.severity` bitmask
+  (default: every type on); bare `setsev` lists game/pio/combat/bug/db/edit
+  with on/off state, `setsev <type>` (abbrev ok) flips one. The personalized
+  `jesus` type is hidden from and unsettable by anyone but the immortal
+  actually named Jesus. Deliberately session-only, not persisted (no
+  migration for a niche admin preference -- see `being.h`'s field comment).
+  `smoke_test_setsev.py` (includes an end-to-end check that toggling `bug`
+  off actually stops that immortal's `[BUG]` echoes via a real `bug` post,
+  while a second immortal still sees them) + a help topic. Deployed to
+  db.kullit.com under the `mud` account, rebuilt clean, full sweep green.
+
 Last updated: 2026-07-06 — Session 24. This session, in order:
 - deployed + verified `bug`/`delbug`, `newbie` channel (PLR_NEWBIE pflag),
   `rules`/`edrules` (59+, `EDIT_RULES` line editor) — all green on the home VM

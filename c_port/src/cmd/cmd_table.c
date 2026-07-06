@@ -114,6 +114,9 @@ static const cmd_entry_t COMMANDS[] = {
     /* "log" needs its three letters ("l" look, "li" limbs, "lo" look). */
     { "edroom",  cmd_edit,    "Edit a room -- the one you're in, or edroom <vnum>.", BUILD_MIN_LEVEL },
     { "log",     cmd_log,     "Read, search, list, or rotate the game logs.",       LOG_MIN_LEVEL },
+    /* "se" is already an explicit southeast alias (above), so the shortest
+     * abbreviation that reaches this is "set". */
+    { "setsev",  cmd_setsev,  "View or flip which log types echo to you.",          IMMORTAL_LEVEL_MIN },
     /* "u" is up (movement); "us"+ reaches users. */
     { "users",   cmd_users,   "List all connections with IPs and states.",          USERS_MIN_LEVEL },
     /* Mortality toggle: mortal is a normal 51+ command; immort is

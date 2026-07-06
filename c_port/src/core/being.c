@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 #include "descriptor.h"
+#include "log.h"
 
 being_t *being_create_pc(const char *name, long account_id, long player_id) {
     being_t *b = calloc(1, sizeof(*b));
@@ -31,6 +32,7 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
     b->progress.max_hp = being_calc_max_hp(b);
     b->progress.hp = b->progress.max_hp;
     being_limbs_full_heal(b);
+    b->severity = LOG_SEVERITY_DEFAULT;
 
     /* fighting, last_combat_pulse, wait_pulses are already zeroed by calloc */
 

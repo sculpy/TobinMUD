@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-07-05. Companion to STATUS.md, which holds the full
+Last updated: 2026-07-06. Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -18,9 +18,18 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-06 (morning queue) — working these next
 
-- [ ] **Port `setsev` log severity** — find `setsev` in `sneezymud-master`
-      and port the already-implemented log-severity model over (severity
-      levels on log lines, etc.). Fold into the typed-logs system (`log.h`).
+- [x] **Port `setsev` log severity** — done 2026-07-06: `cmd_setsev.c`, a
+      port of `misc/immortal.cc`'s `doSetsev()`. Bare `setsev` lists every
+      log type (game/pio/combat/bug/db/edit) with on/off state; `setsev
+      <type>` (abbrev ok) flips one, gating `game_log()`'s `[TAG]` echo via
+      a new `being_t.severity` bitmask (default: everything on). The
+      personalized `jesus` type is hidden from and unsettable by anyone but
+      the immortal actually named Jesus, matching the original's per-name
+      toggle. Deliberately simplified vs. the original: session-only, not
+      persisted (the original's `wizdata` table isn't worth a migration for
+      this) -- see the field comment in `being.h`. `smoke_test_setsev.py`
+      (help topic added too; no news entry -- immortal-only, same precedent
+      as `toggle`/`exec`/`wiznet`).
 - [ ] **Colorize room name + description by sector** — tint the room display
       by its sector type: the room NAME may be BRIGHT-colored, but the room
       DESCRIPTION must use only lowercase (dim) color codes. Per-sector color
@@ -298,8 +307,6 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       a reward number is chosen.
 - [ ] **Mid-fight persistence** — HP and limb HP are only saved at defeat; a
       mid-fight disconnect reloads at last-saved values.
-- [ ] **Delete-character password reconfirmation** — original re-asks the
-      account password before deleting; Tobin only asks for typed `YES`.
 
 ## Blocked on Objects / Mobs (Phase 2C/2D/2E)
 

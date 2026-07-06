@@ -223,6 +223,15 @@ typedef struct being {
      * read/write it as a no-op via being_get_wait()/being_set_wait(). */
     int wait_pulses;
 
+    /* Per-immortal log-type opt-out bitmask (1 << log_type_t), gates
+     * game_log()'s [TAG] echoes -- see cmd_setsev.c, a port of Sneezy's
+     * `setsev` (misc/immortal.cc doSetsev()). Meaningless for mortals.
+     * Deliberately NOT persisted (unlike the original's per-player `wizdata`
+     * row) -- session-only, defaults to LOG_SEVERITY_DEFAULT (everything on)
+     * at every login via being_create_pc(). Not worth a migration for a
+     * niche admin display preference; revisit if that turns out wrong. */
+    int severity;
+
     struct descriptor *desc; /* back-pointer to the owning connection, NULL for mobs */
 } being_t;
 

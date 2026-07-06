@@ -187,6 +187,8 @@ void game_log(log_type_t type, const char *fmt, ...) {
             continue;
         if (personal && strcasecmp(it->character->base.name, personal) != 0)
             continue;
+        if (!(it->character->severity & (1 << type)))
+            continue;
         descriptor_send(it, line);
     }
 }
