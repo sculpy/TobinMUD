@@ -107,6 +107,9 @@ out = recv_all(s)
 check("Really delete" in out, "'d <name>' asks for confirmation")
 send_line(s, "YES")
 out = recv_all(s)
+check("Enter your account password" in out, "YES prompts for account password reconfirmation")
+send_line(s, "menupw")
+out = recv_all(s)
 check("deleted" in out.lower() and name2.capitalize() not in out.split("--")[-1],
       "the character is deleted and gone from the menu")
 

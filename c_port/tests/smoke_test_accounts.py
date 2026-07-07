@@ -141,7 +141,16 @@ out = step(s3, f"delete {char1_name}", f"delete {char1_name}")
 check(f"Really delete '{char1_name}'" in out, "delete prompts for confirmation")
 
 out = step(s3, "confirm YES", "YES")
-check("Character deleted" in out, "confirmed deletion succeeds")
+check("Enter your account password" in out, "YES now prompts for account password reconfirmation")
+
+out = step(s3, "wrong account password", "not-the-real-password")
+check("Incorrect password" in out, "a wrong password cancels the deletion")
+check(char1_name in out, f"{char1_name} still shows up in the menu -- it was NOT deleted")
+
+out = step(s3, f"delete {char1_name} again", f"delete {char1_name}")
+step(s3, "confirm YES again", "YES")
+out = step(s3, "correct account password", password)
+check("Character deleted" in out, "confirmed deletion with the correct password succeeds")
 check(char2_name in out, "menu redisplay after delete still lists the other character")
 
 s3.close()

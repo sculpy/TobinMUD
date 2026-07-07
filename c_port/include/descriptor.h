@@ -31,6 +31,7 @@ typedef enum {
     CONN_CHAR_CREATE_NAME,
     CONN_CHAR_CREATE_ATTRS,
     CONN_CHAR_DELETE_CONFIRM,
+    CONN_CHAR_DELETE_PASSWORD, /* typed YES accepted; now re-verify the account password */
     /* Menu-driven room builder (redit) -- a working-copy editor: field
      * edits mutate d->redit_work only; (S)ave applies it to the live room +
      * DB, (Q)uit can discard. See descriptor_redit_begin() and the

@@ -383,7 +383,7 @@ void descriptor_page_start(descriptor_t *d, const char *text, int page_size) {
 
 static bool is_password_state(conn_state_t s) {
     return s == CONN_GET_PASSWORD || s == CONN_GET_NEW_PASSWORD
-        || s == CONN_CONFIRM_PASSWORD;
+        || s == CONN_CONFIRM_PASSWORD || s == CONN_CHAR_DELETE_PASSWORD;
 }
 
 /* Consumes as much of d->raw[d->raw_pos .. d->raw_len) as forms complete
@@ -1505,16 +1505,29 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_CHAR_DELETE_CONFIRM: {
-            if (strcmp(line, "YES") == 0) {
-                if (player_delete(d->delete_char_name, d->account.account_id)) {
-                    log_info("Character %s deleted (account %s). [%s]",
-                             d->delete_char_name, d->account.name, d->ip);
-                    descriptor_send(d, "Character deleted.\r\n");
-                } else {
-                    descriptor_send(d, "Could not delete that character.\r\n");
-                }
-            } else {
+            if (strcmp(line, "YES") != 0) {
                 descriptor_send(d, "Cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            /* Typed YES is not enough on its own: re-verify the account
+             * password before the irreversible delete (matches the
+             * original's delete-character flow). */
+            descriptor_send(d, "Enter your account password to confirm: ");
+            d->state = CONN_CHAR_DELETE_PASSWORD;
+            return true;
+        }
+
+        case CONN_CHAR_DELETE_PASSWORD: {
+            if (!account_verify_password(&d->account, line)) {
+                descriptor_send(d, "Incorrect password. Deletion cancelled.\r\n");
+            } else if (player_delete(d->delete_char_name, d->account.account_id)) {
+                log_info("Character %s deleted (account %s). [%s]",
+                         d->delete_char_name, d->account.name, d->ip);
+                descriptor_send(d, "Character deleted.\r\n");
+            } else {
+                descriptor_send(d, "Could not delete that character.\r\n");
             }
             d->state = CONN_ACCOUNT_MENU;
             show_account_menu(d);

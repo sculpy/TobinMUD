@@ -108,6 +108,13 @@ Last updated: 2026-07-06 — Sessions 26-31. This session, in order:
   (auto-look prompt check) then passed cleanly on two immediate reruns and
   a full clean sweep (51 passed, 0 failed) -- transient, not a regression
   from any of this session's changes; not touching that test.
+- **Reconcile**: Sessions 26-31 (above) were built on a second machine
+  (`work-2026-07-06` branch) with no common git ancestor to this box's
+  history; they were cherry-picked onto `main` on top of Session 24 and the
+  STATUS/TODO/help narratives combined. The delete-time password
+  reconfirmation from that branch's Session 25 was also backported
+  standalone (`CONN_CHAR_DELETE_PASSWORD`); the rest of Session 25 was a
+  full-tree sync already covered by this box's own 22-24 lineage.
 
 Last updated: 2026-07-06 — Session 24. This session, in order:
 - deployed + verified `bug`/`delbug`, `newbie` channel (PLR_NEWBIE pflag),
@@ -246,8 +253,8 @@ color codes (see memory: tobin-colorize-habit).
 - [x] **Character-name ownership is now enforced** (was an open item) — every `player_repo.c` lookup/mutation is scoped by `account_id`.
 - [ ] Verified with scripted raw-socket sessions, not yet with a real interactive `telnet`/Mudlet/etc client — the byte-level protocol is identical, but worth a manual pass too (this now matters more, since the menu/point-buy UX is exactly the kind of thing that benefits from an actual human trying it).
 - [x] `IAC SB ... SE` telnet subnegotiation split across two reads — **fixed Session 20**: resumable parser state (`in_subneg`/`subneg_prev` on `descriptor_t`), verified by the new `tests/smoke_test_telnet_iac.py` (deliberately splits a TTYPE subnegotiation mid-payload across two TCP sends, plus regression guards for the already-working split WILL/DO and lone-IAC rewind paths). Mudlet/MUSHclient-class clients are now safe.
-- [ ] No account-creation password confirmation step (type it twice) — original has one, this doesn't yet.
-- [ ] No delete-time password reconfirmation — original's delete-character flow asks for the account password again before deleting; this port only asks for a typed `YES`. Consider adding if accidental/malicious deletion becomes a real concern.
+- [x] Account-creation password confirmation step (type it twice) — done: the `CONN_CONFIRM_PASSWORD` state re-prompts and must match before the account is created.
+- [x] Delete-time password reconfirmation — done: after the typed `YES`, `CONN_CHAR_DELETE_PASSWORD` re-verifies the account password (`account_verify_password()`) before `player_delete()` runs; a wrong password cancels and the character survives (ported from the work-2026-07-06 Session 25 work). `smoke_test_accounts.py` (wrong-password-cancels + correct-password-succeeds) and `smoke_test_menu_letters.py` (`d` shorthand) cover it.
 - [ ] If a character is deleted while a *different* session has it actively loaded/playing, that session isn't kicked or notified — not handled (edge case, unlikely at this scale, but noted).
 - [x] Point-buy now supports true trade-offs (was an open item) — lower a stat down to `ATTR_BASE - ATTR_DELTA_CAP` (90) to free up room to raise another up to `ATTR_BASE + ATTR_DELTA_CAP` (150), still bounded overall by the net pool. Verified live with `tests/smoke_test_trade_attrs.py` (per-attribute cap in both directions, and the net-pool-exhaustion case specifically, distinct from the per-attribute cap).
 - [ ] Which 1-2 `task/` professions to keep, and which ~8-10 `disc/` disciplines — proposed defaults in the decisions table above, not finalized.
@@ -797,7 +804,7 @@ Four related changes from user feedback in one pass:
 - Synced to db.kullit.com, rebuilt (`cmake --build build` — clean, zero warnings, `cmd_score.c` auto-picked-up by the `GLOB_RECURSE` source list), reseeded the new table, reran all three smoke tests. Everything passed — see the checked-off Open Questions above for the specifics verified.
 - Next:
   1. A real interactive `telnet` pass on the account menu / point-buy dialog specifically (scripted tests don't catch UX rough edges like awkward line wrapping or confusing prompts).
-  2. Consider the deferred items above (delete-time password reconfirm, account-creation password confirmation) if they matter to you before more people touch this.
+  2. (Both password-safety items above — delete-time reconfirm and account-creation confirmation — are now done.)
   3. Pick up Phase 2 per the roadmap: `spec/`/`cmd/` (near-C, low risk) or start the `obj/` category-collapse design.
 
 ### Session 1 (part 3) — 2026-07-01 — Renamed the project to "Tobin"
