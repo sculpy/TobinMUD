@@ -1,5 +1,31 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-06 — Session 32 (reconcile follow-ups). In order:
+- Reconciled the second machine's `work-2026-07-06` branch onto `main`:
+  cherry-picked Sessions 26-31, backported the Session 25 delete-time password
+  reconfirmation standalone (`CONN_CHAR_DELETE_PASSWORD`), narratives merged.
+- **`LOG_TEST` + `@test` announce hook**: every smoke test now announces
+  itself to the running MUD. A loopback-only `@test <name>` line in
+  `handle_line()` emits `game_log(LOG_TEST, "running %s", ...)` at any
+  connection state (so it works before login); `LOG_TEST` is on by default and
+  toggleable per-immortal via `setsev test` (some immortals don't need test
+  announcements). Tests inline an `announce()`
+  helper and call it at startup (canonical copy + regression check in the new
+  `smoke_test_logging.py`). Standing habit going forward.
+- **Connect is now a typed `[PIO]` log**: `enter_world()` logs
+  "<name> has connected. [<ip>]" via `game_log(LOG_PIO, ...)` (was a file-only
+  `log_info`), symmetric to the link-loss line and carrying the IP.
+- Note: the delete-password backport commit (188b955) was code-correct but its
+  first VM "verification" accidentally ran stale files (a `git archive HEAD`
+  deploy of then-uncommitted changes); re-deployed from the working tree and
+  properly validated here -- delete tests exercise the real reconfirm flow.
+- Gotcha fixed (user caught "prompt not firing"): the `CONN_CHAR_DELETE_PASSWORD`
+  enum insert shifted `CONN_PLAYING`'s value, but the `tar` deploy kept old file
+  mtimes so `cmake` skipped recompiling `game_loop.c` -- it compared the stale
+  `CONN_PLAYING` and the game-loop prompt stopped firing everywhere. A clean
+  rebuild (`rm -rf build && cmake ...`) synchronized all units. Standing rule
+  saved to memory: clean-rebuild after any header change on deploy.
+
 Last updated: 2026-07-06 — Sessions 26-31. This session, in order:
 - **`setsev`** (port of `misc/immortal.cc`'s `doSetsev()`): per-immortal
   opt-out from `game_log()`'s `[TAG]` echoes. New `being_t.severity` bitmask

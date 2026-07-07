@@ -35,6 +35,7 @@ static const setsev_entry_t SETSEV_TYPES[] = {
     { LOG_BUG,    "bug",    "Bug reports" },
     { LOG_DB,     "db",     "Database events" },
     { LOG_EDIT,   "edit",   "In-game building/editing" },
+    { LOG_TEST,   "test",   "Smoke-test announcements (@test hook)" },
     { LOG_JESUS,  "jesus",  "Personal messages for Jesus" },
 };
 #define NUM_SETSEV_TYPES (sizeof(SETSEV_TYPES) / sizeof(SETSEV_TYPES[0]))

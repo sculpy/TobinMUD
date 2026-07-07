@@ -25,13 +25,16 @@ typedef enum {
     LOG_BUG,         /* bug reports */
     LOG_DB,          /* database */
     LOG_EDIT,        /* in-game building/editing */
-    LOG_JESUS        /* personalized: only the immortal named "Jesus" sees it */
+    LOG_JESUS,       /* personalized: only the immortal named "Jesus" sees it */
+    LOG_TEST         /* smoke-test announce ("<x> test running"); harness only */
 } log_type_t;
 
 /* Default value of being_t.severity (see cmd_setsev.c / game_log()): every
  * real (non-silent) type ON, so a fresh login sees everything an immortal
- * saw before per-type opt-out existed. */
-#define LOG_SEVERITY_DEFAULT ((1 << (LOG_JESUS + 1)) - 1)
+ * saw before per-type opt-out existed. LOG_TEST is included so smoke-test
+ * announcements show by default; it is deliberately left out of `setsev`'s
+ * toggle list so it can't be silenced. */
+#define LOG_SEVERITY_DEFAULT ((1 << (LOG_TEST + 1)) - 1)
 
 /* Display tag for a log type ("GAME", "PIO", ...); used for the file line and
  * the [TAG] echoed to immortals. */

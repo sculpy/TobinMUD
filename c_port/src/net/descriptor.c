@@ -633,7 +633,10 @@ static void enter_world(descriptor_t *d, being_t *b) {
     snprintf(welcome, sizeof(welcome), "Welcome, %s!\r\n", b->base.name);
     descriptor_send(d, welcome);
 
-    log_info("%s has entered the game. [%s]", b->base.name, d->ip);
+    /* Connect is a typed player-io event, symmetric to the link-loss line
+     * in descriptor_destroy(): logged to the file and echoed to online
+     * immortals with a colored [PIO] tag, carrying the IP. */
+    game_log(LOG_PIO, "%s has connected. [%s]", b->base.name, d->ip);
     d->state = CONN_PLAYING;
     cmd_dispatch(d, "look"); /* prompt comes from the game loop's prompter */
 }
@@ -1128,6 +1131,22 @@ bool descriptor_edplayer_begin(descriptor_t *d, const char *name) {
 
 static bool handle_line(descriptor_t *d, const char *line) {
     d->last_active = (long)time(NULL); /* any input clears the (idle) flag */
+
+    /* Smoke-test announce hook: a loopback connection may emit a [TEST] log
+     * line at ANY connection state (before login, mid-menu, or playing) so
+     * an immortal watching the game -- and the day's log file -- can see
+     * which smoke test is currently running. Test-harness only: gated to
+     * localhost so a remote player can never inject log lines, and the
+     * "@test " prefix collides with nothing a real client sends (account
+     * names can't contain a space). Every smoke test announces itself this
+     * way on startup (see the announce() helper in the test scripts). */
+    if (strncmp(line, "@test ", 6) == 0
+        && (strcmp(d->ip, "127.0.0.1") == 0 || strcmp(d->ip, "::1") == 0)) {
+        game_log(LOG_TEST, "running %s", line + 6);
+        descriptor_send(d, "ok\r\n");
+        return true;
+    }
+
     switch (d->state) {
         case CONN_GET_ACCOUNT_NAME: {
             if (!line[0]) {

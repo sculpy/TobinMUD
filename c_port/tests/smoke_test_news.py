@@ -129,5 +129,13 @@ check(headline in full, "the posted item shows up in news, newest first")
 check("post a news item" in cmd(s, "help ednews"), "help ednews describes the command")
 
 set_level(name, 1)
+
+# Clean up the item this run posted -- otherwise repeated runs pile up news
+# entries and eventually push the real (older) headlines off the news
+# display's most-recent window, which fails the "whole feed is shown" check.
+subprocess.run(["mariadb", "sneezy", "-e",
+                f"DELETE FROM news WHERE title = 'Fresh Off The Press {_suffix}';"],
+               check=True)
+
 s.close()
 print("=== ALL CHECKS PASSED ===")
