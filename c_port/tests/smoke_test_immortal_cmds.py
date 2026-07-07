@@ -21,6 +21,41 @@ import time
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
+
+def announce(test_name, host=host, port=port):
+    """Tell the running MUD which smoke test is executing: emits a [TEST]
+    log line (visible to online immortals and in the day's log file) via
+    the loopback-only `@test` server hook. Best-effort -- never fails the
+    test. Self-contained (own socket, doesn't depend on this file's other
+    helpers) so it can run at any point in the script."""
+    try:
+        s = socket.create_connection((host, port), timeout=3)
+        s.settimeout(0.5)
+        try:
+            while s.recv(4096):
+                pass
+        except socket.timeout:
+            pass
+        s.sendall(f"@test {test_name}\r\n".encode())
+        s.settimeout(0.5)
+        try:
+            while s.recv(4096):
+                pass
+        except socket.timeout:
+            pass
+        s.close()
+    except OSError:
+        pass
+
+
+def announce_done(test_name, host=host, port=port):
+    """Companion to announce() -- emits a [TEST] "finished" log line. Call
+    once at the very end of a smoke test, just before it reports success."""
+    announce(f"done {test_name}", host, port)
+
+
+announce("smoke_test_immortal_cmds")
+
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
 
@@ -72,18 +107,23 @@ sImm, nameImm = make_player("Imm")
 sMort, nameMort = make_player("Mort")
 
 # --- Part 1: immortal commands are invisible to mortals ---
-# NOTE: single-letter "g" now abbreviates to the `grin` social (socials gained
-# prefix matching), so it no longer falls through to Huh?! -- goto stays hidden
-# because a mortal can't reach it by its full name either.
+# NOTE: single-letter "g" used to abbreviate to the `grin` social (socials
+# gained prefix matching) since goto -- the only "g" command at the time --
+# was hidden from mortals. Objects (Phase 2C) added a real mortal command
+# `get`, which legitimately outranks the grin social for "g" now (commands
+# are always checked before socials, see cmd_table.c) -- a real interaction
+# from a new command claiming an abbreviation, not a regression (same
+# precedent as smoke_test_redit.py's Session-31 update). goto stays hidden
+# either way, since a mortal can't reach it by its full name either.
 for attempt in ["goto 0", "got 0", "promote somebody"]:
     send_line(sMort, attempt)
     out = recv_all(sMort)
     check("Huh?!" in out, f"a mortal typing '{attempt}' gets Huh?! (command hidden)")
-# "g" resolves to a social (grin) rather than leaking the immortal goto command.
+# "g" now resolves to the real `get` command rather than leaking goto.
 send_line(sMort, "g")
 out = recv_all(sMort)
-check("Huh?!" not in out and "grin" in out.lower(),
-      "single-letter 'g' abbreviates to the grin social, not goto")
+check("Huh?!" not in out and "usage: get" in out.lower(),
+      "single-letter 'g' abbreviates to the get command, not goto")
 
 # --- Bootstrap the immortal (level 58 so the above-own-level cap is testable) ---
 subprocess.run(
@@ -205,4 +245,5 @@ check("connection" in out, "users reports the connection count")
 
 sImm.close()
 sMort.close()
+announce_done("smoke_test_immortal_cmds")
 print("=== ALL CHECKS PASSED ===")

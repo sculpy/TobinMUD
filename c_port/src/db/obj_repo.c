@@ -1,0 +1,154 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
+#include "obj_repo.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "db.h"
+#include "log.h"
+#include "thing.h"
+
+bool obj_proto_load(int vnum, obj_proto_t *out) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool found = false;
+    if (db_query(db,
+            "select name, short_desc, long_desc, type, wear_flag, val0, val1, "
+            "val2, val3, weight, price, can_be_seen, max_struct, cur_struct, "
+            "volume, material from obj where vnum=%i",
+            vnum)
+        && db_fetch_row(db)) {
+        snprintf(out->name, sizeof(out->name), "%s", db_get(db, "name"));
+        snprintf(out->short_descr, sizeof(out->short_descr), "%s", db_get(db, "short_desc"));
+        snprintf(out->long_descr, sizeof(out->long_descr), "%s", db_get(db, "long_desc"));
+        out->type = atoi(db_get(db, "type"));
+        out->wear_flag = atoi(db_get(db, "wear_flag"));
+        out->val[0] = atoi(db_get(db, "val0"));
+        out->val[1] = atoi(db_get(db, "val1"));
+        out->val[2] = atoi(db_get(db, "val2"));
+        out->val[3] = atoi(db_get(db, "val3"));
+        out->weight = atof(db_get(db, "weight"));
+        out->price = atoi(db_get(db, "price"));
+        out->can_be_seen = atoi(db_get(db, "can_be_seen")) != 0;
+        out->max_struct = atoi(db_get(db, "max_struct"));
+        out->cur_struct = atoi(db_get(db, "cur_struct"));
+        out->volume = atoi(db_get(db, "volume"));
+        out->material = atoi(db_get(db, "material"));
+        found = true;
+    }
+
+    db_close(db);
+    return found;
+}
+
+int obj_find_vnum_by_name(const char *name) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+
+    int vnum = -1;
+    if (db_query(db, "select vnum from obj where name like '%%%s%%' order by vnum limit 1", name)
+        && db_fetch_row(db)) {
+        vnum = atoi(db_get(db, "vnum"));
+    }
+
+    db_close(db);
+    return vnum;
+}
+
+/* Which player_inventory `slot` a currently-attached instance `o` occupies
+ * on `b` -- the inverse of player_inventory_load()'s placement below. */
+static int slot_for_obj(const being_t *b, const obj_t *o) {
+    if (b->held[0] == o)
+        return INV_SLOT_HELD_PRIMARY;
+    if (b->held[1] == o)
+        return INV_SLOT_HELD_OFFHAND;
+    for (int i = 0; i < LIMB_COUNT; i++)
+        if (b->equipment[i] == o)
+            return i;
+    return INV_SLOT_CARRIED;
+}
+
+void player_inventory_load(long player_id, being_t *b) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return;
+
+    if (db_query(db, "select vnum, slot from player_inventory where player_id=%i order by id",
+                 (int)player_id)) {
+        /* Collect rows first -- obj_create_from_proto() below opens its own
+         * connection via obj_proto_load(), and this connection must stay
+         * open across db_fetch_row() calls. */
+        typedef struct { int vnum; int slot; } row_t;
+        row_t rows[256];
+        int n = 0;
+        while (n < 256 && db_fetch_row(db)) {
+            rows[n].vnum = atoi(db_get(db, "vnum"));
+            rows[n].slot = atoi(db_get(db, "slot"));
+            n++;
+        }
+        db_close(db);
+
+        for (int i = 0; i < n; i++) {
+            obj_t *o = obj_create_from_proto(rows[i].vnum);
+            if (!o) {
+                log_error("player_inventory_load: player %ld vnum %d no longer exists, skipping",
+                          player_id, rows[i].vnum);
+                continue;
+            }
+            thing_move_to(&o->base, &b->base);
+            if (rows[i].slot == INV_SLOT_HELD_PRIMARY)
+                b->held[0] = o;
+            else if (rows[i].slot == INV_SLOT_HELD_OFFHAND)
+                b->held[1] = o;
+            else if (rows[i].slot >= 0 && rows[i].slot < LIMB_COUNT)
+                b->equipment[rows[i].slot] = o;
+            /* else INV_SLOT_CARRIED (or garbage) -- carried loose, already
+             * attached above. */
+        }
+    } else {
+        db_close(db);
+    }
+}
+
+bool player_inventory_save(long player_id, const being_t *b) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    if (!db_begin(db)) {
+        db_close(db);
+        return false;
+    }
+
+    if (!db_query(db, "delete from player_inventory where player_id=%i", (int)player_id)) {
+        db_rollback(db);
+        db_close(db);
+        return false;
+    }
+
+    bool ok = true;
+    for (thing_t *t = b->base.stuff_head; t && ok; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        const obj_t *o = (const obj_t *)t;
+        int slot = slot_for_obj(b, o);
+        ok = db_query(db, "insert into player_inventory (player_id, vnum, slot) values (%i, %i, %i)",
+                      (int)player_id, o->vnum, slot);
+    }
+
+    if (!ok) {
+        db_rollback(db);
+        db_close(db);
+        return false;
+    }
+
+    ok = db_commit(db);
+    db_close(db);
+    return ok;
+}

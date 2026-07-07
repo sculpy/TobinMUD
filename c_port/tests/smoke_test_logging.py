@@ -2,7 +2,9 @@
 """Smoke test for the connection/log-announce plumbing:
   1. `@test <name>` (loopback-only server hook) emits a [TEST] log line that
      online immortals see -- this is the mechanism EVERY smoke test uses to
-     announce itself (see announce() below; copy it into new tests).
+     announce itself at start (announce()) and at finish (announce_done(),
+     which logs a distinct "finished" line via "@test done <name>"). Every
+     smoke test calls both -- copy these two functions into new tests.
   2. Player connect is a typed [PIO] log: an online immortal sees
      "<name> has connected. [<ip>]", symmetric to the "has lost their link."
      line, and it carries the IP.
@@ -17,6 +19,13 @@ import time
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
+
+def announce_done(test_name, host=host, port=port):
+    """Companion to announce() -- emits a [TEST] "finished" log line. Call
+    once at the very end of a smoke test, just before it reports success."""
+    announce(f"done {test_name}", host, port)
+
+
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
 
@@ -134,7 +143,14 @@ outImm = strip(recv_all(sImm, timeout=1.5))
 check(f"[TEST] running {marker}on" in outImm,
       "setsev test on restores [TEST] announcements")
 
+# --- announce_done() logs a distinct "finished" line, not another "running" ---
+announce_done(marker)
+outImm = strip(recv_all(sImm, timeout=1.5))
+check(f"[TEST] finished {marker}" in outImm,
+      "announce_done() logs a [TEST] finished line, distinct from running")
+
 # hygiene
 set_level(nameImm, 1)
 sImm.close()
+announce_done("smoke_test_logging")
 print("=== ALL CHECKS PASSED ===")

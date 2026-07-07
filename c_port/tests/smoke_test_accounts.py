@@ -21,6 +21,41 @@ import time
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
+
+def announce(test_name, host=host, port=port):
+    """Tell the running MUD which smoke test is executing: emits a [TEST]
+    log line (visible to online immortals and in the day's log file) via
+    the loopback-only `@test` server hook. Best-effort -- never fails the
+    test. Self-contained (own socket, doesn't depend on this file's other
+    helpers) so it can run at any point in the script."""
+    try:
+        s = socket.create_connection((host, port), timeout=3)
+        s.settimeout(0.5)
+        try:
+            while s.recv(4096):
+                pass
+        except socket.timeout:
+            pass
+        s.sendall(f"@test {test_name}\r\n".encode())
+        s.settimeout(0.5)
+        try:
+            while s.recv(4096):
+                pass
+        except socket.timeout:
+            pass
+        s.close()
+    except OSError:
+        pass
+
+
+def announce_done(test_name, host=host, port=port):
+    """Companion to announce() -- emits a [TEST] "finished" log line. Call
+    once at the very end of a smoke test, just before it reports success."""
+    announce(f"done {test_name}", host, port)
+
+
+announce("smoke_test_accounts")
+
 # Unique per run so re-running the script doesn't collide with a leftover
 # account/character from a previous (possibly failed) run -- character
 # names are globally unique in the DB, not just per-account, so these need
@@ -165,4 +200,5 @@ check(char2_name in out, f"{char2_name} survived the deletion of {char1_name}")
 
 s4.close()
 
+announce_done("smoke_test_accounts")
 print("=== ALL CHECKS PASSED ===")

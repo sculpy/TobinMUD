@@ -12,6 +12,8 @@
 
 #include "descriptor.h"
 #include "log.h"
+#include "obj.h"
+#include "obj_repo.h"
 #include "player_repo.h"
 #include "room.h"
 #include "thing.h"
@@ -82,25 +84,33 @@ static void combat_strike(being_t *attacker, being_t *defender) {
     }
 }
 
-/* No permadeath in the sense of the character record being deleted -- the
- * loser's HP is patched up to half max (so their next login isn't stuck at
- * 0) and their limbs fully heal. But losing now genuinely ends the play
- * session: the loser is unloaded and dropped at the account menu (same
- * path `quit!`-while-playing uses, descriptor_leave_to_menu() in
+/* No permadeath for a PC in the sense of the character record being
+ * deleted -- their HP is patched up to half max (so their next login isn't
+ * stuck at 0) and their limbs fully heal. But losing now genuinely ends
+ * the play session: the loser is unloaded and dropped at the account menu
+ * (same path `quit!`-while-playing uses, descriptor_leave_to_menu() in
  * descriptor.c) rather than respawning in-place still playing -- they can
  * pick the same character back up from there, or create/play another, or
  * leave. `slain` only picks the flavor of the first message line (normal
  * combat loss vs. an immortal's instant kill via combat_instakill()) --
- * both end the same way. */
+ * both end the same way.
+ *
+ * A MOB loser (Phase 2D) has no player_id row to save and no menu to
+ * return to -- it is destroyed outright (permanent, no respawn without a
+ * future zone-reset system) instead of HP-patched-and-ejected. */
 static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     loser->fighting = NULL;
     winner->fighting = NULL;
 
-    loser->progress.hp = loser->progress.max_hp / 2;
-    if (loser->progress.hp < 1)
-        loser->progress.hp = 1;
-    being_limbs_full_heal(loser);
-    player_progress_save(loser->player_id, &loser->progress);
+    bool loser_is_pc = (loser->base.kind == THING_PC);
+
+    if (loser_is_pc) {
+        loser->progress.hp = loser->progress.max_hp / 2;
+        if (loser->progress.hp < 1)
+            loser->progress.hp = 1;
+        being_limbs_full_heal(loser);
+        player_progress_save(loser->player_id, &loser->progress);
+    }
 
     if (slain) {
         tell(winner, "You have slain %s!\r\n", loser->base.name);
@@ -143,8 +153,39 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         descriptor_notify(it, taunt);
     }
 
-    if (loser->desc)
-        descriptor_leave_to_menu(loser->desc);
+    /* Drop-on-death (Phase 2C): everything the loser has -- carried, worn,
+     * or held -- falls to the ground in the room they died in, rather than
+     * following them to the account menu. Resolves the "Future direction"
+     * open question already recorded in STATUS.md. Same safe-unlink-while-
+     * iterating pattern as being_destroy(). Kind-agnostic (a mob carries
+     * nothing today, but this is free groundwork for when it can). */
+    if (loser->base.roomp) {
+        thing_t *t = loser->base.stuff_head;
+        while (t) {
+            thing_t *next = t->stuff_next;
+            if (t->kind == THING_OBJ)
+                thing_move_to(t, &loser->base.roomp->base);
+            t = next;
+        }
+        for (int i = 0; i < LIMB_COUNT; i++)
+            loser->equipment[i] = NULL;
+        for (int i = 0; i < 2; i++)
+            loser->held[i] = NULL;
+        if (loser_is_pc)
+            player_inventory_save(loser->player_id, loser);
+    }
+
+    if (loser_is_pc) {
+        if (loser->desc)
+            descriptor_leave_to_menu(loser->desc);
+    } else {
+        /* Mob death is permanent (Phase 2D) -- no persistence, no respawn
+         * without a future zone-reset system (2E). This also fixes a
+         * latent dormant bug: before mobs existed, defeating any
+         * desc == NULL being would have silently left it sitting in the
+         * room forever, since only this PC branch ever removed anything. */
+        being_destroy(loser);
+    }
 }
 
 void combat_process_run(long pulse_num) {
@@ -180,17 +221,20 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
      * matching ("kill clau" -> Claudius), same abbreviation convention the
      * command parser has used since Session 9 and the original's
      * is_abbrev()-based get_char_room targeting. First prefix match in room
-     * order wins. */
+     * order wins. Matches PCs and mobs alike (Phase 2D) -- thing_name_matches()
+     * is per-keyword, so a mob's multi-word name ("vrock demon") is reachable
+     * by any one of its words, same as "kill vrock" or "kill demon"; a
+     * single-word PC name behaves identically to before. */
     being_t *prefix_match = NULL;
     size_t name_len = strlen(name);
     for (thing_t *t = self->base.roomp->base.stuff_head; t; t = t->stuff_next) {
         if (t == &self->base)
             continue;
-        if (t->kind != THING_PC)
+        if (t->kind != THING_PC && t->kind != THING_MOB)
             continue;
         if (strcasecmp(t->name, name) == 0)
             return (being_t *)t;
-        if (!prefix_match && strncasecmp(t->name, name, name_len) == 0)
+        if (!prefix_match && thing_name_matches(t->name, name, name_len))
             prefix_match = (being_t *)t;
     }
     return prefix_match;

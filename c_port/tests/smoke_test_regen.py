@@ -18,6 +18,41 @@ import time
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
+
+def announce(test_name, host=host, port=port):
+    """Tell the running MUD which smoke test is executing: emits a [TEST]
+    log line (visible to online immortals and in the day's log file) via
+    the loopback-only `@test` server hook. Best-effort -- never fails the
+    test. Self-contained (own socket, doesn't depend on this file's other
+    helpers) so it can run at any point in the script."""
+    try:
+        s = socket.create_connection((host, port), timeout=3)
+        s.settimeout(0.5)
+        try:
+            while s.recv(4096):
+                pass
+        except socket.timeout:
+            pass
+        s.sendall(f"@test {test_name}\r\n".encode())
+        s.settimeout(0.5)
+        try:
+            while s.recv(4096):
+                pass
+        except socket.timeout:
+            pass
+        s.close()
+    except OSError:
+        pass
+
+
+def announce_done(test_name, host=host, port=port):
+    """Companion to announce() -- emits a [TEST] "finished" log line. Call
+    once at the very end of a smoke test, just before it reports success."""
+    announce(f"done {test_name}", host, port)
+
+
+announce("smoke_test_regen")
+
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
 
@@ -127,4 +162,5 @@ check(hp_after > hp_before, "HP increased while resting (not fighting) -- passiv
 check(hp_after <= max_hp, "regen never overheals past max HP")
 
 s.close()
+announce_done("smoke_test_regen")
 print("=== ALL CHECKS PASSED ===")

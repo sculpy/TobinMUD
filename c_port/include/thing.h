@@ -5,6 +5,9 @@
 #ifndef TOBIN_THING_H
 #define TOBIN_THING_H
 
+#include <stdbool.h>
+#include <stddef.h>
+
 /* C replacement for misc/thing.h's TThing.  TThing is the abstract root of
  * every game entity (rooms, beings, objects) with 199 virtual methods, the
  * vast majority of which are never actually overridden by more than one or
@@ -26,6 +29,7 @@ typedef enum {
     THING_ROOM,
     THING_PC,
     THING_MOB,
+    THING_OBJ,
     THING_COUNT
 } thing_kind_t;
 
@@ -52,5 +56,14 @@ void thing_remove_from_parent(thing_t *t);
  * room_t*, passed as `struct room *` here to avoid a header dependency on
  * room.h -- safe because room_t embeds thing_t as its first member. */
 void thing_set_room(thing_t *t, struct room *r);
+
+/* True iff `tok` (length `tok_len`) is a case-insensitive prefix of any ONE
+ * space-separated word in `keywords` -- e.g. "vrock" or "demon" both match
+ * the keyword string "vrock demon". Generic over any thing_t.name (objects,
+ * mobs, and single-word PC names alike -- for a single-word name this is
+ * behavior-identical to a plain prefix check). Shared by combat targeting
+ * (combat.c) and `look <target>` (cmd_look.c); cmd_object.c keeps its own
+ * copy (predates this, already tested, not worth the churn to switch). */
+bool thing_name_matches(const char *keywords, const char *tok, size_t tok_len);
 
 #endif

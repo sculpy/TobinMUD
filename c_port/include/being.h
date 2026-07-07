@@ -9,6 +9,9 @@
 
 #include "thing.h"
 
+struct obj; /* forward decl only -- avoids a being.h<->obj.h include cycle,
+               same idiom thing.h uses for `struct room` */
+
 /* C replacement for the TBeing/TPerson slice of misc/being.h needed so far.
  * TBeing's ~148 virtuals mostly turned out to diverge between PC/mob on only
  * a handful of methods (hitGain, manaGain, wizFileSave, ...) -- not needed
@@ -238,12 +241,38 @@ typedef struct being {
      * niche admin display preference; revisit if that turns out wrong. */
     int severity;
 
+    /* Objects (Phase 2C). Every object attached to this being (carried,
+     * worn, or held) lives in the ONE thing_t containment chain
+     * (base.stuff_head/stuff_next, parent == &this->base) -- these two
+     * arrays are fast-lookup/display pointers INTO that same set, not
+     * separate storage; `inventory` (cmd_object.c) walks stuff_head and
+     * excludes anything also pointed to here, `equipment` reads these
+     * arrays directly. `equipment` is indexed by limb_t -- no second slot
+     * enum, reusing the existing 13-limb set (see obj.h's
+     * wear_slot_for_flag()). `held` is the primary/off-hand wielded pair
+     * (index 0/1), independent of limbs, respecting `handed_right`. NULL =
+     * nothing there. Neither array is persisted directly -- see
+     * obj_repo.h's player_inventory_save(), which derives the saved `slot`
+     * column from these at save time. */
+    struct obj *equipment[LIMB_COUNT];
+    struct obj *held[2];
+
     struct descriptor *desc; /* back-pointer to the owning connection, NULL for mobs */
 } being_t;
 
 /* Creates an in-memory being_t for a PC. Does not touch the DB -- pair with
  * player_repo.h's player_create()/player_load() for persistence. */
 being_t *being_create_pc(const char *name, long account_id, long player_id);
+
+/* Creates an in-memory being_t for a mob instance, loading the prototype
+ * row for `vnum` from the `mob` table (mob_repo.h's mob_proto_load()).
+ * Returns NULL if no such vnum exists. Unlike a PC, `account_id`/
+ * `player_id` stay 0 (never a real DB row) and `desc` stays NULL forever
+ * -- a mob is just a being_t with kind=THING_MOB, see obj.h/STATUS.md's
+ * Mobiles decision row for why no separate mob_t struct exists. Not
+ * attached to any room/being yet -- caller does that via thing_move_to(). */
+being_t *being_create_mob(int vnum);
+
 void being_destroy(being_t *b);
 
 /* True iff b->progress.level >= IMMORTAL_LEVEL_MIN. */

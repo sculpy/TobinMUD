@@ -9,13 +9,13 @@
 #include "combat.h"
 #include "pulse.h"
 
-/* Initiates (or re-targets) an attack against another PLAYING character in
- * the same room -- player-vs-player only, no NPCs/mobs exist yet. Damage
- * itself is NOT dealt here: this just sets up the fight and applies the
- * initial wait; combat_process_run() (src/core/combat.c) resolves the
- * actual exchanges once every COMBAT_ROUND_PULSES. Also reached directly by
- * cmd_kill.c for mortals -- `kill` behaves identically to `attack` unless
- * the attacker is immortal (see cmd_kill.c). */
+/* Initiates (or re-targets) an attack against another player OR a mobile
+ * (Phase 2D) in the same room -- combat_find_room_target() matches both
+ * kinds. Damage itself is NOT dealt here: this just sets up the fight and
+ * applies the initial wait; combat_process_run() (src/core/combat.c)
+ * resolves the actual exchanges once every COMBAT_ROUND_PULSES. Also
+ * reached directly by cmd_kill.c for mortals -- `kill` behaves identically
+ * to `attack` unless the attacker is immortal (see cmd_kill.c). */
 bool cmd_attack(descriptor_t *d, const char *args) {
     if (!d->character || !d->character->base.roomp) {
         descriptor_send(d, "You are nowhere.\r\n");

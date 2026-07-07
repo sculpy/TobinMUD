@@ -193,3 +193,39 @@ UPDATE `help_topic` SET `body` = 'Usage: edwiznews <headline>\n\nLevel 56+ only:
 -- Migration: exits now hides secret exits (2026-07-06, door mechanics).
 UPDATE `help_topic` SET `body` = 'Usage: exits\n\nLists this room''s exits and the name of the place each one leads to.\n(`look` shows the same directions as a one-line summary.) A secret exit\nnever appears here even if you know it''s there -- you can still walk\nit, it just isn''t listed.'
   WHERE `name` = 'exits' AND `updated_by` = 'seed';
+
+-- New topics: objects (Phase 2C, 2026-07-07) -- get/drop/inventory/wear/
+-- remove/equipment/oload. New INSERT (not an UPDATE) since these topics
+-- don't exist yet; ON DUPLICATE KEY UPDATE name=name is a no-op on rerun,
+-- same pattern as the main seed INSERT above.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('get', 'Usage: get <item>\n\nPicks up an item from the room floor and adds it to what you are\ncarrying. Fixed scenery can''t be taken this way. See `inventory` to\nsee what you''re carrying, `wear` to put something on.', 'seed'),
+('drop', 'Usage: drop <item>\n\nPuts down a carried item on the floor of the room you''re in. Only\nworks on loose carried items -- `remove` a worn or held item first.', 'seed'),
+('inventory', 'Usage: inventory\n\nLists everything you are carrying loose (not worn or held -- see\n`equipment` for that).', 'seed'),
+('equipment', 'Usage: equipment\n\nLists everything you are wearing and holding, by body part.', 'seed'),
+('wear', 'Usage: wear <item>\n\nPuts on or wields a carried item, moving it from your inventory to\nthe right spot on your body (or into your hand, for a weapon or\nsimilar). Refuses if you''re already wearing something there, or if\nthe item can''t be worn at all.', 'seed'),
+('remove', 'Usage: remove <item>\n\nTakes off a worn item or lays down a held one, returning it to your\ncarried inventory.', 'seed'),
+('oload', 'Usage: oload <vnum>\n\nBuilder tool (level 51+): spawns a copy of the object prototype\nnumbered <vnum> into the room you''re standing in. There''s no automatic\nworld respawn yet, so an object placed this way is gone if the server\nrestarts -- only what players are actually carrying survives that.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- New topic: mobiles (Phase 2D, 2026-07-07).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('mload', 'Usage: mload <vnum>\n\nBuilder tool (level 51+): spawns a copy of the mobile prototype\nnumbered <vnum> into the room you''re standing in. Mobiles fight back\nif attacked but otherwise never act on their own. There''s no automatic\nworld respawn yet, so a mobile placed this way is gone -- for good, if\nkilled, or lost entirely -- if the server restarts.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Migration: attack/kill/look now also reach mobiles (Phase 2D, 2026-07-07).
+UPDATE `help_topic` SET `body` = 'Usage: attack <player or mobile>   (alias: kill -- identical)\n\nMortals: starts a fight with another player or a mobile in your room;\ncombat resolves in rounds, every hit lands on a specific limb, and you\ncan abbreviate the target''s name (`attack clau` reaches Claudius,\n`attack vrock` reaches a vrock demon). Killing a mobile removes it from\nthe world for good. Immortals: an instant slay -- no rounds, no wait,\nthe target dies (a slain mobile is likewise removed).'
+  WHERE `name` = 'attack' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: kill <player or mobile>   (alias: attack -- identical)\n\nMortals: starts a fight with another player or a mobile in your room;\ncombat resolves in rounds, every hit lands on a specific limb, and you\ncan abbreviate the target''s name (`kill clau` reaches Claudius, `kill\nvrock` reaches a vrock demon). Killing a mobile removes it from the\nworld for good. Immortals: an instant slay -- no rounds, no wait, the\ntarget dies (a slain mobile is likewise removed).'
+  WHERE `name` = 'kill' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: look [player or mobile]\n\nShows the room you are in: its name, description, obvious exits, and\neveryone (and everything) standing there with you. You also look\nautomatically whenever you enter the world. `look <name>` describes\nanother player or a mobile in the room (their appearance/description).\nImmortals additionally see the room''s vnum, sector type, and flags in\nthe header line.'
+  WHERE `name` = 'look' AND `updated_by` = 'seed';
+
+-- Migration: oload/mload accept a name (not just a vnum); look now also
+-- reaches objects, on the room floor or in your own inventory (2026-07-07).
+UPDATE `help_topic` SET `body` = 'Usage: oload <vnum|name>\n\nBuilder tool (level 51+): spawns a copy of an object prototype into\nthe room you''re standing in. Give an exact vnum, or a name/keyword\n(`oload sword` loads the first object whose name contains "sword").\nThere''s no automatic world respawn yet, so an object placed this way\nis gone if the server restarts -- only what players are actually\ncarrying survives that.'
+  WHERE `name` = 'oload' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: mload <vnum|name>\n\nBuilder tool (level 51+): spawns a copy of a mobile prototype into\nthe room you''re standing in. Give an exact vnum, or a name/keyword\n(`mload demon` loads the first mobile whose name contains "demon").\nMobiles fight back if attacked but otherwise never act on their own.\nThere''s no automatic world respawn yet, so a mobile placed this way\nis gone -- for good, if killed, or lost entirely -- if the server\nrestarts.'
+  WHERE `name` = 'mload' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: look [player, mobile, or item]\n\nShows the room you are in: its name, description, obvious exits, and\neveryone (and everything) standing there with you. You also look\nautomatically whenever you enter the world. `look <name>` describes\nanother player or a mobile in the room (their appearance/description),\nor an item -- on the room floor or in your own inventory/equipment --\nshowing its description and, if it has one, its condition. Immortals\nadditionally see the room''s vnum, sector type, and flags in the header\nline.'
+  WHERE `name` = 'look' AND `updated_by` = 'seed';

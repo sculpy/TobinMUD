@@ -76,6 +76,14 @@ bool cmd_edplayer(descriptor_t *d, const char *args);
 bool cmd_set(descriptor_t *d, const char *args);
 bool cmd_open(descriptor_t *d, const char *args);
 bool cmd_close(descriptor_t *d, const char *args);
+bool cmd_get(descriptor_t *d, const char *args);
+bool cmd_drop(descriptor_t *d, const char *args);
+bool cmd_inventory(descriptor_t *d, const char *args);
+bool cmd_wear(descriptor_t *d, const char *args);
+bool cmd_remove(descriptor_t *d, const char *args);
+bool cmd_equipment(descriptor_t *d, const char *args);
+bool cmd_oload(descriptor_t *d, const char *args);
+bool cmd_mload(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */

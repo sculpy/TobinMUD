@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-07-06. Companion to STATUS.md, which holds the full
+Last updated: 2026-07-07. Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -15,6 +15,84 @@ viewers keep plain names (`news`, `wiznews`).
 
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.
+
+### User batch 2026-07-07 (reported during the mobiles session) — working these next
+
+- [ ] **`look <object>` doesn't work** — bug: `cmd_look.c`'s `look <name>`
+      (`look_at_target()`) only matches a `THING_PC`; it needs to also find
+      a `THING_OBJ` (room floor, carried, or worn/held) and show its
+      `long_descr`/action description plus a condition line derived from
+      `cur_struct`/`max_struct` (e.g. "is in perfect condition" down to
+      "is falling apart"). A real gap left by the Objects (2C) pass.
+- [ ] **`help color`/`help who`: list every color tag + mention `<N>`** —
+      `help color`'s topic should enumerate all the `<x>` color tags
+      (today only the separate `help colors` topic does that) and mention
+      `<N>`/`<n>` name substitution (currently documented only under
+      `title`); enrich `help who`'s topic the same way (titles shown in
+      `who` can use both tricks).
+- [ ] **`bamfin`/`bamfout`** — classic wizard commands: an immortal sets
+      their own custom arrival ("bamfin") / departure ("bamfout") message
+      shown when they `goto`, plus a customizable regular-movement message
+      template (e.g. "Jesus drags his cross in from the <direction>.").
+      Needs new persisted per-player fields (likely new `player` columns)
+      wired into `cmd_goto.c`'s and `cmd_move.c`'s existing room-echo calls.
+- [ ] **Colorize copyover messages** — `cmd_copyover.c`'s player-facing
+      reboot messages are plain text; tint them (the standing "colorize
+      tastefully" habit).
+- [ ] **`@set` currently just falls through to Huh?!** — `cmd_dispatch()`
+      doesn't special-case a leading `@` the way it already does `'`
+      (say) and `;` (wiznet). Since a separate `@set` command isn't
+      planned, make `@set` dispatch as an alias for `set` (same
+      special-case mechanism `cmd_table.c` already uses for `'`/`;`).
+- [ ] **Verify multiplay-off actually gates a second mortal connection**
+      — Session 21 claims `enter_world()` already refuses a mortal
+      account's second connected character when the `multiplay` game flag
+      is off, with immortals exempt; user flagged uncertainty ("not sure
+      this is so") -- re-verify live (a quick two-connection test) before
+      trusting it, fix if it's actually broken.
+- [ ] **`gametog` (58+)** — split `toggle`: game-wide switches (currently
+      `multiplay`, living inside the unified `toggle` command) move to a
+      new `gametog` command gated 58+; `toggle` keeps only the
+      mortal-settable personal switches (color, hp, ...). Needs
+      `cmd_toggle.c`'s `TOGGLES[]` table split in two (or filtered by a
+      new per-row "game-wide" flag).
+- [ ] **Editors must get ABSOLUTE quiet** — audit every broadcast/echo
+      call site (`game_log`, death taunts, wiznet, system, link-loss,
+      newbie, etc.) to confirm every single one routes through
+      `descriptor_notify()` (held until the editor exits, replayed via
+      `catchup`) and NEVER `descriptor_send()` directly, whenever the
+      target might be mid-edit. Treat any direct-send broadcast path
+      found during the audit as a bug to fix, not just document.
+- [ ] **`edbug`** — a way to annotate or resolve an already-filed bug
+      report (so a player can be told their bug was fixed), instead of
+      only being able to `delbug` (delete) it outright. Menu-driven or
+      one-shot, matching the `ed*`/`set` precedent.
+- [ ] **`mlist`/`olist`/`rlist` (builder list commands)** — list available
+      mob/object/room prototypes; each accepts a bare vnum, a vnum range,
+      or a name/keyword substring filter. Parallels the original's real
+      list commands. Reads straight from the `mob`/`obj`/`room` tables
+      (no new Tobin tables), same "prototypes already exist" precedent as
+      `oload`/`mload`.
+- [ ] **`hit` command (real combat, never instakill)** — a new command
+      that always engages the normal multi-round combat process (like a
+      mortal's `attack`), even for an immortal caller -- lets an immortal
+      actually fight something instead of instakilling it. `kill`/`attack`
+      keep their current behavior unchanged (instakill for immortals).
+- [ ] **General output pagination (20-line threshold)** — any command
+      output longer than 20 lines should paginate automatically (a "more"
+      prompt, ENTER for next page / Q to stop -- same UX `news`/`wiznews`
+      already have), with one blank line before and after each page.
+      Currently only `news`/`wiznews` paginate; this asks for a shared,
+      reusable helper so every long output gets it for free, not just
+      those two commands.
+- [x] **Smoke tests still aren't logging start/finish to the MUD's log** —
+      fixed 2026-07-07 (Session 36): the Session 32 `announce()` helper had
+      in practice only ever landed in the one file that introduced it
+      (`smoke_test_logging.py`); every other test was silently missing it.
+      Retrofitted all 56 `tests/smoke_test_*.py` with a self-contained
+      `announce()`/`announce_done()` pair; `descriptor.c`'s `@test` hook now
+      also recognizes `@test done <name>` and logs `[TEST] finished %s`
+      (distinct from `running %s`). See STATUS.md.
 
 ### User batch 2026-07-06 (morning queue) — working these next
 
@@ -351,44 +429,83 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       a reward number is chosen.
 - [ ] **Mid-fight persistence** — HP and limb HP are only saved at defeat; a
       mid-fight disconnect reloads at last-saved values.
+- [ ] **`player_save()` + a `save` command** (user request, 2026-07-07) — a
+      single function that persists everything about a character in one
+      call (progress/attrs/inventory, and by extension HP/limb HP once
+      those are added to it), plus a player-invokable `save` command that
+      calls it on demand. Mirrors the original's real `TBeing::doSave()`
+      (`cmd/cmd_save.cc`) -- a genuine port, not a Tobin invention. This
+      would consolidate the currently-scattered save-at-mutation-point
+      calls (`player_attrs_save`/`player_progress_save`/
+      `player_inventory_save`, each called separately from `set`,
+      `cmd_mortal.c`, `combat_defeat()`, and every object command) into one
+      place, and directly close the "Mid-fight persistence" gap above.
 
 ## Blocked on Objects / Mobs (Phase 2C/2D/2E)
 
-### >>> NEXT UP (user, work session): `edobject` + `edmobile` <<<
+### >>> NEXT UP (work session): `edobject` and/or `edmobile` <<<
 
-User asked (2026-07-06) to build `edobject` (oedit) and `edmobile` (medit)
-next. Investigation this session — read before starting:
-- **Nothing exists yet.** `thing_kind_t` has `THING_MOB` as an enum label ONLY
-  (no code behind it); there is NO `THING_OBJ`, no `obj_t`/`mob_t`, no obj/mob
-  repos, commands, or Tobin DB tables. So these are NOT "just editors."
-- **Recommended approach (buildable now):** build them as **DB prototype
-  editors**, exactly the way `edroom` edits room DEFINITIONS in the DB — i.e.
-  `edobject <vnum>` / `edmobile <vnum>` edit rows in an object/mob prototype
-  table via a menu, WITHOUT first building the full in-world instance system
-  (oload, get/drop, inventory, mob combat) — that stays a later, separate
-  effort. Alternative: build the full obj/mob systems first (much larger).
-- **Wireframe needed** (all `ed*` editors are menu-driven from a user
-  wireframe — see [[editors-menu-driven]]). Offered to DRAFT proposed
-  wireframes from Sneezy's `create_objs.cc` (`update_obj_menu`, 21 fields) and
-  `create_mobs.cc` (`send_mob_menu`, 30 fields) + the upstream schema, for the
-  user to approve/refine.
-- **Reference schema** already in the seed: `sneezymud-master/db/sneezy/obj.sql`
-  (obj prototype cols: vnum, name, short/long/action desc, type, action_flag,
-  wear_flag, price, can_be_seen, spec_proc, max_exist, max/cur_struct, decay,
-  volume, material, weight, values...) and `mob.sql`.
-- **Two open decisions for the user:** (1) prototype-editor-now vs
-  full-system-first; (2) draft-wireframe-from-Sneezy vs user-provides. Suggest
-  starting with `edobject` (objects are foundational; mobs carry/use them).
+Objects (2C) and Mobiles (2D) are BOTH done as of 2026-07-07 (Sessions 34
+and 35) -- see STATUS.md's decision rows. Both editors were deliberately
+deferred to their own session(s) each (designing a system and its editor
+at once serves neither well); the user already said they want wireframes
+drafted (not provided) for both, from Sneezy's real menus:
+- `edobject`: `create_objs.cc`'s `update_obj_menu` (21 fields), covering
+  the real fields now in `obj_t`/the `obj` table: name/short/long/action
+  desc, category (was `type`), wear_flag, action_flag, val0-3, weight,
+  volume, price, can_be_seen, max_struct/cur_struct, material, decay,
+  max_exist.
+- `edmobile`: `create_mobs.cc`'s `send_mob_menu` (30 fields), covering the
+  `mob` table's real columns -- note Tobin's `being_create_mob()` only
+  uses 6 of ~40 columns today (name/short_desc/description/level/hpbonus/
+  sex), so this editor's scope decision (edit only what's wired up, vs.
+  edit the full row and leave most fields inert until AI/combat-stats work
+  lands) is itself worth raising with the user before drafting the
+  wireframe.
+Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
+(see [[editors-menu-driven]]).
 
-- [ ] **Objects (2C)** — `obj_t` (planned 15-category collapse), DB load,
-      `oload`, get/drop/inventory, persistence, drop-equipment-on-death,
-      equipment slots wired to the existing 13-limb enum (no second enum).
-- [ ] **`edobject` (oedit)** — object editor (menu-driven). See NEXT UP note
-      above. Sneezy's `update_obj_menu` has 21 fields (STATUS / create_objs.cc).
-- [ ] **Mobs (2D)** — `THING_MOB`, `mload`, mob combat — unlocks the real
-      kill-XP economy. `edmobile` (medit; Sneezy's 30-field `send_mob_menu`).
-- [ ] **Zone resets (2E)** — periodic respawn per zone. `zedit` (zone table
-      already in the DB).
+- [x] **Objects (2C)** — done 2026-07-07: `obj_t` (16-category collapse,
+      not the originally-estimated ~15 -- close enough, see obj.c's
+      lookup table comment), DB load (`obj_repo.c` reads the existing
+      upstream-seeded `obj` table directly, no new prototype table),
+      `oload`, get/drop/inventory/wear/remove/equipment, persistence
+      (`player_inventory.sql`, carried/worn/held only), drop-equipment-
+      on-death (`combat.c`), equipment wired to the existing 13-limb enum
+      (no second enum, per this item's own original constraint).
+      `smoke_test_objects.py` + 7 new help topics + a news entry.
+- [ ] **`edobject` (oedit)** — object editor (menu-driven, DB prototype
+      rows in the existing `obj` table). See NEXT UP note above. Sneezy's
+      `update_obj_menu` has 21 fields (STATUS / create_objs.cc).
+- [x] **Mobs (2D)** — done 2026-07-07: a mob is just a `being_t` with
+      `kind=THING_MOB` (no new struct -- matches the original's own
+      `TMonster : TBeing`), DB load (`mob_repo.c` reads the existing
+      upstream-seeded `mob` table directly), `mload`, and full combat
+      integration (`combat_find_room_target()`/`combat_defeat()` widened
+      to handle mobs, permanent removal on defeat -- `combat_process_run()`
+      needed zero changes). `attrs`/`max_hp` are level-derived placeholder
+      formulas, NOT the mob table's real 12-stat/hpbonus system (see
+      STATUS.md). `smoke_test_mobiles.py` + a help topic + refreshed
+      `attack`/`kill`/`look` topics + a news entry. Still unlocks the real
+      kill-XP economy once `progress_add_xp()` gets wired up (separate
+      follow-up, see the small-gameplay-follow-ups list above).
+- [ ] **`edmobile` (medit)** — mob editor (menu-driven, DB prototype rows
+      in the existing `mob` table). See NEXT UP note above. Sneezy's
+      `send_mob_menu` has 30 fields (STATUS / create_mobs.cc).
+- [ ] **Mob AI / aggression** — `ACT_AGGRESSIVE` (and the rest of the
+      `actions`/`affects` bitmask columns) is completely unused -- mobs
+      are reactive-only today (never act until attacked). A real AI/pulse
+      tick is a separate, larger follow-up.
+- [ ] **Zone resets (2E)** — periodic respawn per zone (would also let
+      room-floor `oload`ed objects survive a restart -- currently they
+      don't, see STATUS.md). `zedit` (zone table already in the DB).
+- [ ] **Containers holding sub-items** (`put <item> <container>` / `get
+      <item> <container>`) — containers exist as objects (Phase 2C) and can
+      be carried/worn, but can't hold anything yet. Natural small follow-up.
+- [ ] **Keys unlocking doors** — `unlock`/`lock <direction> with <item>`,
+      matching a KEY-category object's val[0] against the exit's key
+      requirement. The object system this was blocked on (Session 31) now
+      exists -- separate follow-up, not built this pass.
 - [ ] **Shops + money** — shopkeeper buy/sell, shop editor, GOLD-COIN-ONLY
       currency (shop tables already in the seed DB). Needs objects.
 - [ ] **Player-state logging** — log get/drop + pfile changes so `log search
@@ -458,3 +575,9 @@ conversation and in `sneezymud-master`): `positionTypeT` (done), `prompt_mesg`
 - Never hot-deploy while a regression sweep is running (the restart/copyover
   freeze makes unrelated tests flake — burned us twice).
 - Every player-facing change gets a `news.sql` entry (no numbers). See CLAUDE.md.
+- Every new `db/sneezy/*.sql` file MUST use `CREATE TABLE IF NOT EXISTS`,
+  never an unconditional `DROP TABLE IF EXISTS` + `CREATE TABLE` — the
+  latter silently wipes live data every time `apply-tobin-schema.sh` re-runs
+  it (which it always does; that script re-applies every file, every time).
+  Burned us once for real (Session 36: `player_attrs.sql`/
+  `player_progress.sql` wiped ~1338 players' progress this way).

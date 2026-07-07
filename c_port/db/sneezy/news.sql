@@ -41,3 +41,10 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 -- The held-message / editor feature is immortal-only, so it is not news for
 -- players -- remove the entry if an earlier build seeded it.
 DELETE FROM `news` WHERE `title` = 'Edit in Peace';
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Pick Up the Pieces',
+ 'The world can now hold real objects. Get and drop what you find lying around, check your inventory, and wear or remove anything suited to your body -- and hold onto your gear carefully, since it will scatter across the ground wherever you happen to fall in a fight.'),
+('The TobinMUD Team', 'Something''s Watching You',
+ 'The world is no longer empty. Creatures now walk among the rooms, ready to defend themselves if provoked -- attack or kill one the same way you would another adventurer, and take a closer look at anything that catches your eye.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

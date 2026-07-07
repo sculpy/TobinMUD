@@ -11,6 +11,8 @@
 
 #include "descriptor.h"
 #include "log.h"
+#include "mob_repo.h"
+#include "obj.h"
 
 int *attrs_field(attrs_t *a, const char *tok) {
     if (strcasecmp(tok, "str") == 0 || strcasecmp(tok, "strength") == 0) return &a->strength;
@@ -50,6 +52,51 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
     return b;
 }
 
+being_t *being_create_mob(int vnum) {
+    mob_proto_t proto;
+    if (!mob_proto_load(vnum, &proto))
+        return NULL;
+
+    being_t *b = calloc(1, sizeof(*b));
+    if (!b)
+        return NULL;
+
+    b->base.kind = THING_MOB;
+    b->base.id = vnum;
+    snprintf(b->base.name, sizeof(b->base.name), "%s", proto.name);
+    snprintf(b->base.short_descr, sizeof(b->base.short_descr), "%s", proto.short_descr);
+    snprintf(b->appearance, sizeof(b->appearance), "%s", proto.description);
+
+    b->gender = (gender_t)proto.sex;
+    b->progress.level = proto.level;
+    b->progress.experience = 0;
+
+    /* Placeholder attrs/HP formulas (see STATUS.md's Mobiles decision row):
+     * the original's 12-stat mob columns are a completely different, wider
+     * scale than Tobin's ATTR_BASE-centered 6-stat set (real seed values
+     * range well outside 90-150), so copying them verbatim would make
+     * combat_strike() wildly unbalanced. Deriving attrs from level instead
+     * keeps mobs on the same scale PCs already use. `hpbonus` (really the
+     * original's primary HP-scaling parameter, not a "+bonus") drives HP. */
+    int mob_attr = ATTR_BASE + proto.level;
+    if (mob_attr > ATTR_MAX)
+        mob_attr = ATTR_MAX;
+    b->attrs.strength = b->attrs.dexterity = b->attrs.constitution =
+        b->attrs.intelligence = b->attrs.wisdom = b->attrs.charisma = mob_attr;
+
+    b->handed_right = 1;
+    b->position = POSITION_STANDING;
+    b->progress.max_hp = 20 + proto.level * 5 + (int)(proto.hpbonus * 10);
+    if (b->progress.max_hp < 1)
+        b->progress.max_hp = 1;
+    b->progress.hp = b->progress.max_hp;
+    being_limbs_full_heal(b);
+
+    /* account_id, player_id, desc all stay 0/NULL -- never a real DB row. */
+
+    return b;
+}
+
 void being_destroy(being_t *b) {
     if (!b)
         return;
@@ -60,6 +107,25 @@ void being_destroy(being_t *b) {
         if (d->character && d->character->fighting == b)
             d->character->fighting = NULL;
     }
+
+    /* Free every object this being has (carried, worn, or held -- all live
+     * in the one stuff_head chain, see being.h's equipment[]/held[]
+     * comment). Safe: nothing else can still reference these once b goes
+     * away -- player_load_admin()'s snapshot-copy-then-destroy path
+     * (edplayer/set) never populates a being's inventory in the first
+     * place (see player_repo.c), so this is never called on a being whose
+     * objects are also referenced by a live copy elsewhere. */
+    thing_t *carried = b->base.stuff_head;
+    while (carried) {
+        thing_t *next = carried->stuff_next;
+        if (carried->kind == THING_OBJ)
+            obj_destroy((obj_t *)carried);
+        carried = next;
+    }
+    for (int i = 0; i < LIMB_COUNT; i++)
+        b->equipment[i] = NULL;
+    for (int i = 0; i < 2; i++)
+        b->held[i] = NULL;
 
     thing_remove_from_parent(&b->base);
     free(b);

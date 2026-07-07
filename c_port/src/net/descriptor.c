@@ -1138,11 +1138,17 @@ static bool handle_line(descriptor_t *d, const char *line) {
      * which smoke test is currently running. Test-harness only: gated to
      * localhost so a remote player can never inject log lines, and the
      * "@test " prefix collides with nothing a real client sends (account
-     * names can't contain a space). Every smoke test announces itself this
-     * way on startup (see the announce() helper in the test scripts). */
+     * names can't contain a space). Every smoke test announces itself at
+     * startup AND at finish (see the announce()/announce_done() helpers in
+     * the test scripts) -- "@test done <name>" logs a "finished" line
+     * instead of "running" so the two are easy to tell apart in the log. */
     if (strncmp(line, "@test ", 6) == 0
         && (strcmp(d->ip, "127.0.0.1") == 0 || strcmp(d->ip, "::1") == 0)) {
-        game_log(LOG_TEST, "running %s", line + 6);
+        const char *arg = line + 6;
+        if (strncmp(arg, "done ", 5) == 0)
+            game_log(LOG_TEST, "finished %s", arg + 5);
+        else
+            game_log(LOG_TEST, "running %s", arg);
         descriptor_send(d, "ok\r\n");
         return true;
     }

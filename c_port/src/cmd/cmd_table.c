@@ -57,8 +57,8 @@ static const cmd_entry_t COMMANDS[] = {
     { "color",   cmd_color,   "Toggle ANSI color rendering on or off.",             MORTAL_LEVEL_MIN },
     /* attack and kill are FULL aliases (user spec): one handler, both
      * instakill for immortals, both normal combat for mortals. */
-    { "attack",  cmd_kill,    "Attack another player (instant slay for immortals).", MORTAL_LEVEL_MIN },
-    { "kill",    cmd_kill,    "Attack another player (instant slay for immortals).", MORTAL_LEVEL_MIN },
+    { "attack",  cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
+    { "kill",    cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
     { "flee",    cmd_flee,    "Try to escape a fight through a random exit.",        MORTAL_LEVEL_MIN },
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
     /* Positions. Prefix notes: "s"=south; "sa"=say, "sc"=score, "se/sw"=
@@ -101,6 +101,27 @@ static const cmd_entry_t COMMANDS[] = {
     { "goto",    cmd_goto,    "Teleport to a room by vnum.",                        IMMORTAL_LEVEL_MIN },
     /* "l" look, "li" limbs, "lo" look, "loa"+ loadroom, "log" log. */
     { "loadroom", cmd_loadroom, "Set the room your character logs in at.",          IMMORTAL_LEVEL_MIN },
+    /* Objects (Phase 2C). Placed after "goto" (above) so an immortal's bare
+     * "g" still reaches goto first -- "get" only wins "g" for mortals, who
+     * never see goto at all (skipped by min_level). */
+    { "get",     cmd_get,     "Pick up an item from the room (get <item>).",       MORTAL_LEVEL_MIN },
+    /* "d"/"do" are down (movement, above); "drop" needs "dr" minimum. */
+    { "drop",    cmd_drop,    "Put down a carried item (drop <item>).",            MORTAL_LEVEL_MIN },
+    /* Bare "i" already reaches "immort" (below) for every caller -- this
+     * needs at least "in"/"inv". */
+    { "inventory", cmd_inventory, "List what you're carrying.",                    MORTAL_LEVEL_MIN },
+    /* "eq" doesn't collide with anything ('east' only owns "ea..."). */
+    { "equipment", cmd_equipment, "List what you're wearing and holding.",         MORTAL_LEVEL_MIN },
+    /* "we" already reaches "west" (movement, above) -- "wear" needs "wea". */
+    { "wear",    cmd_wear,    "Put on or wield a carried item (wear <item>).",     MORTAL_LEVEL_MIN },
+    /* "re" already reaches "rest" (above) -- "remove" needs "rem". */
+    { "remove",  cmd_remove,  "Take off a worn or held item (remove <item>).",     MORTAL_LEVEL_MIN },
+    /* "o" is already "open"'s (above) -- "oload" needs "ol". Immortal
+     * builder tool, same tier as edroom/goto: no zone-reset system yet, so
+     * a room-floor object placed this way doesn't survive a restart. */
+    { "oload",   cmd_oload,   "Spawn an object prototype into your room (oload <vnum>).", BUILD_MIN_LEVEL },
+    /* "ml" doesn't collide with mudstats/multiplay ("mu") or mortal ("mo"). */
+    { "mload",   cmd_mload,   "Spawn a mobile prototype into your room (mload <vnum>).", BUILD_MIN_LEVEL },
     /* "p"/"pr"/"pro" reach prompt; "prom"+ reaches promote. */
     { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp).",                 MORTAL_LEVEL_MIN },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },

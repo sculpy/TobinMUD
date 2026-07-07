@@ -6,15 +6,29 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 
 #include "db.h"
 #include "log.h"
+#include "obj_repo.h"
 
 /* Default landing room for freshly created characters -- vnum 100 ("Center Square")
  * exists in the seed data (db/sneezy/room.sql) and has a real description,
  * unlike vnum 0 ("The Void"). Revisit once zone-aware character creation
  * (starting city selection etc) is ported. */
 #define DEFAULT_LOAD_ROOM DEFAULT_LOAD_ROOM_MORTAL
+
+/* Standing safeguard (user request, 2026-07-07): the real character named
+ * Jesus is always level 60, full stop. Added after the player_attrs.sql/
+ * player_progress.sql DROP-TABLE bug (see STATUS.md) silently reset nearly
+ * every player's level -- rather than rely on a one-off manual SQL fix,
+ * self-heals on every load. A no-op once already correct. */
+static void ensure_jesus_level(being_t *b) {
+    if (b && strcasecmp(b->base.name, "Jesus") == 0 && b->progress.level != 60) {
+        b->progress.level = 60;
+        player_progress_save(b->player_id, &b->progress);
+    }
+}
 
 being_t *player_load(const char *name, long account_id) {
     db_conn_t *db = db_open(DB_TOBIN);
@@ -44,6 +58,8 @@ being_t *player_load(const char *name, long account_id) {
     if (b) {
         player_attrs_load(b->player_id, &b->attrs); /* falls back to ATTR_BASE defaults if missing */
         player_progress_load(b->player_id, &b->progress); /* falls back to being_create_pc()'s defaults if missing */
+        player_inventory_load(b->player_id, b); /* recreates carried/worn/held instances, see obj_repo.h */
+        ensure_jesus_level(b);
     }
 
     return b;
@@ -305,6 +321,14 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
     if (b) {
         player_attrs_load(b->player_id, &b->attrs);
         player_progress_load(b->player_id, &b->progress);
+        ensure_jesus_level(b);
+        /* Deliberately NOT player_inventory_load() here: edplayer/cmd_set
+         * both do `d->edplayer_work = *loaded;` / mutate-then-destroy on
+         * this snapshot (a shallow struct copy) -- an object attached via
+         * thing_move_to() would leave a dangling pointer the moment
+         * being_destroy(loaded) frees it, since being_destroy() now frees
+         * everything in the being's containment chain (see being.c). An
+         * admin snapshot has no need to inspect inventory in this pass. */
     }
     if (out_load_room)
         *out_load_room = load_room;

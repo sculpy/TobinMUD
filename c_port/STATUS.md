@@ -1,5 +1,232 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-07 — Session 37 (usability fixes, user-reported live).
+Two real gaps found while trying the Objects/Mobiles work in-game:
+- **`oload`/`mload` now accept a name, not just a vnum**: a purely-numeric
+  argument is still treated as a vnum; anything else is a case-insensitive
+  SUBSTRING match against `obj.name`/`mob.name` (`obj_find_vnum_by_name()`/
+  `mob_find_vnum_by_name()`, new in `obj_repo.c`/`mob_repo.c`), taking the
+  lowest-vnum match -- "oload sword" loads the first sword, "mload gua"
+  matches "guard" same as "mload guard" (substring, not prefix-only).
+- **`look <item>` now actually works**: `cmd_look.c`'s `look_at_target()`
+  only ever matched `THING_PC`/`THING_MOB`; widened to fall back to a room-
+  floor-then-own-inventory object search, showing the object's `long_descr`
+  plus a condition line derived from `cur_struct`/`max_struct` (omitted if
+  the prototype never set a max). The "you don't see anyone" message is now
+  "you don't see that" (generic across all three target kinds) --
+  `smoke_test_gender.py` updated for the new wording.
+- Both `tests/smoke_test_objects.py`/`smoke_test_mobiles.py` gained coverage
+  (uniquely-named fixtures for the name-lookup checks, since common words
+  like "sword"/"vrock"/"demon" already exist in the real seeded content at
+  lower vnums and would otherwise win the lowest-vnum tiebreak instead of
+  the test's own fixture). Help topics for `oload`/`mload`/`look` refreshed.
+
+Last updated: 2026-07-07 — Session 36 (incident: schema DROP-TABLE bug +
+cleanup). While setting Jesus's level for the user, the level reverted --
+investigation found `player_attrs.sql`/`player_progress.sql` were raw
+mysqldump exports opening with an unconditional `DROP TABLE IF EXISTS` +
+`CREATE TABLE` (NOT the safe `CREATE TABLE IF NOT EXISTS` every other schema
+file uses). Since `db/apply-tobin-schema.sh` re-runs every file in
+`db/sneezy/` on every deploy (its documented purpose: "apply new migrations
+to an existing DB"), this silently wiped ALL players' level/xp/hp/attrs on
+every run -- confirmed live: 1341 `player` rows, only 3 rows left in each of
+`player_progress`/`player_attrs`. Almost certainly not a today-only
+incident -- this script has been run across many past sessions.
+- **Fixed**: both files rewritten to `CREATE TABLE IF NOT EXISTS` (same safe
+  pattern as `player_inventory.sql`/`help_topic.sql`/`news.sql`), deployed
+  immediately. Confirmed via `grep -l "DROP TABLE" db/sneezy/*.sql` that no
+  other schema file has a live (non-comment) `DROP TABLE` statement.
+- **User's call on the data loss**: no recovery needed -- the game isn't
+  open/playable yet, so a player-data wipe is acceptable at this stage.
+  Not attempting to reconcile against the home VM's separate DB.
+- **Standing safeguard added** (user request): `player_repo.c`'s new
+  `ensure_jesus_level()`, called from both `player_load()` (real login) and
+  `player_load_admin()` (edplayer/set), force-sets the real character named
+  Jesus to level 60 and persists it if it's ever anything else -- self-heals
+  on every load instead of relying on a one-off manual SQL fix. A no-op once
+  already correct.
+- **Also fixed this session**: smoke tests were only announcing themselves
+  at startup (`announce()`, Session 32), never at finish, and the
+  "standing habit" of copying `announce()` into new tests had in practice
+  only ever landed in the one file that introduced it
+  (`smoke_test_logging.py`) -- every other test, including this session's
+  new `smoke_test_objects.py`/`smoke_test_mobiles.py`, was silently missing
+  it. Retrofitted all 56 `tests/smoke_test_*.py` files with a self-contained
+  `announce()`/`announce_done()` pair (doesn't depend on the file's own
+  `recv_all`/`send_line`, so insertion position doesn't matter) via a
+  one-off script, verified every file still parses, spot-checked a few by
+  hand, then deleted the script. `descriptor.c`'s `@test` hook now
+  recognizes `@test done <name>` and logs `[TEST] finished %s` (distinct
+  from `running %s`) -- `smoke_test_logging.py` gained a check for this.
+
+Last updated: 2026-07-07 — Session 35 (Mobiles, Phase 2D). User asked to
+"do the same for mobiles" as the just-finished Objects pass -- same
+scope-limiting decisions (full runtime system now, `edmobile` editor
+deferred), no new questions to re-litigate. Two research passes over
+`sneezymud-master/code/code/` (`misc/monster.h`'s class hierarchy,
+`sys/db.cc`'s mob HP generation, `misc/defs.h`'s `ACT_AGGRESSIVE`) plus
+Tobin's own `combat.c`/`regen.c`/`cmd_look.c` confirmed the design needed
+NO new struct -- `being_t` already anticipated this (its `desc` field was
+already commented "NULL for mobs"; `combat.c`'s `tell()` helper already
+said "no-op for a mob (once mobs exist)").
+- **A mob is just a `being_t` with `kind = THING_MOB`**, `player_id`/
+  `account_id = 0`, `desc` always NULL -- confirmed faithful to the
+  original, where `TMonster` inherits `TBeing` directly and shares its
+  entire combat/HP/limb machinery (not a meaningfully different data
+  model). No `mob_t` struct, unlike Objects (which genuinely needed one).
+- **`being_create_mob(vnum)`** (`being.c`, mirrors `being_create_pc()`)
+  loads a prototype via new `mob_repo.c`'s `mob_proto_load()` -- reads the
+  upstream-seeded `mob` table directly (same "prototypes already exist"
+  precedent as `obj_repo.c`), using only `name`/`short_desc`/`description`/
+  `level`/`hpbonus`/`sex`. **Deliberate simplification**: the mob table's
+  real 12-stat columns (str/bra/con/dex/agi/intel/wis/foc/per/cha/kar/spe)
+  are a completely different, wider scale than Tobin's `ATTR_BASE=120 ± 30`
+  6-stat system (real seed values run from -25 to 350+) -- copying them
+  verbatim would make `combat_strike()` wildly unbalanced. Instead, a
+  mob's `attrs_t` is derived from its `level` (`ATTR_BASE + level`, capped
+  at `ATTR_MAX`), and `max_hp` from a placeholder formula using `hpbonus`
+  (the original's real per-mob HP-scaling parameter, confusingly named --
+  same "placeholder, revisit later" precedent as `being_calc_max_hp()`/
+  the XP curve/regen rate). `class`/`race`/`letter`/`attacks`/`tohit`/`ac`/
+  `damage_level`/`damage_precision`/`gold`/`faction`/`actions`/`affects`/
+  `spec_proc`/`skin`/`vision`/`can_be_seen`/`max_exist`/sounds/`pos`/
+  `def_position` are all unused, explicitly deferred to a future
+  `edmobile`/AI session.
+- **`mload <vnum>`** (`cmd_mload.c`, immortal, `BUILD_MIN_LEVEL`, direct
+  mirror of `oload`): manual only, no zone-reset system yet (2E) to
+  respawn one automatically -- an `mload`ed mob doesn't survive a restart,
+  same documented gap as room-floor objects.
+- **Combat widened, not rebuilt**: `combat_find_room_target()` now
+  matches `THING_MOB` alongside `THING_PC`, and switched from whole-string
+  `strncasecmp` to a new shared `thing_name_matches()` (`thing.c`,
+  per-keyword prefix matching -- a mob's `name` can be multi-word like
+  "vrock demon", same issue Objects already solved for get/drop; a
+  single-word PC name behaves identically to before). `combat_process_run()`
+  needed ZERO changes -- it already iterates by descriptor and calls
+  `combat_strike()` on whichever two `being_t*` are fighting, so a
+  PC-vs-mob round already resolved correctly once targeting could find a
+  mob at all. `combat_defeat()` now branches on `loser->base.kind`: the
+  HP-half-patch/limb-heal/`player_progress_save()`/eject-to-menu path is
+  PC-only (a mob has no player_id row, no menu); a defeated mob is instead
+  `being_destroy()`ed outright -- permanent, no respawn. **This also fixed
+  a latent dormant bug**: before mobs existed, defeating any `desc == NULL`
+  being would have silently left it sitting in the room forever, since
+  only the PC branch ever removed anything.
+- **`look <mob>`**: `cmd_look.c`'s `look_at_target()` widened the same way
+  (kind filter + `thing_name_matches()`) -- already generic over
+  `appearance`-or-"nothing special", and a mob's `description` column is
+  loaded into that same field by `being_create_mob()`, so no mob-specific
+  branch was needed. (Does NOT touch the separately-logged `look <object>`
+  TODO gap -- different kind, different fix, left alone.)
+- `tests/smoke_test_mobiles.py` (SQL-bootstrapped sandbox room + mob
+  prototype at a high vnum, full positional/named column list since the
+  `mob` table's columns are NOT NULL with no defaults, unlike `obj`):
+  `mload` gate, room-generic listing, `look <mob>` by either of its two
+  keywords, a mortal `kill`/`attack`ing the mob by an abbreviated keyword
+  with real multi-round combat, and permanent removal on defeat. Help
+  topic for `mload` + refreshed `attack`/`kill`/`look` topics to mention
+  mobiles; a news entry.
+
+Last updated: 2026-07-07 — Session 34 (Objects, Phase 2C). User asked for
+`edobject`/`edmobile` next; investigating first found there was no object
+system at all (`THING_MOB` was an enum label only, no `obj_t`/repo/commands).
+Asked two blocking questions: user chose the FULL object system now (not
+just a DB-prototype editor), and to draft the wireframe myself when the
+editor session comes -- `edobject` itself stays explicitly deferred to that
+future session. Built per TODO.md's own Objects (2C) checklist:
+- **`obj_t`** (`include/obj.h`/`src/core/obj.c`): collapses the original's 60
+  `itemTypeT` values (verified by reading `misc/obj.h` directly) into 16
+  `obj_category_t` buckets via a single lookup table (`category_for_item_type()`),
+  same precedent as `sector_color()`'s keyword bucketing. **Key finding**:
+  object PROTOTYPES already exist -- the upstream-seeded `obj` table
+  (`db/sneezy/obj.sql`, thousands of real rows, PK vnum) is read directly
+  by `obj_repo.c`'s `obj_proto_load()`; no new prototype table needed. Only
+  in-world INSTANCES are new state.
+- **Containment**: every obj_t (room floor, carried, worn, or held) lives in
+  the ONE existing `thing_t` chain (`stuff_head`/`stuff_next`/`parent`, via
+  `thing_move_to()`/`thing_remove_from_parent()` -- both already existed,
+  unused by any kind until now, clearly anticipating this). `being_t.
+  equipment[LIMB_COUNT]`/`held[2]` are fast-lookup pointers INTO that same
+  set, not separate storage -- `inventory` walks `stuff_head` excluding
+  anything also pointed to by those arrays; `equipment` reads the arrays
+  directly. `THING_OBJ` added to `thing_kind_t`.
+- **Wear-flag -> limb mapping** (`wear_slot_for_flag()`): `obj_t.wear_flag`
+  is stored VERBATIM in the original's upstream bit layout (TAKE=1,
+  FINGERS=2, NECK=4, BODY=8, HEAD=16, LEGS=32, FEET=64, HANDS=128, ARMS=256,
+  BACK=1024, WAIST=2048, WRISTS=4096, HOLD=16384, THROW=32768) so every
+  already-seeded object "just works" with zero data migration; translated to
+  a Tobin `limb_t` only at wear time. HEAD/NECK/BODY/WAIST map 1:1; FINGERS/
+  ARMS/LEGS/FEET pick the first empty of the L/R pair (prefer right); HOLD
+  goes to `held[]` (respecting `handed_right`). **HANDS/WRISTS/BACK/THROW
+  have no Tobin limb equivalent** (the 13-limb set was already deliberately
+  trimmed vs. the original's real slot list, see the Limbs decision row) --
+  such an item is carriable but not wearable in this port; a documented
+  content gap, not a bug. No second slot enum -- reuses `limb_t` directly,
+  per TODO.md's explicit constraint.
+- **Commands** (mortal, `src/cmd/cmd_object.c`): `get`/`drop`/`inventory`/
+  `wear`/`remove`/`equipment`. Multi-keyword object names ("bag large real")
+  match if the typed word is a case-insensitive prefix of ANY keyword, not
+  just the whole string (object names, unlike player names, are DB keyword
+  lists). Abbreviation collisions documented inline in cmd_table.c: bare "i"
+  already reaches `immort` (needs "in"/"inv"), "we" already reaches `west`
+  (needs "wea"), "re" already reaches `rest` (needs "rem"), "d"/"do" already
+  reach `down` (needs "dr"); `equipment`'s "eq" and `get`'s "g" (mortals
+  only -- immortals still get `goto` for "g", since `get` is placed after it
+  in table order) don't collide with anything.
+- **`oload <vnum>`** (immortal, `src/cmd/cmd_oload.c`, `BUILD_MIN_LEVEL`
+  same tier as `edroom`/`goto`): manual builder tool, spawns a prototype
+  into the caller's room. No zone-reset system yet (still-future 2E) --
+  a room-floor object placed this way does NOT survive a server restart.
+- **`cmd_look.c`**: room-floor objects now print their prototype's
+  `long_desc` verbatim (e.g. "A hairball is laying here.") in the same loop
+  that already listed other occupants, instead of the generic "<label> is
+  here." used for PCs/mobs.
+- **Persistence** (`db/sneezy/player_inventory.sql`, new Tobin table,
+  `CREATE TABLE IF NOT EXISTS` -- NOT the mysqldump-style unconditional
+  DROP+CREATE some earlier tables use, since this one WILL be live data
+  players don't want wiped on a schema reapply): only player-carried/worn/
+  held instances persist (`player_inventory_load`/`_save`, wired into
+  `player_repo.c`'s `player_load()` and called immediately after every
+  inventory-mutating command, same "save at the point of mutation"
+  precedent as `set`/`cmd_mortal.c`'s progress saves -- NOT a generic
+  save-at-quit). **Deliberately NOT wired into `player_load_admin()`**
+  (edplayer/set's snapshot-copy-then-destroy pattern would leave a dangling
+  pointer once `being_destroy()` frees a populated inventory -- documented
+  inline in `player_repo.c`). Room-floor objects are NOT persisted (no
+  zone-reset system to repopulate them at boot yet) -- documented gap.
+- **Drop-on-death** (`combat.c`'s `combat_defeat()`): resolves the "Future
+  direction" open question already on record -- a defeated character's
+  carried, worn, and held items all fall into the room they died in (same
+  safe-unlink-while-iterating pattern as `being_destroy()`), not lost or
+  carried to the account menu.
+- `tests/smoke_test_objects.py` (SQL-bootstrapped sandbox room + 5 object
+  prototypes, same discipline as `smoke_test_doors.py`): oload gate, look
+  listing, get + no-TAKE refusal, inventory, wear + already-occupied
+  refusal, equipment display (worn + held), remove, drop, reconnect
+  persistence (both carried and held survive), and combat-defeat drop
+  (verified via a bystander's `look` after the kill, and the victim's own
+  empty inventory/equipment on their next reconnect). Help topics for all
+  seven new commands (`help_topic.sql`) + a `news.sql` entry.
+- Explicitly deferred (not silently dropped): `edobject` editor itself;
+  containers holding sub-items (`put`/`get from container` -- containers
+  exist as objects and can be carried/worn, just can't hold anything yet);
+  carry-weight/volume limits; zone resets (2E); keys actually unlocking
+  `EXIT_COND_LOCKED` doors (a natural next step now that `KEY`/`CONTAINER`
+  categories exist, but a separate follow-up); shops/money economy;
+  `examine`/extra-descriptions.
+
+Last updated: 2026-07-07 — Session 33 (work-box redeploy + reconcile verification).
+Adopted the fully-reconciled `origin/main` (through Session 32, commit `73977f0`)
+locally (`git reset --hard`), then found db.kullit.com's own checkout was still
+stuck at Session 24 with a pile of uncommitted local diffs and no working git
+credentials (`fatal: could not read Username for 'https://github.com'`) --
+resolved with a `git archive main | ssh ... tar xf -` overwrite (user-approved,
+same method as prior manual deploys), a clean `rm -rf build` rebuild (zero
+warnings), migrations applied, server restarted. Full sweep: 53/55, the 2
+failures (`smoke_test_notify.py`, `smoke_test_set.py`) both re-ran clean
+standalone -- confirmed transient (the same "rotating flake" pair the handoff
+already flagged), not a regression. Reconciliation + redeploy is COMPLETE.
+
 Last updated: 2026-07-06 — Session 32 (reconcile follow-ups). In order:
 - Reconciled the second machine's `work-2026-07-06` branch onto `main`:
   cherry-picked Sessions 26-31, backported the Session 25 delete-time password
@@ -245,6 +472,8 @@ color codes (see memory: tobin-colorize-habit).
 | Limbs | `limb_t` enum, 13 entries as of Session 19 (`LIMB_HEAD/NECK/LEFT_ARM/RIGHT_ARM/LEFT_FINGER/RIGHT_FINGER/BODY/WAIST/GENITALIA/RIGHT_LEG/LEFT_LEG/LEFT_FOOT/RIGHT_FOOT`, user-specified list/order -- was 12 in Session 17-18, 6 through Session 16) + `limb_state_t {hp, max_hp}` array on `being_t`. Each limb's max is `progress.max_hp / LIMB_COUNT` (placeholder even split -- ~1-2 on a fresh mortal with 13 limbs, so ordinary 1-6 damage hits destroy a limb outright in one blow almost every time). Every hit in `combat_strike()` rolls a uniformly-random limb and names it in the message. **Display is percentage-based (Session 15), not raw HP** -- `being_limb_pct()` (0-100). `score`'s `Limbs:` section only lists a limb once it's hurt (`limb_status_text()` non-NULL, `< 20%`); the dedicated **`limbs` command (Session 17, `cmd_limbs.c`)** always lists all `LIMB_COUNT` limbs unconditionally, healthy or not, each with its percentage and an injury-tier suffix when applicable. `limb_status_text(pct)` (being.h/being.c) returns a shared injury phrase used identically everywhere it shows up: `< 20%` "is hurt rather badly", `< 10%` "needs medical attention", `0%` "is destroyed and needs medical attention" (NULL/no line above 20%). Combat announces the phrase only when a hit crosses into a *worse* tier than the limb was in before that hit (edge-triggered). A destroyed limb (`being_has_destroyed_limb()`) applies a flat, non-stacking `DESTROYED_LIMB_HIT_PENALTY` (-15 to `hit_roll`) to that character's own attacks in `combat_strike()`. Not persisted (same precedent as `progress.hp`, only saved at defeat) -- there's no hospital system to repair a destroyed limb mid-game, so the only current cure is dying and respawning (`being_limbs_full_heal()` already runs at combat defeat). | As of Session 17, this was already a near 1:1 match of the original's real slot list (`wearSlotT` in `misc/limbs.h`: head/neck/arms/hands/body/waist/legs/feet/back), just without weighted hit-roll chances, equipment interactions, or `PART_USELESS`/`PART_BROKEN`/dismemberment gameplay effects (`misc/limbs.cc`) -- "finger" here in place of the original's "hand", no "back" slot. **`genitalia` (Session 19) is a user-requested addition beyond the original's actual slot list** (confirmed via `misc/limbs.h`: `wearSlotT` has no such slot) -- not a port of anything, purely Tobin-specific. The combat penalty is a flat single deduction regardless of how many limbs are destroyed (not compounding) -- a placeholder, not a real crippling-injury system. |
 | Regen | `include/regen.h`/`src/core/regen.c`: `regen_tick_run()`, `pulse_register(REGEN_PULSES, ...)` (`REGEN_PULSES=50`, ~5s). Every playing character not `fighting` heals `1 + (CON above ATTR_BASE)/20` on overall HP and every limb (`being_heal()`). | Mirrors `TPerson::hitGain()` (`misc/limits.cc`, called every pulse via `addToHit(hitGain())`), which also explicitly zeroes gain while fighting -- same rule here. Placeholder rate, not the original's level/CON/hospital-room/drunk/camp-weighted curve. Gains aren't persisted between ticks (same precedent as combat HP). |
 | `say` | New `src/cmd/cmd_say.c`. `say <message>` (and the `'` shorthand, see below) broadcasts to the speaker's room: speaker sees `You say, "<message>"`, everyone else sees `<Name> says, "<message>"`. Empty message rejected with `"Yes, but WHAT do you want to say?"`. No auto-added punctuation -- the message is used verbatim. The `'` one-character shorthand (no space required, e.g. `'hi` says `hi`) is handled directly in `cmd_dispatch()` (`cmd_table.c`): a leading `'` sets `verb = "say"` and `args` to everything after it (whitespace-trimmed), bypassing the normal whitespace-delimited verb split entirely so it isn't mangled by it. | Direct port of `TBeing::doSay()`'s message format and the original's `argument[0] == '\''` special-case in `TBeing::parseCommand()` (both `misc/talk.cc` / `misc/parse.cc`). **Not replicated**: the original's `garble()` (drunk/language distortion) and its green/cyan color-coding of the name and message -- plain text here, matching every other command's generated output so far (color is currently only used for room descriptions). The original also has `:`/`,` shortcuts (emote/similar) -- not ported, only `'`/`say`. |
+| Objects (Phase 2C) | `obj_t` (`include/obj.h`/`src/core/obj.c`) collapses the original's 60 `itemTypeT` values into 16 `obj_category_t` buckets (`category_for_item_type()`, a single lookup table). Object PROTOTYPES are the upstream-seeded `obj` table (`db/sneezy/obj.sql`) read directly (`obj_repo.c`'s `obj_proto_load()`) -- no new prototype table. Containment (room floor / carried / worn / held) is the ONE existing `thing_t` chain (`stuff_head`/`stuff_next`/`parent`, `thing_move_to()`/`thing_remove_from_parent()` -- both pre-existing, unused until now); `being_t.equipment[LIMB_COUNT]`/`held[2]` are fast-lookup pointers into that same set, not separate storage. | `THING_OBJ` added to `thing_kind_t`. `obj.wear_flag` is stored verbatim in the original's upstream bit layout (not reinterpreted) so every already-seeded object works with zero migration; `wear_slot_for_flag()` translates to a Tobin `limb_t` only at wear time -- see the Limbs row for why HANDS/WRISTS/BACK/THROW have no mapping. Persistence (`db/sneezy/player_inventory.sql`) covers only player-carried/worn/held instances, saved immediately after every mutating command (not a generic save-at-quit) and loaded in `player_load()` but deliberately NOT `player_load_admin()` (would dangle a pointer through edplayer/set's snapshot-copy-then-destroy pattern once `being_destroy()` started freeing a populated inventory). Room-floor objects (via `oload`, `BUILD_MIN_LEVEL`) don't survive a restart -- no zone-reset system (2E) yet. `edobject` (the menu editor) is deliberately a separate future session. |
+| Mobiles (Phase 2D) | A mob is just a `being_t` with `kind = THING_MOB`, `player_id`/`account_id = 0`, `desc` always NULL -- no new struct, matching the original's own `TMonster : TBeing` inheritance (confirmed by reading `misc/monster.h`). `being_create_mob(vnum)` (`being.c`) loads a prototype from the upstream-seeded `mob` table (`mob_repo.c`'s `mob_proto_load()`, no new Tobin table). | Mob `attrs_t` is derived from `level` (`ATTR_BASE + level`, capped `ATTR_MAX`), NOT the mob table's real 12-stat columns (a different, wider scale than Tobin's 6-stat system -- would unbalance `combat_strike()`). `max_hp` uses a placeholder formula built from `hpbonus` (the original's actual per-mob HP-scaling parameter). `combat_find_room_target()`/`combat_defeat()` widened (see decision row above the module table) rather than duplicated; `combat_process_run()` needed no changes at all. No mob-instance persistence (no owning player, no zone-reset system yet) -- an `mload`ed mob is lost on restart, like room-floor objects. `edmobile`, mob AI/aggression, zone resets, and XP-on-kill are all explicitly deferred. |
 | `help`/`wizhelp` | New `src/cmd/cmd_help.c`, `cmd_entry_t` (moved from `cmd_table.c` into `cmd_internal.h`) gained `help` (one-line description) and `min_level` fields, plus a `cmd_table_entries(int *count)` accessor so `cmd_help.c` can enumerate `cmd_table.c`'s `COMMANDS[]` without duplicating it. `help` lists every command with its one-liner (plus a hardcoded `quit!` line, since that command is deliberately excluded from the dispatch table itself). `wizhelp` rejects a non-immortal caller (`"You are not privileged enough to use that command."`) and otherwise lists commands where `min_level > MORTAL_LEVEL_MAX` -- currently none, so it honestly prints `"(none yet -- no commands are currently immortal-only)"` rather than an empty or broken list. | **`wizhelp` is a genuine, direct port** of `TBeing::doWizhelp()` (`cmd/cmd_help.cc`): confirmed via source research that it really is a `commandArray[]` scan filtered by `minLevel > MAX_MORT`, not a file lookup -- Tobin's version does the exact same filter over its own command table. **`help` is a deliberate, documented simplification**: the original's `doHelp()` is a full file-based prose-topic system (separate `help/`, `help/_immortal`, `help/_skills`, `help/_spells` directories, a rebuildable index, per-topic `.ansi` variants, an external `bin/helpindex` binary for `help index`) -- entirely out of scope without a help-file content pipeline Tobin doesn't have. Tobin's `help` instead reuses the same command-list pattern `wizhelp` already needed for real, rather than attempting the file-based system. `min_level` is currently display-only metadata (drives the `help`/`wizhelp` split) -- no command's `min_level` is actually enforced by `cmd_dispatch()`, since nothing yet needs real access-gating (unlike the original's genuine `commandInfo::minLevel`-driven dispatch gate). |
 
 ## Module port status
@@ -260,10 +489,11 @@ color codes (see memory: tobin-colorize-habit).
 | room persistence | n/a (part of DB flow) | `src/db/room_repo.c` | **Done** (name/description/sector/exits only) | |
 | sys/{ansi,colorstring}.{h,cc} | (part of sys/ 31K) | `include/colorstring.h`, `src/net/colorstring.c` | **Done, verified live** | `<X>` tag → ANSI translation, hooked into `descriptor_send()`. Immortal-only flash/background codes deferred. |
 | sys/process.{h,cc} | (part of sys/ 31K) | `include/pulse.h`, `src/core/pulse.c` | **Done (trimmed scope), verified live** | Global-process-only `TBaseProcess`/`TScheduler` equivalent; no per-character/per-object process registry yet (see decisions table). |
-| misc/combat.cc | (part of misc/ 178K) | `include/combat.h`, `src/core/combat.c`, `src/cmd/cmd_attack.c`, `src/cmd/cmd_kill.c` | **Partial, verified live** | PvP-only round-based combat with 6-limb HP + limb-named hit messages, passive regen when not fighting, an immortal-only `kill` instant-slay, and defeat now ejecting the loser to the account menu (Session 14). No NPCs, no weapon/armor damage modifiers, no XP-on-kill yet. |
+| misc/combat.cc | (part of misc/ 178K) | `include/combat.h`, `src/core/combat.c`, `src/cmd/cmd_attack.c`, `src/cmd/cmd_kill.c` | **Partial, verified live** | Round-based combat with 6-limb HP + limb-named hit messages, passive regen when not fighting (PCs only), an immortal-only `kill` instant-slay, defeat ejecting a PC loser to the account menu (Session 14) or permanently destroying a mob loser (Session 35). Now supports PC-vs-mob as well as PC-vs-PC. No weapon/armor damage modifiers, no XP-on-kill, no mob AI/aggression yet. |
+| misc/monster.h, sys/db.cc (`read_mobile`) | (part of misc/ 178K, sys/ 31K) | `src/db/mob_repo.c`, `being_create_mob()` in `src/core/being.c` | **Partial, verified live** | Mobs are `being_t` instances (`kind=THING_MOB`), not a separate struct -- matches the original's own `TMonster : TBeing`. Prototypes read straight from the upstream-seeded `mob` table; `attrs`/`max_hp` are placeholder formulas (level-derived, not the original's real 12-stat/dice system -- see the Mobiles decision row). No AI, no zone-reset spawning, no persistence. |
 | misc/limbs.{h,cc}, misc/body.h | (part of misc/ 178K) | `being.h`/`being.c` (`limb_t`, `limb_state_t`), `combat.c` | **Simplified, verified live** | 6-limb placeholder set, not the original's real 13-slot equipment-aligned system -- see the "Limbs" decision row. |
 | misc/limits.cc (`hitGain()`) | (part of misc/ 178K) | `include/regen.h`, `src/core/regen.c` | **Simplified, verified live** | Flat placeholder regen rate, not the original's level/CON/room-weighted curve -- see the "Regen" decision row. |
-| obj/ (98 classes) | 28K | — | **Not started** | Collapse-to-15-categories design not yet begun. |
+| obj/ (98 classes) | 28K | `include/obj.h`, `src/core/obj.c`, `src/db/obj_repo.c` | **Partial, verified live** | Collapsed to 16 `obj_category_t` buckets (not a per-class port). Prototypes read straight from the upstream-seeded `obj` table; instances use the existing `thing_t` containment mechanism. No object special-procs, no containers-holding-sub-items, no weapon/armor stat effects on combat yet -- see STATUS.md's Objects decision row. |
 | disc/ (69 classes) | 40K | — | **Not started** | |
 | spec/ | 36K | — | **Not started** | Already near-C in the original, low risk. |
 | cmd/ (66 files) | 27K | `src/cmd/` | **11/66 ported** (`look`, `who`, `score`, `quit!`, `color`, `attack`, `kill`, `say`, `limbs`, `help`, `wizhelp`) | Dispatch table (`cmd_table.c`) does prefix/abbreviation matching, not exact-string lookup (Session 9) -- see the "Command parsing" decision row. `score`/`color`/`attack`/`kill`/`limbs`/`help` are new-to-Tobin (no direct equivalent for this simplified feature set, or a deliberate simplification of a much heavier original mechanism -- see `help` in the "`help`/`wizhelp`" decision row); `say` and `wizhelp` are real ports of the original's actual mechanisms. `cmd_dispatch()` returns `bool` (every `cmd_*` handler's signature changed from `void` to `bool` to match) -- `quit!` returning `true` means "leave the character, back to the account menu"; only the account menu's own `quit!` (handled directly in `descriptor.c`, not through `cmd_dispatch`) returns `false` to actually disconnect. Every `CONN_PLAYING` reply ends with a trailing `\r\n> ` prompt (Session 9, blank line added Session 14). As of Session 10, `cmd_dispatch()` also gates on the wait-state before allowing any command through. As of Session 16, `cmd_dispatch()` also special-cases a leading `'` (see the "`say`" decision row) before the normal whitespace-delimited verb split. As of Session 18, `cmd_entry_t` (moved to `cmd_internal.h`, shared with `cmd_help.c`) carries a `help` one-liner and `min_level` per command -- display metadata only, not enforced by `cmd_dispatch()`. |

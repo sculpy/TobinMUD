@@ -1,0 +1,44 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
+#ifndef TOBIN_MOB_REPO_H
+#define TOBIN_MOB_REPO_H
+
+#include <stdbool.h>
+
+#include "being.h"
+
+/* DB access for mob prototypes: the upstream-seeded `mob` table
+ * (db/sneezy/mob.sql) is read directly -- no new Tobin table needed, same
+ * "prototypes already exist" precedent as obj_repo.h. Only the fields
+ * Tobin's simplified mob model actually uses are loaded; the rest of the
+ * mob table's ~40 columns (class/race/tohit/ac/damage_level/actions/
+ * affects/spec_proc/...) are explicitly deferred to a future edmobile/AI
+ * session -- see STATUS.md's Mobiles decision row.
+ *
+ * Unlike objects, there is no mob-instance persistence table: a mob has no
+ * owning player to persist against, and there's no zone-reset system yet
+ * (2E, still future) to respawn one at boot -- an `mload`ed mob is lost on
+ * a server restart, same documented gap as room-floor `oload`ed objects. */
+
+typedef struct {
+    char name[64];              /* matches thing_t.name */
+    char short_descr[128];      /* matches thing_t.short_descr */
+    char description[BEING_APPEARANCE_LEN]; /* the "look <mob>" closer text */
+    int level;
+    double hpbonus;             /* the original's real HP-scaling parameter */
+    int sex;
+} mob_proto_t;
+
+/* Loads the prototype row for `vnum` from the `mob` table into *out.
+ * Returns false if no such vnum exists. */
+bool mob_proto_load(int vnum, mob_proto_t *out);
+
+/* Finds the lowest vnum whose `name` column contains `name` (case-
+ * insensitive substring, e.g. "demon" matches "a vrock demon"), or -1 if
+ * none match. Backs `mload <name>` (cmd_mload.c) as an alternative to a
+ * bare vnum. */
+int mob_find_vnum_by_name(const char *name);
+
+#endif
