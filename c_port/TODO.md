@@ -354,13 +354,39 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ## Blocked on Objects / Mobs (Phase 2C/2D/2E)
 
+### >>> NEXT UP (user, work session): `edobject` + `edmobile` <<<
+
+User asked (2026-07-06) to build `edobject` (oedit) and `edmobile` (medit)
+next. Investigation this session — read before starting:
+- **Nothing exists yet.** `thing_kind_t` has `THING_MOB` as an enum label ONLY
+  (no code behind it); there is NO `THING_OBJ`, no `obj_t`/`mob_t`, no obj/mob
+  repos, commands, or Tobin DB tables. So these are NOT "just editors."
+- **Recommended approach (buildable now):** build them as **DB prototype
+  editors**, exactly the way `edroom` edits room DEFINITIONS in the DB — i.e.
+  `edobject <vnum>` / `edmobile <vnum>` edit rows in an object/mob prototype
+  table via a menu, WITHOUT first building the full in-world instance system
+  (oload, get/drop, inventory, mob combat) — that stays a later, separate
+  effort. Alternative: build the full obj/mob systems first (much larger).
+- **Wireframe needed** (all `ed*` editors are menu-driven from a user
+  wireframe — see [[editors-menu-driven]]). Offered to DRAFT proposed
+  wireframes from Sneezy's `create_objs.cc` (`update_obj_menu`, 21 fields) and
+  `create_mobs.cc` (`send_mob_menu`, 30 fields) + the upstream schema, for the
+  user to approve/refine.
+- **Reference schema** already in the seed: `sneezymud-master/db/sneezy/obj.sql`
+  (obj prototype cols: vnum, name, short/long/action desc, type, action_flag,
+  wear_flag, price, can_be_seen, spec_proc, max_exist, max/cur_struct, decay,
+  volume, material, weight, values...) and `mob.sql`.
+- **Two open decisions for the user:** (1) prototype-editor-now vs
+  full-system-first; (2) draft-wireframe-from-Sneezy vs user-provides. Suggest
+  starting with `edobject` (objects are foundational; mobs carry/use them).
+
 - [ ] **Objects (2C)** — `obj_t` (planned 15-category collapse), DB load,
       `oload`, get/drop/inventory, persistence, drop-equipment-on-death,
       equipment slots wired to the existing 13-limb enum (no second enum).
-- [ ] **`oedit`** — object editor (menu-driven). Sneezy's `update_obj_menu`
-      has 21 fields (see STATUS / create_objs.cc).
+- [ ] **`edobject` (oedit)** — object editor (menu-driven). See NEXT UP note
+      above. Sneezy's `update_obj_menu` has 21 fields (STATUS / create_objs.cc).
 - [ ] **Mobs (2D)** — `THING_MOB`, `mload`, mob combat — unlocks the real
-      kill-XP economy. `medit` (Sneezy's 30-field `send_mob_menu`).
+      kill-XP economy. `edmobile` (medit; Sneezy's 30-field `send_mob_menu`).
 - [ ] **Zone resets (2E)** — periodic respawn per zone. `zedit` (zone table
       already in the DB).
 - [ ] **Shops + money** — shopkeeper buy/sell, shop editor, GOLD-COIN-ONLY
