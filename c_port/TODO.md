@@ -527,17 +527,23 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
       `actions`/`affects` bitmask columns) is completely unused -- mobs
       are reactive-only today (never act until attacked). A real AI/pulse
       tick is a separate, larger follow-up.
-- [ ] **>>> NEXT: Zones / zonefiles (2E) <<<** (user 2026-07-07) — the whole
-      zone system: **zonefile reset commands so mobs AND objects auto-load
-      into rooms** (and objects into mobs / onto the ground) at boot and on a
-      periodic per-zone reset timer -- the automatic counterpart to the manual
-      `oload`/`mload`. This also makes room-floor objects and mloaded mobs
-      survive a restart (currently lost, see STATUS.md). Includes: the zone +
-      zone-reset-command tables (already in the upstream seed DB -- verify),
-      loading/executing reset commands (the original's `zone_reset`/`ZCMD`
-      "M/O/G/E/P/D" opcodes), a reset pulse, and `zedit` (menu-driven, needs a
-      wireframe). Port from Sneezy's zone reset machinery for inspiration;
-      confirm the reset-command opcode subset + `zedit` wireframe with the user.
+- [~] **>>> Zones / zonefiles (2E) <<<** (user 2026-07-07) — in progress.
+  - [x] **Part 1: convert zonefiles -> DB** — done 2026-07-07: `db/import-zones.py`
+        parses the upstream `lib/zonefiles/*` into `db/sneezy/zone_reset.sql`
+        (a new `zone_reset` table: zone_nr, cmd_no, command, if_flag, arg1-4,
+        comment). 35,922 reset commands imported (M 11314 -> mob to room,
+        O 6625 -> obj to room, E/D/G/P + Sneezy-specific opcodes stored too).
+        Sneezy's `?`-conditional (6750x) and one stray `Wrench` skipped.
+        Auto-loaded by `apply-tobin-schema.sh`. Data-only so far (no execution).
+  - [ ] **Part 2: execute resets** — at boot + on a per-zone reset pulse, run
+        the M/O/G/E/P/D opcodes (load mob/obj into rooms, give/equip the last
+        mob, put in obj, door state). Needs: mob/obj instantiation into a room
+        (reuse mload/oload paths), a "last loaded mob/obj" cursor for G/E/P,
+        `if_flag` handling, per-zone `lifespan`/`reset_mode` from the `zone`
+        table, a reset scheduler. Makes rooms repopulate + survive restart.
+  - [ ] **Part 3: `zedit`** — menu-driven zone editor (needs a wireframe from
+        the user). Sneezy-specific opcodes (Y/A/X/Z/V/...) + `?` conditional
+        can be ported as needed.
 - [ ] **Containers holding sub-items** (`put <item> <container>` / `get
       <item> <container>`) — containers exist as objects (Phase 2C) and can
       be carried/worn, but can't hold anything yet. Natural small follow-up.

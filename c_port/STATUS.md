@@ -1,5 +1,15 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-07 — Session 38 (home): Zones part 1 (DB conversion).
+- **Zonefiles converted to the DB**: `db/import-zones.py` parses the upstream
+  DikuMUD-style `lib/zonefiles/*` into `db/sneezy/zone_reset.sql` -- a new
+  `zone_reset` table (zone_nr, cmd_no, command, if_flag, arg1-4, comment).
+  35,922 reset commands imported (M 11314 mob->room, O 6625 obj->room, plus
+  E/D/G/P and Sneezy-specific opcodes kept for later; `?`-conditional x6750
+  and one stray `Wrench` skipped). The `zone` metadata table already existed,
+  so only the reset COMMANDS needed importing. Auto-loaded by
+  apply-tobin-schema.sh. DATA ONLY -- execution (boot + reset pulse) is Part 2.
+
 Last updated: 2026-07-07 — Session 38 (home), follow-ups:
 - **Consistent editor slash-commands**: every ed* editor now shares one set,
   keyed to each action's first letter -- `/s` save, `/a` abort, `/b` blank

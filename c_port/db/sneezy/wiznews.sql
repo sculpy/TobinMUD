@@ -42,3 +42,9 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 -- a no-op on the already-seeded row, so update it explicitly.
 UPDATE `wiznews` SET `body` = 'All the in-game editors now share the same handful of slash-commands, each named for its action: slash-s saves, slash-a aborts, slash-b blanks the text, and slash-f reformats it to the screen width. Those four are the only editor keys to remember now.'
   WHERE `title` = 'Editors Speak One Language';
+
+-- Zones part 1 (home): zonefile reset commands converted to the DB.
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Zones Come Home',
+ 'Groundwork: every zone''s reset instructions -- the rules that say which creatures and items belong in which rooms -- have been converted out of the old flat files and into the database, where the rest of the world already lives. Nearly thirty-six thousand instructions in all. The game does not act on them yet; that comes next, and will let rooms repopulate themselves instead of standing empty.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
