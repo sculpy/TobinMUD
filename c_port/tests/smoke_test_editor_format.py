@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Smoke test for the shared line editor's `/format` command
-(editor_format() in descriptor.c), exercised through `edhelp` (the
-simplest ed* editor to drive -- the mechanism is shared by every ed*
+"""Smoke test for the shared line editor's consistent slash-commands
+(editor_feed()/editor_format() in descriptor.c), exercised through `edhelp`
+(the simplest ed* editor to drive -- the mechanism is shared by every ed*
 editor, so this covers all of them):
-  1. A long, un-wrapped line typed into the editor is NOT auto-wrapped on
-     its own -- `/format` is an explicit, on-demand reflow.
-  2. `/format` reflows the buffer so no line exceeds the display width,
-     while preserving every word and the blank-line paragraph break
-     between two paragraphs.
-  3. The reformatted buffer is what actually gets saved ('.' right after
-     `/format` persists the wrapped version, not the original).
+  1. The intro advertises the consistent set: /s save, /a abort, /b blank,
+     /f format.
+  2. /b blanks the buffer; /f reflows it so no line exceeds the display
+     width, preserving every word and the blank-line paragraph break.
+  3. /s saves the reformatted buffer (not the original unwrapped text).
+  4. /a aborts -- a discarded edit does not persist.
+  5. The legacy single-key '.' save still works as an alias.
 
     python3 tests/smoke_test_editor_format.py [host] [port]
 """
@@ -122,21 +122,28 @@ send_line(s, "1"); recv_all(s)
 
 topic = f"formattopic{_suffix}"
 out = cmd(s, f"edhelp {topic}")
-check("'/format' reflows to width" in out, "the editor intro mentions /format")
+check("/f reflows to width" in out and "/s saves" in out,
+      "the editor intro advertises the consistent slash-command set")
 
-# One very long line, well past FORMAT_WIDTH, entered as a single typed line.
 long_line = ("alpha bravo charlie delta echo foxtrot golf hotel india juliet "
              "kilo lima mike november oscar papa quebec romeo sierra tango "
              "uniform victor whiskey xray yankee zulu")
 check(len(long_line) > FORMAT_WIDTH, "sanity: the test line really is longer than the wrap width")
+
+# /b blanks the buffer: type junk, /b it away, then start over for real.
+cmd(s, "junk that should be blanked away")
+out = cmd(s, "/b")
+check("blanked" in out.lower(), "/b blanks the editor buffer")
+
 cmd(s, long_line)
 cmd(s, "")  # blank line -- paragraph break
 second_para = "This is paragraph two with a few more filler words for preservation checking yes indeed truly."
 cmd(s, second_para)
 
-out = cmd(s, "/format")
+# /f is the format key (formerly /format, which still works as an alias).
+out = cmd(s, "/f")
 marker = "Reformatted:\r\n"
-check(marker in out, "/format announces the reformatted buffer")
+check(marker in out, "/f announces the reformatted buffer")
 body = out[out.find(marker) + len(marker):out.rfind("] ")]
 lines = body.split("\r\n")
 check(any(l == "" for l in lines), "the paragraph break (blank line) survives formatting")
@@ -145,14 +152,29 @@ check(all(len(l) <= FORMAT_WIDTH for l in lines),
 check("zulu" in body and "preservation" in body,
       "every word from both paragraphs survives the reflow")
 
-out = cmd(s, ".")
-check(f"'{topic}' saved" in out, "'.' saves the reformatted buffer")
+# /s saves.
+out = cmd(s, "/s")
+check(f"'{topic}' saved" in out, "/s saves the reformatted buffer")
 
 out = cmd(s, f"help {topic}")
 saved_lines = strip(out).split("\r\n")
 check(all(len(l) <= FORMAT_WIDTH for l in saved_lines),
       "the SAVED topic (not the original unwrapped text) is what's shown")
 check("zulu" in out and "preservation" in out, "the saved topic still has all the words")
+
+# /a aborts: reopen, type garbage, /a, and confirm the topic is unchanged.
+cmd(s, f"edhelp {topic}")
+cmd(s, "GARBAGEXYZ that must not survive an abort")
+cmd(s, "/a")
+out = cmd(s, f"help {topic}")
+check("GARBAGEXYZ" not in out, "/a aborts the edit -- the discarded text did not persist")
+
+# A line of just "." is now literal text, not a save (legacy keys removed):
+# save the topic, reopen, type ".", and confirm /s keeps the dot as content.
+cmd(s, f"edhelp {topic}")
+cmd(s, ".")            # literal content now, NOT a save
+out = cmd(s, "/s")
+check(f"'{topic}' saved" in out, "a bare '.' is treated as text, and /s saves")
 
 s.close()
 announce_done("smoke_test_editor_format")

@@ -172,7 +172,7 @@ check("[PIO]" not in outWatcher, "a mortal does not receive the [PIO] line")
 outEditor = recv_all(sEditor, timeout=1.0)
 check("[LOG]" not in outEditor,
       "an immortal mid-editor is spared the [LOG] line (screen not corrupted)")
-send_line(sEditor, "~")  # leave the editor cleanly
+send_line(sEditor, "/a")  # leave the editor cleanly
 recv_all(sEditor)
 
 # hygiene

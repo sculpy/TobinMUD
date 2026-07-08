@@ -719,23 +719,28 @@ static void editor_format(descriptor_t *d) {
     d->edit_len = (int)oi;
 }
 
-/* Shared string-editor line handling ("." save / "~" abort / "/clear" wipe /
- * "/format" reflow / else append into edit_buf). The caller owns what SAVE
+/* Shared string-editor line handling: /s save, /a abort, /b blank (clear),
+ * /f format, else append the line into edit_buf. The caller owns what SAVE
  * and ABORT mean. */
 typedef enum { EDITOR_CONTINUE, EDITOR_SAVE, EDITOR_ABORT } editor_action_t;
 
 static editor_action_t editor_feed(descriptor_t *d, const char *line) {
-    if (strcmp(line, ".") == 0)
+    /* One consistent slash-command set across every editor (user 2026-07-07),
+     * each keyed to its action's first letter: /s Save, /a Abort, /b Blank
+     * (clear the buffer), /f Format. Any other line is literal text appended
+     * to the buffer -- so a line of just "." or "~" is now content, not a
+     * command (the old single-key/`/clear`/`/format` forms were removed). */
+    if (strcmp(line, "/s") == 0)
         return EDITOR_SAVE;
-    if (strcmp(line, "~") == 0)
+    if (strcmp(line, "/a") == 0)
         return EDITOR_ABORT;
-    if (strcmp(line, "/clear") == 0) {
+    if (strcmp(line, "/b") == 0) {
         d->edit_buf[0] = '\0';
         d->edit_len = 0;
-        descriptor_send(d, "Buffer cleared.\r\n] ");
+        descriptor_send(d, "Buffer blanked.\r\n] ");
         return EDITOR_CONTINUE;
     }
-    if (strcmp(line, "/format") == 0) {
+    if (strcmp(line, "/f") == 0) {
         editor_format(d);
         char out[HELP_BODY_MAX + 64];
         snprintf(out, sizeof(out), "Reformatted:\r\n%s] ", d->edit_buf);
@@ -749,7 +754,7 @@ static editor_action_t editor_feed(descriptor_t *d, const char *line) {
         d->edit_buf[d->edit_len++] = '\n';
         d->edit_buf[d->edit_len] = '\0';
     } else {
-        descriptor_send(d, "The text is full -- '.' to save or '~' to abort.\r\n");
+        descriptor_send(d, "The text is full -- /s to save or /a to abort.\r\n");
     }
     descriptor_send(d, "] ");
     return EDITOR_CONTINUE;
@@ -1578,8 +1583,8 @@ static bool handle_line(descriptor_t *d, const char *line) {
                         snprintf(d->edit_buf, sizeof(d->edit_buf), "%s", w->description);
                         d->edit_len = (int)strlen(d->edit_buf);
                         descriptor_send(d,
-                            "\r\n-- Editing description. '.' saves, '~' cancels, "
-                            "'/clear' wipes, '/format' reflows to width. --\r\n");
+                            "\r\n-- Editing description. /s saves, /a aborts, "
+                            "/b blanks, /f reflows to width. --\r\n");
                         if (w->description[0]) {
                             descriptor_send(d, w->description);
                             if (w->description[strlen(w->description) - 1] != '\n')

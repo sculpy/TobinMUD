@@ -157,7 +157,7 @@ headline = f"Fresh Off The Press {_suffix}"
 out = cmd(s, f"ednews {headline}")
 check("Writing news" in out, "ednews opens the story editor with the headline")
 cmd(s, "Something new is happening in the realm today.")
-check("News posted" in cmd(s, "."), "ednews saves the story")
+check("News posted" in cmd(s, "/s"), "ednews saves the story")
 _, full = news_read(s)
 check(headline in full, "the posted item shows up in news, newest first")
 

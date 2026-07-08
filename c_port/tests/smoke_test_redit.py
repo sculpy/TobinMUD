@@ -169,15 +169,15 @@ cmd(s, "7")                                        # height
 out = cmd(s, "12")
 check("Room Height: 12" in out, "7) Room Height persists into the menu")
 
-# --- 3d: description (2) with /clear ---
+# --- 3d: description (2) with /b (blank) ---
 out = cmd(s, "2")
 check("Editing description" in out, "2) Description opens the line editor")
-cmd(s, "junk that will be cleared")
-check("Buffer cleared" in cmd(s, "/clear"), "/clear wipes the description buffer")
+cmd(s, "junk that will be blanked")
+check("Buffer blanked" in cmd(s, "/b"), "/b blanks the description buffer")
 cmd(s, "A tidy menu-built room.")
-out = cmd(s, ".")
-check("A tidy menu-built room" in out and "junk that will be cleared" not in out,
-      "2)+/clear replaces the description")
+out = cmd(s, "/s")
+check("A tidy menu-built room" in out and "junk that will be blanked" not in out,
+      "2)+/b replaces the description")
 
 # --- 4: exits submenu -> per-exit menu -> target/door/condition ---
 out = cmd(s, "5")                                  # exits list

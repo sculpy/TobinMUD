@@ -123,9 +123,10 @@ out = recv_all(s)
 check("-- Help: say --" in out and "apostrophe shorthand" in out,
       "help <command> shows the seeded topic body")
 
-send_line(s, "help sc")
+send_line(s, "help sco")
 out = recv_all(s)
-check("-- Help: score --" in out, "a topic prefix ('sc') resolves to the topic (score)")
+check("-- Help: score --" in out,
+      "a topic prefix ('sco') resolves to the topic (score)")
 
 send_line(s, "help zzznotopic")
 out = recv_all(s)
@@ -173,9 +174,9 @@ send_line(s, "The world of Tobin was carved from")
 recv_all(s)
 send_line(s, "the bones of an older world.")
 recv_all(s)
-send_line(s, ".")
+send_line(s, "/s")
 out = recv_all(s)
-check(f"'{topic}' saved" in out, "'.' saves the topic")
+check(f"'{topic}' saved" in out, "/s saves the topic")
 
 send_line(s, f"help {topic}")
 out = recv_all(s)
@@ -189,9 +190,9 @@ check("existing text below" in out and "carved from" in out,
 
 send_line(s, "THIS LINE SHOULD BE DISCARDED")
 recv_all(s)
-send_line(s, "~")
+send_line(s, "/a")
 out = recv_all(s)
-check("aborted" in out.lower(), "'~' aborts the edit")
+check("aborted" in out.lower(), "/a aborts the edit")
 
 send_line(s, f"help {topic}")
 out = recv_all(s)

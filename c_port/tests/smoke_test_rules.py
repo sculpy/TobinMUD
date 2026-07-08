@@ -137,7 +137,7 @@ out = cmd(si, "edrules 7 No Testing In Production")
 check("Writing rule 7" in strip(out), "edrules opens the line editor for the rule")
 send_line(si, f"You shall not {marker} on the live game.")
 recv_all(si)
-out = strip(cmd(si, "."))  # save
+out = strip(cmd(si, "/s"))  # save
 check("Rule 7 saved" in out, "the rule saves out of the line editor")
 
 check("No Testing In Production" in strip(cmd(si, "rules")),

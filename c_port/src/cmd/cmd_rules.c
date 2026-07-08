@@ -58,8 +58,8 @@ bool cmd_edrules(descriptor_t *d, const char *args) {
     if (sscanf(args, "%d", &num) != 1 || num <= 0) {
         descriptor_send(d,
             "Usage: edrules <number> <title>\r\n"
-            "Then type the rule text; '.' saves, '~' aborts, '/clear' wipes, "
-            "'/format' reflows to width.\r\n");
+            "Then type the rule text; /s saves, /a aborts, /b blanks, "
+            "/f reflows to width.\r\n");
         return true;
     }
 
@@ -84,8 +84,8 @@ bool cmd_edrules(descriptor_t *d, const char *args) {
     char head[320];
     snprintf(head, sizeof(head),
         "\r\n-- Writing rule %d: \"%s\" --\r\n"
-        "Type the rule text. '.' saves, '~' aborts, '/clear' wipes, "
-        "'/format' reflows to width.\r\n] ",
+        "Type the rule text. /s saves, /a aborts, /b blanks, "
+        "/f reflows to width.\r\n] ",
         num, d->news_title);
     descriptor_send(d, head);
     d->edit_kind = EDIT_RULES;

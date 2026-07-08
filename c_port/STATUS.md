@@ -1,5 +1,38 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-07 — Session 38 (home), follow-ups:
+- **Consistent editor slash-commands**: every ed* editor now shares one set,
+  keyed to each action's first letter -- `/s` save, `/a` abort, `/b` blank
+  (clear), `/f` format -- via the shared `editor_feed()`. The old `.`/`~`/
+  `/clear`/`/format` keys were REMOVED (user follow-up) -- a bare `.`/`~` line
+  is now literal text. All editor intro lines + ~7 editor smoke tests updated;
+  `smoke_test_editor_format.py` broadened to cover the whole key set.
+- **help/wizhelp list buffer** raised (2048->8192, name arrays 256->512) so
+  the command list won't truncate as commands grow (already 77).
+- **`vnum` paginates** instead of capping at 40: full list built into a 16 KB
+  buffer and released a page at a time via the descriptor pager (like `news`),
+  with a 500-row safety cap. `smoke_test_vnum.py` drains the pager + asserts it.
+- Habit added (user): every code change also gets a plain-English `wiznews`
+  entry (immortal dev changelog); recorded in CLAUDE.md + memory.
+
+Last updated: 2026-07-07 — Session 38 (home): `scan` + `vnum`.
+- **`scan [dir|name]`** (`cmd_scan.c`) -- faithful port of the original's
+  `doScan()`: ray-casts up to 6 rooms deep down each exit, reporting the
+  players/mobs out there with a distance word and direction; `scan <dir>`
+  scans one direction, `scan <name>` filters by name, and a closed/secret
+  door blocks the line of sight. Follows exit chains through unloaded rooms
+  via a `roomexit` query; occupants only come from active rooms. Skipped the
+  original's move-cost/blindness (Tobin has neither). Player command; news
+  entry + help topic + `smoke_test_scan.py`.
+- **`vnum <room|obj|mob> <pattern>`** (`cmd_vnum.c`) -- builder tool (51+):
+  lists vnums + names of rooms/objects/mobiles whose name contains a
+  substring (direct DB_TOBIN query, cmd_mudstats precedent), lowest vnum
+  first, capped at 40. Help topic + `smoke_test_vnum.py`.
+- Home VM brought current with the work-session Objects/Mobiles work first
+  (full c_port sync, clean rebuild, schema reapplied -- player count held at
+  4309, confirming the DROP-TABLE fix); baseline sweep 55/2 (parser_display +
+  set, the known rotating flakes) before adding scan/vnum.
+
 Last updated: 2026-07-07 — Session 37 (usability fixes, user-reported live).
 Two real gaps found while trying the Objects/Mobiles work in-game:
 - **`oload`/`mload` now accept a name, not just a vnum**: a purely-numeric

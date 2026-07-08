@@ -16,6 +16,37 @@ viewers keep plain names (`news`, `wiznews`).
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.
 
+### User batch 2026-07-07 (home session) — working these now
+
+- [x] **Consistent editor slash-commands** (user 2026-07-07) — done: one set
+      keyed to each action's first letter -- `/s` Save, `/a` Abort, `/b` Blank
+      (clear), `/f` Format -- centralized in `editor_feed()` (descriptor.c) so
+      it covers every ed* editor at once. The old `.`/`~`/`/clear`/`/format`
+      keys were removed (user follow-up) -- a bare `.`/`~` is now literal text.
+      All editor intro lines + the editor smoke tests updated;
+      `smoke_test_editor_format.py` broadened to cover the whole key set.
+- [x] **help/wizhelp list size + vnum pagination** — done: help/wizhelp list
+      buffer 2048->8192 and name arrays 256->512 (no truncation as commands
+      grow); `vnum` now pages the full list (descriptor pager, like `news`)
+      instead of stopping at 40, with a 500-row safety cap.
+
+- [x] **Port `scan`** — done 2026-07-07: `cmd_scan.c`, a faithful port of the
+      original's `doScan()` (misc/range.cc). Ray-casts up to SCAN_MAX_RANGE (6)
+      rooms deep down each exit and reports the players/mobs out there with a
+      distance word + direction; `scan <dir>` scans one direction, `scan <name>`
+      filters by name, a closed/secret door blocks the line of sight.
+      (Skipped the original's move-point cost + blindness gate -- Tobin has
+      neither.) Follows exit chains through unloaded rooms via a `roomexit`
+      query; occupants come from active (`world_get_room`) rooms only.
+      `smoke_test_scan.py`, help topic, news entry ("Cast Your Gaze Afar").
+- [x] **`vnum <room|obj|mob> <pattern>`** — done 2026-07-07: `cmd_vnum.c`,
+      builder tool (51+). Lists the vnums + names of rooms/objects/mobiles
+      whose `name` contains a substring (direct DB_TOBIN query, per
+      cmd_mudstats precedent), lowest vnum first, paged a screen at a time
+      (descriptor pager, like `news`; 500-row safety cap). Category is
+      abbreviatable. `smoke_test_vnum.py`, help topic (no news -- immortal-only,
+      same precedent as oload/mload).
+
 ### User batch 2026-07-07 (reported during the mobiles session) — working these next
 
 - [ ] **`look <object>` doesn't work** — bug: `cmd_look.c`'s `look <name>`
@@ -496,9 +527,17 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
       `actions`/`affects` bitmask columns) is completely unused -- mobs
       are reactive-only today (never act until attacked). A real AI/pulse
       tick is a separate, larger follow-up.
-- [ ] **Zone resets (2E)** — periodic respawn per zone (would also let
-      room-floor `oload`ed objects survive a restart -- currently they
-      don't, see STATUS.md). `zedit` (zone table already in the DB).
+- [ ] **>>> NEXT: Zones / zonefiles (2E) <<<** (user 2026-07-07) — the whole
+      zone system: **zonefile reset commands so mobs AND objects auto-load
+      into rooms** (and objects into mobs / onto the ground) at boot and on a
+      periodic per-zone reset timer -- the automatic counterpart to the manual
+      `oload`/`mload`. This also makes room-floor objects and mloaded mobs
+      survive a restart (currently lost, see STATUS.md). Includes: the zone +
+      zone-reset-command tables (already in the upstream seed DB -- verify),
+      loading/executing reset commands (the original's `zone_reset`/`ZCMD`
+      "M/O/G/E/P/D" opcodes), a reset pulse, and `zedit` (menu-driven, needs a
+      wireframe). Port from Sneezy's zone reset machinery for inspiration;
+      confirm the reset-command opcode subset + `zedit` wireframe with the user.
 - [ ] **Containers holding sub-items** (`put <item> <container>` / `get
       <item> <container>`) — containers exist as objects (Phase 2C) and can
       be carried/worn, but can't hold anything yet. Natural small follow-up.

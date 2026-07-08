@@ -69,6 +69,12 @@ freeze makes tests flake).
   appended to `c_port/db/sneezy/news.sql` in the same change. Keep it
   player-facing prose with **NO NUMBERS** (no vnums, levels, counts,
   versions) in the title or body. See `news.sql` for the pattern.
+- **Wiznews entries** (user rule): every code change also gets a `wiznews`
+  entry appended to `c_port/db/sneezy/wiznews.sql` in the same change --
+  the immortal-facing dev changelog. Write it in **plain English** for a
+  human, NOT code-speak (no symbol names / file paths). Player-facing work
+  gets both a news AND a wiznews entry; builder/immortal-only or internal
+  changes get a wiznews entry only. Titles are UNIQUE (idempotent re-apply).
 - Room flags and sector types display in ALL CAPS, straight from the enum
   name tables (`SECTOR_NAMES`/`ROOM_FLAG_NAMES` in room.c); the "Sector
   Type:" display shows the name only, no number.

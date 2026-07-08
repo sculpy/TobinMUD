@@ -42,8 +42,8 @@ bool cmd_hedit(descriptor_t *d, const char *args) {
     char head[192];
     snprintf(head, sizeof(head),
              "\r\n-- Editing help topic '%s' (%s) --\r\n"
-             "Type lines to append. '.' alone saves, '~' alone aborts, "
-             "'/clear' wipes, '/format' reflows to width.\r\n",
+             "Type lines to append. /s saves, /a aborts, "
+             "/b blanks, /f reflows to width.\r\n",
              topic, exists ? "existing text below" : "new topic");
     descriptor_send(d, head);
     if (exists) {

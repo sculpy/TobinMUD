@@ -229,3 +229,14 @@ UPDATE `help_topic` SET `body` = 'Usage: mload <vnum|name>\n\nBuilder tool (leve
   WHERE `name` = 'mload' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Usage: look [player, mobile, or item]\n\nShows the room you are in: its name, description, obvious exits, and\neveryone (and everything) standing there with you. You also look\nautomatically whenever you enter the world. `look <name>` describes\nanother player or a mobile in the room (their appearance/description),\nor an item -- on the room floor or in your own inventory/equipment --\nshowing its description and, if it has one, its condition. Immortals\nadditionally see the room''s vnum, sector type, and flags in the header\nline.'
   WHERE `name` = 'look' AND `updated_by` = 'seed';
+
+-- New topics: scan (player) + vnum (builder) (2026-07-07, home session).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('scan', 'Usage: scan [direction | name]\n\nPeer several rooms deep down each of the room''s exits and report the\nplayers and mobiles you can make out, each tagged with roughly how far\noff it is and which way. `scan north` looks only that direction; `scan\n<name>` reports only beings whose name matches. A closed or secret\ndoor blocks your line of sight down that exit.', 'seed'),
+('vnum', 'Usage: vnum <room|obj|mob> <pattern>\n\nBuilder tool (level 51+): lists the vnums and names of rooms, objects,\nor mobiles whose name contains <pattern> (case-insensitive). Handy for\nfinding a prototype''s number to oload/mload or goto. Results are listed\nlowest vnum first, a page at a time.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- vnum's body changed after it was first seeded (40-cap -> pagination); the
+-- INSERT above is a no-op on the existing row, so update it explicitly.
+UPDATE `help_topic` SET `body` = 'Usage: vnum <room|obj|mob> <pattern>\n\nBuilder tool (level 51+): lists the vnums and names of rooms, objects,\nor mobiles whose name contains <pattern> (case-insensitive). Handy for\nfinding a prototype''s number to oload/mload or goto. Results are listed\nlowest vnum first, a page at a time.'
+  WHERE `name` = 'vnum' AND `updated_by` = 'seed';

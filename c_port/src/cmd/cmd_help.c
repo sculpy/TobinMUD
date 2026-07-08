@@ -23,7 +23,9 @@ static void send_columns(descriptor_t *d, const char **names, int cnt,
                          const char *header, const char *footer) {
     qsort(names, (size_t)cnt, sizeof(names[0]), cmp_name);
 
-    char out[2048];
+    /* Sized to hold the whole command/topic list without truncating as the
+     * game grows -- 8 KB fits several hundred entries (18 chars each). */
+    char out[8192];
     size_t n = (size_t)snprintf(out, sizeof(out), "%s", header);
     for (int i = 0; i < cnt && n < sizeof(out); i++) {
         n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s", names[i]);
@@ -179,9 +181,9 @@ bool cmd_help(descriptor_t *d, const char *args) {
     /* List only what this caller can actually use (over-level commands are
      * hidden entirely -- Phase 2A). Names only, sorted alphabetically, in
      * three columns; `help <command>` gives the details. */
-    const char *names[256];
+    const char *names[512];
     int cnt = 0;
-    for (int i = 0; i < count && cnt < 255; i++) {
+    for (int i = 0; i < count && cnt < 511; i++) { /* leave a slot for quit! */
         if (!cmds[i].help)
             continue; /* NULL help = deliberately unlisted (aliases, immort) */
         if (cmds[i].min_level <= level)
@@ -220,9 +222,9 @@ bool cmd_wizhelp(descriptor_t *d, const char *args) {
      * commands their own level already grants -- what a future promotion
      * unlocks stays unknown until it happens. Names only, alphabetical, in
      * three columns; no level tag (user request). */
-    const char *names[256];
+    const char *names[512];
     int cnt = 0;
-    for (int i = 0; i < count && cnt < 256; i++) {
+    for (int i = 0; i < count && cnt < 512; i++) {
         if (!cmds[i].help)
             continue;
         if (cmds[i].min_level > MORTAL_LEVEL_MAX && cmds[i].min_level <= level)

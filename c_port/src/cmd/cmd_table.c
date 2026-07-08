@@ -54,6 +54,8 @@ static const cmd_entry_t COMMANDS[] = {
     { "close",   cmd_close,   "Close a door (close <direction>).",                  MORTAL_LEVEL_MIN },
     { "who",     cmd_who,     "List everyone currently playing.",                   MORTAL_LEVEL_MIN },
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },
+    /* after score, so "sc"/"sco" still reach score; "sca"/"scan" -> scan. */
+    { "scan",    cmd_scan,    "Peer several rooms down each exit (scan [dir|name]).", MORTAL_LEVEL_MIN },
     { "color",   cmd_color,   "Toggle ANSI color rendering on or off.",             MORTAL_LEVEL_MIN },
     /* attack and kill are FULL aliases (user spec): one handler, both
      * instakill for immortals, both normal combat for mortals. */
@@ -122,6 +124,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "oload",   cmd_oload,   "Spawn an object prototype into your room (oload <vnum>).", BUILD_MIN_LEVEL },
     /* "ml" doesn't collide with mudstats/multiplay ("mu") or mortal ("mo"). */
     { "mload",   cmd_mload,   "Spawn a mobile prototype into your room (mload <vnum>).", BUILD_MIN_LEVEL },
+    { "vnum",    cmd_vnum,    "List vnums of rooms/objs/mobs by name (vnum <room|obj|mob> <pat>).", BUILD_MIN_LEVEL },
     /* "p"/"pr"/"pro" reach prompt; "prom"+ reaches promote. */
     { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp).",                 MORTAL_LEVEL_MIN },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
