@@ -17,12 +17,17 @@ end of every session. [c_port/TODO.md](c_port/TODO.md) tracks what's next.
   `NUDServer` — Fedora 44, `ssh mud@192.168.254.200` (key auth set up),
   tree mirrored at `~/NewMUD/`, MariaDB local to the VM, server on port
   4000, logs in `~/NewMUD/c_port/logs/`.
-- **Work**: box is db.kullit.com (10.0.0.12), historically `root` (a `mud`
-  user is planned), same `~/NewMUD/` layout.
+- **Work**: box is db.kullit.com (10.0.0.12), user `mud` (key auth set up),
+  same `~/NewMUD/` layout; MariaDB local, server on port 4000.
 - **Sync between locations is git**: private repo
-  `github.com/sculpy/tobin-mud` (repo root = this whole tree). Commit+push
-  when leaving, pull on arrival. The Linux boxes' copies are plain copies,
-  synced by `tar cf - ... | ssh ... tar xf -` from here.
+  `github.com/sculpy/NewMUD` (repo root = this whole tree). Commit+push
+  when leaving, pull on arrival. **Migrated 2026-07-09 from the old
+  `sculpy/tobin-mud`** (which is now frozen; NewMUD contains its full
+  history plus everything since). The build boxes authenticate to NewMUD
+  over per-box **read-only GitHub deploy keys** (`~/.ssh/newmud_deploy`,
+  scoped via each repo's `core.sshCommand`), since they hold no GitHub
+  login. The Linux boxes' copies can also be updated by `tar cf - ... |
+  ssh ... tar xf -` from here for quick pre-commit test builds.
 
 ## Build / run / test (on the Linux box, via ssh)
 
