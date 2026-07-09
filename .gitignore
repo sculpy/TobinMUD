@@ -1,0 +1,76 @@
+# Compiled object files
+*.o
+*.obj
+*.lo
+*.slo
+*.ko
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Libraries
+*.a
+*.la
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Executables
+*.exe
+*.out
+*.app
+a.out
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Build directories
+build/
+bin/
+obj/
+cmake-build-*/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps/
+
+# Autotools
+Makefile.in
+/configure
+config.log
+config.status
+autom4te.cache/
+
+# Dependency files
+*.d
+
+# MUD runtime data (uncomment/adjust as your layout solidifies)
+# lib/
+# log/
+# *.log
+core
+core.*
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.clangd/
+compile_commands.json
+
+# OS cruft
+.DS_Store
+Thumbs.db
