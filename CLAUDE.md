@@ -28,6 +28,7 @@ end of every session. [c_port/TODO.md](c_port/TODO.md) tracks what's next.
   scoped via each repo's `core.sshCommand`), since they hold no GitHub
   login. The Linux boxes' copies can also be updated by `tar cf - ... |
   ssh ... tar xf -` from here for quick pre-commit test builds.
+  **Full sync + deploy procedure: [SYNC.md](SYNC.md).**
 
 ## Build / run / test (on the Linux box, via ssh)
 

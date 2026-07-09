@@ -13,7 +13,7 @@ directories around. Each machine's database is local and stays put.
 
 | Piece | What it is | Where it lives |
 |---|---|---|
-| **tobin-mud repo** | The game (`c_port/`) + Tobin's schema. Source of truth. | https://github.com/sculpy/tobin-mud.git — branch `main` |
+| **NewMUD repo** | The game (`c_port/`) + Tobin's schema. Source of truth. Migrated 2026-07-09 from the now-frozen `sculpy/tobin-mud`; build boxes auth via read-only deploy keys — see [SYNC.md](SYNC.md). | https://github.com/sculpy/NewMUD.git — branch `main` |
 | **Upstream SneezyMUD reference** | 45 MB of original code + the base world/DB seed. **Gitignored** (`sneezymud-master/`), so it is **not** in the repo — fetch it per location. | https://github.com/sneezymud/sneezymud.git |
 | **Dev box** | Where you run Claude Code and edit. Windows. | Home: `E:\New MUD` · Work: wherever you clone it |
 | **Game server** | Linux box (Fedora 44): MariaDB + the built `tobin_c` binary. | Home: `mud@192.168.254.200:~/NewMUD/c_port` · Work: `mud@db.kullit.com` (internal `10.0.0.12`) `:~/NewMUD/c_port` (to create) |
@@ -57,13 +57,13 @@ the seed in Part 3.
    (or in a terminal: `winget install --id Git.Git -e`).
 2. **Clone the repo** and open it in Claude Code:
    ```sh
-   git clone https://github.com/sculpy/tobin-mud.git
+   git clone https://github.com/sculpy/NewMUD.git
    ```
 3. *(Optional but recommended)* Fetch the upstream reference **into** the repo
    as `sneezymud-master` so Claude can read original SneezyMUD code. It's
    gitignored, so it will never be committed:
    ```sh
-   cd tobin-mud
+   cd NewMUD
    git clone https://github.com/sneezymud/sneezymud.git sneezymud-master
    ```
 
@@ -105,12 +105,12 @@ sudo systemctl enable --now mariadb
 ### 3d. Get the code as the `mud` user
 ```sh
 sudo -iu mud                        # become mud
-git clone https://github.com/sculpy/tobin-mud.git ~/NewMUD
+git clone https://github.com/sculpy/NewMUD.git ~/NewMUD
 git clone https://github.com/sneezymud/sneezymud.git ~/NewMUD/sneezymud-master
 git -C ~/NewMUD config core.autocrlf input   # keep LF endings clean
 ```
-> Cloning to `~/NewMUD` (not `~/tobin-mud`) makes the server path
-> `~/NewMUD/c_port`, matching home so every deploy command is identical.
+> Both locations keep the tree at `~/NewMUD`, so the server path is
+> `~/NewMUD/c_port` everywhere and every deploy command is identical.
 
 ### 3e. Seed the databases
 The seed script uses `sudo` for the CREATE DATABASE / CREATE USER steps, so run
@@ -194,7 +194,7 @@ Rules that bit us before:
 
 > **The home VM is currently updated by scp, not a git clone.** If you want it
 > on the same clean `git pull` model as work, once: `cd ~ && git clone
-> https://github.com/sculpy/tobin-mud.git NewMUD2`, seed/build it, verify, then
+> https://github.com/sculpy/NewMUD.git NewMUD2`, seed/build it, verify, then
 > swap it in for `~/NewMUD`. Until then, home deploys copy changed files with
 > scp and strip CRLF (`sed -i 's/\r$//'` on `.sql`/`.py`) before building.
 
@@ -212,7 +212,7 @@ Rules that bit us before:
 ## Quick reference
 
 ```
-Repo:            https://github.com/sculpy/tobin-mud.git   (branch main)
+Repo:            https://github.com/sculpy/NewMUD.git   (branch main)
 Upstream ref:    https://github.com/sneezymud/sneezymud.git → sneezymud-master/  (gitignored, per-location)
 Home server:     mud@192.168.254.200:~/NewMUD/c_port
 Work server:     mud@db.kullit.com:~/NewMUD/c_port
