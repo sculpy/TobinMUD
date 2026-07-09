@@ -24,7 +24,8 @@ derived, not authoritative.
 - **Repo:** `github.com/sculpy/NewMUD` (private), branch `main`.
 - **Migrated 2026-07-09** from the old `sculpy/tobin-mud`. NewMUD contains
   tobin-mud's entire history (through `c18d592`) plus everything since.
-  tobin-mud is **frozen** — do not push to it.
+  tobin-mud is **frozen** — do not push to it. First-time move of a location
+  off tobin-mud: [docs/first-time-home-migration.md](docs/first-time-home-migration.md).
 
 ### Arriving at a location
 ```bash
