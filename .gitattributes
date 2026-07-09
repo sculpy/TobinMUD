@@ -1,0 +1,11 @@
+# Normalize line endings; the code builds and runs on Linux.
+* text=auto
+
+# Shell scripts and SQL must stay LF -- they execute on the Linux side.
+*.sh text eol=lf
+*.sql text eol=lf
+*.py text eol=lf
+
+# Binary game data (if any sneaks in)
+*.zip binary
+*.png binary

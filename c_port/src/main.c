@@ -1,0 +1,80 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#include "combat.h"
+#include "config.h"
+#include "db.h"
+#include "descriptor.h"
+#include "game_loop.h"
+#include "multiplay.h"
+#include "log.h"
+#include "pulse.h"
+#include "regen.h"
+#include "wait_tick.h"
+
+static char g_binary_path[PATH_MAX];
+
+const char *tobin_binary_path(void) {
+    return g_binary_path[0] ? g_binary_path : "/proc/self/exe";
+}
+
+int main(int argc, char **argv) {
+    /* Resolve our own path NOW (cwd never changes) so copyover can exec
+     * the file at this path -- picking up a rebuilt binary -- rather than
+     * /proc/self/exe, which pins the possibly-stale inode we booted from.
+     * Copyover successors are exec'd with the full path as argv[0], so the
+     * chain keeps resolving across generations. */
+    if (argc >= 1 && !realpath(argv[0], g_binary_path))
+        g_binary_path[0] = '\0';
+
+    /* --copyover <file>: we are the exec()'d successor of a `copyover`
+     * command (cmd_copyover.c) -- adopt the recovery file's sockets
+     * instead of opening fresh ones. */
+    const char *copyover_file = NULL;
+    if (argc >= 3 && strcmp(argv[1], "--copyover") == 0)
+        copyover_file = argv[2];
+
+    const config_t *cfg = config_get();
+
+    /* Open the timestamped game log (logs/<datetime>.game.log) before
+     * anything logs. A copyover successor lands here too, so every server
+     * generation naturally starts its own file. */
+    log_open();
+
+    srand((unsigned int)time(NULL));
+
+    /* Fail fast: confirm the DB is reachable before opening the listening
+     * socket, so connectivity problems are obvious at boot rather than
+     * discovered mid-session. */
+    db_conn_t *probe = db_open(DB_TOBIN);
+    if (!probe || !db_query(probe, "select 1")) {
+        log_error("Could not reach the '%s' database at %s. Set TOBIN_DB_HOST/"
+                   "TOBIN_DB_USER/TOBIN_DB_PASS/TOBIN_DB_NAME and try again.",
+                   cfg->db_name_tobin, cfg->db_host);
+        db_close(probe);
+        return EXIT_FAILURE;
+    }
+    db_close(probe);
+    log_info("Database connection OK.");
+
+    multiplay_load(); /* restore the persisted multiplay game flag */
+
+    pulse_register(1, wait_tick_run);
+    pulse_register(COMBAT_ROUND_PULSES, combat_process_run);
+    pulse_register(REGEN_PULSES, regen_tick_run);
+    pulse_register(100, descriptor_held_expire); /* ~10s: expire held msgs past TTL */
+    pulse_register(120, descriptor_keepalive);   /* ~12s: telnet NOP anti-idle (aggressive, survives tight NAT windows) */
+    pulse_register(600, descriptor_idle_timeout);/* ~60s: idle-out mortals (immortals immune) */
+
+    int rc = game_loop_run(cfg->telnet_port, copyover_file);
+
+    db_shutdown();
+    return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+}

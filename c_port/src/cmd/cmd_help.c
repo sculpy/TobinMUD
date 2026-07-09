@@ -1,0 +1,243 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
+#include "cmd_internal.h"
+
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+
+#include "being.h"
+#include "help_repo.h"
+
+static int cmp_name(const void *a, const void *b) {
+    return strcasecmp(*(const char *const *)a, *(const char *const *)b);
+}
+
+/* Sends `names` (count `cnt`) sorted alphabetically in three columns, under
+ * `header` and followed by `footer`. Shared by help and wizhelp. */
+static void send_columns(descriptor_t *d, const char **names, int cnt,
+                         const char *header, const char *footer) {
+    qsort(names, (size_t)cnt, sizeof(names[0]), cmp_name);
+
+    /* Sized to hold the whole command/topic list without truncating as the
+     * game grows -- 8 KB fits several hundred entries (18 chars each). */
+    char out[8192];
+    size_t n = (size_t)snprintf(out, sizeof(out), "%s", header);
+    for (int i = 0; i < cnt && n < sizeof(out); i++) {
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s", names[i]);
+        if (i % 3 == 2)
+            n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0, "\r\n");
+    }
+    if (cnt % 3 != 0 && n < sizeof(out))
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "\r\n");
+    if (footer && n < sizeof(out))
+        snprintf(out + n, sizeof(out) - n, "%s", footer);
+    descriptor_send(d, out);
+}
+
+/* `help`: lists every available command with a one-line description.
+ * Deliberately NOT a port of the original's `help` (TBeing::doHelp(),
+ * cmd/cmd_help.cc) -- that's a full file-based prose-topic lookup system
+ * (help/, help/_immortal, help/_skills, etc, with a rebuildable index and
+ * per-topic .ansi variants), way out of scope for a command list. Tobin
+ * has no help-file infrastructure and no plan to build one yet, so this
+ * simplifies down to the same list-based pattern `wizhelp` genuinely uses
+ * in the original (see below) -- listing what already exists in
+ * cmd_table.c's metadata, nothing more. */
+bool cmd_help(descriptor_t *d, const char *args) {
+    int count;
+    const cmd_entry_t *cmds = cmd_table_entries(&count);
+    int level = d->character ? d->character->progress.level : MORTAL_LEVEL_MIN;
+
+    /* `help <topic>`: DB-backed prose topics (db/sneezy/help_topic.sql,
+     * editable in-game via `hedit`) -- a step back toward the original's
+     * real file-based topic system, but stored in MariaDB like all other
+     * Tobin content. Exact topic name first, then prefix. */
+    if (*args) {
+        char topic[HELP_TOPIC_NAME_LEN];
+        if (sscanf(args, "%31s", topic) == 1) {
+            for (char *p = topic; *p; p++)
+                *p = (char)tolower((unsigned char)*p);
+
+            /* Alias resolution (user spec): the short forms land on the
+             * canonical topic -- one help file per command family. */
+            static const struct { const char *alias, *canon; } ALIASES[] = {
+                { "ne", "northeast" }, { "nw", "northwest" },
+                { "se", "southeast" }, { "sw", "southwest" },
+                { "'", "say" },
+            };
+            for (size_t a = 0; a < sizeof(ALIASES) / sizeof(ALIASES[0]); a++) {
+                if (strcmp(topic, ALIASES[a].alias) == 0) {
+                    snprintf(topic, sizeof(topic), "%s", ALIASES[a].canon);
+                    break;
+                }
+            }
+
+            /* `help edit` -- a live index of the ed* editor family, so a
+             * builder can find the editor they want and its real help topic.
+             * Auto-updates as ed* commands are added (no hand-maintained
+             * list). */
+            if (strcmp(topic, "edit") == 0) {
+                const char *ednames[64];
+                int edc = 0;
+                for (int i = 0; i < count && edc < 64; i++) {
+                    if (cmds[i].help && cmds[i].min_level <= level
+                        && strncmp(cmds[i].name, "ed", 2) == 0)
+                        ednames[edc++] = cmds[i].name;
+                }
+                if (edc == 0) {
+                    descriptor_send(d, "There are no editor commands available to you.\r\n");
+                    return true;
+                }
+                send_columns(d, ednames, edc, "\r\n-- Editor (ed*) commands --\r\n",
+                             "\r\nType 'help <name>' (e.g. help edroom) for each editor's details.\r\n");
+                return true;
+            }
+
+            char resolved[HELP_TOPIC_NAME_LEN];
+            char body[HELP_BODY_MAX];
+            if (help_topic_find(topic, resolved, sizeof(resolved), body, sizeof(body))) {
+                /* Don't let a topic leak a command that's hidden from this
+                 * caller (cmd_dispatch() hides over-level commands). */
+                bool hidden = false;
+                const cmd_entry_t *match = NULL;
+                for (int i = 0; i < count; i++) {
+                    if (strcasecmp(cmds[i].name, resolved) == 0) {
+                        match = &cmds[i];
+                        if (cmds[i].min_level > level)
+                            hidden = true;
+                        break;
+                    }
+                }
+                if (!hidden) {
+                    char head[80];
+                    snprintf(head, sizeof(head), "\r\n<c>-- Help: %s --<z>\r\n", resolved);
+                    descriptor_send(d, head);
+
+                    /* Split a leading "Usage: <syntax>" line out of the body:
+                     * the syntax goes into the colorized footer, the rest is
+                     * the description (user-specified help format). */
+                    char syntax[128];
+                    const char *desc = body;
+                    syntax[0] = '\0';
+                    if (strncasecmp(body, "Usage:", 6) == 0) {
+                        const char *nl = strchr(body, '\n');
+                        const char *s = body + 6;
+                        while (*s == ' ')
+                            s++;
+                        size_t slen = nl ? (size_t)(nl - s) : strlen(s);
+                        while (slen > 0 && s[slen - 1] == '\r')
+                            slen--;
+                        if (slen >= sizeof(syntax))
+                            slen = sizeof(syntax) - 1;
+                        memcpy(syntax, s, slen);
+                        syntax[slen] = '\0';
+                        if (nl) {
+                            desc = nl + 1;
+                            while (*desc == '\r' || *desc == '\n')
+                                desc++; /* skip the blank line after Usage */
+                        } else {
+                            desc = body + strlen(body);
+                        }
+                    }
+                    if (syntax[0] == '\0' && match)
+                        snprintf(syntax, sizeof(syntax), "%s", match->name);
+
+                    /* Magenta description body. The <m>...<z> pair MUST be in a
+                     * single send: colorstring auto-appends a reset when a
+                     * message ends mid-color, so splitting <m> off would reset
+                     * it immediately. Trailing newlines trimmed to one. */
+                    size_t dlen = strlen(desc);
+                    while (dlen > 0 && (desc[dlen - 1] == '\n' || desc[dlen - 1] == '\r'))
+                        dlen--;
+                    char shown[HELP_BODY_MAX + 32];
+                    snprintf(shown, sizeof(shown), "<m>%.*s<z>\r\n", (int)dlen, desc);
+                    descriptor_send(d, shown);
+
+                    /* Cyan-labelled Syntax / Minimum Level footer -- commands
+                     * only (prose topics have no table entry, so no footer).
+                     * Labels right-aligned to 14 chars (user-specified). */
+                    if (match) {
+                        char footer[192];
+                        snprintf(footer, sizeof(footer),
+                                 "\r\n<c>       Syntax:<z> %s\r\n<c>Minimum Level:<z> %d\r\n",
+                                 syntax, match->min_level);
+                        descriptor_send(d, footer);
+                    }
+                    return true;
+                }
+            }
+            char msg[80];
+            snprintf(msg, sizeof(msg), "No help available on '%s'.\r\n", topic);
+            descriptor_send(d, msg);
+            return true;
+        }
+    }
+
+    /* List only what this caller can actually use (over-level commands are
+     * hidden entirely -- Phase 2A). Names only, sorted alphabetically, in
+     * three columns; `help <command>` gives the details. */
+    const char *names[512];
+    int cnt = 0;
+    for (int i = 0; i < count && cnt < 511; i++) { /* leave a slot for quit! */
+        if (!cmds[i].help)
+            continue; /* NULL help = deliberately unlisted (aliases, immort) */
+        if (cmds[i].min_level <= level)
+            names[cnt++] = cmds[i].name;
+    }
+    /* `quit!` is deliberately excluded from cmd_table.c's dispatch table, so
+     * add it by hand -- otherwise it'd be missing from the list. */
+    names[cnt++] = "quit!";
+
+    send_columns(d, names, cnt, "\r\n-- Available commands --\r\n",
+                 "\r\nType 'help <command>' for details on any of these.\r\n");
+    return true;
+}
+
+/* `wizhelp`: lists commands restricted to immortals (min_level above
+ * MORTAL_LEVEL_MAX). A genuine port of the original's TBeing::doWizhelp()
+ * mechanism (cmd/cmd_help.cc) -- unlike `help`, that one really is a
+ * command-table scan filtered by `commandArray[i]->minLevel > MAX_MORT`,
+ * not a file lookup, so this is a direct match rather than a
+ * simplification. Real immortal-only commands exist as of Phase 2A
+ * (`goto`, `promote`); the "none yet" line below survives only as a
+ * fallback should the table ever have none again. */
+bool cmd_wizhelp(descriptor_t *d, const char *args) {
+    (void)args;
+
+    if (!d->character || !being_is_immortal(d->character)) {
+        descriptor_send(d, "You are not privileged enough to use that command.\r\n");
+        return true;
+    }
+
+    int count;
+    const cmd_entry_t *cmds = cmd_table_entries(&count);
+    int level = d->character->progress.level;
+
+    /* Secrecy rule (user requirement): an immortal only sees the immortal
+     * commands their own level already grants -- what a future promotion
+     * unlocks stays unknown until it happens. Names only, alphabetical, in
+     * three columns; no level tag (user request). */
+    const char *names[512];
+    int cnt = 0;
+    for (int i = 0; i < count && cnt < 512; i++) {
+        if (!cmds[i].help)
+            continue;
+        if (cmds[i].min_level > MORTAL_LEVEL_MAX && cmds[i].min_level <= level)
+            names[cnt++] = cmds[i].name;
+    }
+
+    if (cnt == 0) {
+        descriptor_send(d,
+            "\r\n-- Immortal-only commands --\r\n"
+            "  (none yet -- no commands are currently immortal-only)\r\n");
+        return true;
+    }
+    send_columns(d, names, cnt, "\r\n-- Immortal-only commands --\r\n",
+                 "\r\nType 'help <command>' for details on any of these.\r\n");
+    return true;
+}
