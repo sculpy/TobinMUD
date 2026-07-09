@@ -49,12 +49,12 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-07 (reported during the mobiles session) — working these next
 
-- [ ] **`look <object>` doesn't work** — bug: `cmd_look.c`'s `look <name>`
-      (`look_at_target()`) only matches a `THING_PC`; it needs to also find
-      a `THING_OBJ` (room floor, carried, or worn/held) and show its
-      `long_descr`/action description plus a condition line derived from
-      `cur_struct`/`max_struct` (e.g. "is in perfect condition" down to
-      "is falling apart"). A real gap left by the Objects (2C) pass.
+- [x] **`look <object>` doesn't work** — already done in Session 37 (this box
+      was just never pruned; verified 2026-07-09). `look_at_target()` falls
+      back from PC/mob to a room-floor-then-own-inventory `THING_OBJ` search
+      (`find_obj_here()`), showing `long_descr` + a condition line from
+      `cur_struct`/`max_struct` (`obj_condition_text()`). Worn/held covered too
+      (same `stuff_head` chain). Covered by `smoke_test_objects.py`.
 - [ ] **`help color`/`help who`: list every color tag + mention `<N>`** —
       `help color`'s topic should enumerate all the `<x>` color tags
       (today only the separate `help colors` topic does that) and mention
@@ -544,9 +544,16 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
   - [ ] **Part 3: `zedit`** — menu-driven zone editor (needs a wireframe from
         the user). Sneezy-specific opcodes (Y/A/X/Z/V/...) + `?` conditional
         can be ported as needed.
-- [ ] **Containers holding sub-items** (`put <item> <container>` / `get
-      <item> <container>`) — containers exist as objects (Phase 2C) and can
-      be carried/worn, but can't hold anything yet. Natural small follow-up.
+- [x] **Containers holding sub-items** (`put <item> <container>` / `get
+      <item> <container>`) — done 2026-07-09 (Session 39, work). `cmd_put` +
+      `cmd_get`'s two-arg form move items in/out of a container (carried/worn/
+      floor); `look <container>` lists contents when open; `open`/`close` now
+      act on containers via `CONT_*` bits in `val[1]`; weight capacity (`val[0]`)
+      enforced. `smoke_test_containers.py`, news/wiznews, help topics.
+      DEFERRED (see STATUS decisions): carried-container *contents* persistence
+      (saved loose to avoid loss, reload un-nested — needs a `player_inventory`
+      parent column); lock/unlock+keys (pairs with the doors/keys item below).
+      **This unblocks Zones Part 2's `P` opcode** (put obj in container).
 - [ ] **Keys unlocking doors** — `unlock`/`lock <direction> with <item>`,
       matching a KEY-category object's val[0] against the exit's key
       requirement. The object system this was blocked on (Session 31) now

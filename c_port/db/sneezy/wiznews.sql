@@ -48,3 +48,9 @@ INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The Zones Come Home',
  'Groundwork: every zone''s reset instructions -- the rules that say which creatures and items belong in which rooms -- have been converted out of the old flat files and into the database, where the rest of the world already lives. Nearly thirty-six thousand instructions in all. The game does not act on them yet; that comes next, and will let rooms repopulate themselves instead of standing empty.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+-- Containers (work): put/get into containers, look inside, open/close.
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Containers Hold Their Own',
+ 'Containers work now. A player can put a carried item into a bag or chest and take it back out, whether the container is on the ground or in their own hands, and looking at an open container shows what is inside. The open and close commands now operate on containers as well as doors, and a closed container refuses access until it is opened. Capacity is enforced by weight. Locking and keys are still to come, so a locked container simply cannot be opened yet. A container carried by a player keeps its contents across a relog, though for now those contents spill loose into the pack rather than staying nested -- proper nesting persistence needs a schema change and is deferred. This also clears the way for the next stage of zone resets, where the world will be able to load items pre-stashed inside containers.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

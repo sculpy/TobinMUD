@@ -231,3 +231,18 @@ void obj_destroy(obj_t *o) {
     thing_remove_from_parent(&o->base);
     free(o);
 }
+
+/* Total weight of the objects currently inside `container` (its THING_OBJ
+ * children in the shared thing_t chain). Non-recursive: a container nested
+ * inside another counts only by its own weight here, matching how capacity
+ * is checked one level at a time. */
+double obj_contained_weight(const obj_t *container) {
+    if (!container)
+        return 0.0;
+    double total = 0.0;
+    for (const thing_t *t = container->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind == THING_OBJ)
+            total += ((const obj_t *)t)->weight;
+    }
+    return total;
+}

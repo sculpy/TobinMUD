@@ -96,9 +96,45 @@ bool cmd_get(descriptor_t *d, const char *args) {
         return true;
     }
 
-    char tok[64];
-    if (sscanf(args, "%63s", tok) != 1) {
-        descriptor_send(d, "Usage: get <item>\r\n");
+    char tok[64], conttok[64];
+    int nargs = sscanf(args, "%63s %63s", tok, conttok);
+    if (nargs < 1) {
+        descriptor_send(d, "Usage: get <item> [container]\r\n");
+        return true;
+    }
+
+    /* `get <item> <container>` -- take an item out of a container (one you're
+     * carrying/wearing, or one on the room floor). */
+    if (nargs == 2) {
+        obj_t *cont = find_obj(ch->base.stuff_head, conttok, NULL);
+        if (!cont)
+            cont = find_obj(ch->base.roomp->base.stuff_head, conttok, NULL);
+        if (!cont) {
+            descriptor_send(d, "You don't see that container here.\r\n");
+            return true;
+        }
+        if (!obj_is_container(cont)) {
+            descriptor_send(d, "That's not a container.\r\n");
+            return true;
+        }
+        if (obj_container_closed(cont)) {
+            descriptor_send(d, "It's closed.\r\n");
+            return true;
+        }
+        obj_t *item = find_obj(cont->base.stuff_head, tok, NULL);
+        if (!item) {
+            descriptor_send(d, "You don't see that in there.\r\n");
+            return true;
+        }
+        thing_move_to(&item->base, &ch->base);
+        player_inventory_save(ch->player_id, ch);
+        char msg[512];
+        const char *il = item->base.short_descr[0] ? item->base.short_descr : item->base.name;
+        const char *cl = cont->base.short_descr[0] ? cont->base.short_descr : cont->base.name;
+        snprintf(msg, sizeof(msg), "You get %s from %s.\r\n", il, cl);
+        descriptor_send(d, msg);
+        snprintf(msg, sizeof(msg), "%s gets %s from %s.\r\n", ch->base.name, il, cl);
+        descriptor_room_echo(ch->base.roomp, ch, msg);
         return true;
     }
 
@@ -120,6 +156,64 @@ bool cmd_get(descriptor_t *d, const char *args) {
     snprintf(msg, sizeof(msg), "You get %s.\r\n", label);
     descriptor_send(d, msg);
     snprintf(msg, sizeof(msg), "%s gets %s.\r\n", ch->base.name, label);
+    descriptor_room_echo(ch->base.roomp, ch, msg);
+    return true;
+}
+
+/* `put <item> <container>` -- move a loose carried item into a container that
+ * you're carrying/wearing or that's on the room floor. Refuses closed
+ * containers and respects the weight capacity in val[0] (0 == unlimited). */
+bool cmd_put(descriptor_t *d, const char *args) {
+    being_t *ch = d->character;
+    if (!ch || !ch->base.roomp) {
+        descriptor_send(d, "You are nowhere.\r\n");
+        return true;
+    }
+
+    char itemtok[64], conttok[64];
+    if (sscanf(args, "%63s %63s", itemtok, conttok) != 2) {
+        descriptor_send(d, "Usage: put <item> <container>\r\n");
+        return true;
+    }
+
+    obj_t *item = find_obj(ch->base.stuff_head, itemtok, ch);
+    if (!item) {
+        descriptor_send(d, "You aren't carrying that.\r\n");
+        return true;
+    }
+    obj_t *cont = find_obj(ch->base.stuff_head, conttok, NULL);
+    if (!cont)
+        cont = find_obj(ch->base.roomp->base.stuff_head, conttok, NULL);
+    if (!cont) {
+        descriptor_send(d, "You don't see that container here.\r\n");
+        return true;
+    }
+    if (item == cont) {
+        descriptor_send(d, "You can't put something inside itself.\r\n");
+        return true;
+    }
+    if (!obj_is_container(cont)) {
+        descriptor_send(d, "That's not a container.\r\n");
+        return true;
+    }
+    if (obj_container_closed(cont)) {
+        descriptor_send(d, "It's closed.\r\n");
+        return true;
+    }
+    if (cont->val[0] > 0 && obj_contained_weight(cont) + item->weight > (double)cont->val[0]) {
+        descriptor_send(d, "It won't fit.\r\n");
+        return true;
+    }
+
+    thing_move_to(&item->base, &cont->base);
+    player_inventory_save(ch->player_id, ch);
+
+    char msg[512];
+    const char *il = item->base.short_descr[0] ? item->base.short_descr : item->base.name;
+    const char *cl = cont->base.short_descr[0] ? cont->base.short_descr : cont->base.name;
+    snprintf(msg, sizeof(msg), "You put %s in %s.\r\n", il, cl);
+    descriptor_send(d, msg);
+    snprintf(msg, sizeof(msg), "%s puts %s in %s.\r\n", ch->base.name, il, cl);
     descriptor_room_echo(ch->base.roomp, ch, msg);
     return true;
 }

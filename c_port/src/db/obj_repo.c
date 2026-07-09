@@ -116,6 +116,28 @@ void player_inventory_load(long player_id, being_t *b) {
     }
 }
 
+/* Persists every THING_OBJ under `parent`, recursing into carried containers.
+ * Direct children get their real equip/held/carried slot; anything nested
+ * inside a container is saved loose (INV_SLOT_CARRIED) since the flat
+ * player_inventory table has no per-instance parent reference yet -- so a
+ * container's contents survive a relog but reload loose (nesting resets), and
+ * are never silently lost. See STATUS.md's containers decision row. */
+static bool inv_save_tree(db_conn_t *db, long player_id, const being_t *b,
+                          const thing_t *parent, bool top) {
+    bool ok = true;
+    for (const thing_t *t = parent->stuff_head; t && ok; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        const obj_t *o = (const obj_t *)t;
+        int slot = top ? slot_for_obj(b, o) : INV_SLOT_CARRIED;
+        ok = db_query(db, "insert into player_inventory (player_id, vnum, slot) values (%i, %i, %i)",
+                      (int)player_id, o->vnum, slot);
+        if (ok && obj_is_container(o))
+            ok = inv_save_tree(db, player_id, b, &o->base, false);
+    }
+    return ok;
+}
+
 bool player_inventory_save(long player_id, const being_t *b) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -132,15 +154,7 @@ bool player_inventory_save(long player_id, const being_t *b) {
         return false;
     }
 
-    bool ok = true;
-    for (thing_t *t = b->base.stuff_head; t && ok; t = t->stuff_next) {
-        if (t->kind != THING_OBJ)
-            continue;
-        const obj_t *o = (const obj_t *)t;
-        int slot = slot_for_obj(b, o);
-        ok = db_query(db, "insert into player_inventory (player_id, vnum, slot) values (%i, %i, %i)",
-                      (int)player_id, o->vnum, slot);
-    }
+    bool ok = inv_save_tree(db, player_id, b, &b->base, true);
 
     if (!ok) {
         db_rollback(db);

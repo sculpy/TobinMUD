@@ -1,5 +1,41 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-09 — Session 39 (work): repo migration + containers.
+- **Infra: home machine reformatted; repo migrated to `sculpy/NewMUD`.** The
+  old sync repo was `sculpy/tobin-mud`; a fresh `NewMUD` repo was created and
+  the full tobin-mud history merged into it (unrelated-histories merge, so all
+  54 commits are preserved). The work box (`db.kullit.com`, user `mud`) was
+  repointed from tobin-mud to NewMUD over a **read-only GitHub deploy key**
+  (the box previously had no GitHub credentials at all and could not fetch);
+  origin is now `git@github.com:sculpy/NewMUD.git`, scoped to that key via the
+  repo's `core.sshCommand`. The box was reset to the clean NewMUD tip (its old
+  git HEAD was frozen at Session 24, with the real code arriving only by tar --
+  backup saved at `~/NewMUD_box_backup_*.tar.gz`). Deploy sweep after migration:
+  clean rebuild zero-warning, schema applied (`zone_reset`=35922, `player`
+  unchanged at 1597), 58 tests pass + the idle flake green standalone.
+- **Containers (`put`/`get <item> <container>`, look-inside, open/close).** The
+  obj model already had `OBJ_CAT_CONTAINER` and the `thing_t` chain already
+  nests, so this was mostly wiring + rules:
+  - `cmd_put` (new, `put <item> <container>`) and `cmd_get`'s new two-arg form
+    (`get <item> <container>`) move items in/out of a container carried, worn,
+    or on the room floor, via `thing_move_to`.
+  - `look <container>` lists contents when open (`cmd_look.c`).
+  - `open`/`close` (`cmd_open.c`) now also operate on a container object, using
+    the `CONT_*` bits in `val[1]` (added to `obj.h`, verbatim upstream layout:
+    CLOSEABLE 1, PICKPROOF 2, CLOSED 4, LOCKED 8). A closed container refuses
+    put/get; capacity is enforced by weight (`val[0]`, `obj_contained_weight()`).
+  - `smoke_test_containers.py` (19 checks, all green), `news` + `wiznews`, help
+    topics (`put`, `containers`; `get`/`open`/`close` refreshed).
+  - **Deliberate deviations (see decisions table):** (1) carried-container
+    *contents* persistence is deferred -- the flat `player_inventory` table has
+    no per-instance parent; to avoid item LOSS, `player_inventory_save` now
+    recurses into carried containers and saves contents as loose, so they
+    survive a relog but reload un-nested. (2) lock/unlock + keys deferred (pairs
+    with the doors/keys TODO); a locked container just can't be opened. (3)
+    open/closed state lives on the in-world instance and isn't persisted.
+  - **Unblocks Zones Part 2's `P` opcode** (put obj in a container), the reason
+    containers were built first (user call).
+
 Last updated: 2026-07-07 — Session 38 (home): Zones part 1 (DB conversion).
 - **Zonefiles converted to the DB**: `db/import-zones.py` parses the upstream
   DikuMUD-style `lib/zonefiles/*` into `db/sneezy/zone_reset.sql` -- a new

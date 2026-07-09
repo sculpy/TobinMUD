@@ -240,3 +240,19 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 -- INSERT above is a no-op on the existing row, so update it explicitly.
 UPDATE `help_topic` SET `body` = 'Usage: vnum <room|obj|mob> <pattern>\n\nBuilder tool (level 51+): lists the vnums and names of rooms, objects,\nor mobiles whose name contains <pattern> (case-insensitive). Handy for\nfinding a prototype''s number to oload/mload or goto. Results are listed\nlowest vnum first, a page at a time.'
   WHERE `name` = 'vnum' AND `updated_by` = 'seed';
+
+-- New topics: containers + put; get/open/close now also act on containers
+-- (containers feature, work session).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('put', 'Usage: put <item> <container>\n\nMoves a carried item into a container -- a bag, chest, or the like --\nthat you''re carrying or that''s on the room floor. The container must\nbe open, and must have room for the item''s weight. See `get <item>\n<container>` to take it back out, and `containers` for the full\nrundown.', 'seed'),
+('containers', 'Containers -- bags, chests, pouches, and the like -- can hold other\nitems.\n\n  put <item> <container>        stash a carried item inside\n  get <item> <container>        take an item back out\n  look <container>              see what''s inside (when open)\n  open / close <container>      shut or unshut a closeable container\n\nA closed container keeps its contents to itself until you open it, and\nnothing more fits once its weight capacity is full. Locks and keys\naren''t built yet, so a locked container can''t be opened for now.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Migration: get now also takes from a container; open/close now also act on
+-- a container object, not just doors.
+UPDATE `help_topic` SET `body` = 'Usage: get <item> [container]\n\nPicks up an item from the room floor and adds it to what you are\ncarrying. Fixed scenery can''t be taken this way. With a second word,\n`get <item> <container>` takes the item out of a container (one you''re\ncarrying or one on the floor) instead. See `inventory`, `put`, and\n`containers`.'
+  WHERE `name` = 'get' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: open <direction|container>\n\nOpens a closed door blocking that exit, or a closeable container (a\nbag, chest, and the like) that you''re carrying or that''s on the floor.\nA locked door or container can''t be opened this way -- that needs a\nkey, which isn''t built yet. Close it again with `close`.'
+  WHERE `name` = 'open' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: close <direction|container>\n\nCloses a door blocking that exit, or a closeable container you''re\ncarrying or that''s on the floor. A closed door blocks movement; a\nclosed container keeps its contents sealed until someone opens it\nagain with `open`.'
+  WHERE `name` = 'close' AND `updated_by` = 'seed';

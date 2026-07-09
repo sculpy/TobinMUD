@@ -77,6 +77,7 @@ bool cmd_set(descriptor_t *d, const char *args);
 bool cmd_open(descriptor_t *d, const char *args);
 bool cmd_close(descriptor_t *d, const char *args);
 bool cmd_get(descriptor_t *d, const char *args);
+bool cmd_put(descriptor_t *d, const char *args);
 bool cmd_drop(descriptor_t *d, const char *args);
 bool cmd_inventory(descriptor_t *d, const char *args);
 bool cmd_wear(descriptor_t *d, const char *args);

@@ -106,9 +106,11 @@ static const cmd_entry_t COMMANDS[] = {
     /* Objects (Phase 2C). Placed after "goto" (above) so an immortal's bare
      * "g" still reaches goto first -- "get" only wins "g" for mortals, who
      * never see goto at all (skipped by min_level). */
-    { "get",     cmd_get,     "Pick up an item from the room (get <item>).",       MORTAL_LEVEL_MIN },
+    { "get",     cmd_get,     "Pick up an item, or take one from a container (get <item> [container]).", MORTAL_LEVEL_MIN },
     /* "d"/"do" are down (movement, above); "drop" needs "dr" minimum. */
     { "drop",    cmd_drop,    "Put down a carried item (drop <item>).",            MORTAL_LEVEL_MIN },
+    /* "put" typed in full; "p"/"pu" reach earlier p-commands first. */
+    { "put",     cmd_put,     "Put a carried item into a container (put <item> <container>).", MORTAL_LEVEL_MIN },
     /* Bare "i" already reaches "immort" (below) for every caller -- this
      * needs at least "in"/"inv". */
     { "inventory", cmd_inventory, "List what you're carrying.",                    MORTAL_LEVEL_MIN },

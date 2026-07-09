@@ -102,6 +102,27 @@ typedef struct obj {
     bool can_be_seen;
 } obj_t;
 
+/* CONTAINER flag bits, stored VERBATIM in val[1] in the original's bit layout
+ * (misc/obj.h) so every already-seeded container works with zero migration --
+ * same "stored verbatim" precedent as wear_flag. Only the bits Tobin acts on
+ * are named here; the original defines a few more (CONT_EMPTYTRAP, etc.) that
+ * are decorative for now. */
+#define CONT_CLOSEABLE (1 << 0) /* can be opened/closed at all */
+#define CONT_PICKPROOF (1 << 1) /* lock cannot be picked (unused until keys) */
+#define CONT_CLOSED    (1 << 2) /* currently shut */
+#define CONT_LOCKED    (1 << 3) /* currently locked (unlock/keys deferred) */
+
+/* True iff the object is a container (OBJ_CAT_CONTAINER). */
+static inline bool obj_is_container(const obj_t *o) {
+    return o && o->category == OBJ_CAT_CONTAINER;
+}
+/* True iff a container is currently closed (non-containers are never closed). */
+static inline bool obj_container_closed(const obj_t *o) {
+    return obj_is_container(o) && (o->val[1] & CONT_CLOSED);
+}
+/* Total weight currently inside a container (sums its THING_OBJ children). */
+double obj_contained_weight(const obj_t *container);
+
 /* Loads the prototype row for `vnum` (obj_repo_load()) and allocates a fresh
  * in-world obj_t instance from it -- NOT yet attached to any room/being
  * (caller does that via thing_move_to()). Returns NULL if no such vnum

@@ -94,12 +94,30 @@ static bool look_at_target(descriptor_t *d, const char *args) {
         return true;
     }
 
-    char out[OBJ_LONG_DESCR_LEN + 128];
+    char out[OBJ_LONG_DESCR_LEN + 512];
     int n = snprintf(out, sizeof(out), "%s\r\n",
                       o->long_descr[0] ? o->long_descr : o->base.short_descr);
     const char *cond = obj_condition_text(o);
     if (cond && (size_t)n < sizeof(out))
-        snprintf(out + n, sizeof(out) - (size_t)n, "It %s.\r\n", cond);
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "It %s.\r\n", cond);
+    /* A container also shows what's inside, when it's open. */
+    if (obj_is_container(o) && (size_t)n < sizeof(out)) {
+        if (obj_container_closed(o)) {
+            n += snprintf(out + n, sizeof(out) - (size_t)n, "It is closed.\r\n");
+        } else {
+            n += snprintf(out + n, sizeof(out) - (size_t)n, "It contains:\r\n");
+            bool any = false;
+            for (thing_t *t = o->base.stuff_head; t && (size_t)n < sizeof(out); t = t->stuff_next) {
+                if (t->kind != THING_OBJ)
+                    continue;
+                any = true;
+                const char *label = t->short_descr[0] ? t->short_descr : t->name;
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s\r\n", label);
+            }
+            if (!any && (size_t)n < sizeof(out))
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "  Nothing.\r\n");
+        }
+    }
     descriptor_send(d, out);
     return true;
 }
