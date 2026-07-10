@@ -67,6 +67,7 @@ int main(int argc, char **argv) {
     log_info("Database connection OK.");
 
     multiplay_load(); /* restore the persisted multiplay game flag */
+    gametime_load();  /* restore the persisted game clock */
 
     /* Zones Part 2 (Session 43): populate rooms from the zone_reset data
      * migrated in Part 1. Runs unconditionally here -- for both a cold

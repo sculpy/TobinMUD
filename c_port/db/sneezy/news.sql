@@ -120,3 +120,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Got an Idea?',
  'Type idea followed by your suggestion to send it straight to the immortals. Same idea as bug, just for the things you wish the game did rather than the things it does wrong.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Time Keeps Going',
+ 'The world clock no longer forgets itself when the server restarts. Whatever time it was before, it still is.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

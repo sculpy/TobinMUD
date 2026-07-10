@@ -1,5 +1,17 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-10 — Session 43 continued (home): game clock now
+persists across boots.
+- **gametime persistence**: `gametime_load()`/`gametime_save()`
+  (gametime.c) reuse `multiplay.c`'s exact `game_config` key/value
+  pattern -- hour/minute/day/month/year rows, saved on every tick,
+  loaded at boot (main.c, right after `multiplay_load()`). Caught a real
+  bug while writing it: `db_query()`'s custom format parser only
+  accepts `%i` for integers, not `%d` -- would have silently failed
+  every save. Verified via a real restart (clock resumed at the
+  persisted value, not the 8:00 AM default). `tests/smoke_test_
+  gametime_persist.py` (3 checks).
+
 Last updated: 2026-07-10 — Session 43 continued (home): get/drop dispute
 logging + a duplicated cap_first() bug caught in two more files.
 - **Get/drop logging**: `LOG_SILENT` already existed for file-only,

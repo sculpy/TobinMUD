@@ -146,3 +146,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Quiet Paper Trail for Get and Drop', 'Every get and drop is now written to the day''s log file -- who, what (with its vnum), and which room -- silently, with no live [TAG] echo to anyone online. Pull it up later with log search <name> if a dispute over who had what needs sorting out. Also caught the same capitalization bug from the recent look fixes lurking in two more places (scan and get/drop messages both have their own copy of the same helper) -- fixed there too.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Clock Remembers Now', 'The world clock no longer resets to 8:00 AM day one every time the server restarts -- it saves itself every tick and picks right back up where it left off. Caught a nasty bug while building this: our query helper only understands %i for whole numbers, not the usual %d, and would have silently swallowed every save without complaint. Worth remembering for the next feature that writes numbers to the database.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

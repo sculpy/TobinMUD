@@ -12,17 +12,18 @@
  * sys/gametime.{h,cc}): a 28-day month, 12-month year, tracked in 15-
  * mud-minute increments -- same calendar shape, same weekday formula
  * ((28*month + day + 1) % 7), same noon/midnight/month/year rollover
- * announcements. Session-only (in-memory, like other ephemeral state in
- * this port) -- starts fresh at boot rather than resuming a persisted
- * clock; Tobin has no save-game-time table and this doesn't need one for
- * a first cut.
+ * announcements. Persisted across boots in `game_config` (Session 43
+ * continued, user: "make time save so it continues on from boot to
+ * boot") -- same key/value table and read/write pattern already used by
+ * multiplay.c, one row per field (hour/minute/day/month/year).
  *
  * Deliberately dropped from the original: the weather-driven sunrise/
  * sunset/moon-phase tracking (Tobin has no weather system yet -- same
  * reason `$$g`'s weather-prefix was dropped, see room.h) and the
  * account-level personal real-time-zone-offset sub-feature of Sneezy's
  * `time` command (a real feature, just not part of "the day/date
- * system" itself -- can be added later if wanted).
+ * system" itself -- added separately later the same session, see
+ * account.h's `time_adjust`).
  *
  * Ticks on a pulse (gametime_tick(), main.c) rather than the original's
  * real-clock-seconds-per-mud-hour formula -- simpler, and reuses the same
@@ -30,11 +31,17 @@
  * minutes per tick (1 mud-hour per ~4 real minutes, 1 mud-day per ~96
  * real minutes). */
 
+/* Restores the clock from `game_config` at boot (main.c, right after
+ * multiplay_load()) -- a fresh install with no saved rows leaves the
+ * 8:00 AM/day 1/year 1 default in place. */
+void gametime_load(void);
+
 /* Pulse callback (main.c): advances the clock by 15 mud-minutes, handling
  * hour/day/month/year rollover and the associated world announcements
  * (noon, midnight, new month, new year) via descriptor_notify() (so
  * nobody mid-edit is interrupted -- see the Session 43 editors-quiet
- * audit). */
+ * audit). Saves the new value to `game_config` every tick so a crash or
+ * an unclean restart never loses more than ~60s of progress. */
 void gametime_tick(long pulse_num);
 
 int gametime_hour(void);    /* 0-23 */

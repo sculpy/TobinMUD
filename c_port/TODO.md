@@ -784,17 +784,25 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       item_type subtype column. Needs a way to know what's wielded --
       check being_t's equipment/wield-slot fields (see the hold/wield/
       switch rework, cmd_object.c) for the hookup point.
-- [ ] **Persist the game clock across boots** — user: "make time save so
-      it continues on from boot to boot". Currently `g_time` (gametime.c)
-      is a plain static struct, session-only -- restarts always reset to
-      8:00 AM, day 1, year 1 (see gametime.h's doc comment). Reuse the
-      existing `game_config` key/value table (already used by
-      `multiplay.c`'s on/off persistence -- same read/write pattern) for
-      hour/minute/day/month/year rows; load them in `gametime_tick()`'s
-      module init (or a new `gametime_load()` called from main.c before
-      `pulse_register`) and save on every tick (or at least every hour,
-      to bound write frequency) rather than only at shutdown, since
-      restarts aren't always clean.
+- [x] **Persist the game clock across boots** — done (Session 43
+      continued, user: "make time save so it continues on from boot to
+      boot"). Reused the exact `game_config` key/value pattern
+      multiplay.c already established: new `gametime_load()`
+      (gametime.c, called from main.c right after `multiplay_load()`)
+      restores hour/minute/day/month/year from five `game_config` rows;
+      `gametime_tick()` now calls a new `gametime_save()` before every
+      return path (there are several, one per rollover stage), so a
+      crash or unclean restart never loses more than one tick (~60s) of
+      progress. Caught a real bug while writing this: `db_query()`'s
+      custom format parser only recognizes `%i` for integers, not
+      libc's `%d` -- using `%d` would have silently failed every save
+      (falls through to the "bad format specifier" error path). Verified
+      end-to-end: set the clock via a real tick, restarted the live
+      server, confirmed `time` resumed at the persisted value instead of
+      resetting to the 8:00 AM default. New
+      `tests/smoke_test_gametime_persist.py` (3 checks, verifies the
+      `game_config` row matches `time`'s live output rather than
+      requiring an actual server restart mid-test).
 - [ ] **Half-hour real-time tick (blank line, no message)** — user:
       "every hour on the half hour send a blank line of uinput to the
       game so a tick becomes apparent to the player without any
