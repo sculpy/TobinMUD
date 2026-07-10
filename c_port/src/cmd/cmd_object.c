@@ -10,6 +10,7 @@
 #include <strings.h>
 
 #include "being.h"
+#include "log.h"
 #include "obj.h"
 #include "obj_repo.h"
 #include "room.h"
@@ -17,11 +18,19 @@
 
 /* short_descr is stored lowercase-first by convention ("a torch");
  * capitalize only when it starts a whole message (mid-sentence uses stay
- * lowercase, e.g. "You drop a torch."). Copies into `buf`. */
+ * lowercase, e.g. "You drop a torch."). Copies into `buf`. Skips any
+ * leading inline color tag first (e.g. "<o>a dirty refuse hauler<1>",
+ * real seeded content) -- same duplicated-helper bug as cmd_look.c's
+ * cap_first(), fixed there Session 43 continued but missed here since
+ * this is a separate copy, not a shared function. Found while working
+ * nearby on the get/drop logging feature. */
 static const char *cap_first(const char *label, char *buf, size_t bufsz) {
     snprintf(buf, bufsz, "%s", label);
-    if (buf[0])
-        buf[0] = (char)toupper((unsigned char)buf[0]);
+    size_t i = 0;
+    while (buf[i] == '<' && buf[i + 1] != '\0' && buf[i + 2] == '>')
+        i += 3;
+    if (buf[i])
+        buf[i] = (char)toupper((unsigned char)buf[i]);
     return buf;
 }
 
@@ -139,6 +148,14 @@ bool cmd_get(descriptor_t *d, const char *args) {
         }
         thing_move_to(&item->base, &ch->base);
         player_inventory_save(ch->player_id, ch);
+        /* Dispute-research log (user: "anytime a char gets an item ... i
+         * want those logged into the game log ... these should not be
+         * reported via any log type, just inserted into the game log") --
+         * LOG_SILENT is recorded to the file (searchable via `log search`)
+         * but never echoed to immortals, exactly matching that spec. */
+        game_log(LOG_SILENT, "%s gets %s (vnum %d) from %s (vnum %d) in room %d",
+                 ch->base.name, item->base.short_descr, item->vnum,
+                 cont->base.short_descr, cont->vnum, ch->base.roomp->vnum);
         char msg[512];
         const char *il = item->base.short_descr[0] ? item->base.short_descr : item->base.name;
         const char *cl = cont->base.short_descr[0] ? cont->base.short_descr : cont->base.name;
@@ -161,6 +178,8 @@ bool cmd_get(descriptor_t *d, const char *args) {
 
     thing_move_to(&o->base, &ch->base);
     player_inventory_save(ch->player_id, ch);
+    game_log(LOG_SILENT, "%s gets %s (vnum %d) in room %d",
+             ch->base.name, o->base.short_descr, o->vnum, ch->base.roomp->vnum);
 
     char msg[256];
     const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
@@ -250,6 +269,8 @@ bool cmd_drop(descriptor_t *d, const char *args) {
 
     thing_move_to(&o->base, &ch->base.roomp->base);
     player_inventory_save(ch->player_id, ch);
+    game_log(LOG_SILENT, "%s drops %s (vnum %d) in room %d",
+             ch->base.name, o->base.short_descr, o->vnum, ch->base.roomp->vnum);
 
     char msg[256];
     const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;

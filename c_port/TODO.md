@@ -720,16 +720,25 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       Session 42 for exactly this) already lets a test set a limb's HP
       directly instead of waiting on the dice -- migrate both tests to
       use it instead of a real fight.
-- [ ] **Get/drop item logging for dispute research** — user: "anytime a
-      char gets an item or drops an item i want those logged into the
-      game log so we can research disputes with log search. these
-      should not be reported via any log type, just inserted into the
-      game log". Needs: find the log-file-only write path (distinct from
-      `game_log()`'s LOG_* types, which also echo to online immortals --
-      see log.c/log.h) or add one; hook `cmd_get.c`/`cmd_drop.c` (or
-      wherever pickup/drop is actually implemented) to write a plain
-      log-file line (who, what, room/vnum, timestamp) on every
-      get/drop, with no `[TYPE]` immortal-visible echo at all.
+- [x] **Get/drop item logging for dispute research** — done (Session 43
+      continued, user: "anytime a char gets an item or drops an item i
+      want those logged into the game log so we can research disputes
+      with log search. these should not be reported via any log type,
+      just inserted into the game log"). `LOG_SILENT` (log.h) already
+      existed for exactly this -- recorded to the file, never echoed to
+      online immortals -- so this needed no new mechanism, just call
+      sites: `cmd_object.c`'s `cmd_get()` (both the plain and the
+      get-from-container branches) and `cmd_drop()` each now call
+      `game_log(LOG_SILENT, "%s gets/drops %s (vnum %d) in room %d", ...)`.
+      Verified reachable via `log search` and confirmed a same-room
+      online immortal sees nothing from it (the ordinary room-broadcast
+      message is separate and still fires normally). Found and fixed a
+      duplicated-helper bug while working nearby: `cap_first()`'s
+      leading-inline-color-tag fix (from the earlier `look` bugfix) only
+      ever landed in cmd_look.c's own copy -- cmd_scan.c and
+      cmd_object.c each have their own independent copy of the same
+      function, still with the old bug. Fixed both. New
+      `tests/smoke_test_getdrop_log.py` (6 checks).
 - [ ] **Mob AI: wandering + mob actions** — user: "in pulse, make sure
       that mob actions click and mobs that can wander will do so, look
       at mob ai from sneezy". Needs investigation of Sneezy's mob AI

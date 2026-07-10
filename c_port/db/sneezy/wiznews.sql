@@ -142,3 +142,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Know What''s Running', 'A new test command (58+) shows the name of whatever smoke test is currently running against this server, straight from the same @test hook that already logs it -- handy when watching a sweep from in-game instead of the console.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Quiet Paper Trail for Get and Drop', 'Every get and drop is now written to the day''s log file -- who, what (with its vnum), and which room -- silently, with no live [TAG] echo to anyone online. Pull it up later with log search <name> if a dispute over who had what needs sorting out. Also caught the same capitalization bug from the recent look fixes lurking in two more places (scan and get/drop messages both have their own copy of the same helper) -- fixed there too.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

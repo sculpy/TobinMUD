@@ -1,5 +1,17 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-10 — Session 43 continued (home): get/drop dispute
+logging + a duplicated cap_first() bug caught in two more files.
+- **Get/drop logging**: `LOG_SILENT` already existed for file-only,
+  never-echoed logging -- cmd_get()/cmd_drop() (cmd_object.c) now call
+  it with who/what/vnum/room, reachable via `log search`. Verified a
+  same-room immortal sees nothing from it.
+- **cap_first() bug, round 2**: the leading-inline-color-tag fix from
+  the earlier `look` bugfix only landed in cmd_look.c's copy --
+  cmd_scan.c and cmd_object.c each duplicate the same helper function
+  independently. Fixed both. `tests/smoke_test_getdrop_log.py` (6
+  checks).
+
 Last updated: 2026-07-10 — Session 43 continued (home): `test` command
 (58+, shows the currently-running smoke test).
 - Existing `@test`/`@test done` loopback hook (descriptor.c) was

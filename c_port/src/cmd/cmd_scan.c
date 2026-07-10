@@ -52,11 +52,19 @@ static int scan_parse_dir(const char *tok) {
 }
 
 /* short_descr is stored lowercase-first by convention ("a city watchman");
- * capitalize when it starts a whole message. Copies into `buf`. */
+ * capitalize when it starts a whole message. Copies into `buf`. Skips any
+ * leading inline color tag first (e.g. "<o>a dirty refuse hauler<1>", real
+ * seeded content, mob vnum 33271) -- same duplicated-helper bug as
+ * cmd_look.c's cap_first(), fixed there Session 43 continued but missed
+ * here since this is a separate copy, not a shared function. Found while
+ * working nearby on the get/drop logging feature. */
 static const char *cap_first(const char *label, char *buf, size_t bufsz) {
     snprintf(buf, bufsz, "%s", label);
-    if (buf[0])
-        buf[0] = (char)toupper((unsigned char)buf[0]);
+    size_t i = 0;
+    while (buf[i] == '<' && buf[i + 1] != '\0' && buf[i + 2] == '>')
+        i += 3;
+    if (buf[i])
+        buf[i] = (char)toupper((unsigned char)buf[i]);
     return buf;
 }
 
