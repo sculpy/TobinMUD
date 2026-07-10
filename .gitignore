@@ -61,8 +61,13 @@ autom4te.cache/
 nohup.out
 __pycache__/
 *.pyc
-core
-core.*
+# Anchored to the repo root -- a bare `core`/`core.*` (unanchored) would also
+# match c_port/src/core/, silently excluding that entire source directory
+# from version control. Found this the hard way: gametime.c and zone.c had
+# never actually been committed despite being pushed as part of "everything"
+# earlier this session.
+/core
+/core.*
 
 # Game log files (logs/<datetime>.game.log) -- never commit server logs
 c_port/logs/
