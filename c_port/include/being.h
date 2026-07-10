@@ -169,18 +169,30 @@ typedef enum {
     GENDER_FEMALE = 2
 } gender_t;
 
-#define BEING_APPEARANCE_LEN 256 /* matches player.appearance varchar(255) + NUL */
+/* Shared by two different DB columns: player.appearance (varchar(255)) and
+ * mob.description (mediumtext, real seeded content runs up to ~1200 chars
+ * -- e.g. vnum 33271's ogre bio). Used to be sized to the PC column alone
+ * (256), which silently truncated every mob description mid-sentence on
+ * load (mob_repo.c's snprintf into this buffer) -- bug found Session 43
+ * continued (user: "increase the buffer size so i can read the entire
+ * string"). Bumped with headroom above the real mob max; PC-authored
+ * appearance text is unaffected (still saved as-is, and MariaDB itself
+ * truncates on the rare INSERT/UPDATE that exceeds the real 255-char
+ * column, same as any other varchar overflow). */
+#define BEING_APPEARANCE_LEN 2048
 
 /* Display name ("male"/"female"/"neuter") for a gender. */
 const char *gender_name(gender_t g);
 
 /* Pronouns for a gender, mirroring the original's HSHR/HMHR/HESH helpers:
- *   gender_subject -> he / she / it   (subject:   "he smiles")
- *   gender_object  -> him / her / it  (object:    "you hit him")
- *   gender_possess -> his / her / its (possessive:"his sword") */
+ *   gender_subject   -> he / she / it       (subject:    "he smiles")
+ *   gender_object    -> him / her / it      (object:     "you hit him")
+ *   gender_possess   -> his / her / its     (possessive: "his sword")
+ *   gender_reflexive -> himself/herself/itself (reflexive: "pokes himself") */
 const char *gender_subject(gender_t g);
 const char *gender_object(gender_t g);
 const char *gender_possess(gender_t g);
+const char *gender_reflexive(gender_t g);
 
 typedef struct being {
     thing_t base;        /* first member -- see thing.h */

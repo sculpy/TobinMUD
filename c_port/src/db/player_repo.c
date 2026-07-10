@@ -180,6 +180,17 @@ bool player_name_exists(const char *name) {
     return found;
 }
 
+long player_id_for_name(const char *name) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+    long id = -1;
+    if (db_query(db, "select id from player where name='%s'", name) && db_fetch_row(db))
+        id = atol(db_get(db, "id"));
+    db_close(db);
+    return id;
+}
+
 bool player_set_load_room(const char *name, long account_id, int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

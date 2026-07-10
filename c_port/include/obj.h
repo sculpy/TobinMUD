@@ -6,6 +6,7 @@
 #define TOBIN_OBJ_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "thing.h"
 
@@ -123,11 +124,32 @@ static inline bool obj_container_closed(const obj_t *o) {
 /* Total weight currently inside a container (sums its THING_OBJ children). */
 double obj_contained_weight(const obj_t *container);
 
+/* Sneezy's `$$g`/`$g` token (misc/show.cc): replaces every occurrence in
+ * `text` with `room`'s ground-surface word (room_ground_type(), room.h) --
+ * e.g. an object description "The ring lies half-buried in the $$g."
+ * reads "...in the sand." on a beach, "...in the street." in a city.
+ * Writes into `buf` (size `bufsz`) and returns it; `text` unchanged (no
+ * token present) is just copied through. Investigated + added per user
+ * request (Session 43) -- not present in the currently-migrated obj/
+ * objextra data, but the substitution mechanism itself is now real
+ * infrastructure for future hand-authored descriptions to use. */
+const char *obj_apply_ground_token(const char *text, const struct room *room,
+                                    char *buf, size_t bufsz);
+
 /* Loads the prototype row for `vnum` (obj_repo_load()) and allocates a fresh
  * in-world obj_t instance from it -- NOT yet attached to any room/being
  * (caller does that via thing_move_to()). Returns NULL if no such vnum
  * exists in the `obj` table. */
 obj_t *obj_create_from_proto(int vnum);
+
+/* Builds a fresh, non-prototype obj_t instance -- vnum 0 (never backed by a
+ * real DB row, never persisted, like other ephemeral in-memory-only state in
+ * this port, e.g. `fighting`/`desc`). Pickup-able (WEAR_TAKE) by default. NOT
+ * yet attached to any room/being -- caller does that via thing_move_to().
+ * Used for one-off flavor objects generated at runtime rather than loaded
+ * from a prototype (e.g. a severed limb, combat.c). */
+obj_t *obj_create_ephemeral(const char *name, const char *short_descr,
+                            const char *long_descr, obj_category_t category);
 
 /* Detaches (thing_remove_from_parent) and frees an obj_t. Safe to call on a
  * worn/held item too (the caller is responsible for first clearing whatever

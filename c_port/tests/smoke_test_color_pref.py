@@ -93,6 +93,7 @@ check("Enable it?" in out or "color" in out.lower(),
       "a new account is asked about color at creation")
 out = cmd(s, "n")                          # decline color
 check("disabled" in out.lower(), "answering 'n' disables color")
+send_line(s, ""); recv_all(s)              # accept the (none) time zone default
 # now at account menu -> create a character
 send_line(s, "new"); recv_all(s)
 send_line(s, name); recv_all(s)

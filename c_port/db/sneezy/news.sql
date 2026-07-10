@@ -58,3 +58,60 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Place for Everything',
  'Bags, chests, and other containers now actually hold things. Put an item inside, take it back out, and look in to see what a container holds -- whether it is sitting on the ground or riding in your own pack. Some containers open and close: a closed one keeps its contents to itself until you open it. Mind what you cram in, though, for every container has only so much room.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Firmer Grip',
+ 'Holding something in hand now works properly. A weapon must be wielded, while anything else you carry in a free hand is simply held -- switch swaps whatever is in your two hands without letting go of either. Equipment listings read more clearly too, and no longer pretend a spot exists where nothing could ever actually be worn.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Dropped Connection Is Not the End',
+ 'Losing your connection no longer means losing your place in the world. Your character now simply stands where you were, quietly linkdead, until you reconnect -- no one else can lay a hand on you while you are gone, so you will find yourself right back where you left off.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Losing a Limb Is Now Literal',
+ 'Fights carry real stakes now. Take enough punishment to a single limb and it gives out for good, leaving something grim behind on the ground for anyone to find. Lose your head entirely and that is the end of you -- so keep an eye on more than just your overall health.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Death Leaves a Body Behind',
+ 'Whatever falls in battle -- player or monster -- now leaves a corpse behind, holding everything it was carrying. You cannot haul the body off, but you can get anything out of it right away, no fumbling with a lock or a lid.'),
+('The TobinMUD Team', 'Killing Now Pays, and a New Way to Fight',
+ 'Winning a fight now earns experience toward your next level. A foe caught sitting, resting, or otherwise not on their feet is easier to land a hit on. And a new hit command lets anyone -- immortals included -- pick a real, honest fight instead of an instant kill.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The World Wakes Up',
+ 'Rooms across the realm are no longer standing empty. Monsters and items are back where they belong, and the world quietly restocks itself over time as things get used up or cleared out.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Time Marches On',
+ 'The world now keeps its own clock and calendar. Type time to see it: the hour, the day of the week, and the date. Noon and midnight are announced to everyone, and so is the turn of a new month or a new year.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Your Own Time, Too',
+ 'Creating a new account now asks one more question: how many hours your own clock differs from the game''s home time zone. Answer it once and time will always show a second line with the real-world time where you are. Change it anytime with time followed by the difference in hours.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Read Without Interruption',
+ 'Paging through news a screen at a time is now uninterrupted -- nothing else pushes its way onto your screen mid-page. Anything that happened while you were reading is waiting for you afterward with catchup, which anyone can now use, not just staff.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Brighter Colors, Fixed',
+ 'A color bug is fixed: bright text no longer stays stuck bright when it should have faded back to regular. Colors throughout the game now behave the way they were always meant to.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Few Looking Fixes',
+ 'Looking around got a little more polished: some descriptions were losing their capital letter, looking at certain creatures could show a jumble of raw keywords instead of a proper name, and a few longer descriptions were cutting off mid-sentence. All fixed.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Scan Sees Only the Living',
+ 'Scan no longer reports someone whose connection has dropped. A linkdead character was never a real target to begin with -- now scan agrees.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

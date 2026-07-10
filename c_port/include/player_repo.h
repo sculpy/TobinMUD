@@ -67,6 +67,11 @@ bool player_set_title(const char *name, long account_id, const char *title);
  * character creation (descriptor.c). */
 bool player_name_exists(const char *name);
 
+/* player_id for `name`, or -1 if no such character exists. Used wherever a
+ * target is resolved by name for an offline-capable admin action (e.g.
+ * `zoneassign`, zone_repo.h) rather than a live in-room being_t. */
+long player_id_for_name(const char *name);
+
 /* Persists the prompt customization bitmask (cmd_prompt.c). */
 bool player_set_prompt_flags(long player_id, int flags);
 

@@ -165,7 +165,9 @@ bool cmd_set(descriptor_t *d, const char *args) {
     /* If that player is online right now, sync their live being_t too --
      * same courtesy `promote` and `edplayer` already give. */
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
-        if (it->state == CONN_PLAYING && it->character
+        /* NOT `state == CONN_PLAYING` -- that misses a target mid-edit
+         * (Session 43 audit), leaving their live copy stale. */
+        if (it->character
             && strcasecmp(it->character->base.name, target->base.name) == 0) {
             it->character->progress = target->progress;
             it->character->attrs = target->attrs;

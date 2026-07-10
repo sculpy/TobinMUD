@@ -4,6 +4,8 @@
      with the direction it lies in.
   2. `scan <direction>` reports only that direction.
   3. `scan <name>` filters to beings whose name matches.
+  4. A linkdead target is no longer reported (Session 43 continued, user:
+     "scan should ignore linkdead chars").
 
     python3 tests/smoke_test_scan.py [host] [port]
 """
@@ -116,7 +118,14 @@ check(nameTgt.lower() in out, "scan <direction> reports the target down that exi
 out = cmd(sScan, f"scan {nameTgt}").lower()
 check(nameTgt.lower() in out, "scan <name> finds the matching being")
 
-sScan.close()
+# --- linkdead target is no longer reported (user: "scan should ignore
+# linkdead chars") -- an abrupt close (not `quit!`) leaves the character
+# linkdead in place rather than removing it. ---
 sTgt.close()
+time.sleep(0.5)
+out = cmd(sScan, "scan").lower()
+check(nameTgt.lower() not in out, "scan no longer reports the target once they go linkdead")
+
+sScan.close()
 announce_done("smoke_test_scan")
 print("=== ALL CHECKS PASSED ===")

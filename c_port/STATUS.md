@@ -1,5 +1,313 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-10 — Session 43 continued (home): pre-push sweep
+found a real regression + a pre-existing stale test, both fixed.
+- **Regression**: the personal time-zone-offset account-creation prompt
+  (added earlier this session) broke 3 pre-existing smoke tests that
+  scripted a literal `y`/`n` answer to the color prompt and expected to
+  land directly on the account menu -- they now land on the new time
+  zone prompt first. Fixed `smoke_test_accounts.py`,
+  `smoke_test_color_pref.py`, `smoke_test_menu_letters.py` to answer it
+  (blank = none) before continuing. Grepped every other smoke test for
+  the same pattern -- none left.
+- **Pre-existing stale test** (unrelated to this session, predates it):
+  `smoke_test_objects.py`'s drop-on-death check still expected the old
+  loose-on-the-floor behavior ("A tattered cloak is lying here.") from
+  before the corpses-on-death feature landed -- a defeated PC's gear now
+  goes into a lootable corpse container instead. Updated to match
+  (`The corpse of <name> lies here.` + `get <item> corpse`).
+- **Investigated and ruled out** two other sweep failures
+  (`smoke_test_limbs.py`, `smoke_test_limbs_cmd.py`, "limb eventually
+  shows an injury flag/tier") as unrelated to anything changed this
+  session: confirmed via `hurtlimb` that the underlying limb-HP/status-
+  tier mechanism works correctly; the tests' own math is just marginal
+  -- `LIMB_MIN_MAX_HP` (15, from an earlier session) combined with a
+  random limb per hit across 13 limbs makes reliably crossing a status
+  tier within the tests' fixed round budget statistically unlikely, not
+  a code bug. Not fixed this session (test-design issue, not urgent).
+- **`scan` linkdead fix**: no linkdead check existed at all in
+  cmd_scan.c's occupant loop (look's room listing shows them tagged,
+  combat already excludes them from targeting -- scan just never
+  checked either way). Fixed to skip PCs with no live descriptor.
+  Extended `tests/smoke_test_scan.py` (6th check).
+
+Last updated: 2026-07-10 — Session 43 continued (home): three `look`
+bugs found and fixed together, all against real seeded mob vnum 33271.
+- **Capitalization ignored**: `cap_first()` (cmd_look.c) blindly
+  uppercased byte 0, a no-op when the label starts with an inline color
+  tag (`<o>a dirty refuse hauler<1>`, real seeded content) -- now skips
+  leading `<X>` tags first.
+- **Wrong name in `look <mob>`**: showed the raw keyword-match list
+  ("You look at man dirty refuse hauler.") instead of `short_descr` --
+  fixed, uncapitalized since it's mid-sentence.
+- **Truncated long description**: `BEING_APPEARANCE_LEN` (256, sized
+  for player.appearance's real column) was shared with mob.description
+  (mediumtext, real max ~1200 chars) -- bumped to 2048, plus two
+  downstream buffers that then tripped `-Wformat-truncation`. New
+  `tests/smoke_test_look_capitalization.py` (6 checks).
+
+Last updated: 2026-07-10 — Session 43 continued (home): fixed a real
+ANSI bug -- regular-intensity color tags didn't clear a preceding bold.
+- **Color engine fix**: `ansi_for_tag()` (colorstring.c) lowercase tags
+  now emit `\033[0;NNm` instead of a bare `\033[NNm` -- SGR bold and
+  color are independent attributes, and most terminals leave bold stuck
+  on until it's explicitly cleared, so `<C>ENTER<c>` (bright, then
+  regular) was rendering everything bright. Found while colorizing the
+  pager MORE prompt (below) -- the user's own example tag sequence
+  exposed it. Fixes every `<x>` tag in the game, not just the pager.
+  Updated hardcoded expected byte sequences in six smoke tests to match;
+  all pass except `smoke_test_sector_color.py`, which has an unrelated
+  pre-existing stale sector expectation (flagged as a separate task, not
+  a regression here).
+
+Last updated: 2026-07-10 — Session 43 continued (home): pager held-
+messages + colorized MORE prompt.
+- **Pager held-messages + colorized MORE prompt**: `descriptor_in_editor()`
+  now also covers `page_len > 0`, so mid-pager (e.g. reading `news`)
+  behaves like an editor -- messages hold for `catchup` instead of
+  interrupting the page. `catchup` widened from immortal-only to
+  mortal-level since `news` is mortal-accessible. MORE prompt recolored
+  and put on its own line per the user's exact tag example. New
+  `tests/smoke_test_pager_held.py` (5 checks).
+
+Last updated: 2026-07-10 — Session 43 continued (home): personal
+time-zone offset.
+- **Personal time-zone offset**: confirmed the mud clock is fictional
+  (no real timezone) and the VM/MariaDB are already America/New_York;
+  then ported Sneezy's `CON_TIME`/`time <difference>` sub-feature that
+  was explicitly deferred when gametime shipped (below). New
+  `CONN_GET_TIMEZONE` account-creation state right after the color
+  prompt, asks the offset in hours from the server's Eastern clock
+  (range -23..23, blank = 0), persisted to the pre-existing but
+  previously-unused `account.time_adjust` column (no migration needed).
+  `time` now shows a second real-world-clock line shifted by that
+  offset; `time <difference>` re-sets it later. New
+  `account_set_timezone()` (account.h/account_repo.c),
+  `tests/smoke_test_timezone.py` (9 checks, all passing).
+
+Last updated: 2026-07-10 — Session 43 continued (home): <d> tag, $$g
+token, time/day/date system.
+- **`<d>` bold tag + `$$g`/`$g` ground token**: both investigated from
+  Sneezy and ported (user request). `<d>`/`<D>` is a standalone bold
+  toggle (colorstring.c). `$$g`/`$g` substitutes an object description's
+  token with the room's ground-surface word -- new `room_ground_type()`
+  (room.c) + `obj_apply_ground_token()` (obj.c), wired into both
+  `long_descr` display sites in cmd_look.c. No weather-prefix (no weather
+  system); confirmed zero real usages in the migrated DB content, so this
+  is forward-looking infrastructure, not activating existing text.
+- **Time/day/date system**: ported from Sneezy's `GameTime` class -- new
+  `gametime.h`/`gametime.c` + `time` command, 28-day months, the same
+  weekday formula, noon/midnight/month/year announcements. Ticks on a
+  ~60s pulse (15 mud-minutes/tick), session-only (no persistence).
+  Dropped weather-driven sun/moon tracking and the personal timezone-
+  offset sub-feature. Found `pulse_register()` was silently no-op'ing
+  past `MAX_PULSE_PROCESSES` (was 8, exactly filled by this addition) --
+  bumped to 16, made overflow log an error instead of vanishing.
+
+Last updated: 2026-07-10 — Session 43 continued (home): zone identity ->
+edzone pivot + editors-absolute-quiet bug fix.
+- **Zone identity pivot to `edzone`**: the initial one-shot `zoneassign`
+  command was replaced (user: "make an edzone command to have a menu
+  driven editor function like edroom etc") with a full menu-driven editor
+  (`edzone <zone>`), same snapshot-working-copy shape as `edplayer`:
+  name/enabled/lifespan/vnum-range are Save/Quit-gated, assigning/
+  unassigning a builder (select an already-assigned name to toggle it
+  off) applies immediately, an `R`eset-now action force-runs the zone.
+  Kept `zone reset <n>` and added `zone list` (paginated, shows every
+  zone with its builders) as one-shot shortcuts. Confirmed multiple
+  builders can be assigned to the same zone simultaneously (the
+  `zone_owner` table's PK was already `(zone_nr, player_id)`, a real
+  many-to-many -- verified with a new test case, not a code change).
+- **Editors-absolute-quiet bug**: `descriptor_in_editor()` only ever
+  recognized the `CONN_REDIT_*` range -- `edplayer`/`edzone` were
+  silently never covered by the hold-for-catchup mechanism, despite every
+  broadcast call site already calling `descriptor_notify()` correctly.
+  Fixed the shared predicate (one place, not per-call-site). Also fixed
+  the same root cause in `who`/`promote`/`set`/`copyover`/`users`, all of
+  which used `state == CONN_PLAYING` as an "online" proxy and so excluded
+  anyone mid-edit (invisible to who, stale live-sync, lost session across
+  copyover, mislabeled in users). `smoke_test_held.py` extended to cover
+  edplayer/edzone.
+
+Last updated: 2026-07-10 — Session 43 continued (home): Zones Part 2.
+- **Zones Part 2 (zone_reset execution)** — user reported empty rooms and
+  no mobs; root cause was that Part 1 (Session 38) only migrated the
+  35,922-row `zone_reset` table into the DB, nothing ever executed it. New
+  `zone.c`/`zone_repo.c` covers M/O/E/G/P/D (~84% of all rows by count);
+  the rest (Y/X/Z sets, A random-room, V/H/F/T/L/K/C/R/I/J) are skipped --
+  they need subsystems Tobin doesn't have (mob AI, object sets, loot
+  tables, traps, grouping/charm/mounts). Full reset runs once at every
+  process start (main.c's `zone_boot_all()`) for BOTH a cold boot and a
+  copyover-resume -- verified first, before building, that a copyover does
+  NOT currently persist room/mob/object state (only player connection
+  info survives, cmd_copyover.c), so the two are indistinguishable from
+  the world's perspective; then each zone tops up periodically on its own
+  `lifespan` via a pulse tick. New `zonereset <zone>` immortal command
+  force-runs a zone on demand. Two notable simplifications, both
+  documented in TODO.md: E's placement is derived from the object's own
+  wear_flag (via the existing wear_slot_for_flag()) rather than the
+  original's raw arg3 slot index, which has no Tobin-limb equivalent; and
+  there's no world-wide max_exist cap, only a per-room one (arg2). "Mobs
+  wandering" still needs a separate movement/AI system -- this only
+  populates rooms, doesn't move anything afterward. `smoke_test_zones.py`.
+
+Last updated: 2026-07-09 — Session 43 continued (home): TODO backlog batch
++ corpses on death.
+- **Corpses on death** (user: "make it so the corpse of a char loads into
+  the room upon death... treated like a container... mobs and players
+  alike") — `combat_defeat()` creates an ephemeral "corpse of <name>"
+  container object (same `obj_create_ephemeral()` primitive as severed
+  limbs) and moves the loser's entire inventory into it instead of
+  dropping items loose. Not takeable whole, never closed/locked. Both PCs
+  and mobs get one (a mob's is empty for now). `smoke_test_corpse.py`.
+- **Backlog batch**: `@set` now dispatches (leading `@` stripped before
+  the normal verb parse); immortal-vs-immortal `kill` guard (true-rank
+  aware, protects a toggled-mortal immortal too); XP on kill
+  (`loser->level * 50`, non-immortal PC winners only, via the existing
+  `progress_add_xp()`); positions polish (+15 hit-roll bonus vs. a
+  non-standing defender); gender-pronoun sweep of `socials.c`
+  (`shake`/`poke`/`comfort` -- only 3 of 16 actually needed it despite the
+  "~15" estimate; new `gender_reflexive()` helper); colorized copyover
+  messages; `help color`/`help who` enriched with the full tag list and
+  `<N>`/`<n>` mention; new `hit` command (thin passthrough to `cmd_attack`,
+  lets an immortal have a real fight instead of instakilling).
+
+Last updated: 2026-07-09 — Session 43 (home): crit-hit/decapitation system.
+- **Crit-hit + decapitation** (user: "copy sneezys crit hit system, complete
+  with object creation upon decapitation") — scoped with the user before
+  building (see TODO.md's now-checked-off row for the full breakdown).
+  No new RNG layer: triggers purely on a limb's HP crossing to 0% from
+  ordinary combat damage (`combat_strike()`, combat.c). Any limb reaching
+  0% sheds a lootable ephemeral object ("X's severed <limb>",
+  `obj_create_ephemeral()` in obj.c/obj.h -- vnum 0, never persisted, same
+  precedent as other session-only state) in the room; the HEAD specifically
+  is a decapitation, an instant kill routed through the existing
+  `combat_defeat()` "slain" path (not a new death path). PCs only for v1 --
+  a mob's destroyed limb does nothing extra.
+- **Limb-HP floor bug fix**: found while scoping the above -- a level-1
+  character's ~25 max HP splits 13 ways to under 1 HP per limb (rounds to a
+  bare 1), so literally any landed hit (minimum damage 1) already destroyed
+  whatever limb it hit. Would have made early combat an almost-instant
+  coin-flip decapitation. Fixed with a `LIMB_MIN_MAX_HP` floor (15) in
+  `being_limbs_full_heal()` -- confirmed with the user first.
+- **`hurtlimb <target> <limb> <hp>`** (new immortal-only debug command,
+  cmd_hurtlimb.c) -- sets a limb's HP directly and runs the same sever/
+  decapitate trigger a real hit would, so the feature (and any future limb
+  work) can be tested deterministically instead of waiting on combat RNG to
+  land on a specific limb by chance. New `smoke_test_crit.py` (18 checks).
+
+Last updated: 2026-07-09 — Session 42 (home): world death taunt PC-only +
+wiznews test hygiene.
+- **World death taunt: PC deaths only** (user: "should only fire when a
+  player dies, skip the mobs unless the mob is the killer") — `combat_defeat()`
+  (combat.c) wraps the `[INFO]` world broadcast in `if (loser_is_pc)`; a mob's
+  death is now silent world-wide, while a mob-as-killer still taunts normally
+  (the message names the loser, not the winner, so this is unaffected).
+  `smoke_test_mobiles.py` section 5 adds a bystander check confirming no
+  `[INFO]` fires on a mob death.
+- **`smoke_test_wiznews.py` test-hygiene fix**: each run posted a permanent
+  "Staff Meeting <suffix>" row via `edwiznews` with no cleanup, same class of
+  bug `smoke_test_news.py` already had fixed. After enough sweep runs this
+  finally pushed the seeded "Immortal News Arrives" item past `wiznews`'s
+  40-row display window, failing "the seeded wiznews item is shown". Fixed
+  with the same DELETE-on-completion pattern as news.py; also purged the
+  ~30 accumulated junk rows from the VM's `wiznews` table.
+- **Flake note**: `smoke_test_kill.py`'s "unsolicited broadcast still leaves
+  the bystander at a prompt" check failed once mid-verification, passed
+  clean on immediate rerun — a timing flake, not a regression (confirmed the
+  combat.c change is a no-op for a PC-loser path). Add to the known-rotating-
+  flakes list alongside idle/parser_display/set/mortal_toggle.
+- Applied the deferred `news.sql`/`wiznews.sql` content (load/equipment/
+  hold-wield-switch and linkdead-persistence changelog entries) to the VM DB.
+
+Last updated: 2026-07-09 — Session 41 (home): linkdead persistence + short_descr
+capitalization.
+- **Linkdead persistence** (user): losing link no longer destroys a character
+  -- `descriptor_destroy()` now detaches (`desc = NULL`), leaving the being in
+  its room. `world_find_linkdead_pc(player_id)` (world.c) finds it on
+  reconnect; `enter_world()` does a FRESH `player_load()` as always (so any
+  DB-side change made while linkdead -- a promotion, an edplayer/set edit --
+  still takes effect) but resumes it in the linkdead body's ROOM instead of
+  the load room, then discards the old body. Deliberately does NOT eagerly
+  persist progress/inventory on detach -- that would clobber a concurrent DB
+  write with the pre-disconnect snapshot, breaking the widespread
+  create-then-SQL-promote-then-close test pattern; the being stays alive in
+  memory so nothing is at risk under normal operation. Only recovers via
+  reconnect or process end (copyover only restores descriptor-attached
+  beings, so a linkdead body's memory simply ends with the old process).
+  Room listing tags them "(linkdead)"; `combat_find_room_target()` (combat.c)
+  skips linkdead PCs entirely, so no one can attack/kill them (user: "no one
+  can manipulate a linkdead char"). New `smoke_test_linkdead.py`. Fixed 5
+  existing tests whose abrupt-`close()`-right-after-creation pattern now
+  goes linkdead instead of destroying -- each needed an explicit `quit!`
+  first to test what they actually meant to test (objects, mobiles, edplayer,
+  set, sector_color -- all relied on a SQL-driven room/level change applying
+  to a truly-fresh next login, not a linkdead-room resume).
+- **`short_descr` capitalization**: mob/object short_descrs are stored
+  lowercase-first by convention ("a city watchman"); a shared per-file
+  `cap_first()` helper now capitalizes them ONLY when one starts a whole
+  message (room-listing "X is here.", inventory/container-contents bullets,
+  scan results, the look-target long_descr fallback) -- mid-sentence uses
+  ("You conjure a torch...") stay lowercase, per user spec.
+
+Last updated: 2026-07-09 — Session 40 (home): NewMUD sync + load/equipment/
+gender-pronoun follow-ups.
+- **Synced the home VM to NewMUD**: dev box (`E:\New MUD`) repointed `origin`
+  to `sculpy/NewMUD` (gh https auth, already scoped for private repos) and
+  fast-forwarded onto its history (confirmed `c18d592` is a shared ancestor --
+  same commit hash, not a re-import). Generated (but did NOT register --
+  blocked by the safety classifier, pending user confirmation) a deploy key
+  for the home VM per SYNC.md's "first-time setup for a build box"; the VM's
+  `~/NewMUD` stayed the existing tar-deployed plain copy (not its own git
+  clone) for now. Synced the full tree via tar, clean-rebuilt (zero warnings),
+  applied schema (player count + zone_reset row count both held), restarted,
+  verified `smoke_test_containers.py` green.
+- **Merged `mload`/`oload` into one `load <mob|obj> <vnum|name>`** (user) --
+  `cmd_load.c` replaces both; category is abbreviatable (a bare M/O works,
+  since both are 1-letter prefixes of "mobile"/"object"). Table-order gotcha
+  (same precedent as set/setsev): `load` is itself a prefix of `loadroom`, so
+  `loadroom` now needs `loadr`+ (was `loa`+). Old help topics removed (with a
+  DELETE, since ON DUPLICATE KEY UPDATE doesn't clean up renamed commands);
+  new merged `load` topic. Updated the 3 tests that used mload/oload
+  (objects/mobiles/containers).
+- **Found + fixed stale legacy-editor-key help text while auditing
+  help_topic.sql for the load rename**: `edrules`/`edhelp`/`ednews`/
+  `edwiznews`/`edroom` topics still described the pre-Session-32 `.`/`~`/
+  `/clear`/`/format` keys instead of `/s`/`/a`/`/b`/`/f`. Also found and
+  deleted two fully orphaned topics (`redit`/`hedit`) left over from the
+  ed*-rename that were never cleaned up.
+- **`wear`/`hold`/`wield`/`switch` split** (user) -- `wear` now only covers
+  body-slot equipment; a holdable item refuses `wear` and points to whichever
+  of `hold` (non-weapons) / `wield` (weapons, gated on `obj_t.category ==
+  OBJ_CAT_WEAPON`) actually applies. New `switch` swaps `held[0]`/`held[1]`
+  in place, no unwielding needed. Shared `do_hold_or_wield()` helper in
+  cmd_object.c keeps the fill-dominant-hand-first logic from the old `wear`
+  HELD branch. Table collisions resolved (documented inline): `switch` needs
+  `swi`+ (`sw` is southwest's own alias), `wield` needs `wie`+ (`wiznews`/
+  `wiznet`/`wizhelp` already claim `wi`), `hold` only needs `ho`+ (`help`
+  claims bare `h`).
+- **Equipment display reformatted** (user) -- right-aligned `label: value`
+  columns (`EQUIP_LABEL_WIDTH` 14, matching "secondary hold") replacing the
+  old `<label> value` bracket form. **Genitalia removed from the listing
+  entirely** -- it was never actually wearable (no wear_flag bit ever mapped
+  to it), just cosmetically listed; it becomes an object on decapitation
+  instead (crit-hit item below). "primary hand"/"off hand" renamed to
+  "primary hold"/"secondary hold", now correctly tracking the caller's
+  dominant hand (handed_right) rather than a fixed held[0]/held[1] -- a
+  latent labeling bug for left-handed characters, fixed in passing.
+- **Gender-specific pronouns, started** (user: "make ALL mud output gender
+  specific") -- fixed the link-loss line (room echo AND the `[PIO]` log line)
+  and `stand`'s room echo, both via `gender_possess()`. Surveyed the rest of
+  the codebase: nearly everything else saying "their"/"they" is either a code
+  comment or a genuinely-plural referent (bugs, exits, "the gods"), NOT a
+  single-character pronoun -- except `src/core/socials.c`, whose ~15 social
+  message pairs mostly use a bare "their". Left as a deferred, scoped TODO
+  item (a real pass through that one file) rather than rewriting it under
+  time pressure in the same session as everything else above.
+- Full batch (new commands, table changes, help/news/wiznews entries, and
+  the ~9 test files touched) about to be built + swept together -- see the
+  sweep result logged right below this entry once it lands.
+
 Last updated: 2026-07-09 — Session 39 (work): repo migration + containers.
 - **Infra: home machine reformatted; repo migrated to `sculpy/NewMUD`.** The
   old sync repo was `sculpy/tobin-mud`; a fresh `NewMUD` repo was created and

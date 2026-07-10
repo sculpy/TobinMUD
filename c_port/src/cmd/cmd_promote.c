@@ -54,7 +54,9 @@ bool cmd_promote(descriptor_t *d, const char *args) {
      * the change takes effect without a relog. */
     being_t *target = NULL;
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
-        if (it->state == CONN_PLAYING && it->character
+        /* NOT `state == CONN_PLAYING` -- that misses a target mid-edit
+         * (Session 43 audit), wrongly treating them as offline. */
+        if (it->character
             && strcasecmp(it->character->base.name, name) == 0) {
             target = it->character;
             break;
@@ -77,7 +79,7 @@ bool cmd_promote(descriptor_t *d, const char *args) {
             snprintf(msg, sizeof(msg), "%s has %s you to level %d%s%s%s!\r\n",
                      self->base.name, level >= old_level ? "promoted" : "demoted",
                      level, title ? " (" : "", title ? title : "", title ? ")" : "");
-            descriptor_send(target->desc, msg);
+            descriptor_notify(target->desc, msg); /* held if they're mid-edit */
         }
     }
     snprintf(msg, sizeof(msg), "%s is now level %d%s%s%s.%s\r\n",

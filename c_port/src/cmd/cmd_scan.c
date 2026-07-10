@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +49,15 @@ static int scan_parse_dir(const char *tok) {
         if (strncasecmp(DIR_NAMES[i], tok, len) == 0)
             return i;
     return -1;
+}
+
+/* short_descr is stored lowercase-first by convention ("a city watchman");
+ * capitalize when it starts a whole message. Copies into `buf`. */
+static const char *cap_first(const char *label, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%s", label);
+    if (buf[0])
+        buf[0] = (char)toupper((unsigned char)buf[0]);
+    return buf;
 }
 
 /* Case-insensitive "does haystack contain needle" (strcasestr is GNU-only). */
@@ -136,14 +146,23 @@ bool cmd_scan(descriptor_t *d, const char *args) {
                 for (thing_t *t = dr->base.stuff_head; t; t = t->stuff_next) {
                     if (t->kind != THING_PC && t->kind != THING_MOB)
                         continue;
+                    /* Linkdead PCs are visible (tagged) in a room's own
+                     * `look` listing, but not scannable from a distance --
+                     * same "not a real target" treatment as
+                     * combat_find_room_target() (user: "scan should
+                     * ignore linkdead chars"). */
+                    if (t->kind == THING_PC && !((const being_t *)t)->desc)
+                        continue;
                     if (grep && !ci_contains(t->name, grep))
                         continue;
                     if ((size_t)n >= sizeof(out))
                         break;
                     const char *label = t->short_descr[0] ? t->short_descr : t->name;
+                    char capbuf[128];
                     n += snprintf(out + n, sizeof(out) - (size_t)n,
                                   "  %s <o>%s to the %s.<z>\r\n",
-                                  label, SCAN_DIST[dist], DIR_NAMES[dir]);
+                                  cap_first(label, capbuf, sizeof(capbuf)),
+                                  SCAN_DIST[dist], DIR_NAMES[dir]);
                     found = true;
                 }
             }

@@ -6,8 +6,8 @@
      which logs a distinct "finished" line via "@test done <name>"). Every
      smoke test calls both -- copy these two functions into new tests.
   2. Player connect is a typed [PIO] log: an online immortal sees
-     "<name> has connected. [<ip>]", symmetric to the "has lost their link."
-     line, and it carries the IP.
+     "<name> has connected. [<ip>]", symmetric to the (gender-specific)
+     "has lost his/her/its link." line, and it carries the IP.
 
     python3 tests/smoke_test_logging.py [host] [port]
 """

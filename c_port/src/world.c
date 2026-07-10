@@ -40,3 +40,16 @@ room_t *world_get_room(int vnum) {
     }
     return NULL;
 }
+
+being_t *world_find_linkdead_pc(long player_id) {
+    for (room_entry_t *e = g_rooms; e; e = e->next) {
+        for (thing_t *t = e->room->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC)
+                continue;
+            being_t *b = (being_t *)t;
+            if (!b->desc && b->player_id == player_id)
+                return b;
+        }
+    }
+    return NULL;
+}

@@ -19,6 +19,12 @@ room_t *room_repo_load(int vnum);
 /* True if a room row with this vnum exists. */
 bool room_repo_exists(int vnum);
 
+/* The `zone` column for room `vnum` -- which zone this room belongs to,
+ * for the zone-ownership edit gate (zone.h's zone_can_edit()). -1 if the
+ * room doesn't exist or its zone column is NULL (an unzoned room, editable
+ * by any builder -- see zone_can_edit()'s doc comment). */
+int room_repo_get_zone(int vnum);
+
 /* Upserts the room row: inserts with harmless defaults for the many
  * original columns Tobin doesn't model (coords, flags, river, ...) on
  * first save, updates only name/description/sector after that. Backs the

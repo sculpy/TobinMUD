@@ -5,7 +5,9 @@ as smoke_test_color.py): the room NAME gets the BRIGHT (uppercase) tag for
 its sector's color, the DESCRIPTION only the DIM (lowercase) one.
 
   - A fresh mortal starts at Center Square (vnum 100, sector "TEMPERATE
-    HILLS") -- colored green.
+    CITY") -- colored white (the "CITY" keyword rule in sector_color()),
+    also confirming the default-white path renders through the
+    name/description split correctly.
   - An immortal defaults to Imperia (vnum 1, sector "DEAD WOODS") -- not
     covered by any specific keyword rule, so it falls to the white default;
     also confirms the builder's `[vnum] name [ SECTOR ] flags` header still
@@ -99,22 +101,22 @@ def make_player(tag, pw="sectorcolortest123"):
     return name, s
 
 
-# --- mortal at Center Square (TEMPERATE HILLS -> green) ---
+# --- mortal at Center Square (TEMPERATE CITY -> white) ---
 name, s = make_player("M")
 raw = recv_all_bytes(s)  # drain anything left from creation's auto-look
 send_line(s, "look")
 raw = recv_all_bytes(s)
 print(f"=== mortal look, color on (raw bytes) ===\n{raw!r}")
-check(b"\x1b[1;32m" in raw, "room name uses the bright (uppercase) green escape")
-check(b"\x1b[32m" in raw, "room description uses the dim (lowercase) green escape")
-check(b"<g>" not in raw and b"<G>" not in raw, "no raw sector-color tag leaks through")
+check(b"\x1b[1;37m" in raw, "room name uses the bright (uppercase) white escape")
+check(b"\x1b[0;37m" in raw, "room description uses the dim (lowercase) white escape")
+check(b"<w>" not in raw and b"<W>" not in raw, "no raw sector-color tag leaks through")
 
 send_line(s, "color off")
 recv_all_bytes(s)
 send_line(s, "look")
 raw = recv_all_bytes(s)
 check(b"\x1b[" not in raw, "no ANSI escapes at all with color off")
-check(b"<g>" not in raw and b"<G>" not in raw, "sector-color tags are stripped, not leaked, with color off")
+check(b"<w>" not in raw and b"<W>" not in raw, "sector-color tags are stripped, not leaked, with color off")
 s.close()
 
 # --- immortal at Imperia (DEAD WOODS -> default white) ---
@@ -122,6 +124,13 @@ nameI, si = make_player("I")
 recv_all_bytes(si)
 sql(f"UPDATE player_progress SET level=51 WHERE player_id="
     f"(SELECT id FROM player WHERE name='{nameI}');")
+# "quit!" leaves to the account menu first (a real disconnect, character
+# detached cleanly) -- an abrupt close while still playing would instead
+# leave the character linkdead in the ordinary mortal room they were
+# created in, bypassing the immortal-defaults-to-room-1 remap below
+# (see world_find_linkdead_pc() / enter_world()).
+send_line(si, "quit!")
+recv_all_bytes(si)
 si.close()
 
 si = socket.create_connection((host, port), timeout=5)
@@ -136,7 +145,7 @@ print(f"=== immortal look, color on (raw bytes) ===\n{raw!r}")
 check(b"[1] " in raw, "immortal header still shows the room vnum")
 check(b"DEAD WOODS" in raw, "immortal header still shows the sector name")
 check(b"\x1b[1;37m" in raw, "room name uses the bright white escape (DEAD WOODS default)")
-check(b"\x1b[37m" in raw, "room description uses the dim white escape")
+check(b"\x1b[0;37m" in raw, "room description uses the dim white escape")
 si.close()
 
 announce_done("smoke_test_sector_color")

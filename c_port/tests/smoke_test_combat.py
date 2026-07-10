@@ -229,6 +229,13 @@ check(f"You have slain {proper(nameTarget)}" in out,
 out = step(sImm, "immortal acts again IMMEDIATELY -- should NOT be blocked", "score")
 check("still recovering" not in out, "immortal is never blocked by the wait-state, even right after attacking")
 
+# --- Part 4: `hit` always engages real combat, even for an immortal ---
+sHit, nameHit = make_player("Hit")  # lands in room 100 by default, same as sImm
+out = step(sImm, "immortal uses 'hit' instead of 'kill' -- should NOT instakill", f"hit {nameHit}")
+check("You attack" in out, "'hit' engages normal combat (cmd_attack's own message), not an instakill")
+check(f"You have slain {proper(nameHit)}" not in out, "'hit' never produces kill's instant-slay message")
+
+sHit.close()
 sImm.close()
 sTarget.close()
 announce_done("smoke_test_combat")

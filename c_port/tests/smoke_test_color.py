@@ -107,8 +107,8 @@ send_line(sA, "say <p>purple<z> and <r>red")
 rawA = recv_all_bytes(sA)
 rawB = recv_all_bytes(sB)
 print(f"=== say with tags, color on (speaker raw bytes) ===\n{rawA!r}")
-check(b"\x1b[35m" in rawA, "purple ANSI escape (\\x1b[35m) present for the speaker")
-check(b"\x1b[31m" in rawA, "red ANSI escape (\\x1b[31m) present for the speaker")
+check(b"\x1b[0;35m" in rawA, "purple ANSI escape (\\x1b[0;35m) present for the speaker")
+check(b"\x1b[0;31m" in rawA, "red ANSI escape (\\x1b[0;31m) present for the speaker")
 check(b"\x1b[0m" in rawA, "explicit <z> reset translated (\\x1b[0m present)")
 # Note: rawA also contains the echo of the typed command line, which
 # correctly still has literal tags (echo is raw keystrokes, not output
@@ -116,33 +116,33 @@ check(b"\x1b[0m" in rawA, "explicit <z> reset translated (\\x1b[0m present)")
 said = rawA[rawA.find(b"You say"):]
 check(b"<p>" not in said and b"<z>" not in said and b"<r>" not in said,
       "no raw tag text leaks into the translated message")
-check(b"\x1b[35m" in rawB and b"\x1b[31m" in rawB,
+check(b"\x1b[0;35m" in rawB and b"\x1b[0;31m" in rawB,
       "the other player in the room gets the same translated escapes")
 
 # --- Part 2: auto-reset -- an unterminated color can't bleed past its message ---
-idxA = rawA.rfind(b"\x1b[31m")
+idxA = rawA.rfind(b"\x1b[0;31m")
 check(rawA.find(b"\x1b[0m", idxA) != -1,
       "a message ending still-colored gets an ANSI reset appended (no bleed)")
 # The closing quote is CYAN framing (user spec: <c>You say, "<z>msg<c>"<z>)
 # with the reset immediately after it -- and always before the line break.
-check(b'\x1b[36m"\x1b[0m' in rawA,
+check(b'\x1b[0;36m"\x1b[0m' in rawA,
       "the closing quote is cyan framing with the reset right after it")
 check(rawA.find(b"\x1b[0m", idxA) < rawA.find(b"\r\n", idxA),
       "the reset lands before the line break, not after it")
 send_line(sA, "say plain follow-up")
 rawA2 = recv_all_bytes(sA)
-check(b"\x1b[35m" not in rawA2 and b"\x1b[31m" not in rawA2,
+check(b"\x1b[0;35m" not in rawA2 and b"\x1b[0;31m" not in rawA2,
       "the next message carries no leftover color codes of its own")
 # The say wrapper itself is cyan as of Session 21 -- a plain say carries
 # the framing's cyan+reset but nothing from previous messages.
-check(b"\x1b[36m" in rawA2, "a plain say carries the cyan say framing")
+check(b"\x1b[0;36m" in rawA2, "a plain say carries the cyan say framing")
 
 # A message ENDING in a bare color tag: the cyan framing retakes the
 # quote, and the reset follows it.
 send_line(sA, "say trailing tag <r>")
 rawA3 = recv_all_bytes(sA)
-idx3 = rawA3.rfind(b"\x1b[31m")
-check(idx3 != -1 and rawA3.find(b'\x1b[36m"\x1b[0m', idx3) != -1,
+idx3 = rawA3.rfind(b"\x1b[0;31m")
+check(idx3 != -1 and rawA3.find(b'\x1b[0;36m"\x1b[0m', idx3) != -1,
       "a say ending in a bare color tag still closes with cyan quote + reset")
 
 # --- Part 3: color off -- tags stripped entirely, no ANSI, no raw tags ---
@@ -157,6 +157,20 @@ check(b"<p>" not in rawB and b"<z>" not in rawB and b"<r>" not in rawB,
       "raw tag text is stripped (not leaked) when color is off")
 check(b"purple" in rawB and b"red" in rawB,
       "the surrounding plain text survives with color off")
+
+# --- Part 4: <d>/<D> (Session 43, investigated + added from Sneezy) --
+# a standalone BOLD toggle, ANSI \x1b[1m, stacked onto whatever color is
+# already active rather than setting a color of its own. ---
+send_line(sA, "color on")
+recv_all_bytes(sA)
+send_line(sA, "say <g><d>bold green<z> plain")
+rawA = recv_all_bytes(sA)
+print(f"=== say with <d>, color on (speaker raw bytes) ===\n{rawA!r}")
+check(b"\x1b[0;32m" in rawA, "<g> still emits its own green escape")
+check(b"\x1b[1m" in rawA, "<d> emits a standalone bold escape (\\x1b[1m)")
+check(rawA.find(b"\x1b[0;32m") < rawA.find(b"\x1b[1m"),
+      "<g> comes before <d> in the translated output, matching source order")
+check(b"<d>" not in rawA[rawA.find(b"You say"):], "no raw <d> tag leaks into the translated message")
 
 sA.close()
 sB.close()

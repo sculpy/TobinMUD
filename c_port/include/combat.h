@@ -28,4 +28,14 @@ being_t *combat_find_room_target(being_t *self, const char *name);
  * state or wait cost involved. */
 void combat_instakill(being_t *attacker, being_t *target);
 
+/* Admin/debug tool (`hurtlimb`, cmd_hurtlimb.c): sets `target`'s `limb` HP
+ * directly to `hp` (clamped to [0, that limb's current max]) and runs the
+ * exact same crossing-to-0%/sever/decapitate logic a normal combat_strike()
+ * hit would -- lets severing and decapitation be tested deterministically
+ * instead of waiting on combat RNG to land on a specific limb. `actor` (the
+ * immortal typing the command) is credited as the attacker in any resulting
+ * messages/kill. Returns true iff this decapitated (and thus killed via
+ * combat_defeat()) `target`. */
+bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int hp);
+
 #endif

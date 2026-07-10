@@ -35,12 +35,13 @@ bool account_load(const char *name, account_t *out) {
         return false;
 
     bool ok = false;
-    if (db_query(db, "select account_id, name, passwd, color_pref from account where name=lower('%s')", name)
+    if (db_query(db, "select account_id, name, passwd, color_pref, time_adjust from account where name=lower('%s')", name)
         && db_fetch_row(db)) {
         out->account_id = atol(db_get(db, "account_id"));
         snprintf(out->name, sizeof(out->name), "%s", db_get(db, "name"));
         snprintf(out->passwd, sizeof(out->passwd), "%s", db_get(db, "passwd"));
         out->color_pref = atoi(db_get(db, "color_pref")) != 0;
+        out->time_adjust = atoi(db_get(db, "time_adjust"));
         ok = true;
     }
 
@@ -78,6 +79,7 @@ bool account_create(const char *name, const char *plain_password, account_t *out
         snprintf(out->name, sizeof(out->name), "%s", name);
         snprintf(out->passwd, sizeof(out->passwd), "%s", hash);
         out->color_pref = true; /* color on by default; the creation prompt may flip it */
+        out->time_adjust = 0; /* server time by default; the creation prompt may set it */
     }
 
     db_close(db);
@@ -98,6 +100,18 @@ bool account_set_color(long account_id, bool color_on) {
 
     bool ok = db_query(db, "update account set color_pref=%i where account_id=%i",
                        color_on ? 1 : 0, (int)account_id);
+
+    db_close(db);
+    return ok;
+}
+
+bool account_set_timezone(long account_id, int hours) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db, "update account set time_adjust=%i where account_id=%i",
+                       hours, (int)account_id);
 
     db_close(db);
     return ok;

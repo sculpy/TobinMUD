@@ -113,7 +113,7 @@ check('You say, "' in outA and 'Hello there, everyone!' in outA,
       "the speaker sees their own message with 'You say,'")
 check(f'{proper(nameA)} says, "' in outB and 'Hello there, everyone!' in outB,
       "the other player in the room sees '<Name> says,' with the same message")
-check("\x1b[36m" in outB, "the say framing arrives cyan")
+check("\x1b[0;36m" in outB, "the say framing arrives cyan")
 
 # --- Part 2: `'` shorthand, no space required ---
 send_line(sB, "'Hi back at you!")

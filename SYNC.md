@@ -4,6 +4,17 @@ How the two working locations stay in sync, and how each build box gets code.
 Companion to [CLAUDE.md](CLAUDE.md) (project rules) and
 [ENVIRONMENT.md](ENVIRONMENT.md) (per-machine setup details).
 
+## Standing response style (applies everywhere, every session)
+
+Keep all responses ultra-concise and direct — this travels with the repo
+(git-synced) specifically so it applies at Home and Work alike, not just on
+whichever machine set it locally:
+
+- Strip all greetings, preambles, and filler text.
+- Omit concluding summaries and offers for further assistance.
+- Use short sentences, bullet points, or tables.
+- Delete any phrase that does not add new, critical information.
+
 ## The two environments
 
 | | Dev tree | Build/test box | Reach it via |
@@ -117,3 +128,14 @@ tweaks). Before forcing a tree to `origin/main`:
 - Running multi-line remote scripts over SSH from Windows: pipe them
   (`ssh <box> 'bash -s' < script.sh`) — inline `ssh host "…"` strings mangle
   quotes and choke on literal parentheses.
+- **Watchdog cron, check yours too:** the Home VM's crontab had a bare
+  `* * * * * pgrep -x "tobin_c" > /dev/null || /home/mud/.../build/tobin_c` —
+  no `cd` first (wrong cwd if it ever actually fired), no log redirection
+  (output vanished into cron's mail/dev-null), and no lock (a slow rebuild
+  could race a manual restart into two live instances on the same port).
+  Fixed by replacing the binary invocation with `c_port/watchdog.sh`
+  (`cd`s to its own directory, appends to `tobin_c.log`, takes a
+  `flock` on `/tmp/tobin_watchdog.lock` so only one restart ever runs) --
+  crontab is now just `* * * * * /home/mud/NewMUD/c_port/watchdog.sh`.
+  If the Work box (`db.kullit.com`) has a similar watchdog line, check
+  `crontab -l` there and point it at the same script.

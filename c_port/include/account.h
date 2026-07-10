@@ -16,6 +16,8 @@ typedef struct {
     char name[80];
     char passwd[256]; /* crypt() hash, e.g. "$6$..." */
     bool color_pref;  /* ANSI color on/off, chosen at account creation */
+    int time_adjust;  /* hours offset from server time (Eastern), chosen at
+                        * account creation; see cmd_time.c */
 } account_t;
 
 /* Case-insensitive by name, mirrors the original's `where name=lower(...)`.
@@ -32,5 +34,10 @@ bool account_verify_password(const account_t *acct, const char *plain_password);
 /* Persists the ANSI color preference (account.color_pref). Backs the color
  * prompt at account creation and the `color on|off` command. */
 bool account_set_color(long account_id, bool color_on);
+
+/* Persists the real-time-zone offset (account.time_adjust, hours relative to
+ * the server's own Eastern clock). Backs the creation prompt and the
+ * `time <difference>` command. */
+bool account_set_timezone(long account_id, int hours);
 
 #endif

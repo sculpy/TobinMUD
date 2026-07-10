@@ -167,7 +167,7 @@ time.sleep(0.5)
 
 send_line(sImm, f"log search {nameVictim}")
 out = recv_all(sImm)
-check("lost their link" in out and nameVictim.capitalize() in out,
+check("lost its link" in out and nameVictim.capitalize() in out,
       "log search finds the link-drop line by character name")
 
 send_line(sImm, "log search zzzznosuchstringzzz")

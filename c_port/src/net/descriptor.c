@@ -18,12 +18,14 @@
 #include "colorstring.h"
 #include "log.h"
 #include "net.h"
+#include "obj_repo.h"
 #include "player_repo.h"
 #include "multiplay.h"
 #include "news_repo.h"
 #include "room_repo.h"
 #include "rules_repo.h"
 #include "world.h"
+#include "zone.h"
 
 descriptor_t *g_descriptors = NULL;
 
@@ -129,16 +131,34 @@ descriptor_t *descriptor_copyover_adopt(int fd, long account_id, int room_vnum,
     return d;
 }
 
-/* ---- Held messages: no game interruptions while editing --------------- *
- * People in an editor (the redit menu / hedit / addnews) don't get game
- * messages pushed at them -- those buffer here and are reviewed with
- * `catchup`, expiring after HELD_MSG_TTL. Async senders use descriptor_notify
- * instead of descriptor_send. */
+/* ---- Held messages: no game interruptions while editing or paging ----- *
+ * People in an editor (the redit menu / hedit / addnews) or mid-pager
+ * (e.g. reading `news` a page at a time) don't get game messages pushed
+ * at them -- those buffer here and are reviewed with `catchup`, expiring
+ * after HELD_MSG_TTL. Async senders use descriptor_notify instead of
+ * descriptor_send. */
 
-/* True if this connection is inside an editor. */
-static bool descriptor_in_editor(const descriptor_t *d) {
+/* True while `d` is inside ANY editor -- the shared line editor
+ * (edit_kind) or a menu-driven one (redit/edplayer/edzone, each a
+ * contiguous CONN_* range) -- or mid-pager (page_len > 0). Bug found
+ * Session 43 (user: "when in the editors, no messages to interrupt...
+ * thats what catchup is for"): this only ever checked the CONN_REDIT_*
+ * range, so descriptor_notify()'s hold-for-catchup behavior silently
+ * never applied to edplayer or edzone -- every broadcast that correctly
+ * calls descriptor_notify() (system, wiznet, newbie, the death taunt,
+ * ...) was still interrupting anyone mid-edplayer/edzone. New editors
+ * MUST add their CONN_* range here. Pager silence added later the same
+ * session (user: "silence all messaging like youve done for the
+ * editors... but for pagination") -- since `news` is mortal-accessible,
+ * `catchup` was widened from immortal-only to mortal-level at the same
+ * time (cmd_table.c), or a held-during-pager mortal would have no way to
+ * retrieve it. */
+bool descriptor_in_editor(const descriptor_t *d) {
     return d->edit_kind != EDIT_NONE
-        || (d->state >= CONN_REDIT_MENU && d->state <= CONN_REDIT_QUIT_CONFIRM);
+        || (d->state >= CONN_REDIT_MENU && d->state <= CONN_REDIT_QUIT_CONFIRM)
+        || (d->state >= CONN_EDPLAYER_MENU && d->state <= CONN_EDPLAYER_QUIT_CONFIRM)
+        || (d->state >= CONN_EDZONE_MENU && d->state <= CONN_EDZONE_QUIT_CONFIRM)
+        || d->page_len > 0; /* mid-pager -- same "no interruptions" treatment */
 }
 
 static void descriptor_hold(descriptor_t *d, const char *msg) {
@@ -278,10 +298,13 @@ void descriptor_destroy(descriptor_t *d) {
         /* A vanishing player shouldn't just silently blink out of the
          * room (user requirement) -- this is the link-drop path; a
          * deliberate quit! announces separately in cmd_quit.c. */
+        /* Gender-specific pronoun (his/her/its), not a blanket "their" (user
+         * 2026-07-09 -- standing habit going forward for ALL mud output). */
+        const char *possess = gender_possess(d->character->gender);
         char msg[160];
         if (d->character->base.roomp) {
-            snprintf(msg, sizeof(msg), "%s has lost their link.\r\n",
-                     d->character->base.name);
+            snprintf(msg, sizeof(msg), "%s has lost %s link.\r\n",
+                     d->character->base.name, possess);
             descriptor_room_echo(d->character->base.roomp, d->character, msg);
         }
         /* Link-drops are logged, and the log line is repeated to every
@@ -292,9 +315,26 @@ void descriptor_destroy(descriptor_t *d) {
          * echoed to online immortals with a colored [PIO] tag. d is already
          * unlinked (above), so game_log won't try to notify the departing
          * connection. Editors aren't interrupted; the line stays in `log`. */
-        game_log(LOG_PIO, "%s has lost their link. [%s]",
-                 d->character->base.name, d->ip);
-        being_destroy(d->character);
+        game_log(LOG_PIO, "%s has lost %s link. [%s]",
+                 d->character->base.name, possess, d->ip);
+        /* Detach, don't destroy (user requirement): the character stays put
+         * in its room, linkdead, until the same account reconnects to it
+         * (enter_world() checks world_find_linkdead_pc() first, then does a
+         * FRESH DB load and discards this body -- see there for why: it
+         * must never reuse this stale in-memory copy directly) or the
+         * process ends (a normal reboot, or copyover -- which only recovers
+         * beings still attached to a live descriptor, see
+         * descriptor_copyover_adopt(); a linkdead body's memory simply ends
+         * with the old process). Deliberately NOT persisted here: an eager
+         * save of stale in-memory progress would clobber any DB-side change
+         * made while still connected (e.g. an admin `UPDATE player_progress`
+         * or a promote/set edit) with the pre-disconnect snapshot -- exactly
+         * the create-then-SQL-promote-then-close pattern several smoke
+         * tests already rely on. The being stays alive in memory, so
+         * nothing is at risk under normal operation; only an ungraceful
+         * crash before reconnect could lose progress since the last real
+         * save, an accepted, narrow trade-off. */
+        d->character->desc = NULL;
     }
 
     close(d->fd);
@@ -366,7 +406,7 @@ static void descriptor_page_next(descriptor_t *d) {
     d->page_pos = i;
 
     if (d->page_pos < d->page_len)
-        descriptor_send(d, "<c>[ ENTER for more, Q to stop ]<z> ");
+        descriptor_send(d, "\r\n<c>[ <C>ENTER<c> for more, <C>Q<c> to stop ]<z>");
     else {
         d->page_len = 0;
         d->page_pos = 0;
@@ -552,7 +592,13 @@ static void show_attr_screen(descriptor_t *d) {
 
     const char *appear = d->new_char_appearance[0] ? d->new_char_appearance : "(none set)";
 
-    char out[1536];
+    /* Sized for the fixed menu text plus a full-length appearance (up to
+     * BEING_APPEARANCE_LEN, bumped Session 43 continued for the mob-
+     * description truncation fix -- new_char_appearance shares that
+     * buffer size) with generous headroom so gcc's -Wformat-truncation
+     * worst-case estimate (which sums every %s field's own declared
+     * bound, not just the actual data) can prove it always fits. */
+    char out[BEING_APPEARANCE_LEN + 2048];
     snprintf(out, sizeof(out),
              "\r\n-- Allocate attributes for %s --\r\n"
              "Every attribute starts at %d. Raise or lower any attribute by up to\r\n"
@@ -588,6 +634,20 @@ static void show_attr_screen(descriptor_t *d) {
 /* Shared finish-up for both "play an existing character" and "just
  * finished creating one": place them in their load room and start play. */
 static void enter_world(descriptor_t *d, being_t *b) {
+    /* If this player has a linkdead body sitting somewhere (user
+     * requirement: stay in the room until reconnect), resume in THAT room
+     * instead of the load room -- but `b` is still a fresh DB load, so any
+     * change made while linkdead (a promotion, an edplayer edit) still
+     * takes effect; only the room carries over, not stale in-memory state.
+     * The old body is discarded once its room is captured. */
+    int linkdead_room_vnum = -1;
+    being_t *linkdead = world_find_linkdead_pc(b->player_id);
+    if (linkdead && linkdead != b) {
+        if (linkdead->base.roomp)
+            linkdead_room_vnum = linkdead->base.roomp->vnum;
+        being_destroy(linkdead);
+    }
+
     /* Multiplay gate: unless the game flag is on, a MORTAL account may have
      * only one character in the world at a time. Immortals are exempt (they
      * can hold several connections). */
@@ -609,14 +669,19 @@ static void enter_world(descriptor_t *d, being_t *b) {
     b->desc = d;
     d->character = b;
 
-    int room_vnum = player_load_room(b->base.name, d->account.account_id);
-    if (room_vnum < 0)
-        room_vnum = DEFAULT_LOAD_ROOM_MORTAL;
-    /* Immortals default home to room 1 (user spec) -- only when their
-     * stored load room is still the mortal default; an explicit loadroom
-     * choice wins. */
-    if (being_is_immortal(b) && room_vnum == DEFAULT_LOAD_ROOM_MORTAL)
-        room_vnum = DEFAULT_LOAD_ROOM_IMMORTAL;
+    int room_vnum;
+    if (linkdead_room_vnum >= 0) {
+        room_vnum = linkdead_room_vnum;
+    } else {
+        room_vnum = player_load_room(b->base.name, d->account.account_id);
+        if (room_vnum < 0)
+            room_vnum = DEFAULT_LOAD_ROOM_MORTAL;
+        /* Immortals default home to room 1 (user spec) -- only when their
+         * stored load room is still the mortal default; an explicit loadroom
+         * choice wins. */
+        if (being_is_immortal(b) && room_vnum == DEFAULT_LOAD_ROOM_MORTAL)
+            room_vnum = DEFAULT_LOAD_ROOM_IMMORTAL;
+    }
 
     room_t *r = world_get_room(room_vnum);
     if (!r) {
@@ -630,13 +695,18 @@ static void enter_world(descriptor_t *d, being_t *b) {
         thing_set_room(&b->base, r);
 
     char welcome[128];
-    snprintf(welcome, sizeof(welcome), "Welcome, %s!\r\n", b->base.name);
+    if (linkdead_room_vnum >= 0)
+        snprintf(welcome, sizeof(welcome), "Welcome back, %s! You resume where you left off.\r\n",
+                 b->base.name);
+    else
+        snprintf(welcome, sizeof(welcome), "Welcome, %s!\r\n", b->base.name);
     descriptor_send(d, welcome);
 
     /* Connect is a typed player-io event, symmetric to the link-loss line
      * in descriptor_destroy(): logged to the file and echoed to online
      * immortals with a colored [PIO] tag, carrying the IP. */
-    game_log(LOG_PIO, "%s has connected. [%s]", b->base.name, d->ip);
+    game_log(LOG_PIO, linkdead_room_vnum >= 0 ? "%s has reconnected. [%s]" : "%s has connected. [%s]",
+             b->base.name, d->ip);
     d->state = CONN_PLAYING;
     cmd_dispatch(d, "look"); /* prompt comes from the game loop's prompter */
 }
@@ -1098,7 +1168,9 @@ static void edplayer_save(descriptor_t *d) {
         return;
     }
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
-        if (it->state == CONN_PLAYING && it->character
+        /* NOT `state == CONN_PLAYING` -- misses a target mid-edit
+         * themselves (Session 43 audit), leaving their live copy stale. */
+        if (it->character
             && strcasecmp(it->character->base.name, w->base.name) == 0) {
             it->character->progress = w->progress;
             it->character->attrs = w->attrs;
@@ -1131,6 +1203,59 @@ bool descriptor_edplayer_begin(descriptor_t *d, const char *name) {
     d->edplayer_load_room = load_room;
     d->edplayer_dirty = false;
     show_edplayer_menu(d);
+    return true;
+}
+
+static void show_edzone_menu(descriptor_t *d) {
+    zone_t *w = &d->edzone_work;
+    char owners[8][64];
+    int oc = zone_repo_load_owner_names(w->zone_nr, owners, 8);
+    char ownerbuf[400] = "none";
+    if (oc > 0) {
+        int op = 0;
+        for (int i = 0; i < oc; i++)
+            op += snprintf(ownerbuf + op, sizeof(ownerbuf) - (size_t)op,
+                            "%s%s", i ? ", " : "", owners[i]);
+    }
+    char out[1024];
+    snprintf(out, sizeof(out),
+             "\r\n<c>Editing zone:<z> %s (#%d)\r\n\r\n"
+             "   1) Name: %s\r\n"
+             "   2) Enabled: %s              3) Lifespan (minutes): %d\r\n"
+             "   4) Vnum range: %d-%d\r\n"
+             "   5) Assigned builders: %s\r\n\r\n"
+             "   R) Reset this zone now\r\n"
+             "   S) Save    Q) Quit%s\r\n[edzone] ",
+             w->name, w->zone_nr, w->name, w->enabled ? "yes" : "no", w->lifespan,
+             w->bottom, w->top, ownerbuf,
+             d->edzone_dirty ? "\r\n   <c>* unsaved changes *<z>" : "");
+    descriptor_send(d, out);
+    d->state = CONN_EDZONE_MENU;
+}
+
+static void edzone_save(descriptor_t *d) {
+    if (!zone_repo_save(&d->edzone_work)) {
+        descriptor_send(d, "Save failed -- the DB rejected part of it.\r\n");
+        return;
+    }
+    d->edzone_dirty = false;
+    descriptor_send(d, "Zone saved.\r\n");
+}
+
+static void edzone_leave(descriptor_t *d) {
+    d->state = CONN_PLAYING;
+    d->edzone_dirty = false;
+    descriptor_send(d, "Leaving the zone editor.\r\n");
+    descriptor_editor_exit_notice(d);
+}
+
+bool descriptor_edzone_begin(descriptor_t *d, int zone_nr) {
+    zone_t loaded;
+    if (!zone_repo_load_one(zone_nr, &loaded))
+        return false;
+    d->edzone_work = loaded;
+    d->edzone_dirty = false;
+    show_edzone_menu(d);
     return true;
 }
 
@@ -1236,8 +1361,12 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 descriptor_send(d, color_on
                     ? "Color enabled. You can change it later with `color off`.\r\n"
                     : "Color disabled. You can change it later with `color on`.\r\n");
-                d->state = CONN_ACCOUNT_MENU;
-                show_account_menu(d);
+                descriptor_send(d,
+                    "\r\nTobinMUD's server clock runs on Eastern time. Enter the "
+                    "difference between your time zone and Eastern (e.g. Pacific "
+                    "is 3 hours behind, so enter -3; Central is -1, Mountain is "
+                    "-2), or press Enter for none: ");
+                d->state = CONN_GET_TIMEZONE;
                 return true;
             }
 
@@ -1250,6 +1379,31 @@ static bool handle_line(descriptor_t *d, const char *line) {
             account_set_color(d->account.account_id, true);
             d->state = CONN_ACCOUNT_MENU;
             return handle_line(d, line); /* re-dispatch on the menu */
+        }
+
+        case CONN_GET_TIMEZONE: {
+            if (line[0] == '\0') {
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+
+            char *endptr = NULL;
+            long hours = strtol(line, &endptr, 10);
+            if (endptr == line || *endptr != '\0' || hours < -23 || hours > 23) {
+                descriptor_send(d,
+                    "That doesn't look like a whole number of hours (-23 to 23). "
+                    "Try again, or press Enter for none: ");
+                return true;
+            }
+
+            d->account.time_adjust = (int)hours;
+            account_set_timezone(d->account.account_id, (int)hours);
+            descriptor_send(d,
+                "Time zone set. You can change it later with `time <difference>`.\r\n");
+            d->state = CONN_ACCOUNT_MENU;
+            show_account_menu(d);
+            return true;
         }
 
         case CONN_ACCOUNT_MENU: {
@@ -2087,6 +2241,151 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 edplayer_leave(d);
             } else {
                 show_edplayer_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_EDZONE_MENU: {
+            if (isdigit((unsigned char)line[0])) {
+                switch (atoi(line)) {
+                    case 1:
+                        descriptor_send(d, "\r\nEnter new name (blank to cancel): ");
+                        d->state = CONN_EDZONE_NAME;
+                        break;
+                    case 2:
+                        descriptor_send(d, "\r\nEnabled? yes or no (blank to cancel): ");
+                        d->state = CONN_EDZONE_ENABLED;
+                        break;
+                    case 3:
+                        descriptor_send(d, "\r\nEnter new lifespan in minutes (blank to cancel): ");
+                        d->state = CONN_EDZONE_LIFESPAN;
+                        break;
+                    case 4:
+                        descriptor_send(d, "\r\nEnter bottom and top vnum, e.g. \"100 199\" (blank to cancel): ");
+                        d->state = CONN_EDZONE_RANGE;
+                        break;
+                    case 5:
+                        descriptor_send(d, "\r\nEnter a builder name to assign/unassign (blank to cancel): ");
+                        d->state = CONN_EDZONE_BUILDER;
+                        break;
+                    default:
+                        descriptor_send(d, "Pick a menu number (1-5), or R/S/Q.\r\n");
+                        show_edzone_menu(d);
+                        break;
+                }
+                return true;
+            }
+            switch ((char)toupper((unsigned char)line[0])) {
+                case 'R': {
+                    int mobs = 0, objs = 0;
+                    zone_reset_now(d->edzone_work.zone_nr, &mobs, &objs);
+                    char msg[96];
+                    snprintf(msg, sizeof(msg), "Zone reset: %d mobs, %d objects loaded.\r\n", mobs, objs);
+                    descriptor_send(d, msg);
+                    show_edzone_menu(d);
+                    break;
+                }
+                case 'S':
+                    edzone_save(d);
+                    show_edzone_menu(d);
+                    break;
+                case 'Q':
+                    if (d->edzone_dirty) {
+                        descriptor_send(d,
+                            "\r\nYou have unsaved changes. (S)ave, (D)iscard, (C)ancel: ");
+                        d->state = CONN_EDZONE_QUIT_CONFIRM;
+                    } else {
+                        edzone_leave(d);
+                    }
+                    break;
+                default:
+                    descriptor_send(d, "Pick a menu number (1-5), or R/S/Q.\r\n");
+                    show_edzone_menu(d);
+                    break;
+            }
+            return true;
+        }
+
+        case CONN_EDZONE_NAME: {
+            if (line[0]) {
+                snprintf(d->edzone_work.name, sizeof(d->edzone_work.name), "%s", line);
+                d->edzone_dirty = true;
+            }
+            show_edzone_menu(d);
+            return true;
+        }
+
+        case CONN_EDZONE_ENABLED: {
+            if (line[0]) {
+                bool is_no = strcasecmp(line, "n") == 0 || strcasecmp(line, "no") == 0;
+                bool is_yes = strcasecmp(line, "y") == 0 || strcasecmp(line, "yes") == 0;
+                if (is_yes || is_no) {
+                    d->edzone_work.enabled = is_yes;
+                    d->edzone_dirty = true;
+                } else {
+                    descriptor_send(d, "Please answer yes or no.\r\n");
+                }
+            }
+            show_edzone_menu(d);
+            return true;
+        }
+
+        case CONN_EDZONE_LIFESPAN: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v > 0) {
+                    d->edzone_work.lifespan = (int)v;
+                    d->edzone_dirty = true;
+                } else {
+                    descriptor_send(d, "Lifespan must be a positive number of minutes.\r\n");
+                }
+            }
+            show_edzone_menu(d);
+            return true;
+        }
+
+        case CONN_EDZONE_RANGE: {
+            if (line[0]) {
+                int bottom, top;
+                if (sscanf(line, "%d %d", &bottom, &top) == 2 && bottom <= top) {
+                    d->edzone_work.bottom = bottom;
+                    d->edzone_work.top = top;
+                    d->edzone_dirty = true;
+                } else {
+                    descriptor_send(d, "Enter two numbers, bottom then top, bottom <= top.\r\n");
+                }
+            }
+            show_edzone_menu(d);
+            return true;
+        }
+
+        case CONN_EDZONE_BUILDER: {
+            if (line[0]) {
+                long player_id = player_id_for_name(line);
+                if (player_id < 0) {
+                    descriptor_send(d, "No such character.\r\n");
+                } else if (zone_repo_is_assigned(d->edzone_work.zone_nr, player_id)) {
+                    zone_repo_unassign(d->edzone_work.zone_nr, player_id);
+                    descriptor_send(d, "Un-assigned.\r\n");
+                } else {
+                    zone_repo_assign(d->edzone_work.zone_nr, player_id);
+                    descriptor_send(d, "Assigned.\r\n");
+                }
+            }
+            show_edzone_menu(d);
+            return true;
+        }
+
+        case CONN_EDZONE_QUIT_CONFIRM: {
+            char c = (char)toupper((unsigned char)line[0]);
+            if (c == 'S') {
+                edzone_save(d);
+                edzone_leave(d);
+            } else if (c == 'D') {
+                edzone_leave(d);
+            } else {
+                show_edzone_menu(d);
             }
             return true;
         }

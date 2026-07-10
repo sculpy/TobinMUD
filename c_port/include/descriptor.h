@@ -12,6 +12,7 @@
 #include "help_repo.h"
 #include "player_repo.h"
 #include "room.h"
+#include "zone_repo.h"
 
 /* C replacement for the Descriptor class (sys/connect.h/.cc) -- still a
  * deliberately minimal subset of the original nanny() login state machine's
@@ -27,6 +28,7 @@ typedef enum {
     CONN_GET_NEW_PASSWORD,
     CONN_CONFIRM_PASSWORD,
     CONN_GET_COLOR_PREF, /* new-account color on/off prompt */
+    CONN_GET_TIMEZONE, /* new-account real-time-zone-offset prompt */
     CONN_ACCOUNT_MENU,
     CONN_CHAR_CREATE_NAME,
     CONN_CHAR_CREATE_ATTRS,
@@ -68,6 +70,21 @@ typedef enum {
     CONN_EDPLAYER_LOADROOM,
     CONN_EDPLAYER_HANDED,
     CONN_EDPLAYER_QUIT_CONFIRM,
+    /* Menu-driven zone editor (edzone, Session 43) -- same snapshot-working-
+     * copy shape as edplayer (a zone isn't kept resident in memory like a
+     * room is): (S)ave writes the scalar properties back; assigning/un-
+     * assigning a builder applies immediately (not deferred to Save, same
+     * as the old one-shot `zone assign`) since membership is an atomic
+     * toggle, not something you'd want to "cancel". See
+     * descriptor_edzone_begin() and the CONN_EDZONE_* cases in
+     * descriptor.c. */
+    CONN_EDZONE_MENU,
+    CONN_EDZONE_NAME,
+    CONN_EDZONE_ENABLED,
+    CONN_EDZONE_LIFESPAN,
+    CONN_EDZONE_RANGE,
+    CONN_EDZONE_BUILDER,
+    CONN_EDZONE_QUIT_CONFIRM,
     CONN_PLAYING,
     CONN_CLOSED
 } conn_state_t;
@@ -179,6 +196,15 @@ typedef struct descriptor {
     int edplayer_load_room;
     bool edplayer_dirty;
 
+    /* Menu-driven zone editor working copy (CONN_EDZONE_*, Session 43).
+     * DB snapshot (zone_repo_load_one()), same shape as edplayer_work.
+     * Builder assignment is NOT part of the working copy -- it applies
+     * immediately against zone_owner (an atomic toggle, see the
+     * CONN_EDZONE_MENU enum comment), so only the scalar properties
+     * (name/enabled/lifespan/bottom/top) participate in dirty/Save. */
+    zone_t edzone_work;
+    bool edzone_dirty;
+
     being_t *character;
 
     /* Time (epoch seconds) of the last input line -- who shows "(idle)" after
@@ -242,6 +268,12 @@ bool descriptor_redit_begin(descriptor_t *d, int vnum);
  * (cmd_edplayer.c) owns the level gate. */
 bool descriptor_edplayer_begin(descriptor_t *d, const char *name);
 
+/* Opens the menu-driven zone editor on zone `zone_nr`, copies its DB row
+ * into the descriptor's working copy, and shows the edzone menu (entering
+ * CONN_EDZONE_MENU). Returns false if no such zone exists. Caller
+ * (cmd_edzone.c) owns the level gate + zone_can_edit() ownership check. */
+bool descriptor_edzone_begin(descriptor_t *d, int zone_nr);
+
 /* Sends `msg` to every connected player in room `r` except `except` (may
  * be NULL to include everyone). Shared by movement, quit/link-drop, and
  * combat announcements. Recipients in an editor have it held, not sent. */
@@ -252,6 +284,14 @@ void descriptor_room_echo(struct room *r, being_t *except, const char *msg);
  * senders (room echoes, combat, broadcasts) use this instead of
  * descriptor_send so nobody's editing is interrupted. */
 void descriptor_notify(descriptor_t *d, const char *msg);
+
+/* True while `d` is inside any editor (shared line editor or a menu-driven
+ * one -- redit/edplayer/edzone). Exported so command handlers that
+ * enumerate online characters (who, promote, set, copyover) can tell a
+ * genuinely-offline connection apart from one that's just mid-edit, rather
+ * than relying on `state == CONN_PLAYING` (which excludes every editor
+ * sub-state and so undercounts who's actually online). */
+bool descriptor_in_editor(const descriptor_t *d);
 
 /* Pulse callback: drops each connection's held messages older than
  * HELD_MSG_TTL. Registered in main.c. */

@@ -242,6 +242,15 @@ const char *gender_possess(gender_t g) {
     }
 }
 
+const char *gender_reflexive(gender_t g) {
+    switch (g) {
+        case GENDER_MALE:   return "himself";
+        case GENDER_FEMALE: return "herself";
+        case GENDER_NEUTER:
+        default:            return "itself";
+    }
+}
+
 const char *being_health_word(const being_t *b) {
     if (!b || b->progress.max_hp <= 0)
         return "unknown";
@@ -265,12 +274,20 @@ const char *limb_name(limb_t limb) {
     return LIMB_NAMES[limb];
 }
 
+/* Floor on a limb's max HP (Session 42) -- without this, a fresh level-1
+ * character's ~25 max HP split 13 ways rounds to 1 HP per limb, so any
+ * landed hit (minimum damage 1) would instantly destroy whatever limb it
+ * hit. With the floor, destroying a limb -- and decapitation in particular,
+ * see combat.c's combat_sever_limb() -- takes a real run of hits even at
+ * level 1, rather than a first-swing coin flip. */
+#define LIMB_MIN_MAX_HP 15
+
 void being_limbs_full_heal(being_t *b) {
     if (!b)
         return;
     int share = b->progress.max_hp / LIMB_COUNT;
-    if (share < 1)
-        share = 1;
+    if (share < LIMB_MIN_MAX_HP)
+        share = LIMB_MIN_MAX_HP;
     for (int i = 0; i < LIMB_COUNT; i++) {
         b->limbs[i].max_hp = share;
         b->limbs[i].hp = share;

@@ -49,10 +49,18 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
      * command can run and no combat round can resolve in the window --
      * the "lock out everything" guarantee is the sleep itself. The
      * warning bytes are written to the sockets immediately (socket_write
-     * is direct), so players see it before the freeze. */
+     * is direct), so players see it before the freeze.
+     *
+     * Deliberately descriptor_send(), NOT descriptor_notify() -- reviewed
+     * during the Session 43 "editors get absolute quiet" audit and kept as
+     * an intentional exception: the interruption is happening in 5 seconds
+     * regardless of what anyone is doing, so holding this for catchup
+     * would mean their connection just silently drops with no warning at
+     * all (the held message would only surface after the copyover already
+     * happened). Same reasoning for the two reborn/reconnect lines below. */
     for (descriptor_t *it = g_descriptors; it; it = it->next)
         descriptor_send(it,
-            "\r\n*** COPYOVER in 5 seconds -- the world is about to be reborn. ***\r\n");
+            "\r\n<c>*** COPYOVER in 5 seconds -- the world is about to be reborn. ***<z>\r\n");
     sleep(5);
 
     FILE *f = fopen(COPYOVER_FILE, "w");
@@ -66,7 +74,13 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
     fprintf(f, "listen %d\n", listen_fd);
 
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
-        if (it->state == CONN_PLAYING && it->character) {
+        /* NOT `state == CONN_PLAYING` -- that excluded anyone mid-edroom/
+         * edplayer/edzone from the recovery line entirely, losing their
+         * session (forced to a fresh reconnect) across a copyover even
+         * though they were legitimately online (Session 43 audit). Their
+         * edit itself still doesn't survive (menu-editor sub-state isn't
+         * in the recovery format either -- they resume as CONN_PLAYING). */
+        if (it->character) {
             it->character->fighting = NULL;
             it->character->wait_pulses = 0;
             it->edit_kind = EDIT_NONE; /* editor buffers don't survive exec */
@@ -78,9 +92,9 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
                     it->color_enabled ? 1 : 0,
                     it->ip[0] ? it->ip : "?", it->character->base.name,
                     it->account.name);
-            descriptor_send(it, "\r\nTime stops for a moment as the world is reborn...\r\n");
+            descriptor_send(it, "\r\n<c>Time stops for a moment as the world is reborn...<z>\r\n");
         } else {
-            descriptor_send(it, "\r\nThe world is being reborn -- please reconnect in a moment.\r\n");
+            descriptor_send(it, "\r\n<c>The world is being reborn -- please reconnect in a moment.<z>\r\n");
             fcntl(it->fd, F_SETFD, FD_CLOEXEC);
         }
     }
@@ -99,7 +113,7 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
     log_error("copyover: exec of '%s' failed", binpath);
     unlink(COPYOVER_FILE);
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
-        if (!(it->state == CONN_PLAYING && it->character))
+        if (!it->character) /* matches the branch condition above */
             fcntl(it->fd, F_SETFD, 0);
     }
     descriptor_send(d, "Copyover failed at exec -- the world continues unchanged.\r\n");

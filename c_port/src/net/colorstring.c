@@ -13,22 +13,39 @@
  * original's actual behavior is the point. */
 static const char *ansi_for_tag(char c) {
     switch (c) {
-        case 'r': return "\033[31m";
+        /* Lowercase (regular-intensity) tags lead with "0;" -- a bare
+         * "\033[36m" does NOT clear a preceding bold (SGR intensity and
+         * color are independent parameters; most terminals leave bold
+         * stuck on until it's explicitly cleared), so a bright tag
+         * followed by a regular one of the same letter (e.g. <C>text<c>)
+         * rendered everything bold. Bug found colorizing the pager's
+         * MORE prompt (Session 43, user: "highlight the available
+         * command/keys in bright. the rest regular") -- "0;" forces a
+         * full attribute reset before applying the color, so regular
+         * really is regular regardless of what came before. */
+        case 'r': return "\033[0;31m";
         case 'R': return "\033[1;31m";
-        case 'g': return "\033[32m";
+        case 'g': return "\033[0;32m";
         case 'G': return "\033[1;32m";
-        case 'b': return "\033[34m";
+        case 'b': return "\033[0;34m";
         case 'B': return "\033[1;34m";
-        case 'y': case 'o': return "\033[33m";
+        case 'y': case 'o': return "\033[0;33m";
         case 'Y': case 'O': return "\033[1;33m";
-        case 'p': case 'm': return "\033[35m"; /* 'm' = magenta alias for 'p' (purple) */
+        case 'p': case 'm': return "\033[0;35m"; /* 'm' = magenta alias for 'p' (purple) */
         case 'P': case 'M': return "\033[1;35m";
-        case 'c': return "\033[36m";
+        case 'c': return "\033[0;36m";
         case 'C': return "\033[1;36m";
-        case 'w': return "\033[37m";
+        case 'w': return "\033[0;37m";
         case 'W': return "\033[1;37m";
-        case 'K': return "\033[30m";
+        case 'K': return "\033[0;30m";
         case 'k': return "\033[1;30m";
+        /* Sneezy's <d>/<D>: a standalone BOLD toggle (sys/colorstring.cc,
+         * `buf += ch->bold()`), distinct from the R/G/B/... tags above
+         * (which already bundle bold into their own bright/uppercase
+         * variant) -- <d> stacks bold onto whatever color is already
+         * active, e.g. "<g><d>bold green<z>", rather than setting a color
+         * itself. Investigated + added per user request (Session 43). */
+        case 'd': case 'D': return "\033[1m";
         case '1': case 'z': case 'Z': return "\033[0m";
         default: return NULL;
     }

@@ -14,6 +14,25 @@
 #include "room.h"
 #include "thing.h"
 
+/* short_descr/name are stored lowercase-first by convention ("a city
+ * watchman", "a torch"); capitalize only when one starts a whole message
+ * (mid-sentence uses stay lowercase, e.g. "You conjure a torch..."). Copies
+ * into `buf` (does not mutate `label`). Skips any leading inline color
+ * tags ("<o>a dirty refuse hauler<1>" -- real seeded content, e.g. mob
+ * vnum 33271) before capitalizing: bug found Session 43 continued (user:
+ * "sometimes in look the proper capitalization is ignored, fix this") --
+ * this used to blindly uppercase buf[0], which for a tag-prefixed label
+ * is '<' (a no-op), silently leaving the real first letter lowercase. */
+static const char *cap_first(const char *label, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%s", label);
+    size_t i = 0;
+    while (buf[i] == '<' && buf[i + 1] != '\0' && buf[i + 2] == '>')
+        i += 3;
+    if (buf[i])
+        buf[i] = (char)toupper((unsigned char)buf[i]);
+    return buf;
+}
+
 /* Finds an object by keyword in a thing_t chain (room floor, or a being's
  * own carried/worn/held things) -- shared by look_at_target() below. */
 static obj_t *find_obj_here(thing_t *chain, const char *tok, size_t len) {
@@ -71,14 +90,30 @@ static bool look_at_target(descriptor_t *d, const char *args) {
         }
     }
     if (tgt) {
-        char out[BEING_APPEARANCE_LEN + 128];
+        /* thing_t.name is the raw keyword-match list ("man dirty refuse
+         * hauler" for mob vnum 33271) -- fine for a PC (whose name IS
+         * their proper name), but wrong for a mob: bug found Session 43
+         * continued (user: "You look at man dirty refuse hauler. should
+         * read You look at a dirty refuse hauler."). Mobs display their
+         * short_descr instead -- lowercase, uncapitalized, since it's
+         * mid-sentence here (after "You look at"), same convention as
+         * the room-floor listing's use of cap_first() only at a
+         * sentence START. */
+        const char *display = tgt->base.name;
+        if (tgt->base.kind == THING_MOB && tgt->base.short_descr[0])
+            display = tgt->base.short_descr;
+
+        /* Headroom beyond BEING_APPEARANCE_LEN + display-name so gcc's
+         * -Wformat-truncation worst-case estimate (sums every %s field's
+         * own declared bound) can prove this always fits. */
+        char out[BEING_APPEARANCE_LEN + 512];
         if (tgt->appearance[0])
             snprintf(out, sizeof(out), "You look at %s.\r\n%s\r\n",
-                     tgt->base.name, tgt->appearance);
+                     display, tgt->appearance);
         else
             snprintf(out, sizeof(out),
                      "You look at %s.\r\nYou see nothing special about %s.\r\n",
-                     tgt->base.name,
+                     display,
                      tgt == d->character ? "yourself" : gender_object(tgt->gender));
         descriptor_send(d, out);
         return true;
@@ -95,8 +130,12 @@ static bool look_at_target(descriptor_t *d, const char *args) {
     }
 
     char out[OBJ_LONG_DESCR_LEN + 512];
+    char capbuf[128]; /* matches thing_t.short_descr's size */
+    char groundbuf[OBJ_LONG_DESCR_LEN + 32]; /* $$g -> "ocean floor" etc, a few bytes longer */
     int n = snprintf(out, sizeof(out), "%s\r\n",
-                      o->long_descr[0] ? o->long_descr : o->base.short_descr);
+                      o->long_descr[0]
+                          ? obj_apply_ground_token(o->long_descr, r, groundbuf, sizeof(groundbuf))
+                          : cap_first(o->base.short_descr, capbuf, sizeof(capbuf)));
     const char *cond = obj_condition_text(o);
     if (cond && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "It %s.\r\n", cond);
@@ -111,7 +150,9 @@ static bool look_at_target(descriptor_t *d, const char *args) {
                 if (t->kind != THING_OBJ)
                     continue;
                 any = true;
-                const char *label = t->short_descr[0] ? t->short_descr : t->name;
+                char capbuf2[128];
+                const char *label = cap_first(t->short_descr[0] ? t->short_descr : t->name,
+                                              capbuf2, sizeof(capbuf2));
                 n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s\r\n", label);
             }
             if (!any && (size_t)n < sizeof(out))
@@ -191,16 +232,30 @@ bool cmd_look(descriptor_t *d, const char *args) {
         if ((size_t)n >= sizeof(out))
             break;
         const char *label = t->short_descr[0] ? t->short_descr : t->name;
+        char capbuf3[128];
         if (t->kind == THING_OBJ) {
             /* Objects use their own ground-listing sentence verbatim (e.g.
              * "A hairball is laying here."), not the generic "<label> is
              * here." used for PCs/mobs -- matches the original's real
-             * long_desc convention. */
+             * long_desc convention. Capitalize only the short_descr
+             * fallback -- long_descr is already a full sentence. */
             const obj_t *o = (const obj_t *)t;
+            char groundbuf3[OBJ_LONG_DESCR_LEN + 32];
             n += snprintf(out + n, sizeof(out) - (size_t)n, "%s\r\n",
-                          o->long_descr[0] ? o->long_descr : label);
+                          o->long_descr[0]
+                              ? obj_apply_ground_token(o->long_descr, r, groundbuf3, sizeof(groundbuf3))
+                              : cap_first(label, capbuf3, sizeof(capbuf3)));
         } else {
-            n += snprintf(out + n, sizeof(out) - (size_t)n, "%s is here.\r\n", label);
+            /* Mob short_descr is lowercase by convention ("a city watchman");
+             * capitalize for the sentence start (PC names are already
+             * capitalized, so this is a no-op for them). A linkdead PC
+             * (user requirement) is tagged so it reads e.g. "Vic is here.
+             * (linkdead)" -- visible, but see combat_find_room_target() for
+             * why they can't actually be targeted. */
+            bool linkdead = t->kind == THING_PC && !((being_t *)t)->desc;
+            n += snprintf(out + n, sizeof(out) - (size_t)n, "%s is here.%s\r\n",
+                          cap_first(label, capbuf3, sizeof(capbuf3)),
+                          linkdead ? " (linkdead)" : "");
         }
     }
 

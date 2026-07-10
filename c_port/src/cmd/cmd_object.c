@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -13,6 +14,16 @@
 #include "obj_repo.h"
 #include "room.h"
 #include "thing.h"
+
+/* short_descr is stored lowercase-first by convention ("a torch");
+ * capitalize only when it starts a whole message (mid-sentence uses stay
+ * lowercase, e.g. "You drop a torch."). Copies into `buf`. */
+static const char *cap_first(const char *label, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%s", label);
+    if (buf[0])
+        buf[0] = (char)toupper((unsigned char)buf[0]);
+    return buf;
+}
 
 /* get/drop/inventory/wear/remove/equipment -- the mortal-usable slice of
  * Phase 2C (see the plan notes / STATUS.md). `oload` (immortal, spawns a
@@ -266,13 +277,29 @@ bool cmd_inventory(descriptor_t *d, const char *args) {
             continue;
         any = true;
         const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s\r\n", label);
+        char capbuf[128];
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s\r\n",
+                      cap_first(label, capbuf, sizeof(capbuf)));
     }
     if (!any && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  Nothing.\r\n");
 
     descriptor_send(d, out);
     return true;
+}
+
+/* Right-aligned "<label>: <value>" column, one limb/hand per line (user
+ * 2026-07-09 reformat, replacing the old "<label> value" bracket form).
+ * EQUIP_LABEL_WIDTH matches the longest label ("secondary hold"). */
+#define EQUIP_LABEL_WIDTH 14
+
+static void equip_line(char *out, size_t out_sz, size_t *n, const char *label,
+                        const obj_t *o) {
+    const char *value = o
+        ? (o->base.short_descr[0] ? o->base.short_descr : o->base.name)
+        : "nothing";
+    *n += (size_t)snprintf(out + *n, out_sz - *n, "  %*s: %s\r\n",
+                           EQUIP_LABEL_WIDTH, label, value);
 }
 
 bool cmd_equipment(descriptor_t *d, const char *args) {
@@ -282,20 +309,24 @@ bool cmd_equipment(descriptor_t *d, const char *args) {
         return true;
 
     char out[2048];
-    int n = snprintf(out, sizeof(out), "You are using:\r\n");
-    for (int i = 0; i < LIMB_COUNT && (size_t)n < sizeof(out); i++) {
-        const char *label = ch->equipment[i]
-            ? (ch->equipment[i]->base.short_descr[0] ? ch->equipment[i]->base.short_descr : ch->equipment[i]->base.name)
-            : "nothing";
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  <%s> %s\r\n", limb_name((limb_t)i), label);
+    size_t n = (size_t)snprintf(out, sizeof(out), "You are using:\r\n");
+    for (int i = 0; i < LIMB_COUNT && n < sizeof(out); i++) {
+        /* Genitalia is not a wear slot -- nothing is ever worn there (user
+         * 2026-07-09); it becomes an object on decapitation instead, see
+         * the crit-hit TODO item. Skip it from this listing entirely. */
+        if (i == LIMB_GENITALIA)
+            continue;
+        equip_line(out, sizeof(out), &n, limb_name((limb_t)i), ch->equipment[i]);
     }
-    static const char *const HELD_NAMES[2] = { "primary hand", "off hand" };
-    for (int i = 0; i < 2 && (size_t)n < sizeof(out); i++) {
-        const char *label = ch->held[i]
-            ? (ch->held[i]->base.short_descr[0] ? ch->held[i]->base.short_descr : ch->held[i]->base.name)
-            : "nothing";
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  <%s> %s\r\n", HELD_NAMES[i], label);
-    }
+    /* "Primary"/"secondary" tracks the caller's dominant hand (handed_right),
+     * not a fixed held[0]/held[1] -- held[] fills dominant-hand-first (see
+     * do_hold_or_wield()), but which INDEX that is flips with handedness. */
+    int primary = ch->handed_right ? 0 : 1;
+    int secondary = ch->handed_right ? 1 : 0;
+    if (n < sizeof(out))
+        equip_line(out, sizeof(out), &n, "primary hold", ch->held[primary]);
+    if (n < sizeof(out))
+        equip_line(out, sizeof(out), &n, "secondary hold", ch->held[secondary]);
 
     descriptor_send(d, out);
     return true;
@@ -330,22 +361,14 @@ bool cmd_wear(descriptor_t *d, const char *args) {
         descriptor_send(d, "You're already wearing something there.\r\n");
         return true;
     }
+    /* Holdables split off `wear` entirely (user 2026-07-09): a weapon must
+     * be `wield`ed, anything else holdable uses `hold` -- `wear` only
+     * covers the body-slot (equipment[]) case from here down. */
     if (slot == WEAR_SLOT_HELD) {
-        int hand = -1;
-        if (!ch->held[ch->handed_right ? 0 : 1])
-            hand = ch->handed_right ? 0 : 1;
-        else if (!ch->held[ch->handed_right ? 1 : 0])
-            hand = ch->handed_right ? 1 : 0;
-        if (hand < 0) {
-            descriptor_send(d, "Your hands are full.\r\n");
-            return true;
-        }
-        ch->held[hand] = o;
-        snprintf(msg, sizeof(msg), "You wield %s.\r\n", label);
+        const char *verb = o->category == OBJ_CAT_WEAPON ? "wield" : "hold";
+        snprintf(msg, sizeof(msg), "That isn't something you wear -- try `%s %s` instead.\r\n",
+                 verb, tok);
         descriptor_send(d, msg);
-        snprintf(msg, sizeof(msg), "%s wields %s.\r\n", ch->base.name, label);
-        descriptor_room_echo(ch->base.roomp, ch, msg);
-        player_inventory_save(ch->player_id, ch);
         return true;
     }
 
@@ -355,6 +378,102 @@ bool cmd_wear(descriptor_t *d, const char *args) {
     snprintf(msg, sizeof(msg), "%s wears %s.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, msg);
     player_inventory_save(ch->player_id, ch);
+    return true;
+}
+
+/* Shared by `hold` and `wield` (user 2026-07-09: split from the old unified
+ * `wear`-onto-a-hand behavior) -- weapons must be wielded, everything else
+ * holdable must be held; each verb refuses the other's kind of item. Fills
+ * whichever hand is free, preferring the caller's dominant hand first (same
+ * preference `wear` used to apply). */
+static bool do_hold_or_wield(descriptor_t *d, const char *args, bool wielding) {
+    being_t *ch = d->character;
+    if (!ch)
+        return true;
+
+    const char *verb = wielding ? "wield" : "hold";
+    char tok[64];
+    if (sscanf(args, "%63s", tok) != 1) {
+        char msg[48];
+        snprintf(msg, sizeof(msg), "Usage: %s <item>\r\n", verb);
+        descriptor_send(d, msg);
+        return true;
+    }
+
+    obj_t *o = find_obj(ch->base.stuff_head, tok, ch);
+    if (!o) {
+        descriptor_send(d, "You aren't carrying that.\r\n");
+        return true;
+    }
+
+    int slot = wear_slot_for_flag(o->wear_flag, ch);
+    const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+    char msg[256];
+
+    if (slot != WEAR_SLOT_HELD) {
+        snprintf(msg, sizeof(msg), "You can't %s that.\r\n", verb);
+        descriptor_send(d, msg);
+        return true;
+    }
+    bool is_weapon = o->category == OBJ_CAT_WEAPON;
+    if (wielding && !is_weapon) {
+        descriptor_send(d, "Only weapons need to be wielded -- try `hold` instead.\r\n");
+        return true;
+    }
+    if (!wielding && is_weapon) {
+        descriptor_send(d, "A weapon must be wielded, not merely held -- try `wield` instead.\r\n");
+        return true;
+    }
+
+    int hand = -1;
+    if (!ch->held[ch->handed_right ? 0 : 1])
+        hand = ch->handed_right ? 0 : 1;
+    else if (!ch->held[ch->handed_right ? 1 : 0])
+        hand = ch->handed_right ? 1 : 0;
+    if (hand < 0) {
+        descriptor_send(d, "Your hands are full.\r\n");
+        return true;
+    }
+    ch->held[hand] = o;
+    snprintf(msg, sizeof(msg), "You %s %s.\r\n", verb, label);
+    descriptor_send(d, msg);
+    snprintf(msg, sizeof(msg), "%s %ss %s.\r\n", ch->base.name, verb, label);
+    descriptor_room_echo(ch->base.roomp, ch, msg);
+    player_inventory_save(ch->player_id, ch);
+    return true;
+}
+
+bool cmd_hold(descriptor_t *d, const char *args) {
+    return do_hold_or_wield(d, args, false);
+}
+
+bool cmd_wield(descriptor_t *d, const char *args) {
+    return do_hold_or_wield(d, args, true);
+}
+
+/* Swaps whatever is in each hand with the other -- no unwielding/unholding
+ * needed (user 2026-07-09). A no-op swap (both hands empty) is refused with
+ * a friendlier message than a silent success. */
+bool cmd_switch(descriptor_t *d, const char *args) {
+    (void)args;
+    being_t *ch = d->character;
+    if (!ch)
+        return true;
+
+    if (!ch->held[0] && !ch->held[1]) {
+        descriptor_send(d, "You aren't holding anything to switch.\r\n");
+        return true;
+    }
+
+    obj_t *tmp = ch->held[0];
+    ch->held[0] = ch->held[1];
+    ch->held[1] = tmp;
+    player_inventory_save(ch->player_id, ch);
+
+    descriptor_send(d, "You switch hands.\r\n");
+    char msg[256];
+    snprintf(msg, sizeof(msg), "%s switches hands.\r\n", ch->base.name);
+    descriptor_room_echo(ch->base.roomp, ch, msg);
     return true;
 }
 

@@ -122,7 +122,13 @@ def promote_sql(nm, level):
 target = f"Settgt{_suffix}"
 admin = f"Setadm{_suffix}"
 
-make_char(target).close()
+tsock = make_char(target)
+# "quit!" leaves to the account menu first (a real disconnect, character
+# detached cleanly) -- an abrupt close while still playing would instead
+# leave the character linkdead in its CURRENT room, overriding the load
+# room `set` changes below (see world_find_linkdead_pc()).
+cmd(tsock, "quit!")
+tsock.close()
 make_char(admin).close()
 
 # --- gate ---

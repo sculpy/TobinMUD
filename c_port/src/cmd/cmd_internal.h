@@ -21,6 +21,8 @@ bool cmd_quit(descriptor_t *d, const char *args);
 bool cmd_color(descriptor_t *d, const char *args);
 bool cmd_attack(descriptor_t *d, const char *args);
 bool cmd_kill(descriptor_t *d, const char *args);
+bool cmd_hit(descriptor_t *d, const char *args);
+bool cmd_hurtlimb(descriptor_t *d, const char *args);
 bool cmd_flee(descriptor_t *d, const char *args);
 bool cmd_say(descriptor_t *d, const char *args);
 bool cmd_limbs(descriptor_t *d, const char *args);
@@ -47,6 +49,7 @@ bool cmd_loadroom(descriptor_t *d, const char *args);
 bool cmd_mortal(descriptor_t *d, const char *args);
 bool cmd_immort(descriptor_t *d, const char *args);
 bool cmd_prompt(descriptor_t *d, const char *args);
+bool cmd_time(descriptor_t *d, const char *args);
 bool cmd_title(descriptor_t *d, const char *args);
 bool cmd_toggle(descriptor_t *d, const char *args);
 bool cmd_exec(descriptor_t *d, const char *args);
@@ -81,12 +84,16 @@ bool cmd_put(descriptor_t *d, const char *args);
 bool cmd_drop(descriptor_t *d, const char *args);
 bool cmd_inventory(descriptor_t *d, const char *args);
 bool cmd_wear(descriptor_t *d, const char *args);
+bool cmd_hold(descriptor_t *d, const char *args);
+bool cmd_wield(descriptor_t *d, const char *args);
+bool cmd_switch(descriptor_t *d, const char *args);
 bool cmd_remove(descriptor_t *d, const char *args);
 bool cmd_equipment(descriptor_t *d, const char *args);
-bool cmd_oload(descriptor_t *d, const char *args);
-bool cmd_mload(descriptor_t *d, const char *args);
+bool cmd_load(descriptor_t *d, const char *args);
 bool cmd_scan(descriptor_t *d, const char *args);
 bool cmd_vnum(descriptor_t *d, const char *args);
+bool cmd_zone(descriptor_t *d, const char *args);
+bool cmd_edzone(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */
@@ -109,6 +116,11 @@ bool cmd_vnum(descriptor_t *d, const char *args);
  * Session 21; future oedit/medit/zedit land at 51 too). Help editing
  * (hedit) stays at its own higher tier. */
 #define BUILD_MIN_LEVEL 51
+
+/* `zoneassign`: 55+ only (user spec, Session 43) -- must match
+ * ZONE_UNRESTRICTED_LEVEL in zone.c (the level at which a builder is no
+ * longer restricted to their assigned zones). */
+#define ZONE_ASSIGN_MIN_LEVEL 55
 
 /* `log` (read/search/list the game log files): 54+; `log rotate` alone is
  * isolated to 59+ (both user-specified, Tier 3). */

@@ -9,6 +9,7 @@
 
 #include "being.h"
 #include "obj_repo.h"
+#include "room.h"
 
 static const char *const OBJ_CATEGORY_NAMES[OBJ_CAT_COUNT] = {
     "light", "weapon", "ammo", "armor", "container", "drink", "food",
@@ -225,6 +226,27 @@ obj_t *obj_create_from_proto(int vnum) {
     return o;
 }
 
+obj_t *obj_create_ephemeral(const char *name, const char *short_descr,
+                            const char *long_descr, obj_category_t category) {
+    obj_t *o = calloc(1, sizeof(*o));
+    if (!o)
+        return NULL;
+
+    o->base.kind = THING_OBJ;
+    o->base.id = 0;
+    snprintf(o->base.name, sizeof(o->base.name), "%s", name);
+    snprintf(o->base.short_descr, sizeof(o->base.short_descr), "%s", short_descr);
+    snprintf(o->long_descr, sizeof(o->long_descr), "%s", long_descr);
+
+    o->vnum = 0;
+    o->category = category;
+    o->wear_flag = WEAR_TAKE;
+    o->weight = 2.0;
+    o->can_be_seen = true;
+
+    return o;
+}
+
 void obj_destroy(obj_t *o) {
     if (!o)
         return;
@@ -236,6 +258,28 @@ void obj_destroy(obj_t *o) {
  * children in the shared thing_t chain). Non-recursive: a container nested
  * inside another counts only by its own weight here, matching how capacity
  * is checked one level at a time. */
+const char *obj_apply_ground_token(const char *text, const struct room *room,
+                                    char *buf, size_t bufsz) {
+    if (!text || !buf || bufsz == 0)
+        return buf;
+
+    const char *ground = room_ground_type(room);
+    size_t bi = 0;
+    for (size_t i = 0; text[i] && bi + 1 < bufsz; ) {
+        if (text[i] == '$' && text[i + 1] == '$' && text[i + 2] == 'g') {
+            bi += (size_t)snprintf(buf + bi, bufsz - bi, "%s", ground);
+            i += 3;
+        } else if (text[i] == '$' && text[i + 1] == 'g') {
+            bi += (size_t)snprintf(buf + bi, bufsz - bi, "%s", ground);
+            i += 2;
+        } else {
+            buf[bi++] = text[i++];
+        }
+    }
+    buf[bi < bufsz ? bi : bufsz - 1] = '\0';
+    return buf;
+}
+
 double obj_contained_weight(const obj_t *container) {
     if (!container)
         return 0.0;

@@ -73,6 +73,30 @@ char sector_color(int sector) {
     return 'w';
 }
 
+/* Sector-name substring bucketing, same style as sector_color() above --
+ * most-specific rule first. See room.h's declaration comment for the
+ * weather-prefix simplification. */
+const char *room_ground_type(const struct room *r) {
+    if (!r)
+        return "ground";
+    const char *name = sector_name(r->sector);
+    if (strstr(name, "UNDERWATER"))
+        return "ocean floor";
+    if (strstr(name, "CITY"))
+        return "street";
+    if (strstr(name, "ROAD"))
+        return "road";
+    if (strstr(name, "OCEAN") || strstr(name, "RIVER") || strstr(name, "ICEFLOW"))
+        return "water";
+    if (strstr(name, "SWAMP") || strstr(name, "MARSH"))
+        return "mud";
+    if (strstr(name, "BEACH"))
+        return "sand";
+    if (r->room_flag & ROOM_FLAG_INDOORS)
+        return "floor";
+    return "ground";
+}
+
 /* ROOM_* flag bit names (original room_bits[], misc/room.h, bits 0-21),
  * displayed all-caps straight from the upstream table. */
 static const char *const ROOM_FLAG_NAMES[22] = {

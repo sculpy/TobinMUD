@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Smoke test for objects (Phase 2C: obj_t, oload, get/drop/inventory/wear/
-remove/equipment, persistence, and drop-on-death). Covers:
-  1. `oload` is immortal-only (invisible to a mortal, "Huh?!").
-  2. `oload <vnum>` spawns a prototype into the room; `look` lists it.
-     `oload <name>` works too (a substring match against `obj.name`).
+"""Smoke test for objects (Phase 2C: obj_t, `load obj`, get/drop/inventory/
+wear/remove/equipment, persistence, and drop-on-death). Covers:
+  1. `load obj` is immortal-only (invisible to a mortal, "Huh?!").
+  2. `load obj <vnum>` spawns a prototype into the room; `look` lists it.
+     `load obj <name>` works too (a substring match against `obj.name`).
      `look <item>` (room floor or carried) shows its description.
   3. `get` moves a floor object into inventory; a no-TAKE object is refused.
   4. `wear` moves a carried item into the right body slot (or the primary
@@ -70,7 +70,11 @@ FIXED = BASE + 2      # not takeable -- fixed scenery
 WEAPON = BASE + 3     # takeable, holdable (wielded)
 WEARABLE2 = BASE + 4  # a second body-slot item, for the already-worn check
 WEARABLE3 = BASE + 5  # the victim's gear, for the drop-on-death check
-NAMESEARCH = BASE + 6 # a uniquely-named fixture for the oload-by-name check
+NAMESEARCH = BASE + 6 # a uniquely-named fixture for the load-by-name check
+TORCH = BASE + 7      # takeable, holdable, NOT a weapon -- for hold/switch
+WEAPON2 = BASE + 8    # a second (loose, never wielded) weapon -- for the
+                      # "hold refuses a weapon" check, distinct from the
+                      # first weapon so it isn't already occupying a hand
 
 WEAR_TAKE = 1
 WEAR_BODY = 8
@@ -165,34 +169,36 @@ obj_insert(FIXED, "statue", "<w>a large statue<z>", "A large statue stands here,
 obj_insert(WEAPON, "dagger", "<w>a rusty dagger<z>", "A rusty dagger is lying here.", 5, WEAR_TAKE | WEAR_HOLD)
 obj_insert(WEARABLE2, "vest", "<w>a leather vest<z>", "A leather vest is lying here.", 11, WEAR_TAKE | WEAR_BODY)
 obj_insert(WEARABLE3, "cloak", "<w>a tattered cloak<z>", "A tattered cloak is lying here.", 11, WEAR_TAKE | WEAR_BODY)
-# A distinctively-named fixture (unique random tag) so "oload <name>" can be
+# A distinctively-named fixture (unique random tag) so "load obj <name>" can be
 # tested deterministically -- a common word like "sword" could match some
 # real seeded object at a lower vnum instead of this fixture.
 namesearch_word = f"zzztestsword{_suffix}"
 obj_insert(NAMESEARCH, namesearch_word, f"<w>a {namesearch_word}<z>",
            f"A {namesearch_word} is lying here.", 5, WEAR_TAKE)
+obj_insert(TORCH, "torch", "<w>a lit torch<z>", "A lit torch is lying here.", 1, WEAR_TAKE | WEAR_HOLD)
+obj_insert(WEAPON2, "sabre", "<w>a curved sabre<z>", "A curved sabre is lying here.", 5, WEAR_TAKE | WEAR_HOLD)
 
 check("Object Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the SQL-bootstrapped sandbox room")
 
-# --- 1: oload is immortal-only ---
+# --- 1: load obj is immortal-only ---
 s2 = socket.create_connection((host, port), timeout=5)
 mort_name = f"Objmort{_suffix}"
 make_char(s2, mort_name, "objmortpw123")
 cmd(s2, "color off")
-check("Huh?!" in cmd(s2, f"oload {WEARABLE}"), "oload is invisible to a mortal")
+check("Huh?!" in cmd(s2, f"load obj {WEARABLE}"), "load obj is invisible to a mortal")
 s2.close()
 
-# --- 2: oload spawns each prototype; look lists them ---
-check("You conjure" in cmd(s, f"oload {WEARABLE}"), "oload confirms (wearable)")
-check("You conjure" in cmd(s, f"oload {FIXED}"), "oload confirms (fixed scenery)")
-check("You conjure" in cmd(s, f"oload {WEAPON}"), "oload confirms (weapon)")
+# --- 2: load obj spawns each prototype; look lists them ---
+check("You conjure" in cmd(s, f"load obj {WEARABLE}"), "load obj confirms (wearable)")
+check("You conjure" in cmd(s, f"load obj {FIXED}"), "load obj confirms (fixed scenery)")
+check("You conjure" in cmd(s, f"load obj {WEAPON}"), "load obj confirms (weapon)")
 out = cmd(s, "look")
 check("A plain tunic is lying here." in out, "look lists the wearable object's long_desc")
 check("too heavy to lift" in out, "look lists the fixed object's long_desc")
 check("A rusty dagger is lying here." in out, "look lists the weapon's long_desc")
 
-# --- 2b: oload also accepts a name/keyword, not just a vnum ---
-check("You conjure" in cmd(s, f"oload {namesearch_word}"), "oload accepts a name in place of a vnum")
+# --- 2b: load obj also accepts a name/keyword, not just a vnum ---
+check("You conjure" in cmd(s, f"load obj {namesearch_word}"), "load obj accepts a name in place of a vnum")
 check(f"A {namesearch_word} is lying here." in cmd(s, "look"), "the name-looked-up object actually spawned")
 
 # --- 2c: look <item> shows an object's description (and condition, if it has one) ---
@@ -218,16 +224,41 @@ check("A plain tunic is lying here." in out, "look <item> also finds a carried (
 out = cmd(s, "wear tunic")
 check("wear" in out and "body" in out, "wear equips the tunic on the body slot")
 out = cmd(s, "equipment")
-check("<body>" in out and "tunic" in out, "equipment shows the tunic on the body")
+check("body:" in out and "tunic" in out, "equipment shows the tunic on the body")
+check("genitalia" not in out.lower(), "genitalia is not a wear slot -- never shown in equipment")
 
-cmd(s, f"oload {WEARABLE2}")
+cmd(s, f"load obj {WEARABLE2}")
 cmd(s, "get vest")
 check("already wearing something there" in cmd(s, "wear vest"), "wear refuses an occupied slot")
 
-out = cmd(s, "wear dagger")
-check("wield" in out, "wear on a holdable item wields it instead")
+check("try `wield" in cmd(s, "wear dagger"), "wear refuses a weapon and points to wield")
+out = cmd(s, "wield dagger")
+check("wield" in out, "wield equips the dagger in a free hand")
 out = cmd(s, "equipment")
-check("primary hand" in out and "dagger" in out, "equipment shows the dagger in the primary hand")
+check("primary hold" in out and "dagger" in out, "equipment shows the dagger in the primary hold")
+
+# --- 4b: hold refuses a (loose) weapon and points to wield; wield refuses a
+#     (loose) non-weapon and points to hold; switch swaps the two hands.
+#     Dagger is already wielded (occupying one hand) from section 4 above,
+#     so these use fresh loose fixtures rather than testing against an
+#     already-equipped item. ---
+cmd(s, f"load obj {WEAPON2}")
+cmd(s, "get sabre")
+check("must be wielded" in cmd(s, "hold sabre"), "hold refuses a loose weapon and points to wield")
+
+cmd(s, f"load obj {TORCH}")
+cmd(s, "get torch")
+check("try `hold" in cmd(s, "wield torch"), "wield refuses a loose non-weapon and points to hold")
+
+out = cmd(s, "hold torch")
+check("hold" in out, "hold equips the non-weapon torch in the free hand")
+out = cmd(s, "equipment")
+check("secondary hold" in out and "torch" in out, "the torch landed in the secondary hold")
+out = cmd(s, "switch")
+check("switch" in out, "switch confirms")
+out = cmd(s, "equipment")
+check("primary hold" in out.split("secondary hold")[0] and "torch" in out.split("secondary hold")[0],
+      "after switch, the torch is now in the primary hold")
 
 # --- 5: remove / drop ---
 out = cmd(s, "remove tunic")
@@ -242,24 +273,35 @@ check("A plain tunic is lying here." in cmd(s, "look"), "look shows the dropped 
 s.close()
 s = login(imm_name, imm_pw)
 out = cmd(s, "equipment")
-check("primary hand" in out and "dagger" in out, "the held dagger survived a reconnect")
+check("primary hold" in out and "dagger" in out, "the held dagger survived a reconnect")
 check("vest" in cmd(s, "inventory"), "the carried vest survived a reconnect")
 
-# --- 7: drop-on-death -- the victim's gear scatters into the room they died in ---
+# --- 7: drop-on-death -- the victim's gear ends up in a corpse in the room they died in ---
 sv = socket.create_connection((host, port), timeout=5)
 make_char(sv, victim_name, victim_pw)
+# "quit!" leaves to the account menu first (a real disconnect, character
+# detached cleanly) -- an abrupt close while still playing would instead
+# leave the character linkdead in its CURRENT room, which would then take
+# priority over the load_room set below (see world_find_linkdead_pc()).
+cmd(sv, "quit!")
 sv.close()
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{victim_name}';")
 sv = login(victim_name, victim_pw)
 check("Object Sandbox" in cmd(sv, "look"), "the victim lands directly in the sandbox room")
 check("Object Sandbox" in cmd(s, f"goto {ROOM}"), "the immortal returns to the sandbox room (a reconnect lands at the default room, not where they last stood)")
-check("You conjure" in cmd(s, f"oload {WEARABLE3}"), "oload confirms (the victim's gear)")
+check("You conjure" in cmd(s, f"load obj {WEARABLE3}"), "load obj confirms (the victim's gear)")
 check("You get" in cmd(sv, "get cloak"), "the victim picks up their gear")
 check("wear" in cmd(sv, "wear cloak"), "the victim wears their gear")
 
 check("slain" in cmd(s, f"kill {victim_name}").lower(), "an immortal's kill instakills the victim")
 out = cmd(s, "look")
-check("A tattered cloak is lying here." in out, "the victim's gear dropped into the room on defeat")
+# Stale since the corpses-on-death feature landed (see smoke_test_corpse.py):
+# a defeated PC's gear goes INTO a lootable corpse container, not loose on
+# the floor -- fixed to match (Session 43 continued, found while chasing an
+# unexpected sweep failure).
+check(f"The corpse of {victim_name} lies here." in out, "the victim's corpse drops in the room on defeat")
+check("A tattered cloak is lying here." not in out, "the gear is inside the corpse, not loose on the floor")
+check("you get" in cmd(s, f"get cloak corpse").lower(), "the gear is retrievable out of the corpse")
 
 sv.close()
 sv = login(victim_name, victim_pw)

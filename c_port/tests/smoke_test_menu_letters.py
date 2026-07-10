@@ -86,7 +86,9 @@ send_line(s, "menupw")
 recv_all(s)
 send_line(s, "menupw")  # confirm password (Session 21)
 recv_all(s)             # color preference prompt (asked at account creation)
-send_line(s, "y")       # accept color -> account menu
+send_line(s, "y")       # accept color -> time zone prompt
+recv_all(s)
+send_line(s, "")        # accept the (none) time zone default -> account menu
 out = recv_all(s)
 check("C [number|name]" in out, "the menu shows the lettered command table")
 

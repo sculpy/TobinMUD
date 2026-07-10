@@ -99,14 +99,14 @@ s = make_char(f"Hfmt{_suffix}")
 raw = cmd(s, "help color")
 plain = re.sub(r"\x1b\[[0-9;]*m", "", raw)
 
-check("\x1b[35m" in raw, "the description body is rendered in magenta")
+check("\x1b[0;35m" in raw, "the description body is rendered in magenta")
 check("Syntax:" in plain, "the footer shows a Syntax label")
 check("Minimum Level:" in plain, "the footer shows a Minimum Level label")
 check("color [on|off]" in plain,
       "Syntax is parsed from the body's Usage line (shows the full syntax)")
 check("Minimum Level: 1" in plain, "Minimum Level comes from the command table")
 # The Syntax/Minimum Level labels are cyan.
-check("\x1b[36m" in raw, "the footer labels are cyan")
+check("\x1b[0;36m" in raw, "the footer labels are cyan")
 # The leading "Usage:" line was lifted into the footer, not left in the body.
 check("Usage:" not in plain, "the body's leading Usage line is not shown twice")
 

@@ -16,6 +16,105 @@ viewers keep plain names (`news`, `wiznews`).
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.
 
+### User batch 2026-07-09 (home session, post-NewMUD-migration) — working these now
+
+- [x] **Corpse on death (mobs and players alike)** — done (Session 43,
+      user: "make it so the corpse of a char loads into the room upon
+      death. the corpse should be treated like a container and all
+      inventory can be taken off said corpse... mobs and players alike"):
+      `combat_defeat()` now creates an ephemeral "corpse of <name>" container
+      (`obj_create_ephemeral()`, same primitive as the crit-hit severed
+      limbs -- vnum 0, never persisted) and moves everything the loser had
+      -- carried, worn, held -- INTO it instead of dropping loose on the
+      floor. Not takeable as a whole (`get corpse` alone is refused) and
+      never closed/locked, so `get <item> corpse` works immediately with
+      no `open` needed. Applies to BOTH a PC's death and a mob's (a mob's
+      corpse is empty today since mobs don't carry anything yet, but the
+      object itself still appears). `smoke_test_corpse.py` (7 checks).
+- [x] **Merge `mload`/`oload` into one `load <mob|obj> <vnum|name>`** — done:
+      `cmd_load.c` replaces both; category is abbreviatable down to the bare
+      letter (M/O), same as full words. Table-order gotcha (like set/setsev):
+      `load` is a prefix of `loadroom`, so `loadroom` now needs `loadr`+ (was
+      `loa`+). `R` (ride/follow?) never came up again -- still unimplemented,
+      ask if it resurfaces. Old help topics removed + merged; 3 tests updated.
+- [x] **Equipment display reformat** — done: right-aligned `label: value`
+      columns (14-char field, matching "secondary hold"), replacing the old
+      `<label> value` bracket form. Hand slots renamed to **`primary hold`**/
+      **`secondary hold`**, now correctly tracking the caller's dominant hand
+      (handed_right) instead of a fixed held[0]/held[1] (a latent bug for
+      left-handed characters, fixed in passing). **Genitalia removed from
+      the listing** -- never actually wearable, just cosmetically listed;
+      becomes an object on decapitation instead (crit-hit item below, still
+      unbuilt).
+- [x] **`hold` vs `wield`, and a `switch` command** — done: `wear` now only
+      covers body-slot equipment; a holdable item refuses `wear` and points
+      to whichever of `hold` (non-weapons) / `wield` (weapons, gated on
+      `obj_t.category == OBJ_CAT_WEAPON`) applies. `switch` swaps
+      `held[0]`/`held[1]` in place. Table collisions resolved (documented
+      inline): `switch` needs `swi`+, `wield` needs `wie`+, `hold` needs `ho`+.
+- [x] **Gender-specific pronouns in ALL mud output** (user 2026-07-09,
+      standing habit going forward like the colorize-tastefully rule) —
+      uses `gender_subject/object/possess()` (being.c, Session 23), plus a
+      new `gender_reflexive()` (himself/herself/itself, Session 43). DONE:
+      the link-loss line, `stand`'s room echo (both earlier sessions), and
+      now `src/core/socials.c` -- despite the "~15 pairs" estimate, only 3
+      of the 16 socials actually used a gender-neutral pronoun once checked
+      carefully (`shake`'s "their head" in all 3 echoed forms, `poke`'s
+      "themselves", `comfort`'s "they need"): the table keeps its bare
+      fallback text (so `social_names()`/the table stay the single source
+      of truth for each social's shape) but `social_try()` now overrides
+      those 3 specifically with the actor's real pronoun before display.
+      New player-facing messages should stay gender-aware going in.
+- [x] **Linkdead persistence** (user 2026-07-09) — losing link no longer
+      destroys the character: `descriptor_destroy()` detaches (`desc=NULL`)
+      instead, leaving the being in its room; `world_find_linkdead_pc()`
+      (world.c) finds it on reconnect, `enter_world()` does a fresh DB load
+      as always (so a concurrent promotion/edit still applies) but resumes
+      it in the linkdead body's room, then discards the old body. Recovers
+      via reconnect or process end only (copyover only restores
+      descriptor-attached beings). Room listing tags "(linkdead)"; combat
+      can't target a linkdead PC at all ("no one can manipulate a linkdead
+      char") -- `combat_find_room_target()` skips them. `smoke_test_linkdead.py`
+      (8 checks). Fixed 5 existing tests whose abrupt-close-right-after-
+      creation pattern now goes linkdead instead of destroying, breaking
+      their "SQL-set field takes effect on next login" assumption -- each
+      needed an explicit `quit!` first (objects, mobiles, edplayer, set,
+      sector_color).
+- [x] **World death taunt: PC deaths only** (user 2026-07-09, "should only
+      fire when a player dies, skip the mobs unless the mob is the killer")
+      — `combat_defeat()` (combat.c) wraps the `[INFO]` broadcast block in
+      `if (loser_is_pc)`; a mob's death (Phase 2D) is now silent world-wide,
+      while a mob-as-killer still taunts normally (the taunt names the
+      loser, not the winner). `smoke_test_mobiles.py` section 5 covers it
+      (bystander confirms no `[INFO]` on a mob death).
+- [ ] **Account menu: hide the character list until `C`** — currently
+      `-- Your characters --` lists every character immediately on reaching
+      the account menu. Change so the list is HIDDEN until the player types
+      `C` (bare, no number/name yet); typing bare `C` then reveals the list
+      and prompts for a number/name (or `N` to create) as a follow-up step.
+      `C <number|name>` (already-known target) should probably still connect
+      directly without the extra round trip -- confirm with user if that
+      one-step form should stay.
+- [x] **Port Sneezy's crit-hit system + decapitation object creation** (user
+      2026-07-09) — done, scope confirmed with the user first: (1) no
+      separate crit-roll -- triggers purely on a limb's HP crossing to 0%
+      from ordinary combat damage (combat_strike() in combat.c); (2) ALL
+      limbs sever into a lootable ephemeral object ("X's severed <limb>",
+      obj_create_ephemeral() in obj.c/obj.h), not just the head -- genitalia
+      included, per the user's example; (3) the HEAD specifically is a
+      decapitation -- an instant kill routed through the existing
+      combat_defeat() "slain" path; (4) PCs only for v1 -- a mob's limb
+      reaching 0 HP does nothing extra (mobs still die the plain Phase-2D
+      way). Fixed a real balance bug found while scoping this: a level-1
+      character's limbs were splitting to 1 HP each (25 max HP / 13 limbs),
+      so ANY landed hit already destroyed a limb -- added a `LIMB_MIN_MAX_HP`
+      floor (15) in being_limbs_full_heal() so severing/decapitation takes a
+      real run of hits even at level 1, not a first-swing coin flip. Added
+      an immortal-only debug command `hurtlimb <target> <limb> <hp>`
+      (cmd_hurtlimb.c) to test this deterministically instead of waiting on
+      combat RNG. `smoke_test_crit.py` (18 checks, including the PCs-only
+      scope guarantee).
+
 ### User batch 2026-07-07 (home session) — working these now
 
 - [x] **Consistent editor slash-commands** (user 2026-07-07) — done: one set
@@ -55,26 +154,28 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       (`find_obj_here()`), showing `long_descr` + a condition line from
       `cur_struct`/`max_struct` (`obj_condition_text()`). Worn/held covered too
       (same `stuff_head` chain). Covered by `smoke_test_objects.py`.
-- [ ] **`help color`/`help who`: list every color tag + mention `<N>`** —
-      `help color`'s topic should enumerate all the `<x>` color tags
-      (today only the separate `help colors` topic does that) and mention
-      `<N>`/`<n>` name substitution (currently documented only under
-      `title`); enrich `help who`'s topic the same way (titles shown in
-      `who` can use both tricks).
+- [x] **`help color`/`help who`: list every color tag + mention `<N>`** —
+      done (Session 43, help_topic.sql migration): `help color` now lists
+      every `<x>` tag itself (previously only the separate `help colors`
+      topic did) and mentions title `<N>`/`<n>` substitution; `help who`
+      now mentions that a shown title can use both color tags and `<N>`/
+      `<n>`.
 - [ ] **`bamfin`/`bamfout`** — classic wizard commands: an immortal sets
       their own custom arrival ("bamfin") / departure ("bamfout") message
       shown when they `goto`, plus a customizable regular-movement message
       template (e.g. "Jesus drags his cross in from the <direction>.").
       Needs new persisted per-player fields (likely new `player` columns)
       wired into `cmd_goto.c`'s and `cmd_move.c`'s existing room-echo calls.
-- [ ] **Colorize copyover messages** — `cmd_copyover.c`'s player-facing
-      reboot messages are plain text; tint them (the standing "colorize
-      tastefully" habit).
-- [ ] **`@set` currently just falls through to Huh?!** — `cmd_dispatch()`
-      doesn't special-case a leading `@` the way it already does `'`
-      (say) and `;` (wiznet). Since a separate `@set` command isn't
-      planned, make `@set` dispatch as an alias for `set` (same
-      special-case mechanism `cmd_table.c` already uses for `'`/`;`).
+- [x] **Colorize copyover messages** — done (Session 43): the 3 player-
+      facing reboot lines in `cmd_copyover.c` (5-second warning, mid-
+      reborn, please-reconnect) now use `<c>...<z>`, matching the existing
+      INFO/`system`-broadcast color convention. The immortal-only error/
+      status lines (unavailable, write-failed, exec-failed) stay plain.
+- [x] **`@set` currently just falls through to Huh?!** — done (Session 43):
+      a leading `@` is now stripped before the normal verb parse in
+      `cmd_dispatch()` -- simpler than a hardcoded `'`/`;`-style alias since
+      the real verb ("set") already follows the `@`, no need to hardcode a
+      target. Covers any other stray leading `@`, not just `@set`.
 - [ ] **Verify multiplay-off actually gates a second mortal connection**
       — Session 21 claims `enter_world()` already refuses a mortal
       account's second connected character when the `multiplay` game flag
@@ -87,13 +188,24 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       mortal-settable personal switches (color, hp, ...). Needs
       `cmd_toggle.c`'s `TOGGLES[]` table split in two (or filtered by a
       new per-row "game-wide" flag).
-- [ ] **Editors must get ABSOLUTE quiet** — audit every broadcast/echo
-      call site (`game_log`, death taunts, wiznet, system, link-loss,
-      newbie, etc.) to confirm every single one routes through
-      `descriptor_notify()` (held until the editor exits, replayed via
-      `catchup`) and NEVER `descriptor_send()` directly, whenever the
-      target might be mid-edit. Treat any direct-send broadcast path
-      found during the audit as a bug to fix, not just document.
+- [x] **Editors must get ABSOLUTE quiet** — done (Session 43, user: "when
+      in the editors, no messages to interrupt, no logs, no output at
+      all. thats what catchup is for"). The audit found the REAL bug:
+      `descriptor_in_editor()` (descriptor.c) only ever checked the
+      `CONN_REDIT_*` range -- `edplayer` and `edzone` were never wired in
+      at all, so `descriptor_notify()`'s hold-for-catchup silently never
+      applied to them, even though every broadcast call site (game_log,
+      death taunt, wiznet, system, newbie) already correctly called
+      `descriptor_notify()`. One-line fix in the shared predicate, not a
+      per-call-site chase. Also found and fixed the same-root-cause
+      pattern elsewhere: `who`/`promote`/`set`/`copyover`/`users` all used
+      `state == CONN_PLAYING` as an "is online" proxy, which excludes
+      every editor sub-state -- an editing immortal was invisible to
+      `who`, got stale live-sync from `set`/`promote`, lost their session
+      entirely across `copyover`, and showed as "closing" in `users`. All
+      fixed to check `it->character` (or the new range check) instead.
+      `smoke_test_held.py` extended to cover edplayer/edzone, not just
+      edroom (the gap the old test couldn't have caught).
 - [ ] **`edbug`** — a way to annotate or resolve an already-filed bug
       report (so a player can be told their bug was fixed), instead of
       only being able to `delbug` (delete) it outright. Menu-driven or
@@ -104,11 +216,12 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       list commands. Reads straight from the `mob`/`obj`/`room` tables
       (no new Tobin tables), same "prototypes already exist" precedent as
       `oload`/`mload`.
-- [ ] **`hit` command (real combat, never instakill)** — a new command
-      that always engages the normal multi-round combat process (like a
-      mortal's `attack`), even for an immortal caller -- lets an immortal
-      actually fight something instead of instakilling it. `kill`/`attack`
-      keep their current behavior unchanged (instakill for immortals).
+- [x] **`hit` command (real combat, never instakill)** — done (Session
+      43): `cmd_hit.c` is a thin passthrough to `cmd_attack()` (which never
+      special-cased immortals to begin with), so an immortal typing `hit`
+      gets the normal multi-round combat process instead of `kill`/
+      `attack`'s instant slay. Those two are unchanged. New help topic +
+      `smoke_test_combat.py` Part 4.
 - [ ] **General output pagination (20-line threshold)** — any command
       output longer than 20 lines should paginate automatically (a "more"
       prompt, ENTER for next page / Q to stop -- same UX `news`/`wiznews`
@@ -448,16 +561,338 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       oversight. `open` refuses a Locked door; unlock/lock commands are
       still deferred (need a key, which needs objects). `smoke_test_
       doors.py` + 3 new help topics (`open`, `close`, updated `exits`).
-- [ ] **Positions polish** — a hit bonus vs. a non-standing target (the
-      original makes a sitting/sleeping foe easier to hit); we deferred the
-      combat-formula change when Positions landed.
+- [x] **Positions polish** — done (Session 43): a defender who isn't
+      standing (sitting/resting/sleeping/any lower rung) takes a flat
+      +15 hit-roll bonus against them in `combat_strike()` -- attacking
+      only auto-stands the ATTACKER (cmd_attack.c), so this stays in
+      effect for as long as the defender chooses to stay down.
 - [ ] **Personalized immortal log messages (57+)** — per-immortal flavor on
       log lines (`log.h` LOG_JESUS/LOG_PEEL/LOG_LOW inspiration).
+- [x] **`<d>` bold color tag** — done (Session 43, user: "investigate <d>
+      and $$g tags from sneezy and implement in tobin"). Sneezy's `<d>`/
+      `<D>` is a standalone BOLD toggle (`\033[1m`), distinct from the
+      existing R/G/B/... tags (which already bundle bold into their own
+      bright/uppercase variant) -- `<d>` stacks bold onto whatever color
+      is already active, e.g. `<g><d>bold green<z>`. One-line addition to
+      `colorstring.c`'s tag table.
+- [x] **`$$g`/`$g` ground-surface token** — done (Session 43, same user
+      request). Sneezy's `misc/show.cc` token, substituted in an object's
+      description with the room's ground-surface word (`describeGroundType()`,
+      misc/create_rooms.cc): "street" (city), "road", "water" (ocean/river),
+      "mud" (swamp), "sand" (beach), "floor" (indoors flag), else "ground".
+      New `room_ground_type()` (room.h/room.c, same sector-substring-
+      bucketing style as `sector_color()`) + `obj_apply_ground_token()`
+      (obj.h/obj.c), wired into both `long_descr` display sites in
+      cmd_look.c (`look <object>` and the room-floor listing). Dropped the
+      original's weather-prefix component ("snow-covered ground", "rain-
+      slick street") -- Tobin has no weather system yet. Not present
+      anywhere in the currently-migrated obj/objextra data (verified before
+      building -- zero real usages), so this is forward-looking
+      infrastructure for future hand-authored descriptions, not activating
+      existing content.
+- [x] **Time/day/date system** — done (Session 43, user: "implement
+      time/day/date system from sneezys example"). Ported from Sneezy's
+      `GameTime` class (sys/gametime.{h,cc}): 28-day months, 12-month
+      years, the same weekday formula `(28*month + day + 1) % 7`, the same
+      noon/midnight/new-month/new-year world announcements. New
+      `gametime.h`/`gametime.c` + `time` command. Session-only (starts
+      fresh at boot, no persisted game-time table). Ticks on a pulse
+      (~60s, the same cadence `zone_process_run()` already established)
+      advancing 15 mud-minutes per tick, rather than the original's real-
+      seconds-per-mud-hour formula. Dropped: the weather-driven sunrise/
+      sunset/moon tracking (no weather system) and the personal real-
+      time-zone-offset sub-feature of Sneezy's `time <difference>` (a
+      separate feature, not part of the day/date system itself). Found
+      and fixed a related latent bug while adding this: `pulse_register()`
+      silently no-op'd past `MAX_PULSE_PROCESSES` (was 8, exactly filled
+      by this addition) -- bumped to 16 and made the overflow case log an
+      error instead of vanishing silently.
+- [x] **Personal time-zone offset** — done (Session 43 continued, user:
+      "is the time based upon time zones? if so, make the mud EST" then
+      "in account creation, ask the character to choose a time zone based
+      on machine time zone, so for PST set timezone -3, etc"). The mud
+      clock itself is fictional (28-day months, pulse-driven) and has no
+      real-world timezone; confirmed the VM/MariaDB *are* both already
+      America/New_York (EST/EDT), so nothing needed changing there. This
+      is the separate real-time-offset sub-feature explicitly deferred
+      when the gametime system was added above, now ported from Sneezy's
+      `CON_TIME` prompt (sys/connect.cc) and `time <difference>`
+      (misc/info.cc doTime()): a new `CONN_GET_TIMEZONE` account-creation
+      state (right after the color prompt) asks the offset in hours from
+      the server's Eastern clock (e.g. Pacific enters -3), range -23..23,
+      blank = 0; persisted to `account.time_adjust` (a pre-existing,
+      previously-unused column from the original schema -- no migration
+      needed). `time` (bare) now shows a second line, the real-world clock
+      shifted by that offset; `time <difference>` re-sets it later. New
+      `account_set_timezone()` (account.h/account_repo.c), new
+      `tests/smoke_test_timezone.py` (9 checks, including that shifting
+      the offset by 2 hours shifts the shown real time by exactly 2
+      hours).
+- [x] **Pager held-messages + colorized MORE prompt** — done (Session 43
+      continued, user: "silence all messaging like youve done for the
+      editors, but for pagination. also colorize the [ ENTER for more, Q
+      to stop ] line like my example"). `descriptor_in_editor()`
+      (descriptor.c) now also returns true while `page_len > 0` (mid-
+      pager, e.g. reading `news`), so `descriptor_notify()` holds
+      messages for catchup instead of interrupting a paginated read --
+      same mechanism as the editors, one extra condition. Since `news` is
+      mortal-accessible, `catchup` was widened from immortal-only to
+      mortal-level (cmd_table.c) -- otherwise a mortal held mid-pager
+      would have no command to retrieve it with. The MORE prompt itself
+      is now colorized and on its own line: `\r\n<c>[ <C>ENTER<c> for
+      more, <C>Q<c> to stop ]<z>` (was a plain, uncolored trailing
+      fragment). New `tests/smoke_test_pager_held.py` (5 checks).
+- [x] **Fixed: regular-intensity color tags didn't clear a preceding
+      bold** — done (Session 43 continued, user: "colorized pagination is
+      incorrect. the intention was to highlight the available
+      command/keys in bright. the rest regular"). Root cause in
+      `colorstring.c`'s `ansi_for_tag()`: lowercase tags emitted a bare
+      `\033[36m`-style code with no intensity reset, and SGR bold (`1`)
+      and color are independent parameters that most terminals leave
+      stuck on until explicitly cleared -- so `<C>ENTER<c>` (bright, then
+      regular) rendered everything bright, since the plain `<c>` never
+      actually turned bold off. Every lowercase color tag now leads with
+      `0;` (`\033[0;36m`), forcing a full attribute reset before applying
+      the color, so a regular tag really is regular regardless of what
+      came before. This is a general color-engine fix, not pager-
+      specific -- every `<x>` tag in the game benefits. Updated the
+      hardcoded expected byte sequences in six existing smoke tests
+      (`smoke_test_color.py`, `smoke_test_help_format.py`,
+      `smoke_test_notify.py`, `smoke_test_say.py`,
+      `smoke_test_sector_color.py`, `smoke_test_pager_held.py`) to match
+      the new `0;`-prefixed codes; all still pass except
+      `smoke_test_sector_color.py`, which failed for an unrelated reason
+      (a stale hardcoded sector expectation for room vnum 100, flagged
+      separately, not a regression from this fix).
+- [x] **Three `look` bugs, found and fixed together** — done (Session 43
+      continued, user reported all three against real seeded mob vnum
+      33271, "a dirty refuse hauler"):
+      1. **Capitalization sometimes ignored** ("A lamppost is here." /
+         "a dirty refuse hauler is here." -- inconsistent). Root cause:
+         this mob's `short_desc` is authored with a leading inline color
+         tag (`<o>a dirty refuse hauler<1>`), and `cap_first()`
+         (cmd_look.c) blindly uppercased byte 0 -- which was `<`, a
+         no-op, leaving the real letter untouched. Fixed to skip any
+         leading `<X>` tag(s) before capitalizing.
+      2. **Wrong name in `look <mob>`** ("You look at man dirty refuse
+         hauler." should read "You look at a dirty refuse hauler.").
+         Root cause: `look_at_target()` displayed `thing_t.name` (the
+         raw keyword-match list, e.g. "man dirty refuse hauler") instead
+         of `short_descr` for mobs -- a PC's `name` IS its proper name,
+         but a mob's `name` is just matching keywords. Fixed to use
+         `short_descr` for mobs (uncapitalized -- it's mid-sentence
+         here, not a cap_first() site).
+      3. **Truncated long description** ("increase the buffer size so i
+         can read the entire string"). Root cause: `BEING_APPEARANCE_LEN`
+         was 256, sized for `player.appearance`'s real varchar(255)
+         column, but shared with `mob.description` (mediumtext, real
+         seeded max ~1200 chars) -- silently cut off mid-sentence on
+         load (mob_repo.c's snprintf). Bumped to 2048; PC-authored
+         appearance text is unaffected (MariaDB itself truncates on the
+         rare overflow past the real 255-char column, same as any other
+         varchar overflow -- previously this buffer coincidentally
+         enforced that limit earlier, now the DB does). Also bumped two
+         downstream buffers (`show_attr_screen` in descriptor.c,
+         `look_at_target`'s `out` in cmd_look.c) that hit
+         `-Wformat-truncation` once the source could be much longer.
+      New `tests/smoke_test_look_capitalization.py` (6 checks, all
+      against the real vnum 33271 mob rather than synthetic fixtures,
+      since all three bugs only manifest on real authored content).
+- [x] **`scan` ignores linkdead characters** — done (Session 43
+      continued, user: "scan should ignore linkdead chars").
+      `cmd_scan.c`'s room-occupant loop had no linkdead check at all
+      (unlike the room-floor `look` listing, which shows a linkdead PC
+      tagged "(linkdead)" but still visible, and combat's
+      `combat_find_room_target()`, which already excludes them from
+      being attacked) -- scan simply never checked. Fixed to skip a PC
+      with no live `desc`, same "not a real target" treatment as combat.
+      Extended `tests/smoke_test_scan.py` with a 6th check (abrupt
+      disconnect -> still-present-but-unscannable).
+- [ ] **Make `smoke_test_limbs.py`/`smoke_test_limbs_cmd.py`
+      deterministic** — found while chasing an unexpected sweep failure
+      (Session 43 continued): both rely on real combat RNG to eventually
+      cross a limb status tier within a fixed number of rounds, but with
+      `LIMB_MIN_MAX_HP` (15) and damage landing on a random one of 13
+      limbs each hit, reliably crossing a tier in the test's round
+      budget is statistically marginal -- confirmed via `hurtlimb` that
+      the underlying mechanism itself is fine, this is a test-design
+      gap. `hurtlimb <target> <limb> <hp>` (cmd_hurtlimb.c, added
+      Session 42 for exactly this) already lets a test set a limb's HP
+      directly instead of waiting on the dice -- migrate both tests to
+      use it instead of a real fight.
+- [ ] **Get/drop item logging for dispute research** — user: "anytime a
+      char gets an item or drops an item i want those logged into the
+      game log so we can research disputes with log search. these
+      should not be reported via any log type, just inserted into the
+      game log". Needs: find the log-file-only write path (distinct from
+      `game_log()`'s LOG_* types, which also echo to online immortals --
+      see log.c/log.h) or add one; hook `cmd_get.c`/`cmd_drop.c` (or
+      wherever pickup/drop is actually implemented) to write a plain
+      log-file line (who, what, room/vnum, timestamp) on every
+      get/drop, with no `[TYPE]` immortal-visible echo at all.
+- [ ] **Mob AI: wandering + mob actions** — user: "in pulse, make sure
+      that mob actions click and mobs that can wander will do so, look
+      at mob ai from sneezy". Needs investigation of Sneezy's mob AI
+      (misc/mobact.cc or similar -- movement, `actions` bitfield on the
+      `mob` table already loaded-but-unused per mob_repo.h's comment,
+      wander-if-no-players-nearby / stay-in-zone-bounds rules) and a new
+      pulse-driven `mob_ai_tick()` alongside `zone_process_run()` /
+      `gametime_tick()`. Likely needs the `mob.actions` bitfield
+      actually read (mob_repo.h currently only loads
+      name/short_desc/description/level/hpbonus/sex -- explicitly noted
+      as "deferred to a future edmobile/AI session").
+- [ ] **Cleaner mobs clean up randomly** — user: "i want cleaner mobs to
+      clean up randomly, i believe this is also in mob ai". Likely a
+      specific `actions` bit (Sneezy's ACT_CLEANER or similar) checked
+      by the same mob AI pulse above -- a cleaner-flagged mob
+      periodically removes/consumes loose trash objects in its room.
+      Bundle with the mob AI item above rather than building a separate
+      pulse for it.
+- [ ] **Weapon-aware combat messaging + hit/dam bonuses** — user: "when
+      in combat wielded items should modify messaging for example wield
+      sword, you slice instead of hit. This should apply to all weapon
+      types and add or subtract any hit bonuses placed on the weapon".
+      Two gaps, confirmed by reading combat.c/obj.h: (1)
+      `combat_strike()` is entirely attribute-based (STR/DEX only) and
+      never looks at what's wielded at all -- the "You hit %s's %s for
+      %d damage!" message (combat.c:122) is hardcoded regardless of
+      weapon. (2) There is no weapon-subtype data model to key a verb
+      off of -- `obj_category_t` only has one collapsed `OBJ_CAT_WEAPON`
+      bucket (obj.h), the original's per-weapon-type itemTypeT distinction
+      was flattened away during the port. (3) The `objaffect` table
+      (vnum, type, mod1, mod2 -- presumably a Diku-style APPLY_* enum,
+      e.g. hitroll/damroll) exists in the DB but is read by NO code
+      anywhere in the port yet -- "hit bonuses placed on the weapon"
+      needs this wired up from scratch (a new obj_repo function to load
+      a vnum's objaffect rows, then combat_strike() applying them to
+      hit_roll/dmg for whichever weapon is actually wielded). For the
+      verb itself, likely cheapest path is a keyword-substring bucket
+      function (same style already used for `sector_color()`/
+      `room_ground_type()` in room.c) matching the weapon's name/
+      short_descr against "sword"->slice, "axe"->chop, "mace"/"hammer"->
+      bludgeon, "dagger"/"knife"->stab, "spear"/"pike"->pierce, bare-
+      hand/unrecognized->hit, rather than restoring the original's full
+      item_type subtype column. Needs a way to know what's wielded --
+      check being_t's equipment/wield-slot fields (see the hold/wield/
+      switch rework, cmd_object.c) for the hookup point.
+- [ ] **Persist the game clock across boots** — user: "make time save so
+      it continues on from boot to boot". Currently `g_time` (gametime.c)
+      is a plain static struct, session-only -- restarts always reset to
+      8:00 AM, day 1, year 1 (see gametime.h's doc comment). Reuse the
+      existing `game_config` key/value table (already used by
+      `multiplay.c`'s on/off persistence -- same read/write pattern) for
+      hour/minute/day/month/year rows; load them in `gametime_tick()`'s
+      module init (or a new `gametime_load()` called from main.c before
+      `pulse_register`) and save on every tick (or at least every hour,
+      to bound write frequency) rather than only at shutdown, since
+      restarts aren't always clean.
+- [ ] **Half-hour real-time tick (blank line, no message)** — user:
+      "every hour on the half hour send a blank line of uinput to the
+      game so a tick becomes apparent to the player without any
+      messages". Real wall-clock time (not the fictional mud clock
+      above) -- a new pulse check (alongside `zone_process_run()` /
+      `gametime_tick()` in main.c) using `time(NULL)`/`localtime_r`,
+      firing once when the real minute crosses :30 past the hour (guard
+      against firing every pulse for the whole minute, same one-shot-
+      per-boundary concern `gametime_tick()`'s hour/day/month rollovers
+      already handle). Sends just "\r\n" to every connection -- no log
+      line, no [TYPE] tag, presumably still via `descriptor_notify()` so
+      it's held like any other broadcast for someone mid-editor/pager
+      rather than corrupting their screen.
+- [ ] **Mobile_Attitude (mob AI emotional/opinion system)** — user:
+      "class Mobile_Attitude in sneezy should be implemented into tobin.
+      mobs should react to good vs evil and react accordingly". Read
+      Sneezy's own docs (`sneezymud-master/docs/systems/critical/
+      14-monster-ai-behavior.md`, source in misc/monster.cc/.h,
+      misc/mobact.cc, misc/opinion.cc): `Mobile_Attitude` models four
+      0-100 emotional attributes per mob -- suspicion, greed, malice,
+      anger (not literally "good/evil") -- with an aggression formula
+      `4*anger + 5*malice >= 450` (or the `ACT_AGGRESSIVE` flag), a
+      `pissed()` minor-annoyance check, and hate/fear opinion bitfields
+      keyed by sex/race/individual-char/class/vnum. Note: neither this
+      class nor Tobin's current `being_t` (include/being.h, checked --
+      no `alignment` field exists) has a literal good/evil alignment
+      stat; a PC-alignment-driven reaction would need that stat added
+      first as a separate, smaller piece before mob opinion can react to
+      it. Natural pairing with the "Mob AI: wandering + mob actions" item
+      above -- likely the same pulse-driven `mob_ai_tick()`, since
+      opinion/aggression checks and wander/action checks both run per-
+      mob per-pulse in the original.
+- [ ] **`idea` command (feature requests)** — user: "add an idea command
+      so a player can request new features, should work the same as
+      reporting a bug also add an idea log message". Direct mirror of
+      the existing `bug`/`delbug` pair (cmd_bug.c, bug_repo.h) -- same
+      shape: `idea <text>` files one (stored with name + date), bare
+      `idea` lists outstanding ones for immortals, `delidea <id>` (59+)
+      removes a handled one. Needs a new `idea` table (copy
+      `db/sneezy/bug.sql`'s shape) + `idea_repo.{h,c}` (copy
+      bug_repo's), and a new `LOG_IDEA` value in `log_type_t` (log.h) --
+      note adding a value before `LOG_TEST` auto-adjusts
+      `LOG_SEVERITY_DEFAULT`'s bit width correctly (it's derived from
+      `LOG_TEST`'s position), but `cmd_setsev.c`'s toggle list needs
+      `LOG_IDEA` added explicitly to be mortal/immortal-toggleable like
+      the other real types.
+- [ ] **Drink/sip commands** — user: "add a drink/sip code from
+      sneezymud and implement here". From-scratch, not a small addition:
+      checked `obj.h` -- `OBJ_CAT_DRINK` exists as a category bucket but
+      there's no liquid-type/capacity/current-amount modeling on obj
+      instances at all yet, and `being_t` (being.h, checked) has no
+      thirst/hunger stat either (the `nutrition` DB column referenced in
+      player_repo.c's INSERT is vestigial -- never read or decremented
+      anywhere). Needs, roughly: liquid type + capacity + fill-amount
+      fields on drink-category objects (obj.h/obj_repo.h), a thirst (and
+      maybe hunger, since Sneezy ties both together) stat on being_t,
+      `drink`/`sip``/`fill``/`pour` commands (sip = small amount + no
+      "full" message, matching the original's distinction), and messages
+      for empty-container and over-full-from-drinking-too fast cases.
+      Reasonable to scope drink/sip alone first and defer fill/pour.
+- [ ] **`purge` command (51+, with a 58+ `purge linkdead`)** — user: "add
+      a purge command that is 51+ that will purge the contents of a room,
+      add a linkdead argument that a 58+ god can purge the game of all
+      linkdead characters". Two distinct pieces:
+      1. `purge` (bare, 51+): clears the caller's current room of
+         everything except players -- iterate `room_t.base.stuff_head`,
+         `obj_destroy()` (obj.h) every `THING_OBJ`, presumably
+         `being_destroy()` (being.h) every `THING_MOB` too (mirrors the
+         original's room-purge convention -- confirm scope with the
+         user: mobs included or objects only?).
+      2. `purge linkdead` (58+): a game-wide sweep, not room-scoped --
+         needs a way to enumerate every linkdead PC across ALL active
+         rooms, not just the caller's. Checked `world.h`: no existing
+         "iterate every active room" function is exposed (only
+         `world_get_room(vnum)`, a single lookup) -- this needs either a
+         new world-level room-registry iterator, or a parallel tracked
+         list of linkdead beings maintained wherever a PC actually goes
+         linkdead (descriptor.c, same place that currently just leaves
+         them in their room -- see the linkdead-persistence feature).
+         `being_destroy()` presumably just frees the in-memory being_t
+         (their DB player row stays intact so the account can log back
+         in fresh) -- confirm that's the right semantics before wiring
+         it to a bulk "purge everyone" command, since a mistake here is
+         destructive across the whole game, not just one room.
+- [ ] **`test` command (58+): show the currently-running smoke test** —
+      user: "add a test command that will list whatever smoke test is
+      currently running 58+". The `@test <name>` / `@test done <name>`
+      loopback-only hook (descriptor.c, ~line 1267) already exists and
+      every smoke test announces itself via it, but it's currently
+      fire-and-forget -- it only calls `game_log(LOG_TEST, ...)` (a
+      transient log line), nothing persists the "name of whatever's
+      running right now" anywhere queryable. Needs a small addition: a
+      global (e.g. `char g_current_test[128]`, cleared on "done") set by
+      the `@test` handler, and a new `test` command that just prints its
+      current value ("(nothing running)" if empty). Small, self-
+      contained -- doesn't touch the hook's existing localhost-only
+      security gate.
 
 ## Small near-term gameplay follow-ups
 
-- [ ] **XP on kill** — `combat_defeat()` → `progress_add_xp()`, one-liner once
-      a reward number is chosen.
+- [x] **XP on kill** — done (Session 43): `combat_defeat()` awards
+      `loser->progress.level * 50` XP (placeholder formula, same precedent
+      as other placeholder combat/growth numbers) via the already-existing
+      `progress_add_xp()`, and saves it. Only for a non-immortal PC winner
+      -- covers a normal defeat and a decapitation, but not an immortal's
+      `cmd_kill` instakill (that winner is always an immortal, who doesn't
+      need XP).
 - [ ] **Mid-fight persistence** — HP and limb HP are only saved at defeat; a
       mid-fight disconnect reloads at last-saved values.
 - [ ] **`player_save()` + a `save` command** (user request, 2026-07-07) — a
@@ -535,15 +970,66 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
         O 6625 -> obj to room, E/D/G/P + Sneezy-specific opcodes stored too).
         Sneezy's `?`-conditional (6750x) and one stray `Wrench` skipped.
         Auto-loaded by `apply-tobin-schema.sh`. Data-only so far (no execution).
-  - [ ] **Part 2: execute resets** — at boot + on a per-zone reset pulse, run
-        the M/O/G/E/P/D opcodes (load mob/obj into rooms, give/equip the last
-        mob, put in obj, door state). Needs: mob/obj instantiation into a room
-        (reuse mload/oload paths), a "last loaded mob/obj" cursor for G/E/P,
-        `if_flag` handling, per-zone `lifespan`/`reset_mode` from the `zone`
-        table, a reset scheduler. Makes rooms repopulate + survive restart.
-  - [ ] **Part 3: `zedit`** — menu-driven zone editor (needs a wireframe from
-        the user). Sneezy-specific opcodes (Y/A/X/Z/V/...) + `?` conditional
-        can be ported as needed.
+  - [x] **Part 2: execute resets** — done (Session 43, user: "zonefiles are
+        not loading? i dont see anything in rooms or mobs wandering
+        around"). New `zone.c`/`zone_repo.c`: covers the highest-value
+        opcode subset -- M (load mob), O (load obj on the ground, boot-time
+        only -- matches the original exactly), E (equip the last-loaded
+        mob -- placement derived from the object's own wear_flag via the
+        existing wear_slot_for_flag(), not the original's arg3 slot index,
+        which has no Tobin-limb equivalent), G (give the last-loaded mob a
+        carried item), P (place an item inside the last-loaded container),
+        D (door open/closed/locked). Together ~84% of all real rows. The
+        rest (Y/X/Z object "sets", A random-room, V/H/F/T/L/K/C/R/I/J) are
+        skipped -- they need subsystems Tobin doesn't have yet (mob AI,
+        object sets, loot tables, traps, grouping/charm/mounts); skipping
+        one doesn't break the rest of a zone's chain, only `if_flag`-gated
+        rows depending on it. **"Wandering" mobs specifically still needs a
+        separate mob-movement/AI system** -- this only POPULATES rooms, it
+        doesn't move mobs around afterward (see Mob AI/aggression below).
+        Runs the FULL reset once at every process start (`zone_boot_all()`,
+        main.c) -- both a cold boot AND a copyover-resume, since neither
+        preserves room/mob/object state today (only player connection info
+        survives a copyover, see cmd_copyover.c -- confirmed by reading it
+        before building this, since the user flagged the copyover question
+        directly). Then tops up periodically per-zone on its own `lifespan`
+        (minutes) via a ~60s pulse tick. New immortal/builder command
+        `zonereset <zone>` force-runs a zone's reset on demand (also the
+        test hook, since waiting on a real lifespan timer isn't practical
+        for a smoke test). Known simplification: no world-wide max_exist
+        cap tracking (only a per-room cap, arg2) -- see the original's
+        stat_mobs/stat_objs bookkeeping for what that would need.
+        `smoke_test_zones.py` (verifies both a REAL seeded zone actually
+        populated a real room, and `zonereset`'s M/E/G/P/D/unhandled-Y
+        behavior via a sandbox zone).
+  - [x] **Zone identity/ownership** — done (Session 43, user: "add
+        identity to zones... builder gets assigned a zone then... a
+        51-54 wants to edit gets rejected except for those assigned to
+        that zone"). New `zone_owner` table (many-to-many: a zone can have
+        multiple builders, a builder can own multiple zones). New
+        `zone_can_edit()` (zone.h): 55+ edits any zone; a builder (51-54)
+        only a zone they're assigned to; a room with NO zone (`room.zone`
+        NULL) is unrestricted for everyone, since the boundary is per-
+        zone. Wired into `edroom` and `edzone` (below) -- the only content
+        editors that exist yet; **apply the same `zone_can_edit()` check
+        to edobject/edmobile when those are built.**
+  - [x] **Part 3: `edzone`** — done (Session 43, user pivoted from a one-
+        shot `zoneassign` command to "make an edzone command to have a
+        menu driven editor function like edroom etc"). Menu-driven, same
+        snapshot-working-copy shape as `edplayer` (a zone isn't kept
+        resident in memory like a room): name/enabled/lifespan/vnum range
+        are Save/Quit-gated; assigning/un-assigning a builder (selecting
+        an already-assigned name un-assigns them, same toggle as before)
+        applies immediately, not deferred to Save; an `R`eset-now action
+        force-runs the zone. Gated the same as edroom: 51-54 needs
+        `zone_can_edit()` to pass for that zone_nr, 55+ always. Editing
+        individual M/O/E/G/P/D reset-command rows is explicitly OUT of
+        scope for this pass (user confirmed) -- still a future follow-up.
+        Also kept a `zone reset <n>` one-shot shortcut (user: "keep zone
+        reset as a quick shortcut") and added `zone list` (user: "dont
+        forget a zone list so we can see whats been assigned and to
+        whom") -- both in `cmd_zone.c`, paginated. `smoke_test_zone_identity.py`
+        + `smoke_test_edzone.py`.
 - [x] **Containers holding sub-items** (`put <item> <container>` / `get
       <item> <container>`) — done 2026-07-09 (Session 39, work). `cmd_put` +
       `cmd_get`'s two-arg form move items in/out of a container (carried/worn/
@@ -620,12 +1106,19 @@ conversation and in `sneezymud-master`): `positionTypeT` (done), `prompt_mesg`
 - [ ] Which ~8-10 `disc/` disciplines to keep; which 1-2 `task/` professions.
 - [ ] Hospital mechanic for destroyed limbs (only cure now is death/respawn).
 - [ ] Whether the destroyed-limb hit penalty scales with count (flat -15 now).
-- [ ] Immortal-vs-immortal `kill` guard (can't slay equal/higher level).
+- [x] Immortal-vs-immortal `kill` guard — done (Session 43): `cmd_kill.c`
+      refuses to instakill a PC target whose TRUE rank (true_level if set,
+      else level -- protects a target who's toggled mortal via `immort`
+      too) is equal to or higher than the attacker's.
 
 ## Standing rules (learned)
 
-- Never hot-deploy while a regression sweep is running (the restart/copyover
-  freeze makes unrelated tests flake — burned us twice).
+- Superseded 2026-07-10 (user: "interrupt full sweeps to test new code, as
+  a habit"): kill an in-progress full sweep to deploy/test new code now,
+  don't wait for it. Full sweeps only run right before a repo push (see
+  below), so one in flight is disposable. (Old rule: never hot-deploy
+  mid-sweep, from an incident where it caused unrelated flakes — no longer
+  applies now that sweeps aren't run casually between changes.)
 - Every player-facing change gets a `news.sql` entry (no numbers). See CLAUDE.md.
 - Every new `db/sneezy/*.sql` file MUST use `CREATE TABLE IF NOT EXISTS`,
   never an unconditional `DROP TABLE IF EXISTS` + `CREATE TABLE` — the

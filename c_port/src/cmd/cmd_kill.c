@@ -36,6 +36,23 @@ bool cmd_kill(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* Immortal-vs-immortal guard (TODO backlog): can't instakill an equal-
+     * or higher-ranked immortal PC. Compares TRUE rank (progress.true_level
+     * when set, see cmd_mortal.c) on both sides, so a target who's toggled
+     * mortal (`immort`) is still protected by their real rank, not their
+     * currently-lowered one -- courtesy between staff, not a loophole. Mobs
+     * aren't gated here; this is about immortal peers, not monsters. */
+    if (target->base.kind == THING_PC) {
+        int my_rank = d->character->progress.level;
+        int their_rank = target->progress.true_level >= IMMORTAL_LEVEL_MIN
+                             ? target->progress.true_level
+                             : target->progress.level;
+        if (their_rank >= my_rank) {
+            descriptor_send(d, "You cannot slay an equal or higher-ranked immortal.\r\n");
+            return true;
+        }
+    }
+
     combat_instakill(d->character, target);
     return true;
 }

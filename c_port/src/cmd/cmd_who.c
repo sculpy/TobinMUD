@@ -105,7 +105,10 @@ bool cmd_who(descriptor_t *d, const char *args) {
 
     int shown = 0;
     for (descriptor_t *o = g_descriptors; o; o = o->next) {
-        if (o->state != CONN_PLAYING || !o->character)
+        /* NOT `state != CONN_PLAYING` -- that excludes every editor sub-
+         * state, making a builder mid-edroom/edplayer/edzone vanish from
+         * who entirely even though they're online (Session 43 audit). */
+        if (!o->character)
             continue;
         if (!who_matches(filter, needle, o->character))
             continue;

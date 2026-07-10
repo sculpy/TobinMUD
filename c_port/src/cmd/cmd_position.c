@@ -21,7 +21,10 @@ static void set_position(descriptor_t *d, position_t pos, const char *self,
     descriptor_send(d, self);
     if (ch->base.roomp) {
         char msg[160];
-        snprintf(msg, sizeof(msg), room_fmt, ch->base.name);
+        /* room_fmt gets both the name and the gender-specific possessive
+         * pronoun (user 2026-07-09: no blanket "their"); formats with only
+         * one %s (sit/rest/sleep/wake) simply ignore the extra vararg. */
+        snprintf(msg, sizeof(msg), room_fmt, ch->base.name, gender_possess(ch->gender));
         descriptor_room_echo(ch->base.roomp, ch, msg);
     }
 }
@@ -48,7 +51,7 @@ bool cmd_stand(descriptor_t *d, const char *args) {
         return true;
     }
     set_position(d, POSITION_STANDING, "You clamber to your feet.\r\n",
-                 "%s clambers to their feet.\r\n");
+                 "%s clambers to %s feet.\r\n");
     return true;
 }
 

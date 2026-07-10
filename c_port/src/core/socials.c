@@ -38,6 +38,14 @@ static const social_t SOCIALS[] = {
      "You laugh at %s.\r\n", "%s laughs at you.\r\n", "%s laughs at %s.\r\n"},
     {"nod", "You nod.\r\n", "%s nods.\r\n",
      "You nod at %s.\r\n", "%s nods at you.\r\n", "%s nods at %s.\r\n"},
+    /* "shake"/"poke"/"comfort" (Session 43, standing gender-pronoun habit):
+     * the bare "their"/"they"/"themselves" text below (here and at "poke"
+     * and "comfort" further down) is a fallback for `social_try()`'s shared
+     * %s-name-only formatting -- each is overridden with a real gendered
+     * pronoun there before display, same convention as descriptor.c's
+     * link-loss line and cmd_position.c's `stand`. Left here (rather than
+     * deleted) so social_names()/this table stay the single source of
+     * truth for every social's text shape. */
     {"shake", "You shake your head.\r\n", "%s shakes their head.\r\n",
      "You shake your head at %s.\r\n", "%s shakes their head at you.\r\n",
      "%s shakes their head at %s.\r\n"},
@@ -56,11 +64,11 @@ static const social_t SOCIALS[] = {
      "You cheer for %s!\r\n", "%s cheers for you!\r\n", "%s cheers for %s!\r\n"},
     {"cackle", "You cackle gleefully.\r\n", "%s cackles gleefully.\r\n",
      "You cackle at %s.\r\n", "%s cackles at you.\r\n", "%s cackles at %s.\r\n"},
-    {"poke", "You poke yourself. Ow.\r\n", "%s pokes themselves.\r\n",
+    {"poke", "You poke yourself. Ow.\r\n", "%s pokes themselves.\r\n", /* "others" overridden, see "shake" comment above */
      "You poke %s in the ribs.\r\n", "%s pokes you in the ribs.\r\n",
      "%s pokes %s in the ribs.\r\n"},
     {"comfort", "You need some comforting yourself.\r\n", "%s looks like they need comforting.\r\n",
-     "You comfort %s.\r\n", "%s comforts you.\r\n", "%s comforts %s.\r\n"},
+     "You comfort %s.\r\n", "%s comforts you.\r\n", "%s comforts %s.\r\n"}, /* "others" overridden, see "shake" comment above */
     {"thank", "You thank everyone.\r\n", "%s thanks everyone.\r\n",
      "You thank %s heartily.\r\n", "%s thanks you heartily.\r\n",
      "%s thanks %s heartily.\r\n"},
@@ -122,7 +130,15 @@ bool social_try(descriptor_t *d, const char *verb, const char *args) {
 
     if (!args || !args[0]) {
         descriptor_send(d, soc->self);
-        snprintf(buf, sizeof(buf), soc->others, ch->base.name);
+        if (strcmp(soc->name, "shake") == 0)
+            snprintf(buf, sizeof(buf), "%s shakes %s head.\r\n", ch->base.name, gender_possess(ch->gender));
+        else if (strcmp(soc->name, "comfort") == 0)
+            snprintf(buf, sizeof(buf), "%s looks like %s could use some comforting.\r\n",
+                     ch->base.name, gender_subject(ch->gender));
+        else if (strcmp(soc->name, "poke") == 0)
+            snprintf(buf, sizeof(buf), "%s pokes %s.\r\n", ch->base.name, gender_reflexive(ch->gender));
+        else
+            snprintf(buf, sizeof(buf), soc->others, ch->base.name);
         descriptor_room_echo(ch->base.roomp, ch, buf);
         return true;
     }
@@ -143,7 +159,10 @@ bool social_try(descriptor_t *d, const char *verb, const char *args) {
     snprintf(buf, sizeof(buf), soc->self_targ, tgt->base.name);
     descriptor_send(d, buf);
     if (tgt->desc) {
-        snprintf(buf, sizeof(buf), soc->targ, ch->base.name);
+        if (strcmp(soc->name, "shake") == 0)
+            snprintf(buf, sizeof(buf), "%s shakes %s head at you.\r\n", ch->base.name, gender_possess(ch->gender));
+        else
+            snprintf(buf, sizeof(buf), soc->targ, ch->base.name);
         descriptor_notify(tgt->desc, buf); /* held if the target is editing */
     }
     /* Everyone else in the room. */
@@ -153,7 +172,11 @@ bool social_try(descriptor_t *d, const char *verb, const char *args) {
             continue;
         being_t *o = (being_t *)t;
         if (o->desc) {
-            snprintf(buf, sizeof(buf), soc->others_targ, ch->base.name, tgt->base.name);
+            if (strcmp(soc->name, "shake") == 0)
+                snprintf(buf, sizeof(buf), "%s shakes %s head at %s.\r\n",
+                         ch->base.name, gender_possess(ch->gender), tgt->base.name);
+            else
+                snprintf(buf, sizeof(buf), soc->others_targ, ch->base.name, tgt->base.name);
             descriptor_notify(o->desc, buf);
         }
     }

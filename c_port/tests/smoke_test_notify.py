@@ -5,8 +5,9 @@
   2. Prompt-after-message: unsolicited output (someone else's movement,
      a broadcast) leaves the receiving player at a fresh "> " prompt.
   3. Link-drop: the room is told, and every non-editing immortal receives
-     the typed "[PIO] ... has lost their link." log line; mortals do NOT get
-     [PIO]; an immortal who is mid-editor gets nothing.
+     the typed "[PIO] ... has lost its link." log line (gender-specific
+     pronoun; the test victim is neuter, the creation default); mortals do
+     NOT get [PIO]; an immortal who is mid-editor gets nothing.
 
     python3 tests/smoke_test_notify.py [host] [port]
 """
@@ -162,9 +163,9 @@ outImm = recv_all(sImm, timeout=1.0)
 # Link-drops are now a typed [PIO] log, cyan-colored (<c>[PIO]<z>), so strip
 # ANSI for the text assertion and check the color separately.
 outImm_plain = re.sub(r"\x1b\[[0-9;]*m", "", outImm)
-check(f"[PIO] {nameVictim.capitalize()} has lost their link." in outImm_plain,
-      "a non-editing immortal receives the [PIO] link-drop line")
-check("\x1b[36m[PIO]\x1b[0m" in outImm, "the [PIO] log tag is cyan-colored")
+check(f"[PIO] {nameVictim.capitalize()} has lost its link." in outImm_plain,
+      "a non-editing immortal receives the [PIO] link-drop line (gender-specific pronoun)")
+check("\x1b[0;36m[PIO]\x1b[0m" in outImm, "the [PIO] log tag is cyan-colored")
 
 outWatcher = recv_all(sWatcher, timeout=1.0)
 check("[PIO]" not in outWatcher, "a mortal does not receive the [PIO] line")

@@ -13,11 +13,13 @@
 #include "db.h"
 #include "descriptor.h"
 #include "game_loop.h"
+#include "gametime.h"
 #include "multiplay.h"
 #include "log.h"
 #include "pulse.h"
 #include "regen.h"
 #include "wait_tick.h"
+#include "zone.h"
 
 static char g_binary_path[PATH_MAX];
 
@@ -66,12 +68,20 @@ int main(int argc, char **argv) {
 
     multiplay_load(); /* restore the persisted multiplay game flag */
 
+    /* Zones Part 2 (Session 43): populate rooms from the zone_reset data
+     * migrated in Part 1. Runs unconditionally here -- for both a cold
+     * boot and a copyover-resumed process alike, since neither preserves
+     * room/mob/object state (see zone.h). */
+    zone_boot_all();
+
     pulse_register(1, wait_tick_run);
     pulse_register(COMBAT_ROUND_PULSES, combat_process_run);
     pulse_register(REGEN_PULSES, regen_tick_run);
     pulse_register(100, descriptor_held_expire); /* ~10s: expire held msgs past TTL */
     pulse_register(120, descriptor_keepalive);   /* ~12s: telnet NOP anti-idle (aggressive, survives tight NAT windows) */
     pulse_register(600, descriptor_idle_timeout);/* ~60s: idle-out mortals (immortals immune) */
+    pulse_register(600, zone_process_run);       /* ~60s: age zones by 1 minute, top up any that hit their lifespan */
+    pulse_register(600, gametime_tick);          /* ~60s: advance the game clock 15 mud-minutes */
 
     int rc = game_loop_run(cfg->telnet_port, copyover_file);
 

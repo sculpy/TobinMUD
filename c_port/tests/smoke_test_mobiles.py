@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Smoke test for mobiles (Phase 2D: being_create_mob(), mload, and mob
+"""Smoke test for mobiles (Phase 2D: being_create_mob(), `load mob`, and mob
 combat integration). Covers:
-  1. `mload` is immortal-only (invisible to a mortal, "Huh?!").
-  2. `mload <vnum>` spawns a mob prototype into the room; `look` lists it
+  1. `load mob` is immortal-only (invisible to a mortal, "Huh?!").
+  2. `load mob <vnum>` spawns a mob prototype into the room; `look` lists it
      generically (same room-contents loop as PCs) and `look <mobname>`
-     (a multi-word, abbreviated keyword) shows its description. `mload
+     (a multi-word, abbreviated keyword) shows its description. `load mob
      <name>` works too (a substring match against `mob.name`).
   3. A mortal `kill`/`attack`s the mob by an abbreviated keyword; combat
      resolves over multiple rounds via the existing pulse engine.
@@ -65,7 +65,7 @@ BASE = 900000 + (int(time.time()) % 70000)
 
 ROOM = BASE
 MOB = BASE + 1
-MOB2 = BASE + 2  # a uniquely-named fixture for the mload-by-name check --
+MOB2 = BASE + 2  # a uniquely-named fixture for the load-by-name check --
                  # "vrock demon" is a REAL name already in the seeded `mob`
                  # table at a lower vnum, so a plain substring search would
                  # find that one first, not this fixture
@@ -202,7 +202,7 @@ def mob_insert(vnum, name, short_desc, long_desc, description, level=1, hpbonus=
 mob_insert(MOB, "vrock demon", "a vrock demon",
            "A vrock demon stands here, waiting to feast on flesh.",
            "This vrock looks like a cross between a vulture and a human.")
-# A distinctively-named fixture (unique random tag) so "mload <name>" can be
+# A distinctively-named fixture (unique random tag) so "load mob <name>" can be
 # tested deterministically -- "vrock"/"demon" would match the real seeded
 # mob above (or an even-lower-vnum real one) instead of a test fixture.
 namesearch_word = f"zzztestimp{_suffix}"
@@ -211,16 +211,16 @@ mob_insert(MOB2, namesearch_word, f"a {namesearch_word}",
 
 check("Mobile Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the SQL-bootstrapped sandbox room")
 
-# --- 1: mload is immortal-only ---
+# --- 1: load mob is immortal-only ---
 s2 = socket.create_connection((host, port), timeout=5)
 tmp_mort = f"Mobtmp{_suffix}"
 make_char(s2, tmp_mort, "mobtmppw123")
 cmd(s2, "color off")
-check("Huh?!" in cmd(s2, f"mload {MOB}"), "mload is invisible to a mortal")
+check("Huh?!" in cmd(s2, f"load mob {MOB}"), "load mob is invisible to a mortal")
 s2.close()
 
-# --- 2: mload spawns the prototype; look lists it; look <name> shows description ---
-check("You conjure" in cmd(s, f"mload {MOB}"), "mload confirms")
+# --- 2: load mob spawns the prototype; look lists it; look <name> shows description ---
+check("You conjure" in cmd(s, f"load mob {MOB}"), "load mob confirms")
 out = cmd(s, "look")
 check("vrock demon is here" in out.lower(), "look lists the mob generically, same as a PC")
 out = cmd(s, "look vrock")
@@ -228,8 +228,8 @@ check("cross between a vulture" in out, "look <mob> (by one keyword) shows its d
 out = cmd(s, "look demon")
 check("cross between a vulture" in out, "look <mob> also matches its OTHER keyword")
 
-# --- 2b: mload also accepts a name/keyword, not just a vnum ---
-check("You conjure" in cmd(s, f"mload {namesearch_word}"), "mload accepts a name in place of a vnum")
+# --- 2b: load mob also accepts a name/keyword, not just a vnum ---
+check("You conjure" in cmd(s, f"load mob {namesearch_word}"), "load mob accepts a name in place of a vnum")
 # The room listing shows a mob's short_desc + "is here." (same as a PC),
 # not its long_desc -- matches the earlier "vrock demon is here" check.
 check(f"a {namesearch_word} is here" in cmd(s, "look").lower(),
@@ -239,6 +239,11 @@ check(f"a {namesearch_word} is here" in cmd(s, "look").lower(),
 sm = socket.create_connection((host, port), timeout=5)
 make_char(sm, mort_name, mort_pw)
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{mort_name}';")
+# "quit!" leaves to the account menu first (a real disconnect, character
+# detached cleanly) -- an abrupt close while still playing would instead
+# leave the character linkdead in its CURRENT room, overriding the
+# load_room just set (see world_find_linkdead_pc()).
+cmd(sm, "quit!")
 sm.close()
 sm = login(mort_name, mort_pw)
 check("Mobile Sandbox" in cmd(sm, "look"), "the mortal lands directly in the sandbox room")
@@ -264,9 +269,31 @@ check("slain" in out.lower() or "aren't here" in out.lower(),
       "an immortal's kill instakills the mob (or it's already dead from step 3)")
 
 out = cmd(s, "look")
-check("vrock demon" not in out.lower(), "the mob is gone from the room for good after defeat")
+check("vrock demon is here" not in out.lower(),
+      "the mob is gone from the room for good after defeat (as a living presence)")
+check("the corpse of vrock demon lies here" in out.lower(),
+      "...but leaves a corpse behind (Session 43 corpse-on-death feature)")
+
+# --- 5: a mob's death does NOT broadcast the world-wide [INFO] taunt (user
+#     2026-07-09: only a PLAYER dying should trigger it) ---
+sBystander = socket.create_connection((host, port), timeout=5)
+bystander_name = f"MobBys{_suffix}"
+make_char(sBystander, bystander_name, "mobtestbyspw123")
+sql(f"UPDATE player SET load_room={ROOM} WHERE name='{bystander_name}';")
+cmd(sBystander, "quit!")
+sBystander.close()
+sBystander = login(bystander_name, "mobtestbyspw123")
+recv_all(sBystander)  # drain arrival noise
+
+out = cmd(s, f"load mob {MOB2}")
+check("You conjure" in out, "a fresh mob is loaded for the no-taunt check")
+out = cmd(s, "kill " + namesearch_word)
+check("slain" in out.lower(), "the immortal instakills the fresh mob")
+outBystander = recv_all(sBystander, timeout=1.5)
+check("[INFO]" not in outBystander, "a mob's death does NOT trigger the world death taunt")
 
 s.close()
 sm.close()
+sBystander.close()
 announce_done("smoke_test_mobiles")
 print("=== ALL CHECKS PASSED ===")

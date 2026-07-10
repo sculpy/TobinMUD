@@ -32,7 +32,7 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('delbug', 'Usage: delbug <id>\n\nAdministrator (59+) only: removes a bug report once it has been\nhandled. The id is the number shown beside each report in `bug`.', 'seed'),
 ('newbie', 'Usage: newbie <message>\n\nA help channel for new players. Everyone starts on it, so newcomers can\nask questions and veterans can answer. Turn it off (or back on) with\n`toggle newbie`; you must be on the channel to speak on it.', 'seed'),
 ('rules', 'Usage: rules [number]\n\nWith no argument, lists the numbered game rules. `rules <number>` shows\nthat rule in full. Please read them -- ignorance is no excuse.', 'seed'),
-('edrules', 'Usage: edrules <number> <title>\n\nAdministrator (59+) only: writes or rewrites a numbered game rule. Give\nthe rule number and a title, then type the rule text into the line\neditor (''.'' saves, ''~'' aborts, ''/clear'' wipes, ''/format'' reflows\nto width). Players read rules with the rules command.', 'seed'),
+('edrules', 'Usage: edrules <number> <title>\n\nAdministrator (59+) only: writes or rewrites a numbered game rule. Give\nthe rule number and a title, then type the rule text into the line\neditor (/s saves, /a aborts, /b blanks, /f reflows to width). Players\nread rules with the rules command.', 'seed'),
 ('help', 'Usage: help [topic]\n\nWith no argument, lists every command available to you. With a topic\n(any command name, abbreviations welcome), shows its full help text.', 'seed'),
 ('wizhelp', 'Usage: wizhelp\n\nImmortals only: lists the immortal-only commands, with the minimum\nlevel each one requires.', 'seed'),
 ('exec', 'Usage: exec <shell command>\n\nImplementor-only (level 60): runs a command on the host box and shows\nits output. Fenced for safety -- a blocklist refuses dangerous commands\n(process kills, disk wipes, reboots, privilege escalation, touching the\nmud), every command runs under a timeout so it cannot freeze the game,\nand each use is logged. Not a root shell.', 'seed'),
@@ -40,7 +40,7 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('promote', 'Usage: promote <name> [level]\n\nImmortals only: set another player''s level (default 51, the first\nimmortal rank). You cannot set anyone above your own level, and the\nname must be typed in full. Works on offline players too; an online\ntarget changes immediately and is told. Also demotes.', 'seed'),
 ('edplayer', 'Usage: edplayer <name>\n\nAdministrator (58+) only: a menu-driven editor for a player''s level,\nexperience, HP/max HP, attributes, gender, title, load room, and\nhandedness -- an admin superset of promote. Works on any player,\nonline or offline, by exact name. Pick a numbered field, enter a new\nvalue, then (S)ave to write it to the database (an online target is\nupdated immediately, no relog needed) or (Q)uit to discard.', 'seed'),
 ('set', 'Usage: set <name> <field> <value>\n\nAdministrator (58+) only: a one-shot sibling of edplayer for quick,\nscriptable single-field edits -- one line in, one field changed, no\nmenu. Works on any player, online or offline, by exact name; an online\ntarget is updated immediately. Fields: level, xp, hp <hp> <max hp>,\nstr/dex/con/int/wis/cha, gender, title (or ''none'' to clear),\nloadroom, handed. See edplayer for a menu covering every field at once.', 'seed'),
-('edhelp', 'Usage: edhelp <topic>\n\nLevel 56+ only: edit (or create) a help topic in a line editor. Any\nexisting text is shown first; lines you type are appended. Finish\nwith a single `.` to save, `~` to abort, `/clear` to wipe the buffer\nand start over, or `/format` to reflow it to the display width.\nTopics are stored in the database and shown by `help <topic>`.', 'seed'),
+('edhelp', 'Usage: edhelp <topic>\n\nLevel 56+ only: edit (or create) a help topic in a line editor. Any\nexisting text is shown first; lines you type are appended. Finish\nwith `/s` to save, `/a` to abort, `/b` to blank the buffer and start\nover, or `/f` to reflow it to the display width. Topics are stored in\nthe database and shown by `help <topic>`.', 'seed'),
 ('quit!', 'Usage: quit!   (must be typed exactly, with the !)\n\nWhile playing: leaves your character and returns to the account menu.\nAt the account menu: disconnects. It is never matched by abbreviation\nand nothing else starts with q -- a typo can never quit you.', 'seed'),
 ('movement', 'Usage: north / east / south / west / up / down\n\nWalks you through the room''s exits (shown by `look` as "Obvious\nexits"). The single letters n/e/s/w/u/d always mean movement. You\ncannot walk while fighting.', 'seed'),
 ('north', 'Usage: north (or just n)\n\nWalks you north. See `help movement`.', 'seed'),
@@ -62,9 +62,9 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('users', 'Usage: users\n\nLevel 58+ only: lists every live connection -- character, account,\nIP address, and connection state (logging in, at the menu, creating,\nplaying, mid-editor). The admin''s who-is-really-here view.', 'seed'),
 ('prompt', 'Usage: prompt [hp]\n\n`prompt hp` toggles your hit points into the prompt line ("HP: 25 >").\nBare `prompt` shows the current setting. Your choice is saved with\nyour character. More stats will join the prompt as they exist.', 'seed'),
 ('mortal', 'Usage: mortal   (and later: immort)\n\nImmortals only: set your divinity aside and walk the world as a level\n50 mortal -- wait-states apply, you can be killed, and your immortal\ncommands are out of reach. Your true rank is kept safe (even through\ndeath or logout); type `immort` at any time to reclaim it.', 'seed'),
-('edroom', 'Usage: edroom [<vnum>]   (level 51+ builders)\n\nOpens the Sneezy-style menu-driven room builder for the room you are\nstanding in, or for <vnum> from anywhere. Edits are held in a working\ncopy -- nothing touches the DB until you Save.\n\n  1) Name          2) Description (. saves, ~ cancels, /clear wipes,\n                       /format reflows to width)\n  3) Flags         4) Sector Type\n  5) Exits         6) Max Capacity\n  7) Room Height\n\nExits: pick a direction, then set its Target vnum, Door type, and\nConditions; a missing target room is created on save and the reverse\nexit auto-fixed.\n\n  C) Clear room out (blanks it, exits included)\n  S) Save    Q) Quit (warns on unsaved changes)', 'seed'),
+('edroom', 'Usage: edroom [<vnum>]   (level 51+ builders)\n\nOpens the Sneezy-style menu-driven room builder for the room you are\nstanding in, or for <vnum> from anywhere. Edits are held in a working\ncopy -- nothing touches the DB until you Save.\n\n  1) Name          2) Description (/s saves, /a cancels, /b wipes,\n                       /f reflows to width)\n  3) Flags         4) Sector Type\n  5) Exits         6) Max Capacity\n  7) Room Height\n\nExits: pick a direction, then set its Target vnum, Door type, and\nConditions; a missing target room is created on save and the reverse\nexit auto-fixed.\n\n  C) Clear room out (blanks it, exits included)\n  S) Save    Q) Quit (warns on unsaved changes)', 'seed'),
 ('news', 'Usage: news [lines-per-page]\n\nShows the whole game news feed -- announcements of new features, command\nchanges, and additions to the world, newest first -- a page at a time.\nAt a "more" prompt, press ENTER for the next page or Q to stop. Give a\nnumber (news 10, 20, 50, or 100) to set the page size; the default is 20.', 'seed'),
-('ednews', 'Usage: ednews <headline>\n\nLevel 56+ only: post a news item. The words after the command are the\nheadline; you then type the story into a line editor (`.` saves, `~`\naborts, `/clear` wipes, `/format` reflows to width). Everyone can read\nit with the `news` command. Headlines must be unique.', 'seed'),
+('ednews', 'Usage: ednews <headline>\n\nLevel 56+ only: post a news item. The words after the command are the\nheadline; you then type the story into a line editor (`/s` saves, `/a`\naborts, `/b` blanks, `/f` reflows to width). Everyone can read it\nwith the `news` command. Headlines must be unique.', 'seed'),
 ('positions', 'Usage: stand / sit / rest / sleep / wake\n\nYour body position. You must be standing to walk or start a fight.\nResting heals you faster than sitting, and sleeping fastest of all --\nbut while asleep you cannot see the room until you wake. You cannot\nchange position in the middle of a fight. Your current position shows\nin `score`.', 'seed'),
 ('stand', 'Usage: stand\n\nStand up. You must be standing to walk or to start a fight. See\n`help positions`.', 'seed'),
 ('sit', 'Usage: sit\n\nSit down. See `help positions`.', 'seed'),
@@ -73,7 +73,7 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('wake', 'Usage: wake\n\nWake up from sleep. See `help positions`.', 'seed'),
 ('catchup', 'Usage: catchup\n\nReplays any game messages (says, fights, arrivals) that arrived while\nyou were in an editor -- they are held rather than interrupting your\nwork, and cleared once you read them (or automatically after five\nminutes). When you leave an editor you are told if anything is waiting.', 'seed'),
 ('wiznews', 'Usage: wiznews [lines-per-page]\n\nLevel 51+ only: the immortals'' news channel -- read like `news` (whole\nfeed, newest first, a page at a time), but for matters that concern\nimmortals. Post to it with `edwiznews`.', 'seed'),
-('edwiznews', 'Usage: edwiznews <headline>\n\nLevel 56+ only: post an item to the immortal news channel (read with\n`wiznews`). The words after the command are the headline; then type the\nstory into a line editor (`.` saves, `~` aborts, `/clear` wipes,\n`/format` reflows to width).', 'seed'),
+('edwiznews', 'Usage: edwiznews <headline>\n\nLevel 56+ only: post an item to the immortal news channel (read with\n`wiznews`). The words after the command are the headline; then type the\nstory into a line editor (`/s` saves, `/a` aborts, `/b` blanks,\n`/f` reflows to width).', 'seed'),
 ('socials', 'Usage: socials   |   <social> [target]\n\nSocials are emotes -- smile, nod, wave, laugh, bow, and more. Type\n`socials` to list them all, then use one on its own (`smile`) or aim it\nat someone in your room (`smile <name>`). Everyone in the room sees it.', 'seed'),
 ('wiznet', 'Usage: wiznet <message>   (shorthand: ;<message>)\n\nImmortals only: a private broadcast channel among the immortals. Your\nmessage reaches every online immortal (and yourself), out of sight of\nmortals. The `;` shorthand needs no space: `;hi` broadcasts "hi".', 'seed'),
 ('system', 'Usage: system <message>\n\nImmortals only: broadcast an atmosphere line to everyone in the game.\nPlayers read the bare message (e.g. "You hear a thud."); you see it\nprefixed with "system" as confirmation.', 'seed'),
@@ -179,15 +179,15 @@ UPDATE `help_topic` SET `body` = 'Usage: look\n\nShows the room you are in: its 
 
 -- Migration: every ed* line editor gained a `/format` reflow-to-width
 -- command alongside `.`/`~`/`/clear` (2026-07-06).
-UPDATE `help_topic` SET `body` = 'Usage: edrules <number> <title>\n\nAdministrator (59+) only: writes or rewrites a numbered game rule. Give\nthe rule number and a title, then type the rule text into the line\neditor (''.'' saves, ''~'' aborts, ''/clear'' wipes, ''/format'' reflows\nto width). Players read rules with the rules command.'
+UPDATE `help_topic` SET `body` = 'Usage: edrules <number> <title>\n\nAdministrator (59+) only: writes or rewrites a numbered game rule. Give\nthe rule number and a title, then type the rule text into the line\neditor (/s saves, /a aborts, /b blanks, /f reflows to width). Players\nread rules with the rules command.'
   WHERE `name` = 'edrules' AND `updated_by` = 'seed';
-UPDATE `help_topic` SET `body` = 'Usage: edhelp <topic>\n\nLevel 56+ only: edit (or create) a help topic in a line editor. Any\nexisting text is shown first; lines you type are appended. Finish\nwith a single `.` to save, `~` to abort, `/clear` to wipe the buffer\nand start over, or `/format` to reflow it to the display width.\nTopics are stored in the database and shown by `help <topic>`.'
+UPDATE `help_topic` SET `body` = 'Usage: edhelp <topic>\n\nLevel 56+ only: edit (or create) a help topic in a line editor. Any\nexisting text is shown first; lines you type are appended. Finish\nwith `/s` to save, `/a` to abort, `/b` to blank the buffer and start\nover, or `/f` to reflow it to the display width. Topics are stored in\nthe database and shown by `help <topic>`.'
   WHERE `name` = 'edhelp' AND `updated_by` = 'seed';
-UPDATE `help_topic` SET `body` = 'Usage: edroom [<vnum>]   (level 51+ builders)\n\nOpens the Sneezy-style menu-driven room builder for the room you are\nstanding in, or for <vnum> from anywhere. Edits are held in a working\ncopy -- nothing touches the DB until you Save.\n\n  1) Name          2) Description (. saves, ~ cancels, /clear wipes,\n                       /format reflows to width)\n  3) Flags         4) Sector Type\n  5) Exits         6) Max Capacity\n  7) Room Height\n\nExits: pick a direction, then set its Target vnum, Door type, and\nConditions; a missing target room is created on save and the reverse\nexit auto-fixed.\n\n  C) Clear room out (blanks it, exits included)\n  S) Save    Q) Quit (warns on unsaved changes)'
+UPDATE `help_topic` SET `body` = 'Usage: edroom [<vnum>]   (level 51+ builders)\n\nOpens the Sneezy-style menu-driven room builder for the room you are\nstanding in, or for <vnum> from anywhere. Edits are held in a working\ncopy -- nothing touches the DB until you Save.\n\n  1) Name          2) Description (/s saves, /a cancels, /b wipes,\n                       /f reflows to width)\n  3) Flags         4) Sector Type\n  5) Exits         6) Max Capacity\n  7) Room Height\n\nExits: pick a direction, then set its Target vnum, Door type, and\nConditions; a missing target room is created on save and the reverse\nexit auto-fixed.\n\n  C) Clear room out (blanks it, exits included)\n  S) Save    Q) Quit (warns on unsaved changes)'
   WHERE `name` = 'edroom' AND `updated_by` = 'seed';
-UPDATE `help_topic` SET `body` = 'Usage: ednews <headline>\n\nLevel 56+ only: post a news item. The words after the command are the\nheadline; you then type the story into a line editor (`.` saves, `~`\naborts, `/clear` wipes, `/format` reflows to width). Everyone can read\nit with the `news` command. Headlines must be unique.'
+UPDATE `help_topic` SET `body` = 'Usage: ednews <headline>\n\nLevel 56+ only: post a news item. The words after the command are the\nheadline; you then type the story into a line editor (`/s` saves, `/a`\naborts, `/b` blanks, `/f` reflows to width). Everyone can read it\nwith the `news` command. Headlines must be unique.'
   WHERE `name` = 'ednews' AND `updated_by` = 'seed';
-UPDATE `help_topic` SET `body` = 'Usage: edwiznews <headline>\n\nLevel 56+ only: post an item to the immortal news channel (read with\n`wiznews`). The words after the command are the headline; then type the\nstory into a line editor (`.` saves, `~` aborts, `/clear` wipes,\n`/format` reflows to width).'
+UPDATE `help_topic` SET `body` = 'Usage: edwiznews <headline>\n\nLevel 56+ only: post an item to the immortal news channel (read with\n`wiznews`). The words after the command are the headline; then type the\nstory into a line editor (`/s` saves, `/a` aborts, `/b` blanks,\n`/f` reflows to width).'
   WHERE `name` = 'edwiznews' AND `updated_by` = 'seed';
 
 -- Migration: exits now hides secret exits (2026-07-06, door mechanics).
@@ -202,15 +202,9 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('get', 'Usage: get <item>\n\nPicks up an item from the room floor and adds it to what you are\ncarrying. Fixed scenery can''t be taken this way. See `inventory` to\nsee what you''re carrying, `wear` to put something on.', 'seed'),
 ('drop', 'Usage: drop <item>\n\nPuts down a carried item on the floor of the room you''re in. Only\nworks on loose carried items -- `remove` a worn or held item first.', 'seed'),
 ('inventory', 'Usage: inventory\n\nLists everything you are carrying loose (not worn or held -- see\n`equipment` for that).', 'seed'),
-('equipment', 'Usage: equipment\n\nLists everything you are wearing and holding, by body part.', 'seed'),
-('wear', 'Usage: wear <item>\n\nPuts on or wields a carried item, moving it from your inventory to\nthe right spot on your body (or into your hand, for a weapon or\nsimilar). Refuses if you''re already wearing something there, or if\nthe item can''t be worn at all.', 'seed'),
-('remove', 'Usage: remove <item>\n\nTakes off a worn item or lays down a held one, returning it to your\ncarried inventory.', 'seed'),
-('oload', 'Usage: oload <vnum>\n\nBuilder tool (level 51+): spawns a copy of the object prototype\nnumbered <vnum> into the room you''re standing in. There''s no automatic\nworld respawn yet, so an object placed this way is gone if the server\nrestarts -- only what players are actually carrying survives that.', 'seed')
-ON DUPLICATE KEY UPDATE `name` = `name`;
-
--- New topic: mobiles (Phase 2D, 2026-07-07).
-INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
-('mload', 'Usage: mload <vnum>\n\nBuilder tool (level 51+): spawns a copy of the mobile prototype\nnumbered <vnum> into the room you''re standing in. Mobiles fight back\nif attacked but otherwise never act on their own. There''s no automatic\nworld respawn yet, so a mobile placed this way is gone -- for good, if\nkilled, or lost entirely -- if the server restarts.', 'seed')
+('equipment', 'Usage: equipment\n\nLists everything you are wearing and holding, by body part, plus your\nprimary and secondary hold. Genitalia isn''t listed here -- it can''t be\nworn (see `help limbs`).', 'seed'),
+('wear', 'Usage: wear <item>\n\nPuts on a carried item into its body slot (head, body, legs, and so\non). Refuses if you''re already wearing something there, or if the\nitem isn''t wearable there at all -- a holdable item (weapon or\notherwise) isn''t worn this way; see `hold`/`wield` instead.', 'seed'),
+('remove', 'Usage: remove <item>\n\nTakes off a worn item or lays down a held one, returning it to your\ncarried inventory.', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- Migration: attack/kill/look now also reach mobiles (Phase 2D, 2026-07-07).
@@ -221,12 +215,6 @@ UPDATE `help_topic` SET `body` = 'Usage: kill <player or mobile>   (alias: attac
 UPDATE `help_topic` SET `body` = 'Usage: look [player or mobile]\n\nShows the room you are in: its name, description, obvious exits, and\neveryone (and everything) standing there with you. You also look\nautomatically whenever you enter the world. `look <name>` describes\nanother player or a mobile in the room (their appearance/description).\nImmortals additionally see the room''s vnum, sector type, and flags in\nthe header line.'
   WHERE `name` = 'look' AND `updated_by` = 'seed';
 
--- Migration: oload/mload accept a name (not just a vnum); look now also
--- reaches objects, on the room floor or in your own inventory (2026-07-07).
-UPDATE `help_topic` SET `body` = 'Usage: oload <vnum|name>\n\nBuilder tool (level 51+): spawns a copy of an object prototype into\nthe room you''re standing in. Give an exact vnum, or a name/keyword\n(`oload sword` loads the first object whose name contains "sword").\nThere''s no automatic world respawn yet, so an object placed this way\nis gone if the server restarts -- only what players are actually\ncarrying survives that.'
-  WHERE `name` = 'oload' AND `updated_by` = 'seed';
-UPDATE `help_topic` SET `body` = 'Usage: mload <vnum|name>\n\nBuilder tool (level 51+): spawns a copy of a mobile prototype into\nthe room you''re standing in. Give an exact vnum, or a name/keyword\n(`mload demon` loads the first mobile whose name contains "demon").\nMobiles fight back if attacked but otherwise never act on their own.\nThere''s no automatic world respawn yet, so a mobile placed this way\nis gone -- for good, if killed, or lost entirely -- if the server\nrestarts.'
-  WHERE `name` = 'mload' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Usage: look [player, mobile, or item]\n\nShows the room you are in: its name, description, obvious exits, and\neveryone (and everything) standing there with you. You also look\nautomatically whenever you enter the world. `look <name>` describes\nanother player or a mobile in the room (their appearance/description),\nor an item -- on the room floor or in your own inventory/equipment --\nshowing its description and, if it has one, its condition. Immortals\nadditionally see the room''s vnum, sector type, and flags in the header\nline.'
   WHERE `name` = 'look' AND `updated_by` = 'seed';
 
@@ -256,3 +244,65 @@ UPDATE `help_topic` SET `body` = 'Usage: open <direction|container>\n\nOpens a c
   WHERE `name` = 'open' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Usage: close <direction|container>\n\nCloses a door blocking that exit, or a closeable container you''re\ncarrying or that''s on the floor. A closed door blocks movement; a\nclosed container keeps its contents sealed until someone opens it\nagain with `open`.'
   WHERE `name` = 'close' AND `updated_by` = 'seed';
+
+-- Merge oload/mload into `load` (user 2026-07-09: one command, category as
+-- the first argument). Remove the two orphaned topics from any earlier
+-- deploy, then seed the merged one. Also sweeping up 'redit'/'hedit' --
+-- pre-ed*-rename topic names (now `edroom`/`edhelp`) that were never
+-- deleted and still carried stale legacy editor-key text ('.'/'~'/
+-- '/clear'/'/format', removed Session 32) -- found while chasing the
+-- same staleness in edrules/ednews/edwiznews/edhelp/edroom above.
+DELETE FROM `help_topic` WHERE `name` IN ('oload', 'mload', 'redit', 'hedit');
+
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('load', 'Usage: load <mob|obj> <vnum|name>\n\nBuilder tool (level 51+): spawns a copy of a mob or object prototype\ninto the room you''re standing in -- replaces the old separate oload/\nmload commands. Give the category (mob or obj -- a single letter M/O\nworks too) then an exact vnum, or a name/keyword (`load obj sword`\nloads the first object whose name contains "sword"; `load mob demon`\nthe first mobile whose name contains "demon"). There''s no automatic\nworld respawn yet, so anything placed this way is gone if the server\nrestarts -- only what players are actually carrying survives that.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- New topics: hold/wield/switch (user 2026-07-09: split from the old
+-- unified wear-onto-a-hand behavior).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('hold', 'Usage: hold <item>\n\nHolds a carried non-weapon item in a free hand (a torch, a shield, and\nthe like). Refuses a weapon -- those must be `wield`ed instead -- and\nrefuses anything that isn''t holdable at all. See `switch` to swap\nhands, and `equipment` to see what''s in each.', 'seed'),
+('wield', 'Usage: wield <item>\n\nWields a carried weapon in a free hand. Refuses anything that isn''t a\nweapon -- a non-weapon holdable uses `hold` instead. See `switch` to\nswap hands, and `equipment` to see what''s in each.', 'seed'),
+('switch', 'Usage: switch\n\nSwaps whatever is in your primary and secondary hold -- no need to\n`remove` either one first. Handy for bringing a second weapon or tool\nto the front without letting go of anything.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Migration (2026-07-09): `help color` now lists every tag itself instead
+-- of only pointing at the separate `colors` topic, and both `color` and
+-- `who` mention that a title can use <N>/<n> name substitution (titles
+-- shown in `who` can use both tricks).
+UPDATE `help_topic` SET `body` = 'Usage: color [on|off]\n\nToggles ANSI color rendering for your connection. With no argument,\nshows the current setting. Your choice is remembered on your account --\nyou are asked once when the account is created, and `color on|off`\nupdates it for next time.\n\nTags: <r> red  <R> bright red  <g> green  <G> bright green  <b> blue\n<B> bright blue  <y> yellow  <Y> bright yellow  <p> purple\n<P> bright purple  <c> cyan  <C> bright cyan  <w> white  <W> bright\nwhite  <k> grey  <z> reset -- wrap text in <x>...<z> and always close\nwith <z>. A title (see `help title`) can also use <N> or <n> anywhere\nto insert your own name.'
+  WHERE `name` = 'color' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: who [name|immortals|mortals]\n\nLists everyone currently playing, with their level (or immortal rank\ntitle) shown in brackets before their name and any personal title after\nit. With an argument, filters the list: `who imm` shows only immortals,\n`who mort` only mortals, and any other word matches part of a name.\n\nA personal title (see `help title`) can use color tags (`help colors`)\nand <N>/<n> to insert your own name anywhere in the text.'
+  WHERE `name` = 'who' AND `updated_by` = 'seed';
+
+-- New topic: `hit` (2026-07-09) -- real combat for anyone, even immortals.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('hit', 'Usage: hit <player>\n\nStarts a real fight through the normal multi-round combat process --\nfor anyone, including immortals. Unlike kill/attack (an instant slay for\nan immortal), hit always resolves in rounds, every hit landing on a\nspecific limb, so an immortal can use it to actually fight something\ninstead of instakilling it.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `zonereset`/`zoneassign` merged into `zone`/`edzone` (2026-07-10) --
+-- remove the superseded topics from any earlier deploy.
+DELETE FROM `help_topic` WHERE `name` IN ('zonereset', 'zoneassign');
+
+-- New topics: `zone` and `edzone` (2026-07-10) -- Zones Part 2 + identity.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('zone', 'Usage: zone reset <zone number>\n       zone list\n\nBuilder tool (level 51+). `zone reset` force-runs a zone''s reset right\nnow, exactly like its periodic timer would -- loads any mobs/objects\nstill under their per-room cap, equips/gives them items, sets doors.\nEvery zone also resets automatically: once (in full) whenever the\nserver starts, then periodically after that on its own lifespan.\n`zone list` shows every zone with its name, enabled state, lifespan,\nand assigned builders. For editing a zone''s own properties or\nassigning builders, see `edzone`.', 'seed'),
+('edzone', 'Usage: edzone <zone number>\n\nMenu-driven zone editor (level 51+, but see below): change a zone''s\nname, enabled state, lifespan, and vnum range; assign or un-assign\nbuilders (selecting a builder already assigned un-assigns them); or\nforce a reset right now. A level 51-54 builder can only edzone (or\nedroom) a zone they are assigned to -- editing any other zone is\nrefused. 55+ can always edit anything, and content outside any zone is\nunrestricted for every builder.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- New topic: `time` (2026-07-10) -- the day/date system.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('time', 'Usage: time\n\nShows the current mud clock, the day of the week, and the date --\n"It is 3:45 PM, on Wednesday" / "The 5th day of March, Year 1." The\nclock advances on its own as real time passes; noon, midnight, and the\nturn of a new month or year are announced to everyone.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- The `time` body changed (personal time-zone offset added, 2026-07-10) --
+-- the INSERT above is a no-op on the already-seeded row, so update it
+-- explicitly.
+UPDATE `help_topic` SET `body` = 'Usage: time\n       time <difference>\n\nShows the current mud clock, the day of the week, and the date --\n"It is 3:45 PM, on Wednesday" / "The 5th day of March, Year 1." The\nclock advances on its own as real time passes; noon, midnight, and the\nturn of a new month or year are announced to everyone. A second line\nshows the real-world time where you are, based on the time-zone offset\nyou chose at account creation (hours difference from the server''s own\nEastern clock) -- `time <difference>` changes that offset later.'
+  WHERE `name` = 'time';
+
+-- The `catchup` body changed (now also covers pagination, and is
+-- mortal-level, 2026-07-10) -- the INSERT above is a no-op on the
+-- already-seeded row, so update it explicitly.
+UPDATE `help_topic` SET `body` = 'Usage: catchup\n\nReplays any game messages (says, fights, arrivals) that arrived while\nyou were in an editor, or mid-way through reading a long, paginated\nlisting (like `news`) -- they are held rather than interrupting your\nwork, and cleared once you read them (or automatically after five\nminutes). You are told if anything is waiting once you finish.'
+  WHERE `name` = 'catchup';

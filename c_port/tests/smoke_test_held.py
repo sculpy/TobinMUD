@@ -6,6 +6,12 @@ reviewed with `catchup`.
   1. A player in the edroom editor does not receive a roommate's `say`.
   2. On leaving the editor they're told messages arrived.
   3. `catchup` replays them, then reports nothing left.
+  4/5. Same coverage for `edplayer` and `edzone` (Session 43 bug: these
+     were never actually wired into the hold check -- descriptor_in_editor()
+     only recognized the CONN_REDIT_* range, so a say landed on someone
+     mid-edplayer/edzone anyway, despite descriptor_notify() being called
+     correctly everywhere. User: "when in the editors, no messages to
+     interrupt, no logs, no output at all. thats what catchup is for.").
 
     python3 tests/smoke_test_held.py [host] [port]
 """
@@ -142,6 +148,47 @@ check("must not see yet" in out and "says" in out, "catchup replays the held say
 check("[LOG]" not in out, "log lines are NOT held (they live in the log command)")
 check("haven't missed anything" in cmd(A, "catchup"), "catchup is empty after reading")
 
+# --- 4/5: same coverage for edplayer and edzone (the actual Session 43 bug) ---
+nameC, nameD = f"Heldc{_suffix}", f"Heldd{_suffix}"
+C = make_immortal(nameC)
+D = make_immortal(nameD)
+sql(f"UPDATE player_progress SET level=58 WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{nameC}');")  # EDPLAYER_MIN_LEVEL
+cmd(C, "quit!")  # not an abrupt close -- avoids linkdead-resume overriding the fresh load
+C.close()
+C = socket.create_connection((host, port), timeout=5)
+recv_all(C)
+for step in (nameC, "heldpw", "1"):
+    send_line(C, step); recv_all(C)
+cmd(C, "color off"); cmd(D, "color off")
+cmd(C, f"goto {BASE}"); cmd(D, f"goto {BASE}")
+recv_all(C); recv_all(D)
+
+# 4: edplayer
+check("Editing player:" in cmd(C, f"edplayer {nameD}"), "C is in the edplayer editor")
+cmd(D, "say should be held during edplayer too")
+leaked = recv_all(C, 0.5)
+check("says" not in leaked, "C gets nothing while mid-edplayer (was the actual bug)")
+out = cmd(C, "Q")
+check("arrived while you were editing" in out, "on exit C is told messages arrived (edplayer)")
+out = cmd(C, "catchup")
+check("should be held during edplayer too" in out, "catchup replays the held say (edplayer)")
+
+# 5: edzone
+ZONE = 90000 + (int(time.time()) % 9000)
+sql(f"INSERT INTO zone (zone_nr,zone_name,zone_enabled,bottom,top,reset_mode,lifespan,age,util_flag) "
+    f"VALUES ({ZONE},'Held Zone Sandbox',1,{BASE},{BASE},2,999999,0,0);")
+check("Editing zone:" in cmd(C, f"edzone {ZONE}"), "C is in the edzone editor")
+cmd(D, "say should be held during edzone too")
+leaked = recv_all(C, 0.5)
+check("says" not in leaked, "C gets nothing while mid-edzone (was the actual bug)")
+out = cmd(C, "Q")
+check("arrived while you were editing" in out, "on exit C is told messages arrived (edzone)")
+out = cmd(C, "catchup")
+check("should be held during edzone too" in out, "catchup replays the held say (edzone)")
+
 A.close()
+C.close()
+D.close()
 announce_done("smoke_test_held")
 print("=== ALL CHECKS PASSED ===")

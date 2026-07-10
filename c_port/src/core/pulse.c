@@ -4,7 +4,10 @@
  *******************************************************************/
 #include "pulse.h"
 
-#define MAX_PULSE_PROCESSES 8
+#include "log.h"
+
+#define MAX_PULSE_PROCESSES 16 /* was 8 -- bumped Session 43 when gametime_tick
+                                  filled the last slot. */
 
 typedef struct {
     int trigger_pulse;
@@ -15,7 +18,15 @@ static pulse_process_t g_processes[MAX_PULSE_PROCESSES];
 static int g_process_count = 0;
 
 void pulse_register(int trigger_pulse, pulse_fn_t fn) {
-    if (g_process_count >= MAX_PULSE_PROCESSES || trigger_pulse <= 0 || !fn)
+    if (g_process_count >= MAX_PULSE_PROCESSES) {
+        /* Previously a silent no-op -- a registration past the cap would
+         * just vanish with no error, discovered the hard way once
+         * gametime_tick filled the 8th of 8 slots. Now at least logged. */
+        log_error("pulse_register: MAX_PULSE_PROCESSES (%d) exceeded, dropping a registration.",
+                  MAX_PULSE_PROCESSES);
+        return;
+    }
+    if (trigger_pulse <= 0 || !fn)
         return;
     g_processes[g_process_count].trigger_pulse = trigger_pulse;
     g_processes[g_process_count].fn = fn;

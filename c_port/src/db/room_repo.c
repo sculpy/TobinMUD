@@ -58,6 +58,21 @@ bool room_repo_exists(int vnum) {
     return found;
 }
 
+int room_repo_get_zone(int vnum) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+    int zone = -1;
+    if (db_query(db, "select zone from room where vnum=%i", vnum) && db_fetch_row(db)) {
+        const char *raw = db_get(db, "zone");
+        if (raw[0]) /* db_get() returns "" for a NULL column -- distinguish
+                       an unzoned room from a legitimate zone_nr of 0 */
+            zone = atoi(raw);
+    }
+    db_close(db);
+    return zone;
+}
+
 bool room_repo_save(const room_t *r) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

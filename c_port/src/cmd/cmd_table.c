@@ -61,6 +61,8 @@ static const cmd_entry_t COMMANDS[] = {
      * instakill for immortals, both normal combat for mortals. */
     { "attack",  cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
     { "kill",    cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
+    { "hurtlimb", cmd_hurtlimb, "Debug: set a target's limb HP directly (hurtlimb <target> <limb> <hp>).", IMMORTAL_LEVEL_MIN },
+    { "hit",     cmd_hit,     "Attack a player or mobile via real combat, even for immortals (never instakill).", MORTAL_LEVEL_MIN },
     { "flee",    cmd_flee,    "Try to escape a fight through a random exit.",        MORTAL_LEVEL_MIN },
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
     /* Positions. Prefix notes: "s"=south; "sa"=say, "sc"=score, "se/sw"=
@@ -77,9 +79,11 @@ static const cmd_entry_t COMMANDS[] = {
     { "mudstats", cmd_mudstats, "Show basic statistics about the game world.",       MORTAL_LEVEL_MIN },
     /* "mud"->mudstats, "mul"->multiplay. */
     { "multiplay", cmd_multiplay, "Toggle whether mortals may multiplay (59+).",      MULTIPLAY_MIN_LEVEL },
-    /* "c"/"co" reach color/copyover; "cat"+ reaches catchup. Immortal-only:
-     * only immortals use editors, so only they ever hold messages. */
-    { "catchup", cmd_catchup, "Replay game messages missed while editing.",         IMMORTAL_LEVEL_MIN },
+    /* "c"/"co" reach color/copyover; "cat"+ reaches catchup. Mortal-level:
+     * the pager (e.g. `news`) holds messages for anyone, not just
+     * immortals mid-editor, so anyone can be left with something to
+     * catch up on. */
+    { "catchup", cmd_catchup, "Replay game messages missed while editing or paging.", MORTAL_LEVEL_MIN },
     /* Immortal news channel. "wizh"->wizhelp, "wizn"->wiznews. "edw"->edwiznews. */
     { "wiznews", cmd_wiznews, "Read the immortal news channel.",                     IMMORTAL_LEVEL_MIN },
     { "edwiznews", cmd_edwiznews, "Post immortal news (headline + story).",          ADDNEWS_MIN_LEVEL },
@@ -101,7 +105,16 @@ static const cmd_entry_t COMMANDS[] = {
      * for what they can use. */
     { "wizhelp", cmd_wizhelp, "List immortal-only commands.",                       IMMORTAL_LEVEL_MIN },
     { "goto",    cmd_goto,    "Teleport to a room by vnum.",                        IMMORTAL_LEVEL_MIN },
-    /* "l" look, "li" limbs, "lo" look, "loa"+ loadroom, "log" log. */
+    /* "l" look, "li" limbs, "lo" look, "log" log. Table-order gotcha (same
+     * precedent as set/setsev, STATUS.md): "load" is itself a full prefix
+     * of "loadroom", so it MUST sit before loadroom and wins every shared
+     * abbreviation up to and including the exact word "load" -- loadroom
+     * now needs "loadr"+ (5 letters) to reach, not "loa" (was 3). Replaces
+     * the old separate mload/oload commands (user 2026-07-09: one command,
+     * category as the first argument). Immortal builder tool, same tier as
+     * edroom/goto: no zone-reset system executing yet, so a room-floor
+     * object/mob placed this way doesn't survive a restart. */
+    { "load",    cmd_load,    "Spawn a mob or object prototype into your room (load <mob|obj> <vnum|name>).", BUILD_MIN_LEVEL },
     { "loadroom", cmd_loadroom, "Set the room your character logs in at.",          IMMORTAL_LEVEL_MIN },
     /* Objects (Phase 2C). Placed after "goto" (above) so an immortal's bare
      * "g" still reaches goto first -- "get" only wins "g" for mortals, who
@@ -116,21 +129,28 @@ static const cmd_entry_t COMMANDS[] = {
     { "inventory", cmd_inventory, "List what you're carrying.",                    MORTAL_LEVEL_MIN },
     /* "eq" doesn't collide with anything ('east' only owns "ea..."). */
     { "equipment", cmd_equipment, "List what you're wearing and holding.",         MORTAL_LEVEL_MIN },
-    /* "we" already reaches "west" (movement, above) -- "wear" needs "wea". */
-    { "wear",    cmd_wear,    "Put on or wield a carried item (wear <item>).",     MORTAL_LEVEL_MIN },
+    /* "we" already reaches "west" (movement, above) -- "wear" needs "wea".
+     * Body-slot items only as of the hold/wield split below (user
+     * 2026-07-09) -- a holdable item now refuses `wear` with a pointer to
+     * whichever of hold/wield actually applies. */
+    { "wear",    cmd_wear,    "Put on a carried item's body slot (wear <item>).",  MORTAL_LEVEL_MIN },
+    /* "h" already reaches "help" (above) -- "hold" needs "ho". Non-weapon
+     * holdables only; a weapon refuses hold and points to wield. */
+    { "hold",    cmd_hold,    "Hold a non-weapon item in a free hand (hold <item>).", MORTAL_LEVEL_MIN },
+    /* "wi" already reaches "wiznews" (above, table order) -- "wield" needs
+     * "wie". Weapons only; a non-weapon refuses wield and points to hold. */
+    { "wield",   cmd_wield,   "Wield a weapon in a free hand (wield <item>).",     MORTAL_LEVEL_MIN },
+    /* "sw" is already southwest's own alias (above) -- "switch" needs "swi". */
+    { "switch",  cmd_switch,  "Swap what's in your primary and secondary hold.",   MORTAL_LEVEL_MIN },
     /* "re" already reaches "rest" (above) -- "remove" needs "rem". */
     { "remove",  cmd_remove,  "Take off a worn or held item (remove <item>).",     MORTAL_LEVEL_MIN },
-    /* "o" is already "open"'s (above) -- "oload" needs "ol". Immortal
-     * builder tool, same tier as edroom/goto: no zone-reset system yet, so
-     * a room-floor object placed this way doesn't survive a restart. */
-    { "oload",   cmd_oload,   "Spawn an object prototype into your room (oload <vnum>).", BUILD_MIN_LEVEL },
-    /* "ml" doesn't collide with mudstats/multiplay ("mu") or mortal ("mo"). */
-    { "mload",   cmd_mload,   "Spawn a mobile prototype into your room (mload <vnum>).", BUILD_MIN_LEVEL },
     { "vnum",    cmd_vnum,    "List vnums of rooms/objs/mobs by name (vnum <room|obj|mob> <pat>).", BUILD_MIN_LEVEL },
+    { "zone",    cmd_zone,    "zone reset <zone>, or zone assign <zone> <bottom> <top> <builder> (55+).", BUILD_MIN_LEVEL },
     /* "p"/"pr"/"pro" reach prompt; "prom"+ reaches promote. */
     { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp).",                 MORTAL_LEVEL_MIN },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
     { "edplayer", cmd_edplayer, "Edit a player's level/xp/hp/attrs/gender/title/location.", EDPLAYER_MIN_LEVEL },
+    { "time",    cmd_time,    "Show the current mud clock, weekday, and date.",     MORTAL_LEVEL_MIN },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
     { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
@@ -143,6 +163,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "delbug",  cmd_delbug,  "Delete a handled bug report by id.",                 DELBUG_MIN_LEVEL },
     /* "log" needs its three letters ("l" look, "li" limbs, "lo" look). */
     { "edroom",  cmd_edit,    "Edit a room -- the one you're in, or edroom <vnum>.", BUILD_MIN_LEVEL },
+    { "edzone",  cmd_edzone,  "Edit a zone's properties/builders (edzone <zone number>).", BUILD_MIN_LEVEL },
     { "log",     cmd_log,     "Read, search, list, or rotate the game logs.",       LOG_MIN_LEVEL },
     /* "se" is already an explicit southeast alias (above). "set" must come
      * BEFORE "setsev" here -- both start with "set", and first match in
@@ -171,6 +192,22 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
         line++;
     if (!*line)
         return true;
+
+    /* `@set ...` (Session 43, TODO) -- a leading `@` isn't a command of its
+     * own (no `@`-anything system is planned), just a habit some players
+     * type before `set`. Unlike the `'`/`;` shortcuts below (which replace
+     * a single character with a whole hardcoded verb, since the real verb
+     * never appears), the real verb already follows the `@` here, so this
+     * is a plain strip-and-fall-through into the normal parse below rather
+     * than a hardcoded alias -- harmlessly covers any other stray leading
+     * `@` too, not just `@set`. */
+    if (*line == '@') {
+        line++;
+        while (*line == ' ')
+            line++;
+        if (!*line)
+            return true;
+    }
 
     char verb[32];
     const char *args;

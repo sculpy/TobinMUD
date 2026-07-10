@@ -9,6 +9,8 @@
 #include <stdlib.h>
 
 #include "room.h"
+#include "room_repo.h"
+#include "zone.h"
 
 /* `redit [<vnum>]` -- opens the menu-driven room builder. With a leading
  * room number it edits that room from anywhere (like goto, but for editing);
@@ -38,6 +40,14 @@ bool cmd_edit(descriptor_t *d, const char *args) {
             return true;
         }
         vnum = here->vnum;
+    }
+
+    /* Zone identity (Session 43): a builder (51-54) can only edit a room
+     * in a zone they're assigned to (zoneassign, 55+ only); 55+ edits
+     * anything. Unzoned rooms (no `room.zone`) are unrestricted. */
+    if (!zone_can_edit(d->character, room_repo_get_zone(vnum))) {
+        descriptor_send(d, "You aren't assigned to that zone.\r\n");
+        return true;
     }
 
     if (!descriptor_redit_begin(d, vnum)) {

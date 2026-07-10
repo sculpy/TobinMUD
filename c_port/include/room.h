@@ -52,6 +52,19 @@ const char *room_flag_names(int flags, char *buf, size_t size);
 int room_flag_count(void);
 const char *room_flag_name(int bit);
 
+/* Bit 3 of ROOM_FLAG_NAMES (room.c) -- matches the upstream ROOM_INDOORS
+ * bit position verbatim. Named here since room_ground_type() needs to test
+ * it directly, not just display it. */
+#define ROOM_FLAG_INDOORS (1 << 3)
+
+/* Sector-based ground-surface word (Sneezy's TRoom::describeGroundType(),
+ * misc/create_rooms.cc) -- "street", "road", "water", "mud", "sand",
+ * "floor" (indoors), or "ground" (default). Backs the `$$g`/`$g` token in
+ * object descriptions (see obj_apply_ground_token(), obj.h). Simplified
+ * from the original: no weather-prefix component ("snow-covered ground",
+ * "rain-slick street", ...) -- Tobin has no weather system yet. */
+const char *room_ground_type(const struct room *r);
+
 /* Exit door types (original doorTypeT, misc/room.h) -- None/Door/Trapdoor/
  * ... Chosen when editing a room exit. */
 #define MAX_DOOR_TYPES 11

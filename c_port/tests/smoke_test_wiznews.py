@@ -150,6 +150,14 @@ check("immortals'' news channel".replace("''", "'") in cmd(s, "help wiznews")
       "help wiznews describes the channel")
 
 set_level(name, 1)
+
+# Clean up the item this run posted -- otherwise repeated runs pile up
+# wiznews entries and eventually push the seeded item off the display's
+# most-recent window (same fix as smoke_test_news.py).
+subprocess.run(["mariadb", "sneezy", "-e",
+                f"DELETE FROM wiznews WHERE title = '{headline}';"],
+               check=True)
+
 s.close()
 announce_done("smoke_test_wiznews")
 print("=== ALL CHECKS PASSED ===")

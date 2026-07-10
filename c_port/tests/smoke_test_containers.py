@@ -165,9 +165,9 @@ obj_insert(LIGHT, "feather", "a light feather", "A light feather is lying here."
 check("Container Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the sandbox room")
 
 # --- 1: a closed container reads as closed and blocks access ---
-cmd(s, f"oload {CHEST}")
+cmd(s, f"load obj {CHEST}")
 check("It is closed." in cmd(s, "look chest"), "look on a closed container says it is closed")
-cmd(s, f"oload {GEM}")
+cmd(s, f"load obj {GEM}")
 check("You get" in cmd(s, "get gem"), "pick up the gem")
 check("It's closed." in cmd(s, "put gem chest"), "put into a closed container is refused")
 
@@ -183,15 +183,15 @@ check("You get" in cmd(s, "get gem chest"), "get the gem back out of the chest")
 check("gem" in cmd(s, "inventory"), "the gem is loose in inventory again")
 
 # --- 4: not-a-container / self refusals ---
-cmd(s, f"oload {COIN}")
+cmd(s, f"load obj {COIN}")
 cmd(s, "get coin")
 check("not a container" in cmd(s, "put coin gem"), "put into a non-container is refused")
 
 # --- 5: weight capacity on a carried container ---
-cmd(s, f"oload {BAG}"); cmd(s, "get bag")
-cmd(s, f"oload {HEAVY}"); cmd(s, "get anvil")
+cmd(s, f"load obj {BAG}"); cmd(s, "get bag")
+cmd(s, f"load obj {HEAVY}"); cmd(s, "get anvil")
 check("won't fit" in cmd(s, "put anvil bag"), "an over-capacity item won't fit")
-cmd(s, f"oload {LIGHT}"); cmd(s, "get feather")
+cmd(s, f"load obj {LIGHT}"); cmd(s, "get feather")
 check("You put" in cmd(s, "put feather bag"), "a light item fits within capacity")
 check("feather" in cmd(s, "look bag"), "look lists the feather inside the carried bag")
 

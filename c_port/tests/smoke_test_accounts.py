@@ -112,7 +112,9 @@ check("do not match" in out, "a mismatched confirmation re-prompts for the passw
 step(s, "password again", password)
 out = step(s, "confirm password -> color prompt", password)
 check("color" in out.lower(), "a new account is asked about color after the password")
-out = step(s, "answer color prompt -> account menu", "y")
+out = step(s, "answer color prompt -> time zone prompt", "y")
+check("time zone" in out.lower(), "a new account is asked about a time zone after color")
+out = step(s, "answer time zone prompt -> account menu", "")
 check("(none yet)" in out, "brand-new account starts with an empty character list")
 
 step(s, "choose 'new'", "new")

@@ -14,11 +14,19 @@
 static const char *state_name(const descriptor_t *d) {
     if (d->state == CONN_PLAYING && d->edit_kind != EDIT_NONE)
         return "playing (in editor)";
+    if (d->state >= CONN_REDIT_MENU && d->state <= CONN_REDIT_QUIT_CONFIRM)
+        return "playing (in edroom)";
+    if (d->state >= CONN_EDPLAYER_MENU && d->state <= CONN_EDPLAYER_QUIT_CONFIRM)
+        return "playing (in edplayer)";
+    if (d->state >= CONN_EDZONE_MENU && d->state <= CONN_EDZONE_QUIT_CONFIRM)
+        return "playing (in edzone)";
     switch (d->state) {
         case CONN_GET_ACCOUNT_NAME:   return "at login (account name)";
         case CONN_GET_PASSWORD:       return "at login (password)";
         case CONN_GET_NEW_PASSWORD:   return "at login (new password)";
         case CONN_CONFIRM_PASSWORD:  return "at login (confirming password)";
+        case CONN_GET_COLOR_PREF:    return "at login (color preference)";
+        case CONN_GET_TIMEZONE:      return "at login (time zone)";
         case CONN_ACCOUNT_MENU:       return "at the account menu";
         case CONN_CHAR_CREATE_NAME:   return "creating (name)";
         case CONN_CHAR_CREATE_ATTRS:  return "creating (attributes)";
