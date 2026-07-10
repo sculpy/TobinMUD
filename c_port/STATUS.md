@@ -1,5 +1,20 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-10 — Session 43 continued (home): `test` command
+(58+, shows the currently-running smoke test).
+- Existing `@test`/`@test done` loopback hook (descriptor.c) was
+  fire-and-forget; added `log_test_set_running()`/`_clear_running()`/
+  `_current_name()` (log.h/log.c) so it now persists the name, plus a
+  new `test` command that prints it. `tests/smoke_test_test_cmd.py` (3
+  checks).
+
+Last updated: 2026-07-10 — Session 43 continued (home): pushed the whole
+session to sculpy/NewMUD (commit 90e09b0), then `idea`/`delidea` command.
+- **`idea`/`delidea`**: direct mirror of `bug`/`delbug` -- new `idea`
+  table, `idea_repo.{h,c}`, `cmd_idea.c`, `LOG_IDEA` log type (added to
+  `cmd_setsev.c`'s toggle list too). `tests/smoke_test_idea.py` (9
+  checks, all passing).
+
 Last updated: 2026-07-10 — Session 43 continued (home): pre-push sweep
 found a real regression + a pre-existing stale test, both fixed.
 - **Regression**: the personal time-zone-offset account-creation prompt

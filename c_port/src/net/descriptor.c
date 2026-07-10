@@ -1275,10 +1275,13 @@ static bool handle_line(descriptor_t *d, const char *line) {
     if (strncmp(line, "@test ", 6) == 0
         && (strcmp(d->ip, "127.0.0.1") == 0 || strcmp(d->ip, "::1") == 0)) {
         const char *arg = line + 6;
-        if (strncmp(arg, "done ", 5) == 0)
+        if (strncmp(arg, "done ", 5) == 0) {
             game_log(LOG_TEST, "finished %s", arg + 5);
-        else
+            log_test_clear_running();
+        } else {
             game_log(LOG_TEST, "running %s", arg);
+            log_test_set_running(arg);
+        }
         descriptor_send(d, "ok\r\n");
         return true;
     }

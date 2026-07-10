@@ -17,6 +17,20 @@
 static FILE *g_log_file = NULL;
 static char g_log_path[LOG_PATH_MAX] = "";
 
+static char g_current_test[128] = "";
+
+void log_test_set_running(const char *name) {
+    snprintf(g_current_test, sizeof(g_current_test), "%s", name ? name : "");
+}
+
+void log_test_clear_running(void) {
+    g_current_test[0] = '\0';
+}
+
+const char *log_test_current_name(void) {
+    return g_current_test;
+}
+
 /* Deletes any *.log in LOG_DIR not modified within LOG_RETENTION_DAYS days --
  * so we keep three weeks of daily logs and no more. Called at each open. */
 static void log_prune_old(void) {
@@ -84,6 +98,7 @@ const char *log_type_name(log_type_t type) {
         case LOG_PIO:    return "PIO";
         case LOG_COMBAT: return "COMBAT";
         case LOG_BUG:    return "BUG";
+        case LOG_IDEA:   return "IDEA";
         case LOG_DB:     return "DB";
         case LOG_EDIT:   return "EDIT";
         case LOG_JESUS:  return "JESUS";

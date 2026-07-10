@@ -133,3 +133,12 @@ INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Three Look Bugs, One Test Mob',
  'Chased down three real look bugs, all on the seeded dirty refuse hauler (vnum 33271): its short_desc starts with a color tag, which was defeating capitalization (the code was uppercasing the tag''s bracket instead of the real first letter); look <mob> was showing the raw keyword-match list instead of the short_desc ("You look at man dirty refuse hauler" instead of "a dirty refuse hauler"); and its real description (over a thousand characters) was silently cut off mid-sentence, because the buffer was sized for a player''s much shorter appearance text, not a mob''s. All three fixed -- builders, keep an eye out for other content with leading color tags in short_desc, since that''s what exposed the capitalization bug.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Ideas Welcome',
+ 'Players can now file feature requests with idea, the same shape as bug: your name and the date go with it, and immortals list outstanding ones with a bare idea and clear a handled one with delidea <id>. Filings show up as a typed [IDEA] log, and idea has its own setsev toggle if you want to opt out of seeing them live.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Know What''s Running', 'A new test command (58+) shows the name of whatever smoke test is currently running against this server, straight from the same @test hook that already logs it -- handy when watching a sweep from in-game instead of the console.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

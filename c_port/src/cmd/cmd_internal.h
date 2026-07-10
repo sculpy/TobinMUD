@@ -55,6 +55,9 @@ bool cmd_toggle(descriptor_t *d, const char *args);
 bool cmd_exec(descriptor_t *d, const char *args);
 bool cmd_bug(descriptor_t *d, const char *args);
 bool cmd_delbug(descriptor_t *d, const char *args);
+bool cmd_idea(descriptor_t *d, const char *args);
+bool cmd_delidea(descriptor_t *d, const char *args);
+bool cmd_test(descriptor_t *d, const char *args);
 bool cmd_newbie(descriptor_t *d, const char *args);
 bool cmd_rules(descriptor_t *d, const char *args);
 bool cmd_edrules(descriptor_t *d, const char *args);
@@ -108,6 +111,12 @@ bool cmd_edzone(descriptor_t *d, const char *args);
 
 /* `delbug` removes a handled bug report -- Administrator (59) and up. */
 #define DELBUG_MIN_LEVEL 59
+
+/* `delidea` removes a handled idea -- Administrator (59) and up. */
+#define DELIDEA_MIN_LEVEL 59
+
+/* `test` shows the currently-running smoke test -- 58+ (user spec). */
+#define TEST_MIN_LEVEL 58
 
 /* `edrules` writes the numbered game rules -- Administrator (59) and up. */
 #define EDRULES_MIN_LEVEL 59

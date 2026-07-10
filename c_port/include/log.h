@@ -23,6 +23,7 @@ typedef enum {
     LOG_PIO,         /* player login/logout/link events */
     LOG_COMBAT,      /* combat and deaths */
     LOG_BUG,         /* bug reports */
+    LOG_IDEA,        /* player feature requests */
     LOG_DB,          /* database */
     LOG_EDIT,        /* in-game building/editing */
     LOG_JESUS,       /* personalized: only the immortal named "Jesus" sees it */
@@ -71,5 +72,13 @@ bool log_rotate(void);
 
 /* Path of the current log file ("" if none open). */
 const char *log_current_path(void);
+
+/* Tracks the name of whatever smoke test is currently running, set by the
+ * `@test <name>` / `@test done <name>` loopback hook (descriptor.c) --
+ * backs the `test` command (58+, user: "add a test command that will list
+ * whatever smoke test is currently running"). "" if nothing is running. */
+void log_test_set_running(const char *name);
+void log_test_clear_running(void);
+const char *log_test_current_name(void);
 
 #endif

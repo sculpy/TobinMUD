@@ -306,3 +306,9 @@ UPDATE `help_topic` SET `body` = 'Usage: time\n       time <difference>\n\nShows
 -- already-seeded row, so update it explicitly.
 UPDATE `help_topic` SET `body` = 'Usage: catchup\n\nReplays any game messages (says, fights, arrivals) that arrived while\nyou were in an editor, or mid-way through reading a long, paginated\nlisting (like `news`) -- they are held rather than interrupting your\nwork, and cleared once you read them (or automatically after five\nminutes). You are told if anything is waiting once you finish.'
   WHERE `name` = 'catchup';
+
+-- New topics: `idea`/`delidea` (2026-07-10).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('idea', 'Usage: idea <description>\n\nSuggests a new feature to the immortals -- your name and the date are\nrecorded with it. Immortals can type idea with no argument to list\noutstanding suggestions.', 'seed'),
+('delidea', 'Usage: delidea <id>\n\nAdministrator (59+) only: removes an idea once it has been handled.\nThe id is the number shown beside each idea in `idea`.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

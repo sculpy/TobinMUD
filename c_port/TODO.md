@@ -818,20 +818,19 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       above -- likely the same pulse-driven `mob_ai_tick()`, since
       opinion/aggression checks and wander/action checks both run per-
       mob per-pulse in the original.
-- [ ] **`idea` command (feature requests)** — user: "add an idea command
-      so a player can request new features, should work the same as
-      reporting a bug also add an idea log message". Direct mirror of
-      the existing `bug`/`delbug` pair (cmd_bug.c, bug_repo.h) -- same
-      shape: `idea <text>` files one (stored with name + date), bare
+- [x] **`idea` command (feature requests)** — done (Session 43
+      continued, user: "add an idea command so a player can request new
+      features, should work the same as reporting a bug also add an
+      idea log message"). Direct mirror of the existing `bug`/`delbug`
+      pair: `idea <text>` files one (stored with name + date), bare
       `idea` lists outstanding ones for immortals, `delidea <id>` (59+)
-      removes a handled one. Needs a new `idea` table (copy
-      `db/sneezy/bug.sql`'s shape) + `idea_repo.{h,c}` (copy
-      bug_repo's), and a new `LOG_IDEA` value in `log_type_t` (log.h) --
-      note adding a value before `LOG_TEST` auto-adjusts
-      `LOG_SEVERITY_DEFAULT`'s bit width correctly (it's derived from
-      `LOG_TEST`'s position), but `cmd_setsev.c`'s toggle list needs
-      `LOG_IDEA` added explicitly to be mortal/immortal-toggleable like
-      the other real types.
+      removes a handled one. New `idea` table (db/sneezy/idea.sql,
+      copies bug.sql's shape) + `idea_repo.{h,c}` (copies bug_repo's) +
+      `cmd_idea.c` (copies cmd_bug.c's), new `LOG_IDEA` value in
+      `log_type_t` (log.h, inserted before `LOG_TEST` so
+      `LOG_SEVERITY_DEFAULT`'s derived bit width adjusts automatically)
+      added to `cmd_setsev.c`'s toggle list. New
+      `tests/smoke_test_idea.py` (9 checks, mirrors smoke_test_bug.py).
 - [ ] **Drink/sip commands** — user: "add a drink/sip code from
       sneezymud and implement here". From-scratch, not a small addition:
       checked `obj.h` -- `OBJ_CAT_DRINK` exists as a category bucket but
@@ -870,19 +869,20 @@ these; each ships with a smoke test + (if player-facing) a news entry.
          in fresh) -- confirm that's the right semantics before wiring
          it to a bulk "purge everyone" command, since a mistake here is
          destructive across the whole game, not just one room.
-- [ ] **`test` command (58+): show the currently-running smoke test** —
-      user: "add a test command that will list whatever smoke test is
-      currently running 58+". The `@test <name>` / `@test done <name>`
-      loopback-only hook (descriptor.c, ~line 1267) already exists and
-      every smoke test announces itself via it, but it's currently
-      fire-and-forget -- it only calls `game_log(LOG_TEST, ...)` (a
-      transient log line), nothing persists the "name of whatever's
-      running right now" anywhere queryable. Needs a small addition: a
-      global (e.g. `char g_current_test[128]`, cleared on "done") set by
-      the `@test` handler, and a new `test` command that just prints its
-      current value ("(nothing running)" if empty). Small, self-
-      contained -- doesn't touch the hook's existing localhost-only
-      security gate.
+- [x] **`test` command (58+): show the currently-running smoke test** —
+      done (Session 43 continued, user: "add a test command that will
+      list whatever smoke test is currently running 58+"). The
+      `@test <name>` / `@test done <name>` loopback-only hook
+      (descriptor.c) already existed but was fire-and-forget (only
+      `game_log(LOG_TEST, ...)`, a transient log line) -- added
+      `log_test_set_running()`/`log_test_clear_running()`/
+      `log_test_current_name()` (log.h/log.c) so the hook now also
+      persists the name, and a new `test` command (TEST_MIN_LEVEL=58)
+      just prints it ("No smoke test is currently running." if empty).
+      Doesn't touch the hook's existing localhost-only security gate.
+      New `tests/smoke_test_test_cmd.py` (3 checks) -- relies on
+      sweep.sh running tests strictly sequentially so there's no other
+      test's announcement to race with.
 
 ## Small near-term gameplay follow-ups
 
