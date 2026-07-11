@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "mob_ai.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -42,6 +43,20 @@
  * alignment_word()'s "good"/"saintly" tiers. */
 #define AGGRESS_GOOD_IMMUNITY_THRESHOLD 350
 
+/* short_descr is stored lowercase-first ("a lady"); capitalize only when it
+ * starts a whole message, skipping any leading inline color tag first --
+ * same duplicated-helper precedent as cmd_object.c's/cmd_look.c's own
+ * cap_first() copies (each file keeps its own rather than sharing one). */
+static const char *cap_first(const char *label, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%s", label);
+    size_t i = 0;
+    while (buf[i] == '<' && buf[i + 1] != '\0' && buf[i + 2] == '>')
+        i += 3;
+    if (buf[i])
+        buf[i] = (char)toupper((unsigned char)buf[i]);
+    return buf;
+}
+
 static void mob_try_wander(being_t *m) {
     if (m->mob_actions & ACT_SENTINEL)
         return;
@@ -74,13 +89,24 @@ static void mob_try_wander(being_t *m) {
     if (!to || (to->room_flag & ROOM_FLAG_NO_MOB))
         return;
 
-    char msg[128];
-    snprintf(msg, sizeof(msg), "%s leaves.\r\n", m->base.name);
+    /* Bug (user, 2026-07-11: "lady stroll walk leaves. is not correct"):
+     * this used to print m->base.name directly -- for a mob, that's the
+     * space-separated KEYWORD list (e.g. "lady stroll walk" for a mob you
+     * can `look lady`/`look stroll`/`look walk` at), not a display name,
+     * producing exactly the garbled "lady stroll walk leaves." the user
+     * saw. Fixed to use short_descr (capitalized) plus the actual
+     * direction, matching do_move()'s player-facing "exits to the <dir>"
+     * phrasing (cmd_move.c). */
+    char capbuf[128];
+    char msg[256];
+    snprintf(msg, sizeof(msg), "%s walks to the %s.\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), DIR_NAMES[dir]);
     descriptor_room_echo(from, NULL, msg);
 
     thing_set_room(&m->base, to);
 
-    snprintf(msg, sizeof(msg), "%s arrives.\r\n", m->base.name);
+    snprintf(msg, sizeof(msg), "%s walks in from the %s.\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), DIR_NAMES[REV_DIR[dir]]);
     descriptor_room_echo(to, NULL, msg);
 }
 

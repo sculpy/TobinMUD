@@ -1,4 +1,4 @@
-/*******************************************************************
+﻿/*******************************************************************
  * TobinMUD ver. 0.1 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
@@ -37,7 +37,7 @@ being_t *player_load(const char *name, long account_id) {
 
     being_t *b = NULL;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
-                      "title, gender, appearance, pflags from player "
+                      "title, gender, appearance, pflags, bamfin, bamfout from player "
                       "where name='%s' and account_id=%i",
                  name, (int)account_id)
         && db_fetch_row(db)) {
@@ -50,6 +50,8 @@ being_t *player_load(const char *name, long account_id) {
             b->gender = (gender_t)atoi(db_get(db, "gender"));
             snprintf(b->appearance, sizeof(b->appearance), "%s", db_get(db, "appearance"));
             b->pflags = atoi(db_get(db, "pflags"));
+            snprintf(b->bamfin, sizeof(b->bamfin), "%s", db_get(db, "bamfin"));
+            snprintf(b->bamfout, sizeof(b->bamfout), "%s", db_get(db, "bamfout"));
         }
     }
 
@@ -222,6 +224,40 @@ bool player_set_title(const char *name, long account_id, const char *title) {
     return ok;
 }
 
+bool player_set_bamfin(const char *name, long account_id, const char *msg) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok;
+    if (msg && msg[0])
+        ok = db_query(db, "update player set bamfin='%s' where name='%s' and account_id=%i",
+                      msg, name, (int)account_id);
+    else
+        ok = db_query(db, "update player set bamfin=NULL where name='%s' and account_id=%i",
+                      name, (int)account_id);
+
+    db_close(db);
+    return ok;
+}
+
+bool player_set_bamfout(const char *name, long account_id, const char *msg) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok;
+    if (msg && msg[0])
+        ok = db_query(db, "update player set bamfout='%s' where name='%s' and account_id=%i",
+                      msg, name, (int)account_id);
+    else
+        ok = db_query(db, "update player set bamfout=NULL where name='%s' and account_id=%i",
+                      name, (int)account_id);
+
+    db_close(db);
+    return ok;
+}
+
 bool player_attrs_load(long player_id, attrs_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -310,7 +346,7 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
     being_t *b = NULL;
     int load_room = -1;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
-                      "title, gender, appearance, pflags from player "
+                      "title, gender, appearance, pflags, bamfin, bamfout from player "
                       "where name='%s'",
                  name)
         && db_fetch_row(db)) {
@@ -324,6 +360,8 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
             b->gender = (gender_t)atoi(db_get(db, "gender"));
             snprintf(b->appearance, sizeof(b->appearance), "%s", db_get(db, "appearance"));
             b->pflags = atoi(db_get(db, "pflags"));
+            snprintf(b->bamfin, sizeof(b->bamfin), "%s", db_get(db, "bamfin"));
+            snprintf(b->bamfout, sizeof(b->bamfout), "%s", db_get(db, "bamfout"));
             load_room = atoi(db_get(db, "load_room"));
         }
     }

@@ -881,7 +881,7 @@ static void show_redit_menu(descriptor_t *d) {
              "   7) Room Height: %d\r\n\r\n"
              "Description:\r\n%s%s"
              "Exits: %s\r\n\r\n"
-             "   C) Clear room out    S) Save    Q) Quit\r\n%s[edroom] ",
+             "   C) Clear room out    S) Save    Q) Quit\r\n%s[edit room] ",
              w->base.name, w->vnum, sector_name(w->sector),
              room_flag_names(w->room_flag, flagbuf, sizeof(flagbuf)),
              w->capacity, w->height,
@@ -1143,7 +1143,7 @@ static void show_edplayer_menu(descriptor_t *d) {
              "   3) HP/Max HP: %d/%d       4) Attributes (str/dex/con/int/wis/cha)\r\n"
              "   5) Gender: %s      6) Title: %s\r\n"
              "   7) Load Room: %d          8) Handedness: %s\r\n\r\n"
-             "   S) Save    Q) Quit%s\r\n[edplayer] ",
+             "   S) Save    Q) Quit%s\r\n[edit player] ",
              w->base.name, w->progress.level, w->progress.experience,
              w->progress.hp, w->progress.max_hp,
              gender_name(w->gender), w->title[0] ? w->title : "(none)",
@@ -1227,7 +1227,7 @@ static void show_edzone_menu(descriptor_t *d) {
              "   4) Vnum range: %d-%d\r\n"
              "   5) Assigned builders: %s\r\n\r\n"
              "   R) Reset this zone now\r\n"
-             "   S) Save    Q) Quit%s\r\n[edzone] ",
+             "   S) Save    Q) Quit%s\r\n[edit zone] ",
              w->name, w->zone_nr, w->name, w->enabled ? "yes" : "no", w->lifespan,
              w->bottom, w->top, ownerbuf,
              d->edzone_dirty ? "\r\n   <c>* unsaved changes *<z>" : "");
@@ -2505,6 +2505,14 @@ static bool handle_line(descriptor_t *d, const char *line) {
                             descriptor_send(d, msg);
                         } else {
                             descriptor_send(d, "Saving the rule failed.\r\n");
+                        }
+                    } else if (d->edit_kind == EDIT_TRIGGER) {
+                        if (trigger_repo_add(who, d->trig_target_type, d->trig_target_vnum,
+                                             d->trig_trigger_type, d->trig_match_text,
+                                             d->trig_chance_pct, d->edit_buf)) {
+                            descriptor_send(d, "Trigger saved.\r\n");
+                        } else {
+                            descriptor_send(d, "Saving the trigger failed.\r\n");
                         }
                     } else if (help_topic_save(d->edit_topic, d->edit_buf, who)) {
                         char msg[96];

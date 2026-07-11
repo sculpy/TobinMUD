@@ -77,26 +77,12 @@ bool cmd_help(descriptor_t *d, const char *args) {
                 }
             }
 
-            /* `help edit` -- a live index of the ed* editor family, so a
-             * builder can find the editor they want and its real help topic.
-             * Auto-updates as ed* commands are added (no hand-maintained
-             * list). */
-            if (strcmp(topic, "edit") == 0) {
-                const char *ednames[64];
-                int edc = 0;
-                for (int i = 0; i < count && edc < 64; i++) {
-                    if (cmds[i].help && cmds[i].min_level <= level
-                        && strncmp(cmds[i].name, "ed", 2) == 0)
-                        ednames[edc++] = cmds[i].name;
-                }
-                if (edc == 0) {
-                    descriptor_send(d, "There are no editor commands available to you.\r\n");
-                    return true;
-                }
-                send_columns(d, ednames, edc, "\r\n-- Editor (ed*) commands --\r\n",
-                             "\r\nType 'help <name>' (e.g. help edroom) for each editor's details.\r\n");
-                return true;
-            }
+            /* The old "help edit" auto-index of the ed* command family
+             * (edroom, edhelp, ...) is gone along with those standalone
+             * commands themselves -- they're all folded into the single
+             * `edit <noun>` dispatcher now (user, 2026-07-11), so "help
+             * edit" falls through to the normal DB-backed topic lookup
+             * below like any other command's help. */
 
             char resolved[HELP_TOPIC_NAME_LEN];
             char body[HELP_BODY_MAX];

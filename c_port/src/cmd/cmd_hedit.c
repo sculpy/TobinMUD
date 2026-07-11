@@ -22,7 +22,7 @@ bool cmd_hedit(descriptor_t *d, const char *args) {
 
     char topic[HELP_TOPIC_NAME_LEN];
     if (sscanf(args, "%31s", topic) != 1) {
-        descriptor_send(d, "Usage: edhelp <topic>\r\n");
+        descriptor_send(d, "Usage: edit help <topic>\r\n");
         return true;
     }
     for (char *p = topic; *p; p++)

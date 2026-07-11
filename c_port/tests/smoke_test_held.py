@@ -122,7 +122,7 @@ cmd(A, f"goto {BASE}"); cmd(B, f"goto {BASE}")
 recv_all(A); recv_all(B)
 
 # A enters the room editor.
-check("Menu:" in cmd(A, "edroom"), "A is in the edroom editor")
+check("Menu:" in cmd(A, "edit room"), "A is in the edit room editor")
 
 # B says something in the same room (a held-worthy message).
 cmd(B, "say something A must not see yet")
@@ -165,27 +165,27 @@ cmd(C, f"goto {BASE}"); cmd(D, f"goto {BASE}")
 recv_all(C); recv_all(D)
 
 # 4: edplayer
-check("Editing player:" in cmd(C, f"edplayer {nameD}"), "C is in the edplayer editor")
-cmd(D, "say should be held during edplayer too")
+check("Editing player:" in cmd(C, f"edit player {nameD}"), "C is in the edit player editor")
+cmd(D, "say should be held during edit player too")
 leaked = recv_all(C, 0.5)
-check("says" not in leaked, "C gets nothing while mid-edplayer (was the actual bug)")
+check("says" not in leaked, "C gets nothing while mid-edit-player (was the actual bug)")
 out = cmd(C, "Q")
-check("arrived while you were editing" in out, "on exit C is told messages arrived (edplayer)")
+check("arrived while you were editing" in out, "on exit C is told messages arrived (edit player)")
 out = cmd(C, "catchup")
-check("should be held during edplayer too" in out, "catchup replays the held say (edplayer)")
+check("should be held during edit player too" in out, "catchup replays the held say (edit player)")
 
 # 5: edzone
 ZONE = 90000 + (int(time.time()) % 9000)
 sql(f"INSERT INTO zone (zone_nr,zone_name,zone_enabled,bottom,top,reset_mode,lifespan,age,util_flag) "
     f"VALUES ({ZONE},'Held Zone Sandbox',1,{BASE},{BASE},2,999999,0,0);")
-check("Editing zone:" in cmd(C, f"edzone {ZONE}"), "C is in the edzone editor")
-cmd(D, "say should be held during edzone too")
+check("Editing zone:" in cmd(C, f"edit zone {ZONE}"), "C is in the edit zone editor")
+cmd(D, "say should be held during edit zone too")
 leaked = recv_all(C, 0.5)
-check("says" not in leaked, "C gets nothing while mid-edzone (was the actual bug)")
+check("says" not in leaked, "C gets nothing while mid-edit-zone (was the actual bug)")
 out = cmd(C, "Q")
-check("arrived while you were editing" in out, "on exit C is told messages arrived (edzone)")
+check("arrived while you were editing" in out, "on exit C is told messages arrived (edit zone)")
 out = cmd(C, "catchup")
-check("should be held during edzone too" in out, "catchup replays the held say (edzone)")
+check("should be held during edit zone too" in out, "catchup replays the held say (edit zone)")
 
 A.close()
 C.close()

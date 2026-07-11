@@ -19,7 +19,7 @@ bool cmd_edplayer(descriptor_t *d, const char *args) {
 
     char name[64];
     if (sscanf(args, "%63s", name) != 1) {
-        descriptor_send(d, "Usage: edplayer <name>\r\n");
+        descriptor_send(d, "Usage: edit player <name>\r\n");
         return true;
     }
 

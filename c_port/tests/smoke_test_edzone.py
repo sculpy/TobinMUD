@@ -143,11 +143,11 @@ s2.close()
 s2 = login(helper_name, helper_pw)
 
 # --- 6: an unassigned 51-54 builder is refused, same rule as edroom ---
-out = cmd(s2, f"edzone {ZONE}")
+out = cmd(s2, f"edit zone {ZONE}")
 check("you aren't assigned to that zone" in out.lower(), "an unassigned builder is refused edzone too")
 
 # --- 1: 55+ opens the menu; edits mark it dirty, no DB write yet ---
-out = cmd(s, f"edzone {ZONE}")
+out = cmd(s, f"edit zone {ZONE}")
 check("Editing zone:" in out and "Edzone Sandbox" in out, "edzone opens the menu")
 
 out = cmd(s, "1")

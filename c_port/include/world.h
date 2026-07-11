@@ -6,6 +6,7 @@
 #define TOBIN_WORLD_H
 
 #include "being.h"
+#include "obj.h"
 #include "room.h"
 
 /* Minimal in-memory room registry for Phase 1: rooms are loaded from the DB
@@ -46,5 +47,17 @@ int world_purge_linkdead(void);
  * still get a second visit that same tick (a mild, harmless double-tick,
  * not worth guarding against at this scale). */
 void world_for_each_mob(void (*visit)(being_t *m));
+
+/* Calls `visit(o)` for every object (base.kind == THING_OBJ) in every
+ * registered room -- used by obj.c's pool-decay pulse tick (obj_pool_decay_
+ * tick()) to age every ground puddle a little each tick. Same safe-next-
+ * pointer iteration as world_for_each_mob(), since decaying a pool to 0 size
+ * destroys it mid-walk. */
+void world_for_each_obj(void (*visit)(obj_t *o));
+
+/* Calls `visit(r)` for every registered room -- used by trigger.c's
+ * random-tick pulse to roll each room's own "random" trigger (ambient
+ * room flavor with no mob involved, e.g. a dripping cave). */
+void world_for_each_room(void (*visit)(room_t *r));
 
 #endif

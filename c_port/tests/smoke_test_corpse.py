@@ -54,6 +54,7 @@ _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in rang
 ROOM = 900000 + (int(time.time()) % 70000)
 ITEM = ROOM + 1
 MOB = ROOM + 2
+ITEM2 = ROOM + 3
 
 
 def recv_all(sock, timeout=1.0):
@@ -120,6 +121,7 @@ imm_pw = "corptestpw123"
 victim_name = f"Corpvic{_suffix}"
 victim_pw = "corpvicpw123"
 item_name = f"trinket{_suffix}"
+item2_name = f"pouch{_suffix}"
 
 s = socket.create_connection((host, port), timeout=5)
 make_char(s, imm_name, imm_pw)
@@ -134,6 +136,8 @@ check("Corpse Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the SQL-bootstr
 
 sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
     f"VALUES ({ITEM},'{item_name}','a {item_name}','A {item_name} lies here.',12,1,1);")
+sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
+    f"VALUES ({ITEM2},'{item2_name}','a {item2_name}','A {item2_name} lies here.',12,1,1);")
 
 sv = socket.create_connection((host, port), timeout=5)
 make_char(sv, victim_name, victim_pw)
@@ -146,6 +150,9 @@ check("Corpse Sandbox" in cmd(sv, "look"), "the victim lands directly in the san
 check("You conjure" in cmd(s, f"load obj {ITEM}"), "the immortal loads a fixture item into the room")
 out = cmd(sv, f"get {item_name}")
 check("You get" in out, "the victim picks up the fixture item")
+check("You conjure" in cmd(s, f"load obj {ITEM2}"), "the immortal loads a second fixture item into the room")
+out = cmd(sv, f"get {item2_name}")
+check("You get" in out, "the victim picks up the second fixture item")
 
 # --- 1/2: a PC's death drops a lootable corpse, not loose items ---
 out = cmd(s, f"kill {victim_name}")
@@ -162,6 +169,18 @@ check("can't take that" in out.lower(), "the corpse itself can't be picked up as
 out = cmd(s, f"get {item_name} corpse")
 check("you get" in out.lower() and "corpse" in out.lower(),
       "the fixture item IS retrievable out of the corpse with `get <item> corpse`")
+
+# --- get all <corpse> (user, 2026-07-11: "corpses are supposed to act
+# like containers. get all corpse should get all items the player/mob
+# was carrying upon death") -- the second item is still in the corpse. ---
+out = cmd(s, "get all corpse")
+check(item2_name in out and "corpse" in out.lower(),
+      "`get all corpse` sweeps up the remaining item in one go")
+out = cmd(s, "inventory")
+check(item2_name in out, "the swept-up item lands in the immortal's inventory")
+
+out = cmd(s, "get all corpse")
+check("nothing" in out.lower(), "a second `get all corpse` finds the now-empty corpse")
 
 # --- 3: a mob's death ALSO leaves a corpse (mobs and players alike) ---
 sql(f"INSERT INTO mob (vnum,name,short_desc,long_desc,description,actions,affects,"

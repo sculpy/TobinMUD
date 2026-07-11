@@ -151,6 +151,28 @@ obj_t *obj_create_from_proto(int vnum);
 obj_t *obj_create_ephemeral(const char *name, const char *short_descr,
                             const char *long_descr, obj_category_t category);
 
+/* Drops (or grows) a non-takeable ground puddle in `room` (category
+ * OBJ_CAT_TRASH, so an ACT_SCAVENGER mob eventually cleans it up --
+ * mob_ai.c). For flavor commands/reactions that leave something behind on
+ * the floor (`pee`, and the bleeding blood-pool reaction, combat.c). If a
+ * puddle of the same `type_tag` ("pee"/"blood") already exists in `room`,
+ * it grows a size tier instead of a separate object being created (user,
+ * 2026-07-11: "pools should grow in size if multiple puddles of the same
+ * type are created in a room") -- puddle -> pool -> large pool, tracked in
+ * val[0]. `keywords` are the get/look keywords (should include "puddle"/
+ * "pool" plus `type_tag` itself, e.g. "puddle pool pee urine"); `noun` is
+ * the plain-text substance name ("pee"/"blood") the size-tier phrase wraps
+ * around ("a pool of blood"). Already attaches to `room` -- unlike
+ * obj_create_ephemeral(), the caller does NOT also call thing_move_to(). */
+void obj_grow_pool(struct room *room, const char *type_tag, const char *keywords,
+                    const char *noun);
+
+/* Ages every ground puddle in the world down one size tier, destroying it
+ * entirely once it decays past "puddle" -- see obj.c for the full doc
+ * comment. Pulse-registered in main.c; also forced by `aitick` for
+ * deterministic testing. */
+void obj_pool_decay_tick(long pulse_num);
+
 /* Detaches (thing_remove_from_parent) and frees an obj_t. Safe to call on a
  * worn/held item too (the caller is responsible for first clearing whatever
  * being_t.equipment[]/held[] slot pointed at it -- obj_destroy() doesn't scan

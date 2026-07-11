@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Smoke test for DB-backed help topics and the `edhelp` editor:
+"""Smoke test for DB-backed help topics and the `edit help` editor
+(formerly the standalone `edhelp`, folded into the unified `edit <noun>`
+dispatcher, 2026-07-11):
   1. `help <command>` shows the seeded topic body (exact and by prefix);
      an unknown topic is rejected; a mortal asking for an immortal-only
      command's topic gets "no help" (no existence leak).
-  2. `edhelp` is invisible to mortals AND to ordinary 51-55 immortals --
+  2. `edit help` is invisible to mortals AND to ordinary 51-55 immortals --
      its gate is level 56+ (user-specified).
   3. The editor works end-to-end: create a topic, type lines, '.' saves,
      `help <topic>` then shows it; re-edit preloads the existing text;
@@ -147,17 +149,17 @@ out = recv_all(s)
 check("No help available" in out,
       "a mortal asking about an immortal-only command's topic gets no leak")
 
-# --- Part 2: edhelp gating ---
-send_line(s, "edhelp whatever")
+# --- Part 2: edit help gating ---
+send_line(s, "edit help whatever")
 out = recv_all(s)
-check("Huh?!" in out, "a mortal typing edhelp gets Huh?! (hidden)")
+check("Huh?!" in out, "a mortal typing edit help gets Huh?! (hidden)")
 
 set_level(name, 51)
 s.close()
 s = login(name, pw)
-send_line(s, "edhelp whatever")
+send_line(s, "edit help whatever")
 out = recv_all(s)
-check("Huh?!" in out, "a level-51 immortal still can't use edhelp (gate is 56)")
+check("Huh?!" in out, "a level-51 immortal still can't use edit help (gate is 56)")
 send_line(s, "help goto")
 out = recv_all(s)
 check("-- Help: goto --" in out, "the 51 immortal CAN read the goto topic now")
@@ -168,9 +170,9 @@ s = login(name, pw)
 
 # --- Part 3: the editor, end to end ---
 topic = f"lore{_suffix}"
-send_line(s, f"edhelp {topic}")
+send_line(s, f"edit help {topic}")
 out = recv_all(s)
-check("new topic" in out, "edhelp on a new topic says it's new")
+check("new topic" in out, "edit help on a new topic says it's new")
 
 send_line(s, "The world of Tobin was carved from")
 recv_all(s)
@@ -185,7 +187,7 @@ out = recv_all(s)
 check("carved from" in out and "older world" in out,
       "help <topic> shows the freshly saved body")
 
-send_line(s, f"edhelp {topic}")
+send_line(s, f"edit help {topic}")
 out = recv_all(s)
 check("existing text below" in out and "carved from" in out,
       "re-editing preloads and shows the existing text")

@@ -33,6 +33,40 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
     return buf;
 }
 
+/* Appends one room-listing line (an object's ground sentence, or a mob/PC's
+ * "<label> is here.") for `t` to `out`, returning the updated length --
+ * factored out so the room loop below can walk `stuff_head` in two passes
+ * (fixtures first, then everything else) without duplicating this logic. */
+static int append_room_item(char *out, int n, size_t outsz, const room_t *r, const thing_t *t) {
+    const char *label = t->short_descr[0] ? t->short_descr : t->name;
+    char capbuf3[128];
+    if (t->kind == THING_OBJ) {
+        /* Objects use their own ground-listing sentence verbatim (e.g.
+         * "A hairball is laying here."), not the generic "<label> is
+         * here." used for PCs/mobs -- matches the original's real
+         * long_desc convention. Capitalize only the short_descr
+         * fallback -- long_descr is already a full sentence. */
+        const obj_t *o = (const obj_t *)t;
+        char groundbuf3[OBJ_LONG_DESCR_LEN + 32];
+        n += snprintf(out + n, outsz - (size_t)n, "%s\r\n",
+                      o->long_descr[0]
+                          ? obj_apply_ground_token(o->long_descr, r, groundbuf3, sizeof(groundbuf3))
+                          : cap_first(label, capbuf3, sizeof(capbuf3)));
+    } else {
+        /* Mob short_descr is lowercase by convention ("a city watchman");
+         * capitalize for the sentence start (PC names are already
+         * capitalized, so this is a no-op for them). A linkdead PC
+         * (user requirement) is tagged so it reads e.g. "Vic is here.
+         * (linkdead)" -- visible, but see combat_find_room_target() for
+         * why they can't actually be targeted. */
+        bool linkdead = t->kind == THING_PC && !((being_t *)t)->desc;
+        n += snprintf(out + n, outsz - (size_t)n, "%s is here.%s\r\n",
+                      cap_first(label, capbuf3, sizeof(capbuf3)),
+                      linkdead ? " (linkdead)" : "");
+    }
+    return n;
+}
+
 /* Finds an object by keyword in a thing_t chain (room floor, or a being's
  * own carried/worn/held things) -- shared by look_at_target() below. */
 static obj_t *find_obj_here(thing_t *chain, const char *tok, size_t len) {
@@ -204,58 +238,55 @@ bool cmd_look(descriptor_t *d, const char *args) {
     if (n < 0)
         n = 0;
 
-    if ((size_t)n < sizeof(out)) {
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "Obvious exits:");
+    /* "Obvious exits: north east ..." -> "[Exits:] North East ..." (user,
+     * 2026-07-11), colorized: the "[Exits:]" label in cyan (matching the
+     * sector-name bracket's own color a few lines up), the direction list
+     * itself in green. */
+    {
+        char exits_buf[128] = "";
+        size_t en = 0;
         int any_exit = 0;
-        for (int i = 0; i < ROOM_NUM_EXITS && (size_t)n < sizeof(out); i++) {
+        for (int i = 0; i < ROOM_NUM_EXITS; i++) {
             if (r->exits[i] < 0)
                 continue;
             if (r->exit_cond[i] & EXIT_COND_SECRET)
                 continue; /* undiscovered -- still walkable if you know the direction */
             any_exit = 1;
-            n += snprintf(out + n, sizeof(out) - (size_t)n, " %s", DIR_NAMES[i]);
+            char dirbuf[16];
+            snprintf(dirbuf, sizeof(dirbuf), "%s", DIR_NAMES[i]);
+            dirbuf[0] = (char)toupper((unsigned char)dirbuf[0]);
+            en += (size_t)snprintf(exits_buf + en, sizeof(exits_buf) - en, "%s%s", en ? " " : "", dirbuf);
         }
-        if ((size_t)n < sizeof(out))
-            n += snprintf(out + n, sizeof(out) - (size_t)n, "%s\r\n", any_exit ? "" : " none");
+        if ((size_t)n < sizeof(out)) {
+            if (any_exit)
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "<c>[Exits:]<z> <g>%s<z>\r\n", exits_buf);
+            else
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "<c>[Exits:]<z> none\r\n");
+        }
     }
 
+    /* Two passes (user, 2026-07-11: "permanent items such as a lamppost or
+     * a fountain should be listed first in look room code"): non-takeable
+     * fixture objects (fountains, furniture, statuary -- anything without
+     * WEAR_TAKE) print before everything else (ordinary loot, mobs, PCs),
+     * which otherwise print in plain stuff_head/insertion order. */
     int any = 0;
-    for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
-        if (t == &d->character->base)
-            continue;
-        if ((size_t)n >= sizeof(out))
-            break;
-        if (!any) {
-            n += snprintf(out + n, sizeof(out) - (size_t)n, "\r\n");
-            any = 1;
-        }
-        if ((size_t)n >= sizeof(out))
-            break;
-        const char *label = t->short_descr[0] ? t->short_descr : t->name;
-        char capbuf3[128];
-        if (t->kind == THING_OBJ) {
-            /* Objects use their own ground-listing sentence verbatim (e.g.
-             * "A hairball is laying here."), not the generic "<label> is
-             * here." used for PCs/mobs -- matches the original's real
-             * long_desc convention. Capitalize only the short_descr
-             * fallback -- long_descr is already a full sentence. */
-            const obj_t *o = (const obj_t *)t;
-            char groundbuf3[OBJ_LONG_DESCR_LEN + 32];
-            n += snprintf(out + n, sizeof(out) - (size_t)n, "%s\r\n",
-                          o->long_descr[0]
-                              ? obj_apply_ground_token(o->long_descr, r, groundbuf3, sizeof(groundbuf3))
-                              : cap_first(label, capbuf3, sizeof(capbuf3)));
-        } else {
-            /* Mob short_descr is lowercase by convention ("a city watchman");
-             * capitalize for the sentence start (PC names are already
-             * capitalized, so this is a no-op for them). A linkdead PC
-             * (user requirement) is tagged so it reads e.g. "Vic is here.
-             * (linkdead)" -- visible, but see combat_find_room_target() for
-             * why they can't actually be targeted. */
-            bool linkdead = t->kind == THING_PC && !((being_t *)t)->desc;
-            n += snprintf(out + n, sizeof(out) - (size_t)n, "%s is here.%s\r\n",
-                          cap_first(label, capbuf3, sizeof(capbuf3)),
-                          linkdead ? " (linkdead)" : "");
+    for (int pass = 0; pass < 2; pass++) {
+        for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+            if (t == &d->character->base)
+                continue;
+            bool is_fixture = t->kind == THING_OBJ && !obj_takeable(((obj_t *)t)->wear_flag);
+            if (is_fixture != (pass == 0))
+                continue;
+            if ((size_t)n >= sizeof(out))
+                break;
+            if (!any) {
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "\r\n");
+                any = 1;
+            }
+            if ((size_t)n >= sizeof(out))
+                break;
+            n = append_room_item(out, n, sizeof(out), r, t);
         }
     }
 

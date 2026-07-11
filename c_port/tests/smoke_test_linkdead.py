@@ -116,11 +116,12 @@ sImm.close()
 sImm = relog(nameImm)
 
 sVictim, nameVictim = make_char("Vic")
+cmd(sVictim, "color off")  # so the [Exits:] regex below isn't broken up by ANSI codes
 
 # Move the victim one room away from their load room, so "resumed in the
 # same room" is distinguishable from "reset to load room".
 out = cmd(sVictim, "look")
-m = re.search(r"Obvious exits:\s*([a-z ]+)", out)
+m = re.search(r"\[Exits:\]\s*([A-Za-z ]+)", out)
 check(m and m.group(1).split(), "the start room has an obvious exit")
 direction = m.group(1).split()[0]
 cmd(sVictim, direction)
@@ -159,7 +160,7 @@ check(name_line_before == name_line_after,
 # --- 3: an unrelated character connects fine while all this happens ---
 sOther, nameOther = make_char("Other")
 out3 = cmd(sOther, "look")
-check("Obvious exits" in out3, "an unrelated character connects normally")
+check("[Exits:]" in out3, "an unrelated character connects normally")
 
 sImm.close()
 sVictim2.close()

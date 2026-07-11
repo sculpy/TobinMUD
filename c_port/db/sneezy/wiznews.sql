@@ -154,3 +154,47 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Serious Repo Bug, Found and Fixed', 'Found something worth knowing about: a stray line in .gitignore meant to ignore crash-dump files was accidentally matching our own src/core folder by name, silently keeping gametime.c and zone.c out of the git repository the whole time, even though both were pushed as part of earlier commits. The actual code was never lost -- it was live on the server the whole time -- but the repository itself was missing two real source files. Fixed the ignore rule and both files are now properly tracked. Also added a quiet heartbeat: once every real hour, on the half hour, everyone gets a blank line so a tick is visible without any actual message.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Mobs Learn Right From Wrong', 'Characters now have an alignment (good/evil/neutral, set with set <name> alignment), shown in score as a word rather than a raw number. Aggressive mobs check it before picking a fight: a sufficiently good-aligned target gets left alone instead of attacked on sight. A scoped-down first step toward the original''s full Mobile_Attitude system -- suspicion, greed, malice, hate/fear lists, and the rest are still future work.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Pools, Puddles, and Poor Life Choices', 'A new immortal-only pee command (51+) leaves a puddle on the floor -- purely for flavor, but it plugged into two other systems: a bad enough limb injury now leaves a pool of blood behind too, and a new drink <puddle> command lets anyone sample either one, with a real chance of a (non-lethal) case of poisoning. Repeat the same kind of mess in one room and it grows -- puddle, then pool, then large pool, the color escalating from dim to bright the bigger it gets -- rather than littering the floor with duplicates. Left alone, every puddle shrinks back down a size every tick or so until it''s soaked fully into the ground.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Wandering Mob Bug, and Immortals Get Their Own Entrance', 'Fixed a real bug in mob wandering: the leave/arrive messages were printing a mob''s raw look-up keywords instead of its actual description ("lady stroll walk leaves" instead of anything sensible) -- now reads properly, with the real direction, e.g. "A lady walks to the east." Immortals can also now set their own custom arrival/departure messages with bamfin and bamfout, in place of the default wording -- e.g. "drags $p cross in from the $d" reads correctly for any gender, since $p/$d are filled in with the right pronoun and direction for whoever set it.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'One Edit Command To Rule Them All', 'edroom, edzone, edplayer, edhelp, ednews, edwiznews, and edrules are gone -- everything now goes through a single edit command instead: edit room [vnum], edit zone <n>, edit player <name>, edit help <topic>, edit news <headline>, edit wiznews <headline>, edit rules <n> <title>. Nothing about how any of them work changed, and every level requirement is exactly what it always was -- just one door to knock on instead of seven.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Scripting Arrives: edit trigger', 'Builders (51+) can now attach scripted behavior to a room, mob, or object with edit trigger -- no recompile needed, unlike SneezyMUD''s old spec proc system. Room triggers fire on enter or ambiently at random; mob triggers fire on greet (someone walks in), speech (a matching keyword), death, or random; object triggers fire on get or wear. The script itself is a short list of actions -- echo, echoroom, emote, teleport, give, damage, log -- written in the same line editor news and rules already use. See help trigger for the full rundown. This is a first pass: the action list is deliberately small on purpose, not a general-purpose language.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Shout It From the Rooftops', 'A new shout command reaches every playing character in the game, not just the shouter''s room -- asleep characters don''t hear it, and toggle noshout lets a mortal opt out entirely (an immortal''s shout always gets through regardless). See help shout.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Slow Tick, Fixed', 'Found and fixed a real performance bug in the new scripting system: the random-trigger check was quietly hitting the database once for every single mob and room in the world, every tick, even on servers with no random triggers set up at all. Now it checks once per tick instead, and aitick/the real world clock both run at their proper speed again.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Loot It All At Once', 'get all <container> empties an entire corpse, bag, or chest into your hands in one command instead of naming each item -- get all corpse after a kill is now all it takes.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'News Was Quietly Losing Its Oldest Entries', 'Found and fixed a real bug: both news and wiznews build the whole feed into a fixed-size buffer before showing it a page at a time, and with this many entries now on the books, that buffer was overflowing and silently cutting off everything past a certain point -- including some of the oldest stories. Both are sized generously now, with plenty of room to keep growing.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fountains Are Drinkable Again', 'Fixed a real bug: drink only ever recognized ground puddles (pee/blood), so a real fountain or drink container already sitting in a room -- and there are plenty seeded in the world -- failed with "You don''t see that here to drink." Drink now also resolves any real drink-category object: clean water, no poison, never runs dry.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fixtures Get Top Billing', 'Room descriptions now list permanent scenery -- fountains, lampposts, statuary, anything that can''t be picked up -- ahead of ordinary loot and whoever else is standing there, instead of whatever order they happened to load in.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

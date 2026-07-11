@@ -153,24 +153,24 @@ s3.close()
 s3 = login(builder2_name, builder2_pw)
 
 # --- 1: builder refused on a zoned room they aren't assigned to ---
-out = cmd(s, f"edroom {ZONED_ROOM}")
+out = cmd(s, f"edit room {ZONED_ROOM}")
 check("you aren't assigned to that zone" in out.lower(), "builder is refused editing an unassigned zone's room")
 
 # --- 2: builder CAN edit an unzoned room ---
-out = cmd(s, f"edroom {UNZONED_ROOM}")
+out = cmd(s, f"edit room {UNZONED_ROOM}")
 check("Room Name:" in out, "builder can edit a room with no zone at all")
 cmd(s, "Q")  # leave the editor cleanly
 
 # --- 3: edzone's builder-assign menu item (55+) assigns the builder;
 #     now they can edit ---
-cmd(s2, f"edzone {ZONE}")
+cmd(s2, f"edit zone {ZONE}")
 out = cmd(s2, "5")
 check("Enter a builder name" in out, "edzone menu item 5 prompts for a builder name")
 out = cmd(s2, builder_name)
 check("Assigned." in out, "assigning from edzone's menu confirms")
 cmd(s2, "Q")
 
-out = cmd(s, f"edroom {ZONED_ROOM}")
+out = cmd(s, f"edit room {ZONED_ROOM}")
 check("Room Name:" in out, "the now-assigned builder can edit the zoned room")
 cmd(s, "Q")
 
@@ -178,10 +178,10 @@ cmd(s, "Q")
 #     a SECOND builder assigned to the SAME zone -- both can edit it,
 #     neither displaces the other (zone_owner's PK is (zone_nr, player_id),
 #     a real many-to-many, not a single-owner slot). ---
-out = cmd(s3, f"edroom {ZONED_ROOM}")
+out = cmd(s3, f"edit room {ZONED_ROOM}")
 check("you aren't assigned to that zone" in out.lower(), "the second builder isn't assigned yet, so is refused")
 
-cmd(s2, f"edzone {ZONE}")
+cmd(s2, f"edit zone {ZONE}")
 out = cmd(s2, "5")
 out = cmd(s2, builder2_name)
 check("Assigned." in out, "assigning the SECOND builder confirms")
@@ -189,31 +189,31 @@ check(f"{builder_name}, {builder2_name}" in out or f"{builder2_name}, {builder_n
       "edzone's menu lists BOTH assigned builders -- assigning #2 didn't displace #1")
 cmd(s2, "Q")
 
-out = cmd(s3, f"edroom {ZONED_ROOM}")
+out = cmd(s3, f"edit room {ZONED_ROOM}")
 check("Room Name:" in out, "the second builder can now edit the zone too")
 cmd(s3, "Q")
 
-out = cmd(s, f"edroom {ZONED_ROOM}")
+out = cmd(s, f"edit room {ZONED_ROOM}")
 check("Room Name:" in out, "the FIRST builder can still edit it too -- unaffected by the second assignment")
 cmd(s, "Q")
 
 # --- 4: toggling the first builder's assignment back off (via edzone,
 #     selecting an already-assigned name) refuses them again, while the
 #     second builder remains assigned ---
-cmd(s2, f"edzone {ZONE}")
+cmd(s2, f"edit zone {ZONE}")
 out = cmd(s2, "5")
 out = cmd(s2, builder_name)
 check("Un-assigned." in out, "selecting an already-assigned name un-assigns them")
 cmd(s2, "Q")
 
-out = cmd(s, f"edroom {ZONED_ROOM}")
+out = cmd(s, f"edit room {ZONED_ROOM}")
 check("you aren't assigned to that zone" in out.lower(), "the un-assigned first builder is refused again")
-out = cmd(s3, f"edroom {ZONED_ROOM}")
+out = cmd(s3, f"edit room {ZONED_ROOM}")
 check("Room Name:" in out, "the second builder is STILL assigned and can still edit")
 cmd(s3, "Q")
 
 # --- 5: a 55+ immortal can always edit any zone ---
-out = cmd(s2, f"edroom {ZONED_ROOM}")
+out = cmd(s2, f"edit room {ZONED_ROOM}")
 check("Room Name:" in out, "a 55+ immortal edits any zone regardless of assignment")
 cmd(s2, "Q")
 

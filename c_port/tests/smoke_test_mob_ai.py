@@ -179,13 +179,15 @@ check("Ran 30 mob AI tick" in out, "aitick forces 30 ticks")
 # Room A and B are directly connected to each other and nowhere else, so a
 # wandering mob bounces back and forth between just the two -- an even
 # number of moves lands it right back in room A by chance, so checking
-# its FINAL room isn't reliable. The "leaves"/"arrives" echoes in the
-# aitick response itself prove it moved at all, which is what we actually
-# want to verify.
-check("leaves" in out.lower() or "arrives" in out.lower(),
-      "the non-sentinel mob's wander produced at least one leave/arrive echo")
-check(f"sentineldummy{_suffix} leaves" not in out.lower(),
-      "the sentinel-flagged mob never produced a leave echo")
+# its FINAL room isn't reliable. The "walks to the"/"walks in from the"
+# echoes in the aitick response itself prove it moved at all (2026-07-11:
+# these replaced the old, buggy "leaves"/"arrives" wording that printed
+# the mob's raw keyword list instead of its short_descr -- see
+# mob_ai.c's cap_first() fix), which is what we actually want to verify.
+check("walks to the" in out.lower() or "walks in from the" in out.lower(),
+      "the non-sentinel mob's wander produced at least one move echo")
+check(f"a sentineldummy{_suffix} walks" not in out.lower(),
+      "the sentinel-flagged mob never produced a wander echo")
 
 out = cmd(s, "look")
 check(f"sentineldummy{_suffix}" in out.lower(),

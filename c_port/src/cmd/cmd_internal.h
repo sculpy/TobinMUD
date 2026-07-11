@@ -26,6 +26,7 @@ bool cmd_hurtlimb(descriptor_t *d, const char *args);
 bool cmd_aitick(descriptor_t *d, const char *args);
 bool cmd_flee(descriptor_t *d, const char *args);
 bool cmd_say(descriptor_t *d, const char *args);
+bool cmd_shout(descriptor_t *d, const char *args);
 bool cmd_limbs(descriptor_t *d, const char *args);
 bool cmd_help(descriptor_t *d, const char *args);
 bool cmd_wizhelp(descriptor_t *d, const char *args);
@@ -43,6 +44,7 @@ bool cmd_northeast(descriptor_t *d, const char *args);
 bool cmd_northwest(descriptor_t *d, const char *args);
 bool cmd_southeast(descriptor_t *d, const char *args);
 bool cmd_southwest(descriptor_t *d, const char *args);
+bool cmd_edroom(descriptor_t *d, const char *args);
 bool cmd_edit(descriptor_t *d, const char *args);
 bool cmd_log(descriptor_t *d, const char *args);
 bool cmd_exits(descriptor_t *d, const char *args);
@@ -96,10 +98,15 @@ bool cmd_equipment(descriptor_t *d, const char *args);
 bool cmd_load(descriptor_t *d, const char *args);
 bool cmd_purge(descriptor_t *d, const char *args);
 bool cmd_transfer(descriptor_t *d, const char *args);
+bool cmd_pee(descriptor_t *d, const char *args);
+bool cmd_drink(descriptor_t *d, const char *args);
+bool cmd_bamfin(descriptor_t *d, const char *args);
+bool cmd_bamfout(descriptor_t *d, const char *args);
 bool cmd_scan(descriptor_t *d, const char *args);
 bool cmd_vnum(descriptor_t *d, const char *args);
 bool cmd_zone(descriptor_t *d, const char *args);
 bool cmd_edzone(descriptor_t *d, const char *args);
+bool cmd_edtrigger(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */

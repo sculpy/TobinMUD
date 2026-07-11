@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Smoke test for a few immortal conveniences:
   1. `goto <player>` teleports to that online player's room (not just a vnum).
-  2. `help edit` lists the ed* editor commands.
+  2. `help edit` documents the unified `edit <noun>` dispatcher.
   3. who/score tint an immortal's name by rank tier (color escape present for
      an immortal, absent for a mortal).
 
@@ -118,10 +118,11 @@ cmd(B, "color off")
 out = cmd(B, f"goto {nameA}")
 check("Center Square" in out, "goto <player> teleports to that player's room")
 
-# --- help edit ---
+# --- help edit (2026-07-11: ed* commands unified into one `edit <noun>`
+# dispatcher; "help edit" is now a normal DB-backed topic describing it,
+# not the old live index of standalone ed* commands) ---
 out = cmd(A, "help edit")
-check("edroom" in out and "ednews" in out and "Editor" in out,
-      "help edit lists the ed* editor commands")
+check("edit room" in out and "edit player" in out, "help edit documents the edit <noun> dispatcher")
 
 # --- rank color in score (color ON) ---
 cmd(A, "color on")

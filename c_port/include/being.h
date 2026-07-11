@@ -39,6 +39,7 @@ struct obj; /* forward decl only -- avoids a being.h<->obj.h include cycle,
 #define ATTR_MAX  250      /* absolute per-attribute ceiling, defense-in-depth beyond the delta cap */
 
 #define BEING_TITLE_LEN 80 /* matches player.title varchar(80) */
+#define BEING_BAMF_LEN 96  /* matches player.bamfin/bamfout varchar(96) */
 
 typedef struct {
     int strength;
@@ -101,8 +102,12 @@ typedef struct {
 #define PROMPT_FLAG_HP 1
 
 /* Player flag bits (player.pflags). PLR_NEWBIE = on the newbie help channel
- * (default on; toggle off with `toggle newbie`). More flags join here. */
+ * (default on; toggle off with `toggle newbie`). PLR_NOSHOUT = opted out of
+ * hearing `shout`s (default off; toggle on with `toggle noshout`) -- an
+ * immortal's shout still gets through regardless, matching the original's
+ * sendShout() rule (misc/talk.cc). More flags join here. */
 #define PLR_NEWBIE 1
+#define PLR_NOSHOUT 2
 
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in
@@ -243,6 +248,14 @@ typedef struct being {
     /* Free-text self-description (player.appearance), set at creation and
      * shown by `look <player>`/`score`. Empty = none set. */
     char appearance[BEING_APPEARANCE_LEN];
+
+    /* Custom move messages, immortal-only (player.bamfin/bamfout). Empty =
+     * use the default "exits to the <dir>"/"has arrived" wording
+     * (cmd_move.c). May contain the tokens `$d` (direction word) and `$p`
+     * (gender_possess() pronoun) -- e.g. "drags $p cross in from the $d".
+     * Set via the `bamfin`/`bamfout` commands (cmd_bamf.c). */
+    char bamfin[BEING_BAMF_LEN];
+    char bamfout[BEING_BAMF_LEN];
 
     /* Body position (sit/stand/rest/sleep/wake). Default STANDING; not
      * persisted -- you wake up standing on login. "Fighting" is derived from

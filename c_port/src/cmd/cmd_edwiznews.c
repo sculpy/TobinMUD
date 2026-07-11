@@ -17,7 +17,7 @@ bool cmd_edwiznews(descriptor_t *d, const char *args) {
 
     if (!args || !args[0]) {
         descriptor_send(d,
-            "Usage: edwiznews <headline>\r\n"
+            "Usage: edit wiznews <headline>\r\n"
             "Then type the story; /s saves, /a aborts, /b blanks, "
             "/f reflows to width.\r\n");
         return true;

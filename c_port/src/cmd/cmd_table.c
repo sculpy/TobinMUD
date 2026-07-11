@@ -66,6 +66,8 @@ static const cmd_entry_t COMMANDS[] = {
     { "hit",     cmd_hit,     "Attack a player or mobile via real combat, even for immortals (never instakill).", MORTAL_LEVEL_MIN },
     { "flee",    cmd_flee,    "Try to escape a fight through a random exit.",        MORTAL_LEVEL_MIN },
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
+    /* No "sh"-prefixed collision yet -- typed in full is safe either way. */
+    { "shout",   cmd_shout,   "Shout something to everyone in the game (shout <msg>).", MORTAL_LEVEL_MIN },
     /* Positions. Prefix notes: "s"=south; "sa"=say, "sc"=score, "se/sw"=
      * diagonals; "si"=sit, "sl"=sleep, "st"=stand; "r"=rest (no other r
      * command); "w"=west, so "wa"=wake. */
@@ -85,9 +87,9 @@ static const cmd_entry_t COMMANDS[] = {
      * immortals mid-editor, so anyone can be left with something to
      * catch up on. */
     { "catchup", cmd_catchup, "Replay game messages missed while editing or paging.", MORTAL_LEVEL_MIN },
-    /* Immortal news channel. "wizh"->wizhelp, "wizn"->wiznews. "edw"->edwiznews. */
+    /* Immortal news channel. "wizh"->wizhelp, "wizn"->wiznews. Posting is
+     * now `edit wiznews` (folded into the unified edit dispatcher below). */
     { "wiznews", cmd_wiznews, "Read the immortal news channel.",                     IMMORTAL_LEVEL_MIN },
-    { "edwiznews", cmd_edwiznews, "Post immortal news (headline + story).",          ADDNEWS_MIN_LEVEL },
     /* "wizne" is ambiguous with wiznews (above, so it wins); "wiznet" full. */
     { "wiznet",  cmd_wiznet,  "Broadcast a message to all online immortals.",        IMMORTAL_LEVEL_MIN },
     /* "s"/"so" are south/socials; "sy"+ reaches system. */
@@ -97,9 +99,8 @@ static const cmd_entry_t COMMANDS[] = {
     { "news",    cmd_news,    "Read the latest game news (news [10|20|50|100]).",   MORTAL_LEVEL_MIN },
     { "newbie",  cmd_newbie,  "Chat on the newbie help channel (newbie <msg>).",    MORTAL_LEVEL_MIN },
     { "rules",   cmd_rules,   "Read the game rules (rules, or rules <number>).",     MORTAL_LEVEL_MIN },
-    /* "a"/"at" reach attack (above); "add"+ reaches addnews. */
-    { "ednews",  cmd_addnews, "Post a news item (headline + story).",               ADDNEWS_MIN_LEVEL },
-    { "edrules", cmd_edrules, "Write a numbered game rule (edrules <n> <title>).",  EDRULES_MIN_LEVEL },
+    /* Posting news/rules is now `edit news`/`edit rules` (folded into the
+     * unified edit dispatcher below). */
     { "limbs",   cmd_limbs,   "Show the current health of all your limbs.",         MORTAL_LEVEL_MIN },
     { "help",    cmd_help,    "List available commands.",                           MORTAL_LEVEL_MIN },
     /* Hidden from mortals entirely (Tier 3): players only ever see help
@@ -126,11 +127,17 @@ static const cmd_entry_t COMMANDS[] = {
     { "drop",    cmd_drop,    "Put down a carried item (drop <item>).",            MORTAL_LEVEL_MIN },
     /* "put" typed in full; "p"/"pu" reach earlier p-commands first. */
     { "put",     cmd_put,     "Put a carried item into a container (put <item> <container>).", MORTAL_LEVEL_MIN },
+    /* "dr" already reaches "drop" (registered first, wins the 2-letter
+     * abbreviation) -- "dri"+ is drink's shortest safe abbreviation. */
+    { "drink",   cmd_drink,   "Drink from a puddle on the ground (drink <puddle>).", MORTAL_LEVEL_MIN },
     /* "purge" shares "pu" with "put" (above, wins any 2-letter abbreviation
      * since it's registered first) -- "pur"+ is purge's shortest safe
      * abbreviation. Bare `purge` clears the room; `purge linkdead` (58+,
      * checked inside cmd_purge itself) sweeps the whole game. */
     { "purge",   cmd_purge,   "Clear this room's mobs/objects, or purge linkdead (58+).", PURGE_MIN_LEVEL },
+    /* Flavor command -- no abbreviation collision with any existing "pe"+
+     * command, so it's registered typed in full. */
+    { "pee",     cmd_pee,     "Leave a puddle on the floor.",                       IMMORTAL_LEVEL_MIN },
     /* Bare "i" already reaches "immort" (below) for every caller -- this
      * needs at least "in"/"inv". */
     { "inventory", cmd_inventory, "List what you're carrying.",                    MORTAL_LEVEL_MIN },
@@ -156,24 +163,33 @@ static const cmd_entry_t COMMANDS[] = {
     /* "p"/"pr"/"pro" reach prompt; "prom"+ reaches promote. */
     { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp).",                 MORTAL_LEVEL_MIN },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
-    { "edplayer", cmd_edplayer, "Edit a player's level/xp/hp/attrs/gender/title/location.", EDPLAYER_MIN_LEVEL },
+    /* Editing a player is now `edit player <name>` (folded into the
+     * unified edit dispatcher below). */
     { "time",    cmd_time,    "Show the current mud clock, weekday, and date.",     MORTAL_LEVEL_MIN },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
+    /* "bamfin"/"bamfout" (renamed from "poofin"/"poofout" per user
+     * request) -- "bamfi"+/"bamfo"+ are their shortest safe abbreviations. */
+    { "bamfin",  cmd_bamfin,  "Set your custom arrival message (bamfin [msg]).",    IMMORTAL_LEVEL_MIN },
+    { "bamfout", cmd_bamfout, "Set your custom departure message (bamfout [msg]).", IMMORTAL_LEVEL_MIN },
     { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
     { "test",    cmd_test,    "Show the currently-running smoke test, if any.",     TEST_MIN_LEVEL },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
     { "idea",    cmd_idea,    "Suggest a feature (idea <text>); immortals list them.", MORTAL_LEVEL_MIN },
-    /* NOTE: must stay after "help" in this table -- "h"/"he"/"hel" should
-     * abbreviate to help (first match wins), "hed"+ reaches hedit. Same
-     * deal for copyover after color: "c"/"co" reach color, "cop"+ this. */
-    { "edhelp",  cmd_hedit,   "Edit a help topic in the line editor.",              HELP_EDIT_MIN_LEVEL },
+    /* Editing a help topic is now `edit help <name>` (folded into the
+     * unified edit dispatcher below). "c"/"co" reach color, "cop"+ copyover. */
     { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected.", COPYOVER_MIN_LEVEL },
     { "exec",    cmd_exec,    "Run a shell command on the host box (Implementor).", EXEC_MIN_LEVEL },
     { "delbug",  cmd_delbug,  "Delete a handled bug report by id.",                 DELBUG_MIN_LEVEL },
     { "delidea", cmd_delidea, "Delete a handled idea by id.",                       DELIDEA_MIN_LEVEL },
     /* "log" needs its three letters ("l" look, "li" limbs, "lo" look). */
-    { "edroom",  cmd_edit,    "Edit a room -- the one you're in, or edroom <vnum>.", BUILD_MIN_LEVEL },
-    { "edzone",  cmd_edzone,  "Edit a zone's properties/builders (edzone <zone number>).", BUILD_MIN_LEVEL },
+    /* Unified editor dispatcher (user, 2026-07-11: "unify all ed* commands
+     * into one edit command"): `edit room [vnum]`, `edit zone <num>`,
+     * `edit player <name>`, `edit help <name>`, `edit news`, `edit
+     * wiznews`, `edit rules <n> <title>` all replace their old standalone
+     * ed* verbs. Gated at BUILD_MIN_LEVEL (the lowest of any sub-editor)
+     * -- nouns needing more (player 58+, help/news/wiznews 56+, rules
+     * 59+) check that internally, in cmd_edit.c. */
+    { "edit",    cmd_edit,    "Edit a room/zone/player/help/news/wiznews/rules/trigger (edit <noun> ...).", BUILD_MIN_LEVEL },
     { "log",     cmd_log,     "Read, search, list, or rotate the game logs.",       LOG_MIN_LEVEL },
     /* "se" is already an explicit southeast alias (above). "set" must come
      * BEFORE "setsev" here -- both start with "set", and first match in

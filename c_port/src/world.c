@@ -84,3 +84,24 @@ void world_for_each_mob(void (*visit)(being_t *m)) {
         }
     }
 }
+
+void world_for_each_obj(void (*visit)(obj_t *o)) {
+    for (room_entry_t *e = g_rooms; e; e = e->next) {
+        thing_t *t = e->room->base.stuff_head;
+        while (t) {
+            thing_t *next = t->stuff_next; /* visit() may destroy t (obj_destroy()) */
+            if (t->kind == THING_OBJ)
+                visit((obj_t *)t);
+            t = next;
+        }
+    }
+}
+
+void world_for_each_room(void (*visit)(room_t *r)) {
+    room_entry_t *e = g_rooms;
+    while (e) {
+        room_entry_t *next = e->next; /* visit() could in principle re-register/replace e->room */
+        visit(e->room);
+        e = next;
+    }
+}

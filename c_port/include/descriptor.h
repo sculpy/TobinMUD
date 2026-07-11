@@ -12,6 +12,7 @@
 #include "help_repo.h"
 #include "player_repo.h"
 #include "room.h"
+#include "trigger_repo.h"
 #include "zone_repo.h"
 
 /* C replacement for the Descriptor class (sys/connect.h/.cc) -- still a
@@ -163,13 +164,23 @@ typedef struct descriptor {
      * descriptor.c's CONN_PLAYING case intercepts every line while
      * edit_kind != EDIT_NONE and routes the save by kind. */
     enum { EDIT_NONE = 0, EDIT_HELP_TOPIC, EDIT_ROOM_DESC, EDIT_NEWS,
-           EDIT_WIZNEWS, EDIT_RULES } edit_kind;
+           EDIT_WIZNEWS, EDIT_RULES, EDIT_TRIGGER } edit_kind;
     char edit_topic[HELP_TOPIC_NAME_LEN]; /* EDIT_HELP_TOPIC target */
     int edit_room_vnum;                   /* EDIT_ROOM_DESC target */
     char news_title[128];                 /* EDIT_NEWS headline (addnews); reused as EDIT_RULES title */
     int rule_num;                         /* EDIT_RULES target rule number (edrules) */
     char edit_buf[HELP_BODY_MAX];         /* == ROOM_DESCRIPTION_MAX, see room.h */
     int edit_len;
+
+    /* EDIT_TRIGGER scratch (edit trigger <type> <vnum> <trigger_type>
+     * [match_text|chance]) -- the header fields are captured before
+     * dropping into the shared line editor for the script body itself
+     * (edit_buf, above), then all saved together on "/s". */
+    char trig_target_type[8];
+    int trig_target_vnum;
+    char trig_trigger_type[16];
+    char trig_match_text[TRIGGER_MATCH_LEN];
+    int trig_chance_pct;
 
     /* Output pager (the `news` command): long output is buffered here and
      * released one page (page_size lines) at a time. While page_len > 0 the

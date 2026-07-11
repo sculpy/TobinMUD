@@ -139,18 +139,18 @@ sa.close()
 # --- gate: 57 can't reach it, 58 can ---
 promote_sql(admin, 57)
 sa = relogin(admin)
-check("Huh?!" in cmd(sa, f"edplayer {target}"), "a level-57 immortal can't use edplayer (gate is 58)")
+check("Huh?!" in cmd(sa, f"edit player {target}"), "a level-57 immortal can't use edit player (gate is 58)")
 sa.close()
 
 promote_sql(admin, 58)
 sa = relogin(admin)
 
 # --- nonexistent target ---
-out = cmd(sa, f"edplayer NoSuchPlayer{_suffix}")
+out = cmd(sa, f"edit player NoSuchPlayer{_suffix}")
 check("No player named" in out, "editing a nonexistent player is rejected")
 
 # --- open the real target, check the menu shape ---
-out = strip(cmd(sa, f"edplayer {target}"))
+out = strip(cmd(sa, f"edit player {target}"))
 check(f"Editing player: {target}" in out, "the menu names the player being edited")
 check("1) Level:" in out and "2) Experience:" in out and "3) HP/Max HP:" in out
       and "4) Attributes" in out and "5) Gender:" in out and "6) Title:" in out
@@ -226,7 +226,7 @@ st.close()
 
 # --- online-sync: edit an ALREADY-connected target live, no relog ---
 st = relogin(target)
-out = strip(cmd(sa, f"edplayer {target}"))
+out = strip(cmd(sa, f"edit player {target}"))
 out = strip(cmd(sa, "6"))
 out = strip(cmd(sa, "Live Synced"))
 check("Title: Live Synced" in out, "title updated in the working copy")
@@ -237,7 +237,7 @@ check("Live Synced" in out, "the already-connected target's title updated live, 
 st.close()
 
 # --- unsaved-changes Quit: (D)iscard truly discards ---
-out = strip(cmd(sa, f"edplayer {target}"))
+out = strip(cmd(sa, f"edit player {target}"))
 out = strip(cmd(sa, "1"))
 out = strip(cmd(sa, "45"))
 check("Level: 45" in out, "level changed in the working copy (not yet saved)")

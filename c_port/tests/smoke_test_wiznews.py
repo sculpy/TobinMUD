@@ -3,7 +3,13 @@
 news_repo.c wiz path, wiznews.sql).
 
   1. `wiznews` is hidden from mortals (level 51+).
-  2. An immortal reads wiznews (paged, newest first) and sees the seed item.
+  2. An immortal reads wiznews (paged, newest first) and sees real content.
+     (Not pinned to the original DB seed row -- `wiznews` only shows the
+     40 most recent items, and this table keeps growing forever [one entry
+     per code change, plus one permanent "Staff Meeting <suffix>" row per
+     run of THIS test]. Checking for the seed row eventually breaks as it
+     rotates past the window; found 2026-07-11 chasing a real-looking
+     failure that turned out to be exactly this.)
   3. `edwiznews` (56+) posts an item that wiznews then shows.
   4. Immortal news stays OUT of the public `news` feed (separate channels).
 
@@ -116,7 +122,7 @@ send_line(s, name); recv_all(s)
 send_line(s, "done"); recv_all(s)
 
 check("Huh?!" in cmd(s, "wiznews"), "wiznews is hidden from mortals (51+)")
-check("Huh?!" in cmd(s, "edwiznews Nope"), "edwiznews is hidden from mortals")
+check("Huh?!" in cmd(s, "edit wiznews Nope"), "edit wiznews is hidden from mortals")
 
 # Promote to 56 (can read AND post) and reconnect.
 set_level(name, 56)
@@ -130,14 +136,13 @@ cmd(s, "color off")
 
 wn = read_all(s, "wiznews")
 check("Immortal News" in wn, "an immortal reads the wiznews channel")
-check("Immortal News Arrives" in wn, "the seeded wiznews item is shown")
 
 # Post an immortal-only item.
 headline = f"Staff Meeting {_suffix}"
-out = cmd(s, f"edwiznews {headline}")
-check("Writing immortal news" in out, "edwiznews opens the story editor")
+out = cmd(s, f"edit wiznews {headline}")
+check("Writing immortal news" in out, "edit wiznews opens the story editor")
 cmd(s, "The council convenes at the appointed hour.")
-check("Immortal news posted" in cmd(s, "/s"), "edwiznews saves the item")
+check("Immortal news posted" in cmd(s, "/s"), "edit wiznews saves the item")
 
 wn = read_all(s, "wiznews")
 check(headline in wn, "the posted item shows up in wiznews")

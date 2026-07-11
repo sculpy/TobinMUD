@@ -62,6 +62,12 @@ bool player_set_load_room(const char *name, long account_id, int vnum);
  * A NULL/empty title clears the column (SQL NULL). Account-scoped. */
 bool player_set_title(const char *name, long account_id, const char *title);
 
+/* Sets `player.bamfin`/`player.bamfout` -- back the `bamfin`/`bamfout`
+ * commands (cmd_bamf.c). A NULL/empty message clears the column (falls
+ * back to the default move-message wording). */
+bool player_set_bamfin(const char *name, long account_id, const char *msg);
+bool player_set_bamfout(const char *name, long account_id, const char *msg);
+
 /* True if ANY account owns a character with this name (case-insensitive
  * via the column collation) -- backs the duplicate-name rejection at
  * character creation (descriptor.c). */

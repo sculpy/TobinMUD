@@ -6,15 +6,283 @@ Completed items are pruned from here as they land (find them in STATUS.md).
 
 All in-game editors are menu-driven, like character creation — see the
 [[editors-menu-driven]] memory. The user provides a wireframe for each.
-Editor commands are named **`ed<noun>`** (user 2026-07-05): `edroom` (rooms),
-`edhelp` (help), `ednews` (news), `edwiznews` (wiznews), `edplayer`
-(players); future `edobject`/`edmob`/`edzone`/`edaccount`. Read-only
+Editor commands are unified under **`edit <noun> [args]`** (user
+2026-07-11, superseding the old separate `ed<noun>` verbs from
+2026-07-05): `edit room` (rooms), `edit zone` (zones), `edit help`
+(help), `edit news` (news), `edit wiznews` (wiznews), `edit player`
+(players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
 ## Buildable now (no blocked dependencies)
 
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.
+
+### User batch 2026-07-11 (continued) — working these next
+
+- [x] **Mob/object/room scripting (`edit trigger`)** — done -- deployed
+      and verified via standalone smoke test. User: "implement mob object
+      and room scripting examine sneezy for ideas -- we want interaction
+      with mobs objs and room via scripts." Researched SneezyMUD's actual
+      system first (`sneezymud-master/docs/systems/critical/
+      10-spec-procs.md`, `code/code/spec/spec_{mobs,objs,rooms}.cc`):
+      spec procs are hardcoded C++ functions keyed by a numeric ID --
+      flexible, but adding a new one needs a recompile + redeploy, no
+      in-game authoring at all. Asked the user via AskUserQuestion which
+      direction Tobin should take; they chose the in-game-authorable
+      alternative over replicating spec procs or building a full embedded
+      language. New `trigger` table (`db/sneezy/trigger.sql`) stores
+      target (room/mob/obj + vnum), trigger type, an optional match
+      keyword/chance, and a script -- authored via `edit trigger
+      <room|mob|obj> <vnum> <trigger_type> [match_text|chance]` (new
+      `cmd_edtrigger.c`, folded into the `edit` dispatcher), which drops
+      into the same shared line editor `edit news`/`edit rules` already
+      use for the script body. Trigger types: room `enter`/`random`; mob
+      `greet`/`speech`/`death`/`random`; obj `get`/`wear`. Fixed action
+      vocabulary (`trigger.c`'s `trigger_run()`), deliberately small, not
+      a general-purpose language: `echo`/`echoroom`/`emote`/`teleport`/
+      `give`/`damage`/`log`. Hook points added in `cmd_move.c` (room
+      enter + mob greet), `cmd_say.c` (mob speech), `combat.c` (mob
+      death, fired before `being_destroy()`), `cmd_object.c` (obj get/
+      wear). `random` triggers roll `chance_pct` once per world tick
+      (new `trigger_random_tick()`, pulse-registered alongside
+      `mob_ai_tick()`/`obj_pool_decay_tick()`; also forced by `aitick` for
+      deterministic testing) -- new `world_for_each_room()` iterator
+      added alongside the existing mob/obj ones to support room-level
+      random triggers. `edit trigger list <type> <vnum>` /
+      `edit trigger delete <id>` manage existing triggers. Not a
+      SneezyMUD port and not meant to be: no persistent per-trigger state
+      (`act_ptr` equivalent), no combat-round hooks, no object-equipped
+      hit/miss hooks -- follow-ups if a real need shows up. New
+      `tests/smoke_test_trigger.py` covers all seven trigger types plus
+      the level gate and list/delete.
+- [ ] **Seed starter trigger content from SneezyMUD spec procs** — user:
+      "and convert what sneezy has into a starter set of db data for
+      tobin." Reinterpret a handful of SneezyMUD's hardcoded spec procs
+      (`code/code/spec/spec_{mobs,objs,rooms}.cc`) as real `trigger` table
+      rows using the new `edit trigger` system, as a demonstration/starter
+      content set — candidates already scouted: `insulter`/`gardener`/
+      `siren`/`banshee` (ambient mob `random` triggers), `corpseMuncher`
+      (mob `death`-adjacent), `SecretPortalDoors`/`dayGateRoom`/
+      `moonGateRoom` (room `enter` teleports), `blazingroom` (damaging
+      room), `stickerBush` (obj `get` damage). Not started yet.
+- [x] **`shout` channel** — done -- deployed and verified via standalone
+      smoke test (`tests/smoke_test_shout.py`, 5 scenarios). User: "add a
+      shout channel, use sneezy for implementation ideas" (modeled on
+      `sendShout()`/`doShout()` in `misc/talk.cc`). New `cmd_shout.c`:
+      reaches every connected+playing character in the game (not just the
+      speaker's room), echoing "You shout, ..." to self and "<Name>
+      shouts, ..." to everyone else, skipping anyone asleep
+      (`position <= POSITION_SLEEPING`) and — unless the shouter is
+      immortal — anyone with the new `PLR_NOSHOUT` flag (`being.h`, bit
+      value 2, same `player.pflags` column as `PLR_NEWBIE`, no new
+      migration). New `noshout` toggle in `cmd_toggle.c`'s `TOGGLES[]`.
+      Registered at `MORTAL_LEVEL_MIN`; new `shout` help topic.
+- [x] **Test fix: `smoke_test_wiznews.py` pinned to the decade-old seed
+      row** — done. After the buffer fix below, the test still failed
+      intermittently: it checked for "Immortal News Arrives" (the original
+      wiznews.sql seed row), but `wiznews` only shows the 40 most recent
+      items and the table keeps growing forever -- worse, every rerun of
+      THIS test while debugging posts its own permanent "Staff Meeting
+      <suffix>" row via `edit wiznews`, so repeated manual reruns
+      accelerated the seed row's rotation past the window. Removed the
+      seed-row check; the test already separately proves posting/reading
+      works with its own freshly-created item.
+- [x] **Bugfix: `news`/`wiznews` were silently truncating** — done.
+      Found while diagnosing a `smoke_test_wiznews.py` regression ("the
+      seeded wiznews item is shown" started failing): both `cmd_news.c` and
+      `cmd_wiznews.c` build their whole 40-item feed into fixed
+      `body[15000]`/`full[16000]` stack buffers before handing it to the
+      pager. With 8+ new wiznews entries landing THIS session alone, the
+      concatenated feed exceeded 15000 bytes and `news_repo_recent()`
+      (correctly bounded via `snprintf`) just stopped appending mid-word --
+      silently dropping everything older, including the oldest seed item,
+      with no error. Since this is an ever-growing changelog by design (one
+      entry per player-facing change, forever), a "just big enough for
+      today" buffer was always going to get hit again. Both buffers
+      enlarged to 100000/101000 -- the pager already chunks display into
+      screen-sized pages separately, so there's no reason to keep the
+      working buffer tight.
+- [x] **Perf fix: `trigger_random_tick` was O(mobs+rooms) DB round trips
+      per tick** — done. Found while chasing an `aitick`/sweep regression
+      (`smoke_test_mob_ai.py`'s "aitick forces 30 ticks" started failing):
+      `trigger_random_tick()` called `trigger_repo_load_for()` -- a live
+      query -- for EVERY loaded mob and EVERY loaded room, every tick, even
+      though almost none have a "random" trigger row. With the world's
+      loaded-room/mob registry (`world_for_each_mob`/`_room`, never
+      unloaded once touched) having grown large over a long server uptime,
+      `aitick 30` measured at 262s before the fix. New
+      `trigger_repo_random_vnums()` (`trigger_repo.c`/`.h`) loads the
+      DISTINCT vnums that actually have a "random" trigger ONCE per tick;
+      `trigger.c`'s two visitors now skip straight past any mob/room not in
+      that small in-memory set, cutting the DB-touching case count from
+      O(mobs+rooms) to 2 queries per tick. `aitick 30` now completes well
+      within `smoke_test_mob_ai.py`'s 1s-default recv timeout.
+- [x] **`get all <container>`** — done -- deployed and verified via
+      standalone smoke test (`tests/smoke_test_corpse.py`, extended). User:
+      "corpses are supposed to act like containers. get all corpse should
+      get all items the player/mob was carrying upon death." `cmd_get.c`
+      (`cmd_object.c`) gained a `get all <container>` form alongside the
+      existing single-item `get <item> <container>`: sweeps every object
+      out of any open container -- corpse, bag, chest -- in one command,
+      firing each item's `obj`/`get` trigger and the same per-item log/echo
+      the single-item path already does. `get`/`containers` help topics
+      updated.
+- [x] **Bugfix: `drink` didn't recognize real fountains/drink objects** —
+      done -- deployed and verified via standalone smoke test
+      (`tests/smoke_test_drink.py`, extended). User bug report: "i just
+      tried to drink from a fountain in the game, it failed with You don't
+      see that here to drink." `drink` (`cmd_drink.c`) previously ONLY
+      matched ground puddles via a "puddle" keyword hack; it now also
+      matches any real room object with `category == OBJ_CAT_DRINK`
+      (fountains, drink containers -- already-seeded content, e.g. vnum 3
+      "a large fountain") by keyword. Clean water, no poison roll, never
+      consumed -- liquid-unit depletion (`val[0]`/`val[1]`, `obj.h`'s
+      existing DRINK category comment) is a separate, bigger feature and
+      out of scope for this fix. `drink` help topic updated.
+- [x] **Room look: list permanent fixtures (lamppost, fountain, ...)
+      first** — done -- deployed and verified via standalone smoke test
+      (`tests/smoke_test_look_fixture_order.py`). User: "permanent items
+      such as a lamppost or a fountain should be listed first in look room
+      code." `cmd_look.c`'s room listing now walks `stuff_head` in two
+      passes: non-takeable fixture objects (`!obj_takeable(o->wear_flag)`
+      -- fountains, furniture, statuary) first, then everything else
+      (ordinary takeable loot, mobs, PCs) in their original order.
+      Per-item formatting logic factored into a new `append_room_item()`
+      helper so both passes share it verbatim. A corpse is also
+      non-takeable-as-a-whole, so it sorts into the fixture group too --
+      not exactly "permanent," but harmless (still a reasonable thing to
+      surface prominently) and not worth a separate flag for.
+- [x] **Unify `ed*` commands into one `edit <noun>` dispatcher** — done --
+      deployed and verified via standalone smoke test. User: "unify all
+      ed* commands into one edit command that accepts arguments for
+      example edit room <vnum>, edit object <vnum>, edit player <name>,
+      etc. and keep the level assignments for each function valid."
+      Removed `edroom`, `edzone`, `edplayer`, `edhelp`, `ednews`,
+      `edwiznews`, `edrules` as standalone command-table entries; all
+      seven now route through a single `edit <noun> [args]` command
+      (`cmd_edit.c`), forwarding to the exact same unchanged
+      implementation functions. Registered at `BUILD_MIN_LEVEL` (51, the
+      lowest of any sub-editor); a noun needing more (player 58+,
+      help/news/wiznews 56+, rules 59+) checks that internally and
+      refuses with the same "Huh?!" a table-level gate would have given
+      -- nothing was loosened. `edit room`'s backing function renamed
+      `cmd_edit()` -> `cmd_edroom()` (file `cmd_edit.c` -> `cmd_edroom.c`)
+      to free up the name for the new dispatcher. Consolidated help
+      topic (`help edit`) replaces the old per-command topics and the
+      old hardcoded "help edit" live-index-of-ed*-commands special case
+      in `cmd_help.c` (now a normal DB-backed topic like any other).
+      `object`/`mob` nouns are reserved in the usage text for when those
+      editors exist (not wired to anything yet). 13 existing tests
+      updated for the new command shape.
+- [x] **Mob wander message bug fix** — done -- deployed and verified via
+      standalone smoke test. User: "lady stroll walk leaves. is not
+      correct it should be A <short desc> <walk type> to the east." Root
+      cause: `mob_ai.c`'s wander leave/arrive messages printed
+      `m->base.name` directly -- for a mob that's the space-separated
+      KEYWORD list (e.g. "lady stroll walk", so you can `look lady`/`look
+      stroll`/`look walk`), not a display name, producing exactly the
+      garbled text reported. Fixed to use `short_descr` (capitalized) plus
+      the real direction of travel/arrival (`DIR_NAMES`/`REV_DIR`, room.h):
+      "A lady walks to the east." / "A lady walks in from the west."
+- [x] **Immortal custom move messages (`bamfin`/`bamfout`)** — done --
+      deployed and verified via standalone smoke test. User: "immorts
+      should be able to set their own enter or leave messages. Like Jesus
+      drags his cross in from the east. of course gender specific in the
+      messaging" (named `poofin`/`poofout` originally, renamed to
+      `bamfin`/`bamfout` per user request the same session). New
+      `player.bamfin`/`player.bamfout` columns (`tobin_migrations.sql`),
+      settable via new `bamfin`/`bamfout <msg>` commands (`cmd_bamf.c`,
+      `IMMORTAL_LEVEL_MIN`), mirroring `title`'s set/clear/persist shape.
+      `do_move()` (cmd_move.c) substitutes `$d` (the direction word) and
+      `$p` (`gender_possess()`, so the same template reads correctly for
+      any gender) before showing it in place of the default "exits to the
+      <dir>"/"has arrived" wording.
+- [x] **Pools grow instead of duplicating + no-newline fix** — done --
+      deployed and verified via standalone smoke test. User: "pools
+      should grow in size if multiple puddles of the same type are
+      created in a room, and no new line after the pee short
+      description." `obj_create_pool()` replaced with `obj_grow_pool()`
+      (obj.h/obj.c): if a puddle of the same type ("pee"/"blood") already
+      exists in the room, it grows a size tier in place ("a puddle of X"
+      -> "a pool of X" -> "a large pool of X", tracked in `val[0]`)
+      instead of a new object being created. Also fixed the blank-line
+      bug: `obj_t.long_descr` was storing a baked-in trailing `\r\n`,
+      doubled up with the one `cmd_look.c`'s room-floor listing/`look
+      <item>` already append -- removed from `pee`'s and the blood
+      pool's long_descr, plus two other pre-existing occurrences of the
+      exact same bug (the severed-limb and corpse long_descr in
+      combat.c), same root cause. Also colorized (user, 2026-07-11:
+      "pee blood x4 should create A large pool of <R>blood<z> is
+      here."): the substance noun is wrapped in a color tag that
+      escalates with size -- dim (`<r>`/`<y>`) for puddle/pool, bright
+      (`<R>`/`<Y>`) once it's a "large pool" -- matching the escalating
+      wording tier.
+
+- [x] **Pools decay over time** — done -- deployed and verified via
+      standalone smoke test. User: "pools should absorb into the ground
+      little by little upon ticks." New `obj_pool_decay_tick()` (obj.c),
+      pulse-registered at the same ~60s cadence as `mob_ai_tick()`
+      (main.c): every ground puddle shrinks one size tier per tick
+      (reversing `obj_grow_pool()`'s growth), and a puddle at the
+      smallest tier is destroyed outright on its next tick rather than
+      shrinking further -- "little by little" until it's gone. New
+      `world_for_each_obj()` (world.h/world.c), the object-iteration
+      counterpart to the existing `world_for_each_mob()`. `aitick` (the
+      existing mob-AI debug/testing command) now also forces pool decay
+      each iteration, so `tests/smoke_test_pool_decay.py` can test it
+      deterministically without waiting on the real pulse.
+
+- [x] **`look`'s exits line reformatted + colorized** — done -- deployed
+      and verified via standalone smoke test. User: "Obvious exits: north
+      east south west southwest change to [Exits:] North East South West
+      Southwest and colorize the string appropriatly." `cmd_look.c`'s
+      one-line exits summary now reads "[Exits:] North East ..." (cyan
+      label, green capitalized direction list) instead of "Obvious exits:
+      north east ...". Updated the 4 existing tests that scraped the old
+      wording/case (`smoke_test_doors.py`, `smoke_test_linkdead.py`,
+      `smoke_test_notify.py`, `smoke_test_scan.py`); new
+      `tests/smoke_test_exits_display.py` covers the format directly
+      (color off/on, and the "none" dead-end fallback). The dedicated
+      `exits` command (`cmd_exits.c`) keeps its own separate, more
+      detailed per-direction listing unchanged -- only `look`'s one-line
+      summary was in scope.
+
+### User batch 2026-07-11 — working these next
+
+- [x] **Pools + `pee` command (51+)** — done -- deployed and verified via
+      standalone smoke test; full sweep pending. User: "add pools and
+      the pee command for 51." New
+      `obj_create_pool()` (obj.h/obj.c) is a reusable non-takeable ground
+      puddle (category `OBJ_CAT_TRASH`, so an `ACT_SCAVENGER` mob eventually
+      cleans it up — ties into the existing mob AI scavenge behavior). New
+      `pee` command (`cmd_pee.c`, `IMMORTAL_LEVEL_MIN`) is the first user of
+      it: leaves a "puddle of pee" on the floor, tells the caller, and
+      echoes to the room. No merging/evaporation of puddles over time —
+      each use just adds another one, same minimal-scope precedent as
+      `purge`/`transfer`. New `tests/smoke_test_pee.py`.
+- [x] **Blood pools from limb damage/bleeding** — done -- deployed and
+      verified via standalone smoke test; full sweep pending. User: "goes
+      with limb damage and bleeding" (said
+      right after the pools/pee request). `combat_strike()` (combat.c)
+      already announces a limb crossing into a bad-enough tier
+      (`limb_status_text()` non-NULL, <20% HP) -- reused that exact
+      tier-crossing guard to also drop a "pool of blood" via
+      `obj_create_pool()` at the same moment, echoed to the room ("Blood
+      pools around X!"). No actual bleed-over-time/DOT mechanic (that's a
+      bigger, separate thing) -- just a one-shot flavor pool per tier
+      crossing, same minimal scope as `pee`.
+- [x] **`drink` from pools, chance of poison** — done -- deployed and
+      verified via standalone smoke test; full sweep pending. User: "yu
+      should be able tto drink from the pools, chance to get poisoned."
+      New `drink <puddle>` command (`cmd_drink.c`, `MORTAL_LEVEL_MIN`)
+      finds any ground object tagged with the "puddle" keyword (both the
+      pee and blood pools qualify) and lets anyone drink from it -- never
+      consumed/removed. 30% chance of a 2-8 HP "poison" hit, clamped so it
+      can never drop the drinker below 1 HP (no death-outside-combat
+      handling exists yet, so this stays a flavor scare, not a real
+      hazard). New `tests/smoke_test_pee.py`, `tests/smoke_test_bleeding.py`,
+      `tests/smoke_test_drink.py`.
 
 ### User batch 2026-07-10 (continued session) — working these next
 
@@ -1142,6 +1410,16 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
 
 ## Bigger systems (need design / a decision)
 
+- [ ] **Hospital (limb repair)** — user, 2026-07-11: "add hospital code to
+      the todo list." Right now a destroyed limb (`being_has_destroyed_limb()`,
+      being.h) has no in-game cure -- the only fix is dying and respawning
+      (`being_limbs_full_heal()` at combat defeat). A hospital would let a
+      living character repair a destroyed/damaged limb mid-game instead.
+      Needs design decisions: a physical hospital room/building + a `heal`
+      or `repair` command there (vs. an NPC healer to interact with);
+      cost (gold? time? risk?); whether it also cures poison (see `drink`
+      from pools) or only limb damage; whether it's instant or takes time
+      (a queued/timed repair). Not started.
 - [ ] **Classes** — warrior/cleric/thief/monk/mage, chosen at creation, shown
       in score/who. Stat affinities (user spec): mage high INT / low STR;
       warrior high CON+STR, dump CHA+WIS; thief high DEX / low STR; cleric

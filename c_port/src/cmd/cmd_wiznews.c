@@ -25,13 +25,19 @@ bool cmd_wiznews(descriptor_t *d, const char *args) {
     if (page_size < 5)
         page_size = 5;
 
-    char body[15000];
+    /* Sized generously (found truncating silently at the old 15000/16000,
+     * user 2026-07-11 bug report via smoke_test_wiznews.py: with 40 items
+     * of real body text this feed keeps growing every session forever, so
+     * a "just big enough for today" buffer was destined to be hit again --
+     * the pager already chunks display separately, so there's no reason
+     * to keep this tight). */
+    char body[100000];
     if (!news_repo_recent(true, body, sizeof(body), 40)) {
         descriptor_send(d, "There is no immortal news yet.\r\n");
         return true;
     }
 
-    char full[16000];
+    char full[101000];
     snprintf(full, sizeof(full), "\r\n<c>=== TobinMUD Immortal News ===<z>\r\n%s", body);
     descriptor_page_start(d, full, page_size);
     return true;

@@ -124,14 +124,16 @@ def relog(name):
 
 sWatcher, nameWatcher = make_player("Watch")
 sWalker, nameWalker = make_player("Walk")
+send_line(sWalker, "color off")  # so the [Exits:] regex below isn't broken up by ANSI codes
+recv_all(sWalker)
 
 # --- Part 1 + 2: exit announcement, with a prompt after it ---
 # Find a direction that actually leads somewhere from the start room.
 send_line(sWalker, "look")
 out = recv_all(sWalker)
-m = re.search(r"Obvious exits:\s*([a-z ]+)", out)
+m = re.search(r"\[Exits:\]\s*([A-Za-z ]+)", out)
 check(m and m.group(1).split(), "the start room lists at least one obvious exit")
-direction = m.group(1).split()[0]
+direction = m.group(1).split()[0].lower()  # the [Exits:] list is capitalized; lowercase to match room-echo text
 
 send_line(sWalker, direction)
 recv_all(sWalker)
@@ -152,7 +154,7 @@ sEditor, nameEditor = make_player("Edt")
 set_level(nameEditor, 56)
 sEditor.close()
 sEditor = relog(nameEditor)
-send_line(sEditor, f"edhelp scratch{_suffix}")
+send_line(sEditor, f"edit help scratch{_suffix}")
 recv_all(sEditor)  # now mid-editor: must NOT receive the [LOG] line
 
 sVictim, nameVictim = make_player("Vic")

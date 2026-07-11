@@ -18,8 +18,10 @@
 #include "mob_ai.h"
 #include "multiplay.h"
 #include "log.h"
+#include "obj.h"
 #include "pulse.h"
 #include "regen.h"
+#include "trigger.h"
 #include "wait_tick.h"
 #include "zone.h"
 
@@ -87,6 +89,8 @@ int main(int argc, char **argv) {
     pulse_register(600, gametime_tick);          /* ~60s: advance the game clock 15 mud-minutes */
     pulse_register(600, heartbeat_tick);         /* ~60s: real-time half-hour blank-line tick */
     pulse_register(600, mob_ai_tick);            /* ~60s: mob wander/scavenge (mob.actions bits) */
+    pulse_register(600, obj_pool_decay_tick);    /* ~60s: ground puddles shrink, then vanish */
+    pulse_register(600, trigger_random_tick);    /* ~60s: mob/room "random" scripted triggers */
 
     int rc = game_loop_run(cfg->telnet_port, copyover_file);
 

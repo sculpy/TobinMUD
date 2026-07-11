@@ -4,13 +4,64 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
+#include <ctype.h>
 #include <stdio.h>
 
+#include "being.h"
 #include "cmd.h"
 #include "room.h"
 #include "room_repo.h"
 #include "thing.h"
+#include "trigger.h"
 #include "world.h"
+
+/* Fires `to`'s room "enter" triggers, then every mob-in-`to`'s "greet"
+ * triggers, for `ch` just having walked in (user, 2026-07-11: "implement
+ * mob object and room scripting ... interaction with mobs objs and room
+ * via scripts"). Called after the arrival broadcast so any trigger flavor
+ * text reads as following "X has arrived", not before it. */
+static void run_room_and_greet_triggers(being_t *ch, room_t *to) {
+    trigger_t trigs[8];
+    int n = trigger_repo_load_for("room", to->vnum, "enter", trigs, 8);
+    for (int i = 0; i < n; i++)
+        trigger_run(&trigs[i], ch, to, NULL);
+
+    for (thing_t *t = to->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_MOB)
+            continue;
+        being_t *mob = (being_t *)t;
+        trigger_t mtrigs[8];
+        int mn = trigger_repo_load_for("mob", mob->base.id, "greet", mtrigs, 8);
+        if (mn == 0)
+            continue;
+        char capbuf[128];
+        snprintf(capbuf, sizeof(capbuf), "%s", mob->base.short_descr);
+        if (capbuf[0])
+            capbuf[0] = (char)toupper((unsigned char)capbuf[0]);
+        for (int i = 0; i < mn; i++)
+            trigger_run(&mtrigs[i], ch, to, capbuf[0] ? capbuf : NULL);
+    }
+}
+
+/* Substitutes `$d` (a direction word) and `$p` (the mover's gender_possess()
+ * pronoun) into a bamfin/bamfout template -- see cmd_bamf.c's doc comment
+ * for the token contract. Used by do_move() below. */
+static void apply_bamf_tokens(const char *tmpl, const char *dir_word, gender_t gender,
+                               char *out, size_t outsz) {
+    size_t oi = 0;
+    for (const char *p = tmpl; *p && oi + 1 < outsz; p++) {
+        if (p[0] == '$' && p[1] == 'd') {
+            oi += (size_t)snprintf(out + oi, outsz - oi, "%s", dir_word);
+            p++;
+        } else if (p[0] == '$' && p[1] == 'p') {
+            oi += (size_t)snprintf(out + oi, outsz - oi, "%s", gender_possess(gender));
+            p++;
+        } else {
+            out[oi++] = *p;
+        }
+    }
+    out[oi < outsz ? oi : outsz - 1] = '\0';
+}
 
 /* north/east/south/west/up/down -- the first movement commands in the
  * port. Directions are the original dirTypeT's first six slots (see
@@ -63,14 +114,27 @@ static bool do_move(descriptor_t *d, int dir) {
         "exits to the northeast", "exits to the northwest",
         "exits to the southeast", "exits to the southwest",
     };
-    char msg[128];
-    snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, EXIT_PHRASES[dir]);
+    char msg[256];
+    char body[BEING_BAMF_LEN + 32];
+    if (ch->bamfout[0]) {
+        apply_bamf_tokens(ch->bamfout, DIR_NAMES[dir], ch->gender, body, sizeof(body));
+        snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, body);
+    } else {
+        snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, EXIT_PHRASES[dir]);
+    }
     descriptor_room_echo(from, ch, msg);
 
     thing_set_room(&ch->base, to);
 
-    snprintf(msg, sizeof(msg), "%s has arrived.\r\n", ch->base.name);
+    if (ch->bamfin[0]) {
+        apply_bamf_tokens(ch->bamfin, DIR_NAMES[REV_DIR[dir]], ch->gender, body, sizeof(body));
+        snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, body);
+    } else {
+        snprintf(msg, sizeof(msg), "%s has arrived.\r\n", ch->base.name);
+    }
     descriptor_room_echo(to, ch, msg);
+
+    run_room_and_greet_triggers(ch, to);
 
     return cmd_dispatch(d, "look");
 }

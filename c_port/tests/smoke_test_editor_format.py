@@ -122,7 +122,7 @@ send_line(s, pw); recv_all(s)
 send_line(s, "1"); recv_all(s)
 
 topic = f"formattopic{_suffix}"
-out = cmd(s, f"edhelp {topic}")
+out = cmd(s, f"edit help {topic}")
 check("/f reflows to width" in out and "/s saves" in out,
       "the editor intro advertises the consistent slash-command set")
 
@@ -164,7 +164,7 @@ check(all(len(l) <= FORMAT_WIDTH for l in saved_lines),
 check("zulu" in out and "preservation" in out, "the saved topic still has all the words")
 
 # /a aborts: reopen, type garbage, /a, and confirm the topic is unchanged.
-cmd(s, f"edhelp {topic}")
+cmd(s, f"edit help {topic}")
 cmd(s, "GARBAGEXYZ that must not survive an abort")
 cmd(s, "/a")
 out = cmd(s, f"help {topic}")
@@ -172,7 +172,7 @@ check("GARBAGEXYZ" not in out, "/a aborts the edit -- the discarded text did not
 
 # A line of just "." is now literal text, not a save (legacy keys removed):
 # save the topic, reopen, type ".", and confirm /s keeps the dot as content.
-cmd(s, f"edhelp {topic}")
+cmd(s, f"edit help {topic}")
 cmd(s, ".")            # literal content now, NOT a save
 out = cmd(s, "/s")
 check(f"'{topic}' saved" in out, "a bare '.' is treated as text, and /s saves")

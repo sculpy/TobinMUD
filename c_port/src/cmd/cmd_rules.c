@@ -57,7 +57,7 @@ bool cmd_edrules(descriptor_t *d, const char *args) {
     int num = 0;
     if (sscanf(args, "%d", &num) != 1 || num <= 0) {
         descriptor_send(d,
-            "Usage: edrules <number> <title>\r\n"
+            "Usage: edit rules <number> <title>\r\n"
             "Then type the rule text; /s saves, /a aborts, /b blanks, "
             "/f reflows to width.\r\n");
         return true;

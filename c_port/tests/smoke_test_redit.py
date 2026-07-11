@@ -123,7 +123,7 @@ send_line(s, "new"); recv_all(s)
 send_line(s, name); recv_all(s)
 send_line(s, "done"); recv_all(s)
 
-check("Huh?!" in cmd(s, "edroom"), "a mortal typing edroom gets Huh?! (hidden)")
+check("Huh?!" in cmd(s, "edit room"), "a mortal typing edit room gets Huh?! (hidden)")
 
 set_level(name, 51)
 s.close()
@@ -141,10 +141,10 @@ check("Sandbox Origin" in cmd(s, f"goto {BASE}"),
       "goto lands in the SQL-bootstrapped sandbox room")
 
 # --- 2: numbered menu opens (Sneezy layout) ---
-out = cmd(s, "edroom")
+out = cmd(s, "edit room")
 check(f"Number: {BASE}" in out and "Menu:" in out and "1) Name" in out
-      and "6) Max Capacity" in out and "[edroom]" in out,
-      "edroom opens the Sneezy-style numbered menu")
+      and "6) Max Capacity" in out and "[edit room]" in out,
+      "edit room opens the Sneezy-style numbered menu")
 
 # --- 3: fields 1,4,3,6,7 (name, sector, flags, capacity, height) ---
 cmd(s, "1")                                        # name
@@ -227,7 +227,7 @@ check("An unfinished room" in cmd(s, "north"), "walking north lands in the auto-
 check("The Menu Workshop" in cmd(s, "south"), "walking south returns to the workshop")
 
 # --- 5: quit-discard leaves the DB untouched ---
-cmd(s, "edroom")
+cmd(s, "edit room")
 cmd(s, "1")
 out = cmd(s, "This name must not persist")
 check("unsaved changes" in out, "an edit marks the session dirty")
@@ -238,7 +238,7 @@ check(query(f"SELECT name FROM room WHERE vnum={BASE};").strip() == "The Menu Wo
       "the discarded name change never reached the DB")
 
 # --- 6: clear room out blanks room + exits (+ neighbour reverse) ---
-cmd(s, f"edroom {BASE + 1}")
+cmd(s, f"edit room {BASE + 1}")
 out = cmd(s, "C")
 check("(yes/no)" in out, "C) asks for confirmation")
 check("blanked" in cmd(s, "yes"), "C) blanks the working copy after confirmation")

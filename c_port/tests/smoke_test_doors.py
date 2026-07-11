@@ -150,7 +150,7 @@ check("Sandbox Origin" in cmd(s, f"goto {BASE}"), "goto lands in the SQL-bootstr
 
 # --- 1: secret exit hidden from look/exits, but still walkable ---
 out = cmd(s, "look")
-check("Obvious exits: north" in out, "look's Obvious exits shows north but hides the secret east")
+check("[Exits:] North" in out, "look's [Exits:] shows North but hides the secret east")
 out = cmd(s, "exits")
 check("north" in out and "east" not in out, "exits also hides the secret east exit")
 

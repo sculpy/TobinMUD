@@ -27,14 +27,19 @@ bool cmd_news(descriptor_t *d, const char *args) {
     if (page_size < 5)
         page_size = 5;
 
-    char body[15000];
+    /* Sized generously (same fix as cmd_wiznews.c, found via
+     * smoke_test_wiznews.py: with 40 items of real body text this feed
+     * keeps growing every session forever, so the old 15000/16000 was
+     * silently truncating mid-entry -- the pager already chunks display
+     * separately, so there's no reason to keep this tight). */
+    char body[100000];
     if (!news_repo_recent(false, body, sizeof(body), 40)) {
         descriptor_send(d, "There is no news yet.\r\n");
         return true;
     }
 
     /* No numbers rendered anywhere (user rule) -- ordering conveys recency. */
-    char full[16000];
+    char full[101000];
     snprintf(full, sizeof(full), "\r\n<c>=== TobinMUD News ===<z>\r\n%s", body);
     descriptor_page_start(d, full, page_size);
     return true;

@@ -15,6 +15,7 @@
 #include "obj_repo.h"
 #include "room.h"
 #include "thing.h"
+#include "trigger.h"
 
 /* short_descr is stored lowercase-first by convention ("a torch");
  * capitalize only when it starts a whole message (mid-sentence uses stay
@@ -123,6 +124,64 @@ bool cmd_get(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* `get all <container>` -- empty an entire container (corpse, chest, ...)
+     * into your inventory in one go, rather than naming each item. User,
+     * 2026-07-11: "corpses are supposed to act like containers. get all
+     * corpse should get all items the player/mob was carrying upon death." */
+    if (nargs == 2 && strcasecmp(tok, "all") == 0) {
+        obj_t *cont = find_obj(ch->base.stuff_head, conttok, NULL);
+        if (!cont)
+            cont = find_obj(ch->base.roomp->base.stuff_head, conttok, NULL);
+        if (!cont) {
+            descriptor_send(d, "You don't see that container here.\r\n");
+            return true;
+        }
+        if (!obj_is_container(cont)) {
+            descriptor_send(d, "That's not a container.\r\n");
+            return true;
+        }
+        if (obj_container_closed(cont)) {
+            descriptor_send(d, "It's closed.\r\n");
+            return true;
+        }
+        if (!cont->base.stuff_head) {
+            char msg[256];
+            const char *cl = cont->base.short_descr[0] ? cont->base.short_descr : cont->base.name;
+            snprintf(msg, sizeof(msg), "There's nothing in %s.\r\n", cl);
+            descriptor_send(d, msg);
+            return true;
+        }
+
+        thing_t *t = cont->base.stuff_head;
+        while (t) {
+            thing_t *next = t->stuff_next; /* thing_move_to() relinks t out of cont's list */
+            obj_t *item = (obj_t *)t;
+            thing_move_to(&item->base, &ch->base);
+
+            game_log(LOG_SILENT, "%s gets %s (vnum %d) from %s (vnum %d) in room %d",
+                     ch->base.name, item->base.short_descr, item->vnum,
+                     cont->base.short_descr, cont->vnum, ch->base.roomp->vnum);
+
+            char msg[512];
+            const char *il = item->base.short_descr[0] ? item->base.short_descr : item->base.name;
+            const char *cl = cont->base.short_descr[0] ? cont->base.short_descr : cont->base.name;
+            snprintf(msg, sizeof(msg), "You get %s from %s.\r\n", il, cl);
+            descriptor_send(d, msg);
+            snprintf(msg, sizeof(msg), "%s gets %s from %s.\r\n", ch->base.name, il, cl);
+            descriptor_room_echo(ch->base.roomp, ch, msg);
+
+            room_t *here = ch->base.roomp;
+            trigger_t trigs[8];
+            int n = trigger_repo_load_for("obj", item->vnum, "get", trigs, 8);
+            for (int i = 0; i < n; i++)
+                trigger_run(&trigs[i], ch, here, NULL);
+
+            t = next;
+        }
+        player_inventory_save(ch->player_id, ch);
+        return true;
+    }
+
     /* `get <item> <container>` -- take an item out of a container (one you're
      * carrying/wearing, or one on the room floor). */
     if (nargs == 2) {
@@ -187,6 +246,17 @@ bool cmd_get(descriptor_t *d, const char *args) {
     descriptor_send(d, msg);
     snprintf(msg, sizeof(msg), "%s gets %s.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, msg);
+
+    {
+        /* "get" triggers (user, 2026-07-11: "interaction with mobs objs
+         * and room via scripts"). Room may have changed if the trigger
+         * itself teleports the getter -- captured before running it. */
+        room_t *here = ch->base.roomp;
+        trigger_t trigs[8];
+        int n = trigger_repo_load_for("obj", o->vnum, "get", trigs, 8);
+        for (int i = 0; i < n; i++)
+            trigger_run(&trigs[i], ch, here, NULL);
+    }
     return true;
 }
 
@@ -399,6 +469,15 @@ bool cmd_wear(descriptor_t *d, const char *args) {
     snprintf(msg, sizeof(msg), "%s wears %s.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, msg);
     player_inventory_save(ch->player_id, ch);
+
+    if (ch->base.roomp) {
+        /* "wear" triggers (user, 2026-07-11: "interaction with mobs objs
+         * and room via scripts"). */
+        trigger_t trigs[8];
+        int n = trigger_repo_load_for("obj", o->vnum, "wear", trigs, 8);
+        for (int i = 0; i < n; i++)
+            trigger_run(&trigs[i], ch, ch->base.roomp, NULL);
+    }
     return true;
 }
 

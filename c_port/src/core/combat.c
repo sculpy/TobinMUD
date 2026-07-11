@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "combat.h"
 
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@
 #include "player_repo.h"
 #include "room.h"
 #include "thing.h"
+#include "trigger.h"
 
 /* Best-effort message to b's connection, if any -- no-op for a mob (once
  * mobs exist) or a being whose descriptor already went away. */
@@ -62,7 +64,12 @@ static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb)
                                + longest limb name ("left finger") with room to spare */
     char long_descr[200];
     snprintf(short_descr, sizeof(short_descr), "%s's severed %s", defender->base.name, ln);
-    snprintf(long_descr, sizeof(long_descr), "%s's severed %s lies here, still twitching.\r\n",
+    /* No trailing \r\n -- cmd_look.c's room-floor listing and `look <item>`
+     * both append their own "\r\n" after long_descr (matching every real
+     * seeded object's long_desc convention, plain text with no terminator);
+     * baking one in here doubled up into a blank line, same bug class the
+     * user reported for the pee/blood pools (2026-07-11). */
+    snprintf(long_descr, sizeof(long_descr), "%s's severed %s lies here, still twitching.",
              defender->base.name, ln);
 
     obj_t *part = obj_create_ephemeral(ln, short_descr, long_descr, OBJ_CAT_TRASH);
@@ -213,6 +220,22 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     if (status_after && status_after != status_before) {
         tell(attacker, "%s's %s %s!\r\n", defender->base.name, ln, status_after);
         tell(defender, "Your %s %s!\r\n", ln, status_after);
+
+        /* Bleeding (user, 2026-07-11: "goes with limb damage and
+         * bleeding" -- said in the context of adding pools/pee). A limb
+         * crossing into a bad-enough tier (limb_status_text() returning
+         * non-NULL, i.e. <20% HP) leaves a blood pool via the same
+         * obj_grow_pool() ground-puddle infra `pee` uses (grows an
+         * existing blood pool in the room instead of a separate object),
+         * reusing this function's existing tier-crossing guard so it only
+         * fires once per crossing, not on every hit while already in that
+         * tier. */
+        if (defender->base.roomp) {
+            obj_grow_pool(defender->base.roomp, "blood", "puddle pool blood", "blood");
+            char msg[128];
+            snprintf(msg, sizeof(msg), "Blood pools around %s!\r\n", defender->base.name);
+            descriptor_room_echo(defender->base.roomp, NULL, msg);
+        }
     }
 
     bool decapitated = false;
@@ -332,7 +355,8 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         char short_descr[128];
         char long_descr[200];
         snprintf(short_descr, sizeof(short_descr), "the corpse of %s", loser->base.name);
-        snprintf(long_descr, sizeof(long_descr), "The corpse of %s lies here.\r\n", loser->base.name);
+        /* No trailing \r\n -- see the severed-limb long_descr comment above. */
+        snprintf(long_descr, sizeof(long_descr), "The corpse of %s lies here.", loser->base.name);
         obj_t *corpse = obj_create_ephemeral("corpse", short_descr, long_descr, OBJ_CAT_CONTAINER);
         if (corpse) {
             corpse->wear_flag = 0;   /* not takeable as a whole */
@@ -362,6 +386,23 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         if (loser->desc)
             descriptor_leave_to_menu(loser->desc);
     } else {
+        /* "death" triggers (user, 2026-07-11: "interaction with mobs objs
+         * and room via scripts") fire here, before being_destroy() frees
+         * `loser` -- actor is the killer (`winner`), room is wherever the
+         * mob died. */
+        if (loser->base.roomp) {
+            trigger_t trigs[8];
+            int n = trigger_repo_load_for("mob", loser->base.id, "death", trigs, 8);
+            if (n > 0) {
+                char capbuf[128];
+                snprintf(capbuf, sizeof(capbuf), "%s", loser->base.short_descr);
+                if (capbuf[0])
+                    capbuf[0] = (char)toupper((unsigned char)capbuf[0]);
+                for (int i = 0; i < n; i++)
+                    trigger_run(&trigs[i], winner, loser->base.roomp, capbuf[0] ? capbuf : NULL);
+            }
+        }
+
         /* Mob death is permanent (Phase 2D) -- no persistence, no respawn
          * without a future zone-reset system (2E). This also fixes a
          * latent dormant bug: before mobs existed, defeating any
@@ -457,6 +498,17 @@ bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int 
     if (status_after && status_after != status_before) {
         tell(actor, "%s's %s %s!\r\n", target->base.name, ln, status_after);
         tell(target, "Your %s %s!\r\n", ln, status_after);
+
+        /* Same bleeding tier-crossing guard as combat_strike() -- this
+         * debug path (hurtlimb) has its own duplicated tier-crossing
+         * check, so the blood pool has to be duplicated here too or
+         * `hurtlimb` couldn't deterministically test it. */
+        if (target->base.roomp) {
+            obj_grow_pool(target->base.roomp, "blood", "puddle pool blood", "blood");
+            char msg[128];
+            snprintf(msg, sizeof(msg), "Blood pools around %s!\r\n", target->base.name);
+            descriptor_room_echo(target->base.roomp, NULL, msg);
+        }
     }
 
     bool decapitated = false;

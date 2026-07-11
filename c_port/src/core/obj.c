@@ -4,12 +4,17 @@
  *******************************************************************/
 #include "obj.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
 #include "being.h"
 #include "obj_repo.h"
 #include "room.h"
+#include "thing.h"
+#include "world.h"
 
 static const char *const OBJ_CATEGORY_NAMES[OBJ_CAT_COUNT] = {
     "light", "weapon", "ammo", "armor", "container", "drink", "food",
@@ -245,6 +250,138 @@ obj_t *obj_create_ephemeral(const char *name, const char *short_descr,
     o->can_be_seen = true;
 
     return o;
+}
+
+/* Whole-keyword case-insensitive match (not a prefix match like
+ * cmd_object.c's obj_name_matches() -- `type_tag` is always an exact,
+ * known keyword here, e.g. "pee"/"blood", not player-typed input). */
+static bool pool_keyword_matches(const char *keywords, const char *tag) {
+    size_t tag_len = strlen(tag);
+    const char *p = keywords;
+    while (*p) {
+        while (*p == ' ')
+            p++;
+        const char *start = p;
+        while (*p && *p != ' ')
+            p++;
+        size_t wlen = (size_t)(p - start);
+        if (wlen == tag_len && strncasecmp(start, tag, tag_len) == 0)
+            return true;
+    }
+    return false;
+}
+
+/* "a puddle of blood" -> "a pool of blood" -> "a large pool of blood" as
+ * val[0] (the growth counter) climbs -- same word-tier-bucketing style as
+ * alignment_word()/limb_status_text(). */
+static const char *pool_size_phrase(int size) {
+    if (size >= 4)
+        return "a large pool of";
+    if (size >= 2)
+        return "a pool of";
+    return "a puddle of";
+}
+
+/* Colorizes the substance noun (user, 2026-07-11: "pee blood x4 should
+ * create A large pool of <R>blood<z> is here."): dim for a puddle/pool,
+ * bright once it's grown into a "large pool" -- the color escalates with
+ * the size tier the same way the wording does. Falls back to plain white
+ * for any noun besides the two that exist today. */
+static char pool_noun_color(const char *noun, int size) {
+    char dim, bright;
+    if (strcasecmp(noun, "blood") == 0) {
+        dim = 'r'; bright = 'R';
+    } else if (strcasecmp(noun, "pee") == 0) {
+        dim = 'y'; bright = 'Y';
+    } else {
+        dim = 'w'; bright = 'W';
+    }
+    return size >= 4 ? bright : dim;
+}
+
+static void pool_set_descr(obj_t *o, const char *noun) {
+    const char *phrase = pool_size_phrase(o->val[0]);
+    char color = pool_noun_color(noun, o->val[0]);
+    snprintf(o->base.short_descr, sizeof(o->base.short_descr), "%s <%c>%s<z>", phrase, color, noun);
+    /* Capitalize only the sentence-starting long_descr copy -- short_descr
+     * stays lowercase-first (inventory/ground-listing convention, obj.h). */
+    char capped[64];
+    snprintf(capped, sizeof(capped), "%s", phrase);
+    capped[0] = (char)toupper((unsigned char)capped[0]);
+    snprintf(o->long_descr, sizeof(o->long_descr), "%s <%c>%s<z> is here.", capped, color, noun);
+}
+
+void obj_grow_pool(struct room *room, const char *type_tag, const char *keywords,
+                    const char *noun) {
+    if (!room)
+        return;
+
+    for (thing_t *t = room->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        obj_t *o = (obj_t *)t;
+        if (o->category != OBJ_CAT_TRASH || !pool_keyword_matches(t->name, type_tag))
+            continue;
+        o->val[0]++;
+        pool_set_descr(o, noun);
+        return;
+    }
+
+    obj_t *o = obj_create_ephemeral(keywords, "", "", OBJ_CAT_TRASH);
+    if (!o)
+        return;
+    o->wear_flag = 0; /* not takeable -- ground scenery until a scavenger cleans it up */
+    o->val[0] = 1;
+    pool_set_descr(o, noun);
+    thing_move_to(&o->base, &room->base);
+}
+
+/* Recovers the substance noun ("pee"/"blood") from a pool's current
+ * short_descr ("a pool of <r>blood<z>" -> "blood") so decay can regenerate
+ * the text at a smaller tier -- pool_set_descr() always writes "<phrase>
+ * <color>noun<z>" with the phrase ending in "of ", so the noun is
+ * whatever comes after the last " of ", with its color-tag wrapper
+ * stripped back off. No separate noun field exists on obj_t to store it
+ * directly (the generic int val[4] payload has no string slot). */
+static void pool_noun_from_descr(const char *short_descr, char *out, size_t outsz) {
+    const char *p = strstr(short_descr, " of ");
+    const char *start = p ? p + 4 : short_descr;
+    if (start[0] == '<' && start[2] == '>')
+        start += 3; /* skip the "<X>" color tag */
+
+    char tmp[64];
+    snprintf(tmp, sizeof(tmp), "%s", start);
+    char *end_tag = strstr(tmp, "<z>");
+    if (end_tag)
+        *end_tag = '\0';
+    snprintf(out, outsz, "%s", tmp);
+}
+
+static void pool_decay_visit(obj_t *o) {
+    if (o->category != OBJ_CAT_TRASH || !pool_keyword_matches(o->base.name, "puddle"))
+        return;
+
+    o->val[0]--;
+    if (o->val[0] <= 0) {
+        obj_destroy(o); /* fully absorbed into the ground */
+        return;
+    }
+
+    char noun[32];
+    pool_noun_from_descr(o->base.short_descr, noun, sizeof(noun));
+    pool_set_descr(o, noun);
+}
+
+/* Ages every ground puddle in the world down one size tier -- "puddle"
+ * disappears entirely, "pool"/"large pool" shrink toward it -- reversing
+ * obj_grow_pool()'s growth a little at a time (user, 2026-07-11: "pools
+ * should absorb into the ground little by little upon ticks"). Pulse-
+ * registered in main.c at the same ~60s cadence as mob_ai_tick(); also
+ * forced synchronously by `aitick` (cmd_aitick.c) for deterministic
+ * testing, same precedent as the mob wander/scavenge chances. */
+void obj_pool_decay_tick(long pulse_num) {
+    (void)pulse_num;
+    world_for_each_obj(pool_decay_visit);
 }
 
 void obj_destroy(obj_t *o) {

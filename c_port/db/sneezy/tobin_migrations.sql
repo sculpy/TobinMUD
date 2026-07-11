@@ -35,3 +35,14 @@ ALTER TABLE `account`
 -- channel). Defaults to 1 so new players start on the channel; toggleable.
 ALTER TABLE `player`
   ADD COLUMN IF NOT EXISTS `pflags` int(11) NOT NULL DEFAULT 1;
+
+-- Custom immortal move messages (2026-07-11, user: "immorts should be able
+-- to set their own enter or leave messages. Like Jesus drags his cross in
+-- from the east." -- named "poofin"/"poofout" originally, renamed to
+-- "bamfin"/"bamfout" per user request the same session). NULL = use the
+-- default "exits to the <dir>"/"has arrived" wording. See `bamfin`/
+-- `bamfout` commands (cmd_bamf.c).
+ALTER TABLE `player`
+  ADD COLUMN IF NOT EXISTS `bamfin` varchar(96) DEFAULT NULL;
+ALTER TABLE `player`
+  ADD COLUMN IF NOT EXISTS `bamfout` varchar(96) DEFAULT NULL;

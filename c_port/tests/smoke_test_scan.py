@@ -95,12 +95,13 @@ def make_player(tag):
 
 sScan, nameScan = make_player("a")   # the one scanning
 sTgt, nameTgt = make_player("b")     # the target, will step into the next room
+cmd(sScan, "color off")  # so the [Exits:] regex below isn't broken up by ANSI codes
 
 # Find a real exit out of the shared start room.
 outA = cmd(sScan, "look")
-m = re.search(r"Obvious exits:\s*([a-z ]+)", outA)
+m = re.search(r"\[Exits:\]\s*([A-Za-z ]+)", outA)
 check(bool(m and m.group(1).split()), "the start room has at least one obvious exit")
-direction = m.group(1).split()[0]
+direction = m.group(1).split()[0].lower()  # the [Exits:] list is capitalized; lowercase to match scan's own text
 
 # Target walks one room in that direction; now it's one room away.
 cmd(sTgt, direction)

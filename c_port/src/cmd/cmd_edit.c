@@ -4,56 +4,91 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
-#include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
-#include "room.h"
-#include "room_repo.h"
-#include "zone.h"
-
-/* `redit [<vnum>]` -- opens the menu-driven room builder. With a leading
- * room number it edits that room from anywhere (like goto, but for editing);
- * otherwise it edits the room you're standing in. The whole editor -- the
- * menu, the flag/terrain/exit submenus, the working-copy Save/Quit model --
- * lives in descriptor.c's CONN_REDIT_* state machine (see
- * descriptor_redit_begin), mirroring how character creation is structured.
- *
- * This replaced the original one-shot command form (`redit name <text>`,
- * `redit exit <dir> <toroom>`, ...) at user request: all room editing now
- * goes through the menu, the same way the original SneezyMUD's redit used a
- * CON_REDITING menu mode (misc/create_rooms.cc). Gate: BUILD_MIN_LEVEL,
- * enforced by the command table. */
+/* `edit <noun> [args]` -- unifies every standalone `ed*` command into one
+ * entry point (user, 2026-07-11: "unify all ed* commands into one edit
+ * command that accepts arguments for example edit room <vnum>, edit
+ * object <vnum>, edit player <name>, etc. and keep the level assignments
+ * for each function valid"). Each noun just forwards to the SAME
+ * implementation function the old standalone command called -- no editor
+ * behavior changed, only how it's reached. The dispatcher itself is
+ * registered at BUILD_MIN_LEVEL (51, the lowest of any sub-editor) so
+ * everyone who could reach at least one editor can reach `edit`; a noun
+ * needing a HIGHER level than that (player 58+, help/news/wiznews 56+,
+ * rules 59+) checks it here and refuses with the same "Huh?!" wording the
+ * command table itself would have given, so nothing was quietly
+ * loosened. `trigger` (added 2026-07-11, cmd_edtrigger.c) is the one noun
+ * that ISN'T a folded-in old command -- it's the new mob/obj/room
+ * scripting system's editor, added straight into this dispatcher rather
+ * than getting its own standalone verb first. `object`/`mob` (as in
+ * "edit an object/mob prototype", not the trigger target types of the
+ * same name) are reserved in the usage line for the day those editors
+ * exist (see TODO.md) -- not wired to anything yet. */
 bool cmd_edit(descriptor_t *d, const char *args) {
-    if (!d->character) {
-        descriptor_send(d, "You are nowhere.\r\n");
+    while (*args == ' ')
+        args++;
+
+    char noun[32];
+    int n = sscanf(args, "%31s", noun);
+    if (n != 1) {
+        descriptor_send(d,
+            "Usage: edit <room|zone|player|help|news|wiznews|rules|trigger> [args]\r\n");
         return true;
     }
 
-    int vnum;
-    if (isdigit((unsigned char)args[0])) {
-        vnum = atoi(args);
-    } else {
-        room_t *here = d->character->base.roomp;
-        if (!here) {
-            descriptor_send(d, "You are nowhere.\r\n");
+    const char *rest = args + strlen(noun);
+    while (*rest == ' ')
+        rest++;
+
+    int level = d->character ? d->character->progress.level : 0;
+
+    if (strcasecmp(noun, "room") == 0)
+        return cmd_edroom(d, rest);
+    if (strcasecmp(noun, "zone") == 0)
+        return cmd_edzone(d, rest);
+    if (strcasecmp(noun, "trigger") == 0)
+        return cmd_edtrigger(d, rest);
+
+    if (strcasecmp(noun, "player") == 0) {
+        if (level < EDPLAYER_MIN_LEVEL) {
+            descriptor_send(d, "Huh?!\r\n");
             return true;
         }
-        vnum = here->vnum;
+        return cmd_edplayer(d, rest);
+    }
+    if (strcasecmp(noun, "help") == 0) {
+        if (level < HELP_EDIT_MIN_LEVEL) {
+            descriptor_send(d, "Huh?!\r\n");
+            return true;
+        }
+        return cmd_hedit(d, rest);
+    }
+    if (strcasecmp(noun, "news") == 0) {
+        if (level < ADDNEWS_MIN_LEVEL) {
+            descriptor_send(d, "Huh?!\r\n");
+            return true;
+        }
+        return cmd_addnews(d, rest);
+    }
+    if (strcasecmp(noun, "wiznews") == 0) {
+        if (level < ADDNEWS_MIN_LEVEL) {
+            descriptor_send(d, "Huh?!\r\n");
+            return true;
+        }
+        return cmd_edwiznews(d, rest);
+    }
+    if (strcasecmp(noun, "rules") == 0) {
+        if (level < EDRULES_MIN_LEVEL) {
+            descriptor_send(d, "Huh?!\r\n");
+            return true;
+        }
+        return cmd_edrules(d, rest);
     }
 
-    /* Zone identity (Session 43): a builder (51-54) can only edit a room
-     * in a zone they're assigned to (zoneassign, 55+ only); 55+ edits
-     * anything. Unzoned rooms (no `room.zone`) are unrestricted. */
-    if (!zone_can_edit(d->character, room_repo_get_zone(vnum))) {
-        descriptor_send(d, "You aren't assigned to that zone.\r\n");
-        return true;
-    }
-
-    if (!descriptor_redit_begin(d, vnum)) {
-        char msg[96];
-        snprintf(msg, sizeof(msg), "There is no room %d to edit.\r\n", vnum);
-        descriptor_send(d, msg);
-    }
+    descriptor_send(d,
+        "Usage: edit <room|zone|player|help|news|wiznews|rules> [args]\r\n");
     return true;
 }

@@ -26,6 +26,7 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('attack', 'Usage: attack <player>   (alias: kill -- identical)\n\nMortals: starts a fight with another player in your room; combat\nresolves in rounds, every hit lands on a specific limb, and you can\nabbreviate the target''s name (`attack clau` reaches Claudius).\nImmortals: an instant slay -- no rounds, no wait, the target dies.', 'seed'),
 ('kill', 'Usage: kill <player>   (alias: attack -- identical)\n\nMortals: starts a fight with another player in your room; combat\nresolves in rounds, every hit lands on a specific limb, and you can\nabbreviate the target''s name (`kill clau` reaches Claudius).\nImmortals: an instant slay -- no rounds, no wait, the target dies.', 'seed'),
 ('say', 'Usage: say <message>   (shorthand: ''<message>)\n\nSays something to everyone in your room. The apostrophe shorthand\nneeds no space: ''hello says "hello".', 'seed'),
+('shout', 'Usage: shout <message>\n\nUnlike say, a shout reaches everyone playing, anywhere in the game --\nnot just your room. A sleeping character never hears it. Don''t want\nto hear shouts at all? `toggle noshout` opts you out -- except an\nimmortal''s shout always gets through regardless.', 'seed'),
 ('limbs', 'Usage: limbs\n\nShows the health of all thirteen of your limbs as percentages, with\nan injury note on any limb below 20%. A destroyed limb (0%) makes\nyour own attacks less accurate until you are made whole again.', 'seed'),
 ('flee', 'Usage: flee\n\nWhile fighting, makes a desperate attempt to escape through a random\nexit. You do not choose the direction and it does not always work -- a\nfailed flee leaves you in the fight. On success both sides stop\nfighting and you bolt to a neighbouring room.', 'seed'),
 ('bug', 'Usage: bug <description>\n\nReports a bug to the immortals -- your name and the date are recorded\nwith it. Please be specific about what you did and what went wrong.\nImmortals can type bug with no argument to list outstanding reports.', 'seed'),
@@ -240,6 +241,14 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 -- a container object, not just doors.
 UPDATE `help_topic` SET `body` = 'Usage: get <item> [container]\n\nPicks up an item from the room floor and adds it to what you are\ncarrying. Fixed scenery can''t be taken this way. With a second word,\n`get <item> <container>` takes the item out of a container (one you''re\ncarrying or one on the floor) instead. See `inventory`, `put`, and\n`containers`.'
   WHERE `name` = 'get' AND `updated_by` = 'seed';
+
+-- Migration (user 2026-07-11: "corpses are supposed to act like
+-- containers -- get all corpse should get all items"): `get all
+-- <container>` empties it in one go.
+UPDATE `help_topic` SET `body` = 'Usage: get <item> [container]\n\nPicks up an item from the room floor and adds it to what you are\ncarrying. Fixed scenery can''t be taken this way. With a second word,\n`get <item> <container>` takes the item out of a container (one you''re\ncarrying or one on the floor, including a corpse) instead. `get all\n<container>` takes EVERYTHING out of it in one go. See `inventory`,\n`put`, and `containers`.'
+  WHERE `name` = 'get' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Containers -- bags, chests, pouches, corpses, and the like -- can hold\nother items.\n\n  put <item> <container>        stash a carried item inside\n  get <item> <container>        take an item back out\n  get all <container>           take EVERYTHING out at once\n  look <container>              see what''s inside (when open)\n  open / close <container>      shut or unshut a closeable container\n\nA closed container keeps its contents to itself until you open it, and\nnothing more fits once its weight capacity is full. Locks and keys\naren''t built yet, so a locked container can''t be opened for now.'
+  WHERE `name` = 'containers' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Usage: open <direction|container>\n\nOpens a closed door blocking that exit, or a closeable container (a\nbag, chest, and the like) that you''re carrying or that''s on the floor.\nA locked door or container can''t be opened this way -- that needs a\nkey, which isn''t built yet. Close it again with `close`.'
   WHERE `name` = 'open' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Usage: close <direction|container>\n\nCloses a door blocking that exit, or a closeable container you''re\ncarrying or that''s on the floor. A closed door blocks movement; a\nclosed container keeps its contents sealed until someone opens it\nagain with `open`.'
@@ -323,12 +332,50 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('transfer', 'Usage: transfer <name>\n       transfer <name> <room vnum>\n\nImmortal-only: pulls an online player into your own room, or into a\nspecific room if you give its vnum. The player is told what happened\nand shown their new surroundings; anyone in the rooms they leave and\narrive in sees them vanish and appear in a puff of smoke.', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
+-- New topic: `pee` (2026-07-11).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('pee', 'Usage: pee\n\nImmortal-only: relieves yourself, leaving a puddle on the floor of\nyour current room for everyone to see. Purely for flavor.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- New topic: `drink` (2026-07-11).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('drink', 'Usage: drink <puddle>\n\nDrinks from a puddle on the ground -- a pool of pee, or a pool of\nblood left by a badly wounded limb. There is a chance of getting\npoisoned (a scare, not lethal on its own). Purely for flavor.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- New topics: `bamfin`/`bamfout` (2026-07-11; named "poofin"/"poofout"
+-- originally, renamed per user request the same session).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('bamfin', 'Usage: bamfin <message>\n       bamfin none\n\nImmortal-only: sets your own custom arrival message, replacing the\ndefault "has arrived" wording -- e.g. "drags $p cross in from the\n$d" reads as "Jesus drags his cross in from the east." `$d` is\nreplaced with the direction you arrived from; `$p` with your\ngender''s possessive pronoun (his/her/their), so the same message\nreads correctly no matter who sets it. `bamfin none` (or `clear`)\nreverts to the default wording.', 'seed'),
+('bamfout', 'Usage: bamfout <message>\n       bamfout none\n\nImmortal-only: sets your own custom departure message, replacing\nthe default "exits to the <direction>" wording. Same `$d`/`$p`\ntoken rules as `bamfin` -- see `help bamfin`.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
 -- The `set` body changed (now also covers alignment, 2026-07-10) -- the
 -- INSERT above is a no-op on the already-seeded row, so update it explicitly.
-UPDATE `help_topic` SET `body` = 'Usage: set <name> <field> <value>\n\nAdministrator (58+) only: a one-shot sibling of edplayer for quick,\nscriptable single-field edits -- one line in, one field changed, no\nmenu. Works on any player, online or offline, by exact name; an online\ntarget is updated immediately. Fields: level, xp, hp <hp> <max hp>,\nalignment (-1000 evil .. 1000 good), str/dex/con/int/wis/cha, gender,\ntitle (or ''none'' to clear), loadroom, handed. See edplayer for a menu\ncovering every field at once.'
+UPDATE `help_topic` SET `body` = 'Usage: set <name> <field> <value>\n\nAdministrator (58+) only: a one-shot sibling of edit player for quick,\nscriptable single-field edits -- one line in, one field changed, no\nmenu. Works on any player, online or offline, by exact name; an online\ntarget is updated immediately. Fields: level, xp, hp <hp> <max hp>,\nalignment (-1000 evil .. 1000 good), str/dex/con/int/wis/cha, gender,\ntitle (or ''none'' to clear), loadroom, handed. See edit player for a\nmenu covering every field at once.'
   WHERE `name` = 'set';
+
+-- New topic: `edit` (2026-07-11) -- unifies edroom/edzone/edplayer/edhelp/
+-- ednews/edwiznews/edrules into one command; see cmd_edit.c. The old
+-- per-editor topics (edroom, edzone, edplayer, edhelp, ednews, edwiznews,
+-- edrules) are removed from the DB (see the deploy notes) since those
+-- commands no longer exist standalone.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('edit', 'Usage: edit <noun> [args]\n\nOne entry point for every editor, replacing the old standalone ed*\ncommands. Each noun still needs its own level, same as before:\n\n  edit room [<vnum>]        (51+) menu-driven room builder\n  edit zone <zone number>   (51+) zone properties/builders\n  edit trigger ...          (51+) scripted mob/obj/room behavior --\n                                  see `help trigger`\n  edit player <name>        (58+) menu-driven player editor\n  edit help <topic>         (56+) help topic line editor\n  edit news <headline>      (56+) post a news item\n  edit wiznews <headline>   (56+) post to the immortal news channel\n  edit rules <n> <title>    (59+) write a numbered game rule\n\nLeaving off a noun''s own arguments shows its full usage (e.g. bare\n`edit room` still edits the room you''re standing in).', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- The `score` body changed (now also shows alignment, 2026-07-10) -- the
 -- INSERT above is a no-op on the already-seeded row, so update it explicitly.
 UPDATE `help_topic` SET `body` = 'Usage: score\n\nShows your character sheet: name, level, experience, hit points,\nposition, attributes, handedness, gender, and alignment (good vs\nevil -- neutral until an immortal sets it, see `help set`). Limbs\nappear here only once they are hurt -- see `help limbs` for the full\nbreakdown.'
   WHERE `name` = 'score';
+
+-- New topic: `trigger` (2026-07-11) -- the in-game scripting system.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('trigger', 'Usage: edit trigger <room|mob|obj> <vnum> <trigger_type> [match_text|chance]\n       edit trigger list <room|mob|obj> <vnum>\n       edit trigger delete <id>\n\nBuilder (51+) only: attaches scripted behavior to a room, mob, or\nobject prototype -- no recompile needed, unlike the classic spec\nproc approach. Trigger types:\n\n  room: enter (someone walks in), random (ambient, rolled every tick)\n  mob:  greet (someone walks into its room), speech (someone says a\n        matching keyword nearby -- give the keyword as the last\n        argument), death (it dies), random (ambient tick)\n  obj:  get (picked up), wear (worn)\n\nFor a `random` trigger, the last argument is the percent chance per\ntick (default 25). After the header line, you land in the line editor\nto write the script -- one action per line, `/s` saves:\n\n  echo <text>      -- to the triggering player only\n  echoroom <text>  -- to everyone else in the room\n  emote <text>     -- "<Name> <text>" to the whole room\n  teleport <vnum>  -- moves the triggering player to that room\n  give <vnum>      -- spawns that object into their inventory\n  damage <n>       -- deals n damage (never fatal on its own)\n  log <text>       -- a silent log entry, never broadcast\n\n`edit trigger list <type> <vnum>` shows what''s already attached;\n`edit trigger delete <id>` removes one.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Migration (user bug report, 2026-07-11: "i just tried to drink from a
+-- fountain in the game, it failed with You don't see that here to
+-- drink"): `drink` now also resolves a real OBJ_CAT_DRINK object
+-- (fountains, drink containers), not just pee/blood puddles.
+UPDATE `help_topic` SET `body` = 'Usage: drink <puddle|fountain>\n\nDrinks from a puddle on the ground -- a pool of pee, or a pool of\nblood left by a badly wounded limb -- with a chance of getting\npoisoned (a scare, not lethal on its own). Also works on a real\nfountain or drink container in the room: clean water, no poison,\nnever runs dry. Purely for flavor.'
+  WHERE `name` = 'drink' AND `updated_by` = 'seed';

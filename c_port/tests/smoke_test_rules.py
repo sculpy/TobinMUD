@@ -123,7 +123,7 @@ check("Respect Other Players" in strip(cmd(sm, "rules 1")),
       "rules 1 shows the first rule in full")
 check("no rule number" in strip(cmd(sm, "rules 999")),
       "asking for a nonexistent rule is rejected")
-check("Huh?!" in cmd(sm, "edrules 5 Test"), "a mortal cannot see edrules (Huh?!)")
+check("Huh?!" in cmd(sm, "edit rules 5 Test"), "a mortal cannot see edit rules (Huh?!)")
 sm.close()
 
 # --- immortal writes a rule ---
@@ -134,8 +134,8 @@ sql(f"UPDATE player_progress SET level=59 WHERE player_id="
 si = relogin(nameI)
 
 marker = f"norule{_suffix}"
-out = cmd(si, "edrules 7 No Testing In Production")
-check("Writing rule 7" in strip(out), "edrules opens the line editor for the rule")
+out = cmd(si, "edit rules 7 No Testing In Production")
+check("Writing rule 7" in strip(out), "edit rules opens the line editor for the rule")
 send_line(si, f"You shall not {marker} on the live game.")
 recv_all(si)
 out = strip(cmd(si, "/s"))  # save

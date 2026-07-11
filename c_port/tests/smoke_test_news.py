@@ -141,8 +141,8 @@ check(len(big_first.splitlines()) > len(small_first.splitlines()),
 
 check("page at a time" in cmd(s, "help news"), "help news describes pagination")
 
-# ednews gate: a mortal can't (hidden).
-check("Huh?!" in cmd(s, "ednews Nope"), "ednews is hidden from mortals")
+# edit news gate: a mortal can't (hidden).
+check("Huh?!" in cmd(s, "edit news Nope"), "edit news is hidden from mortals")
 
 # --- promote to 56 and post a news item ---
 set_level(name, 56)
@@ -155,10 +155,10 @@ send_line(s, "1"); recv_all(s)
 cmd(s, "color off")
 
 headline = f"Fresh Off The Press {_suffix}"
-out = cmd(s, f"ednews {headline}")
-check("Writing news" in out, "ednews opens the story editor with the headline")
+out = cmd(s, f"edit news {headline}")
+check("Writing news" in out, "edit news opens the story editor with the headline")
 cmd(s, "Something new is happening in the realm today.")
-check("News posted" in cmd(s, "/s"), "ednews saves the story")
+check("News posted" in cmd(s, "/s"), "edit news saves the story")
 _, full = news_read(s)
 check(headline in full, "the posted item shows up in news, newest first")
 
