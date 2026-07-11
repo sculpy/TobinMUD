@@ -142,6 +142,17 @@ check("Usage:" in cmd(s, "vnum"), "bare vnum shows usage")
 check("Usage:" in cmd(s, "vnum obj"), "vnum with no pattern shows usage")
 check("none" in cmd(s, "vnum obj zzqxnomatchzz").lower(), "a no-match pattern reports none")
 
+# --- a bare vnum or a vnum range browses by vnum instead of by name
+# (TODO.md "mlist/olist/rlist" ask, folded into `vnum` instead of three
+# near-duplicate new commands) ---
+_, full = vnum_read(s, "vnum obj 3")
+check("object vnums 3-3" in full.lower(), "a bare vnum shows the vnums-N-N header")
+check("fountain" in full.lower(), "vnum obj 3 finds the real seeded fountain (vnum 3)")
+
+_, full = vnum_read(s, "vnum obj 1-10")
+check("object vnums 1-10" in full.lower(), "a vnum range shows the vnums-N-M header")
+check("fountain" in full.lower(), "vnum obj 1-10 includes vnum 3's fountain in range")
+
 set_level(name, 1)
 s.close()
 announce_done("smoke_test_vnum")

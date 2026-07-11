@@ -198,3 +198,11 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Fixtures Get Top Billing', 'Room descriptions now list permanent scenery -- fountains, lampposts, statuary, anything that can''t be picked up -- ahead of ordinary loot and whoever else is standing there, instead of whatever order they happened to load in.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Starter Taste of Scripting', 'Two of SneezyMUD''s old hardcoded behaviors have been reborn as real edit trigger content: the dirty refuse hauler mutters something rude if you say hello nearby (and grumbles unprompted now and then), and a new pickable tangle of thorny brambles scratches whoever grabs it. Both are ordinary database rows now, not compiled-in code -- see edit trigger list mob 33271 or edit trigger list obj 1000001 to see exactly how they''re built.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Browse Prototypes by Number, Not Just Name', 'vnum <room|obj|mob> <pattern> now also accepts a bare vnum or a vnum range (vnum obj 1017, or vnum obj 100-200) to browse prototypes directly by number, alongside its existing name search -- one command instead of three separate list commands.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

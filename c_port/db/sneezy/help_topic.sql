@@ -227,7 +227,7 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- vnum's body changed after it was first seeded (40-cap -> pagination); the
 -- INSERT above is a no-op on the existing row, so update it explicitly.
-UPDATE `help_topic` SET `body` = 'Usage: vnum <room|obj|mob> <pattern>\n\nBuilder tool (level 51+): lists the vnums and names of rooms, objects,\nor mobiles whose name contains <pattern> (case-insensitive). Handy for\nfinding a prototype''s number to oload/mload or goto. Results are listed\nlowest vnum first, a page at a time.'
+UPDATE `help_topic` SET `body` = 'Usage: vnum <room|obj|mob> <pattern>\n\nBuilder tool (level 51+): lists the vnums and names of rooms, objects,\nor mobiles whose name contains <pattern> (case-insensitive). <pattern>\ncan also be a bare vnum (vnum obj 1017) or a vnum range (vnum obj\n100-200) to browse by number directly instead of by name. Handy for\nfinding a prototype''s number to oload/mload or goto. Results are listed\nlowest vnum first, a page at a time.'
   WHERE `name` = 'vnum' AND `updated_by` = 'seed';
 
 -- New topics: containers + put; get/open/close now also act on containers

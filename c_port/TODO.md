@@ -56,16 +56,26 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       hit/miss hooks -- follow-ups if a real need shows up. New
       `tests/smoke_test_trigger.py` covers all seven trigger types plus
       the level gate and list/delete.
-- [ ] **Seed starter trigger content from SneezyMUD spec procs** — user:
-      "and convert what sneezy has into a starter set of db data for
-      tobin." Reinterpret a handful of SneezyMUD's hardcoded spec procs
-      (`code/code/spec/spec_{mobs,objs,rooms}.cc`) as real `trigger` table
-      rows using the new `edit trigger` system, as a demonstration/starter
-      content set — candidates already scouted: `insulter`/`gardener`/
-      `siren`/`banshee` (ambient mob `random` triggers), `corpseMuncher`
-      (mob `death`-adjacent), `SecretPortalDoors`/`dayGateRoom`/
-      `moonGateRoom` (room `enter` teleports), `blazingroom` (damaging
-      room), `stickerBush` (obj `get` damage). Not started yet.
+- [x] **Seed starter trigger content from SneezyMUD spec procs** — done --
+      deployed and verified via standalone smoke test
+      (`tests/smoke_test_trigger_seed.py`). User: "and convert what sneezy
+      has into a starter set of db data for tobin." New
+      `db/sneezy/trigger_seed.sql` reinterprets two spec procs as real
+      trigger rows: `insulter` (spec_mobs.cc) -> speech ("hello" ->
+      mutters something rude) + random (10%, ambient grumble) triggers on
+      the real seeded "dirty refuse hauler" (vnum 33271, already used by
+      `smoke_test_look_capitalization.py`); `stickerBush` (spec_objs.cc) ->
+      a new takeable "tangle of thorny brambles" prototype (vnum 1000001,
+      a deliberately new namespace clear of both real content and the
+      900000-970000 ephemeral test-fixture range) with a `get` trigger
+      (echo + damage 2). Room-damage-trap procs (`blazingroom`,
+      `BankVault`) and portal-gate procs (`SecretPortalDoors`,
+      `dayGateRoom`) were deliberately left out -- attaching real damage
+      or teleports to an EXISTING, already-traveled room risks disrupting
+      live players, which a lightweight demo shouldn't do.
+      `corpseMuncher` was also left out: no matching hook exists yet for a
+      mob reacting to a corpse object specifically. Idempotent (`WHERE NOT
+      EXISTS` guards), safe to re-apply.
 - [x] **`shout` channel** — done -- deployed and verified via standalone
       smoke test (`tests/smoke_test_shout.py`, 5 scenarios). User: "add a
       shout channel, use sneezy for implementation ideas" (modeled on
@@ -286,9 +296,9 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-10 (continued session) — working these next
 
-- [ ] **Confirm before creating a new account at login** — done --
-      deployed and verified via standalone smoke test; full sweep
-      pending. User: "in account login, if
+- [x] **Confirm before creating a new account at login** — done --
+      deployed and verified via standalone smoke test and a clean full
+      sweep. User: "in account login, if
       someone types in an account name that doesnt exist, we're assuming
       the want a new account. it should ask: New account, are you sure you
       want to create account <account name>? (y/n) yes creates a new
@@ -300,9 +310,9 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       inserted -- swept across tests/*.py. New
       `tests/smoke_test_account_confirm.py` covers the prompt itself
       (naming, y/n branches, and that "n" truly creates nothing).
-- [ ] **Delete entire account from the account menu** — done --
-      deployed and verified via standalone smoke test; full sweep
-      pending. User: "add a delete option to
+- [x] **Delete entire account from the account menu** — done --
+      deployed and verified via standalone smoke test and a clean full
+      sweep. User: "add a delete option to
       delete account from the account menu, requires user password to
       delete account." New `X` / `delete account` command at the account
       menu, mirroring the existing per-character delete flow one level up
@@ -316,8 +326,8 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       deletions already logged via `log_info()` (file/console only, per
       user: "the messages should just go to game log, not broadcast" --
       NOT `game_log()`, which would also echo live to online immortals).
-- [ ] **`transfer` command** — done -- deployed and verified via
-      standalone smoke test; full sweep pending. User: "add a transfer
+- [x] **`transfer` command** — done -- deployed and verified via
+      standalone smoke test and a clean full sweep. User: "add a transfer
       command that will take a target and transfer them into the same
       room as the transfer command was issued in (transfer name) also
       transfer name vnum to transfer the target to the room tht matches
@@ -473,12 +483,12 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       topic did) and mentions title `<N>`/`<n>` substitution; `help who`
       now mentions that a shown title can use both color tags and `<N>`/
       `<n>`.
-- [ ] **`bamfin`/`bamfout`** — classic wizard commands: an immortal sets
-      their own custom arrival ("bamfin") / departure ("bamfout") message
-      shown when they `goto`, plus a customizable regular-movement message
-      template (e.g. "Jesus drags his cross in from the <direction>.").
-      Needs new persisted per-player fields (likely new `player` columns)
-      wired into `cmd_goto.c`'s and `cmd_move.c`'s existing room-echo calls.
+- [x] **`bamfin`/`bamfout`** — done, superseded by the "Immortal custom
+      move messages" entry above (this stub predates the actual build;
+      originally named poofin/poofout, renamed to bamfin/bamfout per user
+      request the same session). New `player.bamfin`/`player.bamfout`
+      columns wired into `cmd_move.c`'s room-echo calls, with `$d`/`$p`
+      direction/pronoun substitution.
 - [x] **Colorize copyover messages** — done (Session 43): the 3 player-
       facing reboot lines in `cmd_copyover.c` (5-second warning, mid-
       reborn, please-reconnect) now use `<c>...<z>`, matching the existing
@@ -489,12 +499,14 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       `cmd_dispatch()` -- simpler than a hardcoded `'`/`;`-style alias since
       the real verb ("set") already follows the `@`, no need to hardcode a
       target. Covers any other stray leading `@`, not just `@set`.
-- [ ] **Verify multiplay-off actually gates a second mortal connection**
-      — Session 21 claims `enter_world()` already refuses a mortal
-      account's second connected character when the `multiplay` game flag
-      is off, with immortals exempt; user flagged uncertainty ("not sure
-      this is so") -- re-verify live (a quick two-connection test) before
-      trusting it, fix if it's actually broken.
+- [x] **Verify multiplay-off actually gates a second mortal connection**
+      — done, verified 2026-07-11: `smoke_test_multiplay.py` already
+      covers this exact scenario with two REAL simultaneous connections
+      (not mocked) -- reran it live and all 5 checks passed cleanly:
+      default-off refusal, a 59+ immortal turning it on, the second
+      character then connecting, and `multiplay` staying hidden from
+      mortals. `enter_world()`'s gate (`descriptor.c`) is confirmed
+      working as designed; no fix was needed.
 - [ ] **`gametog` (58+)** — split `toggle`: game-wide switches (currently
       `multiplay`, living inside the unified `toggle` command) move to a
       new `gametog` command gated 58+; `toggle` keeps only the
@@ -523,12 +535,16 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       report (so a player can be told their bug was fixed), instead of
       only being able to `delbug` (delete) it outright. Menu-driven or
       one-shot, matching the `ed*`/`set` precedent.
-- [ ] **`mlist`/`olist`/`rlist` (builder list commands)** — list available
-      mob/object/room prototypes; each accepts a bare vnum, a vnum range,
-      or a name/keyword substring filter. Parallels the original's real
-      list commands. Reads straight from the `mob`/`obj`/`room` tables
-      (no new Tobin tables), same "prototypes already exist" precedent as
-      `oload`/`mload`.
+- [x] **`mlist`/`olist`/`rlist` (builder list commands)** — done, folded
+      into the EXISTING `vnum <room|obj|mob> <pattern>` command instead of
+      three new near-duplicate ones: `vnum` already listed prototypes by
+      name/keyword substring, paginated, builder-gated -- everything the
+      three list commands would have needed except vnum/range browsing.
+      `cmd_vnum.c` gained `parse_vnum_range()`: `<pattern>` may now also be
+      a bare vnum ("vnum obj 1017") or a range ("vnum obj 100-200"),
+      switching the query from a name `LIKE` search to `vnum BETWEEN`.
+      Verified via standalone smoke test (`tests/smoke_test_vnum.py`,
+      extended) against the real seeded fountain (vnum 3).
 - [x] **`hit` command (real combat, never instakill)** — done (Session
       43): `cmd_hit.c` is a thin passthrough to `cmd_attack()` (which never
       special-cased immortals to begin with), so an immortal typing `hit`
@@ -1087,12 +1103,12 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       including real loot) to trash specifically, matching the user's
       "clean up" framing rather than risking a cleaner mob eating dropped
       gear or a corpse's contents.
-- [ ] **Weapon-aware combat messaging + hit/dam bonuses** — done --
+- [x] **Weapon-aware combat messaging + hit/dam bonuses** — done --
       deployed and verified via standalone smoke test (also caught
       and fixed a real off-by-one bug in this test's own SQL fixture, and
       discovered `attack`/`kill` instant-slay for immortals via cmd_kill.c,
       which required restructuring the test to attack with a mortal
-      character instead); full sweep pending. User: "when in combat wielded
+      character instead) and a clean full sweep. User: "when in combat wielded
       items should modify messaging for example wield sword, you slice
       instead of hit. This should apply to all weapon types and add or
       subtract any hit bonuses placed on the weapon". `combat_wielded_weapon()`
@@ -1201,9 +1217,9 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       "full" message, matching the original's distinction), and messages
       for empty-container and over-full-from-drinking-too fast cases.
       Reasonable to scope drink/sip alone first and defer fill/pour.
-- [ ] **`purge` command (51+, with a 58+ `purge linkdead`)** — done --
-      deployed and verified via standalone smoke test; full sweep
-      pending. User: "add a purge command that is
+- [x] **`purge` command (51+, with a 58+ `purge linkdead`)** — done --
+      deployed and verified via standalone smoke test and a clean full
+      sweep. User: "add a purge command that is
       51+ that will purge the contents of a room, add a linkdead argument
       that a 58+ god can purge the game of all linkdead characters".
       Scoped down from the original SneezyMUD's full purge (bundled
