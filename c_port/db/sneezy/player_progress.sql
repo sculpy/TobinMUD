@@ -15,6 +15,12 @@ CREATE TABLE IF NOT EXISTS `player_progress` (
   `hp` int(11) NOT NULL DEFAULT 20,
   `max_hp` int(11) NOT NULL DEFAULT 20,
   `true_level` int(11) NOT NULL DEFAULT 0,
+  `alignment` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`player_id`),
   CONSTRAINT `fk_player_progress_player_id` FOREIGN KEY (`player_id`) REFERENCES `player` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- `alignment` added Session 43 continued (Mobile_Attitude prerequisite) --
+-- the CREATE above is a no-op on an already-existing table, so add the
+-- column explicitly for a DB that predates this change.
+ALTER TABLE `player_progress` ADD COLUMN IF NOT EXISTS `alignment` int(11) NOT NULL DEFAULT 0;

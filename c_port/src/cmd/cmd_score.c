@@ -40,13 +40,15 @@ bool cmd_score(descriptor_t *d, const char *args) {
 			 "  Strength:      %d\t  Intelligence:  %d\r\n"
              "  Dexterity:     %d\t  Wisdom:        %d\r\n"
              "  Constitution:  %d\t  Charisma:      %d\r\n"
-             "  You are %s handed.  Gender: %s\r\n",
+             "  You are %s handed.  Gender: %s\r\n"
+             "  Alignment:     %s\r\n",
              d->character->base.name,
 			 col, level_field, reset,
              p->experience, p->hp, p->max_hp, being_health_word(d->character), pos,
              a->strength, a->intelligence, a->dexterity, a->wisdom, a->constitution, a->charisma,
              d->character->handed_right ? "right" : "left",
-             gender_name(d->character->gender));
+             gender_name(d->character->gender),
+             alignment_word(p->alignment));
     if (n < 0)
         n = 0;
 

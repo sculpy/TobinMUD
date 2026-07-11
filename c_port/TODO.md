@@ -881,25 +881,31 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       sweep, so this only sanity-checks that a short window doesn't
       flood blank-only bursts; full firing behavior was verified
       manually as above.
-- [ ] **Mobile_Attitude (mob AI emotional/opinion system)** — user:
-      "class Mobile_Attitude in sneezy should be implemented into tobin.
-      mobs should react to good vs evil and react accordingly". Read
-      Sneezy's own docs (`sneezymud-master/docs/systems/critical/
-      14-monster-ai-behavior.md`, source in misc/monster.cc/.h,
-      misc/mobact.cc, misc/opinion.cc): `Mobile_Attitude` models four
-      0-100 emotional attributes per mob -- suspicion, greed, malice,
-      anger (not literally "good/evil") -- with an aggression formula
-      `4*anger + 5*malice >= 450` (or the `ACT_AGGRESSIVE` flag), a
-      `pissed()` minor-annoyance check, and hate/fear opinion bitfields
-      keyed by sex/race/individual-char/class/vnum. Note: neither this
-      class nor Tobin's current `being_t` (include/being.h, checked --
-      no `alignment` field exists) has a literal good/evil alignment
-      stat; a PC-alignment-driven reaction would need that stat added
-      first as a separate, smaller piece before mob opinion can react to
-      it. Natural pairing with the "Mob AI: wandering + mob actions" item
-      above -- likely the same pulse-driven `mob_ai_tick()`, since
-      opinion/aggression checks and wander/action checks both run per-
-      mob per-pulse in the original.
+- [x] **Mobile_Attitude (mob AI emotional/opinion system)** — done --
+      deployed and verified via standalone smoke test + a clean full
+      sweep (81 passed, 2 known flakes). User: "class Mobile_Attitude
+      in sneezy should be implemented
+      into tobin. mobs should react to good vs evil and react
+      accordingly". The full original (`sneezymud-master/docs/systems/
+      critical/14-monster-ai-behavior.md`, source in misc/monster.cc/.h,
+      misc/mobact.cc, misc/opinion.cc) models four 0-100 emotional
+      attributes per mob (suspicion/greed/malice/anger, not literally
+      "good/evil"), hate/fear opinion bitfields keyed by sex/race/
+      individual-char/class/vnum, hunting/pathfinding, faction combat, and
+      a full response-script system -- far beyond what Tobin's simplified
+      mob model can support in one pass. Scoped down to the identified
+      prerequisite (a PC alignment stat -- being.h had none) plus the one
+      reaction the user actually described: new `progress_t.alignment`
+      (-1000 evil .. +1000 good, 0 neutral default), persisted via a new
+      `player_progress.alignment` column; `score` shows it as a word
+      (`alignment_word()`, being.c, same bucketing style as
+      `being_health_word()`); settable via `set <name> alignment <value>`
+      (58+). `mob_ai_tick()` (mob_ai.c) now also reads `ACT_AGGRESSIVE`
+      (bit 5, value 32): an aggressive mob picks a fight with a
+      non-immortal PC in its room, UNLESS that PC's alignment is >= 350
+      (the "good"/"saintly" tiers), mirroring the original's
+      karma-vs-mob-disposition aggro() check at a much simpler scale. New
+      `tests/smoke_test_alignment.py`.
 - [x] **`idea` command (feature requests)** — done (Session 43
       continued, user: "add an idea command so a player can request new
       features, should work the same as reporting a bug also add an

@@ -10,6 +10,7 @@
 #include "being.h"
 #include "descriptor.h"
 #include "obj.h"
+#include "pulse.h"
 #include "room.h"
 #include "room_repo.h"
 #include "thing.h"
@@ -17,14 +18,29 @@
 
 /* Original ACT_* bits actually used here (misc/defs.h in the bundled
  * sneezymud-master reference tree), kept verbatim so already-seeded
- * `mob.actions` values "just work" with no data migration. Only the two
- * bits this file reads are named; the rest (ACT_AGGRESSIVE, ACT_WIMPY,
- * ...) are for future AI work (Mobile_Attitude, TODO.md). */
-#define ACT_SENTINEL  (1 << 1)
-#define ACT_SCAVENGER (1 << 2)
+ * `mob.actions` values "just work" with no data migration. Only the bits
+ * this file reads are named; the rest (ACT_WIMPY, ACT_HATEFUL, ...) are
+ * for future AI work (the fuller Mobile_Attitude system, TODO.md). */
+#define ACT_SENTINEL   (1 << 1)
+#define ACT_SCAVENGER  (1 << 2)
+#define ACT_AGGRESSIVE (1 << 5)
 
 #define MOB_WANDER_CHANCE_PCT 20
 #define MOB_SCAVENGE_CHANCE_PCT 25
+#define MOB_AGGRESS_CHANCE_PCT 25
+
+/* Mobile_Attitude, scoped down (Session 43 continued, user: "class
+ * Mobile_Attitude in sneezy should be implemented into tobin. mobs should
+ * react to good vs evil and react accordingly"). The original models four
+ * emotional attributes per mob (suspicion/greed/malice/anger) that Tobin
+ * has no per-mob storage for; this reads the one thing that's actually
+ * modeled on the PC side -- progress_t.alignment (being.h) -- and applies
+ * the single reaction the user described: an ACT_AGGRESSIVE mob backs off
+ * a sufficiently GOOD-aligned target instead of attacking on sight,
+ * mirroring the original's aggro()'s karma-vs-mob-disposition check
+ * (14-monster-ai-behavior.md) at a much simpler scale. Threshold matches
+ * alignment_word()'s "good"/"saintly" tiers. */
+#define AGGRESS_GOOD_IMMUNITY_THRESHOLD 350
 
 static void mob_try_wander(being_t *m) {
     if (m->mob_actions & ACT_SENTINEL)
@@ -101,9 +117,47 @@ static void mob_try_scavenge(being_t *m) {
     obj_destroy(pick);
 }
 
+/* Picks a fight for an ACT_AGGRESSIVE mob against a non-immortal PC in its
+ * room, unless that PC's alignment grants immunity (see the threshold's
+ * doc comment above). No descriptor to send "You attack ..." from (mobs
+ * have none) -- just the fighting-pointer/wait bookkeeping cmd_attack.c
+ * does, plus a notification to the target if they're actually connected. */
+static void mob_try_aggress(being_t *m) {
+    if (!(m->mob_actions & ACT_AGGRESSIVE))
+        return;
+    if (m->fighting || m->position != POSITION_STANDING || !m->base.roomp)
+        return;
+    if (rand() % 100 >= MOB_AGGRESS_CHANCE_PCT)
+        return;
+
+    being_t *target = NULL;
+    for (thing_t *t = m->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_PC)
+            continue;
+        being_t *pc = (being_t *)t;
+        if (!pc->desc || being_is_immortal(pc) || pc->fighting)
+            continue;
+        if (pc->progress.alignment >= AGGRESS_GOOD_IMMUNITY_THRESHOLD)
+            continue; /* good-aligned -- this aggressive mob leaves them alone */
+        target = pc;
+        break;
+    }
+    if (!target)
+        return;
+
+    m->fighting = target;
+    target->fighting = m;
+    being_set_wait(m, COMBAT_ROUND_PULSES);
+
+    char msg[128];
+    snprintf(msg, sizeof(msg), "%s attacks you!\r\n", m->base.name);
+    descriptor_notify(target->desc, msg);
+}
+
 static void mob_ai_visit(being_t *m) {
     mob_try_wander(m);
     mob_try_scavenge(m);
+    mob_try_aggress(m);
 }
 
 void mob_ai_tick(long pulse_num) {

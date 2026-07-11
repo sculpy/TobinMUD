@@ -322,3 +322,13 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('transfer', 'Usage: transfer <name>\n       transfer <name> <room vnum>\n\nImmortal-only: pulls an online player into your own room, or into a\nspecific room if you give its vnum. The player is told what happened\nand shown their new surroundings; anyone in the rooms they leave and\narrive in sees them vanish and appear in a puff of smoke.', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- The `set` body changed (now also covers alignment, 2026-07-10) -- the
+-- INSERT above is a no-op on the already-seeded row, so update it explicitly.
+UPDATE `help_topic` SET `body` = 'Usage: set <name> <field> <value>\n\nAdministrator (58+) only: a one-shot sibling of edplayer for quick,\nscriptable single-field edits -- one line in, one field changed, no\nmenu. Works on any player, online or offline, by exact name; an online\ntarget is updated immediately. Fields: level, xp, hp <hp> <max hp>,\nalignment (-1000 evil .. 1000 good), str/dex/con/int/wis/cha, gender,\ntitle (or ''none'' to clear), loadroom, handed. See edplayer for a menu\ncovering every field at once.'
+  WHERE `name` = 'set';
+
+-- The `score` body changed (now also shows alignment, 2026-07-10) -- the
+-- INSERT above is a no-op on the already-seeded row, so update it explicitly.
+UPDATE `help_topic` SET `body` = 'Usage: score\n\nShows your character sheet: name, level, experience, hit points,\nposition, attributes, handedness, gender, and alignment (good vs\nevil -- neutral until an immortal sets it, see `help set`). Limbs\nappear here only once they are hurt -- see `help limbs` for the full\nbreakdown.'
+  WHERE `name` = 'score';

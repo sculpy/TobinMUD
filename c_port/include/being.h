@@ -80,6 +80,20 @@ typedef struct {
      * cmd_immort consults true_level -- the one deliberate exception to
      * "commands above your level are invisible". */
     int true_level;
+    /* Good/evil axis only (Session 43 continued, user: "class
+     * Mobile_Attitude in sneezy should be implemented into tobin. mobs
+     * should react to good vs evil and react accordingly") -- the
+     * original's Mobile_Attitude/opinionData is a much larger system
+     * (suspicion/greed/malice/anger, hate/fear lists, faction/hunting --
+     * see sneezymud-master/docs/systems/critical/
+     * 14-monster-ai-behavior.md) that needs per-mob emotional state Tobin
+     * has no infrastructure for yet. Scoped down to just the identified
+     * prerequisite (no alignment stat existed at all) plus the single
+     * reaction the user actually described: -1000 (evil) .. +1000 (good),
+     * 0 (neutral, the default). See mob_ai.c for how ACT_AGGRESSIVE mobs
+     * read this. Not carried by mobs themselves (no mob.alignment column
+     * exists upstream) -- only a PC's own alignment is modeled. */
+    int alignment;
 } progress_t;
 
 /* Prompt customization bits (player.prompt_flags, cmd_prompt.c; rendered
@@ -296,6 +310,12 @@ bool being_is_immortal(const being_t *b);
 /* A word describing b's health as a fraction of max HP ("near death" ...
  * "perfect"), from the original's prompt_mesg[]. Shown in `score`. */
 const char *being_health_word(const being_t *b);
+
+/* A word for a progress_t.alignment value ("demonic".."saintly", "neutral"
+ * at 0) -- see progress_t's doc comment (being.h) for the -1000..+1000
+ * scale. Shown in `score`; also what mob_ai.c's ACT_AGGRESSIVE reaction
+ * checks. */
+const char *alignment_word(int alignment);
 
 /* b's limb HP as a 0-100 percentage of that limb's max_hp. Returns 0 for
  * an invalid being/limb. */

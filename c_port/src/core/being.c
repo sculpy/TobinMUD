@@ -269,6 +269,19 @@ const char *being_health_word(const being_t *b) {
     return "near death";
 }
 
+/* Good/evil axis word for `score` (Session 43 continued, Mobile_Attitude
+ * prerequisite) -- progress_t.alignment ranges -1000 (evil) to +1000
+ * (good), 0 (neutral, the default for every character until something
+ * sets it). Symmetric tiers around 0, same bucketing style as
+ * being_health_word() above. */
+const char *alignment_word(int alignment) {
+    if (alignment >= 700)  return "saintly";
+    if (alignment >= 350)  return "good";
+    if (alignment > -350)  return "neutral";
+    if (alignment > -700)  return "evil";
+    return "demonic";
+}
+
 const char *limb_name(limb_t limb) {
     if (limb < 0 || limb >= LIMB_COUNT)
         return "body";

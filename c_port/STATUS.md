@@ -1,5 +1,22 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-11 — Session 43 continued (home): the first batch
+above committed and pushed (clean full sweep). Mobile_Attitude
+(alignment stat + mob aggression reaction) implemented locally, not yet
+deployed/tested.
+- **Alignment stat + mob aggression reaction**: new `progress_t.alignment`
+  (-1000 evil .. +1000 good, 0 neutral default, being.h), persisted via a
+  new `player_progress.alignment` column. `score` shows it as a word
+  (`alignment_word()`, being.c); `set <name> alignment <value>` (58+)
+  changes it. `mob_ai_tick()` (mob_ai.c) now reads `ACT_AGGRESSIVE` (bit
+  5, value 32): an aggressive mob picks a fight with a non-immortal PC in
+  its room unless their alignment is >= 350 (good/saintly). Scoped way
+  down from the original's full Mobile_Attitude (emotional attributes,
+  hate/fear lists, hunting/pathfinding, faction combat -- see
+  sneezymud-master/docs/systems/critical/14-monster-ai-behavior.md) to
+  just this one prerequisite-plus-reaction, per TODO.md's own earlier
+  scoping note. New `tests/smoke_test_alignment.py`.
+
 Last updated: 2026-07-10 — Session 43 continued (home): a batch of
 account/combat/admin features, deployed and verified via standalone smoke
 tests (full sweep still pending).

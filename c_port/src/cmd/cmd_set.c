@@ -59,6 +59,19 @@ static const char *apply_field(being_t *w, int load_room, int *out_load_room,
         return msg;
     }
 
+    if (strcasecmp(field, "alignment") == 0) {
+        char *end;
+        long v = strtol(rest, &end, 10);
+        if (end == rest || v < -1000 || v > 1000)
+            return "Alignment must be between -1000 (evil) and 1000 (good).\r\n";
+        w->progress.alignment = (int)v;
+        if (!player_progress_save(w->player_id, &w->progress))
+            return "Save failed -- the DB rejected it.\r\n";
+        snprintf(msg, sizeof(msg), "%s's alignment is now %ld (%s).\r\n",
+                 w->base.name, v, alignment_word((int)v));
+        return msg;
+    }
+
     if (strcasecmp(field, "hp") == 0) {
         int hp = 0, max_hp = 0;
         if (sscanf(rest, "%d %d", &hp, &max_hp) != 2 || hp < 0 || max_hp < 1 || hp > max_hp)
@@ -133,7 +146,7 @@ static const char *apply_field(being_t *w, int load_room, int *out_load_room,
     }
 
     (void)load_room;
-    return "Unknown field. Try: level, xp, hp, str/dex/con/int/wis/cha, gender, title, loadroom, handed.\r\n";
+    return "Unknown field. Try: level, xp, hp, alignment, str/dex/con/int/wis/cha, gender, title, loadroom, handed.\r\n";
 }
 
 bool cmd_set(descriptor_t *d, const char *args) {
@@ -145,7 +158,7 @@ bool cmd_set(descriptor_t *d, const char *args) {
     int got = sscanf(args, "%63s %31s %127[^\r\n]", name, field, rest);
     if (got < 2) {
         descriptor_send(d, "Usage: set <name> <field> <value>\r\n"
-                            "Fields: level, xp, hp, str/dex/con/int/wis/cha, "
+                            "Fields: level, xp, hp, alignment, str/dex/con/int/wis/cha, "
                             "gender, title, loadroom, handed\r\n");
         return true;
     }
