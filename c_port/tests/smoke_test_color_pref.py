@@ -87,6 +87,7 @@ name = f"Colp{_suffix}"
 s = socket.create_connection((host, port), timeout=5)
 recv_all(s)
 send_line(s, name); recv_all(s)          # new account name
+send_line(s, "y"); recv_all(s)           # confirm new account creation
 send_line(s, "colppw"); recv_all(s)      # new password
 out = cmd(s, "colppw")                    # confirm password -> color prompt
 check("Enable it?" in out or "color" in out.lower(),

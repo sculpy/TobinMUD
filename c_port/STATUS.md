@@ -1,5 +1,92 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-10 — Session 43 continued (home): a batch of
+account/combat/admin features, deployed and verified via standalone smoke
+tests (full sweep still pending).
+- **New-account login confirmation**: an unrecognized account name now
+  asks "New account. Are you sure you want to create the account <name>?
+  (y/n)" (new `CONN_CONFIRM_NEW_ACCOUNT` state, descriptor.h/descriptor.c)
+  before falling into password creation -- "n" (or anything but y/yes)
+  sends the connection back to re-enter the name instead. Ripple: this is
+  a new step in front of EVERY new-account flow, so every existing smoke
+  test that creates a fresh account needed a `y` answer inserted --
+  swept across tests/*.py (delegated to a background agent, ~11 files
+  touched). New `tests/smoke_test_account_confirm.py`.
+- **Delete entire account (account menu)**: new `X` / `delete account`
+  command, mirroring the existing per-character delete flow one level up
+  (YES, then re-enter the account password). `account_delete()`
+  (account.h/account_repo.c) just deletes the `account` row --
+  `player.account_id` already carries an `ON DELETE CASCADE` FK, so every
+  character on the account goes with it automatically. New
+  `tests/smoke_test_account_delete.py`.
+- **Deterministic limb tests**: `combat_debug_set_limb_hp()` (combat.c,
+  backs the `hurtlimb` debug command) now also fires the same
+  injury-tier `tell()` messages a real `combat_strike()` hit would, not
+  just sever/decapitate -- makes it a true stand-in for a real hit.
+  `tests/smoke_test_limbs.py`/`smoke_test_limbs_cmd.py` rewritten to set
+  a limb's HP directly via `hurtlimb` instead of waiting on combat RNG to
+  cross an injury tier within a fixed round budget (the pre-existing
+  flake diagnosed earlier this session).
+- **Weapon-aware combat messaging + hit/dam bonuses**: `combat_strike()`
+  (combat.c) now picks the attacker's wielded weapon (dominant hand
+  first) and keyword-buckets its name/short_descr into a verb --
+  slice/chop/bludgeon/stab/pierce/lash/hit -- replacing the old
+  hardcoded "hit". The `objaffect` table (vnum, type, mod1, mod2) turned
+  out to already exist in the live DB with real seeded data; cross-
+  checked its `type` column against the bundled original SneezyMUD
+  source (`sneezymud-master/code/code/misc/enum.h`'s `applyTypeT`) to
+  confirm 15=APPLY_HITROLL, 16=APPLY_DAMROLL, 17=APPLY_HITNDAM. New
+  `obj_load_combat_mods()` (obj_repo.h/obj_repo.c) sums those three types
+  for a vnum; combat_strike applies the result to hit_roll/dmg for
+  whichever weapon is wielded (0/0 for bare hands). New
+  `tests/smoke_test_weapon_messaging.py`.
+- **`purge` command**: bare `purge` (51+, cmd_purge.c) clears the
+  caller's room of mobs and objects (never PCs). `purge linkdead` (58+,
+  gated inside cmd_purge() itself) force-removes every linkdead PC in
+  the game -- new `world_purge_linkdead()` (world.c) reuses the same
+  `g_rooms` walk `world_find_linkdead_pc()` already did for reconnect,
+  deliberately not saving first (matches `descriptor_destroy()`'s own
+  documented reasoning: an eager save of a linkdead body could clobber a
+  fresher DB-side change). New `tests/smoke_test_purge.py`.
+- **`transfer` command**: `transfer <name>` pulls an online player into
+  the caller's own room; `transfer <name> <vnum>` sends them to a
+  specific room instead (cmd_transfer.c). Mirrors the original's `trans`
+  (bundled sneezymud-master reference tree) plus the user's own room-vnum
+  variant. New `tests/smoke_test_transfer.py`.
+- **Deletion logging**: both character and account deletion already
+  logged via `log_info()` (file/console only) -- confirmed that's the
+  right call per user: "the messages should just go to game log, not
+  broadcast" (i.e. NOT `game_log()`, which would also echo live to online
+  immortals).
+- **Bugs caught while writing/verifying the above**: (1) an off-by-one in
+  a hand-copied `INSERT INTO mob` SQL fixture (one extra `0` value vs.
+  column count) in two new test files, caught by mariadb's own "column
+  count doesn't match value count" error. (2) `attack`/`kill` both route
+  to `cmd_kill.c`, which instant-slays for an IMMORTAL caller (bypassing
+  `combat_strike()`'s normal multi-round messaging entirely) -- the
+  weapon-messaging test's attacker had to be restructured to a mortal
+  character to actually exercise the verb/hit-bonus logic.
+
+Last updated: 2026-07-10 — Session 43 continued (home): critical
+`.gitignore` bug fixed (was silently excluding src/core/ from git),
+half-hour real-time heartbeat tick added.
+- **`.gitignore` bug**: a bare `core`/`core.*` pattern (meant for Unix
+  core dumps) unintentionally matched the `c_port/src/core/` directory
+  by name, silently excluding it from version control. `gametime.c` and
+  `zone.c` had never actually reached the git repo despite being pushed
+  as part of "everything" earlier this session. Anchored the patterns
+  to the repo root (`/core`, `/core.*`) and force-added both orphaned
+  files. Swept the rest of the repo for similar false-positive
+  exclusions -- found none.
+- **Half-hour heartbeat**: new `heartbeat.c`, registered alongside
+  `gametime_tick()`. Sends a bare blank line once per real wall-clock
+  half-hour (bucket-boundary logic, dedup'd against re-firing every
+  pulse). Verified live with a temporarily shortened test interval,
+  then reverted before redeploying the real values.
+  `tests/smoke_test_heartbeat.py` (a real hourly boundary isn't
+  practical to wait for in the sweep, so this only sanity-checks no
+  blank-line flooding in a short window).
+
 Last updated: 2026-07-10 — Session 43 continued (home): game clock now
 persists across boots.
 - **gametime persistence**: `gametime_load()`/`gametime_save()`

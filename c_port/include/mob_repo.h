@@ -29,6 +29,13 @@ typedef struct {
     int level;
     double hpbonus;             /* the original's real HP-scaling parameter */
     int sex;
+    int actions;                /* original's ACT_* bitmask (misc/defs.h) --
+                                  * verbatim upstream bit layout, e.g.
+                                  * ACT_SENTINEL=2, ACT_SCAVENGER=4,
+                                  * ACT_STAY_ZONE=64. First field of this
+                                  * struct actually read for mob AI
+                                  * (mob_ai.c) rather than just carried
+                                  * inertly -- see that file's doc comment. */
 } mob_proto_t;
 
 /* Loads the prototype row for `vnum` from the `mob` table into *out.

@@ -103,6 +103,7 @@ def sql(stmt):
 def make_char(sock, name, pw):
     recv_all(sock)
     send_line(sock, name); recv_all(sock)
+    send_line(sock, "y"); recv_all(sock)
     send_line(sock, pw); recv_all(sock)
     send_line(sock, pw); recv_all(sock)
     send_line(sock, "new"); recv_all(sock)

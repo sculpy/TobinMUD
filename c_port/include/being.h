@@ -198,6 +198,9 @@ typedef struct being {
     thing_t base;        /* first member -- see thing.h */
     long account_id;
     long player_id;
+    int mob_actions;     /* THING_MOB only, 0 for a PC: mob.actions bitmask
+                          * (ACT_* in mob_ai.c), copied verbatim from the
+                          * prototype at spawn time (mob_repo.h). */
     attrs_t attrs;
     progress_t progress;
     limb_state_t limbs[LIMB_COUNT];

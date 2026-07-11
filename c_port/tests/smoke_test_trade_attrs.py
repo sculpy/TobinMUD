@@ -89,6 +89,7 @@ def check(condition, message):
 s = socket.create_connection((host, port), timeout=5)
 recv_all(s)
 step(s, "account name", account_name)
+step(s, "confirm new account creation", "y")
 step(s, "password (first entry)", password)
 step(s, "confirm password -> menu", password)
 step(s, "new", "new")

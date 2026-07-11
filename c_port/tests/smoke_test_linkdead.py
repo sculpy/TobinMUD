@@ -91,6 +91,7 @@ def make_char(tag, pw="linkdeadpw123"):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
     send_line(s, name); recv_all(s)
+    send_line(s, "y"); recv_all(s)
     send_line(s, pw); recv_all(s)
     send_line(s, pw); recv_all(s)
     send_line(s, "new"); recv_all(s)

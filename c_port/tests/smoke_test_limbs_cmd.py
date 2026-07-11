@@ -5,10 +5,17 @@
 right/left leg, left/right foot) with their current health percentage,
 whether they're hurt or not.
 
+Deterministic by design (Session 43 continued, diagnosed as a pre-existing
+flake): rather than waiting on combat RNG to land enough hits on one limb
+within a fixed round budget, this uses the immortal-only
+`hurtlimb <target> <limb> <hp>` debug command (cmd_hurtlimb.c) to set a
+limb's HP directly, then checks the `limbs` command's output.
+
     python3 tests/smoke_test_limbs_cmd.py [host] [port]
 """
 import re
 import socket
+import subprocess
 import sys
 import time
 
@@ -50,6 +57,7 @@ def announce_done(test_name, host=host, port=port):
 announce("smoke_test_limbs_cmd")
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
+ROOM = 900000 + (int(time.time()) % 70000)
 
 LIMB_NAMES = [
     "head", "neck", "left arm", "right arm", "left finger", "right finger",
@@ -75,34 +83,53 @@ def send_line(sock, line):
     sock.sendall((line + "\r\n").encode())
 
 
+def cmd(sock, line, timeout=1.0):
+    send_line(sock, line)
+    return recv_all(sock, timeout)
+
+
 def check(condition, message):
     if not condition:
         raise AssertionError(message)
     print(f">>> OK: {message}")
 
 
-def make_player(tag):
-    name = f"LimbCmd{tag}{_suffix}"
-    pw = "limbcmdtestpw123"
+def sql(stmt):
+    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+
+
+def set_level(name, level):
+    sql(f"UPDATE player_progress SET level={level} WHERE player_id="
+        f"(SELECT id FROM player WHERE name='{name}');")
+
+
+def make_char(sock, name, pw):
+    recv_all(sock)
+    send_line(sock, name); recv_all(sock)
+    send_line(sock, "y"); recv_all(sock)
+    send_line(sock, pw); recv_all(sock)
+    send_line(sock, pw); recv_all(sock)
+    send_line(sock, "new"); recv_all(sock)
+    send_line(sock, name); recv_all(sock)
+    send_line(sock, "done"); recv_all(sock)
+
+
+def login(name, pw):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    send_line(s, name)
-    recv_all(s)
-    send_line(s, pw)
-    recv_all(s)
-    send_line(s, pw)  # confirm password (Session 21)
-    recv_all(s)
-    send_line(s, "new")
-    recv_all(s)
-    send_line(s, name)
-    recv_all(s)
-    send_line(s, "done")
-    recv_all(s)
-    return s, name
+    send_line(s, name); recv_all(s)
+    send_line(s, pw); recv_all(s)
+    send_line(s, "1"); recv_all(s)
+    return s
 
 
-# --- Part 1: a fresh, undamaged character shows all 12 limbs at 100% ---
-sA, nameA = make_player("A")
+# --- Part 1: a fresh, undamaged character shows all 13 limbs at 100% ---
+name = f"LimbCmd{_suffix}"
+pw = "limbcmdtestpw123"
+sA = socket.create_connection((host, port), timeout=5)
+make_char(sA, name, pw)
+cmd(sA, "color off")
+
 send_line(sA, "limbs")
 out = recv_all(sA)
 check("Limbs" in out, "limbs shows a Limbs header")
@@ -111,41 +138,52 @@ for limb in LIMB_NAMES:
           f"limbs lists '{limb}' at 100% on a fresh character")
 check("hurt" not in out and "medical attention" not in out and "destroyed" not in out,
       "no injury phrases appear for a fully healthy character")
-
-# --- Part 2: after taking damage, limbs still shows all 12, with the
-# injured one(s) flagged, alongside untouched limbs still at 100% ---
-sB, nameB = make_player("B")
-send_line(sA, f"attack {nameB}")
-recv_all(sA, timeout=1.0)
-
-found_injury_in_limbs_cmd = False
-for _ in range(8):
-    time.sleep(1.5)  # comfortably past one COMBAT_ROUND_PULSES (~1.2s)
-    recv_all(sA, timeout=0.5)  # drain combat messages
-    send_line(sA, "limbs")
-    out = recv_all(sA, timeout=0.5)
-    if "Limbs" not in out:
-        # A may have been defeated and ejected to the account menu in the
-        # same window -- that's fine, it doesn't invalidate the feature
-        # (already proven if found_injury_in_limbs_cmd is already True, or
-        # we just try B below instead).
-        break
-    # Only count actual limb-listing lines (a limb name AND a percentage) --
-    # interleaved combat strike messages also mention limb names but never
-    # carry a "%", so this ignores them and keeps the count reliable.
-    limb_lines = [l for l in out.splitlines()
-                  if "%" in l and any(limb in l for limb in LIMB_NAMES)]
-    check(len(limb_lines) == 13 or len(limb_lines) == 0,
-          "limbs always lists all 13 limbs, never a partial set")
-    if any("%  --" in l for l in limb_lines):
-        found_injury_in_limbs_cmd = True
-        print("=== limbs command shows an injured limb alongside healthy ones ===")
-        print(out)
-        break
-
-check(found_injury_in_limbs_cmd, "limbs eventually shows an injury flag on a damaged limb")
-
 sA.close()
-sB.close()
+
+# --- Part 2: after a deterministic injury via hurtlimb, limbs still shows
+# all 13, with the injured one flagged, alongside untouched limbs at 100% ---
+imm_name = f"Limbcmdimm{_suffix}"
+imm_pw = "limbcmdimmpw123"
+victim_name = f"Limbcmdvic{_suffix}"
+victim_pw = "limbcmdvicpw123"
+
+s = socket.create_connection((host, port), timeout=5)
+make_char(s, imm_name, imm_pw)
+set_level(imm_name, 51)
+s.close()
+s = login(imm_name, imm_pw)
+cmd(s, "color off")
+
+sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
+    f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
+    f"VALUES ({ROOM},0,0,0,'LimbCmd Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+check("LimbCmd Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the SQL-bootstrapped sandbox room")
+
+sv = socket.create_connection((host, port), timeout=5)
+make_char(sv, victim_name, victim_pw)
+sql(f"UPDATE player SET load_room={ROOM} WHERE name='{victim_name}';")
+cmd(sv, "quit!")
+sv.close()
+sv = login(victim_name, victim_pw)
+cmd(sv, "color off")
+check("LimbCmd Sandbox" in cmd(sv, "look"), "the victim lands directly in the sandbox room")
+
+# hp=2 against the LIMB_MIN_MAX_HP=15 floor -> 13%, inside the "hurt rather
+# badly" (<20%, >=10%) tier.
+out = cmd(s, f"hurtlimb {victim_name} rightleg 2")
+check("Limb HP set" in out, "hurtlimb confirms (not a decapitation)")
+
+out = cmd(sv, "limbs")
+check("Limbs" in out, "limbs still shows a Limbs header after injury")
+limb_lines = [l for l in out.splitlines()
+              if "%" in l and any(limb in l for limb in LIMB_NAMES)]
+check(len(limb_lines) == 13, "limbs still lists all 13 limbs, not just the injured one")
+check(any("right leg" in l and "13%" in l for l in limb_lines),
+      "the injured limb (right leg) shows its exact percentage (13%)")
+check(sum(1 for l in limb_lines if "100%" in l) == 12,
+      "the other 12 untouched limbs still show 100%")
+
+s.close()
+sv.close()
 announce_done("smoke_test_limbs_cmd")
 print("=== ALL CHECKS PASSED ===")

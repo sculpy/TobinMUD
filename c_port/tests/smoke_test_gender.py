@@ -87,6 +87,7 @@ def make_char(nm, gender=None, appearance=None):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
     send_line(s, nm); recv_all(s)
+    send_line(s, "y"); recv_all(s)
     send_line(s, "genpw"); recv_all(s)
     send_line(s, "genpw"); recv_all(s)
     send_line(s, "new"); recv_all(s)

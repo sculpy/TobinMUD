@@ -70,6 +70,7 @@ being_t *being_create_mob(int vnum) {
     b->gender = (gender_t)proto.sex;
     b->progress.level = proto.level;
     b->progress.experience = 0;
+    b->mob_actions = proto.actions;
 
     /* Placeholder attrs/HP formulas (see STATUS.md's Mobiles decision row):
      * the original's 12-stat mob columns are a completely different, wider

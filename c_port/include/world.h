@@ -26,4 +26,25 @@ room_t *world_get_room(int vnum);
  * same live being_t instead of loading a fresh one from the DB. */
 being_t *world_find_linkdead_pc(long player_id);
 
+/* Force-removes every linkdead PC (base.kind == THING_PC, desc == NULL) in
+ * every registered room -- `purge linkdead` (cmd_purge.c). Deliberately does
+ * NOT save first: a linkdead body's in-memory state is never eagerly
+ * persisted (see descriptor_destroy()'s comment on why -- it would risk
+ * clobbering a fresher DB-side change), so this just discards it the same
+ * way a linkdead body already gets discarded on the owning account's next
+ * reconnect (see world_find_linkdead_pc()'s caller in descriptor.c) or a
+ * plain process restart -- just triggered on demand instead. Returns how
+ * many were removed. */
+int world_purge_linkdead(void);
+
+/* Calls `visit(m)` for every mob (base.kind == THING_MOB) in every
+ * registered room -- the iteration primitive mob_ai.c's pulse-driven
+ * wander/scavenge logic runs on each tick. Saves each room's mob list
+ * position before calling `visit` (in case it moves the mob elsewhere via
+ * thing_set_room()), so a wander mid-iteration can't corrupt the walk --
+ * though a mob that wanders INTO a room this tick hasn't reached yet will
+ * still get a second visit that same tick (a mild, harmless double-tick,
+ * not worth guarding against at this scale). */
+void world_for_each_mob(void (*visit)(being_t *m));
+
 #endif

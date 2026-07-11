@@ -62,6 +62,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "attack",  cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
     { "kill",    cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
     { "hurtlimb", cmd_hurtlimb, "Debug: set a target's limb HP directly (hurtlimb <target> <limb> <hp>).", IMMORTAL_LEVEL_MIN },
+    { "aitick",  cmd_aitick,  "Debug: force N mob AI ticks right now (aitick [count]).", IMMORTAL_LEVEL_MIN },
     { "hit",     cmd_hit,     "Attack a player or mobile via real combat, even for immortals (never instakill).", MORTAL_LEVEL_MIN },
     { "flee",    cmd_flee,    "Try to escape a fight through a random exit.",        MORTAL_LEVEL_MIN },
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
@@ -105,6 +106,7 @@ static const cmd_entry_t COMMANDS[] = {
      * for what they can use. */
     { "wizhelp", cmd_wizhelp, "List immortal-only commands.",                       IMMORTAL_LEVEL_MIN },
     { "goto",    cmd_goto,    "Teleport to a room by vnum.",                        IMMORTAL_LEVEL_MIN },
+    { "transfer", cmd_transfer, "Teleport someone to you, or to a room (transfer <name> [vnum]).", IMMORTAL_LEVEL_MIN },
     /* "l" look, "li" limbs, "lo" look, "log" log. Table-order gotcha (same
      * precedent as set/setsev, STATUS.md): "load" is itself a full prefix
      * of "loadroom", so it MUST sit before loadroom and wins every shared
@@ -124,6 +126,11 @@ static const cmd_entry_t COMMANDS[] = {
     { "drop",    cmd_drop,    "Put down a carried item (drop <item>).",            MORTAL_LEVEL_MIN },
     /* "put" typed in full; "p"/"pu" reach earlier p-commands first. */
     { "put",     cmd_put,     "Put a carried item into a container (put <item> <container>).", MORTAL_LEVEL_MIN },
+    /* "purge" shares "pu" with "put" (above, wins any 2-letter abbreviation
+     * since it's registered first) -- "pur"+ is purge's shortest safe
+     * abbreviation. Bare `purge` clears the room; `purge linkdead` (58+,
+     * checked inside cmd_purge itself) sweeps the whole game. */
+    { "purge",   cmd_purge,   "Clear this room's mobs/objects, or purge linkdead (58+).", PURGE_MIN_LEVEL },
     /* Bare "i" already reaches "immort" (below) for every caller -- this
      * needs at least "in"/"inv". */
     { "inventory", cmd_inventory, "List what you're carrying.",                    MORTAL_LEVEL_MIN },

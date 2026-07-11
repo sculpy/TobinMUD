@@ -15,7 +15,7 @@ bool mob_proto_load(int vnum, mob_proto_t *out) {
         return false;
 
     bool found = false;
-    if (db_query(db, "select name, short_desc, description, level, hpbonus, sex "
+    if (db_query(db, "select name, short_desc, description, level, hpbonus, sex, actions "
                       "from mob where vnum=%i",
                  vnum)
         && db_fetch_row(db)) {
@@ -25,6 +25,7 @@ bool mob_proto_load(int vnum, mob_proto_t *out) {
         out->level = atoi(db_get(db, "level"));
         out->hpbonus = atof(db_get(db, "hpbonus"));
         out->sex = atoi(db_get(db, "sex"));
+        out->actions = atoi(db_get(db, "actions"));
         found = true;
     }
 

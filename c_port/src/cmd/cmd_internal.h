@@ -23,6 +23,7 @@ bool cmd_attack(descriptor_t *d, const char *args);
 bool cmd_kill(descriptor_t *d, const char *args);
 bool cmd_hit(descriptor_t *d, const char *args);
 bool cmd_hurtlimb(descriptor_t *d, const char *args);
+bool cmd_aitick(descriptor_t *d, const char *args);
 bool cmd_flee(descriptor_t *d, const char *args);
 bool cmd_say(descriptor_t *d, const char *args);
 bool cmd_limbs(descriptor_t *d, const char *args);
@@ -93,6 +94,8 @@ bool cmd_switch(descriptor_t *d, const char *args);
 bool cmd_remove(descriptor_t *d, const char *args);
 bool cmd_equipment(descriptor_t *d, const char *args);
 bool cmd_load(descriptor_t *d, const char *args);
+bool cmd_purge(descriptor_t *d, const char *args);
+bool cmd_transfer(descriptor_t *d, const char *args);
 bool cmd_scan(descriptor_t *d, const char *args);
 bool cmd_vnum(descriptor_t *d, const char *args);
 bool cmd_zone(descriptor_t *d, const char *args);
@@ -155,6 +158,14 @@ bool cmd_edzone(descriptor_t *d, const char *args);
 /* `set`: Administrator (58+), same tier as edplayer -- its one-shot,
  * scriptable sibling (user spec: build both). */
 #define SET_MIN_LEVEL 58
+
+/* `purge` (bare -- clears the current room's mobs/objects): 51+, matching
+ * `redit`'s builder tier (user spec). `purge linkdead` (force-removes every
+ * linkdead PC in the game) is a separate, much higher gate -- checked
+ * inside cmd_purge() itself since the dispatch table only enforces one
+ * floor per command name. */
+#define PURGE_MIN_LEVEL 51
+#define PURGE_LINKDEAD_MIN_LEVEL 58
 
 /* One row of cmd_table.c's dispatch table -- shared with cmd_help.c so
  * `help`/`wizhelp` can enumerate it without duplicating the list.

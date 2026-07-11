@@ -83,7 +83,7 @@ def check(condition, message):
 name = f"Idle{_suffix}"
 s = socket.create_connection((host, port), timeout=5)
 recv_all(s)
-for step in (name, "idlepw", "idlepw", "new", name, "done"):
+for step in (name, "y", "idlepw", "idlepw", "new", name, "done"):
     send_line(s, step); recv_all(s)
 cmd(s, "color off")
 

@@ -423,7 +423,8 @@ void descriptor_page_start(descriptor_t *d, const char *text, int page_size) {
 
 static bool is_password_state(conn_state_t s) {
     return s == CONN_GET_PASSWORD || s == CONN_GET_NEW_PASSWORD
-        || s == CONN_CONFIRM_PASSWORD || s == CONN_CHAR_DELETE_PASSWORD;
+        || s == CONN_CONFIRM_PASSWORD || s == CONN_CHAR_DELETE_PASSWORD
+        || s == CONN_ACCOUNT_DELETE_PASSWORD;
 }
 
 /* Consumes as much of d->raw[d->raw_pos .. d->raw_len) as forms complete
@@ -566,6 +567,7 @@ static void show_account_menu(descriptor_t *d) {
                  "\r\n  C [number|name] -- connect a character\r\n"
                  "  N               -- create a new character\r\n"
                  "  D <name>        -- delete a character\r\n"
+                 "  X               -- delete this ENTIRE ACCOUNT\r\n"
                  "  Q               -- quit the game\r\n"
                  "(Letters work in either case; a bare number still connects too.)\r\n\r\n> ");
     }
@@ -1297,9 +1299,29 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 descriptor_send(d, "Password: ");
                 d->state = CONN_GET_PASSWORD;
             } else {
-                descriptor_send(d, "New account. Choose a password (3+ characters): ");
-                d->state = CONN_GET_NEW_PASSWORD;
+                char msg[160];
+                snprintf(msg, sizeof(msg),
+                    "New account. Are you sure you want to create the account "
+                    "%s? (y/n): ", d->account_name);
+                descriptor_send(d, msg);
+                d->state = CONN_CONFIRM_NEW_ACCOUNT;
             }
+            return true;
+        }
+
+        /* Guards against a mistyped existing account name silently starting
+         * a brand new account instead (user request, 2026-07-10): confirm
+         * before falling into password-creation. "y" proceeds; "n" (or
+         * anything else) sends them back to re-enter the account name. */
+        case CONN_CONFIRM_NEW_ACCOUNT: {
+            bool is_yes = strcasecmp(line, "y") == 0 || strcasecmp(line, "yes") == 0;
+            if (is_yes) {
+                descriptor_send(d, "Choose a password (3+ characters): ");
+                d->state = CONN_GET_NEW_PASSWORD;
+                return true;
+            }
+            descriptor_send(d, "Account name: ");
+            d->state = CONN_GET_ACCOUNT_NAME;
             return true;
         }
 
@@ -1508,6 +1530,18 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 return true;
             }
 
+            if (strcasecmp(line, "delete account") == 0 || (single && letter == 'x')) {
+                char confirm[256];
+                snprintf(confirm, sizeof(confirm),
+                         "\r\nReally delete your ENTIRE ACCOUNT '%s' and all %d "
+                         "character(s) on it? This cannot be undone.\r\n"
+                         "Type YES (all caps) to confirm, or anything else to cancel: ",
+                         d->account.name, d->char_count);
+                descriptor_send(d, confirm);
+                d->state = CONN_ACCOUNT_DELETE_CONFIRM;
+                return true;
+            }
+
             char *end = NULL;
             long choice = strtol(line, &end, 10);
             if (end != line && *end == '\0' && choice >= 1 && choice <= d->char_count) {
@@ -1521,7 +1555,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 return true;
             }
 
-            descriptor_send(d, "Huh? C connects, N creates, D <name> deletes, Q quits.\r\n");
+            descriptor_send(d, "Huh? C connects, N creates, D <name> deletes, X deletes the account, Q quits.\r\n");
             show_account_menu(d);
             return true;
         }
@@ -1719,6 +1753,47 @@ static bool handle_line(descriptor_t *d, const char *line) {
             d->state = CONN_ACCOUNT_MENU;
             show_account_menu(d);
             return true;
+        }
+
+        case CONN_ACCOUNT_DELETE_CONFIRM: {
+            if (strcmp(line, "YES") != 0) {
+                descriptor_send(d, "Cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            /* Typed YES is not enough on its own: re-verify the account
+             * password before the irreversible delete (same precedent as
+             * character deletion above). */
+            descriptor_send(d, "Enter your account password to confirm: ");
+            d->state = CONN_ACCOUNT_DELETE_PASSWORD;
+            return true;
+        }
+
+        case CONN_ACCOUNT_DELETE_PASSWORD: {
+            if (!account_verify_password(&d->account, line)) {
+                descriptor_send(d, "Incorrect password. Deletion cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            /* player.account_id cascades on delete (ON DELETE CASCADE FK),
+             * so every character on this account goes with it. */
+            long deleted_id = d->account.account_id;
+            char deleted_name[80];
+            snprintf(deleted_name, sizeof(deleted_name), "%s", d->account.name);
+            bool ok = account_delete(deleted_id);
+            if (ok) {
+                log_info("Account %s (id %ld) deleted, %d character(s) with it. [%s]",
+                         deleted_name, deleted_id, d->char_count, d->ip);
+                descriptor_send(d, "Your account has been deleted. Goodbye!\r\n");
+            } else {
+                descriptor_send(d, "Could not delete the account.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            return false; /* the account is gone -- disconnect */
         }
 
         case CONN_REDIT_MENU: {

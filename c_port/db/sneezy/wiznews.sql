@@ -150,3 +150,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The Clock Remembers Now', 'The world clock no longer resets to 8:00 AM day one every time the server restarts -- it saves itself every tick and picks right back up where it left off. Caught a nasty bug while building this: our query helper only understands %i for whole numbers, not the usual %d, and would have silently swallowed every save without complaint. Worth remembering for the next feature that writes numbers to the database.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Serious Repo Bug, Found and Fixed', 'Found something worth knowing about: a stray line in .gitignore meant to ignore crash-dump files was accidentally matching our own src/core folder by name, silently keeping gametime.c and zone.c out of the git repository the whole time, even though both were pushed as part of earlier commits. The actual code was never lost -- it was live on the server the whole time -- but the repository itself was missing two real source files. Fixed the ignore rule and both files are now properly tracked. Also added a quiet heartbeat: once every real hour, on the half hour, everyone gets a blank line so a tick is visible without any actual message.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

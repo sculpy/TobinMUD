@@ -73,6 +73,70 @@ static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb)
     tell(defender, "Your %s is severed clean off!\r\n", ln);
 }
 
+/* Case-insensitive "does haystack contain needle" (strcasestr is GNU-only,
+ * same style already duplicated in cmd_exec.c/cmd_scan.c/cmd_who.c). */
+static bool ci_contains(const char *haystack, const char *needle) {
+    size_t nlen = strlen(needle);
+    for (const char *p = haystack; *p; p++)
+        if (strncasecmp(p, needle, nlen) == 0)
+            return true;
+    return false;
+}
+
+/* Whichever wielded weapon should flavor THIS attacker's strike message
+ * (user, Session 43 continued: "when in combat wielded items should modify
+ * messaging for example wield sword, you slice instead of hit"). Checks the
+ * dominant hand first, then the off hand -- so a single wielded weapon
+ * (the overwhelmingly common case) always drives the verb, and a true
+ * dual-wielder's primary-hand weapon wins over their off-hand one rather
+ * than alternating with combat_strike()'s hand-swap bookkeeping (which only
+ * ever affects damage, not which weapon gets named). NULL if nothing
+ * weapon-category is held (bare-handed). */
+static obj_t *combat_wielded_weapon(const being_t *attacker) {
+    int primary = attacker->handed_right ? 0 : 1;
+    int secondary = attacker->handed_right ? 1 : 0;
+    if (attacker->held[primary] && attacker->held[primary]->category == OBJ_CAT_WEAPON)
+        return attacker->held[primary];
+    if (attacker->held[secondary] && attacker->held[secondary]->category == OBJ_CAT_WEAPON)
+        return attacker->held[secondary];
+    return NULL;
+}
+
+/* Keyword-substring verb bucket (same style as sector_color()/
+ * room_ground_type() in room.c), matched against the weapon's keyword
+ * string and short description -- covers every already-seeded weapon vnum
+ * without needing the original's per-item itemTypeT subtype column back.
+ * Most-specific/most-common rules first; unrecognized weapon or bare hands
+ * both fall through to the plain "hit". */
+static const char *weapon_verb(const obj_t *weapon) {
+    if (!weapon)
+        return "hit";
+    const char *n = weapon->base.name;
+    const char *s = weapon->base.short_descr;
+    if (ci_contains(n, "sword") || ci_contains(s, "sword")
+        || ci_contains(n, "blade") || ci_contains(s, "blade")
+        || ci_contains(n, "saber") || ci_contains(s, "saber"))
+        return "slice";
+    if (ci_contains(n, "axe") || ci_contains(s, "axe"))
+        return "chop";
+    if (ci_contains(n, "mace") || ci_contains(s, "mace")
+        || ci_contains(n, "hammer") || ci_contains(s, "hammer")
+        || ci_contains(n, "club") || ci_contains(s, "club")
+        || ci_contains(n, "staff") || ci_contains(s, "staff"))
+        return "bludgeon";
+    if (ci_contains(n, "dagger") || ci_contains(s, "dagger")
+        || ci_contains(n, "knife") || ci_contains(s, "knife"))
+        return "stab";
+    if (ci_contains(n, "spear") || ci_contains(s, "spear")
+        || ci_contains(n, "pike") || ci_contains(s, "pike")
+        || ci_contains(n, "lance") || ci_contains(s, "lance"))
+        return "pierce";
+    if (ci_contains(n, "whip") || ci_contains(s, "whip")
+        || ci_contains(n, "flail") || ci_contains(s, "flail"))
+        return "lash";
+    return "hit";
+}
+
 /* Placeholder damage formula, built from the existing 6-attribute set --
  * not the original's weapon/class/skill-driven system (none of that
  * exists yet). Hit chance skews on relative DEX (and is penalized if the
@@ -85,7 +149,21 @@ static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb)
  * decapitated the defender (their head crossed to 0% HP for the first
  * time) -- the caller must route that straight to combat_defeat(). */
 static bool combat_strike(being_t *attacker, being_t *defender) {
+    /* Weapon-aware messaging + hit/dam bonuses (user, Session 43 continued:
+     * "when in combat wielded items should modify messaging for example
+     * wield sword, you slice instead of hit. This should apply to all
+     * weapon types and add or subtract any hit bonuses placed on the
+     * weapon"). Bare-handed (weapon == NULL) yields verb "hit" and 0/0
+     * bonuses, so this is a no-op extension of the old formula rather than
+     * a behavior change for an unarmed attacker. */
+    obj_t *weapon = combat_wielded_weapon(attacker);
+    const char *verb = weapon_verb(weapon);
+    int weapon_hitroll = 0, weapon_damroll = 0;
+    if (weapon)
+        obj_load_combat_mods(weapon->vnum, &weapon_hitroll, &weapon_damroll);
+
     int hit_roll = (rand() % 100) + (attacker->attrs.dexterity - defender->attrs.dexterity) / 4;
+    hit_roll += weapon_hitroll;
     if (being_has_destroyed_limb(attacker))
         hit_roll -= DESTROYED_LIMB_HIT_PENALTY;
     /* Positions polish (TODO backlog): a defender who isn't standing --
@@ -102,7 +180,7 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         return false;
     }
 
-    int dmg = 1 + (attacker->attrs.strength - ATTR_BASE) / 4 + (rand() % 6);
+    int dmg = 1 + (attacker->attrs.strength - ATTR_BASE) / 4 + (rand() % 6) + weapon_damroll;
 
     /* Handedness (Session 21): strikes alternate hands; the primary hand
      * hits harder (+1), the off-hand weaker (-1). Which hand is primary
@@ -119,8 +197,16 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     int pct_after = being_limb_pct(defender, limb);
 
     const char *ln = limb_name(limb);
-    tell(attacker, "You hit %s's %s for %d damage!\r\n", defender->base.name, ln, dmg);
-    tell(defender, "%s hits your %s for %d damage!\r\n", attacker->base.name, ln, dmg);
+    char verb_3rd[16];
+    {
+        size_t vlen = strlen(verb);
+        bool needs_es = vlen >= 2 && (verb[vlen - 1] == 's' || verb[vlen - 1] == 'x'
+                        || verb[vlen - 1] == 'z'
+                        || (verb[vlen - 1] == 'h' && (verb[vlen - 2] == 'c' || verb[vlen - 2] == 's')));
+        snprintf(verb_3rd, sizeof(verb_3rd), "%s%s", verb, needs_es ? "es" : "s");
+    }
+    tell(attacker, "You %s %s's %s for %d damage!\r\n", verb, defender->base.name, ln, dmg);
+    tell(defender, "%s %s your %s for %d damage!\r\n", attacker->base.name, verb_3rd, ln, dmg);
 
     const char *status_before = limb_status_text(pct_before);
     const char *status_after = limb_status_text(pct_after);
@@ -364,6 +450,14 @@ bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int 
     int pct_before = being_limb_pct(target, limb);
     target->limbs[limb].hp = hp;
     int pct_after = being_limb_pct(target, limb);
+
+    const char *ln = limb_name(limb);
+    const char *status_before = limb_status_text(pct_before);
+    const char *status_after = limb_status_text(pct_after);
+    if (status_after && status_after != status_before) {
+        tell(actor, "%s's %s %s!\r\n", target->base.name, ln, status_after);
+        tell(target, "Your %s %s!\r\n", ln, status_after);
+    }
 
     bool decapitated = false;
     if (pct_before > 0 && pct_after == 0 && target->base.kind == THING_PC) {

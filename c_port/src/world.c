@@ -53,3 +53,34 @@ being_t *world_find_linkdead_pc(long player_id) {
     }
     return NULL;
 }
+
+int world_purge_linkdead(void) {
+    int count = 0;
+    for (room_entry_t *e = g_rooms; e; e = e->next) {
+        thing_t *t = e->room->base.stuff_head;
+        while (t) {
+            thing_t *next = t->stuff_next; /* being_destroy() frees t -- save next first */
+            if (t->kind == THING_PC) {
+                being_t *b = (being_t *)t;
+                if (!b->desc) {
+                    being_destroy(b);
+                    count++;
+                }
+            }
+            t = next;
+        }
+    }
+    return count;
+}
+
+void world_for_each_mob(void (*visit)(being_t *m)) {
+    for (room_entry_t *e = g_rooms; e; e = e->next) {
+        thing_t *t = e->room->base.stuff_head;
+        while (t) {
+            thing_t *next = t->stuff_next; /* visit() may relocate t via thing_set_room() */
+            if (t->kind == THING_MOB)
+                visit((being_t *)t);
+            t = next;
+        }
+    }
+}

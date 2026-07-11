@@ -40,4 +40,10 @@ bool account_set_color(long account_id, bool color_on);
  * `time <difference>` command. */
 bool account_set_timezone(long account_id, int hours);
 
+/* Deletes the account row outright. `player.account_id` carries an ON
+ * DELETE CASCADE FK to `account`, so every character on the account (and,
+ * transitively, their player_attrs/player_progress/player_inventory rows)
+ * is removed along with it -- no separate per-character cleanup needed. */
+bool account_delete(long account_id);
+
 #endif

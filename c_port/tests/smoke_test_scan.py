@@ -84,6 +84,7 @@ def make_player(tag):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
     send_line(s, name); recv_all(s)
+    send_line(s, "y"); recv_all(s)
     send_line(s, "scanpw123"); recv_all(s)
     send_line(s, "scanpw123"); recv_all(s)
     send_line(s, "new"); recv_all(s)

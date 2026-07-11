@@ -82,6 +82,8 @@ s = socket.create_connection((host, port), timeout=5)
 recv_all(s)
 send_line(s, acct)
 recv_all(s)
+send_line(s, "y")       # confirm new account creation
+recv_all(s)
 send_line(s, "menupw")
 recv_all(s)
 send_line(s, "menupw")  # confirm password (Session 21)

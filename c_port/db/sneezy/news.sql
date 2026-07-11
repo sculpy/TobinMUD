@@ -125,3 +125,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Time Keeps Going',
  'The world clock no longer forgets itself when the server restarts. Whatever time it was before, it still is.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Quiet Heartbeat',
+ 'Once every hour, on the half hour, your screen gets a single blank line -- no message, just a nudge that time is passing.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

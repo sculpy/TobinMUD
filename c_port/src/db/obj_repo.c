@@ -61,6 +61,28 @@ int obj_find_vnum_by_name(const char *name) {
     return vnum;
 }
 
+void obj_load_combat_mods(int vnum, int *hitroll, int *damroll) {
+    *hitroll = 0;
+    *damroll = 0;
+
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return;
+
+    if (db_query(db, "select type, mod1 from objaffect where vnum=%i and type in (15, 16, 17)", vnum)) {
+        while (db_fetch_row(db)) {
+            int type = atoi(db_get(db, "type"));
+            int mod1 = atoi(db_get(db, "mod1"));
+            if (type == 15 || type == 17) /* APPLY_HITROLL, APPLY_HITNDAM */
+                *hitroll += mod1;
+            if (type == 16 || type == 17) /* APPLY_DAMROLL, APPLY_HITNDAM */
+                *damroll += mod1;
+        }
+    }
+
+    db_close(db);
+}
+
 /* Which player_inventory `slot` a currently-attached instance `o` occupies
  * on `b` -- the inverse of player_inventory_load()'s placement below. */
 static int slot_for_obj(const being_t *b, const obj_t *o) {

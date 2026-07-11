@@ -14,6 +14,8 @@
 #include "descriptor.h"
 #include "game_loop.h"
 #include "gametime.h"
+#include "heartbeat.h"
+#include "mob_ai.h"
 #include "multiplay.h"
 #include "log.h"
 #include "pulse.h"
@@ -83,6 +85,8 @@ int main(int argc, char **argv) {
     pulse_register(600, descriptor_idle_timeout);/* ~60s: idle-out mortals (immortals immune) */
     pulse_register(600, zone_process_run);       /* ~60s: age zones by 1 minute, top up any that hit their lifespan */
     pulse_register(600, gametime_tick);          /* ~60s: advance the game clock 15 mud-minutes */
+    pulse_register(600, heartbeat_tick);         /* ~60s: real-time half-hour blank-line tick */
+    pulse_register(600, mob_ai_tick);            /* ~60s: mob wander/scavenge (mob.actions bits) */
 
     int rc = game_loop_run(cfg->telnet_port, copyover_file);
 

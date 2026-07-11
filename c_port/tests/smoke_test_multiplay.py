@@ -90,6 +90,7 @@ char1, char2 = f"Mpone{_suffix}", f"Mptwo{_suffix}"
 s = socket.create_connection((host, port), timeout=5)
 recv_all(s)
 send_line(s, acct); recv_all(s)
+send_line(s, "y"); recv_all(s)        # confirm new account creation
 send_line(s, pw); recv_all(s)
 send_line(s, pw); recv_all(s)         # confirm password
 send_line(s, "new"); recv_all(s)
@@ -123,7 +124,7 @@ s2.close()
 immname = f"Mpimm{_suffix}"
 si = socket.create_connection((host, port), timeout=5)
 recv_all(si)
-for step in (immname, "mppw", "mppw", "new", immname, "done"):
+for step in (immname, "y", "mppw", "mppw", "new", immname, "done"):
     send_line(si, step); recv_all(si)
 si.close()
 subprocess.run(["mariadb", "sneezy", "-e",
@@ -145,7 +146,7 @@ check("Welcome" in out2b or "Center Square" in out2b,
 sm = socket.create_connection((host, port), timeout=5)
 recv_all(sm)
 mort = f"Mpmort{_suffix}"
-for step in (mort, "mppw", "mppw", "new", mort, "done"):
+for step in (mort, "y", "mppw", "mppw", "new", mort, "done"):
     send_line(sm, step); recv_all(sm)
 check("Huh?!" in cmd(sm, "multiplay off"), "multiplay is hidden from mortals")
 

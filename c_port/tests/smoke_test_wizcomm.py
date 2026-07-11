@@ -84,7 +84,7 @@ def check(condition, message):
 def make_char(nm):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (nm, "wcpw", "wcpw", "new", nm, "done"):
+    for step in (nm, "y", "wcpw", "wcpw", "new", nm, "done"):
         send_line(s, step); recv_all(s)
     return s
 

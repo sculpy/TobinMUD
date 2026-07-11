@@ -116,3 +116,14 @@ bool account_set_timezone(long account_id, int hours) {
     db_close(db);
     return ok;
 }
+
+bool account_delete(long account_id) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db, "delete from account where account_id=%i", (int)account_id);
+
+    db_close(db);
+    return ok;
+}

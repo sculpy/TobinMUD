@@ -106,6 +106,7 @@ print(f"Using account name: {account_name}")
 s = socket.create_connection((host, port), timeout=5)
 recv_all(s)  # banner + "Account name: " prompt
 step(s, "account name (new)", account_name)
+step(s, "confirm new account", "y")
 step(s, "password (first entry)", password)
 out = step(s, "MISMATCHED confirmation", password + "x")
 check("do not match" in out, "a mismatched confirmation re-prompts for the password")

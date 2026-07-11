@@ -16,6 +16,51 @@ viewers keep plain names (`news`, `wiznews`).
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.
 
+### User batch 2026-07-10 (continued session) — working these next
+
+- [ ] **Confirm before creating a new account at login** — done --
+      deployed and verified via standalone smoke test; full sweep
+      pending. User: "in account login, if
+      someone types in an account name that doesnt exist, we're assuming
+      the want a new account. it should ask: New account, are you sure you
+      want to create account <account name>? (y/n) yes creates a new
+      account and no prompts for the correct login name." New
+      `CONN_CONFIRM_NEW_ACCOUNT` state (descriptor.h/descriptor.c) sits
+      between the account-name prompt and password creation. Ripple effect:
+      this is a new step in front of EVERY new-account flow, so every
+      existing smoke test that creates a fresh account needed a `y` answer
+      inserted -- swept across tests/*.py. New
+      `tests/smoke_test_account_confirm.py` covers the prompt itself
+      (naming, y/n branches, and that "n" truly creates nothing).
+- [ ] **Delete entire account from the account menu** — done --
+      deployed and verified via standalone smoke test; full sweep
+      pending. User: "add a delete option to
+      delete account from the account menu, requires user password to
+      delete account." New `X` / `delete account` command at the account
+      menu, mirroring the existing per-character delete flow one level up
+      (type YES, then re-enter the account password). `account_delete()`
+      (account.h/account_repo.c) just deletes the `account` row --
+      `player.account_id` already carries an `ON DELETE CASCADE` FK, so
+      every character on the account (and their attrs/progress/inventory
+      rows) goes with it automatically. Disconnects the session afterward
+      (the account is gone). New `tests/smoke_test_account_delete.py`.
+- [x] **Log messages for player and account deletion** — done: both
+      deletions already logged via `log_info()` (file/console only, per
+      user: "the messages should just go to game log, not broadcast" --
+      NOT `game_log()`, which would also echo live to online immortals).
+- [ ] **`transfer` command** — done -- deployed and verified via
+      standalone smoke test; full sweep pending. User: "add a transfer
+      command that will take a target and transfer them into the same
+      room as the transfer command was issued in (transfer name) also
+      transfer name vnum to transfer the target to the room tht matches
+      vnum." Mirrors the original's `trans` (bundled sneezymud-master
+      reference tree, `lib/help/_immortal/transfer`) plus the user's own
+      room-vnum variant; scoped to online PCs only (no numbered mob
+      syntax like the original's "trans 4.chicken"). Bystanders in both
+      the old and new rooms see a "puff of smoke" departure/arrival; the
+      target is told what happened and shown a fresh `look`. New
+      `tests/smoke_test_transfer.py`.
+
 ### User batch 2026-07-09 (home session, post-NewMUD-migration) — working these now
 
 - [x] **Corpse on death (mobs and players alike)** — done (Session 43,
@@ -739,51 +784,64 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       cmd_object.c each have their own independent copy of the same
       function, still with the old bug. Fixed both. New
       `tests/smoke_test_getdrop_log.py` (6 checks).
-- [ ] **Mob AI: wandering + mob actions** — user: "in pulse, make sure
-      that mob actions click and mobs that can wander will do so, look
-      at mob ai from sneezy". Needs investigation of Sneezy's mob AI
-      (misc/mobact.cc or similar -- movement, `actions` bitfield on the
-      `mob` table already loaded-but-unused per mob_repo.h's comment,
-      wander-if-no-players-nearby / stay-in-zone-bounds rules) and a new
-      pulse-driven `mob_ai_tick()` alongside `zone_process_run()` /
-      `gametime_tick()`. Likely needs the `mob.actions` bitfield
-      actually read (mob_repo.h currently only loads
-      name/short_desc/description/level/hpbonus/sex -- explicitly noted
-      as "deferred to a future edmobile/AI session").
-- [ ] **Cleaner mobs clean up randomly** — user: "i want cleaner mobs to
-      clean up randomly, i believe this is also in mob ai". Likely a
-      specific `actions` bit (Sneezy's ACT_CLEANER or similar) checked
-      by the same mob AI pulse above -- a cleaner-flagged mob
-      periodically removes/consumes loose trash objects in its room.
-      Bundle with the mob AI item above rather than building a separate
-      pulse for it.
-- [ ] **Weapon-aware combat messaging + hit/dam bonuses** — user: "when
-      in combat wielded items should modify messaging for example wield
-      sword, you slice instead of hit. This should apply to all weapon
-      types and add or subtract any hit bonuses placed on the weapon".
-      Two gaps, confirmed by reading combat.c/obj.h: (1)
-      `combat_strike()` is entirely attribute-based (STR/DEX only) and
-      never looks at what's wielded at all -- the "You hit %s's %s for
-      %d damage!" message (combat.c:122) is hardcoded regardless of
-      weapon. (2) There is no weapon-subtype data model to key a verb
-      off of -- `obj_category_t` only has one collapsed `OBJ_CAT_WEAPON`
-      bucket (obj.h), the original's per-weapon-type itemTypeT distinction
-      was flattened away during the port. (3) The `objaffect` table
-      (vnum, type, mod1, mod2 -- presumably a Diku-style APPLY_* enum,
-      e.g. hitroll/damroll) exists in the DB but is read by NO code
-      anywhere in the port yet -- "hit bonuses placed on the weapon"
-      needs this wired up from scratch (a new obj_repo function to load
-      a vnum's objaffect rows, then combat_strike() applying them to
-      hit_roll/dmg for whichever weapon is actually wielded). For the
-      verb itself, likely cheapest path is a keyword-substring bucket
-      function (same style already used for `sector_color()`/
-      `room_ground_type()` in room.c) matching the weapon's name/
-      short_descr against "sword"->slice, "axe"->chop, "mace"/"hammer"->
-      bludgeon, "dagger"/"knife"->stab, "spear"/"pike"->pierce, bare-
-      hand/unrecognized->hit, rather than restoring the original's full
-      item_type subtype column. Needs a way to know what's wielded --
-      check being_t's equipment/wield-slot fields (see the hold/wield/
-      switch rework, cmd_object.c) for the hookup point.
+- [ ] **Mob AI: wandering + mob actions** — implemented locally, not yet
+      deployed/tested (sweep from an earlier batch this session still
+      running, deploy queued right behind it). User: "in pulse, make sure
+      that mob actions click and mobs that can wander will do so, look at
+      mob ai from sneezy". New `mob.actions` field wired all the way
+      through: `mob_proto_t`/`mob_proto_load()` (mob_repo.h/mob_repo.c)
+      now loads it, `being_t.mob_actions` (being.h) carries it onto the
+      in-world instance (being_create_mob(), being.c). New
+      `mob_ai_tick()` (mob_ai.h/mob_ai.c), pulse-registered (main.c) at
+      the same ~60s cadence as gametime_tick()/zone_process_run(): a mob
+      without `ACT_SENTINEL` (bit 1, value 2 -- confirmed against the
+      bundled sneezymud-master reference tree's misc/defs.h), not
+      fighting, standing, has a 20%-per-tick chance to walk a random
+      valid exit (skips closed doors and ROOM_FLAG_NO_MOB destinations).
+      New `world_for_each_mob()` (world.h/world.c) walks every registered
+      room's mob list, same pattern as the `purge linkdead` sweep above.
+      Simplified vs. the original's mobact.cc: no ACT_STAY_ZONE
+      zone-boundary restriction yet (no direct room-to-zone lookup wired
+      up for this), no terrain/water/flying/riding/secret-door checks
+      (none of those subsystems exist for mobs). Testing a 20%-per-~60s-
+      real-tick chance is impractical to wait on in a smoke test (same
+      problem as the heartbeat tick), so new immortal-only debug command
+      `aitick [count]` (cmd_aitick.c, same precedent as `hurtlimb`) forces
+      N ticks synchronously -- `aitick 30` gives ~99.9% odds of firing.
+      New `tests/smoke_test_mob_ai.py`.
+- [x] **Cleaner mobs clean up randomly** — done, bundled into the mob AI
+      item above rather than a separate pulse, per the original plan.
+      User: "i want cleaner mobs to clean up randomly, i believe this is
+      also in mob ai". `ACT_SCAVENGER` (bit 2, value 4) is checked in the
+      same `mob_ai_tick()`: a 25%-per-tick chance to pick up and destroy
+      one random loose `OBJ_CAT_TRASH` item in the mob's room. Scoped down
+      from the original's ACT_SCAVENGER (picks up ANY loose object,
+      including real loot) to trash specifically, matching the user's
+      "clean up" framing rather than risking a cleaner mob eating dropped
+      gear or a corpse's contents.
+- [ ] **Weapon-aware combat messaging + hit/dam bonuses** — done --
+      deployed and verified via standalone smoke test (also caught
+      and fixed a real off-by-one bug in this test's own SQL fixture, and
+      discovered `attack`/`kill` instant-slay for immortals via cmd_kill.c,
+      which required restructuring the test to attack with a mortal
+      character instead); full sweep pending. User: "when in combat wielded
+      items should modify messaging for example wield sword, you slice
+      instead of hit. This should apply to all weapon types and add or
+      subtract any hit bonuses placed on the weapon". `combat_wielded_weapon()`
+      picks the dominant hand's weapon (falling back to off-hand),
+      `weapon_verb()` keyword-buckets its name/short_descr into
+      slice/chop/bludgeon/stab/pierce/lash/hit (combat.c, same style as
+      `sector_color()`/`room_ground_type()` in room.c). Turns out the
+      `objaffect` table (vnum, type, mod1, mod2) already exists in the
+      live DB with real seeded data -- confirmed its `type` column against
+      the bundled original SneezyMUD source (sneezymud-master/code/code/
+      misc/enum.h's `applyTypeT`): 15=APPLY_HITROLL, 16=APPLY_DAMROLL,
+      17=APPLY_HITNDAM (both at once); every other type (stat/AC/immunity
+      bonuses) is irrelevant here. New `obj_load_combat_mods()`
+      (obj_repo.h/obj_repo.c) sums those three types for a vnum;
+      `combat_strike()` applies the result to hit_roll/dmg for whichever
+      weapon is actually wielded (0/0 for bare hands, a no-op extension of
+      the old formula).
 - [x] **Persist the game clock across boots** — done (Session 43
       continued, user: "make time save so it continues on from boot to
       boot"). Reused the exact `game_config` key/value pattern
@@ -803,19 +861,26 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       `tests/smoke_test_gametime_persist.py` (3 checks, verifies the
       `game_config` row matches `time`'s live output rather than
       requiring an actual server restart mid-test).
-- [ ] **Half-hour real-time tick (blank line, no message)** — user:
-      "every hour on the half hour send a blank line of uinput to the
-      game so a tick becomes apparent to the player without any
-      messages". Real wall-clock time (not the fictional mud clock
-      above) -- a new pulse check (alongside `zone_process_run()` /
-      `gametime_tick()` in main.c) using `time(NULL)`/`localtime_r`,
-      firing once when the real minute crosses :30 past the hour (guard
-      against firing every pulse for the whole minute, same one-shot-
-      per-boundary concern `gametime_tick()`'s hour/day/month rollovers
-      already handle). Sends just "\r\n" to every connection -- no log
-      line, no [TYPE] tag, presumably still via `descriptor_notify()` so
-      it's held like any other broadcast for someone mid-editor/pager
-      rather than corrupting their screen.
+- [x] **Half-hour real-time tick (blank line, no message)** — done
+      (Session 43 continued, user: "every hour on the half hour send a
+      blank line of uinput to the game so a tick becomes apparent to the
+      player without any messages"). New `heartbeat.h`/`heartbeat.c`,
+      `heartbeat_tick()` registered alongside `gametime_tick()` (main.c,
+      same ~60s pulse cadence). Real wall-clock time (`time(NULL)`, NOT
+      the fictional mud clock) bucketed into hour-sized windows shifted
+      back 30 minutes so the boundary lands on the half hour instead of
+      the top of the hour; a static last-fired bucket guards against
+      re-firing every pulse within the same window. Sends a bare "\r\n"
+      via `descriptor_notify()` (held for anyone mid-editor/pager, same
+      as any other broadcast). Verified live with a temporarily
+      shortened bucket window (15s instead of 3600s) and faster pulse
+      interval: confirmed the blank line actually arrives and does NOT
+      re-fire every pulse, then reverted both back to the real values
+      before redeploying. New `tests/smoke_test_heartbeat.py` -- the
+      real hourly boundary isn't practical to wait for in an automated
+      sweep, so this only sanity-checks that a short window doesn't
+      flood blank-only bursts; full firing behavior was verified
+      manually as above.
 - [ ] **Mobile_Attitude (mob AI emotional/opinion system)** — user:
       "class Mobile_Attitude in sneezy should be implemented into tobin.
       mobs should react to good vs evil and react accordingly". Read
@@ -862,30 +927,31 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       "full" message, matching the original's distinction), and messages
       for empty-container and over-full-from-drinking-too fast cases.
       Reasonable to scope drink/sip alone first and defer fill/pour.
-- [ ] **`purge` command (51+, with a 58+ `purge linkdead`)** — user: "add
-      a purge command that is 51+ that will purge the contents of a room,
-      add a linkdead argument that a 58+ god can purge the game of all
-      linkdead characters". Two distinct pieces:
-      1. `purge` (bare, 51+): clears the caller's current room of
-         everything except players -- iterate `room_t.base.stuff_head`,
-         `obj_destroy()` (obj.h) every `THING_OBJ`, presumably
-         `being_destroy()` (being.h) every `THING_MOB` too (mirrors the
-         original's room-purge convention -- confirm scope with the
-         user: mobs included or objects only?).
-      2. `purge linkdead` (58+): a game-wide sweep, not room-scoped --
-         needs a way to enumerate every linkdead PC across ALL active
-         rooms, not just the caller's. Checked `world.h`: no existing
-         "iterate every active room" function is exposed (only
-         `world_get_room(vnum)`, a single lookup) -- this needs either a
-         new world-level room-registry iterator, or a parallel tracked
-         list of linkdead beings maintained wherever a PC actually goes
-         linkdead (descriptor.c, same place that currently just leaves
-         them in their room -- see the linkdead-persistence feature).
-         `being_destroy()` presumably just frees the in-memory being_t
-         (their DB player row stays intact so the account can log back
-         in fresh) -- confirm that's the right semantics before wiring
-         it to a bulk "purge everyone" command, since a mistake here is
-         destructive across the whole game, not just one room.
+- [ ] **`purge` command (51+, with a 58+ `purge linkdead`)** — done --
+      deployed and verified via standalone smoke test; full sweep
+      pending. User: "add a purge command that is
+      51+ that will purge the contents of a room, add a linkdead argument
+      that a 58+ god can purge the game of all linkdead characters".
+      Scoped down from the original SneezyMUD's full purge (bundled
+      reference tree, `lib/help/_immortal/purge`: also covers purging a
+      single character/object and whole zones) to just the two requested
+      forms. Turned out both open questions from the earlier note resolved
+      cleanly: (1) bare `purge` (cmd_purge.c) clears mobs AND objects
+      (never PCs -- the original's separate, unrequested "purge
+      <character>" kick-from-game form is out of scope), matching the
+      original help text's own description of the bare form. (2) `world.h`
+      already secretly had everything needed for the game-wide linkdead
+      sweep -- `world_find_linkdead_pc()` (used on reconnect) already
+      walks a `g_rooms` registry of every active room; new
+      `world_purge_linkdead()` (world.c) reuses that same walk, destroying
+      every `THING_PC` with no live `desc`. Deliberately does NOT save
+      first, matching `descriptor_destroy()`'s own documented reasoning
+      for linkdead bodies (an eager save could clobber a fresher DB-side
+      change) -- it's the same discard that already happens on that
+      account's next reconnect or a plain restart, just triggered on
+      demand. `purge linkdead`'s 58+ gate is checked inside `cmd_purge()`
+      itself (the dispatch table only enforces one floor per command
+      name; bare `purge` stays at 51+).
 - [x] **`test` command (58+): show the currently-running smoke test** —
       done (Session 43 continued, user: "add a test command that will
       list whatever smoke test is currently running 58+"). The

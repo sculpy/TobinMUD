@@ -312,3 +312,13 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('idea', 'Usage: idea <description>\n\nSuggests a new feature to the immortals -- your name and the date are\nrecorded with it. Immortals can type idea with no argument to list\noutstanding suggestions.', 'seed'),
 ('delidea', 'Usage: delidea <id>\n\nAdministrator (59+) only: removes an idea once it has been handled.\nThe id is the number shown beside each idea in `idea`.', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- New topic: `purge` (2026-07-10).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('purge', 'Usage: purge\n       purge linkdead\n\nBuilder (51+) only: bare purge empties your current room of every mob\nand object in it (never players). Administrator (58+) only: purge\nlinkdead force-removes every linkdead character from the game.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- New topic: `transfer` (2026-07-10).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('transfer', 'Usage: transfer <name>\n       transfer <name> <room vnum>\n\nImmortal-only: pulls an online player into your own room, or into a\nspecific room if you give its vnum. The player is told what happened\nand shown their new surroundings; anyone in the rooms they leave and\narrive in sees them vanish and appear in a puff of smoke.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

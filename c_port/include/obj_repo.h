@@ -47,6 +47,17 @@ bool obj_proto_load(int vnum, obj_proto_t *out);
  * bare vnum. */
 int obj_find_vnum_by_name(const char *name);
 
+/* Sums `vnum`'s hit/damroll bonuses out of the upstream-seeded `objaffect`
+ * table (vnum, type, mod1, mod2 -- untouched real content, same precedent
+ * as `obj` itself). `type` is the original applyTypeT enum
+ * (misc/enum.h): 15=APPLY_HITROLL, 16=APPLY_DAMROLL, 17=APPLY_HITNDAM
+ * (applies to both at once) -- every other type (stat bonuses, AC,
+ * immunities, ...) is irrelevant to combat_strike() and ignored here.
+ * `mod1` is the bonus amount; `mod2` is unused for these three types.
+ * Both out-params are ALWAYS set (0 if the vnum has no matching rows or
+ * doesn't exist) -- never left uninitialized. */
+void obj_load_combat_mods(int vnum, int *hitroll, int *damroll);
+
 /* player_inventory.slot encoding (db/sneezy/player_inventory.sql): -1 is
  * carried loose, 0..LIMB_COUNT-1 is a worn limb_t index, and these two
  * sentinels are the held[] pair. Kept out of obj.h's WEAR_SLOT_* sentinels

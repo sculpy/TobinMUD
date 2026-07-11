@@ -57,6 +57,11 @@ const char *room_flag_name(int bit);
  * it directly, not just display it. */
 #define ROOM_FLAG_INDOORS (1 << 3)
 
+/* Bit 2 of ROOM_FLAG_NAMES (room.c) -- matches the upstream ROOM_NO_MOB bit
+ * position verbatim. Named here since mob_ai.c's wander logic needs to
+ * test it directly. */
+#define ROOM_FLAG_NO_MOB (1 << 2)
+
 /* Sector-based ground-surface word (Sneezy's TRoom::describeGroundType(),
  * misc/create_rooms.cc) -- "street", "road", "water", "mud", "sand",
  * "floor" (indoors), or "ground" (default). Backs the `$$g`/`$g` token in

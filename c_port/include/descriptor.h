@@ -24,6 +24,7 @@
 
 typedef enum {
     CONN_GET_ACCOUNT_NAME,
+    CONN_CONFIRM_NEW_ACCOUNT, /* unrecognized name at login -- confirm before creating */
     CONN_GET_PASSWORD,
     CONN_GET_NEW_PASSWORD,
     CONN_CONFIRM_PASSWORD,
@@ -34,6 +35,8 @@ typedef enum {
     CONN_CHAR_CREATE_ATTRS,
     CONN_CHAR_DELETE_CONFIRM,
     CONN_CHAR_DELETE_PASSWORD, /* typed YES accepted; now re-verify the account password */
+    CONN_ACCOUNT_DELETE_CONFIRM,
+    CONN_ACCOUNT_DELETE_PASSWORD, /* typed YES accepted; now re-verify the account password */
     /* Menu-driven room builder (redit) -- a working-copy editor: field
      * edits mutate d->redit_work only; (S)ave applies it to the live room +
      * DB, (Q)uit can discard. See descriptor_redit_begin() and the
