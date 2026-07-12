@@ -7,6 +7,7 @@
 
 #include <stdbool.h>
 
+#include "affect.h"
 #include "thing.h"
 
 struct obj; /* forward decl only -- avoids a being.h<->obj.h include cycle,
@@ -390,6 +391,13 @@ typedef struct being {
      * cmd_continue.c. */
     struct being *last_heal_target;
     char last_heal_spell[64];
+
+    /* Active timed buffs/debuffs (user 2026-07-11's "Affects system
+     * (buffs/debuffs/status)" backlog item) -- see affect.h. Live
+     * in-memory only, same "meaningless across a reconnect" rule as
+     * `fighting` (a disconnect ends any active buff, same as a real
+     * MUD's session-scoped affects). */
+    active_affect_t affects[MAX_ACTIVE_AFFECTS];
 
     /* Pulses remaining before this character can act again (see pulse.h).
      * Mortals accumulate this from `being_set_wait()`; immortals always

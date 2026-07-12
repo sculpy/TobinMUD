@@ -65,6 +65,13 @@ being_t *player_load(const char *name, long account_id) {
     if (b) {
         player_attrs_load(b->player_id, &b->attrs); /* falls back to ATTR_BASE defaults if missing */
         player_progress_load(b->player_id, &b->progress); /* falls back to being_create_pc()'s defaults if missing */
+        /* being_create_pc() already sized limbs off level-1 defaults before
+         * the real (possibly much higher) level/max_hp landed just above --
+         * without this, every reconnect for a leveled character leaves limbs
+         * stuck at level-1-sized fractions, making them trivially
+         * decapitatable regardless of real max_hp (found 2026-07-12 while
+         * testing the affects system). */
+        being_limbs_full_heal(b);
         player_inventory_load(b->player_id, b); /* recreates carried/worn/held instances, see obj_repo.h */
         ensure_jesus_level(b);
     }

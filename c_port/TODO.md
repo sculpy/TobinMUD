@@ -85,6 +85,51 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       but leaves the *already-running* server's in-memory cache stale
       -- fixed by resetting through the real `balance`/Save command
       path instead, which updates both.
+- [x] **Affects system (buffs/debuffs/status)** — done (self-assigned
+      backlog item, sequenced right after trap mechanics per user
+      2026-07-11's "...then weapon depth, trap mechanics" continuation).
+      New general-purpose infrastructure: `active_affect_t { affect_type_t
+      type; int rounds_left; }`, a fixed `MAX_ACTIVE_AFFECTS=4` array per
+      being (`affect.h`/`affect.c`), ticked down every combat round
+      (`affect_tick_run()`, registered at `COMBAT_ROUND_PULSES` alongside
+      `combat_process_run`) independent of whether the being is currently
+      fighting, so a buff wears off outside combat too. Proven with one
+      real flagship effect rather than built speculatively: the Cleric
+      spell "sanctuary" ("a strong aura that reduces incoming damage",
+      previously falling into the generic "isn't implemented yet"
+      placeholder branch same as every other spell) now actually applies
+      `AFFECT_SANCTUARY` for 12 rounds and halves whatever damage the
+      target takes in `combat_strike()`, applied last so it discounts the
+      fully-modified hit. New `affects` command lists what's active and
+      how many rounds are left, or "(none)". `tests/smoke_test_affects.py`
+      covers: a fresh character's `affects` is empty; `pray sanctuary`
+      applies it and `affects` shows a positive round count; a 20-sample
+      statistical comparison of incoming damage with/without Sanctuary
+      active; and natural expiry ("Your Sanctuary wears off.", `affects`
+      empty again). Found and fixed a genuine, previously-unknown
+      production bug while writing this test: `player_load()`
+      (`player_repo.c`) called `being_create_pc()` (which sizes limb HP
+      off level-1 defaults) and then overwrote `progress.level`/`max_hp`
+      from the DB, but never re-synced limb HP to match -- so EVERY
+      reconnect for a character above level 1 left their limbs stuck at
+      level-1-sized fractions, trivially decapitatable regardless of real
+      max_hp. Fixed by calling `being_limbs_full_heal()` again right after
+      `player_progress_load()`. Three test-authoring snags along the way:
+      (1) a raw socket close reconnects to the still-linkdead live
+      `being_t` (skipping `player_load()` entirely, so the fix above never
+      triggers) -- must `quit!` first to actually free the character, same
+      as `smoke_test_armor.py`'s established pattern; (2) mutual combat
+      (`combat_process_run()` strikes both directions every round) means
+      either combatant can die first at random -- fixed by giving both
+      sides a huge `set_hp()` (reusing `smoke_test_weapon_depth.py`'s
+      helper) so 20+ rounds of real damage doesn't risk death, and giving
+      the attacker a huge `set_dex()` gap so the target's automatic
+      retaliation essentially never lands; (3) Sanctuary's 12-round
+      duration can expire mid-sampling (20 hits can take longer than 12
+      rounds to land) -- its "wears off" message would otherwise be
+      silently consumed by the sampling loop's own polling before a later,
+      dedicated check ever saw it, so `average_incoming()` now returns the
+      raw text it saw too, for the expiry check to also scan.
 - [x] **Trap mechanics (door traps)** — done (self-assigned backlog
       item, sequenced right after weapon depth per user 2026-07-11:
       "...then weapon depth, trap mechanics"). Wired the Thief's
@@ -1993,6 +2038,113 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       too long (>15), or contains a non-letter. Updated
       `smoke_test_name_case.py`'s 5-case rejection table to check for the
       matching specific substring per case instead of the old combined text.
+
+### User batch 2026-07-12 — logged, not yet started
+
+- [ ] **`egotrip` command** — port from Sneezy. User: "add egotrip command
+      from sneezy."
+- [ ] **`stat` command (Implementor 55+)** — `stat obj|mob|room <vnum>`
+      shows everything about that object/mob/room. User: "add stat command
+      so an immortal of level 55+ can see everything about the mob obj or
+      room with a vnum argument (Ex.: stat obj 101) from sneezy."
+- [ ] **Boxed ASCII-art menu rework, all character-facing menus** — user
+      gave the exact account-menu before/after and said to apply the same
+      boxed style everywhere. Old:
+      ```
+      -- Your characters --
+        1. Jesus (Implementor)
+        2. Testdummy (Level 1)
+        3. Willy (Level 1)
+
+        C [number|name] -- connect a character
+        N               -- create a new character
+        D <name>        -- delete a character
+        X               -- delete this ENTIRE ACCOUNT
+        Q               -- quit the game
+      (Letters work in either case; a bare number still connects too.)
+      ```
+      New:
+      ```
+      ╔════════════════════╗
+      ║ <C>C<z>  Connect Player ║
+      ║ <C>N<z>  New Player     ║
+      ║ <C>D<z>  Delete Player  ║
+      ║ <C>X<z>  Delete Account ║
+      ║ <C>Q<z>  Quit Game      ║
+      ╚════════════════════╝
+      ```
+      `C` then opens a numbered submenu of that account's characters:
+      ```
+      -- Your players --
+        1. Jesus 			[Implementor]
+        2. Testdummy 		[Level 1]
+        3. Willy 			[Level 1]
+      Choose a number to connect that player to the game:
+      ```
+      "make all character facing menus in this fashion" -- audit every
+      other menu-driven screen (editors, `edit` menus, etc, per
+      [[editors-menu-driven]] memory) for the same boxed treatment.
+- [ ] **Autoloot toggle** — a per-player toggle so killing an opponent
+      auto-loots the entire corpse. User: "add an autoloot toggle where a
+      player upon opponent death automatically loots all from the corpse."
+- [ ] **Split victim's gold among the group on kill** — "To the victor go
+      the spoils!" User: "also upon death get all gold from the victim and
+      split it between all group members if groupped." Blocked on/pairs
+      naturally with the not-yet-built group/party system (see "Bigger
+      systems" below) for the "if grouped" split; solo case is simple.
+- [ ] **Meaningful limb damage** — a decapitated limb currently still
+      shows ~100% in places; individual limb hits should visibly matter.
+      User: "make limb damage mean something. if you have a limb
+      decapitated it shouldnt be at 100% limb health. make individual limb
+      hits actually hurt." (Related bug already fixed today in this same
+      session: [[player_repo.c]]'s `player_load()` was resetting every
+      reconnecting character's limbs to level-1-sized fractions regardless
+      of real max_hp -- fixed by calling `being_limbs_full_heal()` after
+      `player_progress_load()`. This TODO item is the broader "limb % is
+      informative and hits feel weighty" pass, not just that bug.)
+- [ ] **Global "Grimhaven" → "Tobin City" text replace** — user: "search
+      the entire database and replace any instances of 'Grimhaven' with
+      'Tobin City'." Straightforward but broad SQL text-replace across
+      every table/column that could contain room/mob/obj/help text.
+- [ ] **Zone list: builder-assignment column** — user: "add a column to
+      the zone list displaying what builder is assigned to that zone."
+      Pairs with the existing `zoneassign` (`ZONE_ASSIGN_MIN_LEVEL`)
+      machinery in `zone.c`.
+- [ ] **Expand `prompt` toggles** — add mana, piety, vitality, gold, etc
+      to the existing `prompt` command's toggle set. User: "expand prompt
+      command toggles to include mana, piety, vitality, gold, etc."
+- [ ] **Port Sneezy commands: consider, examine, sip, show, tell,
+      whisper** — user: "port the sneezy commands consider and examine
+      and sip and show and tell and whisper."
+- [ ] **Strip damage numbers from combat messages** — user: "You stab a
+      messenger from the goblins's left finger for 4 damage!, dont report
+      damage. messages should read You stab a messenger from the goblins's
+      left finger." Touches every combat message string in `combat.c`.
+- [ ] **Limb-specific decapitation difficulty + major-limb instadeath** —
+      user: "some limbs are harder to decapitate, and should be instadeath
+      if it is a major body part. decapitating a neck should also remove
+      the head. head neck waist body are all major limbs. this should be
+      based on the likelihood that a limb could be damaged vs decapitated.
+      see sneezy code for inspiration." Builds on `combat_sever_limb()`/
+      `LIMB_HEAD` handling already in `combat.c`.
+- [ ] **Immortals take zero damage in combat** — port Sneezy's "engage"
+      logic. User: "an immortal character shouldnt be damaged by hits in a
+      fight, see engage code from sneezy." NOTE: today's affects-system
+      testing relied on an immortal Cleric actually taking measurable
+      combat damage (`smoke_test_affects.py`'s `average_incoming()`) --
+      once this ships, that test (and any other immortal-takes-damage
+      test) will need rework to use a mortal or otherwise-adjusted target.
+- [ ] **`look <person>` shows worn equipment + Thief "peek" skill** —
+      user: "when you look at someone you should also see what equipment
+      thier wearing, a thief skill could be added to attempt a peak at the
+      targets inventory."
+- [ ] **Replace "Huh?!" with a friendlier unknown-command message** —
+      user: "for failed commands that dont exist dont reply Huh?! reply
+      with 'Command not found, maybe submit an idea if you believe TobinMUD
+      should have it.'" Small change in the dispatcher's no-match branch
+      (`cmd_table.c`/`cmd_dispatch()`).
+- [ ] **Message boards + related commands** — port from Sneezy. User:
+      "implement message boards and related commands from sneezy."
 
 ## Small near-term gameplay follow-ups
 

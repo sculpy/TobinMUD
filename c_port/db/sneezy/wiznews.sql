@@ -319,3 +319,11 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Doors Can Be Trapped Now', 'A Thief who knows "set trap (door)" can rig a trap on any closed door with the new `settrap <direction>` command; "disarm trap" safely removes one with `disarmtrap <direction>`. Walk through a rigged door without knowing "detect trap" and it springs, hurting a random limb -- one use only. A Thief who DOES know "detect trap" spots it and steps around unharmed, leaving it rigged for whoever comes next.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Buffs and Debuffs: The New Affects System', 'A new general-purpose "affects" system tracks temporary buffs and debuffs with their own countdown, separate from combat. First one live: `pray sanctuary` wraps you (or an ally) in a shimmering aura that halves incoming damage for a while, then fades on its own with a "wears off" message. Check what''s currently affecting you any time with the new `affects` command.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fixed: Reconnecting Could Leave Your Limbs Fragile', 'Found while testing the affects system: reconnecting to an already-created character reset your limbs'' toughness back to a brand-new level-1 character''s, no matter how strong you''d actually grown -- making a veteran just as easy to dismember as a newbie right after logging back in. Limbs are now properly resized to match your real strength on every fresh login.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

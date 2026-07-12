@@ -95,6 +95,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "balance", cmd_balance, "Adjust gamewide class/race balance modifiers (balance class|race <name>).", BALANCE_MIN_LEVEL },
     { "settrap", cmd_settrap, "Rig a trap on a closed door (Thief, settrap <direction>).", MORTAL_LEVEL_MIN },
     { "disarmtrap", cmd_disarmtrap, "Safely remove a trap from a door (Thief, disarmtrap <direction>).", MORTAL_LEVEL_MIN },
+    { "affects", cmd_affects, "List your currently active buffs/debuffs.", MORTAL_LEVEL_MIN },
     /* Immortal news channel. "wizh"->wizhelp, "wizn"->wiznews. Posting is
      * now `edit wiznews` (folded into the unified edit dispatcher below). */
     { "wiznews", cmd_wiznews, "Read the immortal news channel.",                     IMMORTAL_LEVEL_MIN },

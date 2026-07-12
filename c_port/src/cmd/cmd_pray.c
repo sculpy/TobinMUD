@@ -9,6 +9,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "affect.h"
 #include "combat.h"
 #include "obj.h"
 #include "skill.h"
@@ -155,6 +156,24 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
         pray_apply_heal(d, ch, target, sk->name);
         ch->last_heal_target = target;
         snprintf(ch->last_heal_spell, sizeof(ch->last_heal_spell), "%s", sk->name);
+    } else if (ci_contains(sk->desc, "reduces incoming damage")) {
+        /* Affects system (user 2026-07-11's "buffs/debuffs/status"
+         * backlog item) -- flagship example: "sanctuary"'s own
+         * description ("A strong aura that reduces incoming damage.")
+         * now actually does that (combat.c's combat_strike() halves
+         * damage against anyone with AFFECT_SANCTUARY active). */
+        ch->last_heal_target = NULL;
+        being_apply_affect(target, AFFECT_SANCTUARY, 12);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), "You pray for %s -- a shimmering aura surrounds you!\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), "You pray for %s over %s -- a shimmering aura surrounds them!\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc)
+                descriptor_notify(target->desc, "A shimmering aura surrounds you!\r\n");
+        }
     } else if (ch->fighting && (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "bolt")
                                  || ci_contains(sk->desc, "strike"))) {
         ch->last_heal_target = NULL;

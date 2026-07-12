@@ -8,6 +8,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "affect.h"
 #include "balance.h"
 #include "combat.h"
 #include "config.h"
@@ -89,6 +90,7 @@ int main(int argc, char **argv) {
 
     pulse_register(1, wait_tick_run);
     pulse_register(COMBAT_ROUND_PULSES, combat_process_run);
+    pulse_register(COMBAT_ROUND_PULSES, affect_tick_run); /* counts down active buffs/debuffs every round */
     pulse_register(REGEN_PULSES, regen_tick_run);
     pulse_register(100, descriptor_held_expire); /* ~10s: expire held msgs past TTL */
     pulse_register(120, descriptor_keepalive);   /* ~12s: telnet NOP anti-idle (aggressive, survives tight NAT windows) */

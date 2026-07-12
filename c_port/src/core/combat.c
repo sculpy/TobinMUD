@@ -11,6 +11,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "affect.h"
 #include "balance.h"
 #include "descriptor.h"
 #include "log.h"
@@ -276,6 +277,18 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     dmg = (int)(dmg * dmg_mult);
     if (dmg < 1)
         dmg = 1;
+
+    /* Affects system (user 2026-07-11's "buffs/debuffs/status" backlog
+     * item) -- the Cleric spell "sanctuary" ("a strong aura that
+     * reduces incoming damage") halves whatever a protected defender
+     * takes, applied last so it discounts the fully-modified hit
+     * rather than being folded into (and lost among) the earlier flat
+     * modifiers above. */
+    if (being_has_affect(defender, AFFECT_SANCTUARY)) {
+        dmg /= 2;
+        if (dmg < 1)
+            dmg = 1;
+    }
 
     limb_t limb = (limb_t)(rand() % LIMB_COUNT);
     int pct_before = being_limb_pct(defender, limb);
