@@ -9,8 +9,11 @@ components to cast with, so implement task_pray task_cast etc"). Covers:
      message. Picking up a "component"-keyword item lets the cast
      through, and the component is consumed (gone afterward).
   3. A Cleric with no holy symbol can't pray -- refused. Picking up a
-     "symbol"-keyword item lets the prayer through, and the symbol is
-     NOT consumed (still in inventory afterward) -- unlike a component.
+     "symbol"-keyword item lets the prayer through, and the symbol IS
+     consumed (gone afterward) -- user 2026-07-12: "holy symbols should
+     use the same logic as components for mages and druids" (this test
+     originally covered the OPPOSITE -- a symbol as a non-consumed
+     keepsake -- before that request changed the design).
   4. An unknown spell/prayer name and a too-high-level one are both
      rejected with a specific message, before any component/symbol check.
 
@@ -164,6 +167,13 @@ sw.close()
 mage_name = f"Cpmag{_suffix}"
 sm = make_char(mage_name, pw, "1")
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{mage_name}';")
+# Set (properly immortal, >=51) and reconnect BEFORE the session under
+# test -- a raw SQL level change doesn't reach an already-connected
+# descriptor's live being_t, and immortal status also bypasses task 47's
+# Basic-discipline-percentage gate on "gust" (a Class-tier spell this
+# never-practiced test character would otherwise fail 0%-Basic), which
+# isn't what this test is checking.
+set_level(mage_name, 51)
 cmd(sm, "quit!")
 sm.close()
 sm = socket.create_connection((host, port), timeout=5)
@@ -179,7 +189,6 @@ check("don't have the spell components" in out, "casting without a component is 
 out = cmd(sm, "cast nosuchspellzzz")
 check("don't know a spell" in out, "an unknown spell name is rejected")
 
-set_level(mage_name, 90)  # sidestep level gates for this test
 check("You conjure" in cmd(s_imm, f"load obj {COMPONENT}"), "the component pouch is loaded")
 out = cmd(sm, "get pouch")
 check("you get" in out.lower(), "the mage picks up the component pouch")
@@ -189,10 +198,11 @@ check("You cast gust" in out, "casting with a component succeeds")
 out = cmd(sm, "inventory")
 check("pouch" not in out.lower(), "the component is consumed after a successful cast")
 
-# --- 3: Cleric pray requires a holy symbol, NOT consumed ---
+# --- 3: Cleric pray requires a holy symbol, consumed on success ---
 cleric_name = f"Cpcle{_suffix}"
 sc = make_char(cleric_name, pw, "2")
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{cleric_name}';")
+set_level(cleric_name, 51)  # properly immortal before reconnect -- see the Mage comment above
 cmd(sc, "quit!")
 sc.close()
 sc = socket.create_connection((host, port), timeout=5)
@@ -205,7 +215,6 @@ cmd(sc, "color off")
 out = cmd(sc, "pray heal light")
 check("need a holy symbol" in out, "praying without a holy symbol is refused")
 
-set_level(cleric_name, 90)
 check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "the holy symbol is loaded")
 out = cmd(sc, "get symbol")
 check("you get" in out.lower(), "the cleric picks up the holy symbol")
@@ -213,7 +222,7 @@ check("you get" in out.lower(), "the cleric picks up the holy symbol")
 out = cmd(sc, "pray heal light")
 check("You pray for heal light" in out, "praying with a holy symbol succeeds")
 out = cmd(sc, "inventory")
-check("symbol" in out.lower(), "the holy symbol is NOT consumed after a successful prayer")
+check("symbol" not in out.lower(), "the holy symbol IS consumed after a successful prayer")
 
 s_imm.close()
 sm.close()

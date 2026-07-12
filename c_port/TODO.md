@@ -34,6 +34,41 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       non-fixture passes independently. `tests/smoke_test_room_stacking.py`
       covers 3-mob and 3-object stacking, a lone mob showing no suffix,
       and two different mobs never merging.
+- [x] **`continue` command + targeted heals + breaking holy symbols** —
+      done. User: "add a continue command so clerics that heal <target>
+      can continue automatically until the target is fully healed or
+      thier holy symbol breaks (holy symbols should use the same logic
+      as components for mages and druids)." Three changes: (1)
+      `cmd_pray.c`'s heal-type prayers ("heal light" etc) can now target
+      someone else in the room ("pray heal light <target>") instead of
+      only the caster -- new `find_spell_and_target()` tries the whole
+      `args` string against the spell roster first (self-heal, fully
+      backward compatible with every existing test/usage); only if that
+      fails does it peel off the last word as an optional target and
+      retry the remainder as the (possibly abbreviated, possibly multi-
+      word) spell name, so "heal lig joe" and "heal light joe" both
+      resolve correctly. (2) Holy symbols are now consumed via
+      `obj_destroy()` on every successful pray, exactly like a
+      component -- no longer the permanent keepsake originally shipped;
+      updated `tests/smoke_test_castpray.py`'s assertion (and its
+      Mage/Cleric test characters' level-setting, which had the same
+      "SQL-after-connect never reaches the live being_t" bug the practice
+      test hit) to match. (3) New `cmd_continue.c`: `continue` repeats
+      the caster's most recent heal-type prayer (`being_t.last_heal_target`/
+      `last_heal_spell`, set by cmd_pray.c, cleared by being_destroy()
+      if the target goes away) on the same target, once per holy symbol
+      on hand, ALL within one command call ("continue automatically"),
+      stopping the instant the target leaves the room, is fully healed,
+      or the caster runs out of holy symbols ("their holy symbol
+      breaks") -- capped at 50 rounds as a pure safety valve, not a
+      gameplay limit. Deliberately does not re-check class/level/
+      discipline-percentage each round (already validated when the
+      original prayer set the state; `continue` only replays its
+      effect + consumes its resource). `tests/smoke_test_continue.py`
+      covers self-pray being unaffected, targeted pray healing someone
+      else, `continue` with nothing to continue being refused, and
+      `continue` running the loop to one of its two stopping conditions
+      and then being refused again afterward.
 - [x] **`practice` command + guildmaster-gated discipline percentages**
       — done. User: "add the practice command so players have to visit a
       guildmaster to gain skills based upon percentage of discipline

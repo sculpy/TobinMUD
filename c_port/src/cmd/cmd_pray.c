@@ -9,22 +9,35 @@
 #include <string.h>
 #include <strings.h>
 
+#include "combat.h"
 #include "obj.h"
 #include "skill.h"
 #include "thing.h"
 
-/* `pray <spell>` -- Cleric spellcasting (user 2026-07-11: "clerics should
- * require a holy symbol to pray successfully... implement task_pray
- * task_cast etc"). Mage/Druid's `cast` (cmd_cast.c) is the sibling
- * command, gated on a consumed component instead of a holy symbol.
+/* `pray <spell> [target]` -- Cleric spellcasting (user 2026-07-11:
+ * "clerics should require a holy symbol to pray successfully...
+ * implement task_pray task_cast etc"). Mage/Druid's `cast` (cmd_cast.c)
+ * is the sibling command, gated on a consumed component instead of a
+ * holy symbol.
  *
  * A "holy symbol" is any object anywhere in the caster's own containment
  * chain (carried, worn, or held) whose keyword list contains the word
  * "symbol" -- a generic convention, same spirit as `cast`'s "component"
  * keyword, so a builder can create any symbol item ("a holy symbol",
- * "a tarnished silver symbol") without a new object category. NOT
- * consumed -- a holy symbol is a keepsake, prayed through repeatedly,
- * unlike a mage's material component.
+ * "a tarnished silver symbol") without a new object category. CONSUMED
+ * on every successful pray (user 2026-07-12: "holy symbols should use
+ * the same logic as components for mages and druids") -- no longer a
+ * permanent keepsake as originally shipped.
+ *
+ * Healing prayers ("heal light" etc) may now target someone else in the
+ * room ("pray heal light <target>") instead of only the caster -- see
+ * find_spell_and_target() below for how the optional trailing target
+ * name is told apart from a (possibly multi-word, possibly abbreviated)
+ * spell name. A successful heal-type prayer is remembered on the
+ * caster (being_t.last_heal_target/last_heal_spell) so the new
+ * `continue` command (cmd_continue.c) can keep re-praying it
+ * automatically until the target is fully healed or the caster's holy
+ * symbols run out ("their holy symbol breaks").
  *
  * v1 scope: same honest placeholder-effect approach as cmd_cast.c's
  * task_cast() -- see that file's header comment for why a full
@@ -63,29 +76,93 @@ static const skill_def_t *find_spell(player_class_t cls, const char *name, bool 
     return NULL;
 }
 
-static void task_pray(descriptor_t *d, being_t *ch, const skill_def_t *sk) {
+/* Splits `args` into a spell (possibly abbreviated, possibly multi-word)
+ * and an optional trailing target name. Tries the WHOLE string against
+ * find_spell() first -- if that matches, there's no target (self-pray,
+ * the original/common case, left byte-for-byte backward compatible).
+ * Only if that fails does it peel off the last word and retry the
+ * remainder as the spell name, treating the peeled word as a target
+ * ("pray heal light joe" -> spell "heal light", target "joe"; "pray
+ * heal lig joe" -> abbreviated "heal lig" still matches "heal light",
+ * target "joe"). `*out_target` is set to NULL for a self-pray. */
+static const skill_def_t *find_spell_and_target(player_class_t cls, const char *args,
+                                                bool any_class, char *target_buf, size_t target_bufsz,
+                                                const char **out_target) {
+    *out_target = NULL;
+    const skill_def_t *sk = find_spell(cls, args, any_class);
+    if (sk)
+        return sk;
+
+    const char *last_space = strrchr(args, ' ');
+    if (!last_space || !last_space[1])
+        return NULL;
+
+    size_t spell_len = (size_t)(last_space - args);
+    char spell_buf[128];
+    if (spell_len >= sizeof(spell_buf))
+        return NULL;
+    memcpy(spell_buf, args, spell_len);
+    spell_buf[spell_len] = '\0';
+
+    sk = find_spell(cls, spell_buf, any_class);
+    if (!sk)
+        return NULL;
+
+    snprintf(target_buf, target_bufsz, "%s", last_space + 1);
+    *out_target = target_buf;
+    return sk;
+}
+
+/* Applies a heal-type prayer's effect to `target` (may be `ch` itself)
+ * and reports it to both. cmd_continue.c duplicates this same formula/
+ * messaging rather than depending on this file, matching this
+ * codebase's established "small static helpers get duplicated per
+ * command file" convention (see ci_contains/find_keyword_item above,
+ * also duplicated in cmd_cast.c). */
+static void pray_apply_heal(descriptor_t *d, being_t *ch, being_t *target, const char *spell_name) {
+    int amount = 8 + ch->progress.level / 2;
+    being_heal(target, amount);
     char msg[192];
-    if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")) {
-        int amount = 8 + ch->progress.level / 2;
-        being_heal(ch, amount);
-        snprintf(msg, sizeof(msg), "You pray for %s and feel restored! (+%d HP)\r\n", sk->name, amount);
+    if (target == ch) {
+        snprintf(msg, sizeof(msg), "You pray for %s and feel restored! (+%d HP)\r\n", spell_name, amount);
         descriptor_send(d, msg);
-    } else if (ch->fighting && (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "bolt")
-                                 || ci_contains(sk->desc, "strike"))) {
-        int dmg = 4 + ch->progress.level / 3;
-        being_t *target = ch->fighting;
-        limb_t limb = (limb_t)(rand() % LIMB_COUNT);
-        being_hurt_limb(target, limb, dmg);
-        snprintf(msg, sizeof(msg), "You pray for %s, striking %s for %d damage!\r\n",
-                 sk->name, being_display_name(target), dmg);
+    } else {
+        char tcapbuf[128];
+        snprintf(msg, sizeof(msg), "You pray for %s, and %s is restored! (+%d HP)\r\n",
+                 spell_name, being_display_name(target), amount);
         descriptor_send(d, msg);
         if (target->desc) {
+            snprintf(msg, sizeof(msg), "%s prays for %s, restoring you! (+%d HP)\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), spell_name, amount);
+            descriptor_notify(target->desc, msg);
+        }
+    }
+}
+
+static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill_def_t *sk) {
+    char msg[192];
+    if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")) {
+        pray_apply_heal(d, ch, target, sk->name);
+        ch->last_heal_target = target;
+        snprintf(ch->last_heal_spell, sizeof(ch->last_heal_spell), "%s", sk->name);
+    } else if (ch->fighting && (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "bolt")
+                                 || ci_contains(sk->desc, "strike"))) {
+        ch->last_heal_target = NULL;
+        int dmg = 4 + ch->progress.level / 3;
+        being_t *foe = ch->fighting;
+        limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+        being_hurt_limb(foe, limb, dmg);
+        snprintf(msg, sizeof(msg), "You pray for %s, striking %s for %d damage!\r\n",
+                 sk->name, being_display_name(foe), dmg);
+        descriptor_send(d, msg);
+        if (foe->desc) {
             char tcapbuf[128];
             snprintf(msg, sizeof(msg), "%s prays for %s, striking you for %d damage!\r\n",
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, dmg);
-            descriptor_notify(target->desc, msg);
+            descriptor_notify(foe->desc, msg);
         }
     } else {
+        ch->last_heal_target = NULL;
         snprintf(msg, sizeof(msg),
                  "You pray for %s, but nothing happens yet -- its real effect isn't implemented.\r\n",
                  sk->name);
@@ -111,7 +188,9 @@ bool cmd_pray(descriptor_t *d, const char *args) {
         return true;
     }
 
-    const skill_def_t *sk = find_spell(CLASS_CLERIC, args, imm);
+    char target_buf[64];
+    const char *target_name;
+    const skill_def_t *sk = find_spell_and_target(CLASS_CLERIC, args, imm, target_buf, sizeof(target_buf), &target_name);
     if (!sk) {
         descriptor_send(d, "You don't know a prayer by that name.\r\n");
         return true;
@@ -140,11 +219,22 @@ bool cmd_pray(descriptor_t *d, const char *args) {
         }
     }
 
-    if (!find_keyword_item(ch, "symbol")) {
+    being_t *target = ch;
+    if (target_name) {
+        target = combat_find_room_target(ch, target_name);
+        if (!target) {
+            descriptor_send(d, "You don't see them here.\r\n");
+            return true;
+        }
+    }
+
+    obj_t *symbol = find_keyword_item(ch, "symbol");
+    if (!symbol) {
         descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
         return true;
     }
 
-    task_pray(d, ch, sk);
+    task_pray(d, ch, target, sk);
+    obj_destroy(symbol);
     return true;
 }

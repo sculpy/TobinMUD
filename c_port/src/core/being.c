@@ -127,6 +127,8 @@ void being_destroy(being_t *b) {
     for (descriptor_t *d = g_descriptors; d; d = d->next) {
         if (d->character && d->character->fighting == b)
             d->character->fighting = NULL;
+        if (d->character && d->character->last_heal_target == b)
+            d->character->last_heal_target = NULL;
     }
 
     /* Free every object this being has (carried, worn, or held -- all live

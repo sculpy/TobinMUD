@@ -299,3 +299,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Practice with a Guildmaster to Learn Your Discipline', 'Reaching a spell/skill''s level requirement is no longer enough on its own -- you now also need to have practiced that discipline. A new `practice` command, used at a guildmaster mob of your own class, raises your Basic and Advanced discipline percentages (10% per visit). Basic-tier skills/spells need any Basic percentage above 0; Advanced-tier ones need Basic at 95%+ AND some Advanced percentage. `skills` shows both percentages and marks locked entries with the reason. Guildmaster mobs are recognized by the "guildmaster" keyword plus a class match (the old, previously-unused mob.class column now feeds this). Immortals bypass this gate entirely, same as the class/level bypass.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Heal Someone Else, Then Just `continue`', '`pray heal light <target>` (and every other heal-type prayer) can now be aimed at someone else in the room instead of only yourself -- leave the target off to heal yourself as before. A new `continue` command repeats that same heal automatically, round after round, until the target is fully healed or you run out of holy symbols. Speaking of which: holy symbols are now consumed on every successful prayer, just like a mage or druid''s spell components -- no longer a permanent keepsake.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

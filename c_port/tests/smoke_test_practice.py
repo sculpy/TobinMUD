@@ -230,6 +230,14 @@ check("need 95% in your Basic discipline, and some Advanced practice" in out,
 out = cmd(sc, "practice advanced")
 check("Advanced discipline: 10%" in out, "practice advanced succeeds once Basic is 100%")
 
+# The holy symbol from earlier was consumed by the successful "heal
+# light" above (user 2026-07-12: "holy symbols should use the same
+# logic as components" -- consumed every successful pray, no longer a
+# reusable keepsake) -- a fresh one is needed here.
+check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "a fresh holy symbol is loaded")
+out = cmd(sc, "get symbol")
+check("you get" in out.lower(), "the cleric picks up the fresh holy symbol")
+
 out = cmd(sc, "pray heal full")
 check("You pray for heal full" in out, "Advanced-tier prayer succeeds once Advanced discipline is nonzero")
 

@@ -377,6 +377,20 @@ typedef struct being {
     struct being *fighting;
     long last_combat_pulse;
 
+    /* Most recent `pray`/`cast` heal-type target + spell name (user
+     * 2026-07-12: "add a continue command so clerics that heal <target>
+     * can continue automatically until the target is fully healed or
+     * their holy symbol breaks") -- live in-memory only, same "meaningless
+     * across a reconnect" rule as `fighting`; cleared whenever a
+     * non-heal spell is prayed/cast, whenever `continue` finishes (fully
+     * healed / out of holy symbols / target left), and by being_destroy()
+     * if the target itself goes away. `last_heal_spell` is a name, not a
+     * skill_def_t* -- being.h can't depend on skill.h, and a name survives
+     * the roster being rebuilt/reordered underneath it. See cmd_pray.c/
+     * cmd_continue.c. */
+    struct being *last_heal_target;
+    char last_heal_spell[64];
+
     /* Pulses remaining before this character can act again (see pulse.h).
      * Mortals accumulate this from `being_set_wait()`; immortals always
      * read/write it as a no-op via being_get_wait()/being_set_wait(). */
