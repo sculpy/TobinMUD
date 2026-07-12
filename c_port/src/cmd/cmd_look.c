@@ -33,11 +33,14 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
     return buf;
 }
 
-/* Appends one room-listing line (an object's ground sentence, or a mob/PC's
- * "<label> is here.") for `t` to `out`, returning the updated length --
- * factored out so the room loop below can walk `stuff_head` in two passes
- * (fixtures first, then everything else) without duplicating this logic. */
-static int append_room_item(char *out, int n, size_t outsz, const room_t *r, const thing_t *t) {
+/* Renders one room-listing line (an object's ground sentence, or a mob/PC's
+ * "<label> is here.") for `t` into `buf`, WITHOUT the trailing "\r\n" --
+ * the caller appends that only once per distinct line, after stacking
+ * (see room_item_groups() below). PCs are never affected by stacking in
+ * practice (each has a unique name, so its rendered line never matches
+ * another's), but this still has to render PCs correctly since the room
+ * loop walks every kind of thing through the same function. */
+static void render_room_item(char *buf, size_t bufsz, const room_t *r, const thing_t *t) {
     const char *label = t->short_descr[0] ? t->short_descr : t->name;
     char capbuf3[128];
     if (t->kind == THING_OBJ) {
@@ -48,10 +51,10 @@ static int append_room_item(char *out, int n, size_t outsz, const room_t *r, con
          * fallback -- long_descr is already a full sentence. */
         const obj_t *o = (const obj_t *)t;
         char groundbuf3[OBJ_LONG_DESCR_LEN + 32];
-        n += snprintf(out + n, outsz - (size_t)n, "%s\r\n",
-                      o->long_descr[0]
-                          ? obj_apply_ground_token(o->long_descr, r, groundbuf3, sizeof(groundbuf3))
-                          : cap_first(label, capbuf3, sizeof(capbuf3)));
+        snprintf(buf, bufsz, "%s",
+                 o->long_descr[0]
+                     ? obj_apply_ground_token(o->long_descr, r, groundbuf3, sizeof(groundbuf3))
+                     : cap_first(label, capbuf3, sizeof(capbuf3)));
     } else {
         /* Mob short_descr is lowercase by convention ("a city watchman");
          * capitalize for the sentence start (PC names are already
@@ -60,11 +63,49 @@ static int append_room_item(char *out, int n, size_t outsz, const room_t *r, con
          * (linkdead)" -- visible, but see combat_find_room_target() for
          * why they can't actually be targeted. */
         bool linkdead = t->kind == THING_PC && !((being_t *)t)->desc;
-        n += snprintf(out + n, outsz - (size_t)n, "%s is here.%s\r\n",
-                      cap_first(label, capbuf3, sizeof(capbuf3)),
-                      linkdead ? " (linkdead)" : "");
+        snprintf(buf, bufsz, "%s is here.%s",
+                 cap_first(label, capbuf3, sizeof(capbuf3)),
+                 linkdead ? " (linkdead)" : "");
     }
-    return n;
+}
+
+/* Groups identical room-listing lines together (user 2026-07-11: "object
+ * stacking and mob stacking. for 2 gremlins you would see A gremlin is
+ * standing here. (x2)") -- two mobs of the same vnum (or two objects with
+ * the same long_desc) render an IDENTICAL line via render_room_item(), so
+ * grouping by the rendered string itself (rather than needing a separate
+ * vnum-equality check) naturally stacks true duplicates while leaving
+ * PCs (always unique names) and visually-distinct objects untouched.
+ * First-seen order is preserved. Returns the number of distinct groups
+ * (capped at `max_groups`); `lines`/`counts` are the caller's arrays. */
+#define ROOM_ITEM_LINE_LEN (OBJ_LONG_DESCR_LEN + 32)
+static int group_room_items(const room_t *r, const being_t *viewer, bool want_fixture,
+                            char lines[][ROOM_ITEM_LINE_LEN], int *counts, int max_groups) {
+    int groups = 0;
+    for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+        if (t == &viewer->base)
+            continue;
+        bool is_fixture = t->kind == THING_OBJ && !obj_takeable(((obj_t *)t)->wear_flag);
+        if (is_fixture != want_fixture)
+            continue;
+
+        char line[ROOM_ITEM_LINE_LEN];
+        render_room_item(line, sizeof(line), r, t);
+
+        int i;
+        for (i = 0; i < groups; i++) {
+            if (strcmp(lines[i], line) == 0) {
+                counts[i]++;
+                break;
+            }
+        }
+        if (i == groups && groups < max_groups) {
+            snprintf(lines[groups], ROOM_ITEM_LINE_LEN, "%s", line);
+            counts[groups] = 1;
+            groups++;
+        }
+    }
+    return groups;
 }
 
 /* Finds an object by keyword in a thing_t chain (room floor, or a being's
@@ -272,24 +313,26 @@ bool cmd_look(descriptor_t *d, const char *args) {
      * a fountain should be listed first in look room code"): non-takeable
      * fixture objects (fountains, furniture, statuary -- anything without
      * WEAR_TAKE) print before everything else (ordinary loot, mobs, PCs),
-     * which otherwise print in plain stuff_head/insertion order. */
+     * which otherwise print in plain stuff_head/insertion order. Within
+     * each pass, identical entries are stacked into one line with a
+     * "(xN)" suffix (user 2026-07-11: "object stacking and mob stacking.
+     * for 2 gremlins you would see A gremlin is standing here. (x2)"). */
     int any = 0;
     for (int pass = 0; pass < 2; pass++) {
-        for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
-            if (t == &d->character->base)
-                continue;
-            bool is_fixture = t->kind == THING_OBJ && !obj_takeable(((obj_t *)t)->wear_flag);
-            if (is_fixture != (pass == 0))
-                continue;
+        char lines[64][ROOM_ITEM_LINE_LEN];
+        int counts[64];
+        int groups = group_room_items(r, d->character, pass == 0, lines, counts, 64);
+        for (int i = 0; i < groups; i++) {
             if ((size_t)n >= sizeof(out))
                 break;
             if (!any) {
                 n += snprintf(out + n, sizeof(out) - (size_t)n, "\r\n");
                 any = 1;
             }
-            if ((size_t)n >= sizeof(out))
-                break;
-            n = append_room_item(out, n, sizeof(out), r, t);
+            if (counts[i] > 1)
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "%s (x%d)\r\n", lines[i], counts[i]);
+            else
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "%s\r\n", lines[i]);
         }
     }
 

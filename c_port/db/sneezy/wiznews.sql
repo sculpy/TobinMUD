@@ -287,3 +287,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Casting and Praying Need the Right Item', 'Mages and Druids can now `cast <spell>` -- but need a spell component (any item keyworded "component") on hand, consumed on a successful cast. Clerics `pray <spell>` instead, needing a holy symbol (keyworded "symbol") that is NOT consumed. Both check class and level against the spell first. Real per-spell mechanics are still limited (heal/damage-flavored spells work; the rest cast successfully but do nothing yet) -- the full effect system is follow-up work.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Room Listings Stack Identical Things', 'Multiple identical mobs or objects in a room now show as one line with an "(xN)" count instead of repeating the same line over and over -- three gremlins now read "A gremlin is here. (x3)".')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -20,6 +20,20 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-11 (continued) — working these next
 
+- [x] **Room-listing stacking (`(xN)`)** — done. User: "in look at room,
+      object stacking and mob stacking. for 2 gremlins you would see
+      A gremlin is standing here. (x2)." `cmd_look.c`'s room loop used to
+      print one line per THING; now `render_room_item()` renders each
+      thing's line first, and `group_room_items()` groups identical
+      RENDERED STRINGS together (rather than needing a separate vnum-
+      equality check) before printing -- two mobs of the same vnum, or
+      two objects with the same long_desc, naturally stack; PCs (always
+      unique names) and visually-distinct objects are naturally
+      unaffected. A group of 2+ gets a trailing " (xN)"; a lone item gets
+      none. Stacking happens within each of the existing two fixture/
+      non-fixture passes independently. `tests/smoke_test_room_stacking.py`
+      covers 3-mob and 3-object stacking, a lone mob showing no suffix,
+      and two different mobs never merging.
 - [x] **`cast`/`pray` with component/holy-symbol requirements** — done
       (v1 scope). User: "clerics should require a holy symbol to pray
       successfully, druids and mages should require components to cast
