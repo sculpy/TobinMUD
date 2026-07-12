@@ -7,10 +7,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <time.h>
 
 #include "db.h"
 #include "log.h"
 #include "obj_repo.h"
+
+/* Flat offline-regen rate for a character returning from `rent`
+ * (cmd_rent.c) -- 1 HP per this many real seconds elapsed since renting,
+ * capped at max_hp. Deliberately simple (not the same curve as the
+ * online regen_tick_run()/regen_amount() in regen.c, which factor in
+ * CON and position) since a rented-out character has no position to
+ * read and this only needs to feel like real "time passed, you
+ * recovered" progress, not a precisely balanced number. */
+#define RENT_REGEN_SECONDS_PER_HP 5
 
 /* Default landing room for freshly created characters -- vnum 100 ("Center Square")
  * exists in the seed data (db/sneezy/room.sql) and has a real description,
@@ -65,6 +75,19 @@ being_t *player_load(const char *name, long account_id) {
     if (b) {
         player_attrs_load(b->player_id, &b->attrs); /* falls back to ATTR_BASE defaults if missing */
         player_progress_load(b->player_id, &b->progress); /* falls back to being_create_pc()'s defaults if missing */
+        /* Returning from `rent` (cmd_rent.c): heal for the real time spent
+         * rented out, then clear the marker so this only fires once. */
+        if (b->progress.rented_at > 0) {
+            long elapsed = (long)time(NULL) - b->progress.rented_at;
+            if (elapsed > 0) {
+                int healed = (int)(elapsed / RENT_REGEN_SECONDS_PER_HP);
+                b->progress.hp += healed;
+                if (b->progress.hp > b->progress.max_hp)
+                    b->progress.hp = b->progress.max_hp;
+            }
+            b->progress.rented_at = 0;
+            player_progress_save(b->player_id, &b->progress);
+        }
         /* being_create_pc() already sized limbs off level-1 defaults before
          * the real (possibly much higher) level/max_hp landed just above --
          * without this, every reconnect for a leveled character leaves limbs
@@ -365,7 +388,7 @@ bool player_progress_load(long player_id, progress_t *out) {
 
     bool found = false;
     if (db_query(db, "select level, experience, hp, max_hp, true_level, alignment, "
-                      "basic_disc_pct, advanced_disc_pct from player_progress where player_id=%i",
+                      "basic_disc_pct, advanced_disc_pct, rented_at from player_progress where player_id=%i",
                  (int)player_id)
         && db_fetch_row(db)) {
         out->level = atoi(db_get(db, "level"));
@@ -376,6 +399,7 @@ bool player_progress_load(long player_id, progress_t *out) {
         out->alignment = atoi(db_get(db, "alignment"));
         out->basic_disc_pct = atoi(db_get(db, "basic_disc_pct"));
         out->advanced_disc_pct = atoi(db_get(db, "advanced_disc_pct"));
+        out->rented_at = atol(db_get(db, "rented_at"));
         found = true;
     }
 
@@ -390,14 +414,14 @@ bool player_progress_save(long player_id, const progress_t *progress) {
 
     bool ok = db_query(db,
         "insert into player_progress (player_id, level, experience, hp, max_hp, true_level, alignment, "
-        "basic_disc_pct, advanced_disc_pct) "
-        "values (%i, %i, %i, %i, %i, %i, %i, %i, %i) "
+        "basic_disc_pct, advanced_disc_pct, rented_at) "
+        "values (%i, %i, %i, %i, %i, %i, %i, %i, %i, %i) "
         "on duplicate key update level=%i, experience=%i, hp=%i, max_hp=%i, true_level=%i, alignment=%i, "
-        "basic_disc_pct=%i, advanced_disc_pct=%i",
+        "basic_disc_pct=%i, advanced_disc_pct=%i, rented_at=%i",
         (int)player_id, progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment,
-        progress->basic_disc_pct, progress->advanced_disc_pct,
+        progress->basic_disc_pct, progress->advanced_disc_pct, (int)progress->rented_at,
         progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment,
-        progress->basic_disc_pct, progress->advanced_disc_pct);
+        progress->basic_disc_pct, progress->advanced_disc_pct, (int)progress->rented_at);
 
     db_close(db);
     return ok;

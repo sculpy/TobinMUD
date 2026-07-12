@@ -107,6 +107,13 @@ typedef struct {
      * See skill.h's skill_tier_t. */
     int basic_disc_pct;
     int advanced_disc_pct;
+    /* Unix timestamp of the last `rent` (cmd_rent.c, user 2026-07-12:
+     * "make rent work from sneezy"), or 0 if not currently rented out.
+     * player_load() (player_repo.c) heals a flat rate for the real time
+     * elapsed since this was set, then clears it -- "regenerating HP
+     * while rented out" per Sneezy's own `rent` help text, without a
+     * standing background job for offline characters. */
+    long rented_at;
 } progress_t;
 
 /* Prompt customization bits (player.prompt_flags, cmd_prompt.c; rendered

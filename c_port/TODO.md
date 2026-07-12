@@ -2398,22 +2398,35 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       above -- this is a new skill/command that tries to see what
       someone is CARRYING (not worn), with some chance of success/
       detection, gated by `being_knows_skill()` same as trap mechanics.
-- [ ] **Make `rent` work (Sneezy port)** — user (2026-07-12): "make rent
-      work from sneezy." Per Sneezy's own help text: `rent` stores your
-      items and cleanly ends your session (regenerating HP/mana while
+- [x] **Make `rent` work (Sneezy port)** — done. User (2026-07-12): "make
+      rent work from sneezy." Per Sneezy's own help text: `rent` stores
+      your items and cleanly ends your session (regenerating HP while
       "rented out"), the RECOMMENDED way to leave the game -- "simply
-      dropping link is risky." Pairs directly with the not-yet-built
-      `player_save()`/`save` command (see "Small near-term gameplay
-      follow-ups" above) and its quit/death-auto-save follow-up: `rent`
-      is really "save everything, then leave cleanly," so it likely wants
-      `player_save()` to exist first rather than duplicating scattered
-      save calls a second time. Sneezy's version also charges per-item
-      storage cost and restricts `rent` to inn/home rooms specifically --
-      the cost side is blocked on the not-yet-built Money system (task
-      29); the inn-room restriction is simple once decided (a room flag,
-      same pattern as other room-condition bits). NPC follower/pet
-      storage-across-rent is blocked on the not-yet-built Pet/charm
-      system (task 35).
+      dropping link is risky." A new `rent` command (`cmd_rent.c`,
+      mortal-usable) refuses while fighting, stamps a new
+      `progress.rented_at` column (unix timestamp, migration in
+      `tobin_migrations.sql`) with the current time, announces to the
+      room, and calls the same `descriptor_leave_to_menu()` quit! already
+      uses -- which now auto-saves via `player_save()` (see above), so
+      `rent` doesn't need its own separate save call. Since Tobin's
+      inventory already persists across ANY clean session end (not just
+      `rent`), the real thing `rent` adds is the offline HP regen:
+      `player_load()` (`player_repo.c`) checks `rented_at` on every
+      login, heals a flat 1 HP per 5 real seconds elapsed (capped at
+      max_hp -- deliberately simpler than the online `regen_tick_run()`
+      curve, since a rented-out character has no position/CON context to
+      read), then clears the marker so it only fires once. Deliberately
+      NOT ported: per-item storage cost (blocked on the not-yet-built
+      Money system, task 29) and the inn/home-room restriction (blocked
+      on an undecided room-flag scheme -- available anywhere for now);
+      NPC follower/pet storage-across-rent is blocked on the not-yet-
+      built Pet/charm system (task 35). No mana system exists yet, so
+      "regenerating mana" from Sneezy's help text doesn't apply.
+      `tests/smoke_test_rent.py` covers the fighting refusal, the
+      confirmation/room-announcement/clean-session-end, and the offline
+      healing (an hour back-dated `rented_at` heals a beaten-down mortal
+      all the way to max_hp on reconnect, and clears the marker
+      afterward). `smoke_test_quit.py`/`smoke_test_save.py` re-run clean.
 - [x] **Replace "Huh?!" with a friendlier unknown-command message** —
       done. User: "for failed commands that dont exist dont reply Huh?!
       reply with 'Command not found, maybe submit an idea if you believe

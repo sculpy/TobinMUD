@@ -387,3 +387,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Few More Huh?!s Silenced', 'Found five more spots that still answered with the old terse "Huh?!" instead of the friendlier unknown-command message: casting or praying as the wrong class, `purge linkdead` below level 58, and a Thief-only door trap command used by someone who never learned the skill. All five now match the rest of the game.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'rent Works Now: The Safe Way to Log Off', 'A new `rent` command stores your belongings and ends your session cleanly, the recommended way to leave the game -- simply dropping your connection has always carried a small element of risk. Rent out for a while and you will find yourself healed up when you return, roughly in proportion to how long you were away. Renting is refused mid-fight. Per-item storage cost and restricting rent to inns are not in yet -- both need systems that do not exist yet (money, and a decision about which rooms count as inns).')
+ON DUPLICATE KEY UPDATE `title` = `title`;

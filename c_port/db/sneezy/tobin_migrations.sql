@@ -114,3 +114,11 @@ ALTER TABLE `player_progress`
   ADD COLUMN IF NOT EXISTS `basic_disc_pct` int(11) NOT NULL DEFAULT 0;
 ALTER TABLE `player_progress`
   ADD COLUMN IF NOT EXISTS `advanced_disc_pct` int(11) NOT NULL DEFAULT 0;
+
+-- `rent` (user 2026-07-12: "make rent work from sneezy"). Unix timestamp
+-- of the last `rent`, 0 if not currently rented out -- player_load()
+-- heals a flat rate for the real time elapsed since this was set, then
+-- clears it ("regenerating HP while rented out" per Sneezy's own rent
+-- help text).
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `rented_at` int(11) NOT NULL DEFAULT 0;
