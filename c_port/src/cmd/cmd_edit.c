@@ -54,35 +54,35 @@ bool cmd_edit(descriptor_t *d, const char *args) {
 
     if (strcasecmp(noun, "player") == 0) {
         if (level < EDPLAYER_MIN_LEVEL) {
-            descriptor_send(d, "Huh?!\r\n");
+            descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
         return cmd_edplayer(d, rest);
     }
     if (strcasecmp(noun, "help") == 0) {
         if (level < HELP_EDIT_MIN_LEVEL) {
-            descriptor_send(d, "Huh?!\r\n");
+            descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
         return cmd_hedit(d, rest);
     }
     if (strcasecmp(noun, "news") == 0) {
         if (level < ADDNEWS_MIN_LEVEL) {
-            descriptor_send(d, "Huh?!\r\n");
+            descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
         return cmd_addnews(d, rest);
     }
     if (strcasecmp(noun, "wiznews") == 0) {
         if (level < ADDNEWS_MIN_LEVEL) {
-            descriptor_send(d, "Huh?!\r\n");
+            descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
         return cmd_edwiznews(d, rest);
     }
     if (strcasecmp(noun, "rules") == 0) {
         if (level < EDRULES_MIN_LEVEL) {
-            descriptor_send(d, "Huh?!\r\n");
+            descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
         return cmd_edrules(d, rest);

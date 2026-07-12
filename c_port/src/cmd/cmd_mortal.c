@@ -51,7 +51,7 @@ bool cmd_immort(descriptor_t *d, const char *args) {
         return true;
     if (ch->progress.true_level < IMMORTAL_LEVEL_MIN) {
         /* A real mortal typed it: identical to an unknown command. */
-        descriptor_send(d, "Huh?!\r\n");
+        descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
         return true;
     }
 

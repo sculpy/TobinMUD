@@ -327,3 +327,11 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Fixed: Reconnecting Could Leave Your Limbs Fragile', 'Found while testing the affects system: reconnecting to an already-created character reset your limbs'' toughness back to a brand-new level-1 character''s, no matter how strong you''d actually grown -- making a veteran just as easy to dismember as a newbie right after logging back in. Limbs are now properly resized to match your real strength on every fresh login.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Friendlier Unknown-Command Message', 'Typing a command that does not exist no longer replies with the terse "Huh?!" -- it now says "Command not found, maybe submit an idea if you believe TobinMUD should have it."')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Grimhaven is Now Tobin City', 'Every mention of "Grimhaven" across rooms, mobs, objects, and zone data (any capitalization) has been renamed to "Tobin City" to match the game''s actual setting.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

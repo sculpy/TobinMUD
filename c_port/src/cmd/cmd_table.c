@@ -325,6 +325,6 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
     if (social_try(d, verb, args))
         return true;
 
-    descriptor_send(d, "Huh?!\r\n");
+    descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
     return true;
 }

@@ -2102,14 +2102,28 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       of real max_hp -- fixed by calling `being_limbs_full_heal()` after
       `player_progress_load()`. This TODO item is the broader "limb % is
       informative and hits feel weighty" pass, not just that bug.)
-- [ ] **Global "Grimhaven" → "Tobin City" text replace** — user: "search
-      the entire database and replace any instances of 'Grimhaven' with
-      'Tobin City'." Straightforward but broad SQL text-replace across
-      every table/column that could contain room/mob/obj/help text.
-- [ ] **Zone list: builder-assignment column** — user: "add a column to
-      the zone list displaying what builder is assigned to that zone."
-      Pairs with the existing `zoneassign` (`ZONE_ASSIGN_MIN_LEVEL`)
-      machinery in `zone.c`.
+- [x] **Global "Grimhaven" → "Tobin City" text replace** — done. User:
+      "search the entire database and replace any instances of
+      'Grimhaven' with 'Tobin City'." Scanned every varchar/text column
+      across the whole `sneezy` schema (a small script iterating
+      `information_schema.columns`) rather than guessing which tables
+      might contain it -- found matches in 18 columns across `corporation`,
+      `mobresponses`, `objextra`, `obj`, `roomextra`, `room`,
+      `ship_destinations`, `zone`, `zone_reset`, and `mob`. Plain
+      `REPLACE()` missed lowercase/mixed-case variants ("grimhaven",
+      "Grimhaven Bank", etc) since it's byte-exact regardless of column
+      collation; switched to `REGEXP_REPLACE(col, 'grimhaven', 'Tobin
+      City')`, which the column's case-insensitive collation makes match
+      any casing in one pass. Also fixed the one local seed file with the
+      same text (`db/sneezy/zone_reset.sql`, builder-facing comments
+      only) so a future re-seed doesn't reintroduce it.
+- [x] **Zone list: builder-assignment column** — already done. User:
+      "add a column to the zone list displaying what builder is assigned
+      to that zone." Turns out `zone list` (`cmd_zone.c`) already had a
+      "Builders" column since Session 43 (`zone_repo_load_owner_names()`),
+      built for the near-identical earlier request "dont forget a zone
+      list so we can see whats been assigned and to whom" -- no code
+      change needed, just confirmed it's live and matches the ask.
 - [ ] **Expand `prompt` toggles** — add mana, piety, vitality, gold, etc
       to the existing `prompt` command's toggle set. User: "expand prompt
       command toggles to include mana, piety, vitality, gold, etc."
@@ -2138,11 +2152,19 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       user: "when you look at someone you should also see what equipment
       thier wearing, a thief skill could be added to attempt a peak at the
       targets inventory."
-- [ ] **Replace "Huh?!" with a friendlier unknown-command message** —
-      user: "for failed commands that dont exist dont reply Huh?! reply
-      with 'Command not found, maybe submit an idea if you believe TobinMUD
-      should have it.'" Small change in the dispatcher's no-match branch
-      (`cmd_table.c`/`cmd_dispatch()`).
+- [x] **Replace "Huh?!" with a friendlier unknown-command message** —
+      done. User: "for failed commands that dont exist dont reply Huh?!
+      reply with 'Command not found, maybe submit an idea if you believe
+      TobinMUD should have it.'" Turned out to be sent from FIVE separate
+      spots, not just the dispatcher's main no-match fallback
+      (`cmd_table.c`): `cmd_mortal.c`'s `cmd_immort` (a real mortal typing
+      the hidden `immort` toggle back gets the same message as an unknown
+      command, by design) and four level-gate checks inside `cmd_edit.c`
+      (`edit player/help/news/wiznews` refusing a too-low immortal, each
+      deliberately matching the dispatcher's own wording per that file's
+      own comment "same 'Huh?!' wording the command table itself would
+      have given"). All five updated together so none silently fell out
+      of sync with the other four.
 - [ ] **Message boards + related commands** — port from Sneezy. User:
       "implement message boards and related commands from sneezy."
 
