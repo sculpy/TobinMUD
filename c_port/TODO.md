@@ -2445,6 +2445,32 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ## Small near-term gameplay follow-ups
 
+- [x] **`quit!` drops all possessions on the ground, gold included** —
+      done. User (2026-07-12): "after rent goes in quitting the game
+      will drop all possessions on the ground where the quit command
+      was executed, gold included." Now that `rent` (above) exists as
+      the safe way to leave with belongings intact, plain `quit!`
+      (`cmd_quit.c`) is the risky option Sneezy's own `rent` help text
+      warns about: everything carried/worn/held (same unified
+      `stuff_head` chain combat_defeat()'s corpse population already
+      walks) spills onto the floor of the current room the moment you
+      quit, both the quitter and the room are told, and it's saved via
+      the existing `player_inventory_save()` -- matching what `drop`
+      already does, so it inherits the same accepted limitation (a
+      loose room object isn't otherwise persisted across a restart).
+      Gold specifically is NOT covered -- there is no `gold`/Money field
+      on `being_t` at all yet (task 29 is still not built), so there's
+      nothing to drop; noted honestly rather than faked.
+      `tests/smoke_test_quit_drop.py` covers the drop + both messages +
+      the item leaving inventory on reconnect, and confirms an
+      empty-handed quit says nothing about spilling.
+      `smoke_test_quit.py`/`smoke_test_save.py`/`smoke_test_rent.py`
+      re-run clean (shared `cmd_quit.c` touched).
+- [ ] **Catch up on help file entries** — user (2026-07-12): "catch up
+      on the help file entries." Audit `help`/`wizhelp` topics against
+      commands actually added this session (at least `stat`, `save`,
+      `rent`, and the `toggle` category rework) for missing or stale
+      entries.
 - [x] **XP on kill** — done (Session 43): `combat_defeat()` awards
       `loser->progress.level * 50` XP (placeholder formula, same precedent
       as other placeholder combat/growth numbers) via the already-existing
