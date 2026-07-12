@@ -54,6 +54,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "close",   cmd_close,   "Close a door (close <direction>).",                  MORTAL_LEVEL_MIN },
     { "who",     cmd_who,     "List everyone currently playing.",                   MORTAL_LEVEL_MIN },
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },
+    { "skills",  cmd_skills,  "List your class's skills/spells, known and locked.", MORTAL_LEVEL_MIN },
     /* after score, so "sc"/"sco" still reach score; "sca"/"scan" -> scan. */
     { "scan",    cmd_scan,    "Peer several rooms down each exit (scan [dir|name]).", MORTAL_LEVEL_MIN },
     { "color",   cmd_color,   "Toggle ANSI color rendering on or off.",             MORTAL_LEVEL_MIN },

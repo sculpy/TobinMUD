@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Smoke test for the `skills` command (user 2026-07-11: "assign all
+warrior skills to warriors in three disciplines: combat, warrior skills,
+advanced warrior skills" -- repeated per class through Thief/Monk/Cleric/
+Mage). Covers:
+
+  1. A fresh Warrior sees the Combat/Warrior Skills/Advanced Warrior
+     Skills headers, with level-1 skills shown known and higher-level
+     ones shown locked with their required level.
+  2. A fresh Thief, Monk, Cleric, and Mage each see their own class's
+     headers and at least one signature skill/spell.
+  3. Leveling up unlocks a previously-locked skill (no more "(level N)"
+     suffix, no longer dimmed).
+
+    python3 tests/smoke_test_skills.py [host] [port]
+"""
+import socket
+import subprocess
+import sys
+import time
+
+host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
+port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
+
+
+def announce(test_name, host=host, port=port):
+    try:
+        s = socket.create_connection((host, port), timeout=3)
+        s.settimeout(0.5)
+        try:
+            while s.recv(4096):
+                pass
+        except socket.timeout:
+            pass
+        s.sendall(f"@test {test_name}\r\n".encode())
+        s.settimeout(0.5)
+        try:
+            while s.recv(4096):
+                pass
+        except socket.timeout:
+            pass
+        s.close()
+    except OSError:
+        pass
+
+
+def announce_done(test_name, host=host, port=port):
+    announce(f"done {test_name}", host, port)
+
+
+announce("smoke_test_skills")
+
+_suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
+
+
+def recv_all(sock, timeout=1.0):
+    sock.settimeout(timeout)
+    chunks = []
+    try:
+        while True:
+            data = sock.recv(4096)
+            if not data:
+                break
+            chunks.append(data)
+    except socket.timeout:
+        pass
+    return b"".join(chunks).decode(errors="replace")
+
+
+def send_line(sock, line):
+    sock.sendall((line + "\r\n").encode())
+
+
+def cmd(sock, line, timeout=1.0):
+    send_line(sock, line)
+    return recv_all(sock, timeout)
+
+
+def check(condition, message):
+    if not condition:
+        raise AssertionError(message)
+    print(f">>> OK: {message}")
+
+
+def sql(stmt):
+    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+
+
+def set_level(name, level):
+    sql(f"UPDATE player_progress SET level={level} WHERE player_id="
+        f"(SELECT id FROM player WHERE name='{name}');")
+
+
+def make_char(name, pw, class_choice):
+    s = socket.create_connection((host, port), timeout=5)
+    recv_all(s)
+    send_line(s, name); recv_all(s)
+    send_line(s, "y"); recv_all(s)
+    send_line(s, pw); recv_all(s)
+    send_line(s, pw); recv_all(s)
+    send_line(s, "new"); recv_all(s)
+    send_line(s, name); recv_all(s)
+    send_line(s, "done"); recv_all(s)
+    send_line(s, "1"); recv_all(s)  # race: human
+    send_line(s, class_choice); recv_all(s)
+    send_line(s, "2"); recv_all(s)  # alignment: neutral
+    cmd(s, "color off")
+    return s
+
+
+# --- 1: warrior sees all 3 tiers, level-gated skills marked locked ---
+warrior_name = f"Skwar{_suffix}"
+pw = "skillstestpw123"
+sw = make_char(warrior_name, pw, "3")
+out = cmd(sw, "skills")
+check("-- Combat --" in out, "warrior sees the Combat tier header")
+check("-- Warrior Skills --" in out, "warrior sees the Warrior Skills tier header")
+check("-- Advanced Warrior Skills --" in out, "warrior sees the Advanced Warrior Skills tier header")
+check("bash" in out and "(level" not in out.split("bash")[1].split("\n")[0],
+      "a level-1 skill (bash) shows known, not locked")
+check("(level 45)" in out, "a higher-level skill shows its required level while locked")
+
+# --- 2: level up unlocks a previously-locked skill ---
+set_level(warrior_name, 45)
+sw.close()
+sw = socket.create_connection((host, port), timeout=5)
+recv_all(sw)
+send_line(sw, warrior_name); recv_all(sw)
+send_line(sw, pw); recv_all(sw)
+send_line(sw, "1"); recv_all(sw)
+cmd(sw, "color off")
+out = cmd(sw, "skills")
+disarm_line = [l for l in out.splitlines() if "disarm" in l][0]
+check("(level" not in disarm_line, "leveling up to 45 unlocks 'disarm' (no longer marked locked)")
+
+# --- 3: thief, monk, cleric, mage each see their own class's tiers ---
+for class_choice, cls_label, signature in (
+    ("4", "Thief", "backstab"),
+    ("6", "Monk", "yoginsa"),
+    ("2", "Cleric", "heal light"),
+    ("1", "Mage", "wizardry"),
+):
+    name = f"Sk{cls_label[:3]}{_suffix}"
+    s = make_char(name, pw, class_choice)
+    out = cmd(s, "skills")
+    check(f"-- {cls_label} Skills --" in out, f"{cls_label} sees the '{cls_label} Skills' tier header")
+    check(f"-- Advanced {cls_label} Skills --" in out, f"{cls_label} sees the 'Advanced {cls_label} Skills' tier header")
+    check(signature in out, f"{cls_label} sees its signature skill/spell ({signature})")
+    s.close()
+
+sw.close()
+announce_done("smoke_test_skills")
+print("=== ALL CHECKS PASSED ===")

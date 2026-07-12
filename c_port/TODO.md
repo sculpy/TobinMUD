@@ -20,6 +20,40 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-11 (continued) — working these next
 
+- [x] **Skill/spell roster framework + Warrior/Thief/Monk/Cleric/Mage
+      assignment** — done. User: "lets create a list of sneezy features
+      that arent implemented in tobin" led to a feature-gap audit
+      (Artifact), then "combat and skills first. Skill-based combat.
+      assign all warrior skills to warriors in three disciplines: combat,
+      warrior skills, advanced warrior skills" -- repeated per class
+      (Thief/Monk/Cleric/Mage, each "same as X" or spelled out fresh).
+      Researched Sneezy's actual discArray[] (misc/spell_info.cc) per
+      class rather than inventing skills -- new `include/skill.h` +
+      `src/core/skill.c`: a static `skill_def_t` roster table (~200
+      entries), same style as cmd_toggle.c's TOGGLES[], each tagged
+      class/tier/min_level/description. Tiers are a simplified 3-way
+      split of Sneezy's real sub-discipline structure: `SKILL_TIER_COMBAT`
+      (universal fighting basics -- class-specific physical basics for
+      Warrior/Thief/Monk, generic weapon-proficiency placeholders for the
+      caster classes Cleric/Mage, since they have no melee specialty),
+      `SKILL_TIER_CLASS` (the class's always-known core kit, Sneezy's
+      `isBasic()` base discipline), `SKILL_TIER_ADVANCED` (Sneezy's
+      optional secondary-discipline specializations). New `skills`
+      command lists a player's own class's roster across all 3 tiers;
+      a skill is "known" purely by character level meeting its threshold
+      (no practice-point economy exists in Tobin yet, so nothing needs
+      active learning). Excluded confirmed-unimplemented Sneezy
+      placeholders (a few cleric/mage spells were dead code in the
+      original -- `// not coded` stubs with no real `discArray` entry).
+      `tests/smoke_test_skills.py` covers all 5 classes' tier headers,
+      the known-vs-locked-by-level display, and a level-up unlocking a
+      previously-locked skill. **Not yet done** (tracked as follow-up):
+      actual in-combat mechanics for individual skills beyond the roster/
+      visibility layer (task queue: flagship proof-of-concept skills,
+      then Druid's custom Ranger+Cleric+reworded-Shaman blend, then
+      armor/AC, to-hit depth, weapon depth, traps, affects, real spell-
+      casting, spell components, magic items, object maintenance -- see
+      the session's tracked task list for the full order).
 - [x] **Mob/object/room scripting (`edit trigger`)** — done -- deployed
       and verified via standalone smoke test. User: "implement mob object
       and room scripting examine sneezy for ideas -- we want interaction

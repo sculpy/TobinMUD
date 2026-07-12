@@ -263,3 +263,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Hostnames Instead of Raw IPs', 'Immortal-facing logs and `users` now show a reverse-DNS hostname instead of a bare IP address where one resolves (falls back to the IP otherwise) -- looked up in the background so a slow DNS server never stalls the game.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Every Class Gets Its Own Skill Sheet', 'A new `skills` command shows your class''s full roster of skills/spells, ported from Sneezy''s real discipline lists and organized into three tiers: Combat, <Class> Skills, and Advanced <Class> Skills. Warrior, Thief, Monk, Cleric, and Mage are all populated -- a skill is known once your level reaches its threshold, no separate practice step yet. Actual in-combat mechanics for most individual skills are still on the way; this is the roster/visibility layer.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
