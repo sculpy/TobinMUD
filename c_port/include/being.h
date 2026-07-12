@@ -263,6 +263,25 @@ typedef enum {
 /* Display name ("Mage", "Cleric", ...), capitalized -- score/who. */
 const char *class_name(player_class_t c);
 
+/* Readable label for a MOB's raw `mob.class` column (user 2026-07-12's
+ * `stat` command: "class should report class text, not class number") --
+ * NOT the same encoding as a PC's `player.class` column above (this one
+ * is a bitmask: 1=mage, 2=cleric, 4=warrior, 8=thief, 64=monk, 128=druid,
+ * see mob_class_mask_to_tobin(), being.c), so it needs its own decoder
+ * rather than reusing class_name(). Returns "none" for mask 0, or
+ * "unmapped (mask N)" for any other value Tobin doesn't track a class
+ * for. */
+const char *mob_class_label(int mask, char *buf, size_t bufsz);
+
+/* Readable name for a MOB's raw `mob.race` column (user 2026-07-12's
+ * `stat` command: "same for race") -- the FULL original monster-race
+ * table (misc/race.cc's RaceNames[], 127 entries, "RACE_" prefix
+ * stripped), completely separate from player_race_t/race_name() below
+ * (Tobin's own 6-entry PLAYER race set) -- "no race applies to mobs"
+ * mechanically (balance.c), but the raw seeded value is still real,
+ * genuinely informative monster-race data worth decoding for `stat`. */
+const char *mob_race_name(int idx);
+
 /* Applies `c`'s fixed stat bonus/penalty to `*a` IN PLACE (added on top of
  * whatever the player already point-bought) -- called once, at character
  * creation. Every class's bonuses and penalties net to zero. Loosely

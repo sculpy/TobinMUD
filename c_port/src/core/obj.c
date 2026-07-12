@@ -144,6 +144,31 @@ bool obj_takeable(int wear_flag) {
     return (wear_flag & WEAR_TAKE) != 0;
 }
 
+/* Bit-position-indexed names for the WEAR_* layout above -- "UNUSED" for
+ * the original's own two never-assigned bits (9 and 13), kept so a
+ * historic wear_flag value that happens to set one still reports
+ * something rather than silently vanishing from the readable form. */
+static const char *const WEAR_FLAG_NAMES[16] = {
+    "TAKE", "FINGERS", "NECK", "BODY", "HEAD", "LEGS", "FEET", "HANDS",
+    "ARMS", "UNUSED", "BACK", "WAIST", "WRISTS", "UNUSED", "HOLD", "THROW",
+};
+
+const char *obj_wear_flag_names(int flags, char *buf, size_t size) {
+    size_t n = 0;
+    buf[0] = '\0';
+    for (int bit = 0; bit < 16; bit++) {
+        if (!(flags & (1 << bit)))
+            continue;
+        n += (size_t)snprintf(buf + n, size > n ? size - n : 0, "%s[ %s ]",
+                              n > 0 ? " " : "", WEAR_FLAG_NAMES[bit]);
+        if (n >= size)
+            break;
+    }
+    if (buf[0] == '\0')
+        snprintf(buf, size, "none");
+    return buf;
+}
+
 int wear_slot_for_flag(int wear_flag, const struct being *fitter) {
     if (!fitter)
         return WEAR_SLOT_NOT_WEARABLE;

@@ -5,6 +5,8 @@
 #ifndef TOBIN_MOB_AI_H
 #define TOBIN_MOB_AI_H
 
+#include <stddef.h>
+
 /* Mob AI (Session 43 continued, user: "in pulse, make sure that mob
  * actions click and mobs that can wander will do so, look at mob ai from
  * sneezy" / "i want cleaner mobs to clean up randomly, i believe this is
@@ -32,5 +34,16 @@
  * Pulse-driven (main.c), same ~60s cadence as gametime_tick()/
  * zone_process_run(). */
 void mob_ai_tick(long pulse_num);
+
+/* Decodes a raw `mob.actions` value into a readable "[ SENTINEL ] [ ... ]"
+ * run (user 2026-07-12's `stat` command: "actions should be readable
+ * flags, not numbers") -- the ORIGINAL's full ACT_* bit layout (misc/
+ * defs.h, bits 0-23), not just the 2 bits (SENTINEL/SCAVENGER, plus
+ * AGGRESSIVE) Tobin's own mob_ai_tick() currently acts on above -- a
+ * mob's seeded actions value can and does carry bits Tobin doesn't
+ * implement behavior for yet, and `stat` should still show them
+ * honestly rather than silently dropping them. Same bracket-per-flag
+ * convention as room.h's room_flag_names(). */
+const char *mob_action_names(int flags, char *buf, size_t size);
 
 #endif

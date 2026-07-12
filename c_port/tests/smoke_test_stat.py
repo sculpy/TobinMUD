@@ -145,15 +145,17 @@ check(f"Object {OBJ_VNUM}" in out, "stat obj shows the object header")
 check("trinket silver" in out, "stat obj shows the object's name column")
 check("short_desc" in out and "a small silver trinket" in out, "stat obj shows the short_desc column")
 check("Affects" in out and "mod1" in out and "7" in out, "stat obj shows the objaffect row")
+check("[ TAKE ]" in out and "[ BODY ]" not in out, "stat obj shows wear_flag decoded to readable flag names")
 
-# --- 3: stat mob dumps every column ---
+# --- 3: stat mob dumps every column, with readable class/race/actions,
+#     no faction line, and only the 6 stats Tobin actually models ---
 cols = {
     "vnum": MOB_VNUM, "name": "'stat dummy'", "short_desc": "'a stat test dummy'",
     "long_desc": "'A stat test dummy stands here.'", "description": "'It looks numeric.'",
-    "actions": 0, "affects": 0, "faction": 0, "fact_perc": 0,
+    "actions": 6, "affects": 0, "faction": 3, "fact_perc": 50,  # actions=SENTINEL|SCAVENGER
     "letter": "'A'", "attacks": 1.0,
-    "class": 0, "level": 5, "tohit": 0, "ac": 0, "hpbonus": 100,
-    "damage_level": 0, "damage_precision": 0, "gold": 0, "race": 0,
+    "class": 2, "level": 5, "tohit": 0, "ac": 0, "hpbonus": 100,  # class=2 -> Cleric
+    "damage_level": 0, "damage_precision": 0, "gold": 0, "race": 30,  # race=30 -> GOBLIN
     "weight": 0, "height": 0, "str": 0, "bra": 0, "con": 0, "dex": 0,
     "agi": 0, "intel": 0, "wis": 0, "foc": 0, "per": 0, "cha": 0,
     "kar": 0, "spe": 0, "pos": 10, "def_position": 10, "sex": 1,
@@ -165,6 +167,17 @@ out = cmd(s_imm, f"stat mob {MOB_VNUM}")
 check(f"Mobile {MOB_VNUM}" in out, "stat mob shows the mobile header")
 check("stat dummy" in out, "stat mob shows the mob's name column")
 check("level" in out and "5" in out, "stat mob shows the level column")
+check("class" in out and "Cleric" in out,
+      "stat mob shows class as readable text (Cleric), not the raw number")
+check("race" in out and "GOBLIN" in out, "stat mob shows race as a readable name (GOBLIN)")
+check("actions" in out and "[ SENTINEL ]" in out and "[ SCAVENGER ]" in out,
+      "stat mob shows actions as readable flag names")
+check("faction" not in out and "fact_perc" not in out,
+      "stat mob has no faction line at all -- factions aren't supported")
+for unused_stat in (" bra ", " agi ", " foc ", " per ", " kar ", " spe "):
+    check(unused_stat not in out, f"stat mob hides the unused '{unused_stat.strip()}' attribute column")
+for used_stat in (" str ", " con ", " dex ", " intel ", " wis ", " cha "):
+    check(used_stat in out, f"stat mob still shows the used '{used_stat.strip()}' attribute column")
 
 # --- 4: stat room dumps every column, plus its exits ---
 sql(f"INSERT INTO roomexit (vnum,direction,name,description,type,condition_flag,"
@@ -174,6 +187,9 @@ out = cmd(s_imm, f"stat room {ROOM}")
 check(f"Room {ROOM}" in out, "stat room shows the room header")
 check("Stat Sandbox" in out, "stat room shows the room's name column")
 check("Exits" in out and f"-> {ROOM}" in out, "stat room shows its own exit row")
+check("dir=north" in out, "stat room shows exit direction as a word, not a number")
+check("door=None" in out, "stat room shows exit door type as a word, not a number")
+check("cond=none" in out, "stat room shows exit condition as a word, not a number")
 
 # --- 5: a nonexistent vnum is reported plainly ---
 out = cmd(s_imm, "stat obj 999999999")

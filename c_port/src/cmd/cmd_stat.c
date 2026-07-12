@@ -5,10 +5,15 @@
 #include "cmd_internal.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
+#include "being.h"
 #include "db.h"
+#include "mob_ai.h"
+#include "obj.h"
+#include "room.h"
 
 /* `stat obj|mob|room <vnum>` (Sneezy port, user 2026-07-12: "add stat
  * command so an immortal of level 55+ can see everything about the mob
@@ -20,14 +25,54 @@
  * field names by hand, so it can never silently go stale as columns are
  * added later. A room additionally lists its exits (roomexit table); an
  * object additionally lists any objaffect rows (hitroll/damroll/AC
- * modifiers etc) -- both genuinely part of "everything about it" that a
- * bare column dump of the base row would otherwise miss. */
+ * modifiers etc).
+ *
+ * Follow-up (user 2026-07-12): raw numbers weren't good enough for
+ * everything -- bit-flag columns (obj's `wear_flag`, mob's `actions`)
+ * and enum-ish columns (mob's `class`/`race`) are decoded to readable
+ * text instead of the generic dump for those specific columns
+ * (SKIP_COLS below), and mob's `faction`/`fact_perc` are dropped
+ * entirely ("we will not support factions"). mob's twelve raw attribute
+ * columns are also trimmed down to just the six Tobin actually models
+ * (str/con/dex/intel/wis/cha) -- bra/agi/foc/per/kar/spe are real
+ * Sneezy columns with real seeded values, but nothing in Tobin reads
+ * them, so showing them as if they mattered would be misleading.
+ *
+ * Second follow-up (user 2026-07-12: "in stat room ... dir, cond, and door
+ * should be words not numbers"): the room's exit listing decodes
+ * `direction` via DIR_NAMES, `type` (door type) via door_type_name(), and
+ * `condition_flag` via exit_cond_names() -- the same helpers redit's
+ * "goto exit" submenu already uses (descriptor.c), reused here rather
+ * than re-deriving the tables. */
 
-static void dump_row(char *out, size_t out_sz, size_t *n, db_conn_t *db) {
+/* Column names dump_row() should skip entirely -- either because this
+ * file prints its own decoded line for them instead, or (faction/
+ * fact_perc, and the six unused mob attributes) because Tobin doesn't
+ * support them at all. */
+static bool is_skipped_column(const char *table, const char *col) {
+    if (strcmp(table, "obj") == 0)
+        return strcasecmp(col, "wear_flag") == 0;
+    if (strcmp(table, "mob") == 0) {
+        static const char *const skip[] = {
+            "actions", "class", "race", "faction", "fact_perc",
+            "bra", "agi", "foc", "per", "kar", "spe",
+        };
+        for (size_t i = 0; i < sizeof(skip) / sizeof(skip[0]); i++)
+            if (strcasecmp(col, skip[i]) == 0)
+                return true;
+        return false;
+    }
+    return false;
+}
+
+static void dump_row(char *out, size_t out_sz, size_t *n, db_conn_t *db, const char *table) {
     unsigned int cols = db_col_count(db);
     for (unsigned int i = 0; i < cols && *n < out_sz; i++) {
+        const char *col = db_col_name(db, i);
+        if (is_skipped_column(table, col))
+            continue;
         *n += (size_t)snprintf(out + *n, out_sz - *n, "  %-16s %s\r\n",
-                               db_col_name(db, i), db_get_idx(db, i));
+                               col, db_get_idx(db, i));
     }
 }
 
@@ -68,7 +113,23 @@ bool cmd_stat(descriptor_t *d, const char *args) {
     }
 
     n += (size_t)snprintf(out + n, sizeof(out) - n, "\r\n<c>-- %s %d --<z>\r\n", label, vnum);
-    dump_row(out, sizeof(out), &n, db);
+
+    if (strcmp(table, "obj") == 0) {
+        char flagbuf[256];
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "wear_flag",
+                              obj_wear_flag_names(atoi(db_get(db, "wear_flag")), flagbuf, sizeof(flagbuf)));
+    } else if (strcmp(table, "mob") == 0) {
+        char flagbuf[512];
+        char labelbuf[64];
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "actions",
+                              mob_action_names(atoi(db_get(db, "actions")), flagbuf, sizeof(flagbuf)));
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "class",
+                              mob_class_label(atoi(db_get(db, "class")), labelbuf, sizeof(labelbuf)));
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "race",
+                              mob_race_name(atoi(db_get(db, "race"))));
+    }
+
+    dump_row(out, sizeof(out), &n, db, table);
 
     if (strcmp(table, "obj") == 0) {
         if (db_query(db, "select type,mod1,mod2 from objaffect where vnum=%i", vnum)
@@ -80,14 +141,19 @@ bool cmd_stat(descriptor_t *d, const char *args) {
             }
         }
     } else if (strcmp(table, "room") == 0) {
-        if (db_query(db, "select direction,destination,condition_flag,name from roomexit where vnum=%i", vnum)
+        if (db_query(db, "select direction,destination,type,condition_flag,name from roomexit where vnum=%i", vnum)
             && db_has_results(db)) {
             n += (size_t)snprintf(out + n, sizeof(out) - n, "<c>-- Exits --<z>\r\n");
             while (db_fetch_row(db) && n < sizeof(out)) {
+                char condbuf[128];
+                int dir = atoi(db_get(db, "direction"));
+                const char *dirname = (dir >= 0 && dir < ROOM_NUM_EXITS) ? DIR_NAMES[dir] : "unknown";
+                const char *doorname = door_type_name(atoi(db_get(db, "type")));
+                exit_cond_names(atoi(db_get(db, "condition_flag")), condbuf, sizeof(condbuf));
                 n += (size_t)snprintf(out + n, sizeof(out) - n,
-                                      "  dir=%s -> %s  cond=%s  door=%s\r\n",
-                                      db_get(db, "direction"), db_get(db, "destination"),
-                                      db_get(db, "condition_flag"), db_get(db, "name"));
+                                      "  dir=%s -> %s  door=%s  cond=%s  name=%s\r\n",
+                                      dirname, db_get(db, "destination"),
+                                      doorname, condbuf, db_get(db, "name"));
             }
         }
     }

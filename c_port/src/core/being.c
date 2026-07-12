@@ -314,6 +314,19 @@ const char *class_name(player_class_t c) {
     return CLASS_NAMES[c];
 }
 
+const char *mob_class_label(int mask, char *buf, size_t bufsz) {
+    if (mask == 0) {
+        snprintf(buf, bufsz, "none");
+        return buf;
+    }
+    player_class_t cls;
+    if (mob_class_mask_to_tobin(mask, &cls))
+        snprintf(buf, bufsz, "%s", class_name(cls));
+    else
+        snprintf(buf, bufsz, "unmapped (mask %d)", mask);
+    return buf;
+}
+
 /* Every class's bonus/penalty sums to zero -- see the declaration comment
  * (being.h) for the stat-affinity rationale. */
 void class_stat_bonus(player_class_t c, attrs_t *a) {
@@ -362,6 +375,41 @@ const char *race_name(player_race_t r) {
     if (r < 0 || r >= RACE_COUNT)
         return "Human";
     return RACE_NAMES[r];
+}
+
+/* The original's full monster-race table (misc/race.cc's RaceNames[],
+ * "RACE_" prefix stripped) -- completely separate from RACE_NAMES/
+ * race_name() above (Tobin's own 6-entry PLAYER race set). Used only by
+ * mob_race_name() below to decode a MOB's raw `mob.race` column for
+ * `stat` (user 2026-07-12) -- "no race applies to mobs" mechanically
+ * (balance.c), this is display-only, not tied to any Tobin mechanic. */
+static const char *const MOB_RACE_NAMES[] = {
+    "NORACE", "HUMAN", "ELVEN", "DWARF", "HOBBIT", "GNOME", "OGRE",
+    "PEGASUS", "LYCANTH", "DRAGON", "UNDEAD", "ORC", "INSECT", "ARACHNID",
+    "DINOSAUR", "FISH", "BIRD", "GIANT", "BIRDMAN", "PARASITE", "SLIME",
+    "DEMON", "SNAKE", "HIPPOPOTAMUS", "TREE", "VEGGIE", "ELEMENT", "ANT",
+    "DEVIL", "FROGMAN", "GOBLIN", "TROLL", "ANGEL", "MFLAYER", "PRIMATE",
+    "FAERIE", "DROW", "GOLEM", "BANSHEE", "PANTATH", "MERMAID", "RODENT",
+    "FISHMAN", "TYTAN", "WOODELF", "FELINE", "CANINE", "HORSE", "AMPHIB",
+    "VAMPIRE", "REPTILE", "UNCERT", "VAMPIREBAT", "OCTOPUS", "CRUSTACEAN",
+    "MOSS", "BOVINE", "GOAT", "SHEEP", "DEER", "BEAR", "WEASEL", "SQUIRREL",
+    "RABBIT", "BADGER", "OTTER", "BEAVER", "PIG", "BOAR", "TURTLE",
+    "GIRAFFE", "CENTIPEDE", "MOUND", "PIERCER", "ORB", "MANTICORE",
+    "GRIFFON", "SPHINX", "SHEDU", "LAMMASU", "DJINN", "PHOENIX",
+    "DRAGONNE", "HIPPOGRIFF", "RUST_MON", "LION", "TIGER", "LEOPARD",
+    "COUGAR", "FROG", "ELEPHANT", "RHINO", "NAGA", "OTYUGH", "OX",
+    "GREMLIN", "OWLBEAR", "CHIMERA", "SATYR", "DRYAD", "BUGBEAR",
+    "MINOTAUR", "GORGON", "KOBOLD", "BASILISK", "LIZARD_MAN", "CENTAUR",
+    "GOPHER", "LAMIA", "SAHUAGIN", "BAT", "PYGMY", "WYVERN", "KUOTOA",
+    "BAANTA", "GNOLL", "HOBGOBLIN", "MIMIC", "MEDUSA", "PENGUIN",
+    "OSTRICH", "TROG", "COATL", "SIMAL", "WYVELIN", "FLYINSECT", "RATMAN",
+};
+#define MOB_RACE_COUNT (sizeof(MOB_RACE_NAMES) / sizeof(MOB_RACE_NAMES[0]))
+
+const char *mob_race_name(int idx) {
+    if (idx < 0 || (size_t)idx >= MOB_RACE_COUNT)
+        return "unknown";
+    return MOB_RACE_NAMES[idx];
 }
 
 /* Human is the deliberate baseline (no modifier) -- every other race's

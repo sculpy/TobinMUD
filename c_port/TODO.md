@@ -2082,6 +2082,29 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       and a nonexistent vnum reporting plainly instead of an empty dump.
       `smoke_test_vnum.py` re-run clean (same `db.c` file touched, but
       only additive new functions).
+      Follow-up (user 2026-07-12, three rounds): "in stat action flags
+      and wear flags should be readable, not numbers"; "same with stat
+      mob actions should be readable flags, not numbers, and faction
+      line shouldnt exist. we will not support factions"; "class should
+      report class text, not class number, same for race, and only
+      report the stats that are in use on tobin, you are reporting
+      stats on 12 character stats". Added `obj_wear_flag_names()`
+      (obj.c/obj.h), `mob_action_names()` (mob_ai.c/mob_ai.h),
+      `mob_class_label()` and a newly-ported 127-entry `mob_race_name()`
+      table (being.c/being.h, straight from Sneezy's real monster-race
+      list, misc/race.cc) -- mob.class/mob.race are Sneezy's own
+      encodings, entirely separate from Tobin's player `player_class_t`/
+      6-entry `player_race_t`. `cmd_stat.c` now prints decoded
+      wear_flag/actions/class/race lines up front and skips those raw
+      columns (plus faction/fact_perc and the six mob attribute columns
+      Tobin never reads -- bra/agi/foc/per/kar/spe) from the generic
+      dump. Second follow-up (same day): "in stat room ... dir, cond,
+      and door should be words not numbers" -- room exits now decode
+      `direction` via the existing `DIR_NAMES` table, `type` via
+      `door_type_name()`, and `condition_flag` via `exit_cond_names()`
+      (all three already existed for redit's own exit editor,
+      descriptor.c -- reused rather than re-derived). `smoke_test_stat.py`
+      updated with assertions for all of the above; 32/32 checks pass.
 - [ ] **Boxed ASCII-art menu rework, all character-facing menus** — user
       gave the exact account-menu before/after and said to apply the same
       boxed style everywhere. Old:

@@ -221,4 +221,11 @@ bool obj_takeable(int wear_flag);
  * command picks fitter->held[0] or [1] based on handed_right/occupancy. */
 int wear_slot_for_flag(int wear_flag, const struct being *fitter);
 
+/* Decodes `wear_flag`'s bits into a readable "[ TAKE ] [ BODY ] ..." run
+ * (user 2026-07-12: "in stat action flags and wear flags should be
+ * readable, not numbers") -- same bracket-per-flag convention as
+ * room.h's `room_flag_names()`. The original's own bit layout, kept
+ * verbatim including its two never-assigned bits (see obj.c). */
+const char *obj_wear_flag_names(int flags, char *buf, size_t size);
+
 #endif

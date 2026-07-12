@@ -367,3 +367,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Immortals No Longer Take Damage in Combat', 'Landing a hit on an immortal still works exactly as before (verb, messaging, and all) -- it just always deals zero damage now. You can still spar with an immortal for testing purposes; you just can''t actually hurt one.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'stat Speaks Plain English Now', '`stat` no longer dumps raw numbers for the columns that are really flags or lookups: an object''s wear slots and a mob''s action flags now list as readable names ("[ SENTINEL ] [ SCAVENGER ]"), a mob''s class and race show as text ("Cleric", "GOBLIN") instead of their raw codes, and a room exit''s direction, door type, and condition read as words ("dir=north door=Door cond=Closed") instead of numbers. Faction/fact_perc are dropped from the mob dump entirely -- factions are not and will not be supported. The twelve raw attribute columns seeded on every mob are also trimmed down to just the six Tobin actually uses (strength, constitution, dexterity, intelligence, wisdom, charisma); the other six are real Sneezy data but nothing reads them, so showing them would be misleading.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

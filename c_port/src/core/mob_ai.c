@@ -30,6 +30,32 @@
 #define MOB_SCAVENGE_CHANCE_PCT 25
 #define MOB_AGGRESS_CHANCE_PCT 25
 
+/* Full ACT_* bit names (misc/defs.h, bits 0-23), for `mob_action_names()`
+ * below -- NOT just the 3 this file actually reads above. */
+static const char *const ACT_NAMES[24] = {
+    "STRINGS_CHANGED", "SENTINEL", "SCAVENGER", "DISGUISED", "NICE_THIEF",
+    "AGGRESSIVE", "STAY_ZONE", "WIMPY", "ANNOYING", "HATEFUL", "AFRAID",
+    "IMMORTAL", "HUNTING", "DEADLY", "POLYSELF", "GUARDIAN", "SKELETON",
+    "ZOMBIE", "GHOST", "DIURNAL", "NOCTURNAL", "PROTECTOR", "PROTECTEE",
+    "HIT_BY_PK",
+};
+
+const char *mob_action_names(int flags, char *buf, size_t size) {
+    size_t n = 0;
+    buf[0] = '\0';
+    for (int bit = 0; bit < 24; bit++) {
+        if (!(flags & (1 << bit)))
+            continue;
+        n += (size_t)snprintf(buf + n, size > n ? size - n : 0, "%s[ %s ]",
+                              n > 0 ? " " : "", ACT_NAMES[bit]);
+        if (n >= size)
+            break;
+    }
+    if (buf[0] == '\0')
+        snprintf(buf, size, "none");
+    return buf;
+}
+
 /* Mobile_Attitude, scoped down (Session 43 continued, user: "class
  * Mobile_Attitude in sneezy should be implemented into tobin. mobs should
  * react to good vs evil and react accordingly"). The original models four
