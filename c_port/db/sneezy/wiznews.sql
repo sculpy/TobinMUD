@@ -255,3 +255,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Character Creation Explains What Went Wrong', 'A rejected character name used to get one generic message no matter the reason. Now it tells you exactly what''s wrong: too short (under 3 letters), too long (over 15 letters), or containing something other than letters -- each gets its own message.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Nospam Silences Missed Swings', 'A new personal `toggle nospam` (default off) hides "you miss"/"X misses you" combat messages from your own screen -- ported from Sneezy''s AUTO_NOSPAM. It''s checked independently for each side of a swing, so your own toggle only ever affects what YOU see.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -178,6 +178,14 @@ typedef struct descriptor {
     int rule_num;                         /* EDIT_RULES target rule number (edrules) */
     char edit_buf[HELP_BODY_MAX];         /* == ROOM_DESCRIPTION_MAX, see room.h */
     int edit_len;
+    /* EDIT_HELP_TOPIC only: the topic's "Related: ..." footer, set with
+     * the editor's `/r <topics>` command instead of typing a literal
+     * "Related:" line into the body (user 2026-07-11: "in the help editor
+     * we should be able to set related topics in there"). Preloaded from
+     * an existing topic's trailing Related line, if it has one; appended
+     * back onto edit_buf on save (see descriptor.c's EDIT_HELP_TOPIC save
+     * branch). Empty means no Related footer. */
+    char edit_related[128];
 
     /* EDIT_TRIGGER scratch (edit trigger <type> <vnum> <trigger_type>
      * [match_text|chance]) -- the header fields are captured before

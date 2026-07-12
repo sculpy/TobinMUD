@@ -83,6 +83,22 @@ static void tg_noshout_set(descriptor_t *d, bool v) {
     player_set_pflags(d->character->player_id, d->character->pflags);
 }
 
+/* --- nospam: hide "miss" combat messages on your own screen (player.pflags
+ * bit) -- ported from Sneezy's AUTO_NOSPAM (see combat.c's combat_strike()
+ * for where it's actually checked, independently per viewer). */
+static bool tg_nospam_get(descriptor_t *d) {
+    return d->character && (d->character->pflags & PLR_NOSPAM);
+}
+static void tg_nospam_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->pflags |= PLR_NOSPAM;
+    else
+        d->character->pflags &= ~PLR_NOSPAM;
+    player_set_pflags(d->character->player_id, d->character->pflags);
+}
+
 /* --- multiplay: global game toggle (55+) --- */
 static bool tg_multiplay_get(descriptor_t *d) { (void)d; return multiplay_allowed(); }
 static void tg_multiplay_set(descriptor_t *d, bool v) { (void)d; multiplay_set(v); }
@@ -92,6 +108,7 @@ static const toggle_t TOGGLES[] = {
     { "hp",        "hit points shown in prompt",    false, tg_hp_get,        tg_hp_set },
     { "newbie",    "on the newbie help channel",    false, tg_newbie_get,    tg_newbie_set },
     { "noshout",   "opted out of hearing shouts",   false, tg_noshout_get,   tg_noshout_set },
+    { "nospam",    "hide combat miss messages",     false, tg_nospam_get,    tg_nospam_set },
     { "multiplay", "one account, many characters",  true,  tg_multiplay_get, tg_multiplay_set },
 };
 #define NUM_TOGGLES (sizeof(TOGGLES) / sizeof(TOGGLES[0]))

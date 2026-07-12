@@ -322,28 +322,44 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       detailed per-direction listing unchanged -- only `look`'s one-line
       summary was in scope.
 
-- [ ] **"Related" footer on help/wizhelp topics** — user 2026-07-11: "for
+- [x] **"Related" footer on help topics** — done (user 2026-07-11: "for
       help topics both wizhelp and help add a line at the end for related
-      topics: Related: topic topic topic etc." Needs a way to declare
-      relations per topic -- likely a `related` column on `help_topic`
-      (space/comma-separated topic names, editable via `edit help`) rather
-      than a hardcoded map. `cmd_help.c`'s topic-display path appends a
-      "Related: ..." line (styled like the existing Syntax/Minimum Level
-      footer) only when the field is non-empty; topics with none get no
-      line at all. Populate it for the `edit <noun>` family first (each
-      should list its sibling nouns) as the initial real content.
-- [ ] **Per-noun `help edit <noun>` topics** — user 2026-07-11: currently
-      only a single combined `help edit` topic exists (see cmd_help.c's
-      "One entry point for every editor" body); add one topic per noun,
-      each listing everything editable in that editor plus its syntax:
-      `help edit room`, `help edit zone` (+ related commands), `help edit
-      trigger` (+ which commands are usable INSIDE a trigger script --
-      the fixed action vocabulary in trigger.c's trigger_run()), `help
-      edit player`, `help edit help`, `help edit news`, `help edit
-      wiznews`, `help edit rules`, and any other `edit` noun that exists
-      by the time this is picked up. Natural pairing with the "Related"
-      footer item above -- `help edit` itself should list all the nouns
-      as related topics pointing at these.
+      topics: Related: topic topic topic etc"). No new DB column --
+      `cmd_help.c` strips a trailing "Related: ..." line out of the body
+      (same convention as the existing leading "Usage:" line) and shows
+      it as its own cyan-labeled footer, only when present. Populated
+      across ~70 existing topics (movement, combat, positions, items,
+      communication, admin/builder tools, the whole `edit` family, etc)
+      via a guarded `CONCAT`-based migration in help_topic.sql (skips
+      topics that already have one, so a re-run never double-appends).
+      Follow-up (same session, user: "in the help editor we should be
+      able to set related topics in there"): `edit help`'s line editor
+      gained a `/r <topics>` command (bare `/r` clears) alongside the
+      existing `/s`/`/a`/`/b`/`/f`, storing into a new
+      `descriptor_t.edit_related` field instead of requiring the author
+      to type a literal "Related:" body line by hand; appended back onto
+      the body on save. Re-editing an existing topic strips any stored
+      Related line out of the shown body and preloads it into `/r`'s
+      state (shown as "Current related topics: ..."), so the round-trip
+      never duplicates it.
+- [x] **Per-noun `help edit <noun>` topics** — done. `cmd_help.c`'s
+      "help <topic>" parsing only reads the FIRST whitespace token, so
+      "help edit room" silently collapsed to just "help edit" -- fixed by
+      folding "edit" + a following noun into a single two-word lookup key
+      ("edit room") before the DB lookup. Also fixed a real pre-existing
+      bug found in the process: `edroom`/`edzone`/`edplayer`/`edhelp`/
+      `ednews`/`edwiznews`/`edrules` have been dead, unreachable topics
+      ever since the ed* commands were unified into `edit <noun>` -- a
+      comment in help_topic.sql claimed they'd been deleted but no DELETE
+      was ever actually added. Renamed in place to `edit room`/`edit
+      zone`/`edit player`/`edit help`/`edit news`/`edit wiznews`/`edit
+      rules` (bodies kept, already accurate, each gained a Related line)
+      rather than discarded. `edit trigger` intentionally still resolves
+      to the existing standalone `trigger` topic (already comprehensive:
+      trigger types, the fixed action vocabulary usable inside a script,
+      list/delete syntax) rather than a duplicate -- `help trigger` and
+      `help edit trigger` both need to keep working. `edit`'s own topic
+      gained a Related line listing all 8 nouns.
 - [ ] **`nospam` toggle (combat)** — user 2026-07-11: "add a nospam toggle
       where the games output during fights doesnt show missed hits in
       messages and logs" ("take inspiration from sneezy"). Confirmed

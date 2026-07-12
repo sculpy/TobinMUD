@@ -105,9 +105,15 @@ typedef struct {
  * (default on; toggle off with `toggle newbie`). PLR_NOSHOUT = opted out of
  * hearing `shout`s (default off; toggle on with `toggle noshout`) -- an
  * immortal's shout still gets through regardless, matching the original's
- * sendShout() rule (misc/talk.cc). More flags join here. */
+ * sendShout() rule (misc/talk.cc). PLR_NOSPAM = suppresses "you/they miss"
+ * combat messages on this player's own screen (default off; toggle on with
+ * `toggle nospam`) -- ported from Sneezy's AUTO_NOSPAM (toggle.h/combat.cc),
+ * where it's checked independently per viewer (attacker/defender/bystander)
+ * rather than as a single global switch; see combat.c's combat_strike().
+ * More flags join here. */
 #define PLR_NEWBIE 1
 #define PLR_NOSHOUT 2
+#define PLR_NOSPAM 4
 
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in

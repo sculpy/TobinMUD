@@ -911,6 +911,26 @@ static editor_action_t editor_feed(descriptor_t *d, const char *line) {
         descriptor_send(d, out);
         return EDITOR_CONTINUE;
     }
+    /* /r <topics>: set the help topic's "Related: ..." footer (user
+     * 2026-07-11: "in the help editor we should be able to set related
+     * topics in there") -- help-topic editing only; appended back onto
+     * edit_buf on save rather than typed as literal body text. Bare "/r"
+     * clears it. Scoped to EDIT_HELP_TOPIC so a "/r"-prefixed line in any
+     * other editor (room descriptions, news, ...) is just ordinary text. */
+    if (d->edit_kind == EDIT_HELP_TOPIC && (strcmp(line, "/r") == 0 || strncmp(line, "/r ", 3) == 0)) {
+        const char *rel = line[2] == ' ' ? line + 3 : line + 2;
+        while (*rel == ' ')
+            rel++;
+        snprintf(d->edit_related, sizeof(d->edit_related), "%s", rel);
+        if (d->edit_related[0]) {
+            char out[192];
+            snprintf(out, sizeof(out), "Related topics set to: %s\r\n] ", d->edit_related);
+            descriptor_send(d, out);
+        } else {
+            descriptor_send(d, "Related topics cleared.\r\n] ");
+        }
+        return EDITOR_CONTINUE;
+    }
     size_t add = strlen(line);
     if ((size_t)d->edit_len + add + 2 < sizeof(d->edit_buf)) {
         memcpy(d->edit_buf + d->edit_len, line, add);
@@ -2690,13 +2710,22 @@ static bool handle_line(descriptor_t *d, const char *line) {
                         } else {
                             descriptor_send(d, "Saving the trigger failed.\r\n");
                         }
-                    } else if (help_topic_save(d->edit_topic, d->edit_buf, who)) {
-                        char msg[96];
-                        snprintf(msg, sizeof(msg), "Help topic '%s' saved.\r\n",
-                                 d->edit_topic);
-                        descriptor_send(d, msg);
                     } else {
-                        descriptor_send(d, "Saving failed -- topic unchanged.\r\n");
+                        char final_body[HELP_BODY_MAX];
+                        if (d->edit_related[0])
+                            snprintf(final_body, sizeof(final_body), "%s\nRelated: %s",
+                                     d->edit_buf, d->edit_related);
+                        else
+                            snprintf(final_body, sizeof(final_body), "%s", d->edit_buf);
+
+                        if (help_topic_save(d->edit_topic, final_body, who)) {
+                            char msg[96];
+                            snprintf(msg, sizeof(msg), "Help topic '%s' saved.\r\n",
+                                     d->edit_topic);
+                            descriptor_send(d, msg);
+                        } else {
+                            descriptor_send(d, "Saving failed -- topic unchanged.\r\n");
+                        }
                     }
                     d->edit_kind = EDIT_NONE;
                 } else if (act == EDITOR_ABORT) {

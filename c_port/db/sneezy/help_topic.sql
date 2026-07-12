@@ -361,12 +361,19 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 -- covers a fresh install that never had the old rows to rename. Doing the
 -- INSERT first would collide with this rename on an already-deployed DB
 -- (both would try to claim the name `poofin`).
+-- Guarded with "poofin/poofout don't already exist" (as well as the
+-- original updated_by='seed' check) so re-running this file after the
+-- rename already happened doesn't grab the FRESH `bamfin`/`bamfout` pair
+-- created later in this file for goto's own messages -- caught for real
+-- the first time this file was re-applied post-goto-feature (2026-07-11).
 UPDATE `help_topic` SET `name` = 'poofin',
   `body` = 'Usage: poofin <message>\n       poofin none\n\nImmortal-only: sets your own custom WALKING arrival message,\nreplacing the default "has arrived" wording -- e.g. "drags $p cross\nin from the $d" reads as "Jesus drags his cross in from the east."\n`$d` is replaced with the direction you arrived from; `$p` with your\ngender''s possessive pronoun (his/her/their), so the same message\nreads correctly no matter who sets it. `poofin none` (or `clear`)\nreverts to the default wording. For `goto`''s own messages, see\n`help bamfin`.'
-  WHERE `name` = 'bamfin' AND `updated_by` = 'seed';
+  WHERE `name` = 'bamfin' AND `updated_by` = 'seed'
+    AND NOT EXISTS (SELECT 1 FROM (SELECT `name` FROM `help_topic`) AS existing WHERE existing.`name` = 'poofin');
 UPDATE `help_topic` SET `name` = 'poofout',
   `body` = 'Usage: poofout <message>\n       poofout none\n\nImmortal-only: sets your own custom WALKING departure message,\nreplacing the default "exits to the <direction>" wording. Same\n`$d`/`$p` token rules as `poofin` -- see `help poofin`.'
-  WHERE `name` = 'bamfout' AND `updated_by` = 'seed';
+  WHERE `name` = 'bamfout' AND `updated_by` = 'seed'
+    AND NOT EXISTS (SELECT 1 FROM (SELECT `name` FROM `help_topic`) AS existing WHERE existing.`name` = 'poofout');
 
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('poofin', 'Usage: poofin <message>\n       poofin none\n\nImmortal-only: sets your own custom WALKING arrival message,\nreplacing the default "has arrived" wording -- e.g. "drags $p cross\nin from the $d" reads as "Jesus drags his cross in from the east."\n`$d` is replaced with the direction you arrived from; `$p` with your\ngender''s possessive pronoun (his/her/their), so the same message\nreads correctly no matter who sets it. `poofin none` (or `clear`)\nreverts to the default wording. For `goto`''s own messages, see\n`help bamfin`.', 'seed'),
@@ -449,3 +456,129 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 -- deploy, so update it explicitly each time.
 UPDATE `help_topic` SET `body` = 'Usage: snoop [name]\n\nSilently watches everything a lower-level player sees AND everything\nthey type, mirrored to your own screen in real time -- every mirrored\nline (their typed commands AND their own output alike) is prefixed\n"% " so you can tell it apart from your own screen. You cannot snoop\nanyone of your own level or higher -- it fails outright. Only one\noutgoing snoop at a time; snooping a new target drops the old one.\nBare `snoop` (no name) stops your current snoop. The target is never\ntold. Covert by design -- logged quietly, never broadcast.'
   WHERE `name` = 'snoop' AND `updated_by` = 'seed';
+
+-- "Related: topic topic ..." footer (user 2026-07-11: "for help topics
+-- both wizhelp and help add a line at the end for related topics") --
+-- cmd_help.c strips a trailing "Related:" line out of the body and shows
+-- it as its own footer, same convention as the leading "Usage:" line.
+-- This pass also fixes a real bug: edroom/edzone/edplayer/edhelp/ednews/
+-- edwiznews/edrules have been dead topics ever since the ed* commands
+-- were unified into `edit <noun>` (2026-07-11) -- a comment near the
+-- `edit` topic above claimed they'd been deleted, but no DELETE was ever
+-- actually added. Renamed in place to "edit <noun>" (matching cmd_help.c's
+-- new two-word lookup for "help edit <noun>") with their existing bodies
+-- kept (still accurate per cmd_edroom.c/cmd_edzone.c/cmd_edplayer.c/
+-- cmd_hedit.c/cmd_addnews.c/cmd_edwiznews.c/cmd_rules.c) rather than
+-- discarded, each gaining a Related line.
+UPDATE `help_topic` SET `name` = 'edit room',
+  `body` = 'Usage: edit room [<vnum>]   (level 51+ builders)\n\nOpens the menu-driven room builder for the room you are standing in,\nor for <vnum> from anywhere. Edits are held in a working copy --\nnothing touches the DB until you Save. A level 51-54 builder can only\nedit a room in a zone they are assigned to; 55+ can edit any room, and\ncontent outside any zone is unrestricted for everyone.\n\n  1) Name          2) Description (/s saves, /a cancels, /b wipes,\n                       /f reflows to width)\n  3) Flags         4) Sector Type\n  5) Exits         6) Max Capacity\n  7) Room Height\n\nExits: pick a direction, then set its Target vnum, Door type, and\nConditions; a missing target room is created on save and the reverse\nexit auto-fixed.\n\n  C) Clear room out (blanks it, exits included)\n  S) Save    Q) Quit (warns on unsaved changes)\n\nRelated: zone trigger zonefile'
+  WHERE `name` = 'edroom';
+
+UPDATE `help_topic` SET `name` = 'edit zone',
+  `body` = 'Usage: edit zone <zone number>\n\nMenu-driven zone editor (level 51+, but see below): change a zone''s\nname, enabled state, lifespan, and vnum range; assign or un-assign\nbuilders (selecting a builder already assigned un-assigns them); or\nforce a reset right now. A level 51-54 builder can only edit a zone\n(or a room in it) they are assigned to -- editing any other zone is\nrefused. 55+ can always edit anything, and content outside any zone is\nunrestricted for every builder.\n\nRelated: room zonefile zone'
+  WHERE `name` = 'edzone';
+
+UPDATE `help_topic` SET `name` = 'edit player',
+  `body` = 'Usage: edit player <name>\n\nAdministrator (58+) only: a menu-driven editor for a player''s level,\nexperience, HP/max HP, attributes, gender, title, load room, and\nhandedness -- an admin superset of promote. Works on any player,\nonline or offline, by exact name. Pick a numbered field, enter a new\nvalue, then (S)ave to write it to the database (an online target is\nupdated immediately, no relog needed) or (Q)uit to discard.\n\nRelated: set promote'
+  WHERE `name` = 'edplayer';
+
+UPDATE `help_topic` SET `name` = 'edit help',
+  `body` = 'Usage: edit help <topic>\n\nLevel 56+ only: edit (or create) a help topic in a line editor. Any\nexisting text is shown first; lines you type are appended. Finish\nwith `/s` to save, `/a` to abort, `/b` to blank the buffer and start\nover, or `/f` to reflow it to the display width. Topics are stored in\nthe database and shown by `help <topic>`. A trailing "Related: topic\ntopic ..." line (this one has one) is shown as its own footer instead\nof body text.\n\nRelated: news wiznews rules'
+  WHERE `name` = 'edhelp';
+
+UPDATE `help_topic` SET `name` = 'edit news',
+  `body` = 'Usage: edit news <headline>\n\nLevel 56+ only: post a news item. The words after the command are the\nheadline; you then type the story into a line editor (`/s` saves, `/a`\naborts, `/b` blanks, `/f` reflows to width). Everyone can read it\nwith the `news` command. Headlines must be unique.\n\nRelated: wiznews help'
+  WHERE `name` = 'ednews';
+
+UPDATE `help_topic` SET `name` = 'edit wiznews',
+  `body` = 'Usage: edit wiznews <headline>\n\nLevel 56+ only: post an item to the immortal news channel (read with\n`wiznews`). The words after the command are the headline; then type the\nstory into a line editor (`/s` saves, `/a` aborts, `/b` blanks,\n`/f` reflows to width).\n\nRelated: news help'
+  WHERE `name` = 'edwiznews';
+
+UPDATE `help_topic` SET `name` = 'edit rules',
+  `body` = 'Usage: edit rules <number> <title>\n\nAdministrator (59+) only: writes or rewrites a numbered game rule. Give\nthe rule number and a title, then type the rule text into the line\neditor (/s saves, /a aborts, /b blanks, /f reflows to width). Players\nread rules with the rules command.\n\nRelated: help'
+  WHERE `name` = 'edrules';
+
+-- Related-footer additions across the rest of the topic set (guarded by
+-- "NOT LIKE '%Related:%'" so a re-run never double-appends).
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: room zone trigger player help news wiznews rules zonefile') WHERE `name` = 'edit' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: room zonefile') WHERE `name` = 'trigger' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: room trigger zonefile') WHERE `name` = 'zone' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: zone room trigger') WHERE `name` = 'zonefile' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: promote') WHERE `name` = 'set' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: set') WHERE `name` = 'promote' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: promote') WHERE `name` = 'mortal' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: load promote') WHERE `name` = 'loadroom' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: vnum zone') WHERE `name` = 'load' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: load') WHERE `name` = 'purge' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: zone edit') WHERE `name` = 'vnum' AND `body` NOT LIKE '%Related:%';
+
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: exits scan') WHERE `name` = 'movement' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: movement exits') WHERE `name` IN ('north','east','south','west','up','down','northeast','northwest','southeast','southwest') AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: movement scan') WHERE `name` = 'exits' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: close exits') WHERE `name` = 'open' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: open exits') WHERE `name` = 'close' AND `body` NOT LIKE '%Related:%';
+
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: flee limbs positions') WHERE `name` IN ('attack','kill') AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: attack limbs positions') WHERE `name` = 'flee' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: attack positions') WHERE `name` = 'limbs' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: attack limbs') WHERE `name` = 'positions' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: positions') WHERE `name` IN ('stand','sit','rest','sleep','wake') AND `body` NOT LIKE '%Related:%';
+
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: get put containers') WHERE `name` = 'drop' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: drop put containers') WHERE `name` = 'get' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: get drop containers') WHERE `name` = 'put' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: get put inventory') WHERE `name` = 'containers' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: equipment containers') WHERE `name` = 'inventory' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: wear wield inventory') WHERE `name` = 'equipment' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: wield equipment') WHERE `name` = 'hold' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: hold equipment') WHERE `name` = 'wield' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: remove equipment') WHERE `name` = 'wear' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: wear equipment') WHERE `name` = 'remove' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: pee') WHERE `name` = 'drink' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: drink') WHERE `name` = 'pee' AND `body` NOT LIKE '%Related:%';
+
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: shout socials wiznet') WHERE `name` = 'say' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: say socials toggle') WHERE `name` = 'shout' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: say shout') WHERE `name` = 'socials' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: system wiznews') WHERE `name` = 'wiznet' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: wiznet') WHERE `name` = 'system' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: news wiznews') WHERE `name` = 'catchup' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: toggle') WHERE `name` = 'newbie' AND `body` NOT LIKE '%Related:%';
+
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: wiznews edit') WHERE `name` = 'news' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: news edit') WHERE `name` = 'wiznews' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: gametog prompt') WHERE `name` = 'toggle' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: toggle multiplay') WHERE `name` = 'gametog' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: gametog toggle') WHERE `name` = 'multiplay' AND `body` NOT LIKE '%Related:%';
+
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: bamfout goto poofin') WHERE `name` = 'bamfin' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: bamfin goto poofout') WHERE `name` = 'bamfout' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: poofout movement') WHERE `name` = 'poofin' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: poofin movement') WHERE `name` = 'poofout' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: bamfin bamfout transfer') WHERE `name` = 'goto' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: goto') WHERE `name` = 'transfer' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: goto snoop') WHERE `name` = 'switch' AND `body` NOT LIKE '%Related:%';
+
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: setsev system') WHERE `name` = 'log' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: log') WHERE `name` = 'setsev' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: wiznet log') WHERE `name` = 'snoop' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: who log') WHERE `name` = 'users' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: users score') WHERE `name` = 'who' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: users') WHERE `name` = 'mudstats' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: system') WHERE `name` = 'exec' AND `body` NOT LIKE '%Related:%';
+
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: limbs positions who') WHERE `name` = 'score' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: who score') WHERE `name` = 'title' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: colors toggle') WHERE `name` = 'color' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: color') WHERE `name` = 'colors' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: score') WHERE `name` IN ('appearance','gender') AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: toggle score') WHERE `name` = 'prompt' AND `body` NOT LIKE '%Related:%';
+
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: delbug edbug') WHERE `name` = 'bug' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: bug edbug') WHERE `name` = 'delbug' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: bug delbug') WHERE `name` = 'edbug' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: delidea') WHERE `name` = 'idea' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: idea') WHERE `name` = 'delidea' AND `body` NOT LIKE '%Related:%';
+
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: wizhelp') WHERE `name` = 'help' AND `body` NOT LIKE '%Related:%';
+UPDATE `help_topic` SET `body` = CONCAT(`body`, '\n\nRelated: help edit') WHERE `name` = 'wizhelp' AND `body` NOT LIKE '%Related:%';

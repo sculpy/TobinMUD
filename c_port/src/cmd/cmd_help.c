@@ -77,12 +77,34 @@ bool cmd_help(descriptor_t *d, const char *args) {
                 }
             }
 
-            /* The old "help edit" auto-index of the ed* command family
-             * (edroom, edhelp, ...) is gone along with those standalone
-             * commands themselves -- they're all folded into the single
-             * `edit <noun>` dispatcher now (user, 2026-07-11), so "help
-             * edit" falls through to the normal DB-backed topic lookup
-             * below like any other command's help. */
+            /* "help edit <noun>" (user 2026-07-11: one topic per editor
+             * noun, e.g. "help edit room") -- `help` only reads the FIRST
+             * whitespace token above, so without this, "edit room" would
+             * silently collapse to just "edit". When the first token is
+             * "edit" and a second token follows, fold them into a single
+             * two-word topic name ("edit room") and look THAT up instead;
+             * bare "help edit" (no noun) is untouched, still resolving to
+             * the general overview topic. */
+            if (strcmp(topic, "edit") == 0) {
+                const char *after = args;
+                while (*after && *after != ' ')
+                    after++;
+                while (*after == ' ')
+                    after++;
+                char noun[24];
+                if (*after && sscanf(after, "%23s", noun) == 1) {
+                    for (char *p = noun; *p; p++)
+                        *p = (char)tolower((unsigned char)*p);
+                    /* `trigger` keeps its own standalone topic name (predates
+                     * this two-word scheme, already comprehensive) rather
+                     * than a duplicate "edit trigger" -- so "help trigger"
+                     * and "help edit trigger" both keep resolving to it. */
+                    if (strcmp(noun, "trigger") == 0)
+                        snprintf(topic, sizeof(topic), "trigger");
+                    else
+                        snprintf(topic, sizeof(topic), "edit %s", noun);
+                }
+            }
 
             char resolved[HELP_TOPIC_NAME_LEN];
             char body[HELP_BODY_MAX];
@@ -152,6 +174,44 @@ bool cmd_help(descriptor_t *d, const char *args) {
                     size_t dlen = strlen(desc);
                     while (dlen > 0 && (desc[dlen - 1] == '\n' || desc[dlen - 1] == '\r'))
                         dlen--;
+
+                    /* Trailing "Related: topic topic ..." line (user
+                     * 2026-07-11: "for help topics both wizhelp and help add
+                     * a line at the end for related topics"). Same
+                     * strip-a-directive-line convention as the leading
+                     * "Usage:" line above, but at the END of the body
+                     * instead of the start -- an author just types it as the
+                     * last line in the same shared line editor. Only shown
+                     * when present; most topics have none. */
+                    char related[128];
+                    related[0] = '\0';
+                    {
+                        size_t last_nl = dlen;
+                        for (size_t i = dlen; i > 0; i--) {
+                            if (desc[i - 1] == '\n') {
+                                last_nl = i;
+                                break;
+                            }
+                            if (i == 1)
+                                last_nl = 0;
+                        }
+                        const char *last_line = desc + last_nl;
+                        size_t last_line_len = dlen - last_nl;
+                        if (last_line_len > 8 && strncasecmp(last_line, "Related:", 8) == 0) {
+                            const char *r = last_line + 8;
+                            while (*r == ' ')
+                                r++;
+                            size_t rlen = (size_t)(last_line + last_line_len - r);
+                            if (rlen >= sizeof(related))
+                                rlen = sizeof(related) - 1;
+                            memcpy(related, r, rlen);
+                            related[rlen] = '\0';
+                            dlen = last_nl;
+                            while (dlen > 0 && (desc[dlen - 1] == '\n' || desc[dlen - 1] == '\r'))
+                                dlen--;
+                        }
+                    }
+
                     char shown[HELP_BODY_MAX + 32];
                     snprintf(shown, sizeof(shown), "<W>%.*s<z>\r\n", (int)dlen, desc);
                     descriptor_send(d, shown);
@@ -165,6 +225,12 @@ bool cmd_help(descriptor_t *d, const char *args) {
                                  "\r\n<c>       Syntax:<z> %s\r\n<c>Minimum Level:<z> %d\r\n",
                                  syntax, match->min_level);
                         descriptor_send(d, footer);
+                    }
+                    if (related[0]) {
+                        char relfooter[192];
+                        snprintf(relfooter, sizeof(relfooter), "%s<c>      Related:<z> %s\r\n",
+                                 match ? "" : "\r\n", related);
+                        descriptor_send(d, relfooter);
                     }
                     return true;
                 }

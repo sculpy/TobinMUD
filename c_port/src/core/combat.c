@@ -182,8 +182,14 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     if (defender->position != POSITION_STANDING)
         hit_roll += NON_STANDING_HIT_BONUS;
     if (hit_roll < 50) {
-        tell(attacker, "You miss %s!\r\n", defender->base.name);
-        tell(defender, "%s misses you!\r\n", attacker->base.name);
+        /* nospam (user 2026-07-11, ported from Sneezy's AUTO_NOSPAM): each
+         * viewer's own toggle decides whether THEY see a miss -- the
+         * attacker and defender are checked independently, same as the
+         * original. */
+        if (!(attacker->pflags & PLR_NOSPAM))
+            tell(attacker, "You miss %s!\r\n", defender->base.name);
+        if (!(defender->pflags & PLR_NOSPAM))
+            tell(defender, "%s misses you!\r\n", attacker->base.name);
         return false;
     }
 
