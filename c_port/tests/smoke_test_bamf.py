@@ -1,15 +1,22 @@
-﻿#!/usr/bin/env python3
-"""Smoke test for `bamfin`/`bamfout` (user, 2026-07-11: "immorts should be
-able to set their own enter or leave messages. Like Jesus drags his cross
-in from the east. of course gender specific in the messaging").
+#!/usr/bin/env python3
+"""Smoke test for `bamfin`/`bamfout` (user, 2026-07-11: "bamfin|out should
+modify goto messaging and the current bamfin|out should be called
+something else following the in|out syntax"; follow-ups the same session:
+"<N> should work in this as well as $g" and "and $p"). The WALKING
+move-message feature that used to own this name is now `poofin`/`poofout`
+(see smoke_test_poof.py) -- this file covers `goto`'s own teleport
+messages.
 
   1. Immortal-only: a mortal gets "Huh?!" from `bamfin`/`bamfout`.
-  2. Setting a message with `$d` (direction) and `$p` (gender_possess()
-     pronoun) tokens replaces the default "exits to the <dir>"/"has
-     arrived" wording -- verified for both a male and a female immortal,
-     confirming the pronoun actually changes with gender.
-  3. `bamfin none`/`bamfout none` clears it, reverting to the default
-     wording.
+  2. `goto` broadcasts a departure message (bamfout) to the room left and
+     an arrival message (bamfin) to the room entered -- the mover's own
+     private "You vanish..." line is unaffected either way.
+  3. A custom template's `<N>` token embeds the mover's name (no separate
+     name prefix then); `$p` renders the mover's gender_possess() pronoun;
+     `$g` renders the destination/departure room's ground-surface word
+     (plain sandbox rooms -> "ground").
+  4. `bamfin none`/`bamfout none` clears it, reverting to the default
+     "<Name> disappears/appears in a puff of smoke." wording.
 
     python3 tests/smoke_test_bamf.py [host] [port]
 """
@@ -101,6 +108,9 @@ def make_char(sock, name, pw):
     send_line(sock, "new"); recv_all(sock)
     send_line(sock, name); recv_all(sock)
     send_line(sock, "done"); recv_all(sock)
+    send_line(sock, "1"); recv_all(sock)  # race: human (zero stat modifier)
+    send_line(sock, "1"); recv_all(sock)  # class: mage
+    send_line(sock, "2"); recv_all(sock)  # alignment: neutral
 
 
 def login(name, pw):
@@ -119,104 +129,85 @@ sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
     f"VALUES ({ROOM_B},0,0,0,'Bamf Room B','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
-# direction 1 = east (A -> B), direction 3 = west (B -> A) -- DIR_NAMES order.
-sql(f"INSERT INTO roomexit (vnum, direction, name, description, type, "
-    f"condition_flag, lock_difficulty, weight, key_num, destination) "
-    f"VALUES ({ROOM_A}, 1, '', '', 0, 0, 0, 0, 0, {ROOM_B});")
-sql(f"INSERT INTO roomexit (vnum, direction, name, description, type, "
-    f"condition_flag, lock_difficulty, weight, key_num, destination) "
-    f"VALUES ({ROOM_B}, 3, '', '', 0, 0, 0, 0, 0, {ROOM_A});")
 
 # --- 1: mortal can't set a bamf message ---
 mort_name = f"Bamfmort{_suffix}"
 mort_pw = "Bamfmortpw123"
 sm = socket.create_connection((host, port), timeout=5)
 make_char(sm, mort_name, mort_pw)
-out = cmd(sm, "bamfout drags $p cross out to the $d")
+out = cmd(sm, "bamfout <N> steps through a shimmering rift.")
 check("Huh?!" in out, "bamfout is refused for a mortal")
 sm.close()
 
-# --- 2: a male immortal's bamf messages use "his" ---
-male_name = f"Bamfmale{_suffix}"
-male_pw = "Bamfmalepw123"
+# --- 2/3: an immortal's custom bamfout/bamfin fire on goto, with tokens ---
+imm_name = f"Bamfimm{_suffix}"
+imm_pw = "Bamfimmpw123"
 s = socket.create_connection((host, port), timeout=5)
-make_char(s, male_name, male_pw)
-set_level(male_name, 51)
-sql(f"UPDATE player SET gender=1 WHERE name='{male_name}';")  # 1 = male
-sql(f"UPDATE player SET load_room={ROOM_A} WHERE name='{male_name}';")
+make_char(s, imm_name, imm_pw)
+set_level(imm_name, 51)
+sql(f"UPDATE player SET gender=1 WHERE name='{imm_name}';")  # 1 = male
+sql(f"UPDATE player SET load_room={ROOM_A} WHERE name='{imm_name}';")
 cmd(s, "quit!")
 s.close()
-s = login(male_name, male_pw)
+s = login(imm_name, imm_pw)
 
-out = cmd(s, "bamfout drags $p cross out to the $d")
-check("Bamfout set to: drags $p cross out to the $d" in out, "bamfout confirms the stored template")
-out = cmd(s, "bamfin drags $p cross in from the $d")
-check("Bamfin set to: drags $p cross in from the $d" in out, "bamfin confirms the stored template")
+out = cmd(s, "bamfout <N> sinks into $p own shadow, leaving the $g bare.")
+check("Bamfout set to: <N> sinks into $p own shadow, leaving the $g bare." in out,
+      "bamfout confirms the stored template")
+out = cmd(s, "bamfin <N> rises up out of the $g, dusting $p shoulders off.")
+check("Bamfin set to: <N> rises up out of the $g, dusting $p shoulders off." in out,
+      "bamfin confirms the stored template")
 
-bystander_name = f"Bamfwitness{_suffix}"
-bystander_pw = "Bamfwitnesspw123"
+witness_a_name = f"Bamfwitna{_suffix}"
+witness_a_pw = "Bamfwitnessapw123"
+sa = socket.create_connection((host, port), timeout=5)
+make_char(sa, witness_a_name, witness_a_pw)
+sql(f"UPDATE player SET load_room={ROOM_A} WHERE name='{witness_a_name}';")
+cmd(sa, "quit!")
+sa.close()
+sa = login(witness_a_name, witness_a_pw)
+check("Bamf Room A" in cmd(sa, "look"), "the first bystander lands in room A with the immortal")
+
+witness_b_name = f"Bamfwitnb{_suffix}"
+witness_b_pw = "Bamfwitnessbpw123"
 sb = socket.create_connection((host, port), timeout=5)
-make_char(sb, bystander_name, bystander_pw)
-sql(f"UPDATE player SET load_room={ROOM_A} WHERE name='{bystander_name}';")
+make_char(sb, witness_b_name, witness_b_pw)
+sql(f"UPDATE player SET load_room={ROOM_B} WHERE name='{witness_b_name}';")
 cmd(sb, "quit!")
 sb.close()
-sb = login(bystander_name, bystander_pw)
-check("Bamf Room A" in cmd(sb, "look"), "the bystander lands in room A with the male immortal")
+sb = login(witness_b_name, witness_b_pw)
+check("Bamf Room B" in cmd(sb, "look"), "the second bystander lands in room B")
 
-cmd(s, "east")
-witness_out = recv_all(sb, timeout=0.5)
-check(f"{male_name} drags his cross out to the east." in witness_out,
-      "the bystander in room A sees the male immortal's custom departure message with 'his'")
-
-sb2_name = f"Bamfwittwo{_suffix}"
-sb2_pw = "Bamfwit2pw123"
-sb2 = socket.create_connection((host, port), timeout=5)
-make_char(sb2, sb2_name, sb2_pw)
-sql(f"UPDATE player SET load_room={ROOM_B} WHERE name='{sb2_name}';")
-cmd(sb2, "quit!")
-sb2.close()
-sb2 = login(sb2_name, sb2_pw)
-check("Bamf Room B" in cmd(sb2, "look"), "the second bystander lands in room B")
-
-out = cmd(s, "west")  # back to room A, then...
-recv_all(sb2, timeout=0.3)
-out = cmd(s, "east")
-witness2_out = recv_all(sb2, timeout=0.5)
-check(f"{male_name} drags his cross in from the west." in witness2_out,
-      "the bystander in room B sees the male immortal's custom arrival message with 'his', direction reversed")
-
-# --- 3: a female immortal's bamf messages use "her" ---
-female_name = f"Bamffem{_suffix}"
-female_pw = "Bamffempw123"
-sf = socket.create_connection((host, port), timeout=5)
-make_char(sf, female_name, female_pw)
-set_level(female_name, 51)
-sql(f"UPDATE player SET gender=2 WHERE name='{female_name}';")  # 2 = female
-sql(f"UPDATE player SET load_room={ROOM_A} WHERE name='{female_name}';")
-cmd(sf, "quit!")
-sf.close()
-sf = login(female_name, female_pw)
-cmd(sf, "bamfout drags $p cross out to the $d")
-
+recv_all(sa, timeout=0.3)
 recv_all(sb, timeout=0.3)
-out = cmd(sf, "east")
-witness_out = recv_all(sb, timeout=0.5)
-check(f"{female_name} drags her cross out to the east." in witness_out,
-      "the female immortal's identical template renders 'her' instead of 'his'")
+mover_out = cmd(s, f"goto {ROOM_B}", timeout=1.5)
+check("You vanish in a puff of smoke." in mover_out,
+      "the mover's own private message is unaffected by the custom bamfout template")
 
-# --- 4: clearing reverts to the default wording ---
-cmd(sf, "west")
-out = cmd(sf, "bamfout none")
+witness_a_out = recv_all(sa, timeout=0.5)
+check(f"{imm_name} sinks into his own shadow, leaving the ground bare." in witness_a_out,
+      "room A sees the custom bamfout: <N> is the name, $p is 'his', $g is 'ground'")
+
+witness_b_out = recv_all(sb, timeout=0.5)
+check(f"{imm_name} rises up out of the ground, dusting his shoulders off." in witness_b_out,
+      "room B sees the custom bamfin: <N>/$g/$p all rendered")
+
+# --- 4: clearing reverts to the default puff-of-smoke wording ---
+out = cmd(s, "bamfout none")
 check("Bamfout cleared" in out, "bamfout none clears the custom message")
+out = cmd(s, "bamfin none")
+check("Bamfin cleared" in out, "bamfin none clears the custom message")
+
+recv_all(sa, timeout=0.3)
 recv_all(sb, timeout=0.3)
-out = cmd(sf, "east")
-witness_out = recv_all(sb, timeout=0.5)
-check("exits to the east" in witness_out, "after clearing, the default 'exits to the <dir>' wording is back")
-check("drags" not in witness_out, "the cleared custom message no longer appears")
+cmd(s, f"goto {ROOM_A}")
+witness_b_out2 = recv_all(sb, timeout=0.5)
+check(f"{imm_name} disappears in a puff of smoke." in witness_b_out2,
+      "after clearing, room B sees the default departure wording")
 
 s.close()
-sf.close()
+sa.close()
 sb.close()
-sb2.close()
-announce_done("smoke_test_bamf")
+
 print("=== ALL CHECKS PASSED ===")
+announce_done("smoke_test_bamf")

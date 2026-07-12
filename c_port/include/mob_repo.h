@@ -36,6 +36,15 @@ typedef struct {
                                   * struct actually read for mob AI
                                   * (mob_ai.c) rather than just carried
                                   * inertly -- see that file's doc comment. */
+    int align;                  /* Tobin-added `mob.align` column (NOT the
+                                  * upstream mob.class/mob.race columns this
+                                  * struct otherwise defers) -- -1 evil, 0
+                                  * unaligned, 1 good. See mob_ai.c's
+                                  * mob_try_aggress() (user 2026-07-11:
+                                  * "good will attack evil and evil will
+                                  * attack good randomly ... neutral should
+                                  * be taunted by evil and supported by
+                                  * good"). */
 } mob_proto_t;
 
 /* Loads the prototype row for `vnum` from the `mob` table into *out.

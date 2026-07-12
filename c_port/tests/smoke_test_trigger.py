@@ -116,6 +116,9 @@ def make_char(sock, name, pw):
     send_line(sock, "new"); recv_all(sock)
     send_line(sock, name); recv_all(sock)
     send_line(sock, "done"); recv_all(sock)
+    send_line(sock, "1"); recv_all(sock)  # race: human (zero stat modifier)
+    send_line(sock, "1"); recv_all(sock)  # class: mage
+    send_line(sock, "2"); recv_all(sock)  # alignment: neutral
 
 
 def login(name, pw):
@@ -296,6 +299,21 @@ check("Trigger deleted" in out, "edit trigger delete removes it")
 out = cmd(s, f"edit trigger list mob {MOB_GREET}")
 check("speech" not in out, "the deleted speech trigger no longer appears")
 check("greet" in out, "the greet trigger is untouched")
+
+# --- Teardown: this test's fixtures (rooms/mobs/objs) are throwaway, but
+# every OTHER trigger created above is still live -- including two 100%-
+# chance "random" ones that fire on every real aitick pulse. Left alone,
+# these turned into permanent ambient noise that corrupted unrelated
+# tests' output when the ambient mob wandered into a busy shared room
+# (discovered 2026-07-11: 91 of 93 rows in `trigger` were orphans from
+# earlier runs of this exact file). Delete every trigger still attached
+# to any target this run created, not just the one demo-deleted above.
+for kind, vnum in (("room", ROOM_A), ("room", ROOM_B), ("mob", MOB_GREET),
+                   ("mob", MOB_DEATH), ("mob", MOB_RANDOM),
+                   ("obj", OBJ_GET), ("obj", OBJ_WEAR)):
+    listing = cmd(s, f"edit trigger list {kind} {vnum}")
+    for trig_id in re.findall(r"#(\d+)", listing):
+        cmd(s, f"edit trigger delete {trig_id}")
 
 s.close()
 sw.close()

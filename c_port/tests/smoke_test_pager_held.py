@@ -92,7 +92,9 @@ def make_char(name, pw):
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
     cmd(s, "done")
-    cmd(s, "done")  # point-buy needs a second `done` to finish
+    cmd(s, "1")  # race: human (zero stat modifier)
+    cmd(s, "1")  # class: mage
+    cmd(s, "2")  # alignment: neutral
     return s
 
 

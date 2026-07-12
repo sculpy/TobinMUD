@@ -64,4 +64,31 @@ void zone_reset_now(int zone_nr, int *out_mobs, int *out_objs);
  * zedit are built (TODO.md). */
 bool zone_can_edit(const being_t *ch, int zone_nr);
 
+/* `zonefile create <zone>` (cmd_zonefile.c, user: "zonefile create should
+ * create a zone file with the current status of the zone and its
+ * contents... you should also be able to delete a line from the zone
+ * file, rerun zonefile create and it fills in the blanks of whats loaded
+ * into the zone"). Snapshots the zone's CURRENT live world state -- every
+ * mob and ground object actually sitting in each room in [bottom, top],
+ * plus a mob's equipped/held/carried items and a ground container's
+ * contents -- into new zone_reset rows, appended after any existing ones
+ * so the next boot/periodic reset recreates it.
+ *
+ * Idempotent against a partially-edited reset table: a (room, vnum) pair
+ * already covered by an EXISTING 'M' or 'O' row is left completely alone
+ * (no duplicate row, no touching its children) -- so deleting one row and
+ * re-running only adds back reset data for whatever that deletion left
+ * unrepresented, matching the user's "fills in the blanks" ask. Matching
+ * is per room+vnum, not per live instance, so if a room has 3 live copies
+ * of the same mob vnum and one already has a covering row, all 3 are
+ * still considered covered (the row's own arg2 cap is left untouched --
+ * bumping an existing cap is a separate, unrequested feature).
+ *
+ * A mob/container's contents are only captured one level deep, and only
+ * when reachable via a 'G' (carried) or 'O' (ground) row -- the execution
+ * engine's own 'E' (equip) opcode never sets "last object", so a 'P'
+ * (place-in-container) can't follow an equipped container; this mirrors a
+ * real limitation of zone_execute() (zone.c) itself, not a new one. */
+void zone_file_create(int zone_nr, int *out_mobs_added, int *out_objs_added);
+
 #endif

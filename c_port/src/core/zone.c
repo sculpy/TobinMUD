@@ -276,6 +276,168 @@ void zone_reset_now(int zone_nr, int *out_mobs, int *out_objs) {
     zone_execute(zone_nr, false, out_mobs, out_objs);
 }
 
+/* `zonefile create` (zone.h) -- see that header for the full design note.
+ * A distinct (room, vnum) count seen while scanning one room's direct
+ * contents; `sample` is the first live instance seen, inspected afterward
+ * for equipment/carried items/container contents. */
+#define ZONEFILE_MAX_DISTINCT 128
+typedef struct {
+    int vnum;
+    int count;
+    thing_t *sample;
+} zonefile_group_t;
+
+static void zonefile_group_add(zonefile_group_t *groups, int *count, int vnum, thing_t *instance) {
+    for (int i = 0; i < *count; i++) {
+        if (groups[i].vnum == vnum) {
+            groups[i].count++;
+            return;
+        }
+    }
+    if (*count >= ZONEFILE_MAX_DISTINCT)
+        return; /* silently drop past the cap -- a room with >128 distinct
+                  * vnums directly in it is not a realistic case here */
+    groups[*count].vnum = vnum;
+    groups[*count].count = 1;
+    groups[*count].sample = instance;
+    (*count)++;
+}
+
+/* True iff an existing reset row already loads `item_vnum` into `room_vnum`
+ * via `command` ('M' or 'O') -- the "already represented, leave it alone"
+ * check that makes zone_file_create() idempotent against a hand-edited
+ * (row deleted) reset table. */
+static bool zonefile_covered(const zone_reset_cmd_t *existing, int n, char command,
+                              int room_vnum, int item_vnum) {
+    for (int i = 0; i < n; i++)
+        if (existing[i].command == command && existing[i].arg3 == room_vnum
+            && existing[i].arg1 == item_vnum)
+            return true;
+    return false;
+}
+
+/* Emits E rows for everything `mob` has equipped/held, then G (+ one level
+ * of P) for everything else it's carrying loose. See zone.h: an
+ * equipped/held container's own contents can't be captured (E never sets
+ * "last object" in zone_execute()), so only a G-carried container's
+ * contents get P rows. */
+static void zonefile_emit_mob_children(int zone_nr, int *next_cmd_no, being_t *mob) {
+    for (int i = 0; i < LIMB_COUNT; i++) {
+        obj_t *o = mob->equipment[i];
+        if (!o)
+            continue;
+        zone_repo_insert_reset_cmd(zone_nr, (*next_cmd_no)++, 'E', 1, o->vnum, 0, 0, 0,
+                                    "zonefile create");
+    }
+    for (int i = 0; i < 2; i++) {
+        obj_t *o = mob->held[i];
+        if (!o)
+            continue;
+        zone_repo_insert_reset_cmd(zone_nr, (*next_cmd_no)++, 'E', 1, o->vnum, 0, 0, 0,
+                                    "zonefile create");
+    }
+
+    for (thing_t *t = mob->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        obj_t *o = (obj_t *)t;
+        bool equipped_or_held = false;
+        for (int i = 0; i < LIMB_COUNT && !equipped_or_held; i++)
+            if (mob->equipment[i] == o)
+                equipped_or_held = true;
+        for (int i = 0; i < 2 && !equipped_or_held; i++)
+            if (mob->held[i] == o)
+                equipped_or_held = true;
+        if (equipped_or_held)
+            continue;
+
+        zone_repo_insert_reset_cmd(zone_nr, (*next_cmd_no)++, 'G', 1, o->vnum, 0, 0, 0,
+                                    "zonefile create");
+        if (obj_is_container(o)) {
+            for (thing_t *c = o->base.stuff_head; c; c = c->stuff_next) {
+                if (c->kind != THING_OBJ)
+                    continue;
+                zone_repo_insert_reset_cmd(zone_nr, (*next_cmd_no)++, 'P', 1,
+                                            ((obj_t *)c)->vnum, 0, 0, 0, "zonefile create");
+            }
+        }
+    }
+}
+
+/* Emits one level of P rows for a ground container's contents (the
+ * counterpart to zonefile_emit_mob_children()'s G-carried-container case,
+ * but for an O-loaded object instead). */
+static void zonefile_emit_ground_children(int zone_nr, int *next_cmd_no, obj_t *ground_obj) {
+    if (!obj_is_container(ground_obj))
+        return;
+    for (thing_t *c = ground_obj->base.stuff_head; c; c = c->stuff_next) {
+        if (c->kind != THING_OBJ)
+            continue;
+        zone_repo_insert_reset_cmd(zone_nr, (*next_cmd_no)++, 'P', 1,
+                                    ((obj_t *)c)->vnum, 0, 0, 0, "zonefile create");
+    }
+}
+
+void zone_file_create(int zone_nr, int *out_mobs_added, int *out_objs_added) {
+    int mobs_added = 0, objs_added = 0;
+
+    zone_t z;
+    if (!zone_repo_load_one(zone_nr, &z)) {
+        if (out_mobs_added) *out_mobs_added = 0;
+        if (out_objs_added) *out_objs_added = 0;
+        return;
+    }
+
+    static zone_reset_cmd_t existing[MAX_RESETS_PER_ZONE];
+    int existing_n = zone_repo_load_resets(zone_nr, existing, MAX_RESETS_PER_ZONE);
+
+    int next_cmd_no = 0;
+    for (int i = 0; i < existing_n; i++)
+        if (existing[i].cmd_no >= next_cmd_no)
+            next_cmd_no = existing[i].cmd_no + 1;
+
+    for (int room_vnum = z.bottom; room_vnum <= z.top; room_vnum++) {
+        room_t *room = zone_get_room(room_vnum);
+        if (!room)
+            continue;
+
+        zonefile_group_t mob_groups[ZONEFILE_MAX_DISTINCT];
+        int mob_group_n = 0;
+        zonefile_group_t obj_groups[ZONEFILE_MAX_DISTINCT];
+        int obj_group_n = 0;
+
+        for (thing_t *t = room->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind == THING_MOB)
+                zonefile_group_add(mob_groups, &mob_group_n, t->id, t);
+            else if (t->kind == THING_OBJ)
+                zonefile_group_add(obj_groups, &obj_group_n, t->id, t);
+        }
+
+        for (int i = 0; i < mob_group_n; i++) {
+            if (zonefile_covered(existing, existing_n, 'M', room_vnum, mob_groups[i].vnum))
+                continue;
+            zone_repo_insert_reset_cmd(zone_nr, next_cmd_no++, 'M', 0,
+                                        mob_groups[i].vnum, mob_groups[i].count, room_vnum, 0,
+                                        "zonefile create");
+            mobs_added++;
+            zonefile_emit_mob_children(zone_nr, &next_cmd_no, (being_t *)mob_groups[i].sample);
+        }
+
+        for (int i = 0; i < obj_group_n; i++) {
+            if (zonefile_covered(existing, existing_n, 'O', room_vnum, obj_groups[i].vnum))
+                continue;
+            zone_repo_insert_reset_cmd(zone_nr, next_cmd_no++, 'O', 0,
+                                        obj_groups[i].vnum, obj_groups[i].count, room_vnum, 0,
+                                        "zonefile create");
+            objs_added++;
+            zonefile_emit_ground_children(zone_nr, &next_cmd_no, (obj_t *)obj_groups[i].sample);
+        }
+    }
+
+    if (out_mobs_added) *out_mobs_added = mobs_added;
+    if (out_objs_added) *out_objs_added = objs_added;
+}
+
 /* Matches ZONE_ASSIGN_MIN_LEVEL (cmd_internal.h) -- kept as a separate
  * literal here rather than shared via a header both files would need to
  * pull in just for one constant. */

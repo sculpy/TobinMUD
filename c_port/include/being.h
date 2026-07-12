@@ -213,6 +213,65 @@ const char *gender_object(gender_t g);
 const char *gender_possess(gender_t g);
 const char *gender_reflexive(gender_t g);
 
+/* Player classes (user 2026-07-11: "implement classes, 6 player classes:
+ * mage, cleric, warrior, thief, druid, monk. The rest of the sneezy
+ * classes are for mobs only"). Chosen at character creation, persisted in
+ * player.class as 0-5 so the enum values must stay stable. SneezyMUD's
+ * class system is a full multiclass bitmask (misc/defs.h's CLASS_*) plus
+ * per-class discipline/skill trees Tobin has none of yet (TODO.md: "Ignore
+ * DISC_* for now") -- this is single-class-only and affects just stat
+ * bonuses/HP scaling, not a skill system. Druid has no SneezyMUD
+ * equivalent (upstream's nature-caster analog is Shaman, not ported) --
+ * new design, not a port. */
+typedef enum {
+    CLASS_MAGE = 0,
+    CLASS_CLERIC,
+    CLASS_WARRIOR,
+    CLASS_THIEF,
+    CLASS_DRUID,
+    CLASS_MONK,
+    CLASS_COUNT
+} player_class_t;
+
+/* Display name ("Mage", "Cleric", ...), capitalized -- score/who. */
+const char *class_name(player_class_t c);
+
+/* Applies `c`'s fixed stat bonus/penalty to `*a` IN PLACE (added on top of
+ * whatever the player already point-bought) -- called once, at character
+ * creation. Every class's bonuses and penalties net to zero. Loosely
+ * mirrors the RELATIVE shape of the user's pre-approved stat-affinity spec
+ * (TODO.md): mage high INT/low STR, warrior high CON+STR/dump CHA+WIS,
+ * thief high DEX/low STR, cleric high WIS/low STR+DEX, monk STR+CON/low
+ * CHA; druid (new) high WIS+CON/low INT. */
+void class_stat_bonus(player_class_t c, attrs_t *a);
+
+/* Player races (user 2026-07-11: "implement races, 6 player races: human,
+ * elf, ogre, dwarf, hobbit, gnome. The rest of the sneezy races are for
+ * mobs only"). Chosen at character creation, persisted in player.race as
+ * 0-5. New design (Tobin has no race stat-modifier system to port --
+ * SneezyMUD's race table wasn't found carrying attribute bonuses either,
+ * see TODO.md), following the same "one dominant trait, net-zero bonus/
+ * penalty" shape as classes above. Human is the deliberate baseline: no
+ * modifier at all, matching the classic MUD "versatile, unremarkable"
+ * convention. */
+typedef enum {
+    RACE_HUMAN = 0,
+    RACE_ELF,
+    RACE_OGRE,
+    RACE_DWARF,
+    RACE_HOBBIT,
+    RACE_GNOME,
+    RACE_COUNT
+} player_race_t;
+
+/* Display name ("Human", "Elf", ...), capitalized -- score/who. */
+const char *race_name(player_race_t r);
+
+/* Applies `r`'s fixed stat bonus/penalty to `*a` IN PLACE, same convention
+ * as class_stat_bonus() -- called once at creation, alongside (not instead
+ * of) the class bonus. */
+void race_stat_bonus(player_race_t r, attrs_t *a);
+
 typedef struct being {
     thing_t base;        /* first member -- see thing.h */
     long account_id;
@@ -220,6 +279,14 @@ typedef struct being {
     int mob_actions;     /* THING_MOB only, 0 for a PC: mob.actions bitmask
                           * (ACT_* in mob_ai.c), copied verbatim from the
                           * prototype at spawn time (mob_repo.h). */
+    /* THING_MOB only, 0 for a PC: mob.align (new column, mob_repo.h),
+     * copied at spawn time same as mob_actions. -1 evil, 0 unaligned
+     * (existing behavior, untouched), 1 good -- see mob_ai.c's
+     * mob_try_aggress() for how an ACT_AGGRESSIVE mob's alignment changes
+     * who it attacks/taunts/supports (user 2026-07-11: "good will attack
+     * evil and evil will attack good randomly ... people who are neutral
+     * should be taunted by evil and supported by good"). */
+    int mob_align;
     attrs_t attrs;
     progress_t progress;
     limb_state_t limbs[LIMB_COUNT];
@@ -245,15 +312,34 @@ typedef struct being {
     /* Gender (player.gender) -- chosen at creation, drives pronouns. */
     gender_t gender;
 
+    /* Class/race (player.class/player.race) -- chosen at creation, stat
+     * bonuses already folded into `attrs` by then (class_stat_bonus()/
+     * race_stat_bonus()). Meaningless for mobs (always CLASS_MAGE/
+     * RACE_HUMAN, i.e. 0, since mobs don't have either). */
+    player_class_t char_class;
+    player_race_t race;
+
     /* Free-text self-description (player.appearance), set at creation and
      * shown by `look <player>`/`score`. Empty = none set. */
     char appearance[BEING_APPEARANCE_LEN];
 
-    /* Custom move messages, immortal-only (player.bamfin/bamfout). Empty =
-     * use the default "exits to the <dir>"/"has arrived" wording
-     * (cmd_move.c). May contain the tokens `$d` (direction word) and `$p`
-     * (gender_possess() pronoun) -- e.g. "drags $p cross in from the $d".
-     * Set via the `bamfin`/`bamfout` commands (cmd_bamf.c). */
+    /* Custom WALKING move messages, immortal-only (player.poofin/poofout;
+     * named "bamfin"/"bamfout" until user 2026-07-11: "bamfin|out should
+     * modify goto messaging and the current bamfin|out should be called
+     * something else following the in|out syntax" freed that name up for
+     * `goto`, below). Empty = use the default "exits to the <dir>"/"has
+     * arrived" wording (cmd_move.c). May contain the tokens `$d` (direction
+     * word) and `$p` (gender_possess() pronoun) -- e.g. "drags $p cross in
+     * from the $d". Set via the `poofin`/`poofout` commands (cmd_poof.c). */
+    char poofin[BEING_BAMF_LEN];
+    char poofout[BEING_BAMF_LEN];
+
+    /* Custom TELEPORT (`goto`) messages, immortal-only (player.bamfin/
+     * bamfout -- see the poofin/poofout comment above for why this name
+     * moved here). Empty = the default "$name disappears/appears in a puff
+     * of smoke." wording (cmd_goto.c). May contain `$p` (gender_possess()
+     * pronoun) -- there's no `$d` equivalent, `goto` has no direction. Set
+     * via the `bamfin`/`bamfout` commands (cmd_bamf.c). */
     char bamfin[BEING_BAMF_LEN];
     char bamfout[BEING_BAMF_LEN];
 

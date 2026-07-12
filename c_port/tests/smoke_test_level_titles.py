@@ -110,6 +110,9 @@ def make_player(tag):
     recv_all(s)
     send_line(s, "done")
     recv_all(s)
+    send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
+    send_line(s, "1"); recv_all(s)  # class: mage
+    send_line(s, "2"); recv_all(s)  # alignment: neutral
     return s, name
 
 
@@ -177,7 +180,8 @@ for level, expected_title in tiers:
     pad = width - len(expected_title)
     left, right = pad // 2, pad - pad // 2
     bracketed = f"[{' ' * left}{expected_title}{' ' * right}]"
-    check(f"{bracketed} {proper(name)}" in out, f"level {level} who shows '{bracketed}' next to the name")
+    check(f"{bracketed} {proper(name)}" in out,
+          f"level {level} who shows '{bracketed}' next to the name")
     # The name must NOT be colored; the rank color wraps the bracket instead.
     # In the raw stream an ANSI reset should sit right after the bracket's ']'
     # and immediately before the (uncolored) name.

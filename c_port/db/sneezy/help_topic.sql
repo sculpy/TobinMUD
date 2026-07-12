@@ -299,6 +299,14 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('edzone', 'Usage: edzone <zone number>\n\nMenu-driven zone editor (level 51+, but see below): change a zone''s\nname, enabled state, lifespan, and vnum range; assign or un-assign\nbuilders (selecting a builder already assigned un-assigns them); or\nforce a reset right now. A level 51-54 builder can only edzone (or\nedroom) a zone they are assigned to -- editing any other zone is\nrefused. 55+ can always edit anything, and content outside any zone is\nunrestricted for every builder.', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
+-- New topic: `zonefile` (2026-07-11, user: "zonefile create should create
+-- a zone file with the current status of the zone and its contents...
+-- you should also be able to delete a line from the zone file, rerun
+-- zonefile create and it fills in the blanks").
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('zonefile', 'Usage: zonefile create <zone number>\n\nBuilder tool (level 51+, same zone-assignment rule as `edzone`).\nSnapshots the zone''s CURRENT live state -- every mob and object\nactually sitting in its rooms right now, including a mob''s\nequipped/held/carried items and a container''s contents -- into new\nreset data, so the next boot or periodic reset recreates exactly what\nyou''ve built. Safe to re-run: a room+item pairing already covered by\nexisting reset data is left untouched, so deleting one reset line and\nrunning `zonefile create` again only fills in what that deletion left\nuncovered -- it never duplicates what''s already there. An item worn or\nwielded by a mob (as opposed to carried or sitting on the ground) can''t\nhave its own contents captured if it''s a container.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
 -- New topic: `time` (2026-07-10) -- the day/date system.
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('time', 'Usage: time\n\nShows the current mud clock, the day of the week, and the date --\n"It is 3:45 PM, on Wednesday" / "The 5th day of March, Year 1." The\nclock advances on its own as real time passes; noon, midnight, and the\nturn of a new month or year are announced to everyone.', 'seed')
@@ -342,11 +350,36 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('drink', 'Usage: drink <puddle>\n\nDrinks from a puddle on the ground -- a pool of pee, or a pool of\nblood left by a badly wounded limb. There is a chance of getting\npoisoned (a scare, not lethal on its own). Purely for flavor.', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
--- New topics: `bamfin`/`bamfout` (2026-07-11; named "poofin"/"poofout"
--- originally, renamed per user request the same session).
+-- New topics: `poofin`/`poofout` (2026-07-11; named "bamfin"/"bamfout"
+-- until later the same session, when that name moved to `goto`'s
+-- messages instead -- see the `bamfin`/`bamfout` topics further below).
+--
+-- Migration ordering matters here: an already-deployed DB still has rows
+-- literally NAMED `bamfin`/`bamfout` (the OLD, pre-rename topic pair) --
+-- rename them to `poofin`/`poofout` FIRST (preserving their content,
+-- rewritten for the new WALKING-specific wording), THEN insert-if-missing
+-- covers a fresh install that never had the old rows to rename. Doing the
+-- INSERT first would collide with this rename on an already-deployed DB
+-- (both would try to claim the name `poofin`).
+UPDATE `help_topic` SET `name` = 'poofin',
+  `body` = 'Usage: poofin <message>\n       poofin none\n\nImmortal-only: sets your own custom WALKING arrival message,\nreplacing the default "has arrived" wording -- e.g. "drags $p cross\nin from the $d" reads as "Jesus drags his cross in from the east."\n`$d` is replaced with the direction you arrived from; `$p` with your\ngender''s possessive pronoun (his/her/their), so the same message\nreads correctly no matter who sets it. `poofin none` (or `clear`)\nreverts to the default wording. For `goto`''s own messages, see\n`help bamfin`.'
+  WHERE `name` = 'bamfin' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `name` = 'poofout',
+  `body` = 'Usage: poofout <message>\n       poofout none\n\nImmortal-only: sets your own custom WALKING departure message,\nreplacing the default "exits to the <direction>" wording. Same\n`$d`/`$p` token rules as `poofin` -- see `help poofin`.'
+  WHERE `name` = 'bamfout' AND `updated_by` = 'seed';
+
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
-('bamfin', 'Usage: bamfin <message>\n       bamfin none\n\nImmortal-only: sets your own custom arrival message, replacing the\ndefault "has arrived" wording -- e.g. "drags $p cross in from the\n$d" reads as "Jesus drags his cross in from the east." `$d` is\nreplaced with the direction you arrived from; `$p` with your\ngender''s possessive pronoun (his/her/their), so the same message\nreads correctly no matter who sets it. `bamfin none` (or `clear`)\nreverts to the default wording.', 'seed'),
-('bamfout', 'Usage: bamfout <message>\n       bamfout none\n\nImmortal-only: sets your own custom departure message, replacing\nthe default "exits to the <direction>" wording. Same `$d`/`$p`\ntoken rules as `bamfin` -- see `help bamfin`.', 'seed')
+('poofin', 'Usage: poofin <message>\n       poofin none\n\nImmortal-only: sets your own custom WALKING arrival message,\nreplacing the default "has arrived" wording -- e.g. "drags $p cross\nin from the $d" reads as "Jesus drags his cross in from the east."\n`$d` is replaced with the direction you arrived from; `$p` with your\ngender''s possessive pronoun (his/her/their), so the same message\nreads correctly no matter who sets it. `poofin none` (or `clear`)\nreverts to the default wording. For `goto`''s own messages, see\n`help bamfin`.', 'seed'),
+('poofout', 'Usage: poofout <message>\n       poofout none\n\nImmortal-only: sets your own custom WALKING departure message,\nreplacing the default "exits to the <direction>" wording. Same\n`$d`/`$p` token rules as `poofin` -- see `help poofin`.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- New topics: `bamfin`/`bamfout` (2026-07-11, freed up from the WALKING
+-- move-message feature above, user: "bamfin|out should modify goto
+-- messaging"; follow-ups the same session: "<N> should work in this as
+-- well as $g" and "and $p").
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('bamfin', 'Usage: bamfin <message>\n       bamfin none\n\nImmortal-only: sets your own custom `goto` ARRIVAL message, shown to\neveryone already in the room you teleport into -- replaces the\ndefault "<Name> appears in a puff of smoke." wording. Three tokens:\n`<N>` (your name -- may appear anywhere in the message, e.g. "The\nair crackles and <N> steps through."), `$g` (the room''s\nground-surface word, e.g. "ground"/"street"/"sand"), and `$p` (your\ngender''s possessive pronoun). `bamfin none` (or `clear`) reverts to\nthe default wording. For the WALKING equivalent, see `help poofin`.', 'seed'),
+('bamfout', 'Usage: bamfout <message>\n       bamfout none\n\nImmortal-only: sets your own custom `goto` DEPARTURE message, shown\nto everyone in the room you teleport away from -- replaces the\ndefault "<Name> disappears in a puff of smoke." wording. Same\n`<N>`/`$g`/`$p` token rules as `bamfin` -- see `help bamfin`. Your\nown private "You vanish in a puff of smoke." line is unaffected\neither way.', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- The `set` body changed (now also covers alignment, 2026-07-10) -- the
@@ -379,3 +412,40 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 -- (fountains, drink containers), not just pee/blood puddles.
 UPDATE `help_topic` SET `body` = 'Usage: drink <puddle|fountain>\n\nDrinks from a puddle on the ground -- a pool of pee, or a pool of\nblood left by a badly wounded limb -- with a chance of getting\npoisoned (a scare, not lethal on its own). Also works on a real\nfountain or drink container in the room: clean water, no poison,\nnever runs dry. Purely for flavor.'
   WHERE `name` = 'drink' AND `updated_by` = 'seed';
+
+-- Migration: `toggle` no longer shows/sets game-wide switches at all --
+-- they moved to the new `gametog` (58+) command.
+UPDATE `help_topic` SET `body` = 'Usage: toggle [name]\n\nWith no argument, lists your PERSONAL on/off switches (color, hp, ...)\nand their current values. `toggle <name>` flips one (abbreviations\nwelcome). Global game-wide switches like multiplay live in the\nseparate `gametog` command (58+) instead.'
+  WHERE `name` = 'toggle' AND `updated_by` = 'seed';
+
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('gametog', 'Usage: gametog [name]\n\nImmortal tool (58+): view or flip GLOBAL game-wide switches --\ncurrently just multiplay (whether mortals may run more than one\ncharacter at once). Split out of `toggle` so a mortal never sees a\nswitch that could affect other players. See `help toggle` for the\npersonal-switch command.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Migration: `bug` now also mentions `edbug` as the resolve-in-place
+-- alternative to `delbug`.
+UPDATE `help_topic` SET `body` = 'Usage: bug <description>\n\nReports a bug to the immortals -- your name and the date are recorded\nwith it. Please be specific about what you did and what went wrong.\nImmortals can type bug with no argument to list outstanding (not yet\nresolved) reports. See `edbug` to resolve one and `delbug` to remove\none outright.'
+  WHERE `name` = 'bug' AND `updated_by` = 'seed';
+
+-- New topic: `edbug` (2026-07-11) -- resolve a bug in place, TODO.md-planned.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('edbug', 'Usage: edbug <id> [note for the submitter]\n\nAdministrator (59+) only: marks a bug report resolved WITHOUT deleting\nit (unlike `delbug`), so the report stays on file. If the submitter is\nonline right now, they get a live notice of the resolution -- and your\nnote, if you gave one. A resolved report no longer appears in the\noutstanding `bug` list. The id is the number shown beside each report\nin `bug`.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- New topic: `snoop` (2026-07-11, user: "implement a snoop command like
+-- sneezy, the command should be 59+ where you cant snoop anyone of same
+-- or higher level").
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('snoop', 'Usage: snoop [name]\n\nSilently watches everything a lower-level player sees AND everything\nthey type, mirrored to your own screen in real time (their typed\ncommands are prefixed "% " so you can tell them apart from their\noutput). You cannot snoop anyone of your own level or higher -- it\nfails outright. Only one outgoing snoop at a time; snooping a new\ntarget drops the old one. Bare `snoop` (no name) stops your current\nsnoop. The target is never told. Covert by design -- logged quietly,\nnever broadcast.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Migration: `snoop`'s body changed three times within the same session
+-- (the level-gate phrasing moved out to the Syntax/Minimum Level footer,
+-- user 2026-07-11: "take this phrasing out"; then bare `snoop` gained the
+-- self-stop default; then the output mirror itself gained the same "% "
+-- marker the typed-command mirror already had, user 2026-07-11: "add a
+-- special prompt to messages sent in snoop (%) snooped content") -- the
+-- INSERT above is a no-op on the already-seeded row from the first
+-- deploy, so update it explicitly each time.
+UPDATE `help_topic` SET `body` = 'Usage: snoop [name]\n\nSilently watches everything a lower-level player sees AND everything\nthey type, mirrored to your own screen in real time -- every mirrored\nline (their typed commands AND their own output alike) is prefixed\n"% " so you can tell it apart from your own screen. You cannot snoop\nanyone of your own level or higher -- it fails outright. Only one\noutgoing snoop at a time; snooping a new target drops the old one.\nBare `snoop` (no name) stops your current snoop. The target is never\ntold. Covert by design -- logged quietly, never broadcast.'
+  WHERE `name` = 'snoop' AND `updated_by` = 'seed';

@@ -34,6 +34,9 @@ typedef enum {
     CONN_ACCOUNT_MENU,
     CONN_CHAR_CREATE_NAME,
     CONN_CHAR_CREATE_ATTRS,
+    CONN_CHAR_CREATE_RACE,      /* after attrs "done": pick one of 6 races */
+    CONN_CHAR_CREATE_CLASS,     /* after race: pick one of 6 classes */
+    CONN_CHAR_CREATE_ALIGNMENT, /* after class: pick good/neutral/evil, then create */
     CONN_CHAR_DELETE_CONFIRM,
     CONN_CHAR_DELETE_PASSWORD, /* typed YES accepted; now re-verify the account password */
     CONN_ACCOUNT_DELETE_CONFIRM,
@@ -148,12 +151,16 @@ typedef struct descriptor {
     int char_levels[MAX_CHARS_PER_ACCOUNT];
     int char_count;
 
-    /* CONN_CHAR_CREATE_NAME / CONN_CHAR_CREATE_ATTRS scratch. */
+    /* CONN_CHAR_CREATE_NAME / CONN_CHAR_CREATE_ATTRS / CONN_CHAR_CREATE_RACE /
+     * CONN_CHAR_CREATE_CLASS / CONN_CHAR_CREATE_ALIGNMENT scratch. */
     char new_char_name[PLAYER_NAME_LEN];
     attrs_t new_char_attrs;
     int new_char_handed; /* 1 right (default), 0 left */
     gender_t new_char_gender; /* GENDER_NEUTER default */
     char new_char_appearance[BEING_APPEARANCE_LEN]; /* empty default */
+    player_race_t new_char_race;   /* chosen in CONN_CHAR_CREATE_RACE */
+    player_class_t new_char_class; /* chosen in CONN_CHAR_CREATE_CLASS */
+    int new_char_alignment;        /* chosen in CONN_CHAR_CREATE_ALIGNMENT: -500/0/500 */
 
     /* CONN_CHAR_DELETE_CONFIRM scratch. */
     char delete_char_name[PLAYER_NAME_LEN];
@@ -231,6 +238,17 @@ typedef struct descriptor {
      * HELD_MSG_TTL is dropped by the descriptor_held_expire() pulse. */
     struct { long when; char text[HELD_MSG_LEN]; } held[HELD_MSG_MAX];
     int held_count;
+
+    /* `snoop` (59+, cmd_snoop.c): one outgoing snoop per descriptor at a
+     * time. `snoop_target` is who I'm watching (NULL if none); `snooped_by`
+     * is who's watching ME (NULL if nobody). descriptor_send() mirrors
+     * everything sent to a snooped descriptor over to its watcher, and the
+     * CONN_PLAYING input handler mirrors the snooped player's own typed
+     * lines too (prefixed "% "), matching classic DikuMUD/Sneezy snoop.
+     * Both pointers are unhooked in descriptor_destroy() so neither side
+     * ever ends up pointing at a freed descriptor. */
+    struct descriptor *snoop_target;
+    struct descriptor *snooped_by;
 
     struct descriptor *next; /* intrusive list of all active descriptors */
 } descriptor_t;

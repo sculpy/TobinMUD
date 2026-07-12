@@ -337,6 +337,13 @@ void descriptor_destroy(descriptor_t *d) {
         d->character->desc = NULL;
     }
 
+    /* Unhook any live `snoop` relationship in either direction so neither
+     * side is left pointing at a descriptor about to be freed. */
+    if (d->snoop_target)
+        d->snoop_target->snooped_by = NULL;
+    if (d->snooped_by)
+        d->snooped_by->snoop_target = NULL;
+
     close(d->fd);
     free(d);
 }
@@ -377,6 +384,26 @@ void descriptor_send(descriptor_t *d, const char *msg) {
     }
 
     socket_write(d->fd, normalized, out);
+
+    /* `snoop` mirror: whatever this descriptor sees, its watcher (if any)
+     * sees too -- the exact same bytes already rendered for THIS
+     * descriptor's own color preference (matching a real snoop: you're
+     * watching their literal screen, not re-rendering for your own). A
+     * direct socket_write, not a recursive descriptor_send() call, so a
+     * chain/cycle of snoops can never recurse.
+     *
+     * A "% " marker (same literal prefix the typed-command mirror below
+     * already uses) is written ahead of every mirrored output chunk too
+     * (user 2026-07-11: "add a special prompt to messages sent in snoop
+     * (%) snooped content") -- before this, only the target's typed
+     * commands were marked; their OWN output was mirrored completely
+     * unmarked, indistinguishable from the snooper's own screen. */
+    if (d->snooped_by) {
+        static const char marker[] = "% ";
+        socket_write(d->snooped_by->fd, marker, strlen(marker));
+        socket_write(d->snooped_by->fd, normalized, out);
+    }
+
     free(normalized);
     free(colored);
     d->needs_prompt = true; /* the game loop's prompter picks this up */
@@ -633,6 +660,62 @@ static void show_attr_screen(descriptor_t *d) {
     descriptor_send(d, out);
 }
 
+/* CONN_CHAR_CREATE_RACE / CONN_CHAR_CREATE_CLASS / CONN_CHAR_CREATE_ALIGNMENT
+ * (user 2026-07-11: "implement races, 6 player races" / "implement classes,
+ * 6 player classes" / "ask player to choose initial alignment"): three
+ * short numbered-choice steps between attribute allocation and actually
+ * creating the character. Race and class each apply a fixed stat bonus/
+ * penalty on top of the point-buy attrs already chosen (race_stat_bonus()/
+ * class_stat_bonus(), being.c) -- shown live so the player sees the actual
+ * post-bonus numbers before confirming. */
+static void show_race_screen(descriptor_t *d) {
+    char out[900];
+    snprintf(out, sizeof(out),
+             "\r\n-- Choose a race for %s --\r\n"
+             "Each race applies a fixed shift on top of the attributes you already\r\n"
+             "allocated.\r\n\r\n"
+             "  1) Human   -- no change, a versatile baseline\r\n"
+             "  2) Elf     -- +2 Dex, +2 Int, -4 Con\r\n"
+             "  3) Ogre    -- +4 Str, -2 Int, -2 Cha\r\n"
+             "  4) Dwarf   -- +4 Con, -2 Dex, -2 Cha\r\n"
+             "  5) Hobbit  -- +4 Dex, -2 Str, -2 Con\r\n"
+             "  6) Gnome   -- +4 Int, -2 Str, -2 Con\r\n\r\n"
+             "Enter a number (1-6), or 'quit!' to cancel: ",
+             d->new_char_name);
+    descriptor_send(d, out);
+}
+
+static void show_class_screen(descriptor_t *d) {
+    char out[900];
+    snprintf(out, sizeof(out),
+             "\r\n-- Choose a class for %s --\r\n"
+             "Each class shifts your attributes further, on top of your race.\r\n\r\n"
+             "  1) Mage     -- +4 Int, -4 Str\r\n"
+             "  2) Cleric   -- +4 Wis, -2 Str, -2 Dex\r\n"
+             "  3) Warrior  -- +3 Con, +3 Str, -3 Cha, -3 Wis\r\n"
+             "  4) Thief    -- +4 Dex, -4 Str\r\n"
+             "  5) Druid    -- +2 Wis, +2 Con, -4 Int\r\n"
+             "  6) Monk     -- +2 Str, +2 Con, -4 Cha\r\n\r\n"
+             "Enter a number (1-6), or 'quit!' to cancel: ",
+             d->new_char_name);
+    descriptor_send(d, out);
+}
+
+static void show_alignment_screen(descriptor_t *d) {
+    char out[500];
+    snprintf(out, sizeof(out),
+             "\r\n-- Choose an alignment for %s --\r\n"
+             "  1) Good     -- other good-aligned mobs leave you be; evil ones may\r\n"
+             "                 target you, and you'll never be picked on by mobs that\r\n"
+             "                 favor good\r\n"
+             "  2) Neutral  -- no faction leans your way, but you may draw the odd\r\n"
+             "                 taunt from evil or word of support from good\r\n"
+             "  3) Evil     -- the mirror of Good\r\n\r\n"
+             "Enter a number (1-3), or 'quit!' to cancel: ",
+             d->new_char_name);
+    descriptor_send(d, out);
+}
+
 /* Shared finish-up for both "play an existing character" and "just
  * finished creating one": place them in their load room and start play. */
 static void enter_world(descriptor_t *d, being_t *b) {
@@ -729,8 +812,11 @@ static void enter_world(descriptor_t *d, being_t *b) {
  * line (2+ consecutive newlines) is kept as a paragraph break. The
  * original line breaks *within* a paragraph are discarded -- the classic
  * MUD editor "type without worrying about line length, then format"
- * convenience. Tobin-specific (no equivalent in the original -- see
- * TODO.md). */
+ * convenience. Every paragraph's FIRST line gets a 2-space indent (user
+ * 2026-07-11: "in the /format command in the editor, always indent a
+ * paragraph with 2 spaces") -- wrapped continuation lines within the same
+ * paragraph do not get re-indented, standard prose-paragraph style.
+ * Tobin-specific (no equivalent in the original -- see TODO.md). */
 static void editor_format(descriptor_t *d) {
     char out[HELP_BODY_MAX];
     size_t oi = 0;
@@ -762,7 +848,13 @@ static void editor_format(descriptor_t *d) {
             p++;
         size_t wlen = (size_t)(p - wstart);
 
-        if (!at_para_start) {
+        if (at_para_start) {
+            if (oi + 2 >= sizeof(out))
+                break;
+            out[oi++] = ' ';
+            out[oi++] = ' ';
+            col = 2;
+        } else {
             if (col + 1 + wlen > EDITOR_FORMAT_WIDTH) {
                 if (oi + 1 >= sizeof(out))
                     break;
@@ -1582,14 +1674,28 @@ static bool handle_line(descriptor_t *d, const char *line) {
              * blocklists are not ported -- no such lists exist in Tobin.) */
             {
                 size_t name_len = strlen(line);
-                bool name_ok = name_len >= 3 && name_len <= 15;
-                for (size_t i = 0; name_ok && i < name_len; i++) {
-                    if (!isalpha((unsigned char)line[i]))
-                        name_ok = false;
+                bool has_bad_char = false;
+                for (size_t i = 0; i < name_len; i++) {
+                    if (!isalpha((unsigned char)line[i])) {
+                        has_bad_char = true;
+                        break;
+                    }
                 }
-                if (!name_ok) {
+                if (name_len < 3) {
                     descriptor_send(d,
-                        "Names must be 3 to 15 letters -- no numbers, spaces, or symbols.\r\n"
+                        "That name is too short -- names must be at least 3 letters long.\r\n"
+                        "New character name (or 'quit!' to cancel): ");
+                    return true;
+                }
+                if (name_len > 15) {
+                    descriptor_send(d,
+                        "That name is too long -- names must be no more than 15 letters long.\r\n"
+                        "New character name (or 'quit!' to cancel): ");
+                    return true;
+                }
+                if (has_bad_char) {
+                    descriptor_send(d,
+                        "Names may only contain letters -- no numbers, spaces, or symbols.\r\n"
                         "New character name (or 'quit!' to cancel): ");
                     return true;
                 }
@@ -1670,16 +1776,11 @@ static bool handle_line(descriptor_t *d, const char *line) {
             }
 
             if (strcasecmp(line, "done") == 0) {
-                being_t *b = player_create(d->new_char_name, d->account.account_id,
-                                           &d->new_char_attrs, d->new_char_handed,
-                                           d->new_char_gender, d->new_char_appearance);
-                if (!b) {
-                    descriptor_send(d, "Could not create that character (name may already be taken).\r\n");
-                    d->state = CONN_ACCOUNT_MENU;
-                    show_account_menu(d);
-                    return true;
-                }
-                enter_world(d, b);
+                d->new_char_race = RACE_HUMAN;
+                d->new_char_class = CLASS_MAGE;
+                d->new_char_alignment = 0;
+                d->state = CONN_CHAR_CREATE_RACE;
+                show_race_screen(d);
                 return true;
             }
 
@@ -1722,6 +1823,81 @@ static bool handle_line(descriptor_t *d, const char *line) {
             }
 
             show_attr_screen(d);
+            return true;
+        }
+
+        case CONN_CHAR_CREATE_RACE: {
+            if (strcasecmp(line, "quit!") == 0) {
+                descriptor_send(d, "Character creation cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            int choice = 0;
+            if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > RACE_COUNT) {
+                descriptor_send(d, "Enter a number from 1 to 6, or 'quit!'.\r\n");
+                show_race_screen(d);
+                return true;
+            }
+            d->new_char_race = (player_race_t)(choice - 1);
+            race_stat_bonus(d->new_char_race, &d->new_char_attrs);
+            d->state = CONN_CHAR_CREATE_CLASS;
+            show_class_screen(d);
+            return true;
+        }
+
+        case CONN_CHAR_CREATE_CLASS: {
+            if (strcasecmp(line, "quit!") == 0) {
+                descriptor_send(d, "Character creation cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            int choice = 0;
+            if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > CLASS_COUNT) {
+                descriptor_send(d, "Enter a number from 1 to 6, or 'quit!'.\r\n");
+                show_class_screen(d);
+                return true;
+            }
+            d->new_char_class = (player_class_t)(choice - 1);
+            class_stat_bonus(d->new_char_class, &d->new_char_attrs);
+            d->state = CONN_CHAR_CREATE_ALIGNMENT;
+            show_alignment_screen(d);
+            return true;
+        }
+
+        case CONN_CHAR_CREATE_ALIGNMENT: {
+            if (strcasecmp(line, "quit!") == 0) {
+                descriptor_send(d, "Character creation cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            int choice = 0;
+            if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > 3) {
+                descriptor_send(d, "Enter a number from 1 to 3, or 'quit!'.\r\n");
+                show_alignment_screen(d);
+                return true;
+            }
+            /* 1 Good -> +500, 2 Neutral -> 0, 3 Evil -> -500 -- solidly in
+             * alignment_word()'s "good"/"neutral"/"evil" tiers (>=350/
+             * between/<=-350), leaving room to drift toward saintly/demonic
+             * through play. */
+            static const int ALIGNMENT_CHOICES[3] = { 500, 0, -500 };
+            d->new_char_alignment = ALIGNMENT_CHOICES[choice - 1];
+
+            being_t *b = player_create(d->new_char_name, d->account.account_id,
+                                       &d->new_char_attrs, d->new_char_handed,
+                                       d->new_char_gender, d->new_char_appearance,
+                                       d->new_char_class, d->new_char_race,
+                                       d->new_char_alignment);
+            if (!b) {
+                descriptor_send(d, "Could not create that character (name may already be taken).\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            enter_world(d, b);
             return true;
         }
 
@@ -2530,6 +2706,17 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 if (d->edit_kind == EDIT_NONE) /* just left the editor */
                     descriptor_editor_exit_notice(d);
                 return true;
+            }
+
+            /* `snoop` mirror: the snooped player's own typed command line,
+             * prefixed "% " (classic DikuMUD/Sneezy convention) so the
+             * watcher can tell it apart from the target's own output. Sent
+             * before dispatch so command order matches what actually
+             * happened. */
+            if (d->snooped_by) {
+                char echo[600];
+                snprintf(echo, sizeof(echo), "%% %s\r\n", line);
+                descriptor_send(d->snooped_by, echo);
             }
 
             /* No explicit prompt here anymore (Session 21): the game

@@ -96,6 +96,9 @@ def create_account_and_character(tag, typed_name):
     recv_all(s)
     send_line(s, "done")
     recv_all(s)
+    send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
+    send_line(s, "1"); recv_all(s)  # class: mage
+    send_line(s, "2"); recv_all(s)  # alignment: neutral
     return s
 
 
@@ -154,22 +157,25 @@ recv_all(sVal)
 send_line(sVal, "new")
 recv_all(sVal)
 
-for bad, why in [
-    (f"Bad{_suffix}123", "a name containing digits is rejected"),
-    ("Bad guy", "a name containing a space is rejected"),
-    ("Bad-guy", "a name containing punctuation is rejected"),
-    ("Ab", "a 2-letter name is rejected (minimum is 3)"),
-    ("Toolongofanamexx", "a 16-letter name is rejected (maximum is 15)"),
+for bad, expected, why in [
+    (f"Bad{_suffix}123", "only contain letters", "a name containing digits is rejected"),
+    ("Bad guy", "only contain letters", "a name containing a space is rejected"),
+    ("Bad-guy", "only contain letters", "a name containing punctuation is rejected"),
+    ("Ab", "too short", "a 2-letter name is rejected (minimum is 3)"),
+    ("Toolongofanamexx", "too long", "a 16-letter name is rejected (maximum is 15)"),
 ]:
     send_line(sVal, bad)
     out = recv_all(sVal)
-    check("Names must be 3 to 15 letters" in out, why)
+    check(expected in out, why)
 
 valid_name = f"Goodguy{_suffix}"
 send_line(sVal, valid_name)
 recv_all(sVal)
 send_line(sVal, "done")
-out = recv_all(sVal)
+recv_all(sVal)
+send_line(sVal, "1"); recv_all(sVal)  # race: human (zero stat modifier)
+send_line(sVal, "1"); recv_all(sVal)  # class: mage
+send_line(sVal, "2"); out = recv_all(sVal)  # alignment: neutral
 check(f"Welcome, {valid_name.capitalize()}" in out,
       "a valid letters-only name still creates fine after rejections")
 sVal.close()
@@ -194,7 +200,10 @@ check("already taken" in out, "a duplicate character name is rejected (cross-acc
 send_line(sDup, f"Freshguy{_suffix}")
 recv_all(sDup)
 send_line(sDup, "done")
-out = recv_all(sDup)
+recv_all(sDup)
+send_line(sDup, "1"); recv_all(sDup)  # race: human (zero stat modifier)
+send_line(sDup, "1"); recv_all(sDup)  # class: mage
+send_line(sDup, "2"); out = recv_all(sDup)  # alignment: neutral
 check("Welcome, Freshguy" in out, "a unique name still creates after the rejection")
 sDup.close()
 

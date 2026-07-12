@@ -126,6 +126,21 @@ bool zone_repo_set_range(int zone_nr, int bottom, int top) {
     return ok;
 }
 
+bool zone_repo_insert_reset_cmd(int zone_nr, int cmd_no, char command, int if_flag,
+                                 int arg1, int arg2, int arg3, int arg4,
+                                 const char *comment) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    char cmd_str[2] = { command, '\0' };
+    bool ok = db_query(db,
+        "insert into zone_reset (zone_nr, cmd_no, command, if_flag, arg1, arg2, arg3, arg4, comment) "
+        "values (%i, %i, '%s', %i, %i, %i, %i, %i, '%s')",
+        zone_nr, cmd_no, cmd_str, if_flag, arg1, arg2, arg3, arg4, comment ? comment : "");
+    db_close(db);
+    return ok;
+}
+
 int zone_repo_load_resets(int zone_nr, zone_reset_cmd_t *out, int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

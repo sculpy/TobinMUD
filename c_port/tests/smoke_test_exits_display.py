@@ -6,9 +6,13 @@ East South West Southwest and colorize the string appropriatly").
   1. With color off, the line reads "[Exits:] North East ..." (capitalized
      directions), not the old "Obvious exits: north east ...".
   2. With color on, the "[Exits:]" label and the direction list are wrapped
-     in real ANSI escapes (translated from the <c>/<g> tags), not left as
-     literal "<c>"/"<g>" text leaking through.
+     in real ANSI escapes (translated from color tags), not left as
+     literal tag text leaking through.
   3. A dead-end room still falls back to "[Exits:] none".
+  4. The exits list is colored by the room's SECTOR, the same bright tag
+     the room NAME uses -- not a fixed color (user follow-up, 2026-07-11:
+     "the exit messages in a room should reflect the sector type and be
+     colored like name").
 
     python3 tests/smoke_test_exits_display.py [host] [port]
 """
@@ -95,11 +99,14 @@ def make_char(sock, name, pw):
     send_line(sock, "new"); recv_all(sock)
     send_line(sock, name); recv_all(sock)
     send_line(sock, "done"); recv_all(sock)
+    send_line(sock, "1"); recv_all(sock)  # race: human (zero stat modifier)
+    send_line(sock, "1"); recv_all(sock)  # class: mage
+    send_line(sock, "2"); recv_all(sock)  # alignment: neutral
 
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM_OPEN},0,0,0,'Exits Display Open','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM_OPEN},0,0,0,'Exits Display Open','A bare sandbox room.\\n',NULL,0,43,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
     f"VALUES ({ROOM_DEADEND},0,0,0,'Exits Display Deadend','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
@@ -132,6 +139,19 @@ out = cmd(s, "look")
 check("<c>" not in out and "<g>" not in out, "color-on look has no literal leaked color tags")
 check("\x1b[" in out, "color-on look contains real ANSI escapes")
 check("North" in out, "the direction text itself still reads correctly with color on")
+
+# --- 4: the exits list is colored by SECTOR, matching the room name's own
+# color, not a fixed color -- ROOM_OPEN was seeded with sector 43 (VOLCANO
+# LAVA), which maps to bright red (1;31m) via sector_color(). Checked
+# against the SAME `out` above -- a room's sector is only read at load
+# time (world.c never refreshes an already-loaded room from a later SQL
+# UPDATE), so this has to be set at INSERT time, not toggled mid-test. ---
+name_start = out.find("Exits Display Open")
+exits_start = out.find("North")
+name_color = out[max(0, name_start - 15):name_start]
+exits_color = out[max(0, exits_start - 15):exits_start]
+check("\x1b[1;31m" in name_color, "the room name renders in bright red for the lava sector")
+check("\x1b[1;31m" in exits_color, "the exits list ALSO renders in bright red, matching the name's sector color")
 
 # --- 3: a dead-end room falls back to "none" ---
 cmd(s, "color off")

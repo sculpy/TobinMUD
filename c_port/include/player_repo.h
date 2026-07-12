@@ -32,11 +32,17 @@ being_t *player_load(const char *name, long account_id);
 
 /* Creates a new player row linked to account_id with a default load_room,
  * plus a player_attrs row seeded from *attrs (or ATTR_BASE defaults if
- * attrs is NULL). Returns a freshly-allocated being_t. Fails if the name
- * is already taken (player.name is globally unique) or the account has
- * already reached MAX_CHARS_PER_ACCOUNT. */
+ * attrs is NULL). `char_class`/`race`/`alignment` are user 2026-07-11
+ * additions (chosen at creation, alongside stats/gender/appearance):
+ * `attrs` should already have class_stat_bonus()/race_stat_bonus() folded
+ * in by the caller (descriptor.c) -- this function just persists whatever
+ * it's given, it doesn't apply the bonuses itself. Returns a
+ * freshly-allocated being_t. Fails if the name is already taken
+ * (player.name is globally unique) or the account has already reached
+ * MAX_CHARS_PER_ACCOUNT. */
 being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
-                       int handed_right, gender_t gender, const char *appearance);
+                       int handed_right, gender_t gender, const char *appearance,
+                       player_class_t char_class, player_race_t race, int alignment);
 
 /* Deletes a player (and, via ON DELETE CASCADE, its player_attrs row) --
  * but only if it's owned by account_id. Returns false if not found/not
@@ -62,9 +68,16 @@ bool player_set_load_room(const char *name, long account_id, int vnum);
  * A NULL/empty title clears the column (SQL NULL). Account-scoped. */
 bool player_set_title(const char *name, long account_id, const char *title);
 
-/* Sets `player.bamfin`/`player.bamfout` -- back the `bamfin`/`bamfout`
- * commands (cmd_bamf.c). A NULL/empty message clears the column (falls
- * back to the default move-message wording). */
+/* Sets `player.poofin`/`player.poofout` (custom WALKING move messages) --
+ * back the `poofin`/`poofout` commands (cmd_poof.c). A NULL/empty message
+ * clears the column (falls back to the default move-message wording). */
+bool player_set_poofin(const char *name, long account_id, const char *msg);
+bool player_set_poofout(const char *name, long account_id, const char *msg);
+
+/* Sets `player.bamfin`/`player.bamfout` (custom `goto` teleport messages)
+ * -- back the `bamfin`/`bamfout` commands (cmd_bamf.c). A NULL/empty
+ * message clears the column (falls back to the default puff-of-smoke
+ * wording). */
 bool player_set_bamfin(const char *name, long account_id, const char *msg);
 bool player_set_bamfout(const char *name, long account_id, const char *msg);
 

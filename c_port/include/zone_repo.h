@@ -48,6 +48,15 @@ int zone_repo_load_owner_names(int zone_nr, char names[][64], int max);
  * loaded (capped at `max`). */
 int zone_repo_load_resets(int zone_nr, zone_reset_cmd_t *out, int max);
 
+/* Appends one new reset row for `zone_nr` at `cmd_no` (caller's
+ * responsibility to pick one higher than any existing row for that zone,
+ * so it executes after everything already there -- see zone.c's
+ * zone_file_create()). `comment` may be "" but not NULL. Fails (false) if
+ * `cmd_no` collides with an existing row (primary key is zone_nr+cmd_no). */
+bool zone_repo_insert_reset_cmd(int zone_nr, int cmd_no, char command, int if_flag,
+                                 int arg1, int arg2, int arg3, int arg4,
+                                 const char *comment);
+
 /* Zone ownership (Session 43, user: "add identity to zones"). Backs
  * `zoneassign` (cmd_zoneassign.c) and the edit gate (zone.h's
  * zone_can_edit()). A zone can have multiple assigned builders; a builder

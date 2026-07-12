@@ -97,7 +97,10 @@ step(s, "password (first entry)", password)
 step(s, "confirm password -> menu", password)
 step(s, "new", "new")
 step(s, "char name -> attr screen", char_name)
-out = step(s, "done -> playing", "done")
+step(s, "done -> race screen", "done")
+step(s, "race: human", "1")
+step(s, "class: mage", "1")
+out = step(s, "alignment: neutral -> playing", "2")
 check(f"Welcome, {expected_name}" in out, "character created and playing")
 
 # Bare "quit" (no bang) must NOT do anything -- confirm the char stays put.

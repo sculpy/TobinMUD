@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """Smoke test for the colorized help-topic format (cmd_help.c):
-  1. `help <cmd>` renders the description body in magenta (ANSI 35m).
-  2. It shows a cyan-labelled "Syntax:" line whose value is parsed from the
+  1. `help <cmd>` renders the description body in bright white (ANSI
+     1;37m -- was magenta before user 2026-07-11: "colorize help files
+     with <W>").
+  2. The header title-cases the command name ("-- Help: Color --", not
+     "-- Help: color --" -- user 2026-07-11: "proper case for the command").
+  3. It shows a cyan-labelled "Syntax:" line whose value is parsed from the
      body's leading "Usage:" line (so "color [on|off]", not just "color").
-  3. It shows a cyan-labelled "Minimum Level:" line from the command table.
-  4. The leading "Usage:" line is lifted out of the body (not shown twice).
+  4. It shows a cyan-labelled "Minimum Level:" line from the command table.
+  5. The leading "Usage:" line is lifted out of the body (not shown twice).
 
     python3 tests/smoke_test_help_format.py [host] [port]
 """
@@ -92,6 +96,9 @@ def make_char(nm):
     send_line(s, "new"); recv_all(s)
     send_line(s, nm); recv_all(s)
     send_line(s, "done"); recv_all(s)
+    send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
+    send_line(s, "1"); recv_all(s)  # class: mage
+    send_line(s, "2"); recv_all(s)  # alignment: neutral
     return s
 
 

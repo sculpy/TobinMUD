@@ -8,5 +8,7 @@ CREATE TABLE IF NOT EXISTS `bug` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `submitter` varchar(64) NOT NULL DEFAULT '',
   `body` text NOT NULL,
+  `resolved_at` timestamp NULL DEFAULT NULL,
+  `resolution` text DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

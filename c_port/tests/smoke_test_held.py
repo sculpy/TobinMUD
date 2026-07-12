@@ -97,7 +97,7 @@ def sql(stmt):
 def make_immortal(nm):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (nm, "y", "heldpw", "heldpw", "new", nm, "done"):
+    for step in (nm, "y", "heldpw", "heldpw", "new", nm, "done", "1", "1", "2"):
         send_line(s, step); recv_all(s)
     s.close()
     sql(f"UPDATE player_progress SET level=51 WHERE player_id="

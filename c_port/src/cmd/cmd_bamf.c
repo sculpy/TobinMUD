@@ -11,17 +11,21 @@
 
 #include "player_repo.h"
 
-/* `bamfin`/`bamfout` (user, 2026-07-11: "immorts should be able to set
- * their own enter or leave messages. Like Jesus drags his cross in from
- * the east. of course gender specific in the messaging" -- named
- * "poofin"/"poofout" originally, renamed per user request the same
- * session). Immortal-only, mirrors `title`'s set/clear/persist shape
- * (cmd_title.c). The stored message is a fragment completing "<Name> ___"
- * -- do_move (cmd_move.c) substitutes `$d` with the direction word and
- * `$p` with the mover's gender_possess() pronoun before showing it, e.g.
- * "drags $p cross in from the $d" becomes "Jesus drags his cross in from
- * the east." for a male Jesus moving east. Empty/`none`/`clear` reverts
- * to the default "exits to the <dir>"/"has arrived" wording. */
+/* `bamfin`/`bamfout` (user 2026-07-11: "bamfin|out should modify goto
+ * messaging and the current bamfin|out should be called something else
+ * following the in|out syntax" -- the WALKING move-message feature that
+ * used to own this name moved to `poofin`/`poofout`, cmd_poof.c, its
+ * ORIGINAL name). Immortal-only, same set/clear/persist shape as
+ * `poofin`/`poofout`/`title`. The stored message is a fragment completing
+ * "<Name> ___", shown to everyone else in the room `goto` departs from
+ * (bamfout) or arrives in (bamfin) -- see cmd_goto.c's announce_bamf().
+ * Supports three tokens (follow-up requests the same session: "<N> should
+ * work in this as well as $g"; "and $p"): `<N>`/`<n>` (the mover's name,
+ * may appear anywhere -- same convention as a player's `title`, cmd_who.c),
+ * `$g`/`$$g` (the destination/departure room's ground-surface word,
+ * obj_apply_ground_token()), and `$p` (gender_possess() pronoun). Empty/
+ * `none`/`clear` reverts to the default "<Name> disappears/appears in a
+ * puff of smoke." wording. */
 static bool set_bamf(descriptor_t *d, const char *args, bool is_in) {
     being_t *ch = d->character;
     if (!ch)

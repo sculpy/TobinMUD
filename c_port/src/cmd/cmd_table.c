@@ -160,6 +160,11 @@ static const cmd_entry_t COMMANDS[] = {
     { "remove",  cmd_remove,  "Take off a worn or held item (remove <item>).",     MORTAL_LEVEL_MIN },
     { "vnum",    cmd_vnum,    "List vnums of rooms/objs/mobs by name (vnum <room|obj|mob> <pat>).", BUILD_MIN_LEVEL },
     { "zone",    cmd_zone,    "zone reset <zone>, or zone assign <zone> <bottom> <top> <builder> (55+).", BUILD_MIN_LEVEL },
+    /* Must stay AFTER "zone" above -- a bare "zone" abbreviation must match
+     * the shorter "zone" entry first (see cmd_dispatch()'s prefix-match
+     * loop; "zonefile" itself also starts with "zone" and would otherwise
+     * shadow it if checked first). */
+    { "zonefile", cmd_zonefile, "zonefile create <zone> -- snapshot the zone's current live mobs/objects into its reset data.", BUILD_MIN_LEVEL },
     /* "p"/"pr"/"pro" reach prompt; "prom"+ reaches promote. */
     { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp).",                 MORTAL_LEVEL_MIN },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
@@ -167,11 +172,18 @@ static const cmd_entry_t COMMANDS[] = {
      * unified edit dispatcher below). */
     { "time",    cmd_time,    "Show the current mud clock, weekday, and date.",     MORTAL_LEVEL_MIN },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
-    /* "bamfin"/"bamfout" (renamed from "poofin"/"poofout" per user
-     * request) -- "bamfi"+/"bamfo"+ are their shortest safe abbreviations. */
-    { "bamfin",  cmd_bamfin,  "Set your custom arrival message (bamfin [msg]).",    IMMORTAL_LEVEL_MIN },
-    { "bamfout", cmd_bamfout, "Set your custom departure message (bamfout [msg]).", IMMORTAL_LEVEL_MIN },
+    /* "bamfin"/"bamfout" now set `goto`'s custom teleport messages;
+     * "poofin"/"poofout" (their old name, before a same-session rename to
+     * "bamfin"/"bamfout" and then back) set the WALKING move messages --
+     * see cmd_bamf.c/cmd_poof.c's doc comments. "bamfi"+/"bamfo"+ and
+     * "poofi"+/"poofo"+ are each other's shortest safe abbreviations. */
+    { "bamfin",  cmd_bamfin,  "Set your custom `goto` arrival message (bamfin [msg]).",    IMMORTAL_LEVEL_MIN },
+    { "bamfout", cmd_bamfout, "Set your custom `goto` departure message (bamfout [msg]).", IMMORTAL_LEVEL_MIN },
+    { "poofin",  cmd_poofin,  "Set your custom walking arrival message (poofin [msg]).",   IMMORTAL_LEVEL_MIN },
+    { "poofout", cmd_poofout, "Set your custom walking departure message (poofout [msg]).", IMMORTAL_LEVEL_MIN },
     { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
+    { "gametog", cmd_gametog, "View or flip global game-wide switches (58+).",      GAMETOG_MIN_LEVEL },
+    { "snoop",   cmd_snoop,   "Watch what a lower-level player sees and types.",    SNOOP_MIN_LEVEL },
     { "test",    cmd_test,    "Show the currently-running smoke test, if any.",     TEST_MIN_LEVEL },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
     { "idea",    cmd_idea,    "Suggest a feature (idea <text>); immortals list them.", MORTAL_LEVEL_MIN },
@@ -180,6 +192,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected.", COPYOVER_MIN_LEVEL },
     { "exec",    cmd_exec,    "Run a shell command on the host box (Implementor).", EXEC_MIN_LEVEL },
     { "delbug",  cmd_delbug,  "Delete a handled bug report by id.",                 DELBUG_MIN_LEVEL },
+    { "edbug",   cmd_edbug,   "Resolve a bug report in place (edbug <id> [note]).", EDBUG_MIN_LEVEL },
     { "delidea", cmd_delidea, "Delete a handled idea by id.",                       DELIDEA_MIN_LEVEL },
     /* "log" needs its three letters ("l" look, "li" limbs, "lo" look). */
     /* Unified editor dispatcher (user, 2026-07-11: "unify all ed* commands

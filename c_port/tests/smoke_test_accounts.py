@@ -139,13 +139,16 @@ check("Handedness:    left" in out, "hand left flips the attr screen's handednes
 out = step(s, "overspend rejected", "dex 5")
 check("Not enough points remaining" in out, "spending more than what's left is rejected")
 
-out = step(s, "finish creation", "done")
+step(s, "finish creation", "done")
+step(s, "race: human", "1")
+step(s, "class: mage", "1")
+out = step(s, "alignment: neutral", "2")
 check(f"Welcome, {char1_name}" in out, "'done' creates the character and enters the world")
 
 out = step(s, "score", "score")
 check("You are left handed" in out, "score shows the chosen left-handedness")
-check("Strength:      150" in out and "Dexterity:     120" in out,
-      "score shows the persisted point-buy allocation")
+check("Strength:      146" in out and "Dexterity:     120" in out,
+      "score shows the persisted point-buy allocation (150 str -4 for the Mage class chosen at creation)")
 
 s.close()
 
@@ -160,11 +163,15 @@ check(f"{char1_name} (Level 1)" in out,
 
 step(s2, "create second character", "new")
 step(s2, "second character name -> attr screen", char2_name)
-out = step(s2, "accept defaults, finish", "done")
+step(s2, "accept defaults, finish", "done")
+step(s2, "race: human", "1")
+step(s2, "class: mage", "1")
+out = step(s2, "alignment: neutral", "2")
 check(f"Welcome, {char2_name}" in out, "second character created with default (unallocated) attrs")
 
 out = step(s2, "score for second character", "score")
-check("Strength:      120" in out, "second character kept the ATTR_BASE defaults (no allocation made)")
+check("Strength:      116" in out, "second character kept the ATTR_BASE defaults (no allocation made; "
+      "120 -4 for the Mage class chosen at creation)")
 
 s2.close()
 

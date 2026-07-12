@@ -13,13 +13,14 @@
 #include "multiplay.h"
 #include "player_repo.h"
 
-/* `toggle` -- one place to see and flip on/off switches. Players toggle the
- * things that affect only them (color, hp in prompt); immortals 55+ can also
- * flip global GAME toggles (multiplay, ...). Bare `toggle` prints the current
- * value of every toggle the caller may see. New features register their
- * switches by adding a row to TOGGLES below. Inspired by Sneezy's toggle. */
-
-#define TOGGLE_GAME_MIN_LEVEL 55
+/* `toggle` -- one place to see and flip on/off PERSONAL switches (color, hp
+ * in prompt, ...). Global GAME toggles (multiplay, ...) live in the
+ * separate `gametog` command (58+, cmd_gametog() below) instead -- split
+ * out (TODO.md, user-planned) so a mortal-facing `toggle` never even shows
+ * a row that could affect other players. Both share the one `TOGGLES[]`
+ * table (filtered by the `game` flag) and the same list/set logic; new
+ * features register their switch by adding a row to TOGGLES below.
+ * Inspired by Sneezy's toggle. */
 
 typedef struct {
     const char *name;
@@ -97,45 +98,45 @@ static const toggle_t TOGGLES[] = {
 
 static const char *onoff(bool v) { return v ? "<g>on<z>" : "<r>off<z>"; }
 
-bool cmd_toggle(descriptor_t *d, const char *args) {
-    being_t *ch = d->character;
-    if (!ch)
-        return true;
-    bool can_game = ch->progress.level >= TOGGLE_GAME_MIN_LEVEL;
-
+/* Shared by `toggle` (game=false: personal switches only) and `gametog`
+ * (game=true: global game switches only) -- everything else about listing/
+ * setting a switch is identical, so only which subset of TOGGLES[] is
+ * visible differs. */
+static bool toggle_dispatch(descriptor_t *d, const char *args, bool game, const char *header) {
     char tok[32] = "";
     sscanf(args, "%31s", tok);
 
     if (!tok[0]) {
         char out[768];
-        int n = snprintf(out, sizeof(out), "\r\n<c>-- Toggles --<z>\r\n");
+        int n = snprintf(out, sizeof(out), "\r\n<c>-- %s --<z>\r\n", header);
         for (size_t i = 0; i < NUM_TOGGLES && (size_t)n < sizeof(out); i++) {
-            if (TOGGLES[i].game && !can_game)
-                continue; /* hide game toggles from those who can't set them */
+            if (TOGGLES[i].game != game)
+                continue;
             n += snprintf(out + n, sizeof(out) - (size_t)n,
-                          "  %-12s %-3s  <k>%s%s<z>\r\n",
-                          TOGGLES[i].name, onoff(TOGGLES[i].get(d)),
-                          TOGGLES[i].desc, TOGGLES[i].game ? " (game)" : "");
+                          "  %-12s %-3s  <k>%s<z>\r\n",
+                          TOGGLES[i].name, onoff(TOGGLES[i].get(d)), TOGGLES[i].desc);
         }
         descriptor_send(d, out);
         return true;
     }
 
-    /* Prefix-match a toggle name, first match wins (abbreviations welcome). */
+    /* Prefix-match a toggle name within the visible subset, first match
+     * wins (abbreviations welcome). */
     const toggle_t *tg = NULL;
     size_t tlen = strlen(tok);
     for (size_t i = 0; i < NUM_TOGGLES; i++) {
+        if (TOGGLES[i].game != game)
+            continue;
         if (strncasecmp(TOGGLES[i].name, tok, tlen) == 0) {
             tg = &TOGGLES[i];
             break;
         }
     }
     if (!tg) {
-        descriptor_send(d, "No such toggle. Type 'toggle' to see them all.\r\n");
-        return true;
-    }
-    if (tg->game && !can_game) {
-        descriptor_send(d, "That's a game toggle -- only 55+ immortals may change it.\r\n");
+        char msg[80];
+        snprintf(msg, sizeof(msg), "No such toggle. Type '%s' to see them all.\r\n",
+                 game ? "gametog" : "toggle");
+        descriptor_send(d, msg);
         return true;
     }
 
@@ -145,4 +146,22 @@ bool cmd_toggle(descriptor_t *d, const char *args) {
     snprintf(msg, sizeof(msg), "%s is now %s<z>.\r\n", tg->name, onoff(nv));
     descriptor_send(d, msg);
     return true;
+}
+
+bool cmd_toggle(descriptor_t *d, const char *args) {
+    if (!d->character)
+        return true;
+    return toggle_dispatch(d, args, false, "Toggles");
+}
+
+/* `gametog` (58+, TODO.md-planned split from `toggle`): global GAME
+ * switches (multiplay, ...) that affect everyone, not just the caller --
+ * kept out of the mortal-facing `toggle` entirely rather than merely
+ * hidden by level, so there's no row a mortal could ever see. Table-level
+ * gate (cmd_table.c) already keeps mortals out; no internal level check
+ * needed here. */
+bool cmd_gametog(descriptor_t *d, const char *args) {
+    if (!d->character)
+        return true;
+    return toggle_dispatch(d, args, true, "Game Toggles");
 }

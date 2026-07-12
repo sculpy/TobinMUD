@@ -37,7 +37,8 @@ being_t *player_load(const char *name, long account_id) {
 
     being_t *b = NULL;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
-                      "title, gender, appearance, pflags, bamfin, bamfout from player "
+                      "title, gender, appearance, pflags, poofin, poofout, bamfin, bamfout, "
+                      "class, race from player "
                       "where name='%s' and account_id=%i",
                  name, (int)account_id)
         && db_fetch_row(db)) {
@@ -50,8 +51,12 @@ being_t *player_load(const char *name, long account_id) {
             b->gender = (gender_t)atoi(db_get(db, "gender"));
             snprintf(b->appearance, sizeof(b->appearance), "%s", db_get(db, "appearance"));
             b->pflags = atoi(db_get(db, "pflags"));
+            snprintf(b->poofin, sizeof(b->poofin), "%s", db_get(db, "poofin"));
+            snprintf(b->poofout, sizeof(b->poofout), "%s", db_get(db, "poofout"));
             snprintf(b->bamfin, sizeof(b->bamfin), "%s", db_get(db, "bamfin"));
             snprintf(b->bamfout, sizeof(b->bamfout), "%s", db_get(db, "bamfout"));
+            b->char_class = (player_class_t)atoi(db_get(db, "class"));
+            b->race = (player_race_t)atoi(db_get(db, "race"));
         }
     }
 
@@ -68,7 +73,8 @@ being_t *player_load(const char *name, long account_id) {
 }
 
 being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
-                       int handed_right, gender_t gender, const char *appearance) {
+                       int handed_right, gender_t gender, const char *appearance,
+                       player_class_t char_class, player_race_t race, int alignment) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return NULL;
@@ -88,10 +94,10 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
     }
 
     bool ok = db_query(db,
-        "insert into player (name, talens, account_id, load_room, nutrition, handed, gender, appearance) "
-        "values ('%s', 0, %i, %i, 100, %i, %i, '%s')",
+        "insert into player (name, talens, account_id, load_room, nutrition, handed, gender, appearance, class, race) "
+        "values ('%s', 0, %i, %i, 100, %i, %i, '%s', %i, %i)",
         name, (int)account_id, DEFAULT_LOAD_ROOM, handed_right ? 1 : 0,
-        (int)gender, appearance ? appearance : "");
+        (int)gender, appearance ? appearance : "", (int)char_class, (int)race);
 
     being_t *b = NULL;
     if (ok) {
@@ -100,10 +106,21 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
         if (b) {
             b->handed_right = handed_right ? 1 : 0;
             b->gender = gender;
+            b->char_class = char_class;
+            b->race = race;
             b->pflags = PLR_NEWBIE; /* new players start on the newbie channel */
             snprintf(b->appearance, sizeof(b->appearance), "%s", appearance ? appearance : "");
             if (attrs)
                 b->attrs = *attrs;
+            b->progress.alignment = alignment;
+            /* being_create_pc() already computed max_hp/limb HP, but from
+             * default ATTR_BASE attrs and char_class 0 (CLASS_MAGE) --
+             * BEFORE the real race/class-adjusted attrs and chosen class
+             * were set just above. Recompute now that both are final, or a
+             * Warrior's real HP bonus (etc.) would never actually apply. */
+            b->progress.max_hp = being_calc_max_hp(b);
+            b->progress.hp = b->progress.max_hp;
+            being_limbs_full_heal(b);
             player_attrs_save(player_id, &b->attrs);
             player_progress_save(player_id, &b->progress);
         }
@@ -218,6 +235,40 @@ bool player_set_title(const char *name, long account_id, const char *title) {
                       title, name, (int)account_id);
     else
         ok = db_query(db, "update player set title=NULL where name='%s' and account_id=%i",
+                      name, (int)account_id);
+
+    db_close(db);
+    return ok;
+}
+
+bool player_set_poofin(const char *name, long account_id, const char *msg) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok;
+    if (msg && msg[0])
+        ok = db_query(db, "update player set poofin='%s' where name='%s' and account_id=%i",
+                      msg, name, (int)account_id);
+    else
+        ok = db_query(db, "update player set poofin=NULL where name='%s' and account_id=%i",
+                      name, (int)account_id);
+
+    db_close(db);
+    return ok;
+}
+
+bool player_set_poofout(const char *name, long account_id, const char *msg) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok;
+    if (msg && msg[0])
+        ok = db_query(db, "update player set poofout='%s' where name='%s' and account_id=%i",
+                      msg, name, (int)account_id);
+    else
+        ok = db_query(db, "update player set poofout=NULL where name='%s' and account_id=%i",
                       name, (int)account_id);
 
     db_close(db);
@@ -346,7 +397,8 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
     being_t *b = NULL;
     int load_room = -1;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
-                      "title, gender, appearance, pflags, bamfin, bamfout from player "
+                      "title, gender, appearance, pflags, poofin, poofout, bamfin, bamfout, "
+                      "class, race from player "
                       "where name='%s'",
                  name)
         && db_fetch_row(db)) {
@@ -360,8 +412,12 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
             b->gender = (gender_t)atoi(db_get(db, "gender"));
             snprintf(b->appearance, sizeof(b->appearance), "%s", db_get(db, "appearance"));
             b->pflags = atoi(db_get(db, "pflags"));
+            snprintf(b->poofin, sizeof(b->poofin), "%s", db_get(db, "poofin"));
+            snprintf(b->poofout, sizeof(b->poofout), "%s", db_get(db, "poofout"));
             snprintf(b->bamfin, sizeof(b->bamfin), "%s", db_get(db, "bamfin"));
             snprintf(b->bamfout, sizeof(b->bamfout), "%s", db_get(db, "bamfout"));
+            b->char_class = (player_class_t)atoi(db_get(db, "class"));
+            b->race = (player_race_t)atoi(db_get(db, "race"));
             load_room = atoi(db_get(db, "load_room"));
         }
     }

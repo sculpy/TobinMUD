@@ -114,7 +114,9 @@ send_line(s, ""); recv_all(s)   # timezone default
 send_line(s, "new"); recv_all(s)
 send_line(s, name); recv_all(s)
 cmd(s, "done")
-cmd(s, "done")
+cmd(s, "1")  # race: human (zero stat modifier)
+cmd(s, "1")  # class: mage
+cmd(s, "2")  # alignment: neutral
 sql(f"UPDATE player_progress SET level=52 WHERE player_id="
     f"(SELECT id FROM player WHERE name='{name}');")  # BUILD_MIN_LEVEL, for `load`
 s.close()

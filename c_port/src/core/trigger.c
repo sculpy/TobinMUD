@@ -159,10 +159,20 @@ static void random_visit_mob(being_t *m) {
     for (int i = 0; i < n; i++) {
         if (rand() % 100 >= trigs[i].chance_pct)
             continue;
+        /* short_descr may start with a color tag (e.g. "<o>a dirty refuse
+         * hauler<1>") -- skip it before capitalizing, same bug class already
+         * fixed in cmd_look.c/cmd_object.c/cmd_scan.c/mob_ai.c's own
+         * cap_first() copies (each file keeps its own rather than sharing
+         * one). Without this, toupper() hits '<' (a no-op) and the real
+         * first letter stays lowercase -- exactly the "a dirty refuse
+         * hauler grumbles..." bug seen live. */
         char capbuf[128];
         snprintf(capbuf, sizeof(capbuf), "%s", m->base.short_descr);
-        if (capbuf[0])
-            capbuf[0] = (char)toupper((unsigned char)capbuf[0]);
+        size_t ci = 0;
+        while (capbuf[ci] == '<' && capbuf[ci + 1] != '\0' && capbuf[ci + 2] == '>')
+            ci += 3;
+        if (capbuf[ci])
+            capbuf[ci] = (char)toupper((unsigned char)capbuf[ci]);
         trigger_run(&trigs[i], NULL, m->base.roomp, capbuf[0] ? capbuf : NULL);
     }
 }

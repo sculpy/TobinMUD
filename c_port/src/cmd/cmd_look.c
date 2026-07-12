@@ -241,7 +241,10 @@ bool cmd_look(descriptor_t *d, const char *args) {
     /* "Obvious exits: north east ..." -> "[Exits:] North East ..." (user,
      * 2026-07-11), colorized: the "[Exits:]" label in cyan (matching the
      * sector-name bracket's own color a few lines up), the direction list
-     * itself in green. */
+     * itself in the room's own SECTOR color (user follow-up, 2026-07-11:
+     * "the exit messages in a room should reflect the sector type and be
+     * colored like name") -- `bright`, the same tag the room NAME above
+     * already uses, not a fixed color. */
     {
         char exits_buf[128] = "";
         size_t en = 0;
@@ -259,7 +262,7 @@ bool cmd_look(descriptor_t *d, const char *args) {
         }
         if ((size_t)n < sizeof(out)) {
             if (any_exit)
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "<c>[Exits:]<z> <g>%s<z>\r\n", exits_buf);
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "<c>[Exits:]<z> <%c>%s<z>\r\n", bright, exits_buf);
             else
                 n += snprintf(out + n, sizeof(out) - (size_t)n, "<c>[Exits:]<z> none\r\n");
         }

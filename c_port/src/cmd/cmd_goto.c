@@ -12,10 +12,66 @@
 
 #include "being.h"
 #include "cmd.h"
+#include "obj.h"
 #include "room.h"
 #include "room_repo.h"
 #include "thing.h"
 #include "world.h"
+
+/* Substitutes `goto`'s bamfin/bamfout tokens into `tmpl`, rendering into
+ * `out`: `$g`/`$$g` (room's ground-surface word, obj_apply_ground_token())
+ * and `$p` (gender_possess() pronoun) -- same idea as cmd_move.c's
+ * poofin/poofout tokens, but no `$d` (a teleport has no direction) -- plus
+ * `<N>`/`<n>` (the mover's name, same convention as a player's `title`,
+ * cmd_who.c's title_with_name()), which may appear anywhere in the
+ * message. Returns true iff `<N>`/`<n>` was found and substituted, so the
+ * caller knows the name is already embedded and shouldn't prefix it again
+ * (user 2026-07-11: "bamfin|out should modify goto messaging"; follow-up:
+ * "<N> should work in this as well as $g"; "and $p"). */
+static bool apply_bamf_tokens(const char *tmpl, room_t *room, gender_t gender,
+                               const char *name, char *out, size_t outsz) {
+    char stage[BEING_BAMF_LEN + 64];
+    obj_apply_ground_token(tmpl, room, stage, sizeof(stage));
+
+    size_t o = 0;
+    bool named = false;
+    for (size_t i = 0; stage[i] != '\0' && o + 1 < outsz;) {
+        if (stage[i] == '<' && (stage[i + 1] == 'N' || stage[i + 1] == 'n')
+            && stage[i + 2] == '>') {
+            for (const char *p = name; *p && o + 1 < outsz; p++)
+                out[o++] = *p;
+            i += 3;
+            named = true;
+        } else if (stage[i] == '$' && stage[i + 1] == 'p') {
+            for (const char *p = gender_possess(gender); *p && o + 1 < outsz; p++)
+                out[o++] = *p;
+            i += 2;
+        } else {
+            out[o++] = stage[i++];
+        }
+    }
+    out[o < outsz ? o : outsz - 1] = '\0';
+    return named;
+}
+
+/* Broadcasts `tmpl` (bamfout for a departure, bamfin for an arrival) to
+ * everyone else in `room`, falling back to the default puff-of-smoke
+ * wording when empty. */
+static void announce_bamf(being_t *ch, room_t *room, const char *tmpl, bool arriving) {
+    char body[BEING_BAMF_LEN + 96];
+    char msg[256];
+    if (tmpl[0]) {
+        bool named = apply_bamf_tokens(tmpl, room, ch->gender, ch->base.name, body, sizeof(body));
+        if (named)
+            snprintf(msg, sizeof(msg), "%s\r\n", body);
+        else
+            snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, body);
+    } else {
+        snprintf(msg, sizeof(msg), "%s %s in a puff of smoke.\r\n",
+                 ch->base.name, arriving ? "appears" : "disappears");
+    }
+    descriptor_room_echo(room, ch, msg);
+}
 
 /* `goto <vnum>` or `goto <player>`: immortal-only teleport. A number goes
  * straight to that room; a name goes to that online being's current room
@@ -71,7 +127,14 @@ bool cmd_goto(descriptor_t *d, const char *args) {
         r = target->base.roomp;
     }
 
+    room_t *from = d->character->base.roomp;
+    if (from)
+        announce_bamf(d->character, from, d->character->bamfout, false);
+
     thing_set_room(&d->character->base, r);
     descriptor_send(d, "You vanish in a puff of smoke.\r\n");
+
+    announce_bamf(d->character, r, d->character->bamfin, true);
+
     return cmd_dispatch(d, "look");
 }

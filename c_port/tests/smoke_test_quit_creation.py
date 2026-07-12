@@ -135,7 +135,10 @@ check("(none yet)" in out, "allocated-but-uncommitted character was never persis
 step(s, "choose 'new' for real this time", "new")
 step(s, "real name", real_name)
 step(s, "allocate", "str 15")
-out = step(s, "finish for real", "done")
+step(s, "finish for real", "done")
+step(s, "race: human", "1")
+step(s, "class: mage", "1")
+out = step(s, "alignment: neutral", "2")
 check(f"Welcome, {real_name_display}" in out, "a real character can still be created after two cancellations")
 
 s.close()

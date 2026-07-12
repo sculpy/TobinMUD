@@ -106,6 +106,9 @@ check("X" in out, "the account menu lists the X (delete account) option")
 step(s, "create first character", "new")
 step(s, "first character name -> attr screen", char1_name)
 step(s, "finish creation", "done")
+step(s, "race: human", "1")
+step(s, "class: mage", "1")
+step(s, "alignment: neutral", "2")
 step(s, "back to menu", "quit!")  # leave-to-menu (playing quit!), not disconnect
 s.close()
 
@@ -117,6 +120,9 @@ check(char1_name in out, "first character present before the second is created")
 step(s, "create second character", "new")
 step(s, "second character name -> attr screen", char2_name)
 step(s, "finish creation", "done")
+step(s, "race: human", "1")
+step(s, "class: mage", "1")
+step(s, "alignment: neutral", "2")
 
 # --- Part 1: cancelling doesn't delete anything ---
 out = step(s, "leave to menu", "quit!")

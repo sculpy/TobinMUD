@@ -108,6 +108,9 @@ def make_player(tag):
     recv_all(s)
     send_line(s, "done")
     recv_all(s)
+    send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
+    send_line(s, "1"); recv_all(s)  # class: mage
+    send_line(s, "2"); recv_all(s)  # alignment: neutral
     return s, name
 
 
@@ -153,7 +156,7 @@ check("requires level 59" in out, "a level-54 is refused log rotation")
 # those who can see the command at all -- 59+).
 send_line(sImm, "help log")
 out = recv_all(sImm)
-check("-- Help: log --" in out and "rotate" in out,
+check("-- Help: Log --" in out and "rotate" in out,
       "help log shows the log command's help topic")
 
 # --- Part 3: tail and search ---

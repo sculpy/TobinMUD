@@ -120,16 +120,19 @@ send_line(s, name)
 recv_all(s)
 send_line(s, "done")
 recv_all(s)
+send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
+send_line(s, "1"); recv_all(s)  # class: mage
+send_line(s, "2"); recv_all(s)  # alignment: neutral
 
 # --- Part 1: reading topics as a mortal ---
 send_line(s, "help say")
 out = recv_all(s)
-check("-- Help: say --" in out and "apostrophe shorthand" in out,
+check("-- Help: Say --" in out and "apostrophe shorthand" in out,
       "help <command> shows the seeded topic body")
 
 send_line(s, "help sco")
 out = recv_all(s)
-check("-- Help: score --" in out,
+check("-- Help: Score --" in out,
       "a topic prefix ('sco') resolves to the topic (score)")
 
 send_line(s, "help zzznotopic")
@@ -139,10 +142,10 @@ check("No help available" in out, "an unknown topic is rejected")
 # Alias resolution (Session 21): short forms land on the canonical topic.
 send_line(s, "help nw")
 out = recv_all(s)
-check("-- Help: northwest --" in out, "help nw resolves to the northwest topic")
+check("-- Help: Northwest --" in out, "help nw resolves to the northwest topic")
 send_line(s, "help '")
 out = recv_all(s)
-check("-- Help: say --" in out, "help ' resolves to the say topic")
+check("-- Help: Say --" in out, "help ' resolves to the say topic")
 
 send_line(s, "help goto")
 out = recv_all(s)
@@ -162,7 +165,7 @@ out = recv_all(s)
 check("Huh?!" in out, "a level-51 immortal still can't use edit help (gate is 56)")
 send_line(s, "help goto")
 out = recv_all(s)
-check("-- Help: goto --" in out, "the 51 immortal CAN read the goto topic now")
+check("-- Help: Goto --" in out, "the 51 immortal CAN read the goto topic now")
 
 set_level(name, 56)
 s.close()

@@ -42,6 +42,24 @@
  * (14-monster-ai-behavior.md) at a much simpler scale. Threshold matches
  * alignment_word()'s "good"/"saintly" tiers. */
 #define AGGRESS_GOOD_IMMUNITY_THRESHOLD 350
+/* Symmetric "evil" tier, same magnitude as the good threshold above --
+ * used by the mob-alignment extension below (mob_align != 0). */
+#define AGGRESS_EVIL_THRESHOLD (-350)
+
+/* Extension (user 2026-07-11: "ask player to choose initial alignment so
+ * good will attack evil and evil will attack good randomly ... people who
+ * are neutral should be taunted by evil and supported by good"): an
+ * ALIGNED aggressive mob (mob.align, new column -- see mob_repo.h) fights
+ * only the OPPOSITE alignment (never its own), same random chance as any
+ * other aggro roll (MOB_AGGRESS_CHANCE_PCT, mob_try_aggress() below). A
+ * neutral PC never gets attacked by an aligned mob -- instead, at a
+ * smaller ambient chance, they get a one-line in-character reaction (a
+ * taunt from evil, a word of support from good) with no combat
+ * consequence (mob_try_align_flavor() below). Unaligned mobs
+ * (mob_align == 0, the vast majority -- every mob before this feature)
+ * are completely unaffected: still the original "attack anyone except the
+ * sufficiently good" behavior. */
+#define MOB_ALIGN_FLAVOR_CHANCE_PCT 15
 
 /* short_descr is stored lowercase-first ("a lady"); capitalize only when it
  * starts a whole message, skipping any leading inline color tag first --
@@ -144,10 +162,14 @@ static void mob_try_scavenge(being_t *m) {
 }
 
 /* Picks a fight for an ACT_AGGRESSIVE mob against a non-immortal PC in its
- * room, unless that PC's alignment grants immunity (see the threshold's
- * doc comment above). No descriptor to send "You attack ..." from (mobs
- * have none) -- just the fighting-pointer/wait bookkeeping cmd_attack.c
- * does, plus a notification to the target if they're actually connected. */
+ * room. An UNALIGNED mob (mob_align == 0, the original/default behavior)
+ * attacks anyone except a sufficiently good-aligned PC. An ALIGNED mob
+ * (mob_align != 0) only ever fights the OPPOSITE alignment -- a good mob
+ * never attacks another good PC, an evil mob never attacks another evil
+ * PC -- and leaves neutral PCs to mob_try_align_flavor() below instead of
+ * fighting them. No descriptor to send "You attack ..." from (mobs have
+ * none) -- just the fighting-pointer/wait bookkeeping cmd_attack.c does,
+ * plus a notification to the target if they're actually connected. */
 static void mob_try_aggress(being_t *m) {
     if (!(m->mob_actions & ACT_AGGRESSIVE))
         return;
@@ -163,8 +185,17 @@ static void mob_try_aggress(being_t *m) {
         being_t *pc = (being_t *)t;
         if (!pc->desc || being_is_immortal(pc) || pc->fighting)
             continue;
-        if (pc->progress.alignment >= AGGRESS_GOOD_IMMUNITY_THRESHOLD)
-            continue; /* good-aligned -- this aggressive mob leaves them alone */
+
+        if (m->mob_align == 0) {
+            if (pc->progress.alignment >= AGGRESS_GOOD_IMMUNITY_THRESHOLD)
+                continue; /* good-aligned -- this aggressive mob leaves them alone */
+        } else if (m->mob_align > 0) {
+            if (pc->progress.alignment > AGGRESS_EVIL_THRESHOLD)
+                continue; /* not evil enough -- a good-aligned mob only fights evil */
+        } else {
+            if (pc->progress.alignment < AGGRESS_GOOD_IMMUNITY_THRESHOLD)
+                continue; /* not good enough -- an evil-aligned mob only fights good */
+        }
         target = pc;
         break;
     }
@@ -180,10 +211,51 @@ static void mob_try_aggress(being_t *m) {
     descriptor_notify(target->desc, msg);
 }
 
+/* Ambient, non-combat reaction to a NEUTRAL PC sharing the room with an
+ * ALIGNED aggressive mob (user: "people who are neutral should be taunted
+ * by evil and supported by good") -- never fires for unaligned mobs
+ * (mob_align == 0, untouched by this feature) or for good/evil PCs (those
+ * get real combat via mob_try_aggress() instead, never flavor text). */
+static void mob_try_align_flavor(being_t *m) {
+    if (m->mob_align == 0 || !(m->mob_actions & ACT_AGGRESSIVE))
+        return;
+    if (m->fighting || !m->base.roomp)
+        return;
+    if (rand() % 100 >= MOB_ALIGN_FLAVOR_CHANCE_PCT)
+        return;
+
+    being_t *target = NULL;
+    for (thing_t *t = m->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_PC)
+            continue;
+        being_t *pc = (being_t *)t;
+        if (!pc->desc || being_is_immortal(pc))
+            continue;
+        if (pc->progress.alignment >= AGGRESS_GOOD_IMMUNITY_THRESHOLD
+            || pc->progress.alignment <= AGGRESS_EVIL_THRESHOLD)
+            continue; /* only a NEUTRAL PC gets taunted/supported */
+        target = pc;
+        break;
+    }
+    if (!target)
+        return;
+
+    char capbuf[128];
+    char msg[256];
+    if (m->mob_align > 0)
+        snprintf(msg, sizeof(msg), "%s nods approvingly in your direction.\r\n",
+                 cap_first(m->base.short_descr, capbuf, sizeof(capbuf)));
+    else
+        snprintf(msg, sizeof(msg), "%s sneers and mutters something insulting about you.\r\n",
+                 cap_first(m->base.short_descr, capbuf, sizeof(capbuf)));
+    descriptor_notify(target->desc, msg);
+}
+
 static void mob_ai_visit(being_t *m) {
     mob_try_wander(m);
     mob_try_scavenge(m);
     mob_try_aggress(m);
+    mob_try_align_flavor(m);
 }
 
 void mob_ai_tick(long pulse_num) {

@@ -71,6 +71,7 @@ being_t *being_create_mob(int vnum) {
     b->progress.level = proto.level;
     b->progress.experience = 0;
     b->mob_actions = proto.actions;
+    b->mob_align = proto.align;
 
     /* Placeholder attrs/HP formulas (see STATUS.md's Mobiles decision row):
      * the original's 12-stat mob columns are a completely different, wider
@@ -182,11 +183,29 @@ void being_set_wait(being_t *b, int pulses) {
     b->wait_pulses = pulses;
 }
 
+/* Relative HP-per-level scaling by class (PCs only), loosely mirroring the
+ * original's hpGainForClass()'s ranking (warrior/monk tankiest, mage
+ * squishiest) without porting its per-level-roll mechanic -- Tobin has no
+ * level-up event to hook a per-level roll into yet, so this just scales
+ * the flat per-level term class_stat_bonus() doesn't otherwise touch. */
+static double class_hp_scale(player_class_t c) {
+    switch (c) {
+        case CLASS_WARRIOR: return 1.3;
+        case CLASS_MONK:    return 1.15;
+        case CLASS_DRUID:   return 1.0;
+        case CLASS_CLERIC:  return 1.0;
+        case CLASS_THIEF:   return 0.9;
+        case CLASS_MAGE:    return 0.8;
+        default:            return 1.0;
+    }
+}
+
 int being_calc_max_hp(const being_t *b) {
     if (!b)
         return 20;
     int con_bonus = b->attrs.constitution - ATTR_BASE;
-    return 20 + con_bonus + (b->progress.level * 5);
+    double scale = b->base.kind == THING_PC ? class_hp_scale(b->char_class) : 1.0;
+    return 20 + con_bonus + (int)(b->progress.level * 5 * scale);
 }
 
 static const char *LIMB_NAMES[LIMB_COUNT] = {
@@ -249,6 +268,104 @@ const char *gender_reflexive(gender_t g) {
         case GENDER_FEMALE: return "herself";
         case GENDER_NEUTER:
         default:            return "itself";
+    }
+}
+
+static const char *const CLASS_NAMES[CLASS_COUNT] = {
+    "Mage", "Cleric", "Warrior", "Thief", "Druid", "Monk",
+};
+
+const char *class_name(player_class_t c) {
+    if (c < 0 || c >= CLASS_COUNT)
+        return "Mage";
+    return CLASS_NAMES[c];
+}
+
+/* Every class's bonus/penalty sums to zero -- see the declaration comment
+ * (being.h) for the stat-affinity rationale. */
+void class_stat_bonus(player_class_t c, attrs_t *a) {
+    if (!a)
+        return;
+    switch (c) {
+        case CLASS_MAGE:
+            a->intelligence += 4;
+            a->strength -= 4;
+            break;
+        case CLASS_CLERIC:
+            a->wisdom += 4;
+            a->strength -= 2;
+            a->dexterity -= 2;
+            break;
+        case CLASS_WARRIOR:
+            a->constitution += 3;
+            a->strength += 3;
+            a->charisma -= 3;
+            a->wisdom -= 3;
+            break;
+        case CLASS_THIEF:
+            a->dexterity += 4;
+            a->strength -= 4;
+            break;
+        case CLASS_DRUID:
+            a->wisdom += 2;
+            a->constitution += 2;
+            a->intelligence -= 4;
+            break;
+        case CLASS_MONK:
+            a->strength += 2;
+            a->constitution += 2;
+            a->charisma -= 4;
+            break;
+        default:
+            break;
+    }
+}
+
+static const char *const RACE_NAMES[RACE_COUNT] = {
+    "Human", "Elf", "Ogre", "Dwarf", "Hobbit", "Gnome",
+};
+
+const char *race_name(player_race_t r) {
+    if (r < 0 || r >= RACE_COUNT)
+        return "Human";
+    return RACE_NAMES[r];
+}
+
+/* Human is the deliberate baseline (no modifier) -- every other race's
+ * bonus/penalty sums to zero, same convention as class_stat_bonus(). */
+void race_stat_bonus(player_race_t r, attrs_t *a) {
+    if (!a)
+        return;
+    switch (r) {
+        case RACE_HUMAN:
+            break; /* versatile baseline -- no modifier */
+        case RACE_ELF:
+            a->dexterity += 2;
+            a->intelligence += 2;
+            a->constitution -= 4;
+            break;
+        case RACE_OGRE:
+            a->strength += 4;
+            a->intelligence -= 2;
+            a->charisma -= 2;
+            break;
+        case RACE_DWARF:
+            a->constitution += 4;
+            a->dexterity -= 2;
+            a->charisma -= 2;
+            break;
+        case RACE_HOBBIT:
+            a->dexterity += 4;
+            a->strength -= 2;
+            a->constitution -= 2;
+            break;
+        case RACE_GNOME:
+            a->intelligence += 4;
+            a->strength -= 2;
+            a->constitution -= 2;
+            break;
+        default:
+            break;
     }
 }
 

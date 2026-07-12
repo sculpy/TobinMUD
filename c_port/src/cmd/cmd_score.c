@@ -41,6 +41,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
              "  Dexterity:     %d\t  Wisdom:        %d\r\n"
              "  Constitution:  %d\t  Charisma:      %d\r\n"
              "  You are %s handed.  Gender: %s\r\n"
+             "  Race:          %s\t  Class:         %s\r\n"
              "  Alignment:     %s\r\n",
              d->character->base.name,
 			 col, level_field, reset,
@@ -48,6 +49,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
              a->strength, a->intelligence, a->dexterity, a->wisdom, a->constitution, a->charisma,
              d->character->handed_right ? "right" : "left",
              gender_name(d->character->gender),
+             race_name(d->character->race), class_name(d->character->char_class),
              alignment_word(p->alignment));
     if (n < 0)
         n = 0;

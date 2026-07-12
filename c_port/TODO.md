@@ -150,6 +150,48 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       consumed -- liquid-unit depletion (`val[0]`/`val[1]`, `obj.h`'s
       existing DRINK category comment) is a separate, bigger feature and
       out of scope for this fix. `drink` help topic updated.
+- [x] **Room look: exits colored by sector, matching the room name** —
+      done -- deployed and verified via standalone smoke test
+      (`tests/smoke_test_exits_display.py`, extended). User follow-up,
+      2026-07-11: "the exit messages in a room should reflect the sector
+      type and be colored like name." The `[Exits:]` direction list
+      (`cmd_look.c`) was hardcoded green (`<g>`); now uses `bright` -- the
+      exact same sector-derived tag the room NAME already renders in --
+      so a lava room's exits read bright red, a forest room's bright
+      green, and so on, matching instead of clashing with the name above
+      it. (Separately: `<W>` for help-topic bodies, added the same
+      session, is scoped to `cmd_help.c` only and does NOT touch this --
+      confirmed with the user it should stay sector-driven everywhere
+      else in the game.)
+- [x] **Help topic display reformat** — done -- deployed and verified
+      live (`help <topic>` manually checked; `smoke_test_help_topics.py`/
+      `smoke_test_help_format.py`/`smoke_test_logs.py` updated and
+      passing). User: three related asks in one message --
+      (1) "proper case for the command": the `-- Help: <name> --` header
+      now title-cases the topic (`cmd_help.c` capitalizes a local copy for
+      display only; the stored/looked-up name stays lowercase);
+      (2) "Administrator (59+) only: -- take this phrasing out": that
+      style of level-gate phrasing baked into body prose is redundant
+      with the existing `Minimum Level:` footer -- removed from `snoop`'s
+      body (the worked example given); NOT yet swept across every
+      historical topic in `help_topic.sql` (see the new TODO entry below);
+      (3) "colorize help files with <W>": the body's color changed from
+      magenta (`<m>`) to bright white (`<W>`) -- `cmd_help.c` only, every
+      other in-game use of color (room names/descriptions, sector tags,
+      speech, etc.) is untouched. Also, in the same message: "in the
+      /format command in the editor, always indent a paragraph with 2
+      spaces" -- `descriptor.c`'s `editor_format()` (the `/f` reflow used
+      by every `ed*`/`edit` line editor) now indents each paragraph's
+      FIRST line 2 spaces; wrapped continuation lines within the same
+      paragraph are not re-indented.
+- [ ] **Sweep `help_topic.sql` for redundant level-gate phrasing** —
+      follow-up to the help-format reformat above: many EXISTING topic
+      bodies still open with phrasing like "Administrator (59+) only:",
+      "Builder tool (level 51+):", "Immortal tool (58+):" -- all redundant
+      now that the footer always shows `Minimum Level:`. Only `snoop`'s
+      body (the user's worked example) has been cleaned up so far. Wide
+      but mechanical (dozens of rows); needs its own pass rather than
+      being folded into unrelated feature work.
 - [x] **Room look: list permanent fixtures (lamppost, fountain, ...)
       first** — done -- deployed and verified via standalone smoke test
       (`tests/smoke_test_look_fixture_order.py`). User: "permanent items
@@ -163,6 +205,28 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       non-takeable-as-a-whole, so it sorts into the fixture group too --
       not exactly "permanent," but harmless (still a reasonable thing to
       surface prominently) and not worth a separate flag for.
+- [x] **`snoop` command** — done -- deployed and verified via standalone
+      smoke test (`tests/smoke_test_snoop.py`). User: "implement a snoop
+      command like sneezy, the command should be 59+ where you cant
+      snoop anyone of same or higher level." Modeled on
+      `TPerson::doSnoop()` (bundled reference tree, `misc/immortal.cc`):
+      `snoop <name>` (59+) mirrors everything a lower-level target sees
+      AND everything they type to the snooper in real time, one outgoing
+      snoop at a time; refuses a same-or-higher-level target ("You
+      failed."), refuses a target already being snooped ("Busy
+      already."), and bare `snoop` (no argument, or `snoop <yourself>`)
+      stops your own snoop (user follow-up, 2026-07-11: "have it default
+      to self without an arg"). New
+      `snoop_target`/`snooped_by` descriptor pointers (`descriptor.h`),
+      unhooked in `descriptor_destroy()` so neither side is ever left
+      pointing at a freed descriptor. The mirroring itself lives in
+      `descriptor.c`: `descriptor_send()` mirrors output via a direct
+      `socket_write()` (not a recursive `descriptor_send()` call, so a
+      mutual/chained snoop can never recurse); the `CONN_PLAYING` input
+      handler mirrors the target's own typed lines, prefixed `"% "`
+      (classic DikuMUD/Sneezy convention). Covert: the target is never
+      told, and it's logged `LOG_SILENT` (file only, matching the
+      get/drop precedent for anything that shouldn't tip anyone off live).
 - [x] **Unify `ed*` commands into one `edit <noun>` dispatcher** — done --
       deployed and verified via standalone smoke test. User: "unify all
       ed* commands into one edit command that accepts arguments for
@@ -257,6 +321,75 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       `exits` command (`cmd_exits.c`) keeps its own separate, more
       detailed per-direction listing unchanged -- only `look`'s one-line
       summary was in scope.
+
+- [ ] **"Related" footer on help/wizhelp topics** — user 2026-07-11: "for
+      help topics both wizhelp and help add a line at the end for related
+      topics: Related: topic topic topic etc." Needs a way to declare
+      relations per topic -- likely a `related` column on `help_topic`
+      (space/comma-separated topic names, editable via `edit help`) rather
+      than a hardcoded map. `cmd_help.c`'s topic-display path appends a
+      "Related: ..." line (styled like the existing Syntax/Minimum Level
+      footer) only when the field is non-empty; topics with none get no
+      line at all. Populate it for the `edit <noun>` family first (each
+      should list its sibling nouns) as the initial real content.
+- [ ] **Per-noun `help edit <noun>` topics** — user 2026-07-11: currently
+      only a single combined `help edit` topic exists (see cmd_help.c's
+      "One entry point for every editor" body); add one topic per noun,
+      each listing everything editable in that editor plus its syntax:
+      `help edit room`, `help edit zone` (+ related commands), `help edit
+      trigger` (+ which commands are usable INSIDE a trigger script --
+      the fixed action vocabulary in trigger.c's trigger_run()), `help
+      edit player`, `help edit help`, `help edit news`, `help edit
+      wiznews`, `help edit rules`, and any other `edit` noun that exists
+      by the time this is picked up. Natural pairing with the "Related"
+      footer item above -- `help edit` itself should list all the nouns
+      as related topics pointing at these.
+- [ ] **`nospam` toggle (combat)** — user 2026-07-11: "add a nospam toggle
+      where the games output during fights doesnt show missed hits in
+      messages and logs" ("take inspiration from sneezy"). Confirmed
+      Sneezy precedent (`toggle.h:22` `AUTO_NOSPAM = (1 << 0)`,
+      `toggle.cc:978-985` `toggle nospam`/`toggle spam`): it's a bit on
+      the DESCRIPTOR (`desc->autobits`), not a player-record flag,
+      alongside sibling toggles `AUTO_NOHARM`/`AUTO_NOSPELL`. In
+      `combat.cc` the pattern (dozens of call sites, ~3286-3574,
+      3681-3720, 3838-3856, 6318-6420) is: always show the message if
+      `dam` is nonzero (a real hit); when `dam == 0` (a miss), suppress it
+      if the toggle is set -- checked independently for the attacker's,
+      victim's, AND bystanders' descriptors, so each of the three can
+      have the toggle on/off independently. The combat SOUND EFFECT
+      (`playsound()`) for a miss lives inside the same suppressed block,
+      so nospam silences both the miss text and its sound together. It's
+      also reused for other non-miss combat chatter (e.g. a Bloodlust
+      stack-growth message, `combat.cc:6363`), so the real scope is
+      "combat spam" broadly, not literally only misses -- matches the
+      user's own "missed hits... and other spam"-shaped request. NOT
+      log-related in Sneezy -- only gates player-facing output, never the
+      server log. Port as: a per-player toggle (persisted like other
+      prefs, command analogous to `prompt hp`), checked in Tobin's
+      `combat.c` strike-message path the same way (suppress on a miss,
+      independently per viewer). Tobin currently has zero scaffolding for
+      this (confirmed: no `nospam`/`NOSPAM` anywhere in `src`/`include`).
+- [ ] **Hostname (reverse DNS) instead of raw IP in messages/logs** — user
+      2026-07-11: "in messages and logs where IP address is displayed,
+      make it a hostname dns lookup instead" ("take inspiration from
+      sneezy"). Checked Sneezy's actual precedent first and it's a dead
+      end worth knowing about before copying it: Sneezy has NO reverse-DNS
+      resolution anywhere (`gethostbyaddr`/`getnameinfo`/`hostent` all
+      absent from the bundled source) -- its `desc->host` field
+      (`connect.h:423`, misleadingly commented "hostname") is just
+      `IP_String()` (`socket.cc:1792`) stringifying the raw socket
+      address via `inet_ntop()`. Every place Sneezy "shows a hostname"
+      (WHO's Hostname column `info.cc:2511`, last-login tracking
+      `player_data.cc:260`) is actually showing a raw IP string under a
+      misleading label -- there's nothing to port here, this has to be
+      designed from scratch. Needs: an actual reverse-DNS call
+      (`getnameinfo()`) on connection accept in Tobin's `descriptor.c`,
+      done off the main loop (a blocking DNS lookup on accept would stall
+      every other connection) -- likely a lookup thread/async resolver
+      with a cache (by IP), falling back to the raw IP string if the
+      lookup fails or hasn't completed yet. Tobin currently has zero
+      scaffolding for this either (confirmed: no hostname-lookup code
+      anywhere in `src`/`include`).
 
 ### User batch 2026-07-11 — working these next
 
@@ -507,12 +640,21 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       character then connecting, and `multiplay` staying hidden from
       mortals. `enter_world()`'s gate (`descriptor.c`) is confirmed
       working as designed; no fix was needed.
-- [ ] **`gametog` (58+)** — split `toggle`: game-wide switches (currently
-      `multiplay`, living inside the unified `toggle` command) move to a
-      new `gametog` command gated 58+; `toggle` keeps only the
-      mortal-settable personal switches (color, hp, ...). Needs
-      `cmd_toggle.c`'s `TOGGLES[]` table split in two (or filtered by a
-      new per-row "game-wide" flag).
+- [x] **`gametog` (58+)** — done -- deployed and verified via standalone
+      smoke test (`tests/smoke_test_gametog.py`). Split `toggle`:
+      game-wide switches (`multiplay`, previously living inside the
+      unified `toggle` command at 55+) moved to a new `gametog` command
+      gated 58+; `toggle` now shows/accepts ONLY the mortal-settable
+      personal switches (color, hp, newbie, noshout) -- multiplay isn't
+      merely hidden by level anymore, it doesn't exist within `toggle` at
+      all. Both share the same `TOGGLES[]` table (already had a `game`
+      per-row flag) and dispatch logic, factored into a new
+      `toggle_dispatch(d, args, game, header)` helper `cmd_toggle()`/
+      `cmd_gametog()` both call. The pre-existing standalone `multiplay
+      <on|off>` command (59+, `cmd_multiplay.c`) is untouched -- out of
+      scope for this split, a separate (if redundant) entry point.
+      `smoke_test_toggle.py` updated for the new "No such toggle" response
+      to `toggle multiplay` instead of the old level-gate message.
 - [x] **Editors must get ABSOLUTE quiet** — done (Session 43, user: "when
       in the editors, no messages to interrupt, no logs, no output at
       all. thats what catchup is for"). The audit found the REAL bug:
@@ -531,10 +673,16 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       fixed to check `it->character` (or the new range check) instead.
       `smoke_test_held.py` extended to cover edplayer/edzone, not just
       edroom (the gap the old test couldn't have caught).
-- [ ] **`edbug`** — a way to annotate or resolve an already-filed bug
-      report (so a player can be told their bug was fixed), instead of
-      only being able to `delbug` (delete) it outright. Menu-driven or
-      one-shot, matching the `ed*`/`set` precedent.
+- [x] **`edbug`** — done -- deployed and verified via standalone smoke
+      test (`tests/smoke_test_edbug.py`). One-shot: `edbug <id> [note]`
+      (59+, same tier as `delbug`) marks a bug resolved WITHOUT deleting
+      it -- new `bug.resolved_at`/`resolution` columns (`bug.sql`,
+      `tobin_migrations.sql`) -- so the report stays on file instead of
+      vanishing. If the submitter is online right now they get a live
+      notice (with the note, if given); either way a resolved report
+      drops out of the outstanding `bug` list (`bug_repo_list()` now
+      filters `WHERE resolved_at IS NULL`) but the row survives, so
+      `delbug` can still remove it later if truly no longer needed.
 - [x] **`mlist`/`olist`/`rlist` (builder list commands)** — done, folded
       into the EXISTING `vnum <room|obj|mob> <pattern>` command instead of
       three new near-duplicate ones: `vnum` already listed prototypes by
@@ -1256,6 +1404,173 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       New `tests/smoke_test_test_cmd.py` (3 checks) -- relies on
       sweep.sh running tests strictly sequentially so there's no other
       test's announcement to race with.
+- [x] **Player classes (6): Mage, Cleric, Warrior, Thief, Druid, Monk** —
+      done (user 2026-07-11: "implement classes, 6 player classes... the
+      rest of the sneezy classes are for mobs only"). `player_class_t`
+      (being.h/being.c), `class_name()`, `class_stat_bonus()` (fixed
+      net-zero bonus/penalty on top of point-buy attrs), `class_hp_scale()`
+      (feeds `being_calc_max_hp()`: Warrior 1.3, Monk 1.15, Cleric/Druid
+      1.0, Thief 0.9, Mage 0.8). No SneezyMUD Druid exists (closest analog
+      Shaman, not ported) -- designed fresh, same ±4 pattern as the other
+      5. Chosen as a new required step in character creation
+      (CONN_CHAR_CREATE_CLASS, descriptor.c) right after race. Persisted
+      via `player.class` column; shown in `score` and abbreviated in `who`.
+- [x] **Player races (6): Human, Elf, Ogre, Dwarf, Hobbit, Gnome** — done
+      (user 2026-07-11: "implement races, 6 player races..."). Same shape
+      as classes: `player_race_t`, `race_name()`, `race_stat_bonus()`.
+      SneezyMUD's race table has no per-race stat bonuses to port, so this
+      is an original design -- Human is a deliberate zero-modifier
+      baseline. New required creation step (CONN_CHAR_CREATE_RACE) right
+      after point-buy attrs, before class. Persisted via `player.race`;
+      shown in `score`.
+- [x] **Alignment choice at creation + mob alignment-based aggression** —
+      done (user 2026-07-11: "ask player to choose initial alignment so
+      good will attack evil and evil will attack good randomly... people
+      who are neutral should be taunted by evil and supported by good").
+      New CONN_CHAR_CREATE_ALIGNMENT creation step (Good/Neutral/Evil ->
+      alignment 500/0/-500). New `mob.align` column (-1 evil, 0 unaligned
+      [default, zero behavior change for every pre-existing mob], 1 good),
+      loaded into `mob_proto_t`/`being_t.mob_align`. `mob_ai.c`'s
+      `mob_try_aggress()` now branches on alignment: unaligned mobs keep
+      the original behavior (attack anyone but the sufficiently good);
+      aligned mobs only ever fight the opposite alignment, at the same
+      25% per-tick chance. New `mob_try_align_flavor()`: a neutral PC
+      sharing a room with an aligned aggressive mob gets a 15%-chance
+      ambient one-liner instead of combat (good mob nods approvingly, evil
+      mob sneers) -- no HP consequence either way.
+      Bug caught during manual testing: `being_create_pc()` computed
+      max_hp from default (pre-bonus, pre-class) attrs before
+      `player_create()` applied the real race/class bonuses and class HP
+      scale, so every new character's starting HP was wrong (stale
+      calculation, only coincidentally correct for a default Mage/Mage
+      match). Fixed by recomputing max_hp/hp and re-healing limbs right
+      after race/class/alignment are finalized, before the first save.
+      Ripple effect: every test file's character-creation helper answers
+      "done" and expected to be playing immediately; now needs 3 more
+      scripted responses (race/class/alignment) first. Swept all 94
+      affected smoke test files (both the same-line
+      `send_line(...,"done"); recv_all(...)` shape and the split
+      send/recv-on-separate-lines shape) to insert
+      `send_line(VAR,"1")`/`"1"`/`"2"` (Human/Mage/Neutral -- chosen as the
+      least attribute-disruptive defaults) right after "done" drains,
+      preserving each occurrence's own socket variable name. First
+      mechanical pass over-matched and duplicated some insertions (the
+      inserted "done" + recv_all pair still matched the same regex on a
+      second pass) -- caught and collapsed before deploying. Re-verified
+      end-to-end via `smoke_test_alignment.py` (all 16 checks pass) plus a
+      handful of other creation-flow-touching tests.
+- [x] **Bug: `random_visit_mob()` (trigger.c) didn't skip a leading color
+      tag before capitalizing** — done. Same bug class as the
+      already-fixed `cap_first()` helpers elsewhere (cmd_look.c etc.): a
+      mob whose `short_descr` starts with a color tag (e.g. the seeded
+      "dirty refuse hauler", `<o>a dirty refuse hauler<1>`) had its
+      *tag's bracket* uppercased instead of the real first letter, so a
+      `random`-trigger emote like "grumbles about the state of the
+      streets..." rendered lowercase ("a dirty refuse hauler grumbles...")
+      instead of "A dirty refuse hauler grumbles...". Fixed to skip
+      `<...>` tags first, matching every other `cap_first()` copy.
+- [x] **`/f` editor command wording cleanup** — the wiznews entry
+      announcing the format-on-save reflow said "The /format command"
+      when the actual (and only ever intended) syntax is the one-letter
+      `/f`, alongside `/s`/`/a`/`/b` -- every editor (redit, addnews,
+      edwiznews, hedit, rules, edtrigger) already consistently displays
+      `/f`, so this was a wording-only fix, not a behavior change. Fixed
+      the wiznews body text (plus the companion `UPDATE`, since
+      `INSERT ... ON DUPLICATE KEY UPDATE title=title` is a no-op on an
+      already-seeded row).
+- [x] **Confirmed: room vnum/flags are already immortal-only (51+) in
+      `look`** — user asked "make sure players level 50 and below only
+      see room name and no vnums or flags"; verified `cmd_look.c` already
+      gates the `[vnum] Name [sector] [flags]` builder header behind
+      `being_is_immortal()` (>= level 51) and mortals only ever see the
+      plain room name -- already correct, no change needed.
+- [x] **`snoop`'s output mirror gains the same "% " marker its typed-
+      command mirror already had** — done (user 2026-07-11: "add a
+      special prompt to messages sent in snoop (%) snooped content").
+      Before this, only the target's typed commands were prefixed "% ";
+      their own output was mirrored completely unmarked (`descriptor.c`'s
+      `d->snooped_by` raw `socket_write()`), indistinguishable from the
+      snooper's own screen. Now every mirrored chunk, command or output
+      alike, gets the same literal "% " prefix. Help topic + wiznews
+      updated to match.
+- [x] **`zonefile create <zone>`** — new builder tool (user 2026-07-11:
+      "zonefile create should create a zone file with the current status
+      of the zone and its contents, place an item in a chest, the
+      zonefile creates the loading of that chest along with any contents
+      in the chest. current placement of mobs etc. you should also be
+      able to delete a line from the zone file, rerun zonefile create and
+      it fills in the blanks of whats loaded into the zone"). New
+      `zone_file_create()` (zone.c/zone.h): scans every room in the
+      zone's [bottom,top] vnum range for its CURRENT live mobs and ground
+      objects and appends new `zone_reset` rows (`M`/`O`, plus `E`/`G`/`P`
+      for a mob's equipped/held/carried items and a G-carried or O-ground
+      container's contents, one level deep) -- so the next boot/periodic
+      reset recreates exactly what's there now. Idempotent by design: a
+      (room, vnum) pair already covered by an EXISTING `M`/`O` row is left
+      completely alone (no dupe, no re-touching its children), so
+      deleting one row and re-running only fills in what that deletion
+      left uncovered, never duplicating what survived. Documented
+      limitation inherited from the execution engine itself (zone.c's
+      `zone_execute()`): an equipped/held container's contents can't be
+      captured, since the 'E' opcode never sets "last object" for a
+      following 'P' to attach to -- only G-carried or O-ground containers
+      support content capture. New `include/zone_repo.h`'s
+      `zone_repo_insert_reset_cmd()` (plain append, caller picks
+      `cmd_no`). New `src/cmd/cmd_zonefile.c`, registered right after
+      `zone` in `cmd_table.c` (ordering matters -- see that file's
+      comment: "zonefile" would otherwise shadow a bare "zone"
+      abbreviation in the prefix-match dispatch loop). Same
+      `zone_can_edit()` gate as `edzone`/`zone reset`. New help topic
+      `zonefile`. New `tests/smoke_test_zonefile.py`: mob + ground chest +
+      an item placed inside it, verifies the M/O/P rows land correctly,
+      confirms a no-op re-run adds nothing, then deletes the mob's row
+      and confirms only that gap gets refilled without touching the
+      chest's already-covered rows.
+- [x] **`bamfin`/`bamfout` moved to `goto`; the WALKING move-message
+      feature they used to name is now `poofin`/`poofout`** — done (user
+      2026-07-11: "bamfin|out should modify goto messaging and the
+      current bamfin|out should be called something else following the
+      in|out syntax"; follow-ups the same session: "<N> should work in
+      this as well as $g"; "and $p"). `being_t.bamfin`/`bamfout` (the
+      per-move custom-message fields) renamed to `poofin`/`poofout` --
+      their ORIGINAL name, before an earlier same-session rename to
+      "bamfin"/"bamfout" that this now supersedes -- with matching
+      renames throughout: `cmd_bamf.c` -> `cmd_poof.c`
+      (`cmd_poofin`/`cmd_poofout`), `player_set_bamfin/out` ->
+      `player_set_poofin/out`, `cmd_move.c`'s `apply_bamf_tokens` ->
+      `apply_poof_tokens`. DB migration adds `player.poofin`/`poofout`,
+      copies over anything already stored in `player.bamfin`/`bamfout`
+      (so no immortal's existing custom move message is lost), then
+      clears those two columns. Fresh `being_t.bamfin`/`bamfout` fields
+      + `player_set_bamfin/out` + a NEW `cmd_bamf.c` (`cmd_bamfin`/
+      `cmd_bamfout`) back `goto`'s (cmd_goto.c) own custom teleport
+      messages -- broadcast to the room departed (bamfout) and the room
+      arrived in (bamfin), the mover's own private "You vanish..." line
+      untouched either way. Three tokens (the two follow-up requests):
+      `<N>`/`<n>` (the mover's name, may appear anywhere -- same
+      convention as a player's `title`, cmd_who.c's `title_with_name()`),
+      `$g`/`$$g` (the room's ground-surface word,
+      `obj_apply_ground_token()`, already-existing infrastructure reused
+      as-is), and `$p` (gender_possess() pronoun, same as poofin/poofout).
+      No `$d` for goto -- a teleport has no direction. Renamed
+      `tests/smoke_test_bamf.py` -> `tests/smoke_test_poof.py` (mechanical
+      bamf->poof rename throughout, still covers the WALKING feature) and
+      wrote a fresh `tests/smoke_test_bamf.py` covering `goto`'s
+      departure/arrival broadcasts and all three tokens. New help topics
+      `bamfin`/`bamfout` (goto); `poofin`/`poofout` help topics carry over
+      the old body text (with companion `UPDATE`s renaming the
+      already-seeded `bamfin`/`bamfout` rows first, sequenced before the
+      fresh inserts to avoid a primary-key collision on redeploy).
+- [x] **Character-name rejection reports the specific reason** — done
+      (user 2026-07-11, while diagnosing a `smoke_test_bamf.py` failure
+      that turned out to be caused by a too-long witness name: "then char
+      creation should report when name length is violated?"). The single
+      combined message ("Names must be 3 to 15 letters -- no numbers,
+      spaces, or symbols.") in `descriptor.c`'s `CONN_CHAR_CREATE_NAME`
+      handler is now three distinct checks/messages: too short (<3),
+      too long (>15), or contains a non-letter. Updated
+      `smoke_test_name_case.py`'s 5-case rejection table to check for the
+      matching specific substring per case instead of the old combined text.
 
 ## Small near-term gameplay follow-ups
 

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Smoke test for `toggle` (cmd_toggle.c):
+"""Smoke test for `toggle` (cmd_toggle.c) -- PERSONAL switches only:
   1. Bare `toggle` lists the player switches (color, hp) with values.
   2. `toggle hp` flips the hit-points-in-prompt switch.
-  3. `toggle color` flips color (and it stays consistent with `color`).
-  4. A mortal does NOT see or control the game toggle (multiplay).
-  5. A 55+ immortal sees the multiplay game toggle and can flip it.
+  3. `toggle` never lists or accepts the global game toggle (multiplay),
+     for anyone, at any level -- it moved entirely to the separate
+     `gametog` (58+) command (see smoke_test_gametog.py) rather than just
+     being hidden by level within `toggle`.
 
     python3 tests/smoke_test_toggle.py [host] [port]
 """
@@ -101,6 +102,9 @@ def make_char(nm):
     send_line(s, "new"); recv_all(s)
     send_line(s, nm); recv_all(s)
     send_line(s, "done"); recv_all(s)
+    send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
+    send_line(s, "1"); recv_all(s)  # class: mage
+    send_line(s, "2"); recv_all(s)  # alignment: neutral
     return s
 
 
@@ -123,27 +127,23 @@ check("multiplay" not in out, "a mortal does not see the game toggle")
 
 check("hp is now on" in strip(cmd(s, "toggle hp")), "toggle hp flips it on")
 check("hp           on" in strip(cmd(s, "toggle")), "the hp switch now reads on")
-check("only 55+" in strip(cmd(s, "toggle multiplay")),
-      "a mortal cannot flip the game toggle")
+check("No such toggle" in strip(cmd(s, "toggle multiplay")),
+      "toggle no longer recognizes 'multiplay' by name at all")
 
 s.close()
 
-# --- 55+ immortal ---
+# --- toggle never shows/accepts multiplay even at 58+ (it moved to
+# gametog entirely, not just hidden below some level within toggle) ---
 nameI = f"Togi{_suffix}"
 make_char(nameI).close()
-sql(f"UPDATE player_progress SET level=55 WHERE player_id="
+sql(f"UPDATE player_progress SET level=58 WHERE player_id="
     f"(SELECT id FROM player WHERE name='{nameI}');")
 si = relogin(nameI)
 
 out = strip(cmd(si, "toggle"))
-check("multiplay" in out, "a 55+ immortal sees the multiplay game toggle")
-before = "on" if "multiplay    on" in out else "off"
-res = strip(cmd(si, "toggle multiplay"))
-check("multiplay is now" in res, "a 55+ immortal can flip the game toggle")
-# put it back to avoid leaving multiplay changed for other tests
-cmd(si, "toggle multiplay")
-after = strip(cmd(si, "toggle"))
-check(f"multiplay    {before}" in after, "multiplay restored to its prior value")
+check("multiplay" not in out, "toggle doesn't list multiplay even for a 58+ immortal")
+check("No such toggle" in strip(cmd(si, "toggle multiplay")),
+      "toggle doesn't accept 'multiplay' even for a 58+ immortal")
 
 si.close()
 announce_done("smoke_test_toggle")

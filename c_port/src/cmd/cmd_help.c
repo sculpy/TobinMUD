@@ -100,8 +100,18 @@ bool cmd_help(descriptor_t *d, const char *args) {
                     }
                 }
                 if (!hidden) {
+                    /* Title-case the command name in the header (user
+                     * 2026-07-11: "proper case for the command") --
+                     * `resolved` itself stays lowercase (it's also used for
+                     * DB lookups/aliasing elsewhere), this only affects the
+                     * displayed heading. */
+                    char titled[HELP_TOPIC_NAME_LEN];
+                    snprintf(titled, sizeof(titled), "%s", resolved);
+                    if (titled[0])
+                        titled[0] = (char)toupper((unsigned char)titled[0]);
+
                     char head[80];
-                    snprintf(head, sizeof(head), "\r\n<c>-- Help: %s --<z>\r\n", resolved);
+                    snprintf(head, sizeof(head), "\r\n<c>-- Help: %s --<z>\r\n", titled);
                     descriptor_send(d, head);
 
                     /* Split a leading "Usage: <syntax>" line out of the body:
@@ -133,15 +143,17 @@ bool cmd_help(descriptor_t *d, const char *args) {
                     if (syntax[0] == '\0' && match)
                         snprintf(syntax, sizeof(syntax), "%s", match->name);
 
-                    /* Magenta description body. The <m>...<z> pair MUST be in a
-                     * single send: colorstring auto-appends a reset when a
-                     * message ends mid-color, so splitting <m> off would reset
-                     * it immediately. Trailing newlines trimmed to one. */
+                    /* Bright white description body (user 2026-07-11:
+                     * "colorize help files with <W>" -- was magenta). The
+                     * <W>...<z> pair MUST be in a single send: colorstring
+                     * auto-appends a reset when a message ends mid-color, so
+                     * splitting <W> off would reset it immediately. Trailing
+                     * newlines trimmed to one. */
                     size_t dlen = strlen(desc);
                     while (dlen > 0 && (desc[dlen - 1] == '\n' || desc[dlen - 1] == '\r'))
                         dlen--;
                     char shown[HELP_BODY_MAX + 32];
-                    snprintf(shown, sizeof(shown), "<m>%.*s<z>\r\n", (int)dlen, desc);
+                    snprintf(shown, sizeof(shown), "<W>%.*s<z>\r\n", (int)dlen, desc);
                     descriptor_send(d, shown);
 
                     /* Cyan-labelled Syntax / Minimum Level footer -- commands

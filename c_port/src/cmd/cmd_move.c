@@ -44,9 +44,9 @@ static void run_room_and_greet_triggers(being_t *ch, room_t *to) {
 }
 
 /* Substitutes `$d` (a direction word) and `$p` (the mover's gender_possess()
- * pronoun) into a bamfin/bamfout template -- see cmd_bamf.c's doc comment
+ * pronoun) into a poofin/poofout template -- see cmd_poof.c's doc comment
  * for the token contract. Used by do_move() below. */
-static void apply_bamf_tokens(const char *tmpl, const char *dir_word, gender_t gender,
+static void apply_poof_tokens(const char *tmpl, const char *dir_word, gender_t gender,
                                char *out, size_t outsz) {
     size_t oi = 0;
     for (const char *p = tmpl; *p && oi + 1 < outsz; p++) {
@@ -116,8 +116,8 @@ static bool do_move(descriptor_t *d, int dir) {
     };
     char msg[256];
     char body[BEING_BAMF_LEN + 32];
-    if (ch->bamfout[0]) {
-        apply_bamf_tokens(ch->bamfout, DIR_NAMES[dir], ch->gender, body, sizeof(body));
+    if (ch->poofout[0]) {
+        apply_poof_tokens(ch->poofout, DIR_NAMES[dir], ch->gender, body, sizeof(body));
         snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, body);
     } else {
         snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, EXIT_PHRASES[dir]);
@@ -126,8 +126,8 @@ static bool do_move(descriptor_t *d, int dir) {
 
     thing_set_room(&ch->base, to);
 
-    if (ch->bamfin[0]) {
-        apply_bamf_tokens(ch->bamfin, DIR_NAMES[REV_DIR[dir]], ch->gender, body, sizeof(body));
+    if (ch->poofin[0]) {
+        apply_poof_tokens(ch->poofin, DIR_NAMES[REV_DIR[dir]], ch->gender, body, sizeof(body));
         snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, body);
     } else {
         snprintf(msg, sizeof(msg), "%s has arrived.\r\n", ch->base.name);

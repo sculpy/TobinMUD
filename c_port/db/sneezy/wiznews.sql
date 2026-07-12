@@ -206,3 +206,52 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Browse Prototypes by Number, Not Just Name', 'vnum <room|obj|mob> <pattern> now also accepts a bare vnum or a vnum range (vnum obj 1017, or vnum obj 100-200) to browse prototypes directly by number, alongside its existing name search -- one command instead of three separate list commands.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Game-Wide Switches Get Their Own Room', 'toggle no longer shows or accepts multiplay or any other global, everyone-affecting switch -- those moved entirely to a new gametog command (58+). toggle is now purely about your own personal switches (color, hp in prompt, and the rest).')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Bugs Can Be Fixed, Not Just Deleted', 'A new edbug <id> [note] command (59+) marks a filed bug resolved without deleting it -- if the reporter is online right now, they get a live notice, note included. delbug is still there for a report that never deserved to be kept around at all.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Quiet Watcher Joins the Staff', 'A new snoop <name> command (59+) mirrors everything a lower-level player sees and types straight to your own screen -- you cannot snoop anyone your own level or higher, it just fails. Bare snoop (no name) stops it. Covert by design: the target is never told.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Help Files Get a Cleanup', 'Help topics now title-case the command name in their header, render the description in bright white instead of magenta, and drop redundant "Administrator (N+) only" phrasing now that the footer already shows Minimum Level. The /f (format) command in every text editor also indents each paragraph''s first line two spaces.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+-- Companion fix (user 2026-07-11: "/format doesn't work in room editor" --
+-- the real syntax is the one-letter "/f", "/format" was only ever a doc/
+-- comment shorthand, never an accepted alias): the INSERT above silently
+-- no-ops on this already-seeded row (ON DUPLICATE KEY UPDATE title=title),
+-- same lesson as help_topic.sql's snoop entry -- an explicit UPDATE is
+-- required to actually correct the live body text.
+UPDATE `wiznews` SET `body` = 'Help topics now title-case the command name in their header, render the description in bright white instead of magenta, and drop redundant "Administrator (N+) only" phrasing now that the footer already shows Minimum Level. The /f (format) command in every text editor also indents each paragraph''s first line two spaces.'
+WHERE `title` = 'Help Files Get a Cleanup';
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Exits Now Match the Room', 'The [Exits:] line in look used to always be green -- now it takes on the same color as the room name itself, so a lava cavern''s exits glow red, a forest clearing''s glow green, and so on, instead of clashing with whatever the room actually looks like.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Choose Your Path', 'Character creation now asks for a race (Human, Elf, Ogre, Dwarf, Hobbit, Gnome), a class (Mage, Cleric, Warrior, Thief, Druid, Monk), and an alignment (Good, Neutral, Evil) right after point-buy attributes -- each race and class carries its own stat bonuses and penalties, and class also scales starting hit points. Alignment isn''t just flavor: an aligned aggressive mob will only ever fight the opposite alignment (never its own kind), leaving neutral players alone in combat but occasionally giving them a one-line in-character reaction instead -- a nod of approval from something good, a sneer from something evil.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Snoop Marks Every Mirrored Line', 'snoop used to only prefix the target''s typed commands with "% " -- their own output was mirrored to you completely unmarked, easy to mistake for your own screen. Every mirrored line is now prefixed the same way, commands and output alike.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Build It Live, Then Zonefile Create', 'New builder tool: `zonefile create <zone>` snapshots a zone''s CURRENT live mobs and objects -- load a mob, drop a chest, put something inside it -- into real reset data, so the next boot or periodic reset recreates exactly what you built. It''s safe to re-run: anything already covered is left alone, so deleting one line from the reset data and running it again only fills that gap back in, never duplicating what''s still there. See `help zonefile`.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Bamfin/Bamfout Now Belong to Goto', '`bamfin`/`bamfout` set your custom `goto` teleport messages now, shown to the room you leave and the room you arrive in -- three tokens available: <N> for your name (anywhere in the message), $g for the room''s ground word, and $p for your pronoun. The WALKING move-message feature that used to answer to `bamfin`/`bamfout` is renamed `poofin`/`poofout` (its original name) -- nobody''s custom message was lost in the move. See `help bamfin`/`help poofin`.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Character Creation Explains What Went Wrong', 'A rejected character name used to get one generic message no matter the reason. Now it tells you exactly what''s wrong: too short (under 3 letters), too long (over 15 letters), or containing something other than letters -- each gets its own message.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

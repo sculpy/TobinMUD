@@ -31,7 +31,7 @@ bool bug_repo_list(char *out, size_t size, int limit) {
     bool any = false;
 
     if (db_query(db, "select id, date(created_at) as day, submitter, body "
-                     "from bug order by id desc limit %i", limit)) {
+                     "from bug where resolved_at is null order by id desc limit %i", limit)) {
         while (db_fetch_row(db)) {
             /* "#12 [2026-07-05] Testguy: the door won't open" -- id/date in a
              * dim cyan tag, then the submitter and report text. */
@@ -58,6 +58,41 @@ bool bug_repo_delete(int id) {
      * exists first -- that way delbug can honestly say "no such bug". */
     bool found = db_query(db, "select 1 from bug where id=%i", id) && db_fetch_row(db);
     bool ok = found && db_query(db, "delete from bug where id=%i", id);
+
+    db_close(db);
+    return ok;
+}
+
+bool bug_repo_resolve(int id, const char *note) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool found = db_query(db, "select 1 from bug where id=%i and resolved_at is null", id)
+              && db_fetch_row(db);
+    bool ok = found && db_query(db,
+        "update bug set resolved_at=now(), resolution='%s' where id=%i",
+        note ? note : "", id);
+
+    db_close(db);
+    return ok;
+}
+
+bool bug_repo_get(int id, char *submitter, size_t submitter_size,
+                  char *body, size_t body_size) {
+    submitter[0] = '\0';
+    body[0] = '\0';
+
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db, "select submitter, body from bug where id=%i", id)
+           && db_fetch_row(db);
+    if (ok) {
+        snprintf(submitter, submitter_size, "%s", db_get(db, "submitter"));
+        snprintf(body, body_size, "%s", db_get(db, "body"));
+    }
 
     db_close(db);
     return ok;

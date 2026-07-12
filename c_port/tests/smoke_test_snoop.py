@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""Smoke test for the starter trigger content (user, 2026-07-11: "and
-convert what sneezy has into a starter set of db data for tobin"),
-db/sneezy/trigger_seed.sql -- verifies the seeded rows actually fire, not
-just that they exist in the table.
+"""Smoke test for `snoop <name>` (59+, user 2026-07-11: "implement a snoop
+command like sneezy, the command should be 59+ where you cant snoop
+anyone of same or higher level").
 
-  1. The real "dirty refuse hauler" (vnum 33271) mutters something rude
-     when a nearby player says "hello" (insulter-inspired speech trigger).
-  2. Picking up the new "tangle of thorny brambles" (vnum 1000001) prints
-     the scratch echo AND applies the 2-point damage -- both halves of the
-     two-line script fire, not just the first (stickerBush-inspired).
+  1. `snoop` is hidden from a 58 immortal (below 59).
+  2. A 59+ snooper cannot snoop someone of equal or higher level ("You
+     failed.").
+  3. A 59+ snooper CAN snoop a lower-level mortal: their own typed
+     command line is mirrored (prefixed "% "), and so is what they see in
+     response.
+  4. Bare `snoop` (no argument) stops the snoop, same as `snoop
+     <yourself>` -- nothing more is mirrored after.
 
-    python3 tests/smoke_test_trigger_seed.py [host] [port]
+    python3 tests/smoke_test_snoop.py [host] [port]
 """
-import re
 import socket
 import subprocess
 import sys
@@ -20,9 +21,6 @@ import time
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
-
-MOB_VNUM = 33271
-BRAMBLE_VNUM = 1000001
 
 
 def announce(test_name, host=host, port=port):
@@ -50,10 +48,9 @@ def announce_done(test_name, host=host, port=port):
     announce(f"done {test_name}", host, port)
 
 
-announce("smoke_test_trigger_seed")
+announce("smoke_test_snoop")
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
-ROOM = 900000 + (int(time.time()) % 70000)
 
 
 def recv_all(sock, timeout=1.0):
@@ -118,45 +115,68 @@ def login(name, pw):
     return s
 
 
-imm_name = f"Seedimm{_suffix}"
-imm_pw = "seedimmpw123"
-mort_name = f"Seedmort{_suffix}"
-mort_pw = "seedmortpw123"
+imm_name = f"Snoopimm{_suffix}"
+imm_pw = "snoopimmpw123"
+mort_name = f"Snoopmort{_suffix}"
+mort_pw = "snoopmortpw123"
+peer_name = f"Snooppeer{_suffix}"
+peer_pw = "snooppeerpw123"
 
-s = socket.create_connection((host, port), timeout=5)
-make_char(s, imm_name, imm_pw)
-set_level(imm_name, 51)
-s.close()
-s = login(imm_name, imm_pw)
-
-sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
-    f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Seed Content Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
-check("Seed Content Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the SQL-bootstrapped sandbox room")
-
+# --- mortal target (level 1, well below the snooper) ---
 sm = socket.create_connection((host, port), timeout=5)
 make_char(sm, mort_name, mort_pw)
-sql(f"UPDATE player SET load_room={ROOM} WHERE name='{mort_name}';")
-cmd(sm, "quit!")
 sm.close()
 sm = login(mort_name, mort_pw)
-check("Seed Content Sandbox" in cmd(sm, "look"), "the mortal lands directly in the sandbox room")
 
-# --- 1: insulter-inspired speech trigger on the real dirty refuse hauler ---
-check("You conjure" in cmd(s, f"load mob {MOB_VNUM}"), "the real dirty refuse hauler is loaded")
-out = cmd(sm, "say hello")
-check("mutters something rude" in out, "the hauler's seeded speech trigger fires on 'hello'")
+# --- a peer immortal (59), to prove same-level snooping fails ---
+sp = socket.create_connection((host, port), timeout=5)
+make_char(sp, peer_name, peer_pw)
+set_level(peer_name, 59)
+sp.close()
+sp = login(peer_name, peer_pw)
 
-# --- 2: stickerBush-inspired get trigger on the new brambles ---
-check("You conjure" in cmd(s, f"load obj {BRAMBLE_VNUM}"), "the new tangle of thorny brambles is loaded")
-hp_before_m = re.search(r"HP:\s*(-?\d+)/(\d+)", cmd(sm, "score"))
-out = cmd(sm, "get brambles")
-check("thorns prick your fingers" in out, "the get trigger's echo action fires")
-hp_after_m = re.search(r"HP:\s*(-?\d+)/(\d+)", cmd(sm, "score"))
-check(int(hp_after_m.group(1)) == int(hp_before_m.group(1)) - 2,
-      "the get trigger's damage action ALSO fires (both script lines ran)")
+# --- the snooper, starting at 58 (below the gate) ---
+si = socket.create_connection((host, port), timeout=5)
+make_char(si, imm_name, imm_pw)
+set_level(imm_name, 58)
+si.close()
+si = login(imm_name, imm_pw)
+check("Huh?!" in cmd(si, f"snoop {mort_name}"), "snoop is hidden below level 59")
 
-s.close()
+# --- promote to 59 ---
+set_level(imm_name, 59)
+si.close()
+si = login(imm_name, imm_pw)
+
+# --- bare snoop while not snooping anyone yet ---
+out = cmd(si, "snoop")
+check("just snoop yourself" in out, "bare snoop with no active snoop just snoops yourself")
+
+# --- cannot snoop an equal-level peer ---
+out = cmd(si, f"snoop {peer_name}")
+check("You failed" in out, "a 59 immortal cannot snoop an equal-level peer")
+
+# --- snoop the mortal (well below 59) ---
+out = cmd(si, f"snoop {mort_name}")
+check("now snooping" in out, "a 59 immortal can snoop a lower-level mortal")
+
+# --- the mortal's typed command AND its response are both mirrored ---
+cmd(sm, "score")
+mirrored = recv_all(si, timeout=1.0)
+check("% score" in mirrored, "the snooped mortal's typed command is mirrored, prefixed '%'")
+check("Level:" in mirrored or "HP:" in mirrored,
+      "the snooped mortal's own response output is ALSO mirrored to the snooper")
+
+# --- stop snooping with a bare `snoop` (no argument) ---
+out = cmd(si, "snoop")
+check("stop snooping" in out, "bare snoop (no argument) stops the snoop")
+
+cmd(sm, "look")
+after = recv_all(si, timeout=1.0)
+check("% look" not in after, "nothing more is mirrored after snoop stops")
+
 sm.close()
-announce_done("smoke_test_trigger_seed")
+sp.close()
+si.close()
+announce_done("smoke_test_snoop")
 print("=== ALL CHECKS PASSED ===")

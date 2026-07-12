@@ -55,9 +55,12 @@ bool cmd_prompt(descriptor_t *d, const char *args);
 bool cmd_time(descriptor_t *d, const char *args);
 bool cmd_title(descriptor_t *d, const char *args);
 bool cmd_toggle(descriptor_t *d, const char *args);
+bool cmd_gametog(descriptor_t *d, const char *args);
+bool cmd_snoop(descriptor_t *d, const char *args);
 bool cmd_exec(descriptor_t *d, const char *args);
 bool cmd_bug(descriptor_t *d, const char *args);
 bool cmd_delbug(descriptor_t *d, const char *args);
+bool cmd_edbug(descriptor_t *d, const char *args);
 bool cmd_idea(descriptor_t *d, const char *args);
 bool cmd_delidea(descriptor_t *d, const char *args);
 bool cmd_test(descriptor_t *d, const char *args);
@@ -102,10 +105,13 @@ bool cmd_pee(descriptor_t *d, const char *args);
 bool cmd_drink(descriptor_t *d, const char *args);
 bool cmd_bamfin(descriptor_t *d, const char *args);
 bool cmd_bamfout(descriptor_t *d, const char *args);
+bool cmd_poofin(descriptor_t *d, const char *args);
+bool cmd_poofout(descriptor_t *d, const char *args);
 bool cmd_scan(descriptor_t *d, const char *args);
 bool cmd_vnum(descriptor_t *d, const char *args);
 bool cmd_zone(descriptor_t *d, const char *args);
 bool cmd_edzone(descriptor_t *d, const char *args);
+bool cmd_zonefile(descriptor_t *d, const char *args);
 bool cmd_edtrigger(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
@@ -121,6 +127,10 @@ bool cmd_edtrigger(descriptor_t *d, const char *args);
 
 /* `delbug` removes a handled bug report -- Administrator (59) and up. */
 #define DELBUG_MIN_LEVEL 59
+
+/* `edbug` resolves a bug report in place (keeping it, unlike `delbug`) --
+ * same tier as `delbug`, TODO.md-planned. */
+#define EDBUG_MIN_LEVEL 59
 
 /* `delidea` removes a handled idea -- Administrator (59) and up. */
 #define DELIDEA_MIN_LEVEL 59
@@ -157,6 +167,14 @@ bool cmd_edtrigger(descriptor_t *d, const char *args);
 
 /* `multiplay` (toggle the mortal-multiplay game flag): 59+, user-specified. */
 #define MULTIPLAY_MIN_LEVEL 59
+
+/* `gametog` (global game-wide toggles, split out of `toggle`): 58+,
+ * TODO.md-planned. */
+#define GAMETOG_MIN_LEVEL 58
+
+/* `snoop`: 59+, user-specified (2026-07-11). Same-or-higher-level targets
+ * are refused inside cmd_snoop.c itself, not by this table gate alone. */
+#define SNOOP_MIN_LEVEL 59
 
 /* `edplayer`: Administrator (58+), matching `promote`'s tier -- it's an
  * admin superset of promote (TODO.md). */
