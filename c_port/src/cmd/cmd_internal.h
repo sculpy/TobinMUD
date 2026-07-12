@@ -123,6 +123,7 @@ bool cmd_edzone(descriptor_t *d, const char *args);
 bool cmd_zonefile(descriptor_t *d, const char *args);
 bool cmd_edtrigger(descriptor_t *d, const char *args);
 bool cmd_consider(descriptor_t *d, const char *args);
+bool cmd_egotrip(descriptor_t *d, const char *args);
 bool cmd_examine(descriptor_t *d, const char *args);
 bool cmd_sip(descriptor_t *d, const char *args);
 bool cmd_show(descriptor_t *d, const char *args);
@@ -195,6 +196,11 @@ bool look_at_target(descriptor_t *d, const char *args);
 /* `balance` (gamewide class/race HP/damage/to-hit/AC modifiers) --
  * Implementor-only (60), user-specified: "a balance command (60)". */
 #define BALANCE_MIN_LEVEL 60
+
+/* `egotrip` (immortal toy-box, Sneezy port): Implementor-only (60),
+ * matching `balance`'s tier -- "should be used seldomly" per the
+ * original's own help text. */
+#define EGOTRIP_MIN_LEVEL 60
 
 /* `snoop`: 59+, user-specified (2026-07-11). Same-or-higher-level targets
  * are refused inside cmd_snoop.c itself, not by this table gate alone. */

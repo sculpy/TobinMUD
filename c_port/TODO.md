@@ -2041,8 +2041,26 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-12 — logged, not yet started
 
-- [ ] **`egotrip` command** — port from Sneezy. User: "add egotrip command
-      from sneezy."
+- [x] **`egotrip` command** — done, scoped down. User: "add egotrip
+      command from sneezy." The original (cmd_egotrip.cc) is a 13-
+      subcommand immortal toy-box (deity/bless/blast/damn/hate/cleanse/
+      wander/stupidity/crit/portal/teleport/disease/garble) built almost
+      entirely on systems Tobin hasn't built yet: a disease system, a
+      garble/speech-distortion system, mob AI hate/aggro tracking (task
+      27), stat-modifying affects beyond Sanctuary's flat damage-halving
+      (task 13), and free-standing portal objects. Rather than stub out
+      twelve dead branches, ported the one subcommand that maps cleanly
+      onto what already exists: `egotrip blast <target>` (60+, matching
+      `balance`'s tier), a non-lethal bolt of lightning that halves the
+      target's current HP (floored at 1 -- per the original's own
+      comment, "this just nails um, but shouldn't actually kill them").
+      Any other/missing subcommand shows a usage line that's honest
+      about the scope-down rather than silently no-opping.
+      `tests/smoke_test_egotrip.py` covers the mortal-can't-reach-it
+      gate, the scoped usage line, and two successive blasts roughly
+      halving HP each time (loosened to a tolerance band after finding
+      the periodic HP-regen tick (`REGEN_PULSES`) nudges the exact
+      before/after numbers by a point or two between reads).
 - [ ] **`stat` command (Implementor 55+)** — `stat obj|mob|room <vnum>`
       shows everything about that object/mob/room. User: "add stat command
       so an immortal of level 55+ can see everything about the mob obj or

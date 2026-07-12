@@ -108,6 +108,7 @@ static const cmd_entry_t COMMANDS[] = {
      * abbreviation) -- "cons"+ is consider's shortest safe abbreviation. */
     { "consider", cmd_consider, "Size up a fight before you start one (consider <target>|self).", MORTAL_LEVEL_MIN },
     { "balance", cmd_balance, "Adjust gamewide class/race balance modifiers (balance class|race <name>).", BALANCE_MIN_LEVEL },
+    { "egotrip", cmd_egotrip, "Immortal toy-box -- only 'blast <target>' is implemented.", EGOTRIP_MIN_LEVEL },
     { "settrap", cmd_settrap, "Rig a trap on a closed door (Thief, settrap <direction>).", MORTAL_LEVEL_MIN },
     { "disarmtrap", cmd_disarmtrap, "Safely remove a trap from a door (Thief, disarmtrap <direction>).", MORTAL_LEVEL_MIN },
     { "affects", cmd_affects, "List your currently active buffs/debuffs.", MORTAL_LEVEL_MIN },

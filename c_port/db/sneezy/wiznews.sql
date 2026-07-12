@@ -339,3 +339,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Six New Commands: consider, examine, sip, show, tell, whisper', '`examine <target>` is a synonym for "look at" something. `consider <target>` (or `consider self`) sizes up a fight before you start one. `sip <liquid>` tastes a puddle or fountain with much less risk than a full `drink`. `show <item> <person>` holds an item up for someone to see without giving it up. `tell <name> <message>` reaches anyone playing anywhere; `whisper <name> <message>` is the same but room-only, with bystanders only knowing a conversation happened.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New Implementor Toy: egotrip blast', 'A new `egotrip blast <target>` command (60+) hits a target with a non-lethal bolt of lightning, halving their current HP (never below 1). The original Sneezy egotrip''s other eleven subcommands aren''t here yet -- they depend on systems Tobin hasn''t built (disease, garble, mob AI hate/aggro, and more).')
+ON DUPLICATE KEY UPDATE `title` = `title`;
