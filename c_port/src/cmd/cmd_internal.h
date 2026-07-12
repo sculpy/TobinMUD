@@ -122,6 +122,17 @@ bool cmd_zone(descriptor_t *d, const char *args);
 bool cmd_edzone(descriptor_t *d, const char *args);
 bool cmd_zonefile(descriptor_t *d, const char *args);
 bool cmd_edtrigger(descriptor_t *d, const char *args);
+bool cmd_consider(descriptor_t *d, const char *args);
+bool cmd_examine(descriptor_t *d, const char *args);
+bool cmd_sip(descriptor_t *d, const char *args);
+bool cmd_show(descriptor_t *d, const char *args);
+bool cmd_tell(descriptor_t *d, const char *args);
+bool cmd_whisper(descriptor_t *d, const char *args);
+
+/* cmd_look.c's own `look <name>` resolver -- shared with `examine`
+ * (cmd_examine.c), which Sneezy documents as a plain synonym for
+ * "look at" ("Examine is synonymous with 'look at'"). */
+bool look_at_target(descriptor_t *d, const char *args);
 
 /* `hedit`'s gate (user-specified): level 56+, i.e. senior "God"-tier
  * immortals and up, not every 51+ immortal. */

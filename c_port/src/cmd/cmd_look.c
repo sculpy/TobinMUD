@@ -148,7 +148,7 @@ static const char *obj_condition_text(const obj_t *o) {
  * this same `appearance` field by being_create_mob(), so this needs no
  * mob-specific branch. An object shows its long_descr plus a condition
  * line derived from cur_struct/max_struct (when the prototype set one). */
-static bool look_at_target(descriptor_t *d, const char *args) {
+bool look_at_target(descriptor_t *d, const char *args) {
     char tok[64];
     if (sscanf(args, "%63s", tok) != 1)
         return false;

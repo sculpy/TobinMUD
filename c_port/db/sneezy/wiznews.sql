@@ -335,3 +335,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Grimhaven is Now Tobin City', 'Every mention of "Grimhaven" across rooms, mobs, objects, and zone data (any capitalization) has been renamed to "Tobin City" to match the game''s actual setting.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Six New Commands: consider, examine, sip, show, tell, whisper', '`examine <target>` is a synonym for "look at" something. `consider <target>` (or `consider self`) sizes up a fight before you start one. `sip <liquid>` tastes a puddle or fountain with much less risk than a full `drink`. `show <item> <person>` holds an item up for someone to see without giving it up. `tell <name> <message>` reaches anyone playing anywhere; `whisper <name> <message>` is the same but room-only, with bystanders only knowing a conversation happened.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

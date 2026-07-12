@@ -2127,9 +2127,49 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - [ ] **Expand `prompt` toggles** — add mana, piety, vitality, gold, etc
       to the existing `prompt` command's toggle set. User: "expand prompt
       command toggles to include mana, piety, vitality, gold, etc."
-- [ ] **Port Sneezy commands: consider, examine, sip, show, tell,
-      whisper** — user: "port the sneezy commands consider and examine
-      and sip and show and tell and whisper."
+      BLOCKED on those stats existing at all first: `being_t`/`progress_t`
+      currently has no mana pool, piety stat, or vitality stat (prayer/
+      casting is component-consumption-based, task 44, not mana-based),
+      and no gold/currency field (task 29, "Money system", still
+      pending). `prompt hp` (the one toggle that exists today,
+      `cmd_prompt.c`/`game_loop.c`) is a clean, small template to extend
+      once each underlying stat is real -- but adding the toggles before
+      the stats themselves would just be dead bitmask flags.
+- [x] **Port Sneezy commands: consider, examine, sip, show, tell,
+      whisper** — done. User: "port the sneezy commands consider and
+      examine and sip and show and tell and whisper." Each scoped down
+      from the original where Tobin lacks the supporting system (see
+      each new `cmd_*.c`'s own header comment for exactly what was kept
+      vs dropped): `examine` is a thin wrapper around `cmd_look.c`'s own
+      `look_at_target()` (now exposed non-static) -- Sneezy's help text
+      says plainly "Examine is synonymous with 'look at'". `consider`
+      drops the original's trophy-tracked kill counts, per-lore-skill
+      creature identification, and HP/AC/attack-count estimates (none of
+      that infra exists) but keeps `consider self`'s AC-based equipment
+      verdict (`being_total_ac()`), the immortal/mortal-PC flavor
+      refusals, and the plain level-difference verdict ladder for mobs.
+      `sip` reuses `drink`'s exact puddle/fountain targets (cmd_drink.c)
+      with a much lower poison chance and "taste" flavored messaging,
+      per Sneezy's own help text ("less risk of damage... does not fill
+      you up as much"). `show <item> <person>` is the ordinary social
+      meaning of the word (a message only, item stays put) rather than
+      Sneezy's actual `show.cc` -- which turned out to be a sprawling
+      immortal admin utility (room/zone listings) already covered by
+      this backlog's own `stat`/`zone list` items, not what a player
+      means by "show". `tell` (global reach, same lookup-by-name-prefix
+      pattern as `transfer`) and `whisper` (same-room only, bystanders
+      see a content-free "X whispers something to Y" notice) match
+      Sneezy's help text exactly, minus the blind/darkness visibility
+      check (not built yet). `tests/smoke_test_sneezy_ports.py` covers
+      all six. Three test-authoring snags: forgetting to actually `load
+      obj` the seeded fountain before `sip`-ing it; mixing up which
+      side of `consider <PC>` gets the big-ego line vs the generic
+      refusal; and discovering that `goto` never persists to
+      `player.load_room`, so a `quit!`+reconnect (used elsewhere to force
+      a fresh DB load) drops an immortal back at their ORIGINAL load
+      room, not wherever `goto` last put them -- sidestepped by giving
+      the test mob the same level as the already-immortal tester instead
+      of changing the tester's level.
 - [ ] **Strip damage numbers from combat messages** — user: "You stab a
       messenger from the goblins's left finger for 4 damage!, dont report
       damage. messages should read You stab a messenger from the goblins's
@@ -2190,6 +2230,16 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       `player_inventory_save`, each called separately from `set`,
       `cmd_mortal.c`, `combat_defeat()`, and every object command) into one
       place, and directly close the "Mid-fight persistence" gap above.
+      Follow-up (user, 2026-07-12): **quit and death should auto-save**.
+      Confirmed this is a real gap, not just theoretical: neither
+      `cmd_quit.c`'s `descriptor_leave_to_menu()` nor `being_destroy()`
+      (`being.c`) persists anything before freeing the character --
+      today's quit/death only keeps whatever was already flushed by an
+      earlier scattered save call, so state changed since the last one
+      (attrs, inventory, HP) is silently lost. Once `player_save()`
+      exists, call it from `descriptor_leave_to_menu()` (covers both
+      `quit!` and a defeat's loser path, since both already route through
+      it) BEFORE `being_destroy()` frees the character.
 
 ## Blocked on Objects / Mobs (Phase 2C/2D/2E)
 

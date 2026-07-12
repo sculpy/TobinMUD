@@ -47,8 +47,10 @@ static const cmd_entry_t COMMANDS[] = {
     { "se",        cmd_southeast, NULL,                                             MORTAL_LEVEL_MIN },
     { "sw",        cmd_southwest, NULL,                                             MORTAL_LEVEL_MIN },
     { "look",    cmd_look,    "Look around the room you're in.",                    MORTAL_LEVEL_MIN },
-    /* "e" is east; "ex"+ reaches exits. */
+    /* "e" is east; "ex"+ reaches exits, so "exa"+ is examine's shortest
+     * safe abbreviation. A plain synonym for `look <target>`. */
     { "exits",   cmd_exits,   "List this room's exits and where they lead.",        MORTAL_LEVEL_MIN },
+    { "examine", cmd_examine, "Look at something in detail -- a synonym for look <target>.", MORTAL_LEVEL_MIN },
     /* "o" is unused, so "open" gets it; "c" is color's, "cl"+ reaches close. */
     { "open",    cmd_open,    "Open a door (open <direction>).",                    MORTAL_LEVEL_MIN },
     { "close",   cmd_close,   "Close a door (close <direction>).",                  MORTAL_LEVEL_MIN },
@@ -69,6 +71,16 @@ static const cmd_entry_t COMMANDS[] = {
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
     /* No "sh"-prefixed collision yet -- typed in full is safe either way. */
     { "shout",   cmd_shout,   "Shout something to everyone in the game (shout <msg>).", MORTAL_LEVEL_MIN },
+    /* "show" and "shout" diverge at the 4th letter ("show" vs "shou"),
+     * but "sho" alone is still ambiguous and "shout" (just above) wins
+     * it -- "show" typed in full is show's shortest safe abbreviation. */
+    { "show",    cmd_show,    "Show a carried item to someone in the room (show <item> <person>).", MORTAL_LEVEL_MIN },
+    /* "te" also reaches "test" (registered later, below) -- "tel"+ is
+     * tell's shortest safe abbreviation, "tes"+ is test's. */
+    { "tell",    cmd_tell,    "Send a private message to anyone playing (tell <name> <message>).", MORTAL_LEVEL_MIN },
+    /* "wh" also reaches "who" (above, wins the 2-letter abbreviation) --
+     * "whi"+ is whisper's shortest safe abbreviation. */
+    { "whisper", cmd_whisper, "Send a private message to someone in the room (whisper <name> <message>).", MORTAL_LEVEL_MIN },
     /* Positions. Prefix notes: "s"=south; "sa"=say, "sc"=score, "se/sw"=
      * diagonals; "si"=sit, "sl"=sleep, "st"=stand; "r"=rest (no other r
      * command); "w"=west, so "wa"=wake. */
@@ -92,6 +104,9 @@ static const cmd_entry_t COMMANDS[] = {
     { "pray",    cmd_pray,    "Pray for a spell (Cleric) -- requires a holy symbol.", MORTAL_LEVEL_MIN },
     { "practice", cmd_practice, "Train your Basic/Advanced discipline with a guildmaster (practice basic|advanced).", MORTAL_LEVEL_MIN },
     { "continue", cmd_continue, "Repeat your last heal-type prayer until the target is healed or your holy symbols run out.", MORTAL_LEVEL_MIN },
+    /* "con" already reaches "continue" (just above, wins any 3-letter
+     * abbreviation) -- "cons"+ is consider's shortest safe abbreviation. */
+    { "consider", cmd_consider, "Size up a fight before you start one (consider <target>|self).", MORTAL_LEVEL_MIN },
     { "balance", cmd_balance, "Adjust gamewide class/race balance modifiers (balance class|race <name>).", BALANCE_MIN_LEVEL },
     { "settrap", cmd_settrap, "Rig a trap on a closed door (Thief, settrap <direction>).", MORTAL_LEVEL_MIN },
     { "disarmtrap", cmd_disarmtrap, "Safely remove a trap from a door (Thief, disarmtrap <direction>).", MORTAL_LEVEL_MIN },
@@ -139,6 +154,9 @@ static const cmd_entry_t COMMANDS[] = {
     /* "dr" already reaches "drop" (registered first, wins the 2-letter
      * abbreviation) -- "dri"+ is drink's shortest safe abbreviation. */
     { "drink",   cmd_drink,   "Drink from a puddle on the ground (drink <puddle>).", MORTAL_LEVEL_MIN },
+    /* "si" already reaches "sit" (registered with the other positions,
+     * above) -- "sip" typed in full is safe either way. */
+    { "sip",     cmd_sip,     "Taste a bit of a puddle or fountain, low risk (sip <liquid>).", MORTAL_LEVEL_MIN },
     /* "purge" shares "pu" with "put" (above, wins any 2-letter abbreviation
      * since it's registered first) -- "pur"+ is purge's shortest safe
      * abbreviation. Bare `purge` clears the room; `purge linkdead` (58+,
