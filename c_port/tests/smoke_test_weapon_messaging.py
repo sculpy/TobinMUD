@@ -151,15 +151,19 @@ sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"VALUES ({ROOM},0,0,0,'Weapon Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
 check("Weapon Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the SQL-bootstrapped sandbox room")
 
-# The mortal attacker lands in the same room (SQL load_room, same pattern
-# used elsewhere in this suite for placing a victim directly).
+# The attacker is immortal (not actually "mortal" despite the variable
+# name/character name) -- damage numbers are now hidden from mortal
+# viewers (user 2026-07-12), and this file's own checks below need to
+# read the actual damage dealt (verifying the damroll bonus), so this
+# attacker has to be an immortal like `s` to keep seeing them.
 sv = socket.create_connection((host, port), timeout=5)
 make_char(sv, mort_name, mort_pw)
+set_level(mort_name, 51)
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{mort_name}';")
 cmd(sv, "quit!")
 sv.close()
 sv = login(mort_name, mort_pw)
-check("Weapon Sandbox" in cmd(sv, "look"), "the mortal attacker lands directly in the sandbox room")
+check("Weapon Sandbox" in cmd(sv, "look"), "the (immortal) attacker lands directly in the sandbox room")
 
 def make_mob(vnum, keyword):
     sql(f"INSERT INTO mob (vnum,name,short_desc,long_desc,description,actions,affects,"
@@ -177,14 +181,16 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
 
 # --- 1: bare-handed still says "hit" ---
 check("You conjure" in cmd(s, f"load mob {MOB1}"), "the first weapon-test dummy is loaded")
-out = cmd(sv, f"attack wpndummy1{_suffix}")
+out = cmd(sv, f"hit wpndummy1{_suffix}")
 check("You attack" in out, "attack initiated bare-handed")
 
 found_bare_hit = False
 for _ in range(6):
     time.sleep(1.5)
     out = recv_all(sv, timeout=0.5)
-    if re.search(r"You hit \w+'s .+? for \d+ damage!", out):
+    # The mob's display name ("a weapon test dummy") is multi-word, so
+    # \w+ can't span it -- .+? (lazy) matches the whole name instead.
+    if re.search(r"You hit .+?'s .+? for \d+ damage!", out):
         found_bare_hit = True
         print("=== bare-handed hit message ===")
         print(out)
@@ -209,7 +215,7 @@ check("wield" in out.lower(), "wield equips the test sword")
 sql(f"INSERT INTO objaffect (vnum, type, mod1, mod2) VALUES "
     f"({SWORD}, 15, 1000, 0), ({SWORD}, 16, 500, 0);")  # APPLY_HITROLL, APPLY_DAMROLL
 
-out = cmd(sv, f"attack wpndummy2{_suffix}")
+out = cmd(sv, f"hit wpndummy2{_suffix}")
 check("You attack" in out, "attack initiated while wielding the sword")
 
 found_slice = False
@@ -225,7 +231,7 @@ for _ in range(6):
         chunks.append(chunk)
     check("You miss" not in chunk, "the hitroll bonus (1000) means this attacker never misses")
     combined = "".join(chunks)
-    m = re.search(r"You slice \w+'s .+? for (\d+) damage!", combined)
+    m = re.search(r"You slice .+?'s .+? for (\d+) damage!", combined)
     if m:
         found_slice = True
         dmg = int(m.group(1))

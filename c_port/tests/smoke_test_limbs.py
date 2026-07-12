@@ -4,10 +4,10 @@
      character -- a limb only appears once it's actually hurt (< 20%
      health, per limb_status_text()).
   2. Combat hit/miss messages name which limb got hit (e.g. "You hit X's
-     left leg for 3 damage!"), not just a flat "you hit X for N damage".
-     This part still uses real combat -- it's reliable within a handful
-     of rounds since every landed hit names a limb (doesn't depend on
-     RNG crossing an injury tier).
+     left leg.", no damage number for a mortal viewer -- user 2026-07-12),
+     not just a flat "you hit X". This part still uses real combat --
+     it's reliable within a handful of rounds since every landed hit
+     names a limb (doesn't depend on RNG crossing an injury tier).
   3. As a limb's health percentage drops, escalating injury messages fire
      ("is hurt rather badly" < 20%, "needs medical attention" < 10%, "is
      destroyed and needs medical attention" at 0%) -- both in combat and in
@@ -171,8 +171,10 @@ for _ in range(6):
     time.sleep(1.5)  # comfortably past one COMBAT_ROUND_PULSES (~1.2s)
     chunk_a = recv_all(sA, timeout=0.5)
     chunk_b = recv_all(sB, timeout=0.5)
+    # Mortals no longer get a "for N damage" suffix (user 2026-07-12) --
+    # a limb-hit line now just ends right after the limb name.
     if any(
-        f"'s {limb} for" in (chunk_a + chunk_b) or f"your {limb} for" in (chunk_a + chunk_b)
+        f"'s {limb}." in (chunk_a + chunk_b) or f"your {limb}." in (chunk_a + chunk_b)
         for limb in LIMB_NAMES
     ):
         found_limb_message = True

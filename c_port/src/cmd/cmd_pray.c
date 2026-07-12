@@ -181,13 +181,24 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
         being_t *foe = ch->fighting;
         limb_t limb = (limb_t)(rand() % LIMB_COUNT);
         being_hurt_limb(foe, limb, dmg);
-        snprintf(msg, sizeof(msg), "You pray for %s, striking %s for %d damage!\r\n",
-                 sk->name, being_display_name(foe), dmg);
+        /* Damage numbers (user 2026-07-12): hidden from a plain mortal,
+         * kept for an immortal (balancing/testing), same rule as
+         * combat.c's melee messages. */
+        if (being_is_immortal(ch))
+            snprintf(msg, sizeof(msg), "You pray for %s, striking %s for %d damage!\r\n",
+                     sk->name, being_display_name(foe), dmg);
+        else
+            snprintf(msg, sizeof(msg), "You pray for %s, striking %s.\r\n",
+                     sk->name, being_display_name(foe));
         descriptor_send(d, msg);
         if (foe->desc) {
             char tcapbuf[128];
-            snprintf(msg, sizeof(msg), "%s prays for %s, striking you for %d damage!\r\n",
-                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, dmg);
+            if (being_is_immortal(foe))
+                snprintf(msg, sizeof(msg), "%s prays for %s, striking you for %d damage!\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, dmg);
+            else
+                snprintf(msg, sizeof(msg), "%s prays for %s, striking you.\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
             descriptor_notify(foe->desc, msg);
         }
     } else {

@@ -343,3 +343,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New Implementor Toy: egotrip blast', 'A new `egotrip blast <target>` command (60+) hits a target with a non-lethal bolt of lightning, halving their current HP (never below 1). The original Sneezy egotrip''s other eleven subcommands aren''t here yet -- they depend on systems Tobin hasn''t built (disease, garble, mob AI hate/aggro, and more).')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Combat Messages No Longer Show Raw Damage Numbers', 'Regular combat, spell, and trap messages now read like "You stab a messenger''s left finger." instead of "...for 4 damage!" -- cleaner flavor text for everyone. Immortals still see the number (useful for testing and balancing); mortals don''t.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

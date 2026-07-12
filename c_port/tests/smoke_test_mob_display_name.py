@@ -188,12 +188,14 @@ for _ in range(6):
     chunk = recv_all(sv, timeout=0.5)
     chunks.append(chunk)
     check("lady stroll walk" not in chunk, "no combat message leaks the raw keyword list")
-    if re.search(rf"You slice {re.escape(shortdesc)}'s .+? for \d+ damage!", chunk):
+    # No damage number for a mortal viewer (user 2026-07-12) -- the line
+    # now just ends right after the limb name.
+    if re.search(rf"You slice {re.escape(shortdesc)}'s .+?\.", chunk):
         found_hit = True
     if "slain" in chunk.lower() or "defeated" in chunk.lower():
         break
 combined = "".join(chunks)
-check(found_hit or re.search(rf"You slice {re.escape(shortdesc)}'s .+? for \d+ damage!", combined),
+check(found_hit or re.search(rf"You slice {re.escape(shortdesc)}'s .+?\.", combined),
       "the hit message uses the mob's short_descr mid-sentence, lowercase")
 
 # --- 3: the corpse left behind describes the mob correctly, not the raw keywords ---

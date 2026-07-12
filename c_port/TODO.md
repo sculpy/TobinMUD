@@ -2188,10 +2188,34 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       room, not wherever `goto` last put them -- sidestepped by giving
       the test mob the same level as the already-immortal tester instead
       of changing the tester's level.
-- [ ] **Strip damage numbers from combat messages** — user: "You stab a
-      messenger from the goblins's left finger for 4 damage!, dont report
-      damage. messages should read You stab a messenger from the goblins's
-      left finger." Touches every combat message string in `combat.c`.
+- [x] **Strip damage numbers from combat messages** — done. User: "You
+      stab a messenger from the goblins's left finger for 4 damage!,
+      dont report damage. messages should read You stab a messenger from
+      the goblins's left finger." Six message sites touched
+      (`combat.c`'s melee strike, `cmd_cast.c`'s offensive spell,
+      `cmd_pray.c`'s offensive prayer, `cmd_move.c`'s door trap). Rather
+      than remove the number outright, gated it on `being_is_immortal()`
+      per VIEWER independently (same pattern as the existing nospam
+      toggle) -- a plain mortal never sees the raw number, but an
+      immortal still does, useful for balancing/testing. Found afterward
+      that SIX existing smoke tests (`smoke_test_weapon_depth.py`,
+      `smoke_test_bleeding.py`, `smoke_test_limbs.py`,
+      `smoke_test_mob_display_name.py`, `smoke_test_weapon_messaging.py`,
+      `smoke_test_affects.py`) parse damage numbers out of combat text to
+      verify their own mechanics -- all six turned out to already use an
+      IMMORTAL attacker/viewer, so the immortal-keeps-the-number design
+      meant most needed no changes at all. Three did: `smoke_test_limbs.py`
+      and `smoke_test_mob_display_name.py` had a genuinely MORTAL
+      attacker/viewer for the specific check that broke, so their regex
+      was loosened to match the new number-free mortal wording instead;
+      `smoke_test_weapon_messaging.py`'s attacker was mortal by name but
+      needed to actually observe damage (verifying a damroll bonus), so
+      it was promoted to immortal instead (matching this file's own `s`
+      variable's pattern) -- which then exposed two more pre-existing,
+      unrelated bugs in the same file: `attack`/`kill` instakill for
+      immortals (needed `hit` instead, the "always real combat" command),
+      and a regex bug where `\w+'s` could never match a multi-word mob
+      short_descr like "a weapon test dummy's" (fixed to `.+?'s`).
 - [ ] **Limb-specific decapitation difficulty + major-limb instadeath** —
       user: "some limbs are harder to decapitate, and should be instadeath
       if it is a major body part. decapitating a neck should also remove
@@ -2210,6 +2234,22 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       user: "when you look at someone you should also see what equipment
       thier wearing, a thief skill could be added to attempt a peak at the
       targets inventory."
+- [ ] **Make `rent` work (Sneezy port)** — user (2026-07-12): "make rent
+      work from sneezy." Per Sneezy's own help text: `rent` stores your
+      items and cleanly ends your session (regenerating HP/mana while
+      "rented out"), the RECOMMENDED way to leave the game -- "simply
+      dropping link is risky." Pairs directly with the not-yet-built
+      `player_save()`/`save` command (see "Small near-term gameplay
+      follow-ups" above) and its quit/death-auto-save follow-up: `rent`
+      is really "save everything, then leave cleanly," so it likely wants
+      `player_save()` to exist first rather than duplicating scattered
+      save calls a second time. Sneezy's version also charges per-item
+      storage cost and restricts `rent` to inn/home rooms specifically --
+      the cost side is blocked on the not-yet-built Money system (task
+      29); the inn-room restriction is simple once decided (a room flag,
+      same pattern as other room-condition bits). NPC follower/pet
+      storage-across-rent is blocked on the not-yet-built Pet/charm
+      system (task 35).
 - [x] **Replace "Huh?!" with a friendlier unknown-command message** —
       done. User: "for failed commands that dont exist dont reply Huh?!
       reply with 'Command not found, maybe submit an idea if you believe

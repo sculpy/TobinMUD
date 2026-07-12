@@ -305,9 +305,21 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         snprintf(verb_3rd, sizeof(verb_3rd), "%s%s", verb, needs_es ? "es" : "s");
     }
     char hit_capbuf[128];
-    tell(attacker, "You %s %s's %s for %d damage!\r\n", verb, being_display_name(defender), ln, dmg);
-    tell(defender, "%s %s your %s for %d damage!\r\n",
-         being_display_name_cap(attacker, hit_capbuf, sizeof(hit_capbuf)), verb_3rd, ln, dmg);
+    /* Damage numbers (user 2026-07-12: "dont report damage. messages
+     * should read You stab a messenger from the goblins's left finger.")
+     * -- a plain mortal never sees the raw number, but an immortal still
+     * does (useful for balancing/testing), checked independently per
+     * viewer same as the nospam toggle above. */
+    if (being_is_immortal(attacker))
+        tell(attacker, "You %s %s's %s for %d damage!\r\n", verb, being_display_name(defender), ln, dmg);
+    else
+        tell(attacker, "You %s %s's %s.\r\n", verb, being_display_name(defender), ln);
+    if (being_is_immortal(defender))
+        tell(defender, "%s %s your %s for %d damage!\r\n",
+             being_display_name_cap(attacker, hit_capbuf, sizeof(hit_capbuf)), verb_3rd, ln, dmg);
+    else
+        tell(defender, "%s %s your %s.\r\n",
+             being_display_name_cap(attacker, hit_capbuf, sizeof(hit_capbuf)), verb_3rd, ln);
 
     const char *status_before = limb_status_text(pct_before);
     const char *status_after = limb_status_text(pct_after);

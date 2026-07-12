@@ -98,13 +98,24 @@ static void task_cast(descriptor_t *d, being_t *ch, const skill_def_t *sk) {
         being_t *target = ch->fighting;
         limb_t limb = (limb_t)(rand() % LIMB_COUNT);
         being_hurt_limb(target, limb, dmg);
-        snprintf(msg, sizeof(msg), "You cast %s at %s for %d damage!\r\n",
-                 sk->name, being_display_name(target), dmg);
+        /* Damage numbers (user 2026-07-12): hidden from a plain mortal,
+         * kept for an immortal (balancing/testing), same rule as
+         * combat.c's melee messages. */
+        if (being_is_immortal(ch))
+            snprintf(msg, sizeof(msg), "You cast %s at %s for %d damage!\r\n",
+                     sk->name, being_display_name(target), dmg);
+        else
+            snprintf(msg, sizeof(msg), "You cast %s at %s.\r\n",
+                     sk->name, being_display_name(target));
         descriptor_send(d, msg);
         if (target->desc) {
             char tcapbuf[128];
-            snprintf(msg, sizeof(msg), "%s casts %s at you for %d damage!\r\n",
-                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, dmg);
+            if (being_is_immortal(target))
+                snprintf(msg, sizeof(msg), "%s casts %s at you for %d damage!\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, dmg);
+            else
+                snprintf(msg, sizeof(msg), "%s casts %s at you.\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
             descriptor_notify(target->desc, msg);
         }
     } else {

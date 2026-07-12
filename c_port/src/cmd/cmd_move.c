@@ -130,9 +130,17 @@ static bool do_move(descriptor_t *d, int dir) {
             limb_t limb = (limb_t)(rand() % LIMB_COUNT);
             being_hurt_limb(ch, limb, dmg);
             char trap_msg[128];
-            snprintf(trap_msg, sizeof(trap_msg),
-                     "A trap rigged to the door springs! It catches your %s for %d damage!\r\n",
-                     limb_name(limb), dmg);
+            /* Damage numbers (user 2026-07-12): hidden from a plain
+             * mortal, kept for an immortal (balancing/testing), same
+             * rule as combat.c's melee messages. */
+            if (being_is_immortal(ch))
+                snprintf(trap_msg, sizeof(trap_msg),
+                         "A trap rigged to the door springs! It catches your %s for %d damage!\r\n",
+                         limb_name(limb), dmg);
+            else
+                snprintf(trap_msg, sizeof(trap_msg),
+                         "A trap rigged to the door springs! It catches your %s!\r\n",
+                         limb_name(limb));
             descriptor_send(d, trap_msg);
             from->exit_cond[dir] &= ~EXIT_COND_TRAPPED;
             room_repo_save_exit(from->vnum, dir, from->exits[dir], from->exit_door[dir], from->exit_cond[dir]);
