@@ -127,9 +127,9 @@ pw = "sneezypw123"
 
 imm_name = f"Snzimm{_suffix}"
 s_imm = make_char(imm_name, pw, "3")
-set_level(imm_name, 51)
 cmd(s_imm, "quit!")
 s_imm.close()
+set_level(imm_name, 51)
 s_imm = socket.create_connection((host, port), timeout=5)
 recv_all(s_imm)
 send_line(s_imm, imm_name); recv_all(s_imm)

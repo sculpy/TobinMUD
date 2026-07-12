@@ -142,8 +142,8 @@ mort_pw = "wpntestmorpw123"
 
 s = socket.create_connection((host, port), timeout=5)
 make_char(s, imm_name, imm_pw)
-set_level(imm_name, 51)
 s.close()
+set_level(imm_name, 51)
 s = login(imm_name, imm_pw)
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
@@ -158,10 +158,10 @@ check("Weapon Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the SQL-bootstr
 # attacker has to be an immortal like `s` to keep seeing them.
 sv = socket.create_connection((host, port), timeout=5)
 make_char(sv, mort_name, mort_pw)
-set_level(mort_name, 51)
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{mort_name}';")
 cmd(sv, "quit!")
 sv.close()
+set_level(mort_name, 51)
 sv = login(mort_name, mort_pw)
 check("Weapon Sandbox" in cmd(sv, "look"), "the (immortal) attacker lands directly in the sandbox room")
 

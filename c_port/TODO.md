@@ -2105,6 +2105,46 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       (all three already existed for redit's own exit editor,
       descriptor.c -- reused rather than re-derived). `smoke_test_stat.py`
       updated with assertions for all of the above; 32/32 checks pass.
+      Third follow-up (user 2026-07-12): "stat obj, get names for type,
+      action_flag" / "stat room get names for room_flags, sector". Obj's
+      `type` (the original's itemTypeT, 77 entries) and `action_flag`
+      (the original's extraFlags bitmask, 32 bits) decode via new
+      `obj_type_name()`/`obj_action_flag_names()` (obj.c/obj.h). Room's
+      `sector` and `room_flag` decode via the already-existing
+      `sector_name()`/`room_flag_names()` (room.c) -- those two already
+      existed for `look`/`redit` and just weren't wired into `stat` yet.
+      `smoke_test_stat.py` extended again; 34/34 checks pass.
+- [x] **Toggle listing split into categories** — done. User: "split the
+      toggle listing into categories: Preferences, Prompt,
+      Communication." `cmd_toggle.c`'s `toggle_t` gained a `category`
+      field (personal toggles only; `gametog`'s global switches keep
+      their single flat list, unaffected). Assignment: color/nospam/
+      autoloot -> Preferences, hp -> Prompt, newbie/noshout ->
+      Communication. `toggle_dispatch()`'s listing path now iterates
+      `CATEGORIES[]` in that order, printing a `<y>Category:<z>` header
+      only for categories with at least one visible toggle (an empty
+      category is skipped rather than printing a bare header). Existing
+      `smoke_test_toggle.py`/`smoke_test_gametog.py`/
+      `smoke_test_autoloot.py`/`smoke_test_nospam.py` re-run clean --
+      row format (`name`, on/off, description) is unchanged, only the
+      grouping/headers are new.
+- [x] **Fixed: five more "Huh?!" gates missed by the friendlier-message
+      sweep** — found while re-testing `stat`'s follow-ups (a Warrior
+      attempting `cast`/`pray` unexpectedly got the OLD "Huh?!" instead
+      of "Command not found..."). The original fix (see "Replace 'Huh?!'
+      with a friendlier unknown-command message" above) only covered
+      five spots (the dispatcher, `cmd_immort`, and `cmd_edit.c`'s four
+      level-gates); it turns out `cmd_cast.c`'s class gate, `cmd_pray.c`'s
+      class gate, `cmd_purge.c`'s `purge linkdead` level gate, and both
+      of `cmd_trap.c`'s skill gates (`settrap`/`disarmtrap`) each had
+      their own hardcoded "Huh?!" that was never touched. All five now
+      send the same "Command not found, maybe submit an idea..." text.
+      `smoke_test_castpray.py` (was failing on this) and
+      `smoke_test_trap.py` (needed one stale assertion updated to match
+      the separate, already-shipped "damage numbers hidden from
+      mortals" behavior -- unrelated to this fix, just surfaced by the
+      same re-test) both pass clean now; `smoke_test_purge.py` re-run
+      clean too.
 - [ ] **Boxed ASCII-art menu rework, all character-facing menus** — user
       gave the exact account-menu before/after and said to apply the same
       boxed style everywhere. Old:
@@ -2428,6 +2468,28 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       `player_progress.hp`. `smoke_test_quit.py`/`smoke_test_multiplay.py`
       re-run clean (shared `descriptor.c`/`cmd_table.c` touched, but only
       additive).
+      **Test-methodology fallout**: this broke a widespread smoke-test
+      convention -- roughly a dozen files raise a test character's level
+      via a raw `UPDATE player_progress` while still connected, then use
+      `quit!`+reconnect to force a fresh DB load (since a live connection
+      never re-reads the DB on its own). `quit!` now saves the live
+      (stale, pre-SQL-edit) in-memory progress right before destroying
+      the character, silently clobbering the SQL edit. Fixed by
+      reordering every affected call site to run `set_level()` (or
+      equivalent) AFTER `quit!`+close, while the character is fully
+      offline, rather than before: `smoke_test_stat.py`,
+      `smoke_test_balance.py`, `smoke_test_castpray.py`,
+      `smoke_test_continue.py`, `smoke_test_egotrip.py`,
+      `smoke_test_limb_severity.py`, `smoke_test_pee.py`,
+      `smoke_test_practice.py`, `smoke_test_purge.py`,
+      `smoke_test_sneezy_ports.py`, `smoke_test_weapon_messaging.py`.
+      Not a gameplay regression -- real admin paths (`promote`, `set`)
+      already update the live in-memory character AND the DB together
+      (see `cmd_promote.c`'s explicit comment on this), so this only
+      ever bit the raw-SQL test convention. A plain disconnected socket
+      close (no `quit!`) was already safe and remains so --
+      `descriptor_destroy()`'s link-drop path deliberately never
+      auto-saves, for exactly this reason (see its own comment).
 
 ## Blocked on Objects / Mobs (Phase 2C/2D/2E)
 

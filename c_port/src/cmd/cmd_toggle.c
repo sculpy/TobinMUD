@@ -26,9 +26,19 @@ typedef struct {
     const char *name;
     const char *desc;
     bool game;                       /* true = global game toggle (55+) */
+    const char *category;            /* personal (game=false) toggles only --
+                                         one of the CATEGORIES[] names below;
+                                         ignored for game=true rows */
     bool (*get)(descriptor_t *);
     void (*set)(descriptor_t *, bool);
 } toggle_t;
+
+/* Personal-toggle categories, in listing order (user 2026-07-12: "split
+ * the toggle listing into categories: Preferences, Prompt,
+ * Communication"). Only `toggle` (game=false) groups by these; `gametog`
+ * (game=true, global switches) keeps its single flat list. */
+static const char *const CATEGORIES[] = { "Preferences", "Prompt", "Communication" };
+#define NUM_CATEGORIES (sizeof(CATEGORIES) / sizeof(CATEGORIES[0]))
 
 /* --- color: per-connection + persisted on the account --- */
 static bool tg_color_get(descriptor_t *d) { return d->color_enabled; }
@@ -120,13 +130,13 @@ static bool tg_multiplay_get(descriptor_t *d) { (void)d; return multiplay_allowe
 static void tg_multiplay_set(descriptor_t *d, bool v) { (void)d; multiplay_set(v); }
 
 static const toggle_t TOGGLES[] = {
-    { "color",     "ANSI color rendering",          false, tg_color_get,     tg_color_set },
-    { "hp",        "hit points shown in prompt",    false, tg_hp_get,        tg_hp_set },
-    { "newbie",    "on the newbie help channel",    false, tg_newbie_get,    tg_newbie_set },
-    { "noshout",   "opted out of hearing shouts",   false, tg_noshout_get,   tg_noshout_set },
-    { "nospam",    "hide combat miss messages",     false, tg_nospam_get,    tg_nospam_set },
-    { "autoloot",  "auto-loot a defeated corpse",   false, tg_autoloot_get,  tg_autoloot_set },
-    { "multiplay", "one account, many characters",  true,  tg_multiplay_get, tg_multiplay_set },
+    { "color",     "ANSI color rendering",          false, "Preferences",   tg_color_get,     tg_color_set },
+    { "nospam",    "hide combat miss messages",     false, "Preferences",   tg_nospam_get,    tg_nospam_set },
+    { "autoloot",  "auto-loot a defeated corpse",   false, "Preferences",   tg_autoloot_get,  tg_autoloot_set },
+    { "hp",        "hit points shown in prompt",    false, "Prompt",        tg_hp_get,        tg_hp_set },
+    { "newbie",    "on the newbie help channel",    false, "Communication", tg_newbie_get,    tg_newbie_set },
+    { "noshout",   "opted out of hearing shouts",   false, "Communication", tg_noshout_get,   tg_noshout_set },
+    { "multiplay", "one account, many characters",  true,  NULL,            tg_multiplay_get, tg_multiplay_set },
 };
 #define NUM_TOGGLES (sizeof(TOGGLES) / sizeof(TOGGLES[0]))
 
@@ -141,14 +151,40 @@ static bool toggle_dispatch(descriptor_t *d, const char *args, bool game, const 
     sscanf(args, "%31s", tok);
 
     if (!tok[0]) {
-        char out[768];
+        char out[1024];
         int n = snprintf(out, sizeof(out), "\r\n<c>-- %s --<z>\r\n", header);
-        for (size_t i = 0; i < NUM_TOGGLES && (size_t)n < sizeof(out); i++) {
-            if (TOGGLES[i].game != game)
-                continue;
-            n += snprintf(out + n, sizeof(out) - (size_t)n,
-                          "  %-12s %-3s  <k>%s<z>\r\n",
-                          TOGGLES[i].name, onoff(TOGGLES[i].get(d)), TOGGLES[i].desc);
+        if (game) {
+            for (size_t i = 0; i < NUM_TOGGLES && (size_t)n < sizeof(out); i++) {
+                if (TOGGLES[i].game != game)
+                    continue;
+                n += snprintf(out + n, sizeof(out) - (size_t)n,
+                              "  %-12s %-3s  <k>%s<z>\r\n",
+                              TOGGLES[i].name, onoff(TOGGLES[i].get(d)), TOGGLES[i].desc);
+            }
+        } else {
+            /* Grouped by category (user 2026-07-12: "split the toggle
+             * listing into categories: Preferences, Prompt,
+             * Communication") -- a category with no matching toggles is
+             * skipped entirely rather than printing an empty header. */
+            for (size_t c = 0; c < NUM_CATEGORIES && (size_t)n < sizeof(out); c++) {
+                bool any = false;
+                for (size_t i = 0; i < NUM_TOGGLES; i++) {
+                    if (TOGGLES[i].game == game && strcasecmp(TOGGLES[i].category, CATEGORIES[c]) == 0) {
+                        any = true;
+                        break;
+                    }
+                }
+                if (!any)
+                    continue;
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "<y>%s:<z>\r\n", CATEGORIES[c]);
+                for (size_t i = 0; i < NUM_TOGGLES && (size_t)n < sizeof(out); i++) {
+                    if (TOGGLES[i].game != game || strcasecmp(TOGGLES[i].category, CATEGORIES[c]) != 0)
+                        continue;
+                    n += snprintf(out + n, sizeof(out) - (size_t)n,
+                                  "  %-12s %-3s  <k>%s<z>\r\n",
+                                  TOGGLES[i].name, onoff(TOGGLES[i].get(d)), TOGGLES[i].desc);
+                }
+            }
         }
         descriptor_send(d, out);
         return true;

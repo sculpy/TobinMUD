@@ -127,8 +127,8 @@ imm_pw = "purgeimmpw123"
 
 s = socket.create_connection((host, port), timeout=5)
 make_char(s, imm_name, imm_pw)
-set_level(imm_name, 51)
 s.close()
+set_level(imm_name, 51)
 s = login(imm_name, imm_pw)
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
@@ -167,9 +167,9 @@ check("Command not found" in out, "purge linkdead is refused for a level-51 buil
 
 # --- 3: promote to 58, put a linkdead AND a live character in the room,
 # confirm only the linkdead one is removed ---
-set_level(imm_name, 58)
 cmd(s, "quit!")
 s.close()
+set_level(imm_name, 58)
 s = login(imm_name, imm_pw)
 check("Purge Sandbox" in cmd(s, f"goto {ROOM}"), "re-enter the sandbox room as a level-58 immortal")
 

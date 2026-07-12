@@ -183,11 +183,11 @@ send_line(s_imm, "done"); recv_all(s_imm)
 send_line(s_imm, "1"); recv_all(s_imm)
 send_line(s_imm, "3"); recv_all(s_imm)  # class: warrior
 send_line(s_imm, "2"); recv_all(s_imm)
+cmd(s_imm, "quit!")
+s_imm.close()
 set_level(imm_name, 51)
 set_hp(imm_name, 2000)
 set_dex(imm_name, 900)  # the Cleric's automatic retaliation should essentially never land
-cmd(s_imm, "quit!")
-s_imm.close()
 s_imm = socket.create_connection((host, port), timeout=5)
 recv_all(s_imm)
 send_line(s_imm, imm_name); recv_all(s_imm)
@@ -222,12 +222,12 @@ send_line(s_cle, "done"); recv_all(s_cle)
 send_line(s_cle, "1"); recv_all(s_cle)
 send_line(s_cle, "2"); recv_all(s_cle)  # class: cleric
 send_line(s_cle, "2"); recv_all(s_cle)
-sql(f"UPDATE player_progress SET basic_disc_pct=100, advanced_disc_pct=50 "
-    f"WHERE player_id=(SELECT id FROM player WHERE name='{cleric_name}');")
-set_hp(cleric_name, 2000)  # survive ~40-60 rounds of mutual combat unscathed
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{cleric_name}';")
 cmd(s_cle, "quit!")
 s_cle.close()
+sql(f"UPDATE player_progress SET basic_disc_pct=100, advanced_disc_pct=50 "
+    f"WHERE player_id=(SELECT id FROM player WHERE name='{cleric_name}');")
+set_hp(cleric_name, 2000)  # survive ~40-60 rounds of mutual combat unscathed
 s_cle = socket.create_connection((host, port), timeout=5)
 recv_all(s_cle)
 send_line(s_cle, cleric_name); recv_all(s_cle)

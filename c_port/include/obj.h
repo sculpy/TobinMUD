@@ -228,4 +228,20 @@ int wear_slot_for_flag(int wear_flag, const struct being *fitter);
  * verbatim including its two never-assigned bits (see obj.c). */
 const char *obj_wear_flag_names(int flags, char *buf, size_t size);
 
+/* Decodes the DB `obj.type` column's raw itemTypeT value into its real
+ * upstream name ("WEAPON", "MARTIAL_WEAPON", ...) -- user 2026-07-12:
+ * "stat obj, get names for type, action_flag". Distinct from
+ * category_for_item_type()/obj_category_name() above, which collapse
+ * the same value into one of Tobin's 16 coarser gameplay categories;
+ * `stat` wants the real seeded value, not the collapsed one. Out-of-
+ * range values render as "?". */
+const char *obj_type_name(int raw_type);
+
+/* Decodes `action_flag`'s bits (the original's extraFlags bitmask, 32
+ * bits) into a readable "[ GLOW ] [ MAGIC ] ..." run, same bracket-per-
+ * flag convention as obj_wear_flag_names()/room.h's room_flag_names().
+ * Currently loaded-but-unused by Tobin gameplay code (like mob.faction),
+ * but `stat` should still show a seeded value honestly. */
+const char *obj_action_flag_names(int flags, char *buf, size_t size);
+
 #endif

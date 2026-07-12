@@ -152,10 +152,10 @@ check("haven't missed anything" in cmd(A, "catchup"), "catchup is empty after re
 nameC, nameD = f"Heldc{_suffix}", f"Heldd{_suffix}"
 C = make_immortal(nameC)
 D = make_immortal(nameD)
-sql(f"UPDATE player_progress SET level=58 WHERE player_id="
-    f"(SELECT id FROM player WHERE name='{nameC}');")  # EDPLAYER_MIN_LEVEL
 cmd(C, "quit!")  # not an abrupt close -- avoids linkdead-resume overriding the fresh load
 C.close()
+sql(f"UPDATE player_progress SET level=58 WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{nameC}');")  # EDPLAYER_MIN_LEVEL
 C = socket.create_connection((host, port), timeout=5)
 recv_all(C)
 for step in (nameC, "heldpw", "1"):

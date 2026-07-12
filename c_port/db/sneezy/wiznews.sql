@@ -375,3 +375,15 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A save Command, and Quitting Now Saves You Too', 'A new `save` command persists your character on demand -- useful reassurance mid-session. More importantly, quitting (`quit!`) or dying now automatically saves everything first, closing a real gap: taking damage in a fight was never written to the database until the fight actually ended, so a quit or a disconnect mid-battle could quietly roll your HP back to whatever it was last saved at. That state is now captured the moment you leave, one way or another.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'stat Decodes Even More Now', '`stat obj` now shows `type` and `action_flag` as readable names instead of raw numbers, and `stat room` does the same for `sector` and `room_flag` -- the same decoding `look` and the room/object editors already relied on internally, just not previously surfaced by `stat`.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'toggle Sorted Into Categories', '`toggle`''s listing is now grouped under three headings -- Preferences, Prompt, and Communication -- instead of one flat list, making it quicker to find the switch you want as more of them get added.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Few More Huh?!s Silenced', 'Found five more spots that still answered with the old terse "Huh?!" instead of the friendlier unknown-command message: casting or praying as the wrong class, `purge linkdead` below level 58, and a Thief-only door trap command used by someone who never learned the skill. All five now match the rest of the game.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

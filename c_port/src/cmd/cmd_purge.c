@@ -35,7 +35,7 @@ bool cmd_purge(descriptor_t *d, const char *args) {
 
     if (strcasecmp(args, "linkdead") == 0 || strcasecmp(args, "ldead") == 0) {
         if (d->character->progress.level < PURGE_LINKDEAD_MIN_LEVEL) {
-            descriptor_send(d, "Huh?!\r\n");
+            descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
         int count = world_purge_linkdead();

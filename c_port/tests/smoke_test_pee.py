@@ -130,9 +130,9 @@ out = cmd(s, "pee")
 check("Command not found" in out, "pee is refused below level 51")
 
 # --- 2: at 51+, pee succeeds and leaves a puddle ---
-set_level(imm_name, 51)
 cmd(s, "quit!")
 s.close()
+set_level(imm_name, 51)
 s = login(imm_name, imm_pw)
 check("Pee Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the SQL-bootstrapped sandbox room")
 

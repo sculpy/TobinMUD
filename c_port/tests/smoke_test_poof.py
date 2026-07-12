@@ -144,11 +144,11 @@ male_name = f"Poofmale{_suffix}"
 male_pw = "Poofmalepw123"
 s = socket.create_connection((host, port), timeout=5)
 make_char(s, male_name, male_pw)
-set_level(male_name, 51)
 sql(f"UPDATE player SET gender=1 WHERE name='{male_name}';")  # 1 = male
 sql(f"UPDATE player SET load_room={ROOM_A} WHERE name='{male_name}';")
 cmd(s, "quit!")
 s.close()
+set_level(male_name, 51)
 s = login(male_name, male_pw)
 
 out = cmd(s, "poofout drags $p cross out to the $d")
@@ -193,11 +193,11 @@ female_name = f"Pooffem{_suffix}"
 female_pw = "Pooffempw123"
 sf = socket.create_connection((host, port), timeout=5)
 make_char(sf, female_name, female_pw)
-set_level(female_name, 51)
 sql(f"UPDATE player SET gender=2 WHERE name='{female_name}';")  # 2 = female
 sql(f"UPDATE player SET load_room={ROOM_A} WHERE name='{female_name}';")
 cmd(sf, "quit!")
 sf.close()
+set_level(female_name, 51)
 sf = login(female_name, female_pw)
 cmd(sf, "poofout drags $p cross out to the $d")
 

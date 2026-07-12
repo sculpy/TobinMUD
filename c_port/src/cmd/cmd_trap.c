@@ -42,7 +42,7 @@ bool cmd_settrap(descriptor_t *d, const char *args) {
         return true;
     }
     if (!being_knows_skill(ch, "set trap (door)")) {
-        descriptor_send(d, "Huh?!\r\n");
+        descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
         return true;
     }
 
@@ -81,7 +81,7 @@ bool cmd_disarmtrap(descriptor_t *d, const char *args) {
         return true;
     }
     if (!being_knows_skill(ch, "disarm trap")) {
-        descriptor_send(d, "Huh?!\r\n");
+        descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
         return true;
     }
 

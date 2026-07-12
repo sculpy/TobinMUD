@@ -43,15 +43,26 @@
  * `direction` via DIR_NAMES, `type` (door type) via door_type_name(), and
  * `condition_flag` via exit_cond_names() -- the same helpers redit's
  * "goto exit" submenu already uses (descriptor.c), reused here rather
- * than re-deriving the tables. */
+ * than re-deriving the tables.
+ *
+ * Third follow-up (user 2026-07-12: "stat obj, get names for type,
+ * action_flag" / "stat room get names for room_flags, sector"): obj's
+ * `type` (the original's itemTypeT) and `action_flag` (the original's
+ * extraFlags bitmask) decode via new obj_type_name()/
+ * obj_action_flag_names() (obj.c); room's `sector` and `room_flag`
+ * decode via the already-existing sector_name()/room_flag_names()
+ * (room.c) -- those two already existed for `look`/`redit` and just
+ * weren't wired into `stat` yet. */
 
 /* Column names dump_row() should skip entirely -- either because this
  * file prints its own decoded line for them instead, or (faction/
  * fact_perc, and the six unused mob attributes) because Tobin doesn't
  * support them at all. */
 static bool is_skipped_column(const char *table, const char *col) {
-    if (strcmp(table, "obj") == 0)
-        return strcasecmp(col, "wear_flag") == 0;
+    if (strcmp(table, "obj") == 0) {
+        return strcasecmp(col, "wear_flag") == 0 || strcasecmp(col, "type") == 0
+            || strcasecmp(col, "action_flag") == 0;
+    }
     if (strcmp(table, "mob") == 0) {
         static const char *const skip[] = {
             "actions", "class", "race", "faction", "fact_perc",
@@ -61,6 +72,9 @@ static bool is_skipped_column(const char *table, const char *col) {
             if (strcasecmp(col, skip[i]) == 0)
                 return true;
         return false;
+    }
+    if (strcmp(table, "room") == 0) {
+        return strcasecmp(col, "room_flag") == 0 || strcasecmp(col, "sector") == 0;
     }
     return false;
 }
@@ -115,9 +129,19 @@ bool cmd_stat(descriptor_t *d, const char *args) {
     n += (size_t)snprintf(out + n, sizeof(out) - n, "\r\n<c>-- %s %d --<z>\r\n", label, vnum);
 
     if (strcmp(table, "obj") == 0) {
-        char flagbuf[256];
+        char flagbuf[700];
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "type",
+                              obj_type_name(atoi(db_get(db, "type"))));
         n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "wear_flag",
                               obj_wear_flag_names(atoi(db_get(db, "wear_flag")), flagbuf, sizeof(flagbuf)));
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "action_flag",
+                              obj_action_flag_names(atoi(db_get(db, "action_flag")), flagbuf, sizeof(flagbuf)));
+    } else if (strcmp(table, "room") == 0) {
+        char flagbuf[256];
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "sector",
+                              sector_name(atoi(db_get(db, "sector"))));
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "room_flag",
+                              room_flag_names(atoi(db_get(db, "room_flag")), flagbuf, sizeof(flagbuf)));
     } else if (strcmp(table, "mob") == 0) {
         char flagbuf[512];
         char labelbuf[64];

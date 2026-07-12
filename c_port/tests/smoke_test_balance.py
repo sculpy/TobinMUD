@@ -114,9 +114,9 @@ pw = "balancepw123"
 # --- 1: a 51 immortal (below 60) can't reach balance ---
 imm51_name = f"Balfifty{_suffix}"
 s51 = make_char(imm51_name, pw, "1")
-set_level(imm51_name, 51)
 cmd(s51, "quit!")
 s51.close()
+set_level(imm51_name, 51)
 s51 = socket.create_connection((host, port), timeout=5)
 recv_all(s51)
 send_line(s51, imm51_name); recv_all(s51)
@@ -130,9 +130,9 @@ s51.close()
 # --- 2: a level-60 immortal can open the class editor ---
 imm_name = f"Balsixty{_suffix}"
 s_imm = make_char(imm_name, pw, "1")
-set_level(imm_name, 60)
 cmd(s_imm, "quit!")
 s_imm.close()
+set_level(imm_name, 60)
 s_imm = socket.create_connection((host, port), timeout=5)
 recv_all(s_imm)
 send_line(s_imm, imm_name); recv_all(s_imm)

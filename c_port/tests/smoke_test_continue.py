@@ -140,8 +140,8 @@ send_line(s_imm, "done"); recv_all(s_imm)
 send_line(s_imm, "1"); recv_all(s_imm)
 send_line(s_imm, "1"); recv_all(s_imm)
 send_line(s_imm, "2"); recv_all(s_imm)
-set_level(imm_name, 51)
 s_imm.close()
+set_level(imm_name, 51)
 s_imm = socket.create_connection((host, port), timeout=5)
 recv_all(s_imm)
 send_line(s_imm, imm_name); recv_all(s_imm)
@@ -168,9 +168,9 @@ pw = "continuepw123"
 healer_name = f"Conheal{_suffix}"
 sh = make_char(healer_name, pw, "2")
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{healer_name}';")
-set_level(healer_name, 40)  # mortal, above "heal light"'s min_level (1)
 cmd(sh, "quit!")
 sh.close()
+set_level(healer_name, 40)  # mortal, above "heal light"'s min_level (1)
 
 patient_name = f"Conpat{_suffix}"
 sp = make_char(patient_name, pw, "2")
@@ -186,10 +186,10 @@ result = subprocess.run(
      f"(SELECT id FROM player WHERE name='{patient_name}');"],
     check=True, capture_output=True, text=True)
 patient_max_hp = int(result.stdout.strip())
-sql(f"UPDATE player_progress SET hp={max(1, patient_max_hp // 5)} WHERE player_id="
-    f"(SELECT id FROM player WHERE name='{patient_name}');")
 cmd(sp, "quit!")
 sp.close()
+sql(f"UPDATE player_progress SET hp={max(1, patient_max_hp // 5)} WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{patient_name}');")
 
 sh = socket.create_connection((host, port), timeout=5)
 recv_all(sh)

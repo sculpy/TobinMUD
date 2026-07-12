@@ -106,13 +106,17 @@ check("Command not found" in recv_all(s), "a real mortal typing immort gets Comm
 send_line(s, "mortal")
 check("Command not found" in recv_all(s), "a real mortal typing mortal gets Command not found (51+ command)")
 
+send_line(s, "quit!")
+recv_all(s)
+# The level change must happen AFTER quit! (which now auto-saves the
+# live, pre-change progress via player_save()) and BEFORE picking the
+# character back up from the account menu (which does a fresh
+# player_load()) -- otherwise the auto-save would clobber this SQL edit.
 subprocess.run(
     ["mariadb", "sneezy", "-e",
      f"UPDATE player_progress SET level=56 WHERE player_id=(SELECT id FROM player WHERE name='{name}');"],
     check=True,
 )
-send_line(s, "quit!")
-recv_all(s)
 send_line(s, "1")
 recv_all(s)
 

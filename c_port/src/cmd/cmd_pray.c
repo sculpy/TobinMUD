@@ -221,7 +221,7 @@ bool cmd_pray(descriptor_t *d, const char *args) {
 
     bool imm = being_is_immortal(ch);
     if (!imm && ch->char_class != CLASS_CLERIC) {
-        descriptor_send(d, "Huh?!\r\n");
+        descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
         return true;
     }
 

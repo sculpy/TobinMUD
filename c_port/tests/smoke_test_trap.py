@@ -203,7 +203,10 @@ out = cmd(s_imm, "open north")
 check("open" in out.lower(), "the immortal opens the door (trap stays rigged, only the closed bit clears)")
 
 out = cmd(sw, "north")
-check("trap" in out.lower() and "damage" in out.lower(), "the Warrior springs the trap and takes damage")
+# The Warrior is a plain mortal, so the trap message no longer includes
+# a raw damage number (user 2026-07-12: damage numbers hidden from
+# mortals, cmd_move.c) -- just confirm the trap sprang and caught a limb.
+check("trap" in out.lower() and "springs" in out.lower(), "the Warrior springs the trap")
 check(not (query_condition(ROOM_A, DIR_NORTH) & EXIT_COND_TRAPPED),
       "the sprung trap is gone from the DB afterward (one-shot)")
 sw.close()

@@ -144,11 +144,11 @@ imm_name = f"Bamfimm{_suffix}"
 imm_pw = "Bamfimmpw123"
 s = socket.create_connection((host, port), timeout=5)
 make_char(s, imm_name, imm_pw)
-set_level(imm_name, 51)
 sql(f"UPDATE player SET gender=1 WHERE name='{imm_name}';")  # 1 = male
 sql(f"UPDATE player SET load_room={ROOM_A} WHERE name='{imm_name}';")
 cmd(s, "quit!")
 s.close()
+set_level(imm_name, 51)
 s = login(imm_name, imm_pw)
 
 out = cmd(s, "bamfout <N> sinks into $p own shadow, leaving the $g bare.")

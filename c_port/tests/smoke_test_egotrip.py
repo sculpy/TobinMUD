@@ -115,9 +115,9 @@ pw = "egopw123"
 
 imm_name = f"Egoimm{_suffix}"
 s_imm = make_char(imm_name, pw, "3")
-set_level(imm_name, 60)
 cmd(s_imm, "quit!")
 s_imm.close()
+set_level(imm_name, 60)
 s_imm = socket.create_connection((host, port), timeout=5)
 recv_all(s_imm)
 send_line(s_imm, imm_name); recv_all(s_imm)
@@ -139,9 +139,9 @@ out = cmd(s_imm, "egotrip cleanse")
 check("Only 'blast' is implemented" in out, "an unimplemented subcommand shows the same scoped usage line")
 
 # --- 3: egotrip blast halves the target's HP, floored at 1 ---
-set_hp(mort_name, 40)
 cmd(s_mort, "quit!")
 s_mort.close()
+set_hp(mort_name, 40)
 s_mort = socket.create_connection((host, port), timeout=5)
 recv_all(s_mort)
 send_line(s_mort, mort_name); recv_all(s_mort)

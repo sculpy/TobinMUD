@@ -169,6 +169,68 @@ const char *obj_wear_flag_names(int flags, char *buf, size_t size) {
     return buf;
 }
 
+/* The original's itemTypeT enum (misc/obj.h, 77 entries, ITEM_UNDEFINED=0
+ * .. ITEM_FRUIT=76), verbatim upstream order -- same table
+ * category_for_item_type() above collapses into Tobin's 16 obj_category_t
+ * buckets, but `stat` (user 2026-07-12: "stat obj, get names for type,
+ * action_flag") wants the real seeded value decoded honestly, not the
+ * collapsed category. "ITEM_" prefix stripped, same convention as
+ * mob_race_name()'s "RACE_"-stripped table (being.c). */
+static const char *const ITEM_TYPE_NAMES[NUM_ITEM_TYPES] = {
+    "UNDEFINED", "LIGHT", "SCROLL", "WAND", "STAFF", "WEAPON", "FUEL",
+    "OPAL", "TREASURE", "ARMOR", "POTION", "WORN", "OTHER", "TRASH",
+    "TRAP", "CHEST", "NOTE", "DRINKCON", "KEY", "FOOD", "MONEY", "PEN",
+    "BOAT", "AUDIO", "BOARD", "BOW", "ARROW", "BAG", "CORPSE", "SPELLBAG",
+    "COMPONENT", "BOOK", "PORTAL", "WINDOW", "TREE", "TOOL", "HOLY_SYM",
+    "QUIVER", "BANDAGE", "STATUE", "BED", "TABLE", "RAW_MATERIAL",
+    "GEMSTONE", "MARTIAL_WEAPON", "JEWELRY", "VIAL", "PCORPSE", "POOL",
+    "KEYRING", "RAW_ORGANIC", "FLAME", "APPLIED_SUB", "GAS", "ARMOR_WAND",
+    "DRUG_CONTAINER", "DRUG", "GUN", "AMMO", "PLANT", "COOKWARE",
+    "VEHICLE", "CASINO_CHIP", "POISON", "HANDGONNE", "EGG", "CANNON",
+    "TOOTH_NECKLACE", "TRASH_PILE", "CARD_DECK", "SUITCASE", "SADDLE",
+    "HARNESS", "SADDLEBAG", "WAGON", "MONEYPOUCH", "FRUIT",
+};
+
+const char *obj_type_name(int raw_type) {
+    if (raw_type < 0 || (size_t)raw_type >= NUM_ITEM_TYPES)
+        return "?";
+    return ITEM_TYPE_NAMES[raw_type];
+}
+
+/* The original's extraFlags bitmask (misc/obj.h, 32 bits, ITEM_GLOW=bit0
+ * .. ITEM_NOLOCATE=bit31) -- Tobin's DB column is `action_flag`. A
+ * handful of bits were never assigned upstream (27, "NOT_USED3") or
+ * later repurposed as generic scratch space (25, "NOJUNK_PLAYER"); kept
+ * verbatim rather than renamed/dropped so a historic seeded value still
+ * reports something recognizable. `flags` is cast to unsigned so bit 31
+ * (ITEM_NOLOCATE) decodes correctly even though the DB column itself is
+ * a signed int. */
+static const char *const OBJ_ACTION_FLAG_NAMES[32] = {
+    "GLOW", "HUM", "STRUNG", "SHADOWY", "PROTOTYPE", "INVISIBLE", "MAGIC",
+    "NODROP", "BLESS", "SPIKED", "HOVER", "RUSTY", "ANTI_CLERIC",
+    "ANTI_MAGE", "ANTI_THIEF", "ANTI_WARRIOR", "ANTI_SHAMAN",
+    "ANTI_DEIKHAN", "ANTI_RANGER", "ANTI_MONK", "PAIRED", "NORENT",
+    "FLOAT", "NOPURGE", "NEWBIE", "NOJUNK_PLAYER", "SILVERED",
+    "NOT_USED3", "ATTACHED", "BURNING", "CHARRED", "NOLOCATE",
+};
+
+const char *obj_action_flag_names(int flags, char *buf, size_t size) {
+    size_t n = 0;
+    buf[0] = '\0';
+    unsigned int uflags = (unsigned int)flags;
+    for (int bit = 0; bit < 32; bit++) {
+        if (!(uflags & (1u << bit)))
+            continue;
+        n += (size_t)snprintf(buf + n, size > n ? size - n : 0, "%s[ %s ]",
+                              n > 0 ? " " : "", OBJ_ACTION_FLAG_NAMES[bit]);
+        if (n >= size)
+            break;
+    }
+    if (buf[0] == '\0')
+        snprintf(buf, size, "none");
+    return buf;
+}
+
 int wear_slot_for_flag(int wear_flag, const struct being *fitter) {
     if (!fitter)
         return WEAR_SLOT_NOT_WEARABLE;

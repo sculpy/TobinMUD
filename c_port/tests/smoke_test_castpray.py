@@ -132,8 +132,8 @@ send_line(s_imm, "done"); recv_all(s_imm)
 send_line(s_imm, "1"); recv_all(s_imm)
 send_line(s_imm, "1"); recv_all(s_imm)
 send_line(s_imm, "2"); recv_all(s_imm)
-set_level(imm_name, 51)
 s_imm.close()
+set_level(imm_name, 51)
 s_imm = socket.create_connection((host, port), timeout=5)
 recv_all(s_imm)
 send_line(s_imm, imm_name); recv_all(s_imm)
@@ -173,9 +173,9 @@ sql(f"UPDATE player SET load_room={ROOM} WHERE name='{mage_name}';")
 # Basic-discipline-percentage gate on "gust" (a Class-tier spell this
 # never-practiced test character would otherwise fail 0%-Basic), which
 # isn't what this test is checking.
-set_level(mage_name, 51)
 cmd(sm, "quit!")
 sm.close()
+set_level(mage_name, 51)
 sm = socket.create_connection((host, port), timeout=5)
 recv_all(sm)
 send_line(sm, mage_name); recv_all(sm)
@@ -202,9 +202,9 @@ check("pouch" not in out.lower(), "the component is consumed after a successful 
 cleric_name = f"Cpcle{_suffix}"
 sc = make_char(cleric_name, pw, "2")
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{cleric_name}';")
-set_level(cleric_name, 51)  # properly immortal before reconnect -- see the Mage comment above
 cmd(sc, "quit!")
 sc.close()
+set_level(cleric_name, 51)  # properly immortal before reconnect -- see the Mage comment above
 sc = socket.create_connection((host, port), timeout=5)
 recv_all(sc)
 send_line(sc, cleric_name); recv_all(sc)

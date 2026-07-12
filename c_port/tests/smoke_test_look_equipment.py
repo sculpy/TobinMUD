@@ -110,10 +110,10 @@ pw = "lookeqpw123"
 
 imm_name = f"Lookeqimm{_suffix}"
 s_imm = make_char(imm_name, pw)
-sql(f"UPDATE player_progress SET level=51 WHERE player_id="
-    f"(SELECT id FROM player WHERE name='{imm_name}');")
 cmd(s_imm, "quit!")
 s_imm.close()
+sql(f"UPDATE player_progress SET level=51 WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{imm_name}');")
 s_imm = socket.create_connection((host, port), timeout=5)
 recv_all(s_imm)
 send_line(s_imm, imm_name); recv_all(s_imm)

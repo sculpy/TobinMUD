@@ -126,8 +126,6 @@ s.close()
 # --- immortal at Imperia (DEAD WOODS -> default white) ---
 nameI, si = make_player("I")
 recv_all_bytes(si)
-sql(f"UPDATE player_progress SET level=51 WHERE player_id="
-    f"(SELECT id FROM player WHERE name='{nameI}');")
 # "quit!" leaves to the account menu first (a real disconnect, character
 # detached cleanly) -- an abrupt close while still playing would instead
 # leave the character linkdead in the ordinary mortal room they were
@@ -136,6 +134,11 @@ sql(f"UPDATE player_progress SET level=51 WHERE player_id="
 send_line(si, "quit!")
 recv_all_bytes(si)
 si.close()
+# The level change must happen AFTER quit! (which now auto-saves the
+# live, pre-change progress via player_save()) and BEFORE reconnecting
+# (a fresh player_load()) -- otherwise the auto-save would clobber it.
+sql(f"UPDATE player_progress SET level=51 WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{nameI}');")
 
 si = socket.create_connection((host, port), timeout=5)
 recv_all_bytes(si)

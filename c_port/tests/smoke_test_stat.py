@@ -121,9 +121,9 @@ check("Command not found" in out, "stat is invisible below level 55")
 
 imm_name = f"Statimm{_suffix}"
 s_imm = make_char(imm_name, pw, "3")
-set_level(imm_name, 55)
 cmd(s_imm, "quit!")
 s_imm.close()
+set_level(imm_name, 55)
 s_imm = socket.create_connection((host, port), timeout=5)
 recv_all(s_imm)
 send_line(s_imm, imm_name); recv_all(s_imm)
@@ -133,12 +133,13 @@ cmd(s_imm, "color off")
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Stat Sandbox','A bare sandbox room, good for testing.\\n',NULL,0,3,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Stat Sandbox','A bare sandbox room, good for testing.\\n',NULL,8,3,0,0,0,0,0,0,0,0);")
+    # room_flag=8 -> INDOORS bit; sector=3 -> ARCTIC ROAD
 
 # --- 2: stat obj dumps every column, plus objaffect rows ---
-sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
+sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,action_flag,can_be_seen) "
     f"VALUES ({OBJ_VNUM},'trinket silver','a small silver trinket',"
-    f"'A small silver trinket is lying here.',12,1,1);")
+    f"'A small silver trinket is lying here.',12,1,65,1);")  # type=OTHER, action_flag=GLOW|MAGIC
 sql(f"INSERT INTO objaffect (vnum,type,mod1,mod2) VALUES ({OBJ_VNUM},15,7,0);")
 out = cmd(s_imm, f"stat obj {OBJ_VNUM}")
 check(f"Object {OBJ_VNUM}" in out, "stat obj shows the object header")
@@ -146,6 +147,8 @@ check("trinket silver" in out, "stat obj shows the object's name column")
 check("short_desc" in out and "a small silver trinket" in out, "stat obj shows the short_desc column")
 check("Affects" in out and "mod1" in out and "7" in out, "stat obj shows the objaffect row")
 check("[ TAKE ]" in out and "[ BODY ]" not in out, "stat obj shows wear_flag decoded to readable flag names")
+check("type" in out and "OTHER" in out, "stat obj shows type as a readable name (OTHER), not the raw number")
+check("[ GLOW ]" in out and "[ MAGIC ]" in out, "stat obj shows action_flag decoded to readable flag names")
 
 # --- 3: stat mob dumps every column, with readable class/race/actions,
 #     no faction line, and only the 6 stats Tobin actually models ---
@@ -190,6 +193,8 @@ check("Exits" in out and f"-> {ROOM}" in out, "stat room shows its own exit row"
 check("dir=north" in out, "stat room shows exit direction as a word, not a number")
 check("door=None" in out, "stat room shows exit door type as a word, not a number")
 check("cond=none" in out, "stat room shows exit condition as a word, not a number")
+check("sector" in out and "ARCTIC ROAD" in out, "stat room shows sector as a readable name, not a number")
+check("room_flag" in out and "[ INDOORS ]" in out, "stat room shows room_flag decoded to readable flag names")
 
 # --- 5: a nonexistent vnum is reported plainly ---
 out = cmd(s_imm, "stat obj 999999999")

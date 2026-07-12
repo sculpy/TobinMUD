@@ -131,9 +131,9 @@ pw = "limbsevpw123"
 
 imm_name = f"Limbsevimm{_suffix}"
 s_imm = make_char(imm_name, pw, "3")
-set_level(imm_name, 51)
 cmd(s_imm, "quit!")
 s_imm.close()
+set_level(imm_name, 51)
 s_imm = reconnect(imm_name, pw)
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
@@ -143,10 +143,10 @@ check("Limb Severity Sandbox" in cmd(s_imm, f"goto {ROOM}"), "goto lands in the 
 
 mort_name = f"Limbsevmor{_suffix}"
 s_mort = make_char(mort_name, pw, "3")
-set_hp(mort_name, 500)  # survives an arm destruction easily
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{mort_name}';")
 cmd(s_mort, "quit!")
 s_mort.close()
+set_hp(mort_name, 500)  # survives an arm destruction easily
 s_mort = reconnect(mort_name, pw)
 check("Limb Severity Sandbox" in cmd(s_mort, "look"), "the victim lands in the sandbox")
 
