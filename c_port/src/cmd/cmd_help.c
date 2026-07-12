@@ -258,7 +258,8 @@ bool cmd_help(descriptor_t *d, const char *args) {
     names[cnt++] = "quit!";
 
     send_columns(d, names, cnt, "\r\n-- Available commands --\r\n",
-                 "\r\nType 'help <command>' for details on any of these.\r\n");
+                 "\r\nType 'help <command>' for details on any of these.\r\n"
+                 "New here? Type 'help playing' for an overview of the basics.\r\n");
     return true;
 }
 
@@ -302,6 +303,7 @@ bool cmd_wizhelp(descriptor_t *d, const char *args) {
         return true;
     }
     send_columns(d, names, cnt, "\r\n-- Immortal-only commands --\r\n",
-                 "\r\nType 'help <command>' for details on any of these.\r\n");
+                 "\r\nType 'help <command>' for details on any of these.\r\n"
+                 "New immortal? Type 'help administration' for the why, not just the what.\r\n");
     return true;
 }

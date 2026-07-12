@@ -2466,11 +2466,55 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       empty-handed quit says nothing about spilling.
       `smoke_test_quit.py`/`smoke_test_save.py`/`smoke_test_rent.py`
       re-run clean (shared `cmd_quit.c` touched).
-- [ ] **Catch up on help file entries** — user (2026-07-12): "catch up
-      on the help file entries." Audit `help`/`wizhelp` topics against
-      commands actually added this session (at least `stat`, `save`,
-      `rent`, and the `toggle` category rework) for missing or stale
-      entries.
+- [x] **Catch up on help file entries** — done. User (2026-07-12):
+      "catch up on the help file entries", then, as a direct follow-up:
+      "i want very detailed help files. Especially wiz* help files. i
+      want it so a first time player of this game will feel comfortable
+      playing because he knows where to find game play information and
+      administration detailed so new immortals can know what commands
+      do and why we use them." A command-table-vs-`help_topic`-table
+      diff found 23 real commands with NO help entry at all (`stat`,
+      `save`, `rent`, `cast`, `pray`, `practice`, `skills`, `affects`,
+      `consider`, `continue`, `examine`, `show`, `sip`, `tell`,
+      `whisper`, `balance`, `egotrip`, `settrap`, `disarmtrap`,
+      `hurtlimb`, `aitick`, `immort`, `test`) -- all written with real
+      detail, not one-liners. Two new prose-only orientation topics were
+      also added (`db/sneezy/help_topic.sql`): `playing` (first-time
+      player: look/movement, character info, talking, fighting, class/
+      skills/practice, rent-vs-quit!, reporting problems) and
+      `administration` (new immortal: the full 51-60 level ladder
+      explained by WHY each tier sits where it does, building, running
+      the playerbase, and -- the user's specific ask -- why each debug
+      tool exists: `hurtlimb`/`aitick`/`stat`/`balance`/`egotrip`/`test`
+      all exist because real combat/world-ticks/decay are too slow and
+      random to test against directly). Both are the most discoverable
+      spots possible: `help`'s and `wizhelp`'s own bare-no-argument
+      footers (`cmd_help.c`) now point at them, and a brand-new
+      character sees a one-time "type help playing" nudge right at
+      creation (`descriptor.c`, shown once, never again on a later
+      relog). Found and fixed a real, previously-undiscovered bug while
+      deploying: the `edroom`/`edzone`/`edplayer`/`edhelp`/`ednews`/
+      `edwiznews`/`edrules` -> `edit <noun>` rename migration (Session
+      21) was never actually idempotent -- the top-level seed INSERT
+      kept silently re-creating a fresh row under each OLD name on every
+      subsequent deploy (nothing left under that name to no-op against
+      once the first run renamed it away), so the rename UPDATE then
+      collided with the already-renamed row and aborted the whole file
+      partway through on any second deploy. Fixed with a guarded DELETE
+      for each of the 7 pairs (only when the correctly-renamed row
+      already exists, so a genuinely fresh database still renames
+      normally); verified idempotent by running the file twice in a
+      row. Also discovered `copyover` already had a help topic --
+      hand-edited in-game by a real immortal account (`updated_by`
+      != 'seed'), never in this seed file at all -- correctly left
+      alone by the existing `ON DUPLICATE KEY UPDATE name=name` guard
+      rather than clobbered. `tests/smoke_test_help_content.py` covers
+      the creation nudge (once, not on relog), both new orientation
+      topics, `help`/`wizhelp`'s footers, and a representative sample of
+      the newly-added topics (mortal-visible and immortal-visible
+      alike). This is a first substantial pass, not a claim that every
+      pre-existing terse topic has been rewritten -- see the SQL file's
+      own comment; further deepening can continue incrementally.
 - [x] **XP on kill** — done (Session 43): `combat_defeat()` awards
       `loser->progress.level * 50` XP (placeholder formula, same precedent
       as other placeholder combat/growth numbers) via the already-existing

@@ -1985,6 +1985,13 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 show_account_menu(d);
                 return true;
             }
+            /* One-time nudge (user 2026-07-12: "i want it so a first time
+             * player of this game will feel comfortable playing because
+             * he knows where to find game play information") -- shown
+             * only right here, at genuine character creation, not on
+             * every later login (see enter_world()'s "Welcome, X!"),
+             * so a veteran never sees it again. */
+            descriptor_send(d, "\r\nNew to TobinMUD? Type 'help playing' any time for an overview of the basics.\r\n");
             enter_world(d, b);
             return true;
         }
