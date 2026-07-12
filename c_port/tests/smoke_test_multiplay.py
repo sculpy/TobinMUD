@@ -154,7 +154,7 @@ recv_all(sm)
 mort = f"Mpmort{_suffix}"
 for step in (mort, "y", "mppw", "mppw", "new", mort, "done", "1", "1", "2"):
     send_line(sm, step); recv_all(sm)
-check("Huh?!" in cmd(sm, "multiplay off"), "multiplay is hidden from mortals")
+check("Command not found" in cmd(sm, "multiplay off"), "multiplay is hidden from mortals")
 
 # restore default off
 cmd(si, "multiplay off")

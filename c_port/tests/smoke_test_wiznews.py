@@ -124,8 +124,8 @@ send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
 send_line(s, "1"); recv_all(s)  # class: mage
 send_line(s, "2"); recv_all(s)  # alignment: neutral
 
-check("Huh?!" in cmd(s, "wiznews"), "wiznews is hidden from mortals (51+)")
-check("Huh?!" in cmd(s, "edit wiznews Nope"), "edit wiznews is hidden from mortals")
+check("Command not found" in cmd(s, "wiznews"), "wiznews is hidden from mortals (51+)")
+check("Command not found" in cmd(s, "edit wiznews Nope"), "edit wiznews is hidden from mortals")
 
 # Promote to 56 (can read AND post) and reconnect.
 set_level(name, 56)

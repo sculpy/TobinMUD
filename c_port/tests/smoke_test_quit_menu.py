@@ -105,7 +105,7 @@ check(f"Welcome, {expected_name}" in out, "character created and playing")
 
 # Bare "quit" (no bang) must NOT do anything -- confirm the char stays put.
 out = step(s, "bare quit should be rejected", "quit")
-check("Huh?!" in out, "bare 'quit' falls through to the unknown-command handler")
+check("Command not found" in out, "bare 'quit' falls through to the unknown-command handler")
 
 # `quit!` while playing should NOT disconnect -- it should return to the menu.
 out = step(s, "quit! while playing", "quit!")

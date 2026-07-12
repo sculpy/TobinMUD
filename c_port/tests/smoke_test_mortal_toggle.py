@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Smoke test for the mortal/immortal toggle (Session 21):
-  1. A real mortal typing `immort` gets "Huh?!" -- nothing leaks.
+  1. A real mortal typing `immort` gets "Command not found" -- nothing leaks.
   2. An immortal (56 via SQL) uses `mortal`: score shows Level 50 (no
      rank title), immortal commands (goto) are gone, and wait-states
      apply again.
@@ -102,9 +102,9 @@ send_line(s, "2"); recv_all(s)  # alignment: neutral
 
 # --- Part 1: a real mortal gets nothing from immort (or mortal) ---
 send_line(s, "immort")
-check("Huh?!" in recv_all(s), "a real mortal typing immort gets Huh?! (no leak)")
+check("Command not found" in recv_all(s), "a real mortal typing immort gets Command not found (no leak)")
 send_line(s, "mortal")
-check("Huh?!" in recv_all(s), "a real mortal typing mortal gets Huh?! (51+ command)")
+check("Command not found" in recv_all(s), "a real mortal typing mortal gets Command not found (51+ command)")
 
 subprocess.run(
     ["mariadb", "sneezy", "-e",
@@ -128,7 +128,7 @@ check("Level:" in out and "50" in out and "Immortal" not in out and "God" not in
 
 send_line(s, "goto 0")
 out = recv_all(s)
-check("Huh?!" in out, "immortal commands are out of reach while mortal")
+check("Command not found" in out, "immortal commands are out of reach while mortal")
 
 # --- Part 3: mortality persists across quit!/re-enter ---
 send_line(s, "quit!")
@@ -137,7 +137,7 @@ send_line(s, "1")
 recv_all(s)
 send_line(s, "goto 0")
 out = recv_all(s)
-check("Huh?!" in out, "still mortal after a relog (true_level persisted)")
+check("Command not found" in out, "still mortal after a relog (true_level persisted)")
 
 # --- Part 4: immort restores the stored rank ---
 send_line(s, "immort")
@@ -150,7 +150,7 @@ check("The Void" in out, "immortal commands work again after immort")
 
 send_line(s, "immort")
 out = recv_all(s)
-check("Huh?!" in out, "immort while already immortal acts like an unknown command")
+check("Command not found" in out, "immort while already immortal acts like an unknown command")
 
 # hygiene
 subprocess.run(

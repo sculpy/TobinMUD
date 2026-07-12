@@ -123,7 +123,7 @@ check("goto" not in out and "promote" not in out and "wizhelp" not in out,
 # --- Part 2: wizhelp is INVISIBLE to mortals (Tier 3) ---
 send_line(sA, "wizhelp")
 out = recv_all(sA)
-check("Huh?!" in out, "a mortal typing wizhelp gets Huh?! (hidden, not just refused)")
+check("Command not found" in out, "a mortal typing wizhelp gets Command not found (hidden, not just refused)")
 
 # --- Part 3: an immortal sees the real immortal-only list ---
 subprocess.run(

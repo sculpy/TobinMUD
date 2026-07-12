@@ -138,7 +138,7 @@ make_char(admin).close()
 # --- gate ---
 # At 57, "set" itself is gated out (invisible), so abbreviation matching
 # falls through to the next visible command sharing the "set" prefix --
-# `setsev` -- and fails there instead (a "Huh?!" text is not guaranteed,
+# `setsev` -- and fails there instead (a "Command not found" text is not guaranteed,
 # since this is the same prefix-collision quirk documented elsewhere in
 # cmd_table.c). What actually matters: the level must NOT have changed.
 promote_sql(admin, 57)

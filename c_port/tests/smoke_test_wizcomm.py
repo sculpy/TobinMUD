@@ -134,8 +134,8 @@ check("system You hear a thud." in out, "the sender sees the system line prefixe
 check("You hear a thud." in recv_all(C), "a mortal reads the bare system line")
 
 # --- gates ---
-check("Huh?!" in cmd(C, "wiznet nope"), "wiznet is hidden from mortals")
-check("Huh?!" in cmd(C, "system nope"), "system is hidden from mortals")
+check("Command not found" in cmd(C, "wiznet nope"), "wiznet is hidden from mortals")
+check("Command not found" in cmd(C, "system nope"), "system is hidden from mortals")
 
 A.close(); B.close(); C.close()
 announce_done("smoke_test_wizcomm")

@@ -3,7 +3,7 @@
 2026-07-11): global game-wide switches (currently just multiplay) moved
 out of the mortal-facing `toggle` command into their own 58+ command.
 
-  1. `gametog` is hidden from a 51-57 immortal (Huh?!).
+  1. `gametog` is hidden from a 51-57 immortal (Command not found).
   2. A 58+ immortal sees and can flip the multiplay game toggle via
      `gametog`.
   3. `toggle` no longer lists OR accepts "multiplay" at all -- not even
@@ -111,7 +111,7 @@ send_line(s, name); recv_all(s)
 send_line(s, pw); recv_all(s)
 send_line(s, "1"); recv_all(s)
 cmd(s, "color off")
-check("Huh?!" in cmd(s, "gametog"), "gametog is hidden below level 58")
+check("Command not found" in cmd(s, "gametog"), "gametog is hidden below level 58")
 
 # --- toggle no longer shows or accepts multiplay at all, even at 51 ---
 out = cmd(s, "toggle")

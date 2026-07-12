@@ -4,7 +4,7 @@
 class restrictions"). Covers:
 
   1. An immortal (non-Mage/Druid class) can `cast` a Mage spell that a
-     mortal of their own class would be refused ("Huh?!").
+     mortal of their own class would be refused ("Command not found").
   2. An immortal can `pray` a Cleric spell despite not being a Cleric.
   3. An immortal's `skills` output includes spells from OTHER classes
      (not just their own), proving the full-roster view is active.
@@ -115,9 +115,9 @@ warrior_name = f"Imcpwar{_suffix}"
 pw = "immortcastpw123"
 sw = make_char(warrior_name, pw, "3")
 out = cmd(sw, "cast heal light")
-check("Huh?!" in out, "a mortal Warrior is still refused cast (regression check)")
+check("Command not found" in out, "a mortal Warrior is still refused cast (regression check)")
 out = cmd(sw, "pray heal light")
-check("Huh?!" in out, "a mortal Warrior is still refused pray (regression check)")
+check("Command not found" in out, "a mortal Warrior is still refused pray (regression check)")
 sw.close()
 
 # --- Immortal Warrior: bypasses class gate on cast/pray/skills ---

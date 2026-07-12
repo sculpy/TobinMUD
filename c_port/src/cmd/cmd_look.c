@@ -178,18 +178,37 @@ bool look_at_target(descriptor_t *d, const char *args) {
         if (tgt->base.kind == THING_MOB && tgt->base.short_descr[0])
             display = tgt->base.short_descr;
 
-        /* Headroom beyond BEING_APPEARANCE_LEN + display-name so gcc's
-         * -Wformat-truncation worst-case estimate (sums every %s field's
-         * own declared bound) can prove this always fits. */
-        char out[BEING_APPEARANCE_LEN + 512];
+        /* Headroom beyond BEING_APPEARANCE_LEN + display-name + a full
+         * equipment listing so gcc's -Wformat-truncation worst-case
+         * estimate (sums every %s field's own declared bound) can prove
+         * this always fits. */
+        char out[BEING_APPEARANCE_LEN + 2048];
+        size_t n;
         if (tgt->appearance[0])
-            snprintf(out, sizeof(out), "You look at %s.\r\n%s\r\n",
-                     display, tgt->appearance);
+            n = (size_t)snprintf(out, sizeof(out), "You look at %s.\r\n%s\r\n",
+                                  display, tgt->appearance);
         else
-            snprintf(out, sizeof(out),
-                     "You look at %s.\r\nYou see nothing special about %s.\r\n",
-                     display,
-                     tgt == d->character ? "yourself" : gender_object(tgt->gender));
+            n = (size_t)snprintf(out, sizeof(out),
+                                  "You look at %s.\r\nYou see nothing special about %s.\r\n",
+                                  display,
+                                  tgt == d->character ? "yourself" : gender_object(tgt->gender));
+        /* Worn equipment (user 2026-07-12: "when you look at someone you
+         * should also see what equipment thier wearing") -- same renderer
+         * `equipment` (cmd_object.c) uses on yourself. */
+        if (n < sizeof(out)) {
+            if (tgt == d->character) {
+                n += (size_t)snprintf(out + n, sizeof(out) - n, "You are using:\r\n");
+            } else {
+                /* Sentence-initial here, unlike "You look at <display>"
+                 * above -- a mob's display is lowercase by convention, so
+                 * capitalize it same as the room-listing lines do. */
+                char capbuf2[128];
+                n += (size_t)snprintf(out + n, sizeof(out) - n, "%s is using:\r\n",
+                                      cap_first(display, capbuf2, sizeof(capbuf2)));
+            }
+        }
+        if (n < sizeof(out))
+            being_render_equipment(tgt, out, sizeof(out), &n);
         descriptor_send(d, out);
         return true;
     }

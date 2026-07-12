@@ -141,7 +141,7 @@ make_char(si, imm_name, imm_pw)
 set_level(imm_name, 58)
 si.close()
 si = login(imm_name, imm_pw)
-check("Huh?!" in cmd(si, f"snoop {mort_name}"), "snoop is hidden below level 59")
+check("Command not found" in cmd(si, f"snoop {mort_name}"), "snoop is hidden below level 59")
 
 # --- promote to 59 ---
 set_level(imm_name, 59)

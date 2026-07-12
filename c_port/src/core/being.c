@@ -515,6 +515,37 @@ int being_total_ac(const being_t *b) {
     return total;
 }
 
+/* Right-aligned "<label>: <value>" column, one limb/hand per line (moved
+ * here from cmd_object.c's cmd_equipment() 2026-07-12 so `look <person>`
+ * can share it -- see being.h's doc comment). EQUIP_LABEL_WIDTH matches
+ * the longest label ("secondary hold"). */
+#define EQUIP_LABEL_WIDTH 14
+
+static void equip_line(char *out, size_t out_sz, size_t *n, const char *label,
+                        const struct obj *o) {
+    const char *value = o
+        ? (o->base.short_descr[0] ? o->base.short_descr : o->base.name)
+        : "nothing";
+    *n += (size_t)snprintf(out + *n, out_sz - *n, "  %*s: %s\r\n",
+                           EQUIP_LABEL_WIDTH, label, value);
+}
+
+void being_render_equipment(const being_t *b, char *out, size_t out_sz, size_t *n) {
+    if (!b)
+        return;
+    for (int i = 0; i < LIMB_COUNT && *n < out_sz; i++) {
+        if (i == LIMB_GENITALIA)
+            continue;
+        equip_line(out, out_sz, n, limb_name((limb_t)i), b->equipment[i]);
+    }
+    int primary = b->handed_right ? 0 : 1;
+    int secondary = b->handed_right ? 1 : 0;
+    if (*n < out_sz)
+        equip_line(out, out_sz, n, "primary hold", b->held[primary]);
+    if (*n < out_sz)
+        equip_line(out, out_sz, n, "secondary hold", b->held[secondary]);
+}
+
 const char *being_display_name(const being_t *b) {
     if (!b)
         return "";

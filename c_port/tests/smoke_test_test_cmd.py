@@ -4,7 +4,7 @@ a test command that will list whatever smoke test is currently running
 58+". Covers:
   1. Right after this script announces itself via the `@test` hook, `test`
      (as a 58+ immortal) reports this script's own name as running.
-  2. A mortal can't see `test` (Huh?!).
+  2. A mortal can't see `test` (Command not found).
   3. After `@test done <name>`, `test` reports nothing running.
 
 Relies on sweep.sh running smoke tests strictly sequentially (one Python
@@ -126,7 +126,7 @@ out = cmd(si, "test")
 check(TEST_NAME in out, f"test reports the currently-running smoke test's name (got: {out!r})")
 
 # --- 2: a mortal can't see test ---
-check("Huh?!" in cmd(sm, "test"), "a mortal cannot see the test command (Huh?!)")
+check("Command not found" in cmd(sm, "test"), "a mortal cannot see the test command (Command not found)")
 
 # --- 3: after `@test done`, nothing is running ---
 announce_done(TEST_NAME)

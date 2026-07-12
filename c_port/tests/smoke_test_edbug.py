@@ -133,7 +133,7 @@ make_char(si, imm_name, imm_pw)
 set_level(imm_name, 51)
 si.close()
 si = login(imm_name, imm_pw)
-check("Huh?!" in cmd(si, "edbug 1 fixed it"), "edbug is hidden below level 59")
+check("Command not found" in cmd(si, "edbug 1 fixed it"), "edbug is hidden below level 59")
 
 # --- promote to 59 and find the bug's real id ---
 set_level(imm_name, 59)

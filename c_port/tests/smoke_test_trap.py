@@ -6,7 +6,7 @@ long-unused EXIT_COND_TRAPPED bit (room.h) up to the Thief's "set trap
 
   1. `settrap <dir>` refuses an open door, a direction with no door,
      and (once rigged) a door that's already trapped.
-  2. `settrap`/`disarmtrap` are refused ("Huh?!") for someone who
+  2. `settrap`/`disarmtrap` are refused ("Command not found") for someone who
      doesn't know the corresponding skill.
   3. A mortal who doesn't know "detect trap" springs a rigged door and
      takes damage; the trap is then gone (one-shot).
@@ -184,9 +184,9 @@ check("no door" in out.lower(), "settrap refuses a direction with no door")
 warrior_name = f"Trapwar{_suffix}"
 sw = make_char(warrior_name, pw, "3")
 out = cmd(sw, "settrap north")
-check("Huh?!" in out, "settrap is hidden from a Warrior (doesn't know the skill)")
+check("Command not found" in out, "settrap is hidden from a Warrior (doesn't know the skill)")
 out = cmd(sw, "disarmtrap north")
-check("Huh?!" in out, "disarmtrap is hidden from a Warrior (doesn't know the skill)")
+check("Command not found" in out, "disarmtrap is hidden from a Warrior (doesn't know the skill)")
 sw.close()
 
 # transfer needs the target ONLINE -- reconnect first, then transfer.

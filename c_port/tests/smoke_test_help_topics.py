@@ -155,14 +155,14 @@ check("No help available" in out,
 # --- Part 2: edit help gating ---
 send_line(s, "edit help whatever")
 out = recv_all(s)
-check("Huh?!" in out, "a mortal typing edit help gets Huh?! (hidden)")
+check("Command not found" in out, "a mortal typing edit help gets Command not found (hidden)")
 
 set_level(name, 51)
 s.close()
 s = login(name, pw)
 send_line(s, "edit help whatever")
 out = recv_all(s)
-check("Huh?!" in out, "a level-51 immortal still can't use edit help (gate is 56)")
+check("Command not found" in out, "a level-51 immortal still can't use edit help (gate is 56)")
 send_line(s, "help goto")
 out = recv_all(s)
 check("-- Help: Goto --" in out, "the 51 immortal CAN read the goto topic now")

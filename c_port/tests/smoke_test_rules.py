@@ -2,7 +2,7 @@
 """Smoke test for `rules` / `edrules` (cmd_rules.c, rules_repo.c, EDIT_RULES):
   1. `rules` lists the numbered rules; `rules <n>` shows one in full.
   2. `rules <bad>` is rejected.
-  3. A mortal can't see edrules (Huh?!).
+  3. A mortal can't see edrules (Command not found).
   4. A 59+ immortal writes a new rule via edrules + the line editor, and it
      then shows up in `rules` and `rules <n>`.
 
@@ -126,7 +126,7 @@ check("Respect Other Players" in strip(cmd(sm, "rules 1")),
       "rules 1 shows the first rule in full")
 check("no rule number" in strip(cmd(sm, "rules 999")),
       "asking for a nonexistent rule is rejected")
-check("Huh?!" in cmd(sm, "edit rules 5 Test"), "a mortal cannot see edit rules (Huh?!)")
+check("Command not found" in cmd(sm, "edit rules 5 Test"), "a mortal cannot see edit rules (Command not found)")
 sm.close()
 
 # --- immortal writes a rule ---

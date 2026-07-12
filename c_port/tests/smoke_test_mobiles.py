@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Smoke test for mobiles (Phase 2D: being_create_mob(), `load mob`, and mob
 combat integration). Covers:
-  1. `load mob` is immortal-only (invisible to a mortal, "Huh?!").
+  1. `load mob` is immortal-only (invisible to a mortal, "Command not found").
   2. `load mob <vnum>` spawns a mob prototype into the room; `look` lists it
      generically (same room-contents loop as PCs) and `look <mobname>`
      (a multi-word, abbreviated keyword) shows its description. `load mob
@@ -220,7 +220,7 @@ s2 = socket.create_connection((host, port), timeout=5)
 tmp_mort = f"Mobtmp{_suffix}"
 make_char(s2, tmp_mort, "mobtmppw123")
 cmd(s2, "color off")
-check("Huh?!" in cmd(s2, f"load mob {MOB}"), "load mob is invisible to a mortal")
+check("Command not found" in cmd(s2, f"load mob {MOB}"), "load mob is invisible to a mortal")
 s2.close()
 
 # --- 2: load mob spawns the prototype; look lists it; look <name> shows description ---
@@ -253,7 +253,7 @@ sm = login(mort_name, mort_pw)
 check("Mobile Sandbox" in cmd(sm, "look"), "the mortal lands directly in the sandbox room")
 
 out = cmd(sm, "kill vroc")
-check("Huh?!" not in out, "kill reaches the mob by an abbreviated keyword")
+check("Command not found" not in out, "kill reaches the mob by an abbreviated keyword")
 
 # Let a few combat rounds actually play out.
 deadline = time.time() + 20

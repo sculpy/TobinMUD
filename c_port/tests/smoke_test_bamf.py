@@ -7,7 +7,7 @@ move-message feature that used to own this name is now `poofin`/`poofout`
 (see smoke_test_poof.py) -- this file covers `goto`'s own teleport
 messages.
 
-  1. Immortal-only: a mortal gets "Huh?!" from `bamfin`/`bamfout`.
+  1. Immortal-only: a mortal gets "Command not found" from `bamfin`/`bamfout`.
   2. `goto` broadcasts a departure message (bamfout) to the room left and
      an arrival message (bamfin) to the room entered -- the mover's own
      private "You vanish..." line is unaffected either way.
@@ -136,7 +136,7 @@ mort_pw = "Bamfmortpw123"
 sm = socket.create_connection((host, port), timeout=5)
 make_char(sm, mort_name, mort_pw)
 out = cmd(sm, "bamfout <N> steps through a shimmering rift.")
-check("Huh?!" in out, "bamfout is refused for a mortal")
+check("Command not found" in out, "bamfout is refused for a mortal")
 sm.close()
 
 # --- 2/3: an immortal's custom bamfout/bamfin fire on goto, with tokens ---

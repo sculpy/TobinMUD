@@ -117,7 +117,7 @@ check("Center Square" in out, "'l' abbreviates to look (new default load room 10
 # 'w' means WEST now; who needs 'wh'. Either outcome of the walk (moving,
 # or "can't go that way") proves 'w' matched west rather than who.
 out = step(s, "'w' should reach west (movement), not who", "w")
-check("Who's online" not in out and "Huh?!" not in out,
+check("Who's online" not in out and "Command not found" not in out,
       "'w' abbreviates to west, not who")
 
 out = step(s, "'wh' should reach who", "wh")
@@ -130,7 +130,7 @@ out = step(s, "'sco' should also reach score", "sco")
 check("Strength" in out, "'sco' (longer prefix) also abbreviates to score")
 
 out = step(s, "'qu' must NOT reach quit", "qu")
-check("Huh?!" in out, "'qu' does not abbreviate to quit -- quit is excluded from the parser")
+check("Command not found" in out, "'qu' does not abbreviate to quit -- quit is excluded from the parser")
 
 # --- 2. Trailing prompt after every command ---
 out = step(s, "look shows a trailing prompt", "look")

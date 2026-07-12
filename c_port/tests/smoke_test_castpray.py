@@ -158,9 +158,9 @@ warrior_name = f"Cpwar{_suffix}"
 pw = "castpraypw123"
 sw = make_char(warrior_name, pw, "3")
 out = cmd(sw, "cast heal light")
-check("Huh?!" in out, "cast is hidden from a non-Mage/Druid class")
+check("Command not found" in out, "cast is hidden from a non-Mage/Druid class")
 out = cmd(sw, "pray heal light")
-check("Huh?!" in out, "pray is hidden from a non-Cleric class")
+check("Command not found" in out, "pray is hidden from a non-Cleric class")
 sw.close()
 
 # --- 2: Mage cast requires a component, consumed on success ---

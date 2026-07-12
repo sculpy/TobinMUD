@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Smoke test for `copyover` (Erwin Andreasen-style hot reboot):
-  1. Gate: mortals (and even a level-58 Greater God) get Huh?! -- the
+  1. Gate: mortals (and even a level-58 Greater God) get Command not found -- the
      command is Administrator (59) and up.
   2. Player connections SURVIVE the copyover: both a playing immortal and
      a playing mortal keep their sockets, see the reborn/reforms
@@ -134,13 +134,13 @@ sMort, nameMort = make_player("Mort")
 
 # --- Part 1: the gate ---
 send_line(sMort, "copyover")
-check("Huh?!" in recv_all(sMort), "a mortal typing copyover gets Huh?! (hidden)")
+check("Command not found" in recv_all(sMort), "a mortal typing copyover gets Command not found (hidden)")
 
 set_level(nameImm, 58)
 sImm.close()
 sImm = relog(nameImm)
 send_line(sImm, "copyover")
-check("Huh?!" in recv_all(sImm), "even a level-58 Greater God can't copyover (gate is 59)")
+check("Command not found" in recv_all(sImm), "even a level-58 Greater God can't copyover (gate is 59)")
 
 set_level(nameImm, 59)
 sImm.close()

@@ -165,7 +165,7 @@ mort_pw = "trigmortpw123"
 sm = socket.create_connection((host, port), timeout=5)
 make_char(sm, mort_name, mort_pw)
 out = cmd(sm, f"edit trigger room {ROOM_A} enter")
-check("Huh?!" in out, "edit trigger is hidden from a mortal")
+check("Command not found" in out, "edit trigger is hidden from a mortal")
 sm.close()
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"

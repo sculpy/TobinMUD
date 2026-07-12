@@ -397,20 +397,6 @@ bool cmd_inventory(descriptor_t *d, const char *args) {
     return true;
 }
 
-/* Right-aligned "<label>: <value>" column, one limb/hand per line (user
- * 2026-07-09 reformat, replacing the old "<label> value" bracket form).
- * EQUIP_LABEL_WIDTH matches the longest label ("secondary hold"). */
-#define EQUIP_LABEL_WIDTH 14
-
-static void equip_line(char *out, size_t out_sz, size_t *n, const char *label,
-                        const obj_t *o) {
-    const char *value = o
-        ? (o->base.short_descr[0] ? o->base.short_descr : o->base.name)
-        : "nothing";
-    *n += (size_t)snprintf(out + *n, out_sz - *n, "  %*s: %s\r\n",
-                           EQUIP_LABEL_WIDTH, label, value);
-}
-
 bool cmd_equipment(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
@@ -419,23 +405,10 @@ bool cmd_equipment(descriptor_t *d, const char *args) {
 
     char out[2048];
     size_t n = (size_t)snprintf(out, sizeof(out), "You are using:\r\n");
-    for (int i = 0; i < LIMB_COUNT && n < sizeof(out); i++) {
-        /* Genitalia is not a wear slot -- nothing is ever worn there (user
-         * 2026-07-09); it becomes an object on decapitation instead, see
-         * the crit-hit TODO item. Skip it from this listing entirely. */
-        if (i == LIMB_GENITALIA)
-            continue;
-        equip_line(out, sizeof(out), &n, limb_name((limb_t)i), ch->equipment[i]);
-    }
-    /* "Primary"/"secondary" tracks the caller's dominant hand (handed_right),
-     * not a fixed held[0]/held[1] -- held[] fills dominant-hand-first (see
-     * do_hold_or_wield()), but which INDEX that is flips with handedness. */
-    int primary = ch->handed_right ? 0 : 1;
-    int secondary = ch->handed_right ? 1 : 0;
-    if (n < sizeof(out))
-        equip_line(out, sizeof(out), &n, "primary hold", ch->held[primary]);
-    if (n < sizeof(out))
-        equip_line(out, sizeof(out), &n, "secondary hold", ch->held[secondary]);
+    /* Rendering itself (label column, genitalia skip, primary/secondary
+     * hand ordering) moved to being_render_equipment() (being.c,
+     * 2026-07-12) so `look <person>` can share it. */
+    being_render_equipment(ch, out, sizeof(out), &n);
 
     descriptor_send(d, out);
     return true;

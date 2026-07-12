@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Smoke test for Phase 2A immortal command infrastructure:
   1. min_level enforcement: a mortal typing `goto`/`promote` (or any
-     prefix of them, like `g`) gets "Huh?!" -- immortal commands are
+     prefix of them, like `g`) gets "Command not found" -- immortal commands are
      invisible to mortals, not merely refused.
   2. `goto <vnum>`: an immortal teleports to room 0 ("The Void") and
      back to 1 ("Imperia"); a nonexistent vnum and a missing/garbage
@@ -123,11 +123,11 @@ sMort, nameMort = make_player("Mort")
 for attempt in ["goto 0", "got 0", "promote somebody"]:
     send_line(sMort, attempt)
     out = recv_all(sMort)
-    check("Huh?!" in out, f"a mortal typing '{attempt}' gets Huh?! (command hidden)")
+    check("Command not found" in out, f"a mortal typing '{attempt}' gets Command not found (command hidden)")
 # "g" now resolves to the real `get` command rather than leaking goto.
 send_line(sMort, "g")
 out = recv_all(sMort)
-check("Huh?!" not in out and "usage: get" in out.lower(),
+check("Command not found" not in out and "usage: get" in out.lower(),
       "single-letter 'g' abbreviates to the get command, not goto")
 
 # --- Bootstrap the immortal (level 58 so the above-own-level cap is testable) ---
@@ -210,12 +210,12 @@ out_mort = recv_all(sMort)
 check("demoted you to level 1" in out_mort, "the target is told they were demoted")
 send_line(sMort, "goto 0")
 out = recv_all(sMort)
-check("Huh?!" in out, "a demoted player immediately loses immortal commands")
+check("Command not found" in out, "a demoted player immediately loses immortal commands")
 
 # --- Part 4: loadroom (51+) sets where the character logs in ---
 send_line(sMort, "loadroom 0")
 out = recv_all(sMort)
-check("Huh?!" in out, "a mortal typing loadroom gets Huh?! (hidden)")
+check("Command not found" in out, "a mortal typing loadroom gets Command not found (hidden)")
 
 send_line(sImm, "loadroom")
 out = recv_all(sImm)
@@ -240,7 +240,7 @@ recv_all(sImm)
 
 # --- Part 5: users (58+) -- the connection roster ---
 send_line(sMort, "users")
-check("Huh?!" in recv_all(sMort), "a mortal typing users gets Huh?! (hidden)")
+check("Command not found" in recv_all(sMort), "a mortal typing users gets Command not found (hidden)")
 
 send_line(sImm, "users")
 out = recv_all(sImm)

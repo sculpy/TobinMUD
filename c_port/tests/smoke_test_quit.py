@@ -133,7 +133,7 @@ check(char_name in out, "quitter shows up in who before quitting")
 # The bare word "quit" (no bang) must NOT work while playing.
 send_line(s, "quit")
 out = recv_all(s)
-check("Huh?!" in out, "bare 'quit' (no bang) is not recognized while playing")
+check("Command not found" in out, "bare 'quit' (no bang) is not recognized while playing")
 check("return to the character menu" not in out, "bare 'quit' did not trigger the quit behavior")
 
 # First real quit: returns to the account menu, does NOT disconnect.

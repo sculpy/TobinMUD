@@ -3,7 +3,7 @@
   1. A mortal files a bug with `bug <text>` and gets a thank-you.
   2. Bare `bug` from a mortal shows usage; from an immortal lists reports.
   3. The filed report shows the submitter and appears in the immortal list.
-  4. `delbug <id>` (59+) removes it; a mortal can't see delbug (Huh?!).
+  4. `delbug <id>` (59+) removes it; a mortal can't see delbug (Command not found).
 
     python3 tests/smoke_test_bug.py [host] [port]
 """
@@ -122,7 +122,7 @@ marker = f"widget{_suffix}"
 check("filed" in strip(cmd(sm, f"bug the {marker} is broken")).lower(),
       "a mortal can file a bug and is thanked")
 check("Usage: bug" in strip(cmd(sm, "bug")), "bare bug from a mortal shows usage")
-check("Huh?!" in cmd(sm, "delbug 1"), "a mortal cannot see delbug (Huh?!)")
+check("Command not found" in cmd(sm, "delbug 1"), "a mortal cannot see delbug (Command not found)")
 sm.close()
 
 # --- immortal lists + deletes ---

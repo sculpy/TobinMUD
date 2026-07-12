@@ -145,7 +145,7 @@ check(len(big_first.splitlines()) > len(small_first.splitlines()),
 check("page at a time" in cmd(s, "help news"), "help news describes pagination")
 
 # edit news gate: a mortal can't (hidden).
-check("Huh?!" in cmd(s, "edit news Nope"), "edit news is hidden from mortals")
+check("Command not found" in cmd(s, "edit news Nope"), "edit news is hidden from mortals")
 
 # --- promote to 56 and post a news item ---
 set_level(name, 56)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Smoke test for `exec` (cmd_exec.c), the level-60 host shell:
-  1. A mortal can't see it (Huh?!) -- it's hidden below level 60.
+  1. A mortal can't see it (Command not found) -- it's hidden below level 60.
   2. An Implementor (60) runs `exec echo <marker>` and sees the marker.
   3. A blocklisted command (e.g. `rm -rf /tmp/x`) is refused, not run.
 
@@ -112,7 +112,7 @@ def relogin(nm):
 # mortal: exec is hidden
 nameM = f"Exem{_suffix}"
 sm = make_char(nameM)
-check("Huh?!" in cmd(sm, "exec echo hi"), "a mortal cannot see exec (Huh?!)")
+check("Command not found" in cmd(sm, "exec echo hi"), "a mortal cannot see exec (Command not found)")
 sm.close()
 
 # Implementor (60)

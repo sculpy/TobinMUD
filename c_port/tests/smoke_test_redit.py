@@ -4,7 +4,7 @@ working-copy editor, formatted like Sneezy's update_room_menu (numbered
 fields) with door-type/condition editing on exits.
 
 Covered:
-  1. Gate: a mortal typing `edroom` gets Huh?! (hidden below BUILD_MIN_LEVEL).
+  1. Gate: a mortal typing `edroom` gets Command not found (hidden below BUILD_MIN_LEVEL).
   2. `edroom`/`edroom <vnum>` opens the numbered menu for the current/named room.
   3. Fields 1-7: Name, Description (line editor + /clear), Flags toggle,
      Sector Type, Exits, Max Capacity, Room Height -- each changes the
@@ -126,7 +126,7 @@ send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
 send_line(s, "1"); recv_all(s)  # class: mage
 send_line(s, "2"); recv_all(s)  # alignment: neutral
 
-check("Huh?!" in cmd(s, "edit room"), "a mortal typing edit room gets Huh?! (hidden)")
+check("Command not found" in cmd(s, "edit room"), "a mortal typing edit room gets Command not found (hidden)")
 
 set_level(name, 51)
 s.close()

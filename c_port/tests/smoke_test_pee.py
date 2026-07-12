@@ -127,7 +127,7 @@ sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
 
 # --- 1: below 51, pee is refused ---
 out = cmd(s, "pee")
-check("Huh?!" in out, "pee is refused below level 51")
+check("Command not found" in out, "pee is refused below level 51")
 
 # --- 2: at 51+, pee succeeds and leaves a puddle ---
 set_level(imm_name, 51)

@@ -12,7 +12,7 @@
      actually named Jesus seeing/flipping it -- is NOT exercised here: a
      live "Jesus" character already exists in this world and this test must
      never touch it).
-  4. A mortal cannot reach the command at all (min_level gate -- "Huh?!").
+  4. A mortal cannot reach the command at all (min_level gate -- "Command not found").
 
     python3 tests/smoke_test_setsev.py [host] [port]
 """
@@ -123,7 +123,7 @@ def promote(nm):
 # --- a mortal can't reach setsev at all ---
 nameM = f"Setm{_suffix}"
 sm = make_char(nameM)
-check("Huh?!" in cmd(sm, "setsev"), "a mortal typing setsev gets Huh?! (invisible, not refused)")
+check("Command not found" in cmd(sm, "setsev"), "a mortal typing setsev gets Command not found (invisible, not refused)")
 sm.close()
 
 # --- two 51+ immortals ---

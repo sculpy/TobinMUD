@@ -163,7 +163,7 @@ check("Purge Sandbox" in out, "the room itself (and the immortal in it) survives
 
 # --- 2: purge linkdead is refused below level 58, even for this 51+ builder ---
 out = cmd(s, "purge linkdead")
-check("Huh?!" in out, "purge linkdead is refused for a level-51 builder (needs 58+)")
+check("Command not found" in out, "purge linkdead is refused for a level-51 builder (needs 58+)")
 
 # --- 3: promote to 58, put a linkdead AND a live character in the room,
 # confirm only the linkdead one is removed ---

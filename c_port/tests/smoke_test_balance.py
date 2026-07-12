@@ -124,7 +124,7 @@ send_line(s51, pw); recv_all(s51)
 send_line(s51, "1"); recv_all(s51)
 cmd(s51, "color off")
 out = cmd(s51, "balance class warrior")
-check("Huh?!" in out, "a level-51 immortal can't reach balance (60+ only)")
+check("Command not found" in out, "a level-51 immortal can't reach balance (60+ only)")
 s51.close()
 
 # --- 2: a level-60 immortal can open the class editor ---

@@ -2230,10 +2230,38 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       combat damage (`smoke_test_affects.py`'s `average_incoming()`) --
       once this ships, that test (and any other immortal-takes-damage
       test) will need rework to use a mortal or otherwise-adjusted target.
-- [ ] **`look <person>` shows worn equipment + Thief "peek" skill** —
-      user: "when you look at someone you should also see what equipment
-      thier wearing, a thief skill could be added to attempt a peak at the
-      targets inventory."
+- [x] **`look <person>` shows worn equipment** — done. User: "when you
+      look at someone you should also see what equipment thier wearing."
+      Rather than duplicate `cmd_equipment()`'s (cmd_object.c) rendering
+      logic, pulled the shared part out into a new
+      `being_render_equipment()` (being.c/being.h) -- same label-column
+      formatting, genitalia skip, and primary/secondary-hand ordering,
+      now used by both the self-view `equipment` command and
+      `look_at_target()`'s PC/mob branch (cmd_look.c). Header line reads
+      "You are using:" for looking at yourself, "<Name> is using:" for
+      anyone else (capitalized if it's a mob's lowercase short_descr,
+      same convention as the room-listing lines). `tests/
+      smoke_test_look_equipment.py` covers a fresh, unequipped target
+      showing all "nothing" slots, an item appearing in the right slot
+      after being worn, and confirms the self-view `equipment` command's
+      own output is unchanged by the shared refactor. Found and fixed a
+      wider, unrelated regression while testing this: the 2026-07-12
+      "Huh?!" → "Command not found..." message change (an earlier item
+      in this same session) had left 36 existing smoke test files still
+      checking for the literal old "Huh?!" string -- fixed with a
+      mechanical find-replace across all of them (both assertion strings
+      and doc-comment mentions), verified against `smoke_test_objects.py`
+      (full pass) plus `smoke_test_quit.py`/`smoke_test_bug.py` spot
+      checks. **Deferred, not part of this item**: the Thief "peek at
+      inventory" skill (a separate, real new mechanic -- attempted,
+      chance-based, presumably detectable) is still open, tracked below.
+- [ ] **Thief "peek" skill (attempt to see someone's carried inventory)**
+      — user (same message as the look-equipment request above): "a
+      thief skill could be added to attempt a peak at the targets
+      inventory." Distinct from the (now-done) worn-equipment display
+      above -- this is a new skill/command that tries to see what
+      someone is CARRYING (not worn), with some chance of success/
+      detection, gated by `being_knows_skill()` same as trap mechanics.
 - [ ] **Make `rent` work (Sneezy port)** — user (2026-07-12): "make rent
       work from sneezy." Per Sneezy's own help text: `rent` stores your
       items and cleanly ends your session (regenerating HP/mana while

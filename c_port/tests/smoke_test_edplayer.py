@@ -142,7 +142,7 @@ sa.close()
 # --- gate: 57 can't reach it, 58 can ---
 promote_sql(admin, 57)
 sa = relogin(admin)
-check("Huh?!" in cmd(sa, f"edit player {target}"), "a level-57 immortal can't use edit player (gate is 58)")
+check("Command not found" in cmd(sa, f"edit player {target}"), "a level-57 immortal can't use edit player (gate is 58)")
 sa.close()
 
 promote_sql(admin, 58)

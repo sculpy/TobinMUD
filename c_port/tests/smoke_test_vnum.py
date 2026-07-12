@@ -2,7 +2,7 @@
 """Smoke test for `vnum <room|obj|mob> <pattern>` (cmd_vnum.c):
   1. Lists obj/mob/room vnums whose name matches a substring.
   2. Bad/empty usage is rejected; a no-match pattern says "none".
-  3. Builder-gated (51+): a mortal can't see it (Huh?!).
+  3. Builder-gated (51+): a mortal can't see it (Command not found).
 
     python3 tests/smoke_test_vnum.py [host] [port]
 """
@@ -115,7 +115,7 @@ send_line(s, "2"); recv_all(s)  # alignment: neutral
 cmd(s, "color off")
 
 # --- mortal is gated out ---
-check("Huh?!" in cmd(s, "vnum obj sword"), "a mortal cannot see vnum (Huh?!)")
+check("Command not found" in cmd(s, "vnum obj sword"), "a mortal cannot see vnum (Command not found)")
 
 # --- promote to builder (51) and relog ---
 set_level(name, 51)

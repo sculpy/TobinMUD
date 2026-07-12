@@ -6,7 +6,7 @@ new features, should work the same as reporting a bug"):
   1. A mortal files an idea with `idea <text>` and gets a thank-you.
   2. Bare `idea` from a mortal shows usage; from an immortal lists ideas.
   3. The filed idea shows the submitter and appears in the immortal list.
-  4. `delidea <id>` (59+) removes it; a mortal can't see delidea (Huh?!).
+  4. `delidea <id>` (59+) removes it; a mortal can't see delidea (Command not found).
 
     python3 tests/smoke_test_idea.py [host] [port]
 """
@@ -118,7 +118,7 @@ marker = f"gadget{_suffix}"
 check("filed" in strip(cmd(sm, f"idea a {marker} would be neat")).lower(),
       "a mortal can file an idea and is thanked")
 check("Usage: idea" in strip(cmd(sm, "idea")), "bare idea from a mortal shows usage")
-check("Huh?!" in cmd(sm, "delidea 1"), "a mortal cannot see delidea (Huh?!)")
+check("Command not found" in cmd(sm, "delidea 1"), "a mortal cannot see delidea (Command not found)")
 sm.close()
 
 # --- immortal lists + deletes ---

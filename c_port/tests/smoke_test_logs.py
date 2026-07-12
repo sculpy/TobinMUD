@@ -3,7 +3,7 @@
   1. Log files live in logs/ named <YYYY-MM-DD>.log -- one per calendar day,
      appended across reboots/copyovers/rotates (logs older than 21 days are
      pruned at open).
-  2. Gate: mortals and a level-58 get Huh?! for `log`; 59 works.
+  2. Gate: mortals and a level-58 get Command not found for `log`; 59 works.
   3. `log` tails the current file; `log search <text>` finds a known
      line (a link-drop we caused with a unique character name).
   4. `log rotate` (59+) re-opens the day's file (daily logs aren't fragmented);
@@ -135,13 +135,13 @@ check(files, "logs/ contains .log files")
 sImm, nameImm = make_player("Imm")
 
 send_line(sImm, "log")
-check("Huh?!" in recv_all(sImm), "a mortal typing log gets Huh?! (hidden)")
+check("Command not found" in recv_all(sImm), "a mortal typing log gets Command not found (hidden)")
 
 set_level(nameImm, 53)
 sImm.close()
 sImm = relog(nameImm)
 send_line(sImm, "log")
-check("Huh?!" in recv_all(sImm), "a level-53 can't read logs (gate is 54)")
+check("Command not found" in recv_all(sImm), "a level-53 can't read logs (gate is 54)")
 
 set_level(nameImm, 54)
 sImm.close()

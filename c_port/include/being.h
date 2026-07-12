@@ -477,6 +477,15 @@ bool being_has_destroyed_limb(const being_t *b);
  * being. */
 int being_total_ac(const being_t *b);
 
+/* Renders a being's worn/held equipment as "  <label>: <value>\r\n" lines
+ * (one per limb slot plus primary/secondary hold, skipping LIMB_GENITALIA
+ * -- nothing is ever worn there) into `out`. Shared by `equipment`
+ * (cmd_object.c, your own gear) and `look <person>` (cmd_look.c,
+ * user 2026-07-12: "when you look at someone you should also see what
+ * equipment thier wearing"). Does NOT write a leading header line --
+ * callers add their own ("You are using:" vs "<Name> is wearing:"). */
+void being_render_equipment(const being_t *b, char *out, size_t out_sz, size_t *n);
+
 /* Correct MID-SENTENCE display text for a being: a PC's own base.name
  * (already properly cased at creation), or a MOB's short_descr (its own
  * lowercase "a lady"-style article+description) -- NOT the raw base.name

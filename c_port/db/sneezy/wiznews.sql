@@ -347,3 +347,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Combat Messages No Longer Show Raw Damage Numbers', 'Regular combat, spell, and trap messages now read like "You stab a messenger''s left finger." instead of "...for 4 damage!" -- cleaner flavor text for everyone. Immortals still see the number (useful for testing and balancing); mortals don''t.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Look At Someone To See What They''re Wearing', '`look <person>` now shows their worn equipment (body slots and both hands) right after their description, the same listing the `equipment` command shows you for yourself.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -3,7 +3,7 @@
 able to set their own enter or leave messages. Like Jesus drags his cross
 in from the east. of course gender specific in the messaging").
 
-  1. Immortal-only: a mortal gets "Huh?!" from `poofin`/`poofout`.
+  1. Immortal-only: a mortal gets "Command not found" from `poofin`/`poofout`.
   2. Setting a message with `$d` (direction) and `$p` (gender_possess()
      pronoun) tokens replaces the default "exits to the <dir>"/"has
      arrived" wording -- verified for both a male and a female immortal,
@@ -136,7 +136,7 @@ mort_pw = "Poofmortpw123"
 sm = socket.create_connection((host, port), timeout=5)
 make_char(sm, mort_name, mort_pw)
 out = cmd(sm, "poofout drags $p cross out to the $d")
-check("Huh?!" in out, "poofout is refused for a mortal")
+check("Command not found" in out, "poofout is refused for a mortal")
 sm.close()
 
 # --- 2: a male immortal's bamf messages use "his" ---

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Smoke test for objects (Phase 2C: obj_t, `load obj`, get/drop/inventory/
 wear/remove/equipment, persistence, and drop-on-death). Covers:
-  1. `load obj` is immortal-only (invisible to a mortal, "Huh?!").
+  1. `load obj` is immortal-only (invisible to a mortal, "Command not found").
   2. `load obj <vnum>` spawns a prototype into the room; `look` lists it.
      `load obj <name>` works too (a substring match against `obj.name`).
      `look <item>` (room floor or carried) shows its description.
@@ -189,7 +189,7 @@ s2 = socket.create_connection((host, port), timeout=5)
 mort_name = f"Objmort{_suffix}"
 make_char(s2, mort_name, "objmortpw123")
 cmd(s2, "color off")
-check("Huh?!" in cmd(s2, f"load obj {WEARABLE}"), "load obj is invisible to a mortal")
+check("Command not found" in cmd(s2, f"load obj {WEARABLE}"), "load obj is invisible to a mortal")
 s2.close()
 
 # --- 2: load obj spawns each prototype; look lists them ---
