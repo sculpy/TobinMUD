@@ -34,6 +34,49 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       non-fixture passes independently. `tests/smoke_test_room_stacking.py`
       covers 3-mob and 3-object stacking, a lone mob showing no suffix,
       and two different mobs never merging.
+- [x] **`practice` command + guildmaster-gated discipline percentages**
+      — done. User: "add the practice command so players have to visit a
+      guildmaster to gain skills based upon percentage of discipline
+      learned. cant get to advanced disc until basic disc is at least
+      95% complete." A player's Basic (SKILL_TIER_CLASS) and Advanced
+      (SKILL_TIER_ADVANCED) discipline are each tracked as a single
+      0-100 aggregate percentage (new `player_progress.basic_disc_pct`/
+      `advanced_disc_pct` columns, `progress_t` fields) -- deliberately
+      NOT per-skill, matching the user's own wording ("percentage of
+      discipline learned") and avoiding a new per-player-per-skill table
+      before the roster has real bespoke mechanics anyway. `cmd_cast.c`/
+      `cmd_pray.c` now additionally require `basic_disc_pct > 0` for a
+      Class-tier spell and `basic_disc_pct >= 95 && advanced_disc_pct > 0`
+      for an Advanced-tier one (bypassed for immortals, same spirit as
+      task 45's class/level bypass); `cmd_skills.c` shows both
+      percentages and marks locked entries with the specific reason
+      (level vs. discipline). New `cmd_practice.c`: `practice` (status)
+      / `practice basic` / `practice advanced` (+10% per use, capped at
+      100, no resource cost yet -- same "no economy to hang it on" v1
+      scope as cast/pray's missing mana) -- requires a "guildmaster"-
+      keyworded mob of the player's own class in the room. Wiring a
+      guildmaster's class required finally loading the previously-
+      wholly-deferred `mob.class` column (confirmed via the live DB to
+      be a BITMASK -- 1 mage/2 cleric/4 warrior/8 thief/16 shaman/32
+      deikhan/64 monk/128 ranger/256 other, verified against the seeded
+      guildmaster mobs vnum 200-229): `mob_repo.c`/`mob_proto_t` gained
+      `class_mask`, and `being_create_mob()` maps the single-class bits
+      with a real Tobin equivalent (ranger -> Druid, matching the
+      Druid roster's own Ranger lineage; shaman/deikhan/other stay
+      unmapped, no Tobin class fits) into the mob's `char_class` +
+      new `mob_class_known` flag. `tests/smoke_test_practice.py` covers
+      no-guildmaster refusal, wrong-class-guildmaster refusal, the 0%-
+      Basic prayer refusal, `practice basic` raising the percentage and
+      unlocking the prayer, `practice advanced` being refused below 95%
+      Basic and working above it, the Advanced-tier prayer unlocking
+      only once Advanced percentage is nonzero, and `skills`'s
+      percentage display. (Hit one test-authoring bug along the way:
+      the test originally set the Cleric's level to 90 to sidestep an
+      unrelated level gate, which crossed IMMORTAL_LEVEL_MIN=51 and
+      silently bypassed the very discipline gate under test -- fixed by
+      using level 40 instead, and setting it before the final
+      login/reconnect rather than after, since a live being_t doesn't
+      pick up a raw SQL level change without a fresh load.)
 - [x] **Immortals bypass class restrictions on skills/spells** — done.
       User: "immortals can use any skill or spell in game, no class
       restrictions." `cmd_cast.c`/`cmd_pray.c`'s class gate

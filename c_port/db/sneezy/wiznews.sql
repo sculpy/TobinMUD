@@ -295,3 +295,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Immortals Ignore Class Restrictions on Skills/Spells', 'Immortals can now `cast` or `pray` any spell in the game regardless of their own class, and `skills` shows every class''s full roster (grouped by class heading) instead of just their own. Level requirements are bypassed the same way. Component/holy-symbol item requirements still apply -- those are an item gate, not a class restriction. Mortals see no change.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Practice with a Guildmaster to Learn Your Discipline', 'Reaching a spell/skill''s level requirement is no longer enough on its own -- you now also need to have practiced that discipline. A new `practice` command, used at a guildmaster mob of your own class, raises your Basic and Advanced discipline percentages (10% per visit). Basic-tier skills/spells need any Basic percentage above 0; Advanced-tier ones need Basic at 95%+ AND some Advanced percentage. `skills` shows both percentages and marks locked entries with the reason. Guildmaster mobs are recognized by the "guildmaster" keyword plus a class match (the old, previously-unused mob.class column now feeds this). Immortals bypass this gate entirely, same as the class/level bypass.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -142,6 +142,22 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         descriptor_send(d, msg);
         return true;
     }
+    /* Discipline-percentage gate (user 2026-07-12: "players have to
+     * visit a guildmaster to gain skills based upon percentage of
+     * discipline learned") -- see cmd_practice.c. Bypassed for
+     * immortals, same "no restrictions" spirit as the level/class
+     * gates above. */
+    if (!imm) {
+        if (sk->tier == SKILL_TIER_CLASS && ch->progress.basic_disc_pct <= 0) {
+            descriptor_send(d, "You haven't practiced your Basic discipline yet -- visit a guildmaster.\r\n");
+            return true;
+        }
+        if (sk->tier == SKILL_TIER_ADVANCED &&
+            (ch->progress.basic_disc_pct < 95 || ch->progress.advanced_disc_pct <= 0)) {
+            descriptor_send(d, "You need 95% in your Basic discipline, and some Advanced practice, before this.\r\n");
+            return true;
+        }
+    }
 
     obj_t *component = find_keyword_item(ch, "component");
     if (!component) {

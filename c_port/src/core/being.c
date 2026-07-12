@@ -52,6 +52,24 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
     return b;
 }
 
+/* Maps the upstream `mob.class` bitmask to a Tobin player_class_t --
+ * only the single-class bits that have a real Tobin equivalent (user
+ * 2026-07-12's practice/guildmaster request). Shaman(16)/deikhan(32)/
+ * other(256) have no Tobin class and are left unmapped; ranger(128)
+ * maps to Druid, matching the Druid roster's own Ranger-skill lineage
+ * (see skill.c's Druid section). */
+static bool mob_class_mask_to_tobin(int mask, player_class_t *out) {
+    switch (mask) {
+        case 1:   *out = CLASS_MAGE;    return true;
+        case 2:   *out = CLASS_CLERIC;  return true;
+        case 4:   *out = CLASS_WARRIOR; return true;
+        case 8:   *out = CLASS_THIEF;   return true;
+        case 64:  *out = CLASS_MONK;    return true;
+        case 128: *out = CLASS_DRUID;   return true;
+        default:  return false;
+    }
+}
+
 being_t *being_create_mob(int vnum) {
     mob_proto_t proto;
     if (!mob_proto_load(vnum, &proto))
@@ -72,6 +90,7 @@ being_t *being_create_mob(int vnum) {
     b->progress.experience = 0;
     b->mob_actions = proto.actions;
     b->mob_align = proto.align;
+    b->mob_class_known = mob_class_mask_to_tobin(proto.class_mask, &b->char_class);
 
     /* Placeholder attrs/HP formulas (see STATUS.md's Mobiles decision row):
      * the original's 12-stat mob columns are a completely different, wider

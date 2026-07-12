@@ -99,3 +99,18 @@ ALTER TABLE `player`
 -- in-game editor for it yet, same as several other mob prototype fields).
 ALTER TABLE `mob`
   ADD COLUMN IF NOT EXISTS `align` tinyint(4) NOT NULL DEFAULT 0;
+
+-- `practice` command + guildmaster-gated discipline percentages (user
+-- 2026-07-12: "add the practice command so players have to visit a
+-- guildmaster to gain skills based upon percentage of discipline
+-- learned. cant get to advanced disc until basic disc is at least 95%
+-- complete"). A player's Basic (SKILL_TIER_CLASS) and Advanced
+-- (SKILL_TIER_ADVANCED) discipline are each a single 0-100 aggregate
+-- percentage raised by `practice`ing at a guildmaster of the player's
+-- own class -- not a per-skill percentage (see cmd_practice.c's header
+-- comment for why this coarser v1 scope was chosen). 0% = none of that
+-- tier's skills/spells are usable yet, regardless of level.
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `basic_disc_pct` int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `advanced_disc_pct` int(11) NOT NULL DEFAULT 0;

@@ -95,6 +95,17 @@ typedef struct {
      * read this. Not carried by mobs themselves (no mob.alignment column
      * exists upstream) -- only a PC's own alignment is modeled. */
     int alignment;
+    /* Discipline percentages (user 2026-07-12: "add the practice command
+     * so players have to visit a guildmaster to gain skills based upon
+     * percentage of discipline learned. cant get to advanced disc until
+     * basic disc is at least 95% complete") -- a single 0-100 aggregate
+     * per tier, NOT per-skill, raised via `practice` (cmd_practice.c) at
+     * a guildmaster mob of the player's own class. 0 = none of that
+     * tier's skills/spells are usable yet no matter what level says;
+     * SKILL_TIER_ADVANCED additionally requires basic_disc_pct >= 95.
+     * See skill.h's skill_tier_t. */
+    int basic_disc_pct;
+    int advanced_disc_pct;
 } progress_t;
 
 /* Prompt customization bits (player.prompt_flags, cmd_prompt.c; rendered
@@ -320,10 +331,15 @@ typedef struct being {
 
     /* Class/race (player.class/player.race) -- chosen at creation, stat
      * bonuses already folded into `attrs` by then (class_stat_bonus()/
-     * race_stat_bonus()). Meaningless for mobs (always CLASS_MAGE/
-     * RACE_HUMAN, i.e. 0, since mobs don't have either). */
+     * race_stat_bonus()). Meaningless for most mobs (char_class defaults
+     * to CLASS_MAGE/0 since mobs have no race at all) -- EXCEPT a
+     * guildmaster mob (user 2026-07-12, cmd_practice.c), whose char_class
+     * is loaded from the upstream mob.class bitmask (mob_repo.c) to say
+     * which class it trains; mob_class_known distinguishes "really a
+     * Mage guildmaster" from "just an ordinary mob defaulting to 0". */
     player_class_t char_class;
     player_race_t race;
+    bool mob_class_known;
 
     /* Free-text self-description (player.appearance), set at creation and
      * shown by `look <player>`/`score`. Empty = none set. */

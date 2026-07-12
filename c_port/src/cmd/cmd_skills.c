@@ -13,11 +13,15 @@
 /* `skills`: lists a player's class's skill/spell roster, grouped into the
  * three tiers (Combat / <Class> Skills / Advanced <Class> Skills) --
  * user 2026-07-11: "assign all warrior skills to warriors in three
- * disciplines...", repeated per class. A skill is "known" purely by
- * character level meeting its threshold (no practice-point economy exists
- * yet); known skills print plain, not-yet-known ones print dimmed with
- * the level still needed. */
+ * disciplines...", repeated per class. A skill is "known" once level
+ * reaches its threshold AND (for the Class/Advanced tiers -- Combat is
+ * innate) the player's discipline percentage is above 0 (user
+ * 2026-07-12: "add the practice command so players have to visit a
+ * guildmaster to gain skills based upon percentage of discipline
+ * learned" -- see cmd_practice.c). `force_known` (immortals) shows
+ * everything as known regardless of level/percentage. */
 static void print_tier(descriptor_t *d, player_class_t cls, skill_tier_t tier, int level,
+                       int basic_pct, int advanced_pct, bool force_known,
                        char *out, size_t outsz, size_t *n) {
     char label[48];
     skill_tier_label(cls, tier, label, sizeof(label));
@@ -33,12 +37,28 @@ static void print_tier(descriptor_t *d, player_class_t cls, skill_tier_t tier, i
         if (sk->cls != cls || sk->tier != tier)
             continue;
         shown++;
-        if (level >= sk->min_level) {
+
+        bool level_ok = level >= sk->min_level;
+        bool disc_ok = true;
+        const char *disc_reason = NULL;
+        if (tier == SKILL_TIER_CLASS) {
+            disc_ok = basic_pct > 0;
+            disc_reason = "practice Basic discipline";
+        } else if (tier == SKILL_TIER_ADVANCED) {
+            disc_ok = basic_pct >= 95 && advanced_pct > 0;
+            disc_reason = basic_pct < 95 ? "need 95% Basic first" : "practice Advanced discipline";
+        }
+
+        if (force_known || (level_ok && disc_ok)) {
             *n += (size_t)snprintf(out + *n, outsz - *n, "  %-26s %s\r\n", sk->name, sk->desc);
-        } else {
+        } else if (!level_ok) {
             *n += (size_t)snprintf(out + *n, outsz - *n,
                                    "  <k>%-26s %s (level %d)<z>\r\n",
                                    sk->name, sk->desc, sk->min_level);
+        } else {
+            *n += (size_t)snprintf(out + *n, outsz - *n,
+                                   "  <k>%-26s %s (%s)<z>\r\n",
+                                   sk->name, sk->desc, disc_reason);
         }
     }
     if (shown == 0)
@@ -73,9 +93,9 @@ bool cmd_skills(descriptor_t *d, const char *args) {
             char header[64];
             snprintf(header, sizeof(header), "\r\n<y>=== %s ===<z>\r\n", class_name(cls));
             cn += (size_t)snprintf(cout + cn, sizeof(cout) - cn, "%s", header);
-            print_tier(d, cls, SKILL_TIER_COMBAT, 999, cout, sizeof(cout), &cn);
-            print_tier(d, cls, SKILL_TIER_CLASS, 999, cout, sizeof(cout), &cn);
-            print_tier(d, cls, SKILL_TIER_ADVANCED, 999, cout, sizeof(cout), &cn);
+            print_tier(d, cls, SKILL_TIER_COMBAT, 999, 100, 100, true, cout, sizeof(cout), &cn);
+            print_tier(d, cls, SKILL_TIER_CLASS, 999, 100, 100, true, cout, sizeof(cout), &cn);
+            print_tier(d, cls, SKILL_TIER_ADVANCED, 999, 100, 100, true, cout, sizeof(cout), &cn);
             descriptor_send(d, cout);
         }
         return true;
@@ -83,6 +103,8 @@ bool cmd_skills(descriptor_t *d, const char *args) {
 
     player_class_t cls = d->character->char_class;
     int level = d->character->progress.level;
+    int basic_pct = d->character->progress.basic_disc_pct;
+    int advanced_pct = d->character->progress.advanced_disc_pct;
 
     bool has_any = false;
     for (int i = 0; i < skill_count(); i++) {
@@ -96,9 +118,13 @@ bool cmd_skills(descriptor_t *d, const char *args) {
         return true;
     }
 
-    print_tier(d, cls, SKILL_TIER_COMBAT, level, out, sizeof(out), &n);
-    print_tier(d, cls, SKILL_TIER_CLASS, level, out, sizeof(out), &n);
-    print_tier(d, cls, SKILL_TIER_ADVANCED, level, out, sizeof(out), &n);
+    n += (size_t)snprintf(out + n, sizeof(out) - n,
+                          "Basic discipline: <y>%d%%<z>   Advanced discipline: <y>%d%%<z>%s\r\n",
+                          basic_pct, advanced_pct,
+                          basic_pct < 95 ? " <k>(locked until Basic reaches 95%)<z>" : "");
+    print_tier(d, cls, SKILL_TIER_COMBAT, level, basic_pct, advanced_pct, false, out, sizeof(out), &n);
+    print_tier(d, cls, SKILL_TIER_CLASS, level, basic_pct, advanced_pct, false, out, sizeof(out), &n);
+    print_tier(d, cls, SKILL_TIER_ADVANCED, level, basic_pct, advanced_pct, false, out, sizeof(out), &n);
     descriptor_send(d, out);
     return true;
 }

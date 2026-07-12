@@ -18,6 +18,7 @@ bool cmd_look(descriptor_t *d, const char *args);
 bool cmd_who(descriptor_t *d, const char *args);
 bool cmd_score(descriptor_t *d, const char *args);
 bool cmd_skills(descriptor_t *d, const char *args);
+bool cmd_practice(descriptor_t *d, const char *args);
 bool cmd_quit(descriptor_t *d, const char *args);
 bool cmd_color(descriptor_t *d, const char *args);
 bool cmd_attack(descriptor_t *d, const char *args);

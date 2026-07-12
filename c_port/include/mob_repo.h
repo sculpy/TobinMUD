@@ -45,6 +45,19 @@ typedef struct {
                                   * attack good randomly ... neutral should
                                   * be taunted by evil and supported by
                                   * good"). */
+    int class_mask;              /* Upstream `mob.class` -- a BITMASK (1
+                                   * mage, 2 cleric, 4 warrior, 8 thief, 16
+                                   * shaman, 32 deikhan, 64 monk, 128
+                                   * ranger, 256 other), confirmed against
+                                   * the seeded guildmaster mobs (vnum
+                                   * 200-229). No longer wholly deferred as
+                                   * of user 2026-07-12's practice/
+                                   * guildmaster request -- being_create_mob()
+                                   * maps the recognizable single-class bits
+                                   * to a Tobin player_class_t (see
+                                   * being.c). race/tohit/ac/damage_level/
+                                   * actions(non-AI-relevant bits)/spec_proc
+                                   * remain deferred. */
 } mob_proto_t;
 
 /* Loads the prototype row for `vnum` from the `mob` table into *out.

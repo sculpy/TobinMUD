@@ -357,7 +357,8 @@ bool player_progress_load(long player_id, progress_t *out) {
         return false;
 
     bool found = false;
-    if (db_query(db, "select level, experience, hp, max_hp, true_level, alignment from player_progress where player_id=%i",
+    if (db_query(db, "select level, experience, hp, max_hp, true_level, alignment, "
+                      "basic_disc_pct, advanced_disc_pct from player_progress where player_id=%i",
                  (int)player_id)
         && db_fetch_row(db)) {
         out->level = atoi(db_get(db, "level"));
@@ -366,6 +367,8 @@ bool player_progress_load(long player_id, progress_t *out) {
         out->max_hp = atoi(db_get(db, "max_hp"));
         out->true_level = atoi(db_get(db, "true_level"));
         out->alignment = atoi(db_get(db, "alignment"));
+        out->basic_disc_pct = atoi(db_get(db, "basic_disc_pct"));
+        out->advanced_disc_pct = atoi(db_get(db, "advanced_disc_pct"));
         found = true;
     }
 
@@ -379,11 +382,15 @@ bool player_progress_save(long player_id, const progress_t *progress) {
         return false;
 
     bool ok = db_query(db,
-        "insert into player_progress (player_id, level, experience, hp, max_hp, true_level, alignment) "
-        "values (%i, %i, %i, %i, %i, %i, %i) "
-        "on duplicate key update level=%i, experience=%i, hp=%i, max_hp=%i, true_level=%i, alignment=%i",
+        "insert into player_progress (player_id, level, experience, hp, max_hp, true_level, alignment, "
+        "basic_disc_pct, advanced_disc_pct) "
+        "values (%i, %i, %i, %i, %i, %i, %i, %i, %i) "
+        "on duplicate key update level=%i, experience=%i, hp=%i, max_hp=%i, true_level=%i, alignment=%i, "
+        "basic_disc_pct=%i, advanced_disc_pct=%i",
         (int)player_id, progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment,
-        progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment);
+        progress->basic_disc_pct, progress->advanced_disc_pct,
+        progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment,
+        progress->basic_disc_pct, progress->advanced_disc_pct);
 
     db_close(db);
     return ok;
