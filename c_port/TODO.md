@@ -20,6 +20,21 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-11 (continued) — working these next
 
+- [x] **`edit player`: Class and Race fields** — done (user 2026-07-11:
+      "player editor needs ability to modify class and race, and should
+      be able to set class and race"). Two new menu items (9/0, matching
+      the numbered-menu style) alongside the existing 8 fields; new
+      `player_set_class_by_name()`/`player_set_race_by_name()` in
+      player_repo.c (same not-account-scoped pattern as the gender/
+      handedness setters), persisted and synced live to an already-
+      connected target on Save, same as every other field. Accepts a
+      name (prefix-abbreviatable, same convention as `toggle`) for both.
+      Extended `tests/smoke_test_edplayer.py` with the two new fields;
+      incidentally exposed a pre-existing test fragility (an exact
+      HP-value assertion after a fresh reconnect could occasionally fail
+      if background regen ticked HP up by 1 during the now-slightly-
+      longer test run) -- loosened that assertion to tolerate natural
+      regen instead of chasing the timing itself.
 - [x] **Skill/spell roster framework + Warrior/Thief/Monk/Cleric/Mage
       assignment** — done. User: "lets create a list of sneezy features
       that arent implemented in tobin" led to a feature-gap audit

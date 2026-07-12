@@ -132,5 +132,7 @@ being_t *player_load_admin(const char *name, int *out_load_room);
 bool player_set_gender_by_name(const char *name, gender_t gender);
 bool player_set_handed_by_name(const char *name, int handed_right);
 bool player_set_appearance_by_name(const char *name, const char *appearance);
+bool player_set_class_by_name(const char *name, player_class_t cls);
+bool player_set_race_by_name(const char *name, player_race_t race);
 
 #endif

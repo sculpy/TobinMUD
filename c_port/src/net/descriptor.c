@@ -1258,12 +1258,14 @@ static void show_edplayer_menu(descriptor_t *d) {
              "   1) Level: %d              2) Experience: %ld\r\n"
              "   3) HP/Max HP: %d/%d       4) Attributes (str/dex/con/int/wis/cha)\r\n"
              "   5) Gender: %s      6) Title: %s\r\n"
-             "   7) Load Room: %d          8) Handedness: %s\r\n\r\n"
+             "   7) Load Room: %d          8) Handedness: %s\r\n"
+             "   9) Class: %s       0) Race: %s\r\n\r\n"
              "   S) Save    Q) Quit%s\r\n[edit player] ",
              w->base.name, w->progress.level, w->progress.experience,
              w->progress.hp, w->progress.max_hp,
              gender_name(w->gender), w->title[0] ? w->title : "(none)",
              d->edplayer_load_room, w->handed_right ? "right" : "left",
+             class_name(w->char_class), race_name(w->race),
              d->edplayer_dirty ? "\r\n   <c>* unsaved changes *<z>" : "");
     descriptor_send(d, out);
     d->state = CONN_EDPLAYER_MENU;
@@ -1280,7 +1282,9 @@ static void edplayer_save(descriptor_t *d) {
         && player_set_title(w->base.name, w->account_id, w->title)
         && player_set_load_room(w->base.name, w->account_id, d->edplayer_load_room)
         && player_set_gender_by_name(w->base.name, w->gender)
-        && player_set_handed_by_name(w->base.name, w->handed_right);
+        && player_set_handed_by_name(w->base.name, w->handed_right)
+        && player_set_class_by_name(w->base.name, w->char_class)
+        && player_set_race_by_name(w->base.name, w->race);
     if (!ok) {
         descriptor_send(d, "Save failed -- the DB rejected part of it.\r\n");
         return;
@@ -1295,6 +1299,8 @@ static void edplayer_save(descriptor_t *d) {
             snprintf(it->character->title, sizeof(it->character->title), "%s", w->title);
             it->character->gender = w->gender;
             it->character->handed_right = w->handed_right;
+            it->character->char_class = w->char_class;
+            it->character->race = w->race;
             break;
         }
     }
@@ -2339,8 +2345,26 @@ static bool handle_line(descriptor_t *d, const char *line) {
                         descriptor_send(d, "\r\nEnter handedness: left or right (blank to cancel): ");
                         d->state = CONN_EDPLAYER_HANDED;
                         break;
+                    case 9: {
+                        char msg[160];
+                        snprintf(msg, sizeof(msg),
+                            "\r\nEnter class: mage, cleric, warrior, thief, druid, or monk "
+                            "(blank to cancel): ");
+                        descriptor_send(d, msg);
+                        d->state = CONN_EDPLAYER_CLASS;
+                        break;
+                    }
+                    case 0: {
+                        char msg[160];
+                        snprintf(msg, sizeof(msg),
+                            "\r\nEnter race: human, elf, ogre, dwarf, hobbit, or gnome "
+                            "(blank to cancel): ");
+                        descriptor_send(d, msg);
+                        d->state = CONN_EDPLAYER_RACE;
+                        break;
+                    }
                     default:
-                        descriptor_send(d, "Pick a menu number (1-8), or S/Q.\r\n");
+                        descriptor_send(d, "Pick a menu number (0-9), or S/Q.\r\n");
                         show_edplayer_menu(d);
                         break;
                 }
@@ -2361,7 +2385,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     }
                     break;
                 default:
-                    descriptor_send(d, "Pick a menu number (1-8), or S/Q.\r\n");
+                    descriptor_send(d, "Pick a menu number (0-9), or S/Q.\r\n");
                     show_edplayer_menu(d);
                     break;
             }
@@ -2504,6 +2528,50 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     d->edplayer_dirty = true;
                 } else {
                     descriptor_send(d, "Usage: left or right.\r\n");
+                }
+            }
+            show_edplayer_menu(d);
+            return true;
+        }
+
+        case CONN_EDPLAYER_CLASS: {
+            if (line[0]) {
+                static const char *const NAMES[CLASS_COUNT] =
+                    { "mage", "cleric", "warrior", "thief", "druid", "monk" };
+                int found = -1;
+                for (int i = 0; i < CLASS_COUNT; i++) {
+                    if (strncasecmp(NAMES[i], line, strlen(line)) == 0) {
+                        found = i;
+                        break;
+                    }
+                }
+                if (found >= 0) {
+                    d->edplayer_work.char_class = (player_class_t)found;
+                    d->edplayer_dirty = true;
+                } else {
+                    descriptor_send(d, "Usage: mage, cleric, warrior, thief, druid, or monk.\r\n");
+                }
+            }
+            show_edplayer_menu(d);
+            return true;
+        }
+
+        case CONN_EDPLAYER_RACE: {
+            if (line[0]) {
+                static const char *const NAMES[RACE_COUNT] =
+                    { "human", "elf", "ogre", "dwarf", "hobbit", "gnome" };
+                int found = -1;
+                for (int i = 0; i < RACE_COUNT; i++) {
+                    if (strncasecmp(NAMES[i], line, strlen(line)) == 0) {
+                        found = i;
+                        break;
+                    }
+                }
+                if (found >= 0) {
+                    d->edplayer_work.race = (player_race_t)found;
+                    d->edplayer_dirty = true;
+                } else {
+                    descriptor_send(d, "Usage: human, elf, ogre, dwarf, hobbit, or gnome.\r\n");
                 }
             }
             show_edplayer_menu(d);

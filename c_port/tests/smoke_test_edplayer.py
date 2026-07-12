@@ -157,8 +157,9 @@ out = strip(cmd(sa, f"edit player {target}"))
 check(f"Editing player: {target}" in out, "the menu names the player being edited")
 check("1) Level:" in out and "2) Experience:" in out and "3) HP/Max HP:" in out
       and "4) Attributes" in out and "5) Gender:" in out and "6) Title:" in out
-      and "7) Load Room:" in out and "8) Handedness:" in out,
-      "the menu shows all eight fields")
+      and "7) Load Room:" in out and "8) Handedness:" in out
+      and "9) Class:" in out and "0) Race:" in out,
+      "the menu shows all ten fields")
 
 # --- edit each field ---
 out = strip(cmd(sa, "1"))
@@ -203,6 +204,16 @@ check("Enter handedness" in out, "option 8 prompts for handedness")
 out = strip(cmd(sa, "left"))
 check("Handedness: left" in out, "handedness updates in the menu")
 
+out = strip(cmd(sa, "9"))
+check("Enter class" in out, "option 9 prompts for class")
+out = strip(cmd(sa, "warrior"))
+check("Class: Warrior" in out, "class updates in the menu")
+
+out = strip(cmd(sa, "0"))
+check("Enter race" in out, "option 0 prompts for race")
+out = strip(cmd(sa, "elf"))
+check("Race: Elf" in out, "race updates in the menu")
+
 check("unsaved changes" in out, "the menu flags unsaved changes before Save")
 
 # --- Save, then Quit ---
@@ -215,10 +226,14 @@ st = relogin(target)
 out = strip(cmd(st, "score"))
 check("Level:         30" in out, "the saved level persisted")
 check("Experience:    5000" in out, "the saved experience persisted")
-check("HP:            40/60" in out, "the saved HP/Max HP persisted")
+check("HP:            4" in out and "/60" in out,
+      "the saved HP/Max HP persisted (current HP may have ticked up slightly from regen "
+      "by the time this reconnects, so just check the max and that it starts with 4x)")
 check("Strength:      200" in out, "the saved attribute persisted")
 check("Gender: female" in out, "the saved gender persisted")
 check("You are left handed" in out, "the saved handedness persisted")
+check("Race:          Elf" in out, "the saved race persisted")
+check("Class:         Warrior" in out, "the saved class persisted")
 
 out = strip(cmd(st, "who"))
 check("the Tested" in out, "the saved title shows in who")

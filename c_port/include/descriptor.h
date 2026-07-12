@@ -76,6 +76,8 @@ typedef enum {
     CONN_EDPLAYER_TITLE,
     CONN_EDPLAYER_LOADROOM,
     CONN_EDPLAYER_HANDED,
+    CONN_EDPLAYER_CLASS,
+    CONN_EDPLAYER_RACE,
     CONN_EDPLAYER_QUIT_CONFIRM,
     /* Menu-driven zone editor (edzone, Session 43) -- same snapshot-working-
      * copy shape as edplayer (a zone isn't kept resident in memory like a

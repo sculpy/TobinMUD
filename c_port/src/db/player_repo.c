@@ -462,6 +462,26 @@ bool player_set_handed_by_name(const char *name, int handed_right) {
     return ok;
 }
 
+bool player_set_class_by_name(const char *name, player_class_t cls) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "update player set class=%i where name='%s'",
+                       (int)cls, name);
+    db_close(db);
+    return ok;
+}
+
+bool player_set_race_by_name(const char *name, player_race_t race) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "update player set race=%i where name='%s'",
+                       (int)race, name);
+    db_close(db);
+    return ok;
+}
+
 bool player_set_appearance_by_name(const char *name, const char *appearance) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

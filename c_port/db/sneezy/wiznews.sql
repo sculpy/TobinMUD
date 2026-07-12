@@ -267,3 +267,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Every Class Gets Its Own Skill Sheet', 'A new `skills` command shows your class''s full roster of skills/spells, ported from Sneezy''s real discipline lists and organized into three tiers: Combat, <Class> Skills, and Advanced <Class> Skills. Warrior, Thief, Monk, Cleric, and Mage are all populated -- a skill is known once your level reaches its threshold, no separate practice step yet. Actual in-combat mechanics for most individual skills are still on the way; this is the roster/visibility layer.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Edit Player Can Now Change Class and Race', '`edit player` (58+) gained two new fields: 9) Class and 0) Race, alongside the existing level/xp/hp/attributes/gender/title/load-room/handedness. Changes save and sync to an already-connected target immediately, same as every other field.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
