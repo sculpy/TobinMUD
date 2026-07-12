@@ -2279,13 +2279,30 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       `smoke_test_weapon_depth.py` re-run clean (both already used an
       immortal attacker, so the weighted pick didn't change what they
       measure).
-- [ ] **Immortals take zero damage in combat** — port Sneezy's "engage"
-      logic. User: "an immortal character shouldnt be damaged by hits in a
-      fight, see engage code from sneezy." NOTE: today's affects-system
-      testing relied on an immortal Cleric actually taking measurable
-      combat damage (`smoke_test_affects.py`'s `average_incoming()`) --
-      once this ships, that test (and any other immortal-takes-damage
-      test) will need rework to use a mortal or otherwise-adjusted target.
+- [x] **Immortals take zero damage in combat** — done, adapted. User:
+      "an immortal character shouldnt be damaged by hits in a fight, see
+      engage code from sneezy." Real Sneezy's own rule
+      (`setCharFighting()`/`setVictFighting()`, misc/combat.cc) actually
+      refuses a PC from ever INITIATING an attack on an immortal PC in
+      the first place -- not ported as literally as that, since it would
+      break the existing `hit` command's whole purpose (an immortal
+      sparring in real combat for testing, which task 11/13's own smoke
+      tests already rely on). Instead, `combat_strike()` now zeroes
+      damage against an immortal DEFENDER as the very last step (after
+      Sanctuary and every other modifier) -- landing a hit on an
+      immortal still works exactly as before, verb/messaging and all, it
+      just always deals 0. As flagged when this was logged:
+      `smoke_test_affects.py` needed rework, since its Cleric target
+      (whose incoming damage the test measures) was immortal --
+      switched to an ordinary MORTAL Cleric with `basic_disc_pct`/
+      `advanced_disc_pct` set directly via SQL to satisfy sanctuary's
+      Advanced-tier gate without immortal status. That in turn ran into
+      the damage-numbers-hidden-from-mortals change (also this session):
+      a mortal Cleric never sees a damage number on their OWN incoming-
+      hit messages either, so `average_incoming()`/`damages_from()` were
+      switched to read the immortal ATTACKER's own outgoing "You hit
+      X's arm for N damage!" confirmation line instead (same pattern
+      `smoke_test_weapon_depth.py` already used, for the same reason).
 - [x] **`look <person>` shows worn equipment** — done. User: "when you
       look at someone you should also see what equipment thier wearing."
       Rather than duplicate `cmd_equipment()`'s (cmd_object.c) rendering

@@ -363,3 +363,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New Builder Tool: stat (55+)', '`stat obj|mob|room <vnum>` dumps every single field of that prototype''s row, plus its exits (for a room) or its hitroll/damroll/AC affects (for an object). Unlike `vnum`, which searches by name, `stat` needs an exact vnum -- but shows everything about it once you have one.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Immortals No Longer Take Damage in Combat', 'Landing a hit on an immortal still works exactly as before (verb, messaging, and all) -- it just always deals zero damage now. You can still spar with an immortal for testing purposes; you just can''t actually hurt one.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -121,88 +121,54 @@ def set_dex(name, dex):
 
 
 def damages_from(text):
-    # Only the ATTACKER's own outgoing hit lines start with "You" --
-    # the target's own connection sees "X hits your Y for N damage!"
-    # instead, which is what we actually want to measure here (damage
-    # taken, not dealt).
+    # Damage numbers are hidden from a plain mortal viewer entirely
+    # (user 2026-07-12) -- only an immortal still sees them, and only in
+    # their OWN outgoing "You <verb> X's <limb> for N damage!" line. So
+    # this measures damage dealt (from the immortal ATTACKER's own
+    # connection), not damage taken from the target's -- same pattern
+    # smoke_test_weapon_depth.py already uses for the same reason.
     dmgs = []
     for line in text.splitlines():
-        m = re.search(r"for (\d+) damage", line)
-        if m and line.startswith("You "):
+        if not line.startswith("You "):
             continue
+        m = re.search(r"for (\d+) damage", line)
         if m:
             dmgs.append(int(m.group(1)))
     return dmgs
 
 
 def average_incoming(attacker_sock, target_sock, target_name, n):
-    # Returns the raw text seen too -- Sanctuary's 12-round duration can
-    # expire mid-sampling (20 hits can take longer than 12 rounds), and
-    # its "wears off" line would otherwise be silently consumed here
-    # before a caller's own later poll ever sees it.
+    # Returns the raw text seen (on the TARGET's own connection) too --
+    # Sanctuary's 12-round duration can expire mid-sampling (20 hits can
+    # take longer than 12 rounds), and its "wears off" line would
+    # otherwise be silently consumed before a caller's own later poll
+    # ever sees it. The damage numbers themselves are read from the
+    # ATTACKER's connection instead (see damages_from()).
     cmd(attacker_sock, f"hit {target_name}")
     dmgs = []
     seen = ""
     polls = 0
     while len(dmgs) < n and polls < n * 3:
         polls += 1
-        out = recv_all(target_sock, 1.5)
-        seen += out
-        dmgs.extend(damages_from(out))
+        attacker_out = recv_all(attacker_sock, 1.5)
+        seen += recv_all(target_sock, 0.1)
+        dmgs.extend(damages_from(attacker_out))
     check(len(dmgs) >= n, f"collected at least {n} incoming hits on {target_name} ({len(dmgs)} got)")
     return sum(dmgs) / len(dmgs), seen
 
 
 pw = "affectspw123"
 
-# --- Cleric immortal (casts sanctuary on the target, and separately
-#     stands in as the attacker so both sides bypass mortal wait
-#     states -- neither's own class/level matters for the attacker
-#     role, only for who casts sanctuary). ---
-cleric_name = f"Affcle{_suffix}"
-cleric_pw = "affclepw123"
-s_cle = socket.create_connection((host, port), timeout=5)
-recv_all(s_cle)
-send_line(s_cle, cleric_name); recv_all(s_cle)
-send_line(s_cle, "y"); recv_all(s_cle)
-send_line(s_cle, cleric_pw); recv_all(s_cle)
-send_line(s_cle, cleric_pw); recv_all(s_cle)
-send_line(s_cle, "new"); recv_all(s_cle)
-send_line(s_cle, cleric_name); recv_all(s_cle)
-send_line(s_cle, "done"); recv_all(s_cle)
-send_line(s_cle, "1"); recv_all(s_cle)
-send_line(s_cle, "2"); recv_all(s_cle)  # class: cleric
-send_line(s_cle, "2"); recv_all(s_cle)
-set_level(cleric_name, 51)  # immortal -- bypasses sanctuary's Advanced-tier discipline gate
-set_hp(cleric_name, 2000)   # survive ~40-60 rounds of mutual combat unscathed
-cmd(s_cle, "quit!")  # a raw socket close reconnects to the still-linkdead
-                      # live being_t (skipping player_load() entirely) --
-                      # quit! frees it so the next login does a real DB load.
-s_cle.close()
-s_cle = socket.create_connection((host, port), timeout=5)
-recv_all(s_cle)
-send_line(s_cle, cleric_name); recv_all(s_cle)
-send_line(s_cle, cleric_pw); recv_all(s_cle)
-send_line(s_cle, "1"); recv_all(s_cle)
-cmd(s_cle, "color off")
-
-sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
-    f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Affects Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
-check("Affects Sandbox" in cmd(s_cle, f"goto {ROOM}"), "goto lands in the sandbox room")
-
-sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
-    f"VALUES ({SYMBOL},'symbol holy silver','a tarnished silver holy symbol',"
-    f"'A tarnished silver holy symbol is lying here.',12,1,1);")
-check("You conjure" in cmd(s_cle, f"load obj {SYMBOL}"), "the holy symbol is loaded")
-out = cmd(s_cle, "get symbol")
-check("you get" in out.lower(), "the Cleric picks up the holy symbol")
-
-# --- 1: a fresh character's affects list is empty ---
-out = cmd(s_cle, "affects")
-check("(none)" in out, "affects shows (none) before casting anything")
-
-# --- Attacker immortal, transferred into the sandbox ---
+# --- Attacker immortal, set up first (immortals can `goto`/`load obj`;
+#     also gets the immortal damage-immunity treatment, 2026-07-12: "an
+#     immortal character shouldnt be damaged by hits in a fight" --
+#     combat_strike() now zeroes damage against an immortal DEFENDER, so
+#     the Cleric below (whose incoming damage this test measures) has to
+#     be an ordinary MORTAL instead of immortal like earlier revisions of
+#     this test used; a huge set_dex() keeps their retaliation from ever
+#     landing on the attacker anyway, and now any retaliation that DID
+#     land would deal zero damage regardless, since the attacker here is
+#     immortal). ---
 imm_name = f"Affimm{_suffix}"
 imm_pw = "affimmpw123"
 s_imm = socket.create_connection((host, port), timeout=5)
@@ -228,8 +194,54 @@ send_line(s_imm, imm_name); recv_all(s_imm)
 send_line(s_imm, imm_pw); recv_all(s_imm)
 send_line(s_imm, "1"); recv_all(s_imm)
 cmd(s_imm, "color off")
-cmd(s_cle, f"transfer {imm_name}")
-check("Affects Sandbox" in cmd(s_imm, "look"), "the attacker immortal is in the sandbox")
+
+sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
+    f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
+    f"VALUES ({ROOM},0,0,0,'Affects Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+check("Affects Sandbox" in cmd(s_imm, f"goto {ROOM}"), "goto lands in the sandbox room")
+
+sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
+    f"VALUES ({SYMBOL},'symbol holy silver','a tarnished silver holy symbol',"
+    f"'A tarnished silver holy symbol is lying here.',12,1,1);")
+check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "the holy symbol is loaded")
+
+# --- Cleric MORTAL (a real defender now that immortals take zero damage)
+#     -- basic_disc_pct/advanced_disc_pct set directly via SQL to satisfy
+#     sanctuary's Advanced-tier discipline gate without immortal status. ---
+cleric_name = f"Affcle{_suffix}"
+cleric_pw = "affclepw123"
+s_cle = socket.create_connection((host, port), timeout=5)
+recv_all(s_cle)
+send_line(s_cle, cleric_name); recv_all(s_cle)
+send_line(s_cle, "y"); recv_all(s_cle)
+send_line(s_cle, cleric_pw); recv_all(s_cle)
+send_line(s_cle, cleric_pw); recv_all(s_cle)
+send_line(s_cle, "new"); recv_all(s_cle)
+send_line(s_cle, cleric_name); recv_all(s_cle)
+send_line(s_cle, "done"); recv_all(s_cle)
+send_line(s_cle, "1"); recv_all(s_cle)
+send_line(s_cle, "2"); recv_all(s_cle)  # class: cleric
+send_line(s_cle, "2"); recv_all(s_cle)
+sql(f"UPDATE player_progress SET basic_disc_pct=100, advanced_disc_pct=50 "
+    f"WHERE player_id=(SELECT id FROM player WHERE name='{cleric_name}');")
+set_hp(cleric_name, 2000)  # survive ~40-60 rounds of mutual combat unscathed
+sql(f"UPDATE player SET load_room={ROOM} WHERE name='{cleric_name}';")
+cmd(s_cle, "quit!")
+s_cle.close()
+s_cle = socket.create_connection((host, port), timeout=5)
+recv_all(s_cle)
+send_line(s_cle, cleric_name); recv_all(s_cle)
+send_line(s_cle, cleric_pw); recv_all(s_cle)
+send_line(s_cle, "1"); recv_all(s_cle)
+cmd(s_cle, "color off")
+check("Affects Sandbox" in cmd(s_cle, "look"), "the Cleric lands in the sandbox room")
+
+out = cmd(s_cle, "get symbol")
+check("you get" in out.lower(), "the Cleric picks up the holy symbol")
+
+# --- 1: a fresh character's affects list is empty ---
+out = cmd(s_cle, "affects")
+check("(none)" in out, "affects shows (none) before casting anything")
 
 # --- 3a: baseline incoming damage average, no Sanctuary yet ---
 baseline_avg, _ = average_incoming(s_imm, s_cle, cleric_name, SAMPLES)

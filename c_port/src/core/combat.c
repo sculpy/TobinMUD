@@ -342,6 +342,19 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             dmg = 1;
     }
 
+    /* Immortal damage immunity (user 2026-07-12: "an immortal character
+     * shouldnt be damaged by hits in a fight, see engage code from
+     * sneezy"). Real Sneezy's own rule (setCharFighting()/
+     * setVictFighting(), misc/combat.cc) actually refuses a PC from ever
+     * INITIATING an attack on an immortal PC in the first place -- not
+     * ported as-is, since it would break the existing `hit` command's
+     * whole purpose (letting an immortal spar in real combat for testing,
+     * task 11/13's own smoke tests rely on it). Landing a hit on an
+     * immortal is still allowed, verb/messaging and all -- it just always
+     * deals zero damage, applied last so nothing above can un-zero it. */
+    if (being_is_immortal(defender))
+        dmg = 0;
+
     limb_t limb = pick_weighted_limb();
     int pct_before = being_limb_pct(defender, limb);
     being_hurt_limb(defender, limb, dmg);
