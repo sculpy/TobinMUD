@@ -385,27 +385,31 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       `combat.c` strike-message path the same way (suppress on a miss,
       independently per viewer). Tobin currently has zero scaffolding for
       this (confirmed: no `nospam`/`NOSPAM` anywhere in `src`/`include`).
-- [ ] **Hostname (reverse DNS) instead of raw IP in messages/logs** — user
-      2026-07-11: "in messages and logs where IP address is displayed,
-      make it a hostname dns lookup instead" ("take inspiration from
-      sneezy"). Checked Sneezy's actual precedent first and it's a dead
-      end worth knowing about before copying it: Sneezy has NO reverse-DNS
-      resolution anywhere (`gethostbyaddr`/`getnameinfo`/`hostent` all
-      absent from the bundled source) -- its `desc->host` field
-      (`connect.h:423`, misleadingly commented "hostname") is just
-      `IP_String()` (`socket.cc:1792`) stringifying the raw socket
-      address via `inet_ntop()`. Every place Sneezy "shows a hostname"
-      (WHO's Hostname column `info.cc:2511`, last-login tracking
-      `player_data.cc:260`) is actually showing a raw IP string under a
-      misleading label -- there's nothing to port here, this has to be
-      designed from scratch. Needs: an actual reverse-DNS call
-      (`getnameinfo()`) on connection accept in Tobin's `descriptor.c`,
-      done off the main loop (a blocking DNS lookup on accept would stall
-      every other connection) -- likely a lookup thread/async resolver
-      with a cache (by IP), falling back to the raw IP string if the
-      lookup fails or hasn't completed yet. Tobin currently has zero
-      scaffolding for this either (confirmed: no hostname-lookup code
-      anywhere in `src`/`include`).
+- [x] **Hostname (reverse DNS) instead of raw IP in messages/logs** — done
+      (user 2026-07-11: "in messages and logs where IP address is
+      displayed, make it a hostname dns lookup instead"). Confirmed
+      Sneezy has no real precedent to port (its `desc->host` is just a
+      stringified IP under a misleading label -- see research notes this
+      entry used to carry). Designed from scratch: new `hostname_resolve.c`
+      spawns one detached pthread per accepted connection to run
+      `getnameinfo()` (NI_NAMEREQD, so a failed lookup stays empty rather
+      than "resolving" back to the same numeric string) -- never inline
+      on accept(), which would stall the whole single-threaded select()
+      loop on a slow/absent DNS server. Results land in a small fixed-size
+      mailbox (`RESOLVE_SLOTS 32`, mutex-guarded) that `hostname_resolve_
+      poll()` drains once per game-loop tick, matching each result back to
+      its descriptor by fd AND ip together (fd reuse after a fast
+      disconnect is the one real race; requiring ip to also match makes a
+      mismatch practically impossible). New `descriptor_display_host()`
+      (falls back to the raw ip while unresolved or on failure) replaces
+      every direct `d->ip` read at a log/display site (`users`, connect/
+      reconnect/link-drop PIO logs, character/account deletion logs,
+      pee/purge/transfer edit logs, the combat-death log) -- NOT the
+      couple of sites that need the real IP regardless (the loopback-only
+      `exec` gate check, and the copyover recovery file, which must
+      preserve the actual address for reconnection, not a possibly-still-
+      unresolved hostname). New `Threads::Threads` link dependency
+      (CMakeLists.txt) -- Tobin's first pthread usage.
 
 ### User batch 2026-07-11 — working these next
 

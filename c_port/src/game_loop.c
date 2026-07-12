@@ -13,6 +13,7 @@
 
 #include "being.h"
 #include "descriptor.h"
+#include "hostname_resolve.h"
 #include "log.h"
 #include "net.h"
 #include "pulse.h"
@@ -130,10 +131,17 @@ int game_loop_run(int port, const char *copyover_file) {
             while ((fd = main_socket_accept(&ms, peer_ip, sizeof(peer_ip))) >= 0) {
                 log_info("New connection (fd %d) from %s.", fd, peer_ip);
                 descriptor_t *nd = descriptor_create(fd);
-                if (nd)
+                if (nd) {
                     snprintf(nd->ip, sizeof(nd->ip), "%s", peer_ip);
+                    hostname_resolve_start(fd, peer_ip);
+                }
             }
         }
+
+        /* Apply any reverse-DNS lookups that finished since the last tick
+         * (see hostname_resolve.h -- lookups run off-thread so a slow one
+         * never stalls this loop). */
+        hostname_resolve_poll();
 
         descriptor_t *d = g_descriptors;
         while (d) {

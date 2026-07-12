@@ -309,7 +309,7 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
      * immortal-visible only, via the log command's gate). */
     log_info("%s has been %s by %s. [%s]", loser->base.name,
              slain ? "slain" : "defeated", winner->base.name,
-             loser->desc ? loser->desc->ip : "?");
+             loser->desc ? descriptor_display_host(loser->desc) : "?");
 
     /* A death is world news (user requirement): everyone playing -- not
      * just the room -- gets a teasing announcement. Winner and loser are

@@ -43,7 +43,7 @@ bool cmd_purge(descriptor_t *d, const char *args) {
         snprintf(msg, sizeof(msg), "Purged %d linkdead character(s) from the game.\r\n", count);
         descriptor_send(d, msg);
         game_log(LOG_EDIT, "%s purged %d linkdead character(s). [%s]",
-                 d->character->base.name, count, d->ip);
+                 d->character->base.name, count, descriptor_display_host(d));
         return true;
     }
 
@@ -71,6 +71,6 @@ bool cmd_purge(descriptor_t *d, const char *args) {
     snprintf(msg, sizeof(msg), "The room shudders -- %d thing(s) vanish.\r\n", destroyed);
     descriptor_send(d, msg);
     game_log(LOG_EDIT, "%s purged room %d (%d thing(s)). [%s]",
-             d->character->base.name, room->vnum, destroyed, d->ip);
+             d->character->base.name, room->vnum, destroyed, descriptor_display_host(d));
     return true;
 }

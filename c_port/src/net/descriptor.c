@@ -316,7 +316,7 @@ void descriptor_destroy(descriptor_t *d) {
          * unlinked (above), so game_log won't try to notify the departing
          * connection. Editors aren't interrupted; the line stays in `log`. */
         game_log(LOG_PIO, "%s has lost %s link. [%s]",
-                 d->character->base.name, possess, d->ip);
+                 d->character->base.name, possess, descriptor_display_host(d));
         /* Detach, don't destroy (user requirement): the character stays put
          * in its room, linkdead, until the same account reconnects to it
          * (enter_world() checks world_find_linkdead_pc() first, then does a
@@ -346,6 +346,10 @@ void descriptor_destroy(descriptor_t *d) {
 
     close(d->fd);
     free(d);
+}
+
+const char *descriptor_display_host(const descriptor_t *d) {
+    return d->hostname[0] ? d->hostname : d->ip;
 }
 
 /* Sends `msg`, normalizing any bare '\n' (not preceded by '\r') to "\r\n"
@@ -791,7 +795,7 @@ static void enter_world(descriptor_t *d, being_t *b) {
      * in descriptor_destroy(): logged to the file and echoed to online
      * immortals with a colored [PIO] tag, carrying the IP. */
     game_log(LOG_PIO, linkdead_room_vnum >= 0 ? "%s has reconnected. [%s]" : "%s has connected. [%s]",
-             b->base.name, d->ip);
+             b->base.name, descriptor_display_host(d));
     d->state = CONN_PLAYING;
     cmd_dispatch(d, "look"); /* prompt comes from the game loop's prompter */
 }
@@ -1941,7 +1945,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 descriptor_send(d, "Incorrect password. Deletion cancelled.\r\n");
             } else if (player_delete(d->delete_char_name, d->account.account_id)) {
                 log_info("Character %s deleted (account %s). [%s]",
-                         d->delete_char_name, d->account.name, d->ip);
+                         d->delete_char_name, d->account.name, descriptor_display_host(d));
                 descriptor_send(d, "Character deleted.\r\n");
             } else {
                 descriptor_send(d, "Could not delete that character.\r\n");
@@ -1981,7 +1985,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
             bool ok = account_delete(deleted_id);
             if (ok) {
                 log_info("Account %s (id %ld) deleted, %d character(s) with it. [%s]",
-                         deleted_name, deleted_id, d->char_count, d->ip);
+                         deleted_name, deleted_id, d->char_count, descriptor_display_host(d));
                 descriptor_send(d, "Your account has been deleted. Goodbye!\r\n");
             } else {
                 descriptor_send(d, "Could not delete the account.\r\n");

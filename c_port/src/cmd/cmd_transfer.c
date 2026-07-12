@@ -106,6 +106,7 @@ bool cmd_transfer(descriptor_t *d, const char *args) {
     snprintf(msg, sizeof(msg), "You transfer %s to room %d.\r\n", target->base.name, dest->vnum);
     descriptor_send(d, msg);
     game_log(LOG_EDIT, "%s transferred %s to room %d. [%s]",
-             d->character->base.name, target->base.name, dest->vnum, d->ip);
+             d->character->base.name, target->base.name, dest->vnum,
+             descriptor_display_host(d));
     return true;
 }

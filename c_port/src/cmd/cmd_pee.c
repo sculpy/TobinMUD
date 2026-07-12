@@ -32,6 +32,7 @@ bool cmd_pee(descriptor_t *d, const char *args) {
     descriptor_room_echo(d->character->base.roomp, d->character, msg);
 
     game_log(LOG_EDIT, "%s left a puddle in room %d. [%s]",
-             d->character->base.name, d->character->base.roomp->vnum, d->ip);
+             d->character->base.name, d->character->base.roomp->vnum,
+             descriptor_display_host(d));
     return true;
 }

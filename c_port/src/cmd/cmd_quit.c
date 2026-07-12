@@ -30,7 +30,8 @@ bool cmd_quit(descriptor_t *d, const char *args) {
         descriptor_room_echo(d->character->base.roomp, d->character, msg);
     }
     if (d->character)
-        log_info("%s has left the game. [%s]", d->character->base.name, d->ip);
+        log_info("%s has left the game. [%s]", d->character->base.name,
+                 descriptor_display_host(d));
 
     descriptor_leave_to_menu(d);
     return true; /* stay connected -- back at the account menu */

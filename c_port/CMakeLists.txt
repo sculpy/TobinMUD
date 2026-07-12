@@ -12,6 +12,7 @@ add_compile_options(-Wall -Wextra)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(MARIADB REQUIRED libmariadb)
+find_package(Threads REQUIRED)
 
 file(GLOB_RECURSE TOBIN_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 
@@ -25,6 +26,7 @@ target_include_directories(tobin_c PRIVATE
 target_link_libraries(tobin_c PRIVATE
     ${MARIADB_LIBRARIES}
     crypt
+    Threads::Threads
 )
 
 target_compile_options(tobin_c PRIVATE ${MARIADB_CFLAGS_OTHER})

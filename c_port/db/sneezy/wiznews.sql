@@ -259,3 +259,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Nospam Silences Missed Swings', 'A new personal `toggle nospam` (default off) hides "you miss"/"X misses you" combat messages from your own screen -- ported from Sneezy''s AUTO_NOSPAM. It''s checked independently for each side of a swing, so your own toggle only ever affects what YOU see.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Hostnames Instead of Raw IPs', 'Immortal-facing logs and `users` now show a reverse-DNS hostname instead of a bare IP address where one resolves (falls back to the IP otherwise) -- looked up in the background so a slow DNS server never stalls the game.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -114,6 +114,15 @@ typedef struct descriptor {
      * (the log command's gate); never in player-visible room messages. */
     char ip[46];
 
+    /* Reverse-DNS hostname for `ip` (user 2026-07-11: "in messages and
+     * logs where IP address is displayed, make it a hostname dns lookup
+     * instead"). Resolved asynchronously (hostname_resolve.c) so a slow
+     * lookup never blocks the accept()/game loop -- empty until the
+     * background resolver reports back, or forever if the lookup fails.
+     * Display code should always go through descriptor_display_host(),
+     * which falls back to the raw `ip` while this is empty. */
+    char hostname[64];
+
     /* raw telnet byte buffer, persists across process_input() calls since
      * reads are non-blocking and a line may arrive split across packets */
     unsigned char raw[DESC_RAW_BUF];
@@ -288,6 +297,14 @@ void descriptor_destroy(descriptor_t *d);
 bool descriptor_process_input(descriptor_t *d);
 
 void descriptor_send(descriptor_t *d, const char *msg);
+
+/* The resolved reverse-DNS hostname for this connection, or the raw IP if
+ * the lookup hasn't finished (or failed) yet -- every log line and
+ * immortal-facing display (`users`, link-drop/connect logging) should go
+ * through this instead of reading `ip` directly (user 2026-07-11: "in
+ * messages and logs where IP address is displayed, make it a hostname
+ * dns lookup instead"; see hostname_resolve.h). */
+const char *descriptor_display_host(const descriptor_t *d);
 
 /* Sends `text` a page (`page_size` lines, <=0 for a default) at a time, with
  * a "[ ENTER for more, Q to stop ]" prompt between pages; short text goes out

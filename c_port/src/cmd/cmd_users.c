@@ -41,15 +41,15 @@ bool cmd_users(descriptor_t *d, const char *args) {
 
     char out[2048];
     int n = snprintf(out, sizeof(out),
-                     "\r\n%-15s %-15s %-16s %s\r\n",
-                     "Character", "Account", "IP", "State");
+                     "\r\n%-15s %-15s %-24s %s\r\n",
+                     "Character", "Account", "Host", "State");
     int count = 0;
     for (descriptor_t *it = g_descriptors; it && (size_t)n < sizeof(out) - 96; it = it->next) {
         count++;
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "%-15s %-15s %-16s %s\r\n",
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "%-15s %-15s %-24s %s\r\n",
                       it->character ? it->character->base.name : "-",
                       it->account.name[0] ? it->account.name : "-",
-                      it->ip[0] ? it->ip : "?",
+                      descriptor_display_host(it),
                       state_name(it));
     }
     if ((size_t)n < sizeof(out))
