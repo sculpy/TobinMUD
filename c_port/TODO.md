@@ -34,6 +34,21 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       non-fixture passes independently. `tests/smoke_test_room_stacking.py`
       covers 3-mob and 3-object stacking, a lone mob showing no suffix,
       and two different mobs never merging.
+- [x] **Fix blank-tick catchup bug** — done. User: "catchup: -- What you
+      missed while editing -- / -- end of held messages -- / no message.
+      could that be caused by the blank prompt we are sending? also,
+      lets remove the \r\n from the end of the prompt." Root cause:
+      `heartbeat_tick()`'s half-hourly blank-line "tick" (Session:
+      "send a blank line ... so a tick becomes apparent") used
+      `descriptor_notify()`, which HOLDS it for catchup if the recipient
+      is mid-editor -- a held "\r\n" replays as an invisible blank line,
+      making catchup look empty. Fixed: skip descriptors currently in
+      an editor entirely (a blank tick has nothing worth catching up
+      on); for everyone else, send "" instead of "\r\n" (the game loop's
+      prompter already opens every prompt with its own "\r\n\r\n", so
+      the tick's own newline was just doubling the blank line) --
+      `descriptor_send()` still marks `needs_prompt` on an empty string,
+      so the visible-tick effect is unchanged for non-editing players.
 - [x] **`balance` command (gamewide class/race modifiers, 60+)** — done.
       User: "a balance command (60) where you take args: balance
       <class|race> that is menu driven to adjust balance

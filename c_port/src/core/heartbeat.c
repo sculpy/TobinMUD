@@ -31,8 +31,18 @@ void heartbeat_tick(long pulse_num) {
     g_last_bucket = bucket;
 
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
-        if (!it->character)
+        /* Skip anyone mid-editor -- there's no real content here, so
+         * holding it for catchup just leaves a blank, pointless entry
+         * (user 2026-07-12: caught via catchup showing "-- What you
+         * missed --" / "-- end of held messages --" with nothing
+         * between them). No content to miss, so nothing to hold. */
+        if (!it->character || descriptor_in_editor(it))
             continue;
-        descriptor_notify(it, "\r\n");
+        /* Empty, not "\r\n" -- the game loop's prompter already opens
+         * every fresh prompt with its own "\r\n\r\n" (user 2026-07-12:
+         * "remove the \r\n from the end of the prompt"), so sending our
+         * own newline here just doubled the blank line. This only needs
+         * to mark needs_prompt so the next prompter pass fires. */
+        descriptor_send(it, "");
     }
 }
