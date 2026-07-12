@@ -46,8 +46,13 @@ bool cmd_attack(descriptor_t *d, const char *args) {
     target->fighting = d->character;
     being_set_wait(d->character, COMBAT_ROUND_PULSES);
 
+    /* target->base.name is a mob's raw keyword list ("lady stroll walk"),
+     * not a display string, if target is a mob -- being_display_name()
+     * picks short_descr instead (same bug class found in the 2026-07-11
+     * capitalization audit; d->character below is always a connected PC,
+     * never a mob, so it needs no such guard). */
     char msg[128];
-    snprintf(msg, sizeof(msg), "You attack %s!\r\n", target->base.name);
+    snprintf(msg, sizeof(msg), "You attack %s!\r\n", being_display_name(target));
     descriptor_send(d, msg);
     if (target->desc) {
         snprintf(msg, sizeof(msg), "%s attacks you!\r\n", d->character->base.name);

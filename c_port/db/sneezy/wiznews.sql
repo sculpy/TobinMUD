@@ -279,3 +279,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Ordinal Targeting: 2.sword, 3.goblin', 'When more than one thing in a room shares a keyword, "get 2.sword"/"kill 3.goblin" now reach the 2nd/3rd match instead of always the first. Bare names still work exactly as before. Works for get/drop/put/give/wear/remove and attack/kill alike.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Combat Messages No Longer Show Raw Mob Keywords', 'Fighting a mob whose name has several keywords (e.g. "lady stroll walk", matched by look lady/stroll/walk) used to leak that raw keyword list into miss/hit/death messages and even a mob''s own corpse description. All of it now correctly shows the mob''s short description instead ("a lady out for a stroll"). Several smaller color-tag-skip capitalization bugs (mob greet/speech/death triggers, wander/scavenge/aggress messages) were fixed the same pass.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

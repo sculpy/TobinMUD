@@ -439,6 +439,24 @@ bool being_has_destroyed_limb(const being_t *b);
  * being. */
 int being_total_ac(const being_t *b);
 
+/* Correct MID-SENTENCE display text for a being: a PC's own base.name
+ * (already properly cased at creation), or a MOB's short_descr (its own
+ * lowercase "a lady"-style article+description) -- NOT the raw base.name
+ * a mob actually carries, which is its space-separated KEYWORD list
+ * ("lady stroll walk", matched by `look lady`/`look stroll`/`look walk`),
+ * never meant for display. Same "raw keyword list used as a display
+ * name" bug class fixed in mob_ai.c's mob_try_wander()/mob_try_scavenge()/
+ * mob_try_aggress() -- combat.c's per-hit messages had the same bug
+ * (found in the 2026-07-11 capitalization audit) and use this instead. */
+const char *being_display_name(const being_t *b);
+
+/* SENTENCE-INITIAL capitalized version of being_display_name() -- writes
+ * into `buf` (size `bufsz`) and returns it. A PC's name passes through
+ * unchanged (already capitalized); a MOB's short_descr is capitalized,
+ * skipping a leading color tag first if present (same bug class as
+ * cap_first() elsewhere). */
+const char *being_display_name_cap(const being_t *b, char *buf, size_t bufsz);
+
 /* Rank title for an immortal level (51-53 "Immortal", 54-57 "God", 58
  * "Greater God", 59 "Administrator", 60+ "Implementor"), or NULL for a
  * mortal level (< IMMORTAL_LEVEL_MIN) -- callers fall back to showing the

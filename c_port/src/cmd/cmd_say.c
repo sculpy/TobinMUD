@@ -45,10 +45,16 @@ static void run_speech_triggers(being_t *speaker, room_t *r, const char *said) {
         int n = trigger_repo_load_for("mob", mob->base.id, "speech", trigs, 8);
         if (n == 0)
             continue;
+        /* short_descr may start with a color tag -- skip it before
+         * capitalizing, same bug class fixed elsewhere (cmd_look.c/
+         * cmd_object.c/cmd_scan.c/mob_ai.c/trigger.c/combat.c/cmd_move.c). */
         char capbuf[128];
         snprintf(capbuf, sizeof(capbuf), "%s", mob->base.short_descr);
-        if (capbuf[0])
-            capbuf[0] = (char)toupper((unsigned char)capbuf[0]);
+        size_t ci = 0;
+        while (capbuf[ci] == '<' && capbuf[ci + 1] != '\0' && capbuf[ci + 2] == '>')
+            ci += 3;
+        if (capbuf[ci])
+            capbuf[ci] = (char)toupper((unsigned char)capbuf[ci]);
         for (int i = 0; i < n; i++) {
             if (!trigs[i].match_text[0] || !ci_contains(said, trigs[i].match_text))
                 continue;

@@ -139,6 +139,7 @@ for class_choice, cls_label, signature in (
     ("6", "Monk", "yoginsa"),
     ("2", "Cleric", "heal light"),
     ("1", "Mage", "wizardry"),
+    ("5", "Druid", "barkskin"),
 ):
     name = f"Sk{cls_label[:3]}{_suffix}"
     s = make_char(name, pw, class_choice)

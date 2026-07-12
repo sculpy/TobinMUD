@@ -474,6 +474,28 @@ int being_total_ac(const being_t *b) {
     return total;
 }
 
+const char *being_display_name(const being_t *b) {
+    if (!b)
+        return "";
+    return (b->base.kind == THING_MOB) ? b->base.short_descr : b->base.name;
+}
+
+const char *being_display_name_cap(const being_t *b, char *buf, size_t bufsz) {
+    if (!b || bufsz == 0)
+        return "";
+    if (b->base.kind != THING_MOB) {
+        snprintf(buf, bufsz, "%s", b->base.name);
+        return buf;
+    }
+    snprintf(buf, bufsz, "%s", b->base.short_descr);
+    size_t i = 0;
+    while (buf[i] == '<' && buf[i + 1] != '\0' && buf[i + 2] == '>')
+        i += 3;
+    if (buf[i])
+        buf[i] = (char)toupper((unsigned char)buf[i]);
+    return buf;
+}
+
 void being_heal(being_t *b, int amount) {
     if (!b || amount <= 0)
         return;

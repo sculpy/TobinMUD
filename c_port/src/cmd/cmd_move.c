@@ -34,10 +34,16 @@ static void run_room_and_greet_triggers(being_t *ch, room_t *to) {
         int mn = trigger_repo_load_for("mob", mob->base.id, "greet", mtrigs, 8);
         if (mn == 0)
             continue;
+        /* short_descr may start with a color tag -- skip it before
+         * capitalizing, same bug class fixed elsewhere (cmd_look.c/
+         * cmd_object.c/cmd_scan.c/mob_ai.c/trigger.c/combat.c). */
         char capbuf[128];
         snprintf(capbuf, sizeof(capbuf), "%s", mob->base.short_descr);
-        if (capbuf[0])
-            capbuf[0] = (char)toupper((unsigned char)capbuf[0]);
+        size_t ci = 0;
+        while (capbuf[ci] == '<' && capbuf[ci + 1] != '\0' && capbuf[ci + 2] == '>')
+            ci += 3;
+        if (capbuf[ci])
+            capbuf[ci] = (char)toupper((unsigned char)capbuf[ci]);
         for (int i = 0; i < mn; i++)
             trigger_run(&mtrigs[i], ch, to, capbuf[0] ? capbuf : NULL);
     }

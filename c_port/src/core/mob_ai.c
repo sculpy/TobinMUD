@@ -154,9 +154,13 @@ static void mob_try_scavenge(being_t *m) {
     if (!pick)
         return;
 
-    char msg[256]; /* name (64) + short_descr (128) + fixed text (thing.h caps) */
+    /* Same "raw keyword list, not a display name" bug class as
+     * mob_try_wander() above -- use the capitalized short_descr instead
+     * of m->base.name. */
+    char capbuf[128];
+    char msg[256]; /* short_descr (128) x2 + fixed text (thing.h caps) */
     snprintf(msg, sizeof(msg), "%s picks up %s and cleans it away.\r\n",
-             m->base.name, pick->base.short_descr);
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), pick->base.short_descr);
     descriptor_room_echo(m->base.roomp, NULL, msg);
     obj_destroy(pick);
 }
@@ -206,8 +210,13 @@ static void mob_try_aggress(being_t *m) {
     target->fighting = m;
     being_set_wait(m, COMBAT_ROUND_PULSES);
 
-    char msg[128];
-    snprintf(msg, sizeof(msg), "%s attacks you!\r\n", m->base.name);
+    /* Same "raw keyword list, not a display name" bug class as
+     * mob_try_wander() above -- use the capitalized short_descr instead
+     * of m->base.name. */
+    char capbuf[128];
+    char msg[192];
+    snprintf(msg, sizeof(msg), "%s attacks you!\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)));
     descriptor_notify(target->desc, msg);
 }
 

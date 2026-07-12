@@ -20,6 +20,43 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-11 (continued) — working these next
 
+- [x] **Druid skill/spell roster** — done. User: "go with the druid
+      spells/skills" (confirming the proposal). Custom blend (not a
+      direct Sneezy class port): Ranger's real non-stub nature/animal
+      skills (barkskin, beast soother, feral wrath, sky spirit, tree
+      walk), a subset of Cleric's heal/utility ladder, and several of
+      Shaman's working damage spells renamed/reflavored to a nature
+      theme (entangling roots/thorn barrage/sunscald/storm call/wave
+      crash/withering touch/wild agony/nature's wrath/wildfire/leeching
+      vine, from root_control/distort/blood_boil/stormy_skies/
+      aquatic_blast/lich_touch/soul_twist/deathwave/raze/vampiric_touch
+      respectively). Shaman's totem/golem/undead-thrall/possession lines
+      deliberately excluded -- poor thematic fit regardless of renaming.
+      Added to `tests/smoke_test_skills.py`'s per-class loop.
+- [x] **Combat capitalization audit (mob display names)** — done. User:
+      "some areas that should be proper case still arent, review and find
+      them and fix them." Delegated a research pass first rather than
+      guessing; confirmed two related bug classes beyond the trigger.c/
+      cmd_object.c fixes already made this session: (1) three more
+      color-tag-skip-before-capitalizing gaps (combat.c's death-trigger
+      firing, cmd_move.c's greet-trigger firing, cmd_say.c's speech-
+      trigger firing -- each had its own un-guarded `toupper(capbuf[0])`);
+      (2) a bigger one the audit flagged as worth a separate look: nearly
+      every combat message (miss/hit/limb-status/death/corpse-description)
+      read a mob's `base.name` directly -- for a mob that's the raw
+      space-separated KEYWORD list ("lady stroll walk", matched by `look
+      lady`/`look stroll`/`look walk`), never a display string, producing
+      exactly that garbled text in combat output and -- worse -- baked
+      permanently into a killed mob's corpse description. New
+      `being_display_name()`/`being_display_name_cap()` (being.c) pick
+      short_descr for a mob / base.name for a PC, lowercase-mid-sentence
+      or capitalized-sentence-initial; replaced every affected read in
+      combat.c, cmd_attack.c, and (the earlier-flagged raw-`base.name`
+      bug class) mob_ai.c's `mob_try_scavenge()`/`mob_try_aggress()`
+      (only `mob_try_wander()` had been fixed previously). New
+      `tests/smoke_test_mob_display_name.py` fights a mob with a
+      deliberately multi-keyword name and checks every combat message and
+      the resulting corpse description.
 - [x] **Ordinal targeting (`2.sword`, `3.goblin`)** — done. User: "when
       getting objects or attacking a mob, what happens when there is more
       than one target matching the keyword? mob 2.mob 3.mob etc should

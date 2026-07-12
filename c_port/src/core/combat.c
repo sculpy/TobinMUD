@@ -63,20 +63,28 @@ static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb)
                                big enough for the longest name (64) + "'s severed "
                                + longest limb name ("left finger") with room to spare */
     char long_descr[200];
-    snprintf(short_descr, sizeof(short_descr), "%s's severed %s", defender->base.name, ln);
+    /* defender->base.name is a mob's raw keyword list ("lady stroll
+     * walk"), not a display string, if defender is a mob (2026-07-11
+     * capitalization audit) -- being_display_name() gives the lowercase
+     * short_descr-based form (matching short_descr's own "stored
+     * lowercase-first" convention), being_display_name_cap() the
+     * capitalized sentence-initial form long_descr needs. */
+    char sever_capbuf[128];
+    snprintf(short_descr, sizeof(short_descr), "%s's severed %s", being_display_name(defender), ln);
     /* No trailing \r\n -- cmd_look.c's room-floor listing and `look <item>`
      * both append their own "\r\n" after long_descr (matching every real
      * seeded object's long_desc convention, plain text with no terminator);
      * baking one in here doubled up into a blank line, same bug class the
      * user reported for the pee/blood pools (2026-07-11). */
     snprintf(long_descr, sizeof(long_descr), "%s's severed %s lies here, still twitching.",
-             defender->base.name, ln);
+             being_display_name_cap(defender, sever_capbuf, sizeof(sever_capbuf)), ln);
 
     obj_t *part = obj_create_ephemeral(ln, short_descr, long_descr, OBJ_CAT_TRASH);
     if (part)
         thing_move_to(&part->base, &defender->base.roomp->base);
 
-    tell(attacker, "%s's %s is severed clean off!\r\n", defender->base.name, ln);
+    tell(attacker, "%s's %s is severed clean off!\r\n",
+         being_display_name_cap(defender, sever_capbuf, sizeof(sever_capbuf)), ln);
     tell(defender, "Your %s is severed clean off!\r\n", ln);
 }
 
@@ -206,9 +214,12 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
          * attacker and defender are checked independently, same as the
          * original. */
         if (!(attacker->pflags & PLR_NOSPAM))
-            tell(attacker, "You miss %s!\r\n", defender->base.name);
-        if (!(defender->pflags & PLR_NOSPAM))
-            tell(defender, "%s misses you!\r\n", attacker->base.name);
+            tell(attacker, "You miss %s!\r\n", being_display_name(defender));
+        if (!(defender->pflags & PLR_NOSPAM)) {
+            char miss_capbuf[128];
+            tell(defender, "%s misses you!\r\n",
+                 being_display_name_cap(attacker, miss_capbuf, sizeof(miss_capbuf)));
+        }
         return false;
     }
 
@@ -237,13 +248,17 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
                         || (verb[vlen - 1] == 'h' && (verb[vlen - 2] == 'c' || verb[vlen - 2] == 's')));
         snprintf(verb_3rd, sizeof(verb_3rd), "%s%s", verb, needs_es ? "es" : "s");
     }
-    tell(attacker, "You %s %s's %s for %d damage!\r\n", verb, defender->base.name, ln, dmg);
-    tell(defender, "%s %s your %s for %d damage!\r\n", attacker->base.name, verb_3rd, ln, dmg);
+    char hit_capbuf[128];
+    tell(attacker, "You %s %s's %s for %d damage!\r\n", verb, being_display_name(defender), ln, dmg);
+    tell(defender, "%s %s your %s for %d damage!\r\n",
+         being_display_name_cap(attacker, hit_capbuf, sizeof(hit_capbuf)), verb_3rd, ln, dmg);
 
     const char *status_before = limb_status_text(pct_before);
     const char *status_after = limb_status_text(pct_after);
     if (status_after && status_after != status_before) {
-        tell(attacker, "%s's %s %s!\r\n", defender->base.name, ln, status_after);
+        char status_capbuf[128];
+        tell(attacker, "%s's %s %s!\r\n",
+             being_display_name_cap(defender, status_capbuf, sizeof(status_capbuf)), ln, status_after);
         tell(defender, "Your %s %s!\r\n", ln, status_after);
 
         /* Bleeding (user, 2026-07-11: "goes with limb damage and
@@ -258,7 +273,7 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         if (defender->base.roomp) {
             obj_grow_pool(defender->base.roomp, "blood", "puddle pool blood", "blood");
             char msg[128];
-            snprintf(msg, sizeof(msg), "Blood pools around %s!\r\n", defender->base.name);
+            snprintf(msg, sizeof(msg), "Blood pools around %s!\r\n", being_display_name(defender));
             descriptor_room_echo(defender->base.roomp, NULL, msg);
         }
     }
@@ -301,11 +316,11 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     }
 
     if (slain) {
-        tell(winner, "You have slain %s!\r\n", loser->base.name);
-        tell(loser, "You have been slain by %s!\r\nYou are DEAD!\r\n", winner->base.name);
+        tell(winner, "You have slain %s!\r\n", being_display_name(loser));
+        tell(loser, "You have been slain by %s!\r\nYou are DEAD!\r\n", being_display_name(winner));
     } else {
-        tell(winner, "You have defeated %s!\r\n", loser->base.name);
-        tell(loser, "You have been defeated by %s!\r\nYou are DEAD!\r\n", winner->base.name);
+        tell(winner, "You have defeated %s!\r\n", being_display_name(loser));
+        tell(loser, "You have been defeated by %s!\r\nYou are DEAD!\r\n", being_display_name(winner));
     }
 
     /* XP on kill (TODO backlog) -- placeholder reward scaling with the
@@ -325,9 +340,12 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     }
 
     /* Death goes to the log with the loser's IP (user requirement --
-     * immortal-visible only, via the log command's gate). */
-    log_info("%s has been %s by %s. [%s]", loser->base.name,
-             slain ? "slain" : "defeated", winner->base.name,
+     * immortal-visible only, via the log command's gate). base.name would
+     * be a mob's raw keyword list rather than a display string for
+     * either side (2026-07-11 capitalization audit) -- utilitarian log
+     * text, so the plain lowercase form is fine for both. */
+    log_info("%s has been %s by %s. [%s]", being_display_name(loser),
+             slain ? "slain" : "defeated", being_display_name(winner),
              loser->desc ? descriptor_display_host(loser->desc) : "?");
 
     /* A death is world news (user requirement): everyone playing -- not
@@ -348,9 +366,17 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         int t = rand() % (int)(sizeof(DEATH_TAUNTS) / sizeof(DEATH_TAUNTS[0]));
         /* [INFO] channel prefix (user requirement) -- cyan when color is on,
          * stripped to plain "[INFO]" when off. */
+        /* loser is always a PC here (loser_is_pc gate above), so its name
+         * is already properly cased -- but winner could be a mob, whose
+         * base.name is a raw keyword list, not a display string (2026-07-11
+         * capitalization audit). winner sits at a sentence-initial
+         * position in some templates and mid-sentence in others; the
+         * plain lowercase form reads fine (or only mildly informally
+         * uncapitalized) in every template, which beats hand-tracking
+         * per-template capitalization for a random flavor-text line. */
         int n = snprintf(taunt, sizeof(taunt), "\r\n<c>[INFO]<z> ");
         n += snprintf(taunt + n, sizeof(taunt) - (size_t)n, DEATH_TAUNTS[t],
-                      loser->base.name, winner->base.name);
+                      loser->base.name, being_display_name(winner));
         snprintf(taunt + n, sizeof(taunt) - (size_t)n, "\r\n");
         for (descriptor_t *it = g_descriptors; it; it = it->next) {
             /* Everyone whose character is in the world -- including editors,
@@ -379,9 +405,16 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     if (loser->base.roomp) {
         char short_descr[128];
         char long_descr[200];
-        snprintf(short_descr, sizeof(short_descr), "the corpse of %s", loser->base.name);
+        /* loser->base.name is a mob's raw keyword list, not a display
+         * string, if loser is a mob -- would otherwise leave a permanent,
+         * visible-to-everyone "the corpse of lady stroll walk lies here"
+         * (2026-07-11 capitalization audit). The name sits mid-sentence
+         * in both strings ("the/The corpse of <name>"), so the lowercase
+         * form is correct in both -- only the leading "The" is capitalized,
+         * already a literal in the format string. */
+        snprintf(short_descr, sizeof(short_descr), "the corpse of %s", being_display_name(loser));
         /* No trailing \r\n -- see the severed-limb long_descr comment above. */
-        snprintf(long_descr, sizeof(long_descr), "The corpse of %s lies here.", loser->base.name);
+        snprintf(long_descr, sizeof(long_descr), "The corpse of %s lies here.", being_display_name(loser));
         obj_t *corpse = obj_create_ephemeral("corpse", short_descr, long_descr, OBJ_CAT_CONTAINER);
         if (corpse) {
             corpse->wear_flag = 0;   /* not takeable as a whole */
@@ -419,10 +452,17 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             trigger_t trigs[8];
             int n = trigger_repo_load_for("mob", loser->base.id, "death", trigs, 8);
             if (n > 0) {
+                /* short_descr may start with a color tag (e.g. "<o>a dirty
+                 * refuse hauler<1>") -- skip it before capitalizing, same
+                 * bug class already fixed in cmd_look.c/cmd_object.c/
+                 * cmd_scan.c/mob_ai.c/trigger.c's own cap_first() copies. */
                 char capbuf[128];
                 snprintf(capbuf, sizeof(capbuf), "%s", loser->base.short_descr);
-                if (capbuf[0])
-                    capbuf[0] = (char)toupper((unsigned char)capbuf[0]);
+                size_t ci = 0;
+                while (capbuf[ci] == '<' && capbuf[ci + 1] != '\0' && capbuf[ci + 2] == '>')
+                    ci += 3;
+                if (capbuf[ci])
+                    capbuf[ci] = (char)toupper((unsigned char)capbuf[ci]);
                 for (int i = 0; i < n; i++)
                     trigger_run(&trigs[i], winner, loser->base.roomp, capbuf[0] ? capbuf : NULL);
             }
@@ -549,7 +589,11 @@ bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int 
     const char *status_before = limb_status_text(pct_before);
     const char *status_after = limb_status_text(pct_after);
     if (status_after && status_after != status_before) {
-        tell(actor, "%s's %s %s!\r\n", target->base.name, ln, status_after);
+        /* target->base.name is a mob's raw keyword list, not a display
+         * string, if target is a mob (2026-07-11 capitalization audit). */
+        char debug_capbuf[128];
+        tell(actor, "%s's %s %s!\r\n",
+             being_display_name_cap(target, debug_capbuf, sizeof(debug_capbuf)), ln, status_after);
         tell(target, "Your %s %s!\r\n", ln, status_after);
 
         /* Same bleeding tier-crossing guard as combat_strike() -- this
@@ -559,7 +603,7 @@ bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int 
         if (target->base.roomp) {
             obj_grow_pool(target->base.roomp, "blood", "puddle pool blood", "blood");
             char msg[128];
-            snprintf(msg, sizeof(msg), "Blood pools around %s!\r\n", target->base.name);
+            snprintf(msg, sizeof(msg), "Blood pools around %s!\r\n", being_display_name(target));
             descriptor_room_echo(target->base.roomp, NULL, msg);
         }
     }

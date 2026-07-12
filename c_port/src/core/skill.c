@@ -294,6 +294,53 @@ static const skill_def_t SKILLS[] = {
     { "ethereal gate",        CLASS_MAGE, SKILL_TIER_ADVANCED, 80, "Opens a portal to a named location." },
     { "chain lightning",      CLASS_MAGE, SKILL_TIER_ADVANCED, 80, "A bolt of lightning that arcs between targets." },
     { "knot",                 CLASS_MAGE, SKILL_TIER_ADVANCED, 85, "A powerful self-ward." },
+
+    /* ---------------- DRUID ---------------- */
+    /* Custom blend, not a direct Sneezy class port (user 2026-07-11:
+     * "druid class will be tricky, we will take some ranger skills and
+     * cleric ability, and throw in some shaman damage reworded for
+     * druids"): Ranger's real (non-stub) nature/animal skills, a subset
+     * of Cleric's heal/utility ladder, and several of Shaman's working
+     * damage spells renamed/reflavored to a nature theme instead of
+     * their original voodoo/loa styling. Shaman's totem/golem/undead-
+     * thrall/possession lines were deliberately left out -- thematically
+     * a poor fit regardless of renaming. */
+    { "slash proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
+    { "blunt proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
+    { "pierce proficiency",   CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },
+    { "barehand proficiency", CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency fighting unarmed." },
+    { "ranged proficiency",   CLASS_DRUID, SKILL_TIER_COMBAT, 51, "Basic proficiency with ranged weapons." },
+    { "barkskin",          CLASS_DRUID, SKILL_TIER_CLASS,  1, "Your skin turns to bark, granting a strong armor bonus." },
+    { "entangling roots",  CLASS_DRUID, SKILL_TIER_CLASS,  1, "Roots erupt underfoot, tripping and damaging a target -- only works outdoors." },
+    { "heal light",        CLASS_DRUID, SKILL_TIER_CLASS,  1, "A minor healing touch." },
+    { "harm light",        CLASS_DRUID, SKILL_TIER_CLASS,  1, "A minor bolt of natural energy." },
+    { "bramble drain",     CLASS_DRUID, SKILL_TIER_CLASS,  3, "A thorned vine that drains a small amount of life to you." },
+    { "beast soother",     CLASS_DRUID, SKILL_TIER_CLASS,  6, "Calms a hostile or hunting animal." },
+    { "clot",              CLASS_DRUID, SKILL_TIER_CLASS,  6, "Stops a victim's bleeding." },
+    { "create water",      CLASS_DRUID, SKILL_TIER_CLASS, 11, "Fills a container with water." },
+    { "create food",       CLASS_DRUID, SKILL_TIER_CLASS, 11, "Conjures food from nothing." },
+    { "cure poison",       CLASS_DRUID, SKILL_TIER_CLASS, 11, "Removes poison from a victim." },
+    { "thorn barrage",     CLASS_DRUID, SKILL_TIER_CLASS, 12, "Several beams of thorny energy lash the target." },
+    { "salve",             CLASS_DRUID, SKILL_TIER_CLASS, 15, "Treats a minor wound." },
+    { "heal serious",      CLASS_DRUID, SKILL_TIER_CLASS, 18, "A stronger healing touch." },
+    { "sunscald",          CLASS_DRUID, SKILL_TIER_CLASS, 20, "Sears a target with focused sunlight." },
+    { "storm call",        CLASS_DRUID, SKILL_TIER_CLASS, 30, "Calls down lightning or hail -- only works in the right weather." },
+    { "cure disease",      CLASS_DRUID, SKILL_TIER_CLASS, 30, "Removes disease from a victim." },
+    { "refresh",           CLASS_DRUID, SKILL_TIER_CLASS, 32, "Restores movement points." },
+    { "heal critical",     CLASS_DRUID, SKILL_TIER_ADVANCED, 36, "A powerful healing touch." },
+    { "feral wrath",       CLASS_DRUID, SKILL_TIER_ADVANCED, 41, "Channel a spirit animal for a temporary stat boost." },
+    { "earthmaw",          CLASS_DRUID, SKILL_TIER_ADVANCED, 41, "The ground splits beneath a target, damaging and knocking them down -- outdoors only." },
+    { "sky spirit",        CLASS_DRUID, SKILL_TIER_ADVANCED, 41, "Summons a phantasmal bird spirit to strike a target -- scales with your skill." },
+    { "cure blindness",    CLASS_DRUID, SKILL_TIER_ADVANCED, 45, "Removes blindness from a victim." },
+    { "wave crash",        CLASS_DRUID, SKILL_TIER_ADVANCED, 50, "A crashing wave slams into a target, possibly knocking them down." },
+    { "withering touch",   CLASS_DRUID, SKILL_TIER_ADVANCED, 50, "A draining touch that saps a victim's vitality into you." },
+    { "wild agony",        CLASS_DRUID, SKILL_TIER_ADVANCED, 60, "Inflicts a burst of raw, unnatural pain." },
+    { "heal",              CLASS_DRUID, SKILL_TIER_ADVANCED, 65, "A near-total healing touch." },
+    { "tree walk",         CLASS_DRUID, SKILL_TIER_ADVANCED, 66, "Teleports you (and your group) to a tree you're bonded to." },
+    { "nature's wrath",    CLASS_DRUID, SKILL_TIER_ADVANCED, 75, "Beams of raw natural fury tear into a target." },
+    { "leeching vine",     CLASS_DRUID, SKILL_TIER_ADVANCED, 80, "A grasping vine drains a target's life into you." },
+    { "wildfire",          CLASS_DRUID, SKILL_TIER_ADVANCED, 80, "An intense, heavy burst of flame." },
+    { "word of recall",    CLASS_DRUID, SKILL_TIER_ADVANCED, 83, "Teleports yourself or an ally to the recall point." },
 };
 
 #define SKILL_TOTAL (int)(sizeof(SKILLS) / sizeof(SKILLS[0]))
