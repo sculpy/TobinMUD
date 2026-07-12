@@ -91,6 +91,15 @@ const char *exit_cond_names(int flags, char *buf, size_t size);
 #define EXIT_COND_CLOSED (1 << 0)
 #define EXIT_COND_LOCKED (1 << 1)
 #define EXIT_COND_SECRET (1 << 2)
+/* Trap mechanics (user 2026-07-11: "...then weapon depth, trap
+ * mechanics" -- sequenced after weapon depth). A Thief's "set trap
+ * (door)"/"disarm trap" skills (skill.c) toggle this bit on a closed
+ * door via `settrap`/`disarmtrap` (cmd_trap.c); walking through a
+ * trapped door (cmd_move.c) springs it -- one-shot damage, then the
+ * bit clears -- unless the mover knows "detect trap" and spots it
+ * first. Was already a named-but-inert bit (EXIT_COND_NAMES, room.c)
+ * before this. */
+#define EXIT_COND_TRAPPED (1 << 5)
 
 typedef struct room {
     thing_t base;               /* first member -- see thing.h */

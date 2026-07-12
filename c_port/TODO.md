@@ -85,6 +85,47 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       but leaves the *already-running* server's in-memory cache stale
       -- fixed by resetting through the real `balance`/Save command
       path instead, which updates both.
+- [x] **Trap mechanics (door traps)** — done (self-assigned backlog
+      item, sequenced right after weapon depth per user 2026-07-11:
+      "...then weapon depth, trap mechanics"). Wired the Thief's
+      long-defined-but-unused "set trap (door)"/"disarm trap"/"detect
+      trap" skills (skill.c) up to `EXIT_COND_TRAPPED` -- a new bit
+      (room.h) alongside a room exit condition bit ("Trapped") that
+      already existed, named, builder-editable via redit's toggle
+      submenu, but had literally no behavior before this. New
+      `settrap <direction>`/`disarmtrap <direction>` commands
+      (cmd_trap.c): `settrap` requires the door be closed (rig an open
+      door doesn't make sense) and not already trapped; both are
+      gated on the caller actually knowing the corresponding skill
+      (`being_knows_skill()`, task 11's helper) rather than a level-
+      table entry, so a non-Thief (or a too-low-level/unpracticed
+      Thief) gets the same "Huh?!" as an unknown command. `cmd_move.c`'s
+      `do_move()` is where a trap actually matters: walking through a
+      trapped door springs it (random-limb damage, one-shot -- the bit
+      clears in memory AND the DB) unless the mover knows "detect
+      trap" (Combat tier, always known), in which case they spot it
+      and step around -- leaving it rigged for whoever comes next,
+      since avoiding a trap shouldn't consume it (only actually
+      springing should). v1 scope: door traps only (skill.c also lists
+      arrow/container/mine/grenade trap variants, deferred -- door
+      traps were the one variant with ready-made infrastructure to
+      hook into, matching the AC-from-weight/sharpness-from-verb
+      precedent of picking one concrete mechanic per backlog item
+      rather than building every variant speculatively). Trap damage
+      is a placeholder `being_hurt_limb()` call, same "honest, not
+      wired into full combat_defeat()" scope as spell damage
+      elsewhere. `tests/smoke_test_trap.py` covers: settrap's three
+      refusals (open door, no door, already trapped); settrap/
+      disarmtrap hidden from someone who doesn't know the skill; a
+      Warrior springing a rigged door and the trap clearing afterward;
+      a Thief detecting and avoiding one, confirmed still rigged
+      afterward; and disarmtrap clearing a still-rigged door. Two
+      test-authoring snags: `transfer` needs its target ONLINE (must
+      reconnect before transferring, not after); and re-closing a door
+      via raw SQL doesn't take effect on the ALREADY-LOADED live
+      room_t (same "SQL doesn't refresh live in-memory state" lesson
+      as task 47's level-setting bug) -- fixed by using the real
+      `close` command instead.
 - [x] **Weapon depth: sharpness + dual wield** — done (self-assigned
       backlog item, sequenced after AC/to-hit per user 2026-07-11:
       "Armor & Protection (AC) go in next, complete the to-hit/defense

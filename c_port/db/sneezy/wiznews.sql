@@ -315,3 +315,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Fixed: Leveling Up Now Actually Raises Your HP', 'Found while testing combat depth: leveling up used to only raise your level number -- your max HP (and every limb''s own HP) stayed exactly where it started, forever, making even a high-level character just as fragile as a fresh one. Leveling up now properly raises your max HP and fully heals you, the reward it was always supposed to be.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Doors Can Be Trapped Now', 'A Thief who knows "set trap (door)" can rig a trap on any closed door with the new `settrap <direction>` command; "disarm trap" safely removes one with `disarmtrap <direction>`. Walk through a rigged door without knowing "detect trap" and it springs, hurting a random limb -- one use only. A Thief who DOES know "detect trap" spots it and steps around unharmed, leaving it rigged for whoever comes next.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

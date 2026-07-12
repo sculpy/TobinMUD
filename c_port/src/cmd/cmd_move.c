@@ -7,10 +7,13 @@
 #include <ctype.h>
 #include <stdio.h>
 
+#include <stdlib.h>
+
 #include "being.h"
 #include "cmd.h"
 #include "room.h"
 #include "room_repo.h"
+#include "skill.h"
 #include "thing.h"
 #include "trigger.h"
 #include "world.h"
@@ -110,6 +113,30 @@ static bool do_move(descriptor_t *d, int dir) {
     if (from->exit_door[dir] != 0 && (from->exit_cond[dir] & EXIT_COND_CLOSED)) {
         descriptor_send(d, "The door is closed.\r\n");
         return true;
+    }
+
+    /* Trap mechanics (user 2026-07-11, sequenced after weapon depth): a
+     * Thief's "detect trap" skill spots and safely steps around a
+     * trapped door, leaving it rigged for the next person -- stepping
+     * around it doesn't spring it. Everyone else springs it: one-shot,
+     * the trap is gone (both in memory and the DB) once it actually
+     * goes off, matching a real trap being a single rigged mechanism,
+     * not a renewable hazard. */
+    if (from->exit_door[dir] != 0 && (from->exit_cond[dir] & EXIT_COND_TRAPPED)) {
+        if (being_knows_skill(ch, "detect trap")) {
+            descriptor_send(d, "You spot a trap rigged to the door and carefully step around it.\r\n");
+        } else {
+            int dmg = 5 + rand() % 10;
+            limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+            being_hurt_limb(ch, limb, dmg);
+            char trap_msg[128];
+            snprintf(trap_msg, sizeof(trap_msg),
+                     "A trap rigged to the door springs! It catches your %s for %d damage!\r\n",
+                     limb_name(limb), dmg);
+            descriptor_send(d, trap_msg);
+            from->exit_cond[dir] &= ~EXIT_COND_TRAPPED;
+            room_repo_save_exit(from->vnum, dir, from->exits[dir], from->exit_door[dir], from->exit_cond[dir]);
+        }
     }
 
     /* "exits to the north" for compass directions (user-specified
