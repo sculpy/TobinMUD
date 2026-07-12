@@ -303,3 +303,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Heal Someone Else, Then Just `continue`', '`pray heal light <target>` (and every other heal-type prayer) can now be aimed at someone else in the room instead of only yourself -- leave the target off to heal yourself as before. A new `continue` command repeats that same heal automatically, round after round, until the target is fully healed or you run out of holy symbols. Speaking of which: holy symbols are now consumed on every successful prayer, just like a mage or druid''s spell components -- no longer a permanent keepsake.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New `balance` Command for Implementors (60+)', 'A new menu-driven `balance class|race <name>` command lets an Implementor tune four gamewide modifiers per class or race: HP multiplier, damage multiplier, to-hit modifier, and AC modifier. Every class/race starts perfectly neutral (1.00x/1.00x/+0/+0) -- nothing changes until someone actually balances one. Saved changes apply immediately, server-wide, no restart needed.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

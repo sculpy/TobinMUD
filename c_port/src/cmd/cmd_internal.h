@@ -20,6 +20,7 @@ bool cmd_score(descriptor_t *d, const char *args);
 bool cmd_skills(descriptor_t *d, const char *args);
 bool cmd_practice(descriptor_t *d, const char *args);
 bool cmd_continue(descriptor_t *d, const char *args);
+bool cmd_balance(descriptor_t *d, const char *args);
 bool cmd_quit(descriptor_t *d, const char *args);
 bool cmd_color(descriptor_t *d, const char *args);
 bool cmd_attack(descriptor_t *d, const char *args);
@@ -176,6 +177,10 @@ bool cmd_edtrigger(descriptor_t *d, const char *args);
 /* `gametog` (global game-wide toggles, split out of `toggle`): 58+,
  * TODO.md-planned. */
 #define GAMETOG_MIN_LEVEL 58
+
+/* `balance` (gamewide class/race HP/damage/to-hit/AC modifiers) --
+ * Implementor-only (60), user-specified: "a balance command (60)". */
+#define BALANCE_MIN_LEVEL 60
 
 /* `snoop`: 59+, user-specified (2026-07-11). Same-or-higher-level targets
  * are refused inside cmd_snoop.c itself, not by this table gate alone. */

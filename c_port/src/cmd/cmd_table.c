@@ -92,6 +92,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "pray",    cmd_pray,    "Pray for a spell (Cleric) -- requires a holy symbol.", MORTAL_LEVEL_MIN },
     { "practice", cmd_practice, "Train your Basic/Advanced discipline with a guildmaster (practice basic|advanced).", MORTAL_LEVEL_MIN },
     { "continue", cmd_continue, "Repeat your last heal-type prayer until the target is healed or your holy symbols run out.", MORTAL_LEVEL_MIN },
+    { "balance", cmd_balance, "Adjust gamewide class/race balance modifiers (balance class|race <name>).", BALANCE_MIN_LEVEL },
     /* Immortal news channel. "wizh"->wizhelp, "wizn"->wiznews. Posting is
      * now `edit wiznews` (folded into the unified edit dispatcher below). */
     { "wiznews", cmd_wiznews, "Read the immortal news channel.",                     IMMORTAL_LEVEL_MIN },

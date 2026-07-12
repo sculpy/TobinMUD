@@ -14,6 +14,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "balance.h"
 #include "cmd.h"
 #include "colorstring.h"
 #include "log.h"
@@ -158,6 +159,7 @@ bool descriptor_in_editor(const descriptor_t *d) {
         || (d->state >= CONN_REDIT_MENU && d->state <= CONN_REDIT_QUIT_CONFIRM)
         || (d->state >= CONN_EDPLAYER_MENU && d->state <= CONN_EDPLAYER_QUIT_CONFIRM)
         || (d->state >= CONN_EDZONE_MENU && d->state <= CONN_EDZONE_QUIT_CONFIRM)
+        || (d->state >= CONN_BALANCE_MENU && d->state <= CONN_BALANCE_QUIT_CONFIRM)
         || d->page_len > 0; /* mid-pager -- same "no interruptions" treatment */
 }
 
@@ -1380,6 +1382,54 @@ bool descriptor_edzone_begin(descriptor_t *d, int zone_nr) {
     d->edzone_work = loaded;
     d->edzone_dirty = false;
     show_edzone_menu(d);
+    return true;
+}
+
+static void show_balance_menu(descriptor_t *d) {
+    const char *kind = d->balance_is_class ? "class" : "race";
+    const char *name = d->balance_is_class ? class_name((player_class_t)d->balance_index)
+                                            : race_name((player_race_t)d->balance_index);
+    balance_mod_t *w = &d->balance_work;
+    char out[512];
+    snprintf(out, sizeof(out),
+             "\r\n<c>Balancing %s:<z> %s\r\n\r\n"
+             "   1) HP multiplier: %.2f          2) Damage multiplier: %.2f\r\n"
+             "   3) To-hit modifier: %+d         4) AC modifier: %+d\r\n\r\n"
+             "   S) Save    Q) Quit%s\r\n[balance %s] ",
+             kind, name, (double)w->hp_mult, (double)w->dmg_mult, w->tohit_mod, w->ac_mod,
+             d->balance_dirty ? "\r\n   <c>* unsaved changes *<z>" : "", kind);
+    descriptor_send(d, out);
+    d->state = CONN_BALANCE_MENU;
+}
+
+static void balance_save(descriptor_t *d) {
+    bool ok = d->balance_is_class
+        ? class_balance_set((player_class_t)d->balance_index, &d->balance_work)
+        : race_balance_set((player_race_t)d->balance_index, &d->balance_work);
+    if (!ok) {
+        descriptor_send(d, "Save failed -- the DB rejected it.\r\n");
+        return;
+    }
+    d->balance_dirty = false;
+    descriptor_send(d, "Balance saved -- applies gamewide immediately.\r\n");
+}
+
+static void balance_leave(descriptor_t *d) {
+    d->state = CONN_PLAYING;
+    d->balance_dirty = false;
+    descriptor_send(d, "Leaving the balance editor.\r\n");
+    descriptor_editor_exit_notice(d);
+}
+
+bool descriptor_balance_begin(descriptor_t *d, bool is_class, int index) {
+    if (index < 0 || (is_class && index >= CLASS_COUNT) || (!is_class && index >= RACE_COUNT))
+        return false;
+    d->balance_is_class = is_class;
+    d->balance_index = index;
+    d->balance_work = is_class ? *class_balance_get((player_class_t)index)
+                                : *race_balance_get((player_race_t)index);
+    d->balance_dirty = false;
+    show_balance_menu(d);
     return true;
 }
 
@@ -2732,6 +2782,127 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 edzone_leave(d);
             } else {
                 show_edzone_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_BALANCE_MENU: {
+            if (isdigit((unsigned char)line[0])) {
+                switch (atoi(line)) {
+                    case 1:
+                        descriptor_send(d, "\r\nEnter new HP multiplier, e.g. 1.25 (blank to cancel): ");
+                        d->state = CONN_BALANCE_HP_MULT;
+                        break;
+                    case 2:
+                        descriptor_send(d, "\r\nEnter new damage multiplier, e.g. 0.9 (blank to cancel): ");
+                        d->state = CONN_BALANCE_DMG_MULT;
+                        break;
+                    case 3:
+                        descriptor_send(d, "\r\nEnter new to-hit modifier, e.g. -5 or 10 (blank to cancel): ");
+                        d->state = CONN_BALANCE_TOHIT_MOD;
+                        break;
+                    case 4:
+                        descriptor_send(d, "\r\nEnter new AC modifier, e.g. -5 or 10 (blank to cancel): ");
+                        d->state = CONN_BALANCE_AC_MOD;
+                        break;
+                    default:
+                        descriptor_send(d, "Pick a menu number (1-4), or S/Q.\r\n");
+                        show_balance_menu(d);
+                        break;
+                }
+                return true;
+            }
+            switch ((char)toupper((unsigned char)line[0])) {
+                case 'S':
+                    balance_save(d);
+                    show_balance_menu(d);
+                    break;
+                case 'Q':
+                    if (d->balance_dirty) {
+                        descriptor_send(d,
+                            "\r\nYou have unsaved changes. (S)ave, (D)iscard, (C)ancel: ");
+                        d->state = CONN_BALANCE_QUIT_CONFIRM;
+                    } else {
+                        balance_leave(d);
+                    }
+                    break;
+                default:
+                    descriptor_send(d, "Pick a menu number (1-4), or S/Q.\r\n");
+                    show_balance_menu(d);
+                    break;
+            }
+            return true;
+        }
+
+        case CONN_BALANCE_HP_MULT: {
+            if (line[0]) {
+                char *end;
+                double v = strtod(line, &end);
+                if (end != line && v > 0) {
+                    d->balance_work.hp_mult = (float)v;
+                    d->balance_dirty = true;
+                } else {
+                    descriptor_send(d, "HP multiplier must be a positive number.\r\n");
+                }
+            }
+            show_balance_menu(d);
+            return true;
+        }
+
+        case CONN_BALANCE_DMG_MULT: {
+            if (line[0]) {
+                char *end;
+                double v = strtod(line, &end);
+                if (end != line && v > 0) {
+                    d->balance_work.dmg_mult = (float)v;
+                    d->balance_dirty = true;
+                } else {
+                    descriptor_send(d, "Damage multiplier must be a positive number.\r\n");
+                }
+            }
+            show_balance_menu(d);
+            return true;
+        }
+
+        case CONN_BALANCE_TOHIT_MOD: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line) {
+                    d->balance_work.tohit_mod = (int)v;
+                    d->balance_dirty = true;
+                } else {
+                    descriptor_send(d, "To-hit modifier must be a whole number.\r\n");
+                }
+            }
+            show_balance_menu(d);
+            return true;
+        }
+
+        case CONN_BALANCE_AC_MOD: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line) {
+                    d->balance_work.ac_mod = (int)v;
+                    d->balance_dirty = true;
+                } else {
+                    descriptor_send(d, "AC modifier must be a whole number.\r\n");
+                }
+            }
+            show_balance_menu(d);
+            return true;
+        }
+
+        case CONN_BALANCE_QUIT_CONFIRM: {
+            char c = (char)toupper((unsigned char)line[0]);
+            if (c == 'S') {
+                balance_save(d);
+                balance_leave(d);
+            } else if (c == 'D') {
+                balance_leave(d);
+            } else {
+                show_balance_menu(d);
             }
             return true;
         }

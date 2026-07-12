@@ -11,6 +11,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "balance.h"
 #include "descriptor.h"
 #include "log.h"
 #include "obj.h"
@@ -197,6 +198,17 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * modifiers above rather than dominating them. */
     modifier -= being_total_ac(defender) / 2;
 
+    /* Gamewide to-hit modifier (user 2026-07-12's `balance` command) --
+     * a PC's own class+race, or a guildmaster mob's known class (mobs
+     * have no race). Neutral (0) until an immortal actually balances
+     * that class/race. */
+    if (attacker->base.kind == THING_PC) {
+        modifier += class_balance_get(attacker->char_class)->tohit_mod;
+        modifier += race_balance_get(attacker->race)->tohit_mod;
+    } else if (attacker->mob_class_known) {
+        modifier += class_balance_get(attacker->char_class)->tohit_mod;
+    }
+
     /* Guaranteed hit/miss zones (Sneezy's to-hit model): clamp the
      * modifier total, not the final roll, so an extreme stat/gear
      * mismatch can never make a hit or a miss impossible outright --
@@ -231,6 +243,19 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     dmg += attacker->off_hand_next ? -1 : 1;
     attacker->off_hand_next = !attacker->off_hand_next;
 
+    if (dmg < 1)
+        dmg = 1;
+
+    /* Gamewide damage multiplier (user 2026-07-12's `balance` command) --
+     * same class/race rule as the to-hit modifier above. */
+    float dmg_mult = 1.0f;
+    if (attacker->base.kind == THING_PC) {
+        dmg_mult = class_balance_get(attacker->char_class)->dmg_mult
+                 * race_balance_get(attacker->race)->dmg_mult;
+    } else if (attacker->mob_class_known) {
+        dmg_mult = class_balance_get(attacker->char_class)->dmg_mult;
+    }
+    dmg = (int)(dmg * dmg_mult);
     if (dmg < 1)
         dmg = 1;
 

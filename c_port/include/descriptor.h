@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 #include "account.h"
+#include "balance_repo.h"
 #include "being.h"
 #include "help_repo.h"
 #include "player_repo.h"
@@ -94,6 +95,24 @@ typedef enum {
     CONN_EDZONE_RANGE,
     CONN_EDZONE_BUILDER,
     CONN_EDZONE_QUIT_CONFIRM,
+    /* Menu-driven class/race balance editor (`balance class|race <name>`,
+     * user 2026-07-12: "a balance command (60) where you take args:
+     * balance <class|race> that is menu driven to adjust balance
+     * numbers/modifiers that will apply gamewide to the class or race
+     * you just balanced"). Same working-copy shape as edzone: the
+     * current class_balance/race_balance row (balance_repo.h) is copied
+     * into d->balance_work on entry, field edits mutate the copy only,
+     * (S)ave writes it back to the DB AND the live in-memory cache
+     * (balance.h's class_balance_set()/race_balance_set() -- NOT
+     * class_balance_save()/race_balance_save() directly, which would
+     * leave the cache stale). See cmd_balance.c and
+     * descriptor_balance_begin(). */
+    CONN_BALANCE_MENU,
+    CONN_BALANCE_HP_MULT,
+    CONN_BALANCE_DMG_MULT,
+    CONN_BALANCE_TOHIT_MOD,
+    CONN_BALANCE_AC_MOD,
+    CONN_BALANCE_QUIT_CONFIRM,
     CONN_PLAYING,
     CONN_CLOSED
 } conn_state_t;
@@ -245,6 +264,15 @@ typedef struct descriptor {
     zone_t edzone_work;
     bool edzone_dirty;
 
+    /* Menu-driven balance editor working copy (CONN_BALANCE_*, user
+     * 2026-07-12). balance_is_class picks which table (true =
+     * class_balance, false = race_balance); balance_index is the
+     * player_class_t/player_race_t value within it. */
+    bool balance_is_class;
+    int balance_index;
+    balance_mod_t balance_work;
+    bool balance_dirty;
+
     being_t *character;
 
     /* Time (epoch seconds) of the last input line -- who shows "(idle)" after
@@ -332,6 +360,14 @@ bool descriptor_edplayer_begin(descriptor_t *d, const char *name);
  * CONN_EDZONE_MENU). Returns false if no such zone exists. Caller
  * (cmd_edzone.c) owns the level gate + zone_can_edit() ownership check. */
 bool descriptor_edzone_begin(descriptor_t *d, int zone_nr);
+
+/* Opens the menu-driven balance editor on class `cls` (if `is_class`) or
+ * race `race_val` (if not), copies its current class_balance/race_balance
+ * row into the descriptor's working copy, and shows the balance menu
+ * (entering CONN_BALANCE_MENU). `cls`/`race_val` is the SAME int either
+ * way -- caller (cmd_balance.c) passes whichever is meaningful; the
+ * other is ignored. Caller owns the level gate. */
+bool descriptor_balance_begin(descriptor_t *d, bool is_class, int index);
 
 /* Sends `msg` to every connected player in room `r` except `except` (may
  * be NULL to include everyone). Shared by movement, quit/link-drop, and

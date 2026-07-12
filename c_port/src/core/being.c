@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <strings.h>
 
+#include "balance.h"
 #include "descriptor.h"
 #include "log.h"
 #include "mob_repo.h"
@@ -225,7 +226,18 @@ int being_calc_max_hp(const being_t *b) {
     if (!b)
         return 20;
     int con_bonus = b->attrs.constitution - ATTR_BASE;
-    double scale = b->base.kind == THING_PC ? class_hp_scale(b->char_class) : 1.0;
+    double scale = 1.0;
+    /* Gamewide HP multiplier (user 2026-07-12's `balance` command) --
+     * a PC's own class+race, or a guildmaster mob's known class (no
+     * race applies to mobs). Neutral (1.0) until an immortal actually
+     * balances that class/race, so this is a no-op by default. */
+    if (b->base.kind == THING_PC) {
+        scale = class_hp_scale(b->char_class);
+        scale *= class_balance_get(b->char_class)->hp_mult;
+        scale *= race_balance_get(b->race)->hp_mult;
+    } else if (b->mob_class_known) {
+        scale *= class_balance_get(b->char_class)->hp_mult;
+    }
     return 20 + con_bonus + (int)(b->progress.level * 5 * scale);
 }
 
@@ -492,6 +504,14 @@ int being_total_ac(const being_t *b) {
     int total = 0;
     for (int i = 0; i < LIMB_COUNT; i++)
         total += obj_armor_ac(b->equipment[i]);
+    /* Gamewide AC modifier (user 2026-07-12's `balance` command) -- see
+     * being_calc_max_hp()'s matching comment. */
+    if (b->base.kind == THING_PC) {
+        total += class_balance_get(b->char_class)->ac_mod;
+        total += race_balance_get(b->race)->ac_mod;
+    } else if (b->mob_class_known) {
+        total += class_balance_get(b->char_class)->ac_mod;
+    }
     return total;
 }
 

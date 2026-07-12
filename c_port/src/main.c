@@ -8,6 +8,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "balance.h"
 #include "combat.h"
 #include "config.h"
 #include "db.h"
@@ -72,6 +73,7 @@ int main(int argc, char **argv) {
 
     multiplay_load(); /* restore the persisted multiplay game flag */
     gametime_load();  /* restore the persisted game clock */
+    balance_cache_load(); /* class/race balance modifiers (cmd_balance.c) */
 
     /* Zones Part 2 (Session 43): populate rooms from the zone_reset data
      * migrated in Part 1. Runs unconditionally here -- for both a cold

@@ -34,6 +34,42 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       non-fixture passes independently. `tests/smoke_test_room_stacking.py`
       covers 3-mob and 3-object stacking, a lone mob showing no suffix,
       and two different mobs never merging.
+- [x] **`balance` command (gamewide class/race modifiers, 60+)** — done.
+      User: "a balance command (60) where you take args: balance
+      <class|race> that is menu driven to adjust balance
+      numbers/modifiers that will apply gamewide to the class or race
+      you just balanced." Chose 4 concrete, already-real-formula-backed
+      modifiers per class/race (not a per-skill system -- nothing like
+      that existed to plug into): HP multiplier (being_calc_max_hp()),
+      damage multiplier and to-hit modifier (combat_strike()), AC
+      modifier (being_total_ac()). New `class_balance`/`race_balance`
+      tables (db/sneezy/balance.sql), one row per player_class_t/
+      player_race_t value, seeded neutral (1.0/1.0/0/0) -- an untouched
+      class/race behaves exactly as before. New `balance_repo.h`/
+      `balance_repo.c` (raw DB access) + `balance.h`/`balance.c` (an
+      in-memory cache, loaded once at boot via `balance_cache_load()`
+      in main.c, so combat's hot path never hits the DB per swing;
+      `class_balance_set()`/`race_balance_set()` write through to both
+      DB and cache on Save). `mob_class_known` guildmaster mobs (task
+      47) get the class modifiers too (mobs have no race). New
+      `balance class|race <name>` command (Implementor-only,
+      `BALANCE_MIN_LEVEL 60`) opens a menu-driven editor -- same
+      working-copy/Save/Quit-with-unsaved-changes-prompt shape as
+      `edzone`/`edplayer` (CONN_BALANCE_* in descriptor.c, added to
+      `descriptor_in_editor()`'s catchup-hold range same as every
+      other menu editor must). `tests/smoke_test_balance.py` covers the
+      60+ level gate, the neutral starting values, editing+dirty-
+      marking+Save, the change actually raising a fresh Warrior's max
+      HP by the exact expected amount, and Quit-with-unsaved-changes
+      offering Save/Discard/Cancel (with Discard verified to never hit
+      the DB). Hit two test-authoring bugs along the way: character
+      names with digits in them ("Bal51xxxx") are rejected by character
+      creation (names must be letters only) -- silently derailing every
+      subsequent step in the test until traced back; and a raw SQL
+      reset of the balance tables between test runs fixes the DB row
+      but leaves the *already-running* server's in-memory cache stale
+      -- fixed by resetting through the real `balance`/Save command
+      path instead, which updates both.
 - [x] **`continue` command + targeted heals + breaking holy symbols** —
       done. User: "add a continue command so clerics that heal <target>
       can continue automatically until the target is fully healed or
