@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 
 /* Ported from SneezyMUD's real discArray[] (misc/spell_info.cc), trimmed
  * to Tobin's simplified 3-tier scheme -- see skill.h's doc comment.
@@ -345,16 +346,60 @@ static const skill_def_t SKILLS[] = {
 
 #define SKILL_TOTAL (int)(sizeof(SKILLS) / sizeof(SKILLS[0]))
 
+/* Reports how many skills/spells exist in total, across every class --
+ * used to loop over the whole roster (skill_at()) without hardcoding
+ * a count anywhere else. */
 int skill_count(void) {
     return SKILL_TOTAL;
 }
 
+/* Fetches one entry from the skill/spell roster by its position
+ * (0-based). Returns NULL if `index` is out of range instead of
+ * crashing, so callers can safely loop `for (i = 0; i < skill_count(); i++)`. */
 const skill_def_t *skill_at(int index) {
     if (index < 0 || index >= SKILL_TOTAL)
         return NULL;
     return &SKILLS[index];
 }
 
+/* Whether `b` currently knows the skill/spell named `name` (exact
+ * match, case-insensitive) -- level and, for Class/Advanced tiers, the
+ * discipline-percentage gate (progress_t.basic_disc_pct/advanced_disc_pct,
+ * user 2026-07-12's practice/guildmaster request) must both pass, same
+ * rules cmd_cast.c/cmd_pray.c already enforce. Immortals always know
+ * everything, regardless of class (user 2026-07-12: "immortals can use
+ * any skill or spell in game, no class restrictions") -- first name
+ * match across the whole roster wins. Used by combat.c for "dual
+ * wield" (user 2026-07-12: weapon depth). */
+bool being_knows_skill(const being_t *b, const char *name) {
+    if (!b)
+        return false;
+    bool imm = being_is_immortal(b);
+    int count = skill_count();
+    for (int i = 0; i < count; i++) {
+        const skill_def_t *sk = skill_at(i);
+        if (!imm && sk->cls != b->char_class)
+            continue;
+        if (strcasecmp(sk->name, name) != 0)
+            continue;
+        if (imm)
+            return true;
+        if (b->progress.level < sk->min_level)
+            return false;
+        if (sk->tier == SKILL_TIER_CLASS && b->progress.basic_disc_pct <= 0)
+            return false;
+        if (sk->tier == SKILL_TIER_ADVANCED &&
+            (b->progress.basic_disc_pct < 95 || b->progress.advanced_disc_pct <= 0))
+            return false;
+        return true;
+    }
+    return false;
+}
+
+/* Builds the on-screen heading for one tier of one class's skill list
+ * (e.g. "Advanced Warrior Skills") -- the `skills` command uses this so
+ * every class's roster is titled consistently instead of each caller
+ * writing its own heading text. */
 const char *skill_tier_label(player_class_t cls, skill_tier_t tier, char *buf, size_t bufsz) {
     const char *cname = class_name(cls);
     switch (tier) {

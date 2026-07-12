@@ -14,6 +14,9 @@
  * happens to land past a boundary. */
 static long g_last_bucket = -1;
 
+/* Runs once every half hour (real wall-clock time) and sends everyone
+ * a blank line so a "tick" is visible, without any actual message --
+ * see heartbeat.h for the full reasoning. */
 void heartbeat_tick(long pulse_num) {
     (void)pulse_num;
 

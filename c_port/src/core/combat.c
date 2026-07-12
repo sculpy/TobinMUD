@@ -18,6 +18,7 @@
 #include "obj_repo.h"
 #include "player_repo.h"
 #include "room.h"
+#include "skill.h"
 #include "thing.h"
 #include "trigger.h"
 
@@ -239,9 +240,26 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
 
     /* Handedness (Session 21): strikes alternate hands; the primary hand
      * hits harder (+1), the off-hand weaker (-1). Which hand is primary
-     * comes from handed_right chosen at creation. */
-    dmg += attacker->off_hand_next ? -1 : 1;
+     * comes from handed_right chosen at creation. Weapon depth (user
+     * 2026-07-12): the "dual wield" skill (skill.c's roster --
+     * Warrior/Thief) "passively reduces the damage penalty for your
+     * off-hand weapon", so a dual-wield-trained attacker's off-hand
+     * strike loses its -1 (a plain 0, same as bare-handed) instead of
+     * being worse than their main-hand default. */
+    if (attacker->off_hand_next)
+        dmg += being_knows_skill(attacker, "dual wield") ? 0 : -1;
+    else
+        dmg += 1;
     attacker->off_hand_next = !attacker->off_hand_next;
+
+    /* Weapon sharpness (user 2026-07-12, weapon depth): an edged/
+     * piercing weapon (anything weapon_verb() calls slice/chop/stab/
+     * pierce, not the blunt "bludgeon"/bare-handed "hit") lands a
+     * cleaner, more consistent wound than a blunt one -- a small flat
+     * bonus, reusing the verb classification already computed above
+     * for messaging rather than adding a new weapon property. */
+    if (weapon && strcmp(verb, "bludgeon") != 0)
+        dmg += 1;
 
     if (dmg < 1)
         dmg = 1;
@@ -359,8 +377,23 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         long xp_gain = (long)(loser->progress.level > 0 ? loser->progress.level : 1) * 50;
         int levels_gained = progress_add_xp(&winner->progress, xp_gain);
         tell(winner, "You gain %ld experience points.\r\n", xp_gain);
-        if (levels_gained > 0)
+        if (levels_gained > 0) {
+            /* Bug found 2026-07-12 (weapon-depth testing): progress_add_xp()
+             * only bumps `level` -- it works on a bare progress_t, with no
+             * access to attrs/kind, so it can't call being_calc_max_hp()
+             * itself. Without this, a leveled-up character's max_hp (and
+             * every limb's own max_hp, being_limbs_full_heal()) stayed
+             * stuck at their level-1 values forever, leaving even a
+             * high-level character just as fragile -- and just as prone to
+             * a lucky decapitation -- as a brand new one. Recomputed here,
+             * with the full being_t winner is already, and a full heal as
+             * the level-up's reward (same spirit as the "You feel more
+             * experienced!" message). */
+            winner->progress.max_hp = being_calc_max_hp(winner);
+            winner->progress.hp = winner->progress.max_hp;
+            being_limbs_full_heal(winner);
             tell(winner, "You feel more experienced!\r\n");
+        }
         player_progress_save(winner->player_id, &winner->progress);
     }
 

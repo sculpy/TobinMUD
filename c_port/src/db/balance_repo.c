@@ -8,6 +8,9 @@
 
 #include "db.h"
 
+/* Reads one class's balance row out of the database into `out`.
+ * Returns false if the database couldn't be reached or the row isn't
+ * there. */
 bool class_balance_load(player_class_t cls, balance_mod_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -27,6 +30,8 @@ bool class_balance_load(player_class_t cls, balance_mod_t *out) {
     return found;
 }
 
+/* Writes one class's balance settings into the database, creating the
+ * row if it doesn't exist yet or overwriting it if it does. */
 bool class_balance_save(player_class_t cls, const balance_mod_t *in) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -43,6 +48,8 @@ bool class_balance_save(player_class_t cls, const balance_mod_t *in) {
     return ok;
 }
 
+/* Same as class_balance_load(), but for a race's balance row instead
+ * of a class's. */
 bool race_balance_load(player_race_t race, balance_mod_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -62,6 +69,8 @@ bool race_balance_load(player_race_t race, balance_mod_t *out) {
     return found;
 }
 
+/* Same as class_balance_save(), but for a race's balance row instead
+ * of a class's. */
 bool race_balance_save(player_race_t race, const balance_mod_t *in) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

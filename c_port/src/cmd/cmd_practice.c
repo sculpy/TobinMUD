@@ -36,6 +36,8 @@
 
 #define PRACTICE_STEP 10
 
+/* Looks around the room `ch` is standing in for a guildmaster mob that
+ * trains ch's own class. Returns NULL if there isn't one here. */
 static being_t *find_guildmaster(const being_t *ch) {
     if (!ch->base.roomp)
         return NULL;
@@ -51,6 +53,11 @@ static being_t *find_guildmaster(const being_t *ch) {
     return NULL;
 }
 
+/* Runs the `practice` command: with no guildmaster nearby it refuses;
+ * with one nearby and no argument it reports current progress; with
+ * "basic" or "advanced" it spends one training session raising that
+ * discipline's percentage. See this file's header comment for the
+ * full rules. */
 bool cmd_practice(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

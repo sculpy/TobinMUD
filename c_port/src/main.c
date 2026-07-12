@@ -28,10 +28,16 @@
 
 static char g_binary_path[PATH_MAX];
 
+/* Reports the full path to the running server binary, so `copyover`
+ * (a reboot that keeps everyone connected) knows exactly which file to
+ * re-launch. */
 const char *tobin_binary_path(void) {
     return g_binary_path[0] ? g_binary_path : "/proc/self/exe";
 }
 
+/* The program's starting point: sets up logging and the database
+ * connection, restores any saved game state, then hands off to the
+ * main game loop that keeps the server running. */
 int main(int argc, char **argv) {
     /* Resolve our own path NOW (cwd never changes) so copyover can exec
      * the file at this path -- picking up a rebuilt binary -- rather than

@@ -85,6 +85,58 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       but leaves the *already-running* server's in-memory cache stale
       -- fixed by resetting through the real `balance`/Save command
       path instead, which updates both.
+- [x] **Weapon depth: sharpness + dual wield** — done (self-assigned
+      backlog item, sequenced after AC/to-hit per user 2026-07-11:
+      "Armor & Protection (AC) go in next, complete the to-hit/defense
+      formula depth, and then weapon depth, trap mechanics"). Two flat
+      modifiers folded into `combat_strike()`'s existing damage roll:
+      (1) sharpness -- any weapon whose `weapon_verb()` classification
+      isn't the blunt "bludgeon" (slice/chop/stab/pierce) gets +1
+      damage, reusing the verb bucket already computed for messaging
+      rather than adding a new weapon property; (2) dual wield -- the
+      Warrior/Thief "dual wield" skill (skill.c's roster, already
+      described as "passively reduces the damage penalty for your
+      off-hand weapon" but never wired up) now actually does that: the
+      usual off-hand -1 becomes a plain 0 for anyone who knows it,
+      checked via new `being_knows_skill()` (skill.h/skill.c -- level +
+      discipline-percentage gate, immortals always know everything,
+      reusable for future skill-mechanic work). `tests/smoke_test_weapon_depth.py`
+      covers both: a fresh Warrior's `skills` already lists dual wield
+      (Combat tier) while a Cleric's roster has no such entry at all
+      (fast, deterministic), and a sharp dagger's average damage over
+      30 real hits beats bare hands by a clear margin (statistical,
+      immortal attacker so the mortal 1.2s post-swing cooldown doesn't
+      apply). Iterating on this test surfaced two real bugs along the
+      way (both described below): `hit`/`kill` only INITIATE a fight,
+      the pulse scheduler resolves the actual rounds asynchronously
+      every 1.2s, so repeatedly re-sending the command doesn't work
+      the way repeatedly polling for the async result does; and a
+      training dummy fighting back can decapitate an attacker whose
+      limb HP never scaled with a (real or SQL-boosted) higher max HP.
+- [x] **Fix: leveling up never raised max HP or limb HP** — done (real
+      bug, not a testing artifact, found while building the weapon-depth
+      test above). `progress_add_xp()` (being.c) only ever bumped
+      `level` -- since it works on a bare `progress_t` with no access
+      to attrs/kind, it never called `being_calc_max_hp()` or
+      `being_limbs_full_heal()`, so a player's max HP (and every limb's
+      own HP cap) stayed frozen at their level-1 starting values
+      forever, no matter how high they leveled -- leaving even a very
+      high-level character exactly as vulnerable to a lucky limb-crit/
+      decapitation as a brand new one. Fixed at the one call site
+      (combat.c's `combat_defeat()`, which already has the full
+      `being_t` winner): on `levels_gained > 0`, recompute
+      `winner->progress.max_hp` and fully heal (`being_limbs_full_heal()`),
+      a full-HP restore as part of the level-up reward. New
+      `tests/smoke_test_levelup_hp.py`: records a fresh Warrior's
+      starting max HP, kills 8 very weak mobs (enough XP to reach
+      level 2), confirms max HP increased afterward. Two more test-
+      authoring bugs found and fixed while building this one: `kill`
+      has the same async-combat-round timing as `hit` (see above); and
+      a raw SQL `load_room` edit on a player who's still linkdead from
+      an earlier abrupt disconnect (socket closed without `quit!`)
+      gets ignored -- `enter_world()`'s linkdead-resume path takes
+      priority over `load_room` -- fixed by using the `transfer`
+      command instead of relying on `load_room` at all.
 - [x] **`continue` command + targeted heals + breaking holy symbols** —
       done. User: "add a continue command so clerics that heal <target>
       can continue automatically until the target is fully healed or

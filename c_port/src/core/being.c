@@ -550,10 +550,21 @@ void being_heal(being_t *b, int amount) {
     }
 }
 
+/* Works out how much total experience is needed to REACH a given
+ * level, so progress_add_xp() can tell when someone has earned enough
+ * to level up. */
 long progress_xp_for_level(int level) {
     return (long)level * (long)level * 100;
 }
 
+/* Adds `xp_gain` experience to `p` and levels it up as many times as
+ * the new total allows (capped at the mortal max level). Returns how
+ * many levels were gained, so the caller knows whether to celebrate.
+ * Only touches level/experience -- it works on a bare progress_t with
+ * no access to the being's attributes, so it deliberately does NOT
+ * recompute max_hp or heal limbs on its own; the caller (combat.c's
+ * combat_defeat()) does that with the full being_t once it sees
+ * levels_gained > 0. */
 int progress_add_xp(progress_t *p, long xp_gain) {
     if (!p || xp_gain <= 0)
         return 0;

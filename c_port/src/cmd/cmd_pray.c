@@ -43,6 +43,8 @@
  * task_cast() -- see that file's header comment for why a full
  * per-spell mechanic isn't implemented for the whole roster yet. */
 
+/* Case-insensitive "does haystack contain needle" -- used to spot
+ * keywords like "heal" or "damage" inside a spell's description text. */
 static bool ci_contains(const char *haystack, const char *needle) {
     size_t nlen = strlen(needle);
     for (const char *p = haystack; *p; p++)
@@ -51,6 +53,9 @@ static bool ci_contains(const char *haystack, const char *needle) {
     return false;
 }
 
+/* Looks through everything `ch` is carrying, wearing, or holding for
+ * an item whose name/keywords contain `keyword` -- used here to find
+ * a holy symbol. Returns NULL if there isn't one. */
 static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
     size_t len = strlen(keyword);
     for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
@@ -139,6 +144,11 @@ static void pray_apply_heal(descriptor_t *d, being_t *ch, being_t *target, const
     }
 }
 
+/* Works out what a successful prayer actually does: heals the target
+ * if the spell's description mentions healing, damages the caster's
+ * current opponent if it mentions an attack, or otherwise just prints
+ * an honest "nothing happens yet" placeholder. Remembers heal-type
+ * prayers so `continue` (cmd_continue.c) can keep repeating them. */
 static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill_def_t *sk) {
     char msg[192];
     if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")) {
@@ -170,6 +180,10 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
     }
 }
 
+/* Runs the `pray` command: checks the caster is allowed to pray the
+ * named spell (class, level, discipline practice), makes sure they
+ * have a holy symbol on hand, then applies the spell's effect. See
+ * this file's header comment for the full rules. */
 bool cmd_pray(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

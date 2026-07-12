@@ -53,4 +53,9 @@ const skill_def_t *skill_at(int index);
  * there's one source of truth for the heading text `skills` prints. */
 const char *skill_tier_label(player_class_t cls, skill_tier_t tier, char *buf, size_t bufsz);
 
+/* Whether `b` currently knows the skill/spell named `name` (level +
+ * discipline-percentage gates both pass; immortals always know
+ * everything). See skill.c for the exact rules. */
+bool being_knows_skill(const being_t *b, const char *name);
+
 #endif

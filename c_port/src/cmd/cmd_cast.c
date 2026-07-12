@@ -48,6 +48,9 @@ static bool ci_contains(const char *haystack, const char *needle) {
     return false;
 }
 
+/* Looks through everything `ch` is carrying, wearing, or holding for
+ * an item whose name/keywords contain `keyword` -- used here to find
+ * a spell component. Returns NULL if there isn't one. */
 static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
     size_t len = strlen(keyword);
     for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
@@ -112,6 +115,11 @@ static void task_cast(descriptor_t *d, being_t *ch, const skill_def_t *sk) {
     }
 }
 
+/* Runs the `cast` command: checks the caster is allowed to cast the
+ * named spell (class, level, discipline practice), makes sure they
+ * have a spell component on hand, then applies the spell's effect and
+ * consumes the component. See this file's header comment for the
+ * full rules. */
 bool cmd_cast(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

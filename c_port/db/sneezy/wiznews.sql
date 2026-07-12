@@ -307,3 +307,11 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New `balance` Command for Implementors (60+)', 'A new menu-driven `balance class|race <name>` command lets an Implementor tune four gamewide modifiers per class or race: HP multiplier, damage multiplier, to-hit modifier, and AC modifier. Every class/race starts perfectly neutral (1.00x/1.00x/+0/+0) -- nothing changes until someone actually balances one. Saved changes apply immediately, server-wide, no restart needed.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Weapon Depth: Sharp Weapons and Dual Wielding', 'Edged and piercing weapons (swords, axes, daggers, spears, etc) now deal a little extra damage over blunt ones. Also, the "dual wield" skill (Warrior/Thief) now does something: it removes the usual off-hand damage penalty, so a trained dual-wielder swings evenly with both hands instead of favoring their main hand.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fixed: Leveling Up Now Actually Raises Your HP', 'Found while testing combat depth: leveling up used to only raise your level number -- your max HP (and every limb''s own HP) stayed exactly where it started, forever, making even a high-level character just as fragile as a fresh one. Leveling up now properly raises your max HP and fully heals you, the reward it was always supposed to be.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

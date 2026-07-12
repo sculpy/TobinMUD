@@ -40,6 +40,10 @@
 
 #define CONTINUE_MAX_ROUNDS 50
 
+/* Looks through everything `ch` is carrying, wearing, or holding for
+ * an item whose name/keywords contain `keyword` -- used here to find
+ * a holy symbol to keep consuming each round. Returns NULL if there
+ * isn't one. */
 static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
     size_t len = strlen(keyword);
     for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
@@ -49,6 +53,11 @@ static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
     return NULL;
 }
 
+/* Runs the `continue` command: keeps re-praying the caster's last
+ * heal on whoever they were healing, one round per holy symbol, until
+ * the target is fully healed, the caster runs out of symbols, or the
+ * target wanders off. See this file's header comment for the full
+ * rules. */
 bool cmd_continue(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
