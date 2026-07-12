@@ -66,4 +66,17 @@ void thing_set_room(thing_t *t, struct room *r);
  * copy (predates this, already tested, not worth the churn to switch). */
 bool thing_name_matches(const char *keywords, const char *tok, size_t tok_len);
 
+/* Parses a leading "N." ordinal off `arg` (classic DikuMUD multi-target
+ * convention, user 2026-07-11: "mob 2.mob 3.mob etc should attack the 1st
+ * 2nd and 3rd, same for getting multiple objects, obj 2.obj 3.obj") --
+ * "2.sword" means the SECOND sword among matches, not always the first.
+ * Writes the remainder (the part after "N.", or all of `arg` if there was
+ * no ordinal prefix) into `*rest` and returns the ordinal, always >= 1.
+ * A malformed prefix (e.g. "2." with nothing after it, or a leading "0.")
+ * is treated as no prefix at all -- `*rest` is set back to the original
+ * `arg` and 1 is returned, so a legitimately weird item name starting
+ * with a digit ("2.you get it" isn't real, but this errs toward not
+ * eating input the caller didn't mean as an ordinal). */
+int thing_parse_ordinal(const char *arg, const char **rest);
+
 #endif

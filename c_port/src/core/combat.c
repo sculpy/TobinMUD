@@ -465,6 +465,35 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
     if (!self || !self->base.roomp || !name || !*name)
         return NULL;
 
+    /* "N.name" ordinal prefix (user 2026-07-11: "mob 2.mob 3.mob etc
+     * should attack the 1st 2nd and 3rd") -- when explicitly given,
+     * skip the exact-match-priority rule below entirely and just count
+     * matches in room order, since "2.clau" only makes sense as "the
+     * second thing matching clau", not "prefer an exact name". Plain
+     * "clau" (ordinal defaults to 1) keeps the exact-match behavior
+     * fully unchanged for backward compatibility. */
+    const char *rest;
+    int ordinal = thing_parse_ordinal(name, &rest);
+    size_t name_len = strlen(rest);
+
+    if (ordinal > 1) {
+        int seen = 0;
+        for (thing_t *t = self->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t == &self->base)
+                continue;
+            if (t->kind != THING_PC && t->kind != THING_MOB)
+                continue;
+            if (t->kind == THING_PC && !((being_t *)t)->desc)
+                continue;
+            if (thing_name_matches(t->name, rest, name_len)) {
+                seen++;
+                if (seen == ordinal)
+                    return (being_t *)t;
+            }
+        }
+        return NULL;
+    }
+
     /* Exact name first, so "Clau" always means the player literally named
      * Clau even if a Claudius is also in the room; then fall back to prefix
      * matching ("kill clau" -> Claudius), same abbreviation convention the
@@ -475,7 +504,6 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
      * by any one of its words, same as "kill vrock" or "kill demon"; a
      * single-word PC name behaves identically to before. */
     being_t *prefix_match = NULL;
-    size_t name_len = strlen(name);
     for (thing_t *t = self->base.roomp->base.stuff_head; t; t = t->stuff_next) {
         if (t == &self->base)
             continue;
@@ -486,9 +514,9 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
          * attack/kill, same as if they weren't there. */
         if (t->kind == THING_PC && !((being_t *)t)->desc)
             continue;
-        if (strcasecmp(t->name, name) == 0)
+        if (strcasecmp(t->name, rest) == 0)
             return (being_t *)t;
-        if (!prefix_match && thing_name_matches(t->name, name, name_len))
+        if (!prefix_match && thing_name_matches(t->name, rest, name_len))
             prefix_match = (being_t *)t;
     }
     return prefix_match;

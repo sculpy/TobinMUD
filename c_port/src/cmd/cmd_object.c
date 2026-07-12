@@ -80,32 +80,50 @@ static bool is_loose(const being_t *ch, const obj_t *o) {
 
 /* Finds an obj by keyword among a thing_t chain, optionally restricted to
  * "loose" items on `owner` (pass owner=NULL to skip that filter, e.g. when
- * searching a room floor). */
+ * searching a room floor). Supports the "N.keyword" ordinal prefix (user
+ * 2026-07-11: "getting multiple objects, obj 2.obj 3.obj" should reach the
+ * 2nd/3rd match instead of always the first) -- parsed once here so every
+ * caller (get/drop/put/give/wear/...) gets it for free. */
 static obj_t *find_obj(thing_t *chain, const char *tok, const being_t *owner_for_loose_filter) {
-    size_t len = strlen(tok);
+    const char *rest;
+    int ordinal = thing_parse_ordinal(tok, &rest);
+    size_t len = strlen(rest);
+    int seen = 0;
     for (thing_t *t = chain; t; t = t->stuff_next) {
         if (t->kind != THING_OBJ)
             continue;
         obj_t *o = (obj_t *)t;
         if (owner_for_loose_filter && !is_loose(owner_for_loose_filter, o))
             continue;
-        if (obj_name_matches(t->name, tok, len))
-            return o;
+        if (obj_name_matches(t->name, rest, len)) {
+            seen++;
+            if (seen == ordinal)
+                return o;
+        }
     }
     return NULL;
 }
 
 /* Finds a WORN/HELD obj by keyword -- the inverse filter of find_obj's
- * "loose" search, used by `remove`. */
+ * "loose" search, used by `remove`. Same "N.keyword" ordinal support. */
 static obj_t *find_worn(const being_t *ch, const char *tok) {
-    size_t len = strlen(tok);
+    const char *rest;
+    int ordinal = thing_parse_ordinal(tok, &rest);
+    size_t len = strlen(rest);
+    int seen = 0;
     for (int i = 0; i < LIMB_COUNT; i++) {
-        if (ch->equipment[i] && obj_name_matches(ch->equipment[i]->base.name, tok, len))
-            return ch->equipment[i];
+        if (ch->equipment[i] && obj_name_matches(ch->equipment[i]->base.name, rest, len)) {
+            seen++;
+            if (seen == ordinal)
+                return ch->equipment[i];
+        }
     }
     for (int i = 0; i < 2; i++) {
-        if (ch->held[i] && obj_name_matches(ch->held[i]->base.name, tok, len))
-            return ch->held[i];
+        if (ch->held[i] && obj_name_matches(ch->held[i]->base.name, rest, len)) {
+            seen++;
+            if (seen == ordinal)
+                return ch->held[i];
+        }
     }
     return NULL;
 }

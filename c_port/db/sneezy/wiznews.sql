@@ -275,3 +275,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Armor Now Actually Protects You', 'Worn armor has a real Armor Class now, shown on `score`, and it makes you harder to hit -- subtracted from the attacker''s hit roll in combat. Since the seeded item data never carried a real per-piece AC value, it''s derived from the piece''s weight (heavier = more protection, capped at 30). The to-hit formula also gained a guaranteed hit/miss floor: no stat or gear mismatch, however extreme, can make a hit or a miss completely impossible.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Ordinal Targeting: 2.sword, 3.goblin', 'When more than one thing in a room shares a keyword, "get 2.sword"/"kill 3.goblin" now reach the 2nd/3rd match instead of always the first. Bare names still work exactly as before. Works for get/drop/put/give/wear/remove and attack/kill alike.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

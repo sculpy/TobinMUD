@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "thing.h"
 
+#include <ctype.h>
 #include <stddef.h>
 #include <string.h>
 #include <strings.h>
@@ -63,4 +64,22 @@ bool thing_name_matches(const char *keywords, const char *tok, size_t tok_len) {
             return true;
     }
     return false;
+}
+
+int thing_parse_ordinal(const char *arg, const char **rest) {
+    *rest = arg;
+    if (!arg || !isdigit((unsigned char)arg[0]))
+        return 1;
+
+    const char *p = arg;
+    long n = 0;
+    while (isdigit((unsigned char)*p)) {
+        n = n * 10 + (*p - '0');
+        p++;
+    }
+    if (*p != '.' || p[1] == '\0' || n < 1)
+        return 1;
+
+    *rest = p + 1;
+    return (int)n;
 }

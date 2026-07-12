@@ -20,6 +20,24 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-11 (continued) — working these next
 
+- [x] **Ordinal targeting (`2.sword`, `3.goblin`)** — done. User: "when
+      getting objects or attacking a mob, what happens when there is more
+      than one target matching the keyword? mob 2.mob 3.mob etc should
+      attack the 1st 2nd and 3rd, same for getting multiple objects, obj
+      2.obj 3.obj." Confirmed the gap first: `find_obj()` (cmd_object.c,
+      backs get/drop/put/give/wear) and `combat_find_room_target()`
+      (combat.c, backs attack/kill) both always returned the FIRST
+      keyword match, no way to reach a second/third. New shared
+      `thing_parse_ordinal()` (thing.h/thing.c) parses a leading "N."
+      prefix (default 1 if absent); wired into `find_obj()`/`find_worn()`
+      directly (so every caller gets it for free, zero per-command
+      changes needed) and into `combat_find_room_target()` (only when an
+      explicit ordinal > 1 is given -- bare "kill clau" keeps its exact-
+      name-priority behavior fully unchanged, since "2.clau" only makes
+      sense as "count matches in room order", not "prefer an exact
+      name"). `tests/smoke_test_ordinal_target.py` covers get 1st/2nd/3rd/
+      (4th fails) and kill 1st/2nd/3rd, each reloading a fresh set before
+      every check since consuming/killing depletes the pool.
 - [x] **Armor Class + completed to-hit/defense formula** — done (user
       2026-07-11: "Armor & protection (AC) go in next, complete the
       to-hit / defense formula depth"). New `obj_armor_ac()` (obj.c) --
