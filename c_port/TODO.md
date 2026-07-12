@@ -360,31 +360,22 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       list/delete syntax) rather than a duplicate -- `help trigger` and
       `help edit trigger` both need to keep working. `edit`'s own topic
       gained a Related line listing all 8 nouns.
-- [ ] **`nospam` toggle (combat)** — user 2026-07-11: "add a nospam toggle
-      where the games output during fights doesnt show missed hits in
-      messages and logs" ("take inspiration from sneezy"). Confirmed
-      Sneezy precedent (`toggle.h:22` `AUTO_NOSPAM = (1 << 0)`,
-      `toggle.cc:978-985` `toggle nospam`/`toggle spam`): it's a bit on
-      the DESCRIPTOR (`desc->autobits`), not a player-record flag,
-      alongside sibling toggles `AUTO_NOHARM`/`AUTO_NOSPELL`. In
-      `combat.cc` the pattern (dozens of call sites, ~3286-3574,
-      3681-3720, 3838-3856, 6318-6420) is: always show the message if
-      `dam` is nonzero (a real hit); when `dam == 0` (a miss), suppress it
-      if the toggle is set -- checked independently for the attacker's,
-      victim's, AND bystanders' descriptors, so each of the three can
-      have the toggle on/off independently. The combat SOUND EFFECT
-      (`playsound()`) for a miss lives inside the same suppressed block,
-      so nospam silences both the miss text and its sound together. It's
-      also reused for other non-miss combat chatter (e.g. a Bloodlust
-      stack-growth message, `combat.cc:6363`), so the real scope is
-      "combat spam" broadly, not literally only misses -- matches the
-      user's own "missed hits... and other spam"-shaped request. NOT
-      log-related in Sneezy -- only gates player-facing output, never the
-      server log. Port as: a per-player toggle (persisted like other
-      prefs, command analogous to `prompt hp`), checked in Tobin's
-      `combat.c` strike-message path the same way (suppress on a miss,
-      independently per viewer). Tobin currently has zero scaffolding for
-      this (confirmed: no `nospam`/`NOSPAM` anywhere in `src`/`include`).
+- [x] **`nospam` toggle (combat)** — done (user 2026-07-11: "add a nospam
+      toggle where the games output during fights doesnt show missed
+      hits in messages and logs", "take inspiration from sneezy").
+      Confirmed Sneezy precedent (`toggle.h:22` `AUTO_NOSPAM = (1 << 0)`,
+      checked per-viewer independently in `combat.cc`) -- ported as a new
+      `PLR_NOSPAM` bit on `player.pflags` (a per-player DB flag, since
+      Tobin's player state already lives there rather than on a transient
+      descriptor struct), toggled via `toggle nospam` (cmd_toggle.c,
+      same table-driven pattern as `noshout`). `combat.c`'s
+      `combat_strike()` miss branch checks each side's own flag before
+      sending its "You miss .../ ... misses you!" line -- not log-related
+      (Tobin's combat.c never logged misses to begin with). New
+      `tests/smoke_test_nospam.py` forces a guaranteed miss via an
+      absurdly negative `objaffect` hitroll bonus (same mechanism the
+      weapon-messaging test uses in reverse for guaranteed hits) to test
+      deterministically instead of waiting on ~50% RNG.
 - [x] **Hostname (reverse DNS) instead of raw IP in messages/logs** — done
       (user 2026-07-11: "in messages and logs where IP address is
       displayed, make it a hostname dns lookup instead"). Confirmed
