@@ -88,6 +88,8 @@ static const cmd_entry_t COMMANDS[] = {
      * immortals mid-editor, so anyone can be left with something to
      * catch up on. */
     { "catchup", cmd_catchup, "Replay game messages missed while editing or paging.", MORTAL_LEVEL_MIN },
+    { "cast",    cmd_cast,    "Cast a spell (Mage/Druid) -- requires a component.", MORTAL_LEVEL_MIN },
+    { "pray",    cmd_pray,    "Pray for a spell (Cleric) -- requires a holy symbol.", MORTAL_LEVEL_MIN },
     /* Immortal news channel. "wizh"->wizhelp, "wizn"->wiznews. Posting is
      * now `edit wiznews` (folded into the unified edit dispatcher below). */
     { "wiznews", cmd_wiznews, "Read the immortal news channel.",                     IMMORTAL_LEVEL_MIN },

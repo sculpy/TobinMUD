@@ -20,6 +20,33 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-11 (continued) — working these next
 
+- [x] **`cast`/`pray` with component/holy-symbol requirements** — done
+      (v1 scope). User: "clerics should require a holy symbol to pray
+      successfully, druids and mages should require components to cast
+      with, so implement task_pray task_cast etc." New `cmd_cast.c`
+      (Mage/Druid, `cast <spell>`) and `cmd_pray.c` (Cleric,
+      `pray <spell>`) -- both gated on class, then the spell's
+      `min_level` (looked up in skill.c's roster, restricted to
+      non-Combat-tier entries), then the required item: `cast` needs any
+      carried/worn/held object keyworded "component" (consumed on
+      success); `pray` needs one keyworded "symbol" (NOT consumed --
+      a holy symbol is a keepsake, unlike a material component). Each
+      command's core logic lives in a `task_cast()`/`task_pray()`
+      function, matching the literal naming the user asked for. **v1
+      scope, not full spell mechanics**: Tobin has no mana/resource pool
+      yet (a prerequisite this backlog doesn't have built), and the full
+      ~150-entry roster doesn't each have a bespoke effect -- a spell
+      whose one-line description mentions "heal"/"cure" heals the
+      caster, one mentioning damage-flavored words (bolt/blast/strike/
+      etc) damages the caster's current fight opponent if any, everything
+      else casts/prays successfully (consuming its component/needing its
+      symbol) but says its effect "isn't implemented yet" -- honest about
+      what's real vs. placeholder rather than silently doing nothing.
+      Real per-spell mechanics remain a follow-up (the "Offensive spell
+      system"/"Affects system" backlog items). `tests/smoke_test_castpray.py`
+      covers class gating, unknown-spell rejection, the component-vs-
+      symbol requirement gate, and that a component is consumed while a
+      holy symbol isn't.
 - [x] **Druid skill/spell roster** — done. User: "go with the druid
       spells/skills" (confirming the proposal). Custom blend (not a
       direct Sneezy class port): Ranger's real non-stub nature/animal

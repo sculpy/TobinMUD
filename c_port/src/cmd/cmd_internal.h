@@ -77,6 +77,8 @@ bool cmd_rest(descriptor_t *d, const char *args);
 bool cmd_sleep(descriptor_t *d, const char *args);
 bool cmd_wake(descriptor_t *d, const char *args);
 bool cmd_catchup(descriptor_t *d, const char *args);
+bool cmd_cast(descriptor_t *d, const char *args);
+bool cmd_pray(descriptor_t *d, const char *args);
 bool cmd_wiznews(descriptor_t *d, const char *args);
 bool cmd_edwiznews(descriptor_t *d, const char *args);
 bool cmd_socials(descriptor_t *d, const char *args);
