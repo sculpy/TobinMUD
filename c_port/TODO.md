@@ -2232,13 +2232,36 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       immortals (needed `hit` instead, the "always real combat" command),
       and a regex bug where `\w+'s` could never match a multi-word mob
       short_descr like "a weapon test dummy's" (fixed to `.+?'s`).
-- [ ] **Limb-specific decapitation difficulty + major-limb instadeath** —
-      user: "some limbs are harder to decapitate, and should be instadeath
-      if it is a major body part. decapitating a neck should also remove
-      the head. head neck waist body are all major limbs. this should be
-      based on the likelihood that a limb could be damaged vs decapitated.
-      see sneezy code for inspiration." Builds on `combat_sever_limb()`/
-      `LIMB_HEAD` handling already in `combat.c`.
+- [x] **Limb-specific decapitation difficulty + major-limb instadeath** —
+      done. User: "some limbs are harder to decapitate, and should be
+      instadeath if it is a major body part. decapitating a neck should
+      also remove the head. head neck waist body are all major limbs.
+      this should be based on the likelihood that a limb could be
+      damaged vs decapitated. see sneezy code for inspiration." Two
+      real Sneezy ports, not Tobin inventions:
+      (1) `pick_weighted_limb()` (`combat.c`) replaces the old flat
+      `rand() % LIMB_COUNT` with weights lifted directly from Sneezy's
+      own humanoid `slot_chance[]` table (`misc/body.cc`) -- the torso
+      (26) and back/waist-equivalent (10→mapped to waist=5 here) get hit
+      far more than a finger (1), so a bigger limb is also, correctly,
+      "harder to decapitate" in practice: it absorbs more of the random
+      hit distribution before its own (still separately-sized) HP share
+      runs out.
+      (2) `is_major_limb()` generalizes what used to be a `LIMB_HEAD`-
+      only instadeath check to all four limbs the user named (head,
+      neck, waist, body) -- `combat_strike()` and the `hurtlimb` debug
+      path (`combat_debug_set_limb_hp()`) both route through it now.
+      Destroying the neck additionally zeroes and severs the head in
+      the same swing (`combat_sever_limb()`'s new one-level recursion,
+      "the head has nothing left to hang onto"), matching "decapitating
+      a neck should also remove the head" literally.
+      `tests/smoke_test_limb_severity.py` covers: a non-major limb (an
+      arm) staying survivable; all four major limbs individually
+      reporting instant death via `hurtlimb`; the neck test also
+      reporting the head coming off. Existing `smoke_test_limbs.py` and
+      `smoke_test_weapon_depth.py` re-run clean (both already used an
+      immortal attacker, so the weighted pick didn't change what they
+      measure).
 - [ ] **Immortals take zero damage in combat** — port Sneezy's "engage"
       logic. User: "an immortal character shouldnt be damaged by hits in a
       fight, see engage code from sneezy." NOTE: today's affects-system

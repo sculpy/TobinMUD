@@ -355,3 +355,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New Autoloot Toggle', '`toggle autoloot` now exists: when on, defeating an opponent (or instakilling one as an immortal) automatically pulls everything out of their corpse and into your own inventory, instead of leaving it there to loot by hand.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Major Limbs Are Now Fatal, and Bigger Targets Get Hit More', 'Losing your head, neck, waist, or torso to combat damage is now instant death -- losing an arm, leg, finger, or foot still is not. Taking off the neck also takes the head with it. Which limb gets hit is no longer a flat coin-flip across all thirteen either: a torso is a much bigger target than a finger, so it (and the other bigger limbs) gets hit far more often, mirroring real Sneezy''s own body-part weighting.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

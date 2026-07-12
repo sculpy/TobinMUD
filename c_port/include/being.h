@@ -136,14 +136,17 @@ typedef struct {
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in
  * misc/being.h, driven by `wearSlotT`'s 13 equipment-aligned slots plus
- * race-specific `slotChance()` weighting -- see misc/limbs.{h,cc}). Tobin
- * has no equipment/race system yet, so this doesn't weight by slot, but as
- * of the 13-limb set below it's a near 1:1 match of the original's actual
+ * race-specific `slotChance()` weighting -- see misc/limbs.{h,cc}). As of
+ * the 13-limb set below it's a near 1:1 match of the original's actual
  * slot list (head/neck/two arms/two fingers/body/waist/genitalia/two
  * legs/two feet -- "finger" here in place of the original's "hand", no
- * separate "back" slot). Not persisted (like `fighting`/`desc`) -- see
- * STATUS.md: this follows the same already-accepted precedent as
- * `progress.hp` (only saved at combat defeat, not after every exchange). */
+ * separate "back" slot), and combat.c's pick_weighted_limb() (user
+ * 2026-07-12) now mirrors slotChance()'s own humanoid proportions too --
+ * no per-race variation yet (Tobin has no race-specific body types), but
+ * the per-limb weighting itself is a real port, not a Tobin invention.
+ * Not persisted (like `fighting`/`desc`) -- see STATUS.md: this follows
+ * the same already-accepted precedent as `progress.hp` (only saved at
+ * combat defeat, not after every exchange). */
 typedef enum {
     LIMB_HEAD,
     LIMB_NECK,

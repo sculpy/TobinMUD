@@ -67,7 +67,9 @@ bool cmd_hurtlimb(descriptor_t *d, const char *args) {
         return true;
     }
 
-    bool decapitated = combat_debug_set_limb_hp(d->character, target, limb, hp);
-    descriptor_send(d, decapitated ? "Decapitated.\r\n" : "Limb HP set.\r\n");
+    /* Any MAJOR limb destroyed (head/neck/waist/body, user 2026-07-12) is
+     * instant death now, not just a decapitation specifically. */
+    bool instadeath = combat_debug_set_limb_hp(d->character, target, limb, hp);
+    descriptor_send(d, instadeath ? "Instant death (major limb destroyed).\r\n" : "Limb HP set.\r\n");
     return true;
 }

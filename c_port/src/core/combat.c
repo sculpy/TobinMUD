@@ -46,6 +46,41 @@ static void tell(being_t *b, const char *fmt, ...) {
  * DESTROYED_LIMB_HIT_PENALTY, no particular reason but consistency. */
 #define NON_STANDING_HIT_BONUS 15
 
+/* Per-limb hit likelihood (user 2026-07-12: "some limbs are harder to
+ * decapitate... this should be based on the likelihood that a limb
+ * could be damaged"), lifted straight from Sneezy's own humanoid
+ * slot_chance[] table (misc/body.cc) -- a bigger target (the torso) is
+ * hit far more often than a small one (a finger), so it also survives
+ * more cumulative hits before its own HP share runs out. Indexed by
+ * limb_t; used as relative weights for a weighted random pick in
+ * combat_strike(), replacing the old flat `rand() % LIMB_COUNT`. */
+static const int LIMB_HIT_WEIGHT[LIMB_COUNT] = {
+    [LIMB_HEAD] = 7, [LIMB_NECK] = 4, [LIMB_LEFT_ARM] = 5, [LIMB_RIGHT_ARM] = 5,
+    [LIMB_LEFT_FINGER] = 1, [LIMB_RIGHT_FINGER] = 1, [LIMB_BODY] = 26, [LIMB_WAIST] = 5,
+    [LIMB_GENITALIA] = 1, [LIMB_RIGHT_LEG] = 3, [LIMB_LEFT_LEG] = 3,
+    [LIMB_LEFT_FOOT] = 2, [LIMB_RIGHT_FOOT] = 2,
+};
+
+static limb_t pick_weighted_limb(void) {
+    int total = 0;
+    for (int i = 0; i < LIMB_COUNT; i++)
+        total += LIMB_HIT_WEIGHT[i];
+    int roll = rand() % total;
+    for (int i = 0; i < LIMB_COUNT; i++) {
+        roll -= LIMB_HIT_WEIGHT[i];
+        if (roll < 0)
+            return (limb_t)i;
+    }
+    return LIMB_BODY; /* unreachable -- weights always sum to `total` */
+}
+
+/* Major limbs (user 2026-07-12: "head neck waist body are all major
+ * limbs"): destroying one is instant death, not just a survivable
+ * dismemberment -- unlike an arm, leg, finger, or foot. */
+static bool is_major_limb(limb_t limb) {
+    return limb == LIMB_HEAD || limb == LIMB_NECK || limb == LIMB_WAIST || limb == LIMB_BODY;
+}
+
 /* Sneezy-inspired critical hit (Session 42, user: "copy sneezys crit hit
  * system, complete with object creation upon decapitation"). No separate
  * crit-chance roll -- this port triggers purely on a limb's HP actually
@@ -53,10 +88,11 @@ static void tell(being_t *b, const char *fmt, ...) {
  * the existing per-hit random-limb/damage system rather than adding a new
  * RNG layer. PCs only for now (a dying mob is destroyed outright already,
  * see combat_defeat()); scope confirmed with the user 2026-07-09. Drops a
- * lootable severed-part object in the room; the head specifically is a
- * decapitation, reported back to the caller (combat_strike()'s return
- * value) so it can route through the existing combat_defeat() "slain" path
- * rather than duplicating it. */
+ * lootable severed-part object in the room; any MAJOR limb (2026-07-12:
+ * head/neck/waist/body, not just a decapitation specifically) is instant
+ * death, reported back to the caller (combat_strike()'s return value) so
+ * it can route through the existing combat_defeat() "slain" path rather
+ * than duplicating it. */
 static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb) {
     if (!defender->base.roomp)
         return;
@@ -89,6 +125,19 @@ static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb)
     tell(attacker, "%s's %s is severed clean off!\r\n",
          being_display_name_cap(defender, sever_capbuf, sizeof(sever_capbuf)), ln);
     tell(defender, "Your %s is severed clean off!\r\n", ln);
+
+    /* "decapitating a neck should also remove the head" (user 2026-07-12)
+     * -- the head has nothing left to hang onto once the neck is gone.
+     * One level of recursion only (LIMB_HEAD never cascades further), so
+     * this can't loop. Guarded on the head not already being gone, in
+     * case some earlier hit had already destroyed it separately. */
+    if (limb == LIMB_NECK && defender->limbs[LIMB_HEAD].hp > 0) {
+        defender->limbs[LIMB_HEAD].hp = 0;
+        tell(attacker, "The blow takes %s's head clean off along with it!\r\n",
+             being_display_name(defender));
+        tell(defender, "Your head comes off along with your neck!\r\n");
+        combat_sever_limb(attacker, defender, LIMB_HEAD);
+    }
 }
 
 /* Case-insensitive "does haystack contain needle" (strcasestr is GNU-only,
@@ -159,13 +208,16 @@ static const char *weapon_verb(const obj_t *weapon) {
  * not the original's weapon/class/skill-driven system (none of that
  * exists yet). Hit chance skews on relative DEX (and is penalized if the
  * attacker has a destroyed limb); damage scales with STR above ATTR_BASE
- * plus a small random component. Each hit lands on a uniformly-random limb
- * (not the original's slotChance()-weighted roll, see being.h) -- damage
- * is applied to both that limb's HP and the defender's overall HP via
- * being_hurt_limb(). Crossing into a worse limb_status_text() tier (see
- * being.h) announces it to both sides. Returns true iff this hit just
- * decapitated the defender (their head crossed to 0% HP for the first
- * time) -- the caller must route that straight to combat_defeat(). */
+ * plus a small random component. Each hit lands on a limb chosen by
+ * pick_weighted_limb() (Sneezy's own slotChance() proportions, user
+ * 2026-07-12) -- a bigger target (the torso) gets hit far more often
+ * than a small one (a finger). Damage is applied to both that limb's HP
+ * and the defender's overall HP via being_hurt_limb(). Crossing into a
+ * worse limb_status_text() tier (see being.h) announces it to both
+ * sides. Returns true iff this hit just destroyed a MAJOR limb (head,
+ * neck, waist, or body, see is_major_limb() -- not just a decapitation
+ * specifically) -- the caller must route that straight to
+ * combat_defeat(). */
 static bool combat_strike(being_t *attacker, being_t *defender) {
     /* Weapon-aware messaging + hit/dam bonuses (user, Session 43 continued:
      * "when in combat wielded items should modify messaging for example
@@ -290,7 +342,7 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             dmg = 1;
     }
 
-    limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+    limb_t limb = pick_weighted_limb();
     int pct_before = being_limb_pct(defender, limb);
     being_hurt_limb(defender, limb, dmg);
     int pct_after = being_limb_pct(defender, limb);
@@ -346,13 +398,13 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         }
     }
 
-    bool decapitated = false;
+    bool instadeath = false;
     if (pct_before > 0 && pct_after == 0 && defender->base.kind == THING_PC) {
         combat_sever_limb(attacker, defender, limb);
-        if (limb == LIMB_HEAD)
-            decapitated = true;
+        if (is_major_limb(limb))
+            instadeath = true;
     }
-    return decapitated;
+    return instadeath;
 }
 
 /* No permadeath for a PC in the sense of the character record being
@@ -713,13 +765,13 @@ bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int 
         }
     }
 
-    bool decapitated = false;
+    bool instadeath = false;
     if (pct_before > 0 && pct_after == 0 && target->base.kind == THING_PC) {
         combat_sever_limb(actor, target, limb);
-        if (limb == LIMB_HEAD)
-            decapitated = true;
+        if (is_major_limb(limb))
+            instadeath = true;
     }
-    if (decapitated)
+    if (instadeath)
         combat_defeat(target, actor, true);
-    return decapitated;
+    return instadeath;
 }
