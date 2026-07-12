@@ -2102,9 +2102,25 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       "make all character facing menus in this fashion" -- audit every
       other menu-driven screen (editors, `edit` menus, etc, per
       [[editors-menu-driven]] memory) for the same boxed treatment.
-- [ ] **Autoloot toggle** — a per-player toggle so killing an opponent
-      auto-loots the entire corpse. User: "add an autoloot toggle where a
-      player upon opponent death automatically loots all from the corpse."
+- [x] **Autoloot toggle** — done. User: "add an autoloot toggle where a
+      player upon opponent death automatically loots all from the
+      corpse." New `PLR_AUTOLOOT` player-flag bit (being.h) plumbed into
+      the existing `toggle` menu (`toggle autoloot`, cmd_toggle.c, same
+      pattern as nospam/noshout) and checked in `combat.c`'s
+      `combat_defeat()` right after the corpse is populated -- fires for
+      a normal defeat, a decapitation, AND an immortal's `kill` instakill
+      alike, since all three already funnel through that one function.
+      Moves every item straight from the corpse into the winner's
+      inventory and confirms with "You automatically loot <loser>'s
+      corpse." `tests/smoke_test_autoloot.py` covers the toggle itself
+      appearing in the menu, an autoloot-on kill landing the gear in the
+      winner's inventory, and autoloot-off leaving it sitting in the
+      corpse instead. Two test-authoring snags: character names with
+      digits ("Autolootv1"/"v2") are silently rejected (letters-only
+      rule, hit repeatedly earlier this session too) -- renamed letters-
+      only; and a time.time()-second-resolution suffix collided with a
+      leftover account from a debug rerun seconds earlier -- switched to
+      millisecond resolution.
 - [ ] **Split victim's gold among the group on kill** — "To the victor go
       the spoils!" User: "also upon death get all gold from the victim and
       split it between all group members if groupped." Blocked on/pairs

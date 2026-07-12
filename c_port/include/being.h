@@ -126,6 +126,12 @@ typedef struct {
 #define PLR_NEWBIE 1
 #define PLR_NOSHOUT 2
 #define PLR_NOSPAM 4
+/* PLR_AUTOLOOT = automatically loots everything from an opponent's corpse
+ * on defeat (default off; toggle on with `toggle autoloot`), user
+ * 2026-07-12: "an autoloot toggle where a player upon opponent death
+ * automatically loots all from the corpse" -- checked in combat.c's
+ * combat_defeat() right after the corpse is populated. */
+#define PLR_AUTOLOOT 8
 
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in

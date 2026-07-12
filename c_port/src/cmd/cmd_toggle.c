@@ -99,6 +99,22 @@ static void tg_nospam_set(descriptor_t *d, bool v) {
     player_set_pflags(d->character->player_id, d->character->pflags);
 }
 
+/* --- autoloot: automatically loot a defeated opponent's corpse
+ * (player.pflags bit) -- checked in combat.c's combat_defeat(), right
+ * after the corpse is populated. */
+static bool tg_autoloot_get(descriptor_t *d) {
+    return d->character && (d->character->pflags & PLR_AUTOLOOT);
+}
+static void tg_autoloot_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->pflags |= PLR_AUTOLOOT;
+    else
+        d->character->pflags &= ~PLR_AUTOLOOT;
+    player_set_pflags(d->character->player_id, d->character->pflags);
+}
+
 /* --- multiplay: global game toggle (55+) --- */
 static bool tg_multiplay_get(descriptor_t *d) { (void)d; return multiplay_allowed(); }
 static void tg_multiplay_set(descriptor_t *d, bool v) { (void)d; multiplay_set(v); }
@@ -109,6 +125,7 @@ static const toggle_t TOGGLES[] = {
     { "newbie",    "on the newbie help channel",    false, tg_newbie_get,    tg_newbie_set },
     { "noshout",   "opted out of hearing shouts",   false, tg_noshout_get,   tg_noshout_set },
     { "nospam",    "hide combat miss messages",     false, tg_nospam_get,    tg_nospam_set },
+    { "autoloot",  "auto-loot a defeated corpse",   false, tg_autoloot_get,  tg_autoloot_set },
     { "multiplay", "one account, many characters",  true,  tg_multiplay_get, tg_multiplay_set },
 };
 #define NUM_TOGGLES (sizeof(TOGGLES) / sizeof(TOGGLES[0]))

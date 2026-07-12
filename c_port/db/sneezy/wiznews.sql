@@ -351,3 +351,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Look At Someone To See What They''re Wearing', '`look <person>` now shows their worn equipment (body slots and both hands) right after their description, the same listing the `equipment` command shows you for yourself.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New Autoloot Toggle', '`toggle autoloot` now exists: when on, defeating an opponent (or instakilling one as an immortal) automatically pulls everything out of their corpse and into your own inventory, instead of leaving it there to loot by hand.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

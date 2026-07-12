@@ -521,6 +521,28 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             loser->held[i] = NULL;
         if (loser_is_pc)
             player_inventory_save(loser->player_id, loser);
+
+        /* Autoloot (user 2026-07-12: "an autoloot toggle where a player
+         * upon opponent death automatically loots all from the corpse")
+         * -- winner's own PLR_AUTOLOOT toggle, checked here right after
+         * the corpse is populated so it works for both a normal defeat
+         * and a decapitation alike. PC winner only (a mob has no
+         * inventory to receive into); no-op if the corpse ended up
+         * empty (e.g. a mob loser, who carries nothing yet). */
+        if (corpse && winner->base.kind == THING_PC && (winner->pflags & PLR_AUTOLOOT)) {
+            bool looted_any = false;
+            thing_t *ct = corpse->base.stuff_head;
+            while (ct) {
+                thing_t *cnext = ct->stuff_next;
+                thing_move_to(ct, &winner->base);
+                looted_any = true;
+                ct = cnext;
+            }
+            if (looted_any) {
+                tell(winner, "You automatically loot %s's corpse.\r\n", being_display_name(loser));
+                player_inventory_save(winner->player_id, winner);
+            }
+        }
     }
 
     if (loser_is_pc) {
