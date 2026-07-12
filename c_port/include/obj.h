@@ -113,6 +113,20 @@ typedef struct obj {
 #define CONT_CLOSED    (1 << 2) /* currently shut */
 #define CONT_LOCKED    (1 << 3) /* currently locked (unlock/keys deferred) */
 
+/* Armor class this piece contributes if worn (0 for anything else). The
+ * upstream seed's `val0` field ("armor class") is uniformly 0 across
+ * every real armor row (val0/val1 IS populated for weapons -- dice count/
+ * sides -- this is specifically an armor data gap, confirmed by querying
+ * the live DB before writing this), so there's no real AC value to read.
+ * Placeholder formula in the same spirit as the damage formula's
+ * STR-ATTR_BASE term: heavier armor protects more, scaled so a fully
+ * plate-armored character's total across all worn slots lands in a
+ * similar range to the hit-roll's other +/-15ish modifiers (see
+ * combat.c's being_total_ac() usage). Revisit if armor ever gets real
+ * per-item AC data (e.g. a companion table, same precedent as
+ * `objaffect` for weapon hit/dam bonuses). */
+int obj_armor_ac(const obj_t *o);
+
 /* True iff the object is a container (OBJ_CAT_CONTAINER). */
 static inline bool obj_is_container(const obj_t *o) {
     return o && o->category == OBJ_CAT_CONTAINER;

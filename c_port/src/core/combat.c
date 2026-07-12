@@ -169,10 +169,11 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     if (weapon)
         obj_load_combat_mods(weapon->vnum, &weapon_hitroll, &weapon_damroll);
 
-    int hit_roll = (rand() % 100) + (attacker->attrs.dexterity - defender->attrs.dexterity) / 4;
-    hit_roll += weapon_hitroll;
+    int base_roll = rand() % 100;
+    int modifier = (attacker->attrs.dexterity - defender->attrs.dexterity) / 4;
+    modifier += weapon_hitroll;
     if (being_has_destroyed_limb(attacker))
-        hit_roll -= DESTROYED_LIMB_HIT_PENALTY;
+        modifier -= DESTROYED_LIMB_HIT_PENALTY;
     /* Positions polish (TODO backlog): a defender who isn't standing --
      * sitting, resting, sleeping, or any of the lower reserved-for-future
      * rungs (see position_t, being.h) -- is an easier target, mirroring
@@ -180,7 +181,25 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * attacker, cmd_attack.c), so this stays in effect for as long as they
      * choose to stay down. */
     if (defender->position != POSITION_STANDING)
-        hit_roll += NON_STANDING_HIT_BONUS;
+        modifier += NON_STANDING_HIT_BONUS;
+    /* Armor class (user 2026-07-11: "Armor & protection... complete the
+     * to-hit/defense formula depth"): a defender's total worn AC
+     * (being_total_ac(), obj.h) makes them harder to hit. Scaled by half
+     * so it sits in the same rough magnitude as the other single
+     * modifiers above rather than dominating them. */
+    modifier -= being_total_ac(defender) / 2;
+
+    /* Guaranteed hit/miss zones (Sneezy's to-hit model): clamp the
+     * modifier total, not the final roll, so an extreme stat/gear
+     * mismatch can never make a hit or a miss impossible outright --
+     * base_roll alone always keeps a ~6% chance of the "wrong" outcome
+     * either way. */
+    if (modifier > 44)
+        modifier = 44;
+    else if (modifier < -44)
+        modifier = -44;
+
+    int hit_roll = base_roll + modifier;
     if (hit_roll < 50) {
         /* nospam (user 2026-07-11, ported from Sneezy's AUTO_NOSPAM): each
          * viewer's own toggle decides whether THEY see a miss -- the

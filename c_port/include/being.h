@@ -433,6 +433,12 @@ int being_limb_pct(const being_t *b, limb_t limb);
  * defeat already fully heals every limb). */
 bool being_has_destroyed_limb(const being_t *b);
 
+/* Total armor class across every worn slot (sums obj_armor_ac() over
+ * equipment[LIMB_COUNT]) -- combat.c's combat_strike() subtracts a scaled
+ * fraction of this from the attacker's hit roll. 0 for an unarmored
+ * being. */
+int being_total_ac(const being_t *b);
+
 /* Rank title for an immortal level (51-53 "Immortal", 54-57 "God", 58
  * "Greater God", 59 "Administrator", 60+ "Implementor"), or NULL for a
  * mortal level (< IMMORTAL_LEVEL_MIN) -- callers fall back to showing the

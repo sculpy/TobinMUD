@@ -20,6 +20,28 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-11 (continued) — working these next
 
+- [x] **Armor Class + completed to-hit/defense formula** — done (user
+      2026-07-11: "Armor & protection (AC) go in next, complete the
+      to-hit / defense formula depth"). New `obj_armor_ac()` (obj.c) --
+      the seeded `obj` table's armor rows are uniformly `val0=0` (no real
+      per-item AC was ever populated, confirmed by querying the live DB;
+      contrast weapons, whose val0/val1 dice fields ARE populated), so AC
+      is derived from the piece's weight instead (`weight * 2`, capped at
+      30) -- same "placeholder formula from an available field" precedent
+      as the damage formula's STR-ATTR_BASE term. New `being_total_ac()`
+      (being.c) sums it across all worn slots; `score` now shows "Armor
+      Class: N". `combat_strike()`'s hit-roll formula folds this in
+      (subtracted, halved to match the other modifiers' magnitude) and
+      also gained Sneezy's "guaranteed hit/miss zones": the modifier
+      total (dex diff + weapon hitroll + position bonus + limb penalty -
+      AC/2) is now clamped to +/-44 BEFORE adding the d100 base roll,
+      so no stat/gear mismatch, however extreme, can make a hit or a
+      miss completely impossible (~6% floor either way) -- previously an
+      unclamped modifier could in principle guarantee one or the other.
+      `tests/smoke_test_armor.py` covers unarmored-vs-armored Armor Class
+      display and that removing armor drops it back to 0; existing
+      `smoke_test_weapon_messaging.py` confirmed the change didn't break
+      ordinary combat.
 - [x] **`edit player`: Class and Race fields** — done (user 2026-07-11:
       "player editor needs ability to modify class and race, and should
       be able to set class and race"). Two new menu items (9/0, matching

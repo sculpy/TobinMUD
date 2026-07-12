@@ -271,3 +271,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Edit Player Can Now Change Class and Race', '`edit player` (58+) gained two new fields: 9) Class and 0) Race, alongside the existing level/xp/hp/attributes/gender/title/load-room/handedness. Changes save and sync to an already-connected target immediately, same as every other field.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Armor Now Actually Protects You', 'Worn armor has a real Armor Class now, shown on `score`, and it makes you harder to hit -- subtracted from the attacker''s hit roll in combat. Since the seeded item data never carried a real per-piece AC value, it''s derived from the piece''s weight (heavier = more protection, capped at 30). The to-hit formula also gained a guaranteed hit/miss floor: no stat or gear mismatch, however extreme, can make a hit or a miss completely impossible.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

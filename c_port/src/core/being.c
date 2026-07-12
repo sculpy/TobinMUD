@@ -465,6 +465,15 @@ bool being_has_destroyed_limb(const being_t *b) {
     return false;
 }
 
+int being_total_ac(const being_t *b) {
+    if (!b)
+        return 0;
+    int total = 0;
+    for (int i = 0; i < LIMB_COUNT; i++)
+        total += obj_armor_ac(b->equipment[i]);
+    return total;
+}
+
 void being_heal(being_t *b, int amount) {
     if (!b || amount <= 0)
         return;

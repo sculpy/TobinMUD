@@ -417,6 +417,18 @@ const char *obj_apply_ground_token(const char *text, const struct room *room,
     return buf;
 }
 
+#define ARMOR_AC_PER_WEIGHT 2   /* see obj.h's obj_armor_ac() doc comment */
+#define ARMOR_AC_MAX 30         /* caps one absurdly heavy piece from dominating */
+
+int obj_armor_ac(const obj_t *o) {
+    if (!o || o->category != OBJ_CAT_ARMOR)
+        return 0;
+    int ac = (int)(o->weight * ARMOR_AC_PER_WEIGHT);
+    if (ac > ARMOR_AC_MAX)
+        ac = ARMOR_AC_MAX;
+    return ac;
+}
+
 double obj_contained_weight(const obj_t *container) {
     if (!container)
         return 0.0;
