@@ -47,12 +47,15 @@ static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
     return NULL;
 }
 
-static const skill_def_t *find_spell(player_class_t cls, const char *name) {
+/* `any_class` (immortals -- user 2026-07-12: "immortals can use any
+ * skill or spell in game, no class restrictions") searches the whole
+ * roster instead of just `cls`. */
+static const skill_def_t *find_spell(player_class_t cls, const char *name, bool any_class) {
     size_t len = strlen(name);
     int count = skill_count();
     for (int i = 0; i < count; i++) {
         const skill_def_t *sk = skill_at(i);
-        if (sk->cls != cls || sk->tier == SKILL_TIER_COMBAT)
+        if ((!any_class && sk->cls != cls) || sk->tier == SKILL_TIER_COMBAT)
             continue;
         if (strncasecmp(sk->name, name, len) == 0)
             return sk;
@@ -95,7 +98,8 @@ bool cmd_pray(descriptor_t *d, const char *args) {
     if (!ch)
         return true;
 
-    if (ch->char_class != CLASS_CLERIC) {
+    bool imm = being_is_immortal(ch);
+    if (!imm && ch->char_class != CLASS_CLERIC) {
         descriptor_send(d, "Huh?!\r\n");
         return true;
     }
@@ -107,12 +111,12 @@ bool cmd_pray(descriptor_t *d, const char *args) {
         return true;
     }
 
-    const skill_def_t *sk = find_spell(CLASS_CLERIC, args);
+    const skill_def_t *sk = find_spell(CLASS_CLERIC, args, imm);
     if (!sk) {
         descriptor_send(d, "You don't know a prayer by that name.\r\n");
         return true;
     }
-    if (ch->progress.level < sk->min_level) {
+    if (!imm && ch->progress.level < sk->min_level) {
         char msg[96];
         snprintf(msg, sizeof(msg), "You aren't experienced enough to pray for %s yet (level %d).\r\n",
                  sk->name, sk->min_level);

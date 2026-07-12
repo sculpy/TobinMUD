@@ -61,13 +61,15 @@ static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
  * light") in the roster for `cls`, restricted to spells (not the
  * SKILL_TIER_COMBAT weapon-proficiency placeholders, which aren't
  * something you "cast"). First match wins, same abbreviation convention
- * as command/skill-name matching elsewhere. */
-static const skill_def_t *find_spell(player_class_t cls, const char *name) {
+ * as command/skill-name matching elsewhere. `any_class` (immortals --
+ * user 2026-07-12: "immortals can use any skill or spell in game, no
+ * class restrictions") searches the whole roster instead of just `cls`. */
+static const skill_def_t *find_spell(player_class_t cls, const char *name, bool any_class) {
     size_t len = strlen(name);
     int count = skill_count();
     for (int i = 0; i < count; i++) {
         const skill_def_t *sk = skill_at(i);
-        if (sk->cls != cls || sk->tier == SKILL_TIER_COMBAT)
+        if ((!any_class && sk->cls != cls) || sk->tier == SKILL_TIER_COMBAT)
             continue;
         if (strncasecmp(sk->name, name, len) == 0)
             return sk;
@@ -115,7 +117,8 @@ bool cmd_cast(descriptor_t *d, const char *args) {
     if (!ch)
         return true;
 
-    if (ch->char_class != CLASS_MAGE && ch->char_class != CLASS_DRUID) {
+    bool imm = being_is_immortal(ch);
+    if (!imm && ch->char_class != CLASS_MAGE && ch->char_class != CLASS_DRUID) {
         descriptor_send(d, "Huh?!\r\n");
         return true;
     }
@@ -127,12 +130,12 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         return true;
     }
 
-    const skill_def_t *sk = find_spell(ch->char_class, args);
+    const skill_def_t *sk = find_spell(ch->char_class, args, imm);
     if (!sk) {
         descriptor_send(d, "You don't know a spell by that name.\r\n");
         return true;
     }
-    if (ch->progress.level < sk->min_level) {
+    if (!imm && ch->progress.level < sk->min_level) {
         char msg[96];
         snprintf(msg, sizeof(msg), "You aren't experienced enough to cast %s yet (level %d).\r\n",
                  sk->name, sk->min_level);

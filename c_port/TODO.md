@@ -34,6 +34,28 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       non-fixture passes independently. `tests/smoke_test_room_stacking.py`
       covers 3-mob and 3-object stacking, a lone mob showing no suffix,
       and two different mobs never merging.
+- [x] **Immortals bypass class restrictions on skills/spells** — done.
+      User: "immortals can use any skill or spell in game, no class
+      restrictions." `cmd_cast.c`/`cmd_pray.c`'s class gate
+      (`ch->char_class != CLASS_MAGE/CLASS_DRUID` / `!= CLASS_CLERIC`) and
+      each command's `find_spell()` (previously hard-restricted to the
+      caller's own class) now both short-circuit for
+      `being_is_immortal(ch)` -- an immortal's `find_spell()` searches
+      every class's roster, and the spell's `min_level` check is skipped
+      too (an immortal shouldn't be locked out of a level-99 spell they're
+      testing). The component/holy-symbol item requirement is
+      deliberately NOT bypassed -- that's an item gate, not a class
+      restriction, same spirit as `cast`/`pray`'s existing design.
+      `cmd_skills.c` got the matching discoverability change: an immortal's
+      `skills` now prints every class's full 3-tier roster under a
+      `=== <Class> ===` heading (all shown as known, sidestepping the
+      level-dimming) instead of just their own class. New
+      `tests/smoke_test_immortal_castpray.py` covers an immortal Warrior
+      reaching and successfully casting a Mage spell and praying a Cleric
+      spell (still needing the component/symbol item each time), an
+      immortal's `skills` output containing other classes' sections, and
+      a regression check that a same-class mortal Warrior is still
+      refused entirely.
 - [x] **`cast`/`pray` with component/holy-symbol requirements** — done
       (v1 scope). User: "clerics should require a holy symbol to pray
       successfully, druids and mages should require components to cast

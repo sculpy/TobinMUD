@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "being.h"
 #include "skill.h"
 
 /* `skills`: lists a player's class's skill/spell roster, grouped into the
@@ -50,17 +51,38 @@ bool cmd_skills(descriptor_t *d, const char *args) {
     if (!d->character)
         return true;
 
-    player_class_t cls = d->character->char_class;
-    int level = d->character->progress.level;
-
-    char out[8192];
-    size_t n = 0;
     if (skill_at(0) == NULL) {
         /* Unreachable in practice (the roster is never empty), but keeps
          * this loop-free if it ever were. */
         descriptor_send(d, "No skills are defined yet.\r\n");
         return true;
     }
+
+    char out[8192];
+    size_t n = 0;
+
+    /* Immortals see and can use every class's full roster (user
+     * 2026-07-12: "immortals can use any skill or spell in game, no
+     * class restrictions") -- print every class's tiers, all shown as
+     * known (level 999 sidesteps the per-skill min_level dimming, same
+     * as the level-gate bypass in cmd_cast.c/cmd_pray.c). */
+    if (being_is_immortal(d->character)) {
+        for (player_class_t cls = 0; cls < CLASS_COUNT; cls++) {
+            char cout[4096];
+            size_t cn = 0;
+            char header[64];
+            snprintf(header, sizeof(header), "\r\n<y>=== %s ===<z>\r\n", class_name(cls));
+            cn += (size_t)snprintf(cout + cn, sizeof(cout) - cn, "%s", header);
+            print_tier(d, cls, SKILL_TIER_COMBAT, 999, cout, sizeof(cout), &cn);
+            print_tier(d, cls, SKILL_TIER_CLASS, 999, cout, sizeof(cout), &cn);
+            print_tier(d, cls, SKILL_TIER_ADVANCED, 999, cout, sizeof(cout), &cn);
+            descriptor_send(d, cout);
+        }
+        return true;
+    }
+
+    player_class_t cls = d->character->char_class;
+    int level = d->character->progress.level;
 
     bool has_any = false;
     for (int i = 0; i < skill_count(); i++) {

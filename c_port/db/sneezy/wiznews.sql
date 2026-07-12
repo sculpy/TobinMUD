@@ -291,3 +291,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Room Listings Stack Identical Things', 'Multiple identical mobs or objects in a room now show as one line with an "(xN)" count instead of repeating the same line over and over -- three gremlins now read "A gremlin is here. (x3)".')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Immortals Ignore Class Restrictions on Skills/Spells', 'Immortals can now `cast` or `pray` any spell in the game regardless of their own class, and `skills` shows every class''s full roster (grouped by class heading) instead of just their own. Level requirements are bypassed the same way. Component/holy-symbol item requirements still apply -- those are an item gate, not a class restriction. Mortals see no change.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
