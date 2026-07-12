@@ -49,6 +49,13 @@ bool db_fetch_row(db_conn_t *conn);
 const char *db_get(db_conn_t *conn, const char *col_name);
 const char *db_get_idx(db_conn_t *conn, unsigned int idx);
 
+/* Column-name introspection (user 2026-07-12's `stat` command,
+ * cmd_stat.c) -- lets a caller dump every column of the current result
+ * generically ("<col_name>: <value>" per line) without hardcoding each
+ * table's field list by hand. */
+unsigned int db_col_count(db_conn_t *conn);
+const char *db_col_name(db_conn_t *conn, unsigned int idx);
+
 bool db_has_results(db_conn_t *conn);
 long db_row_count(db_conn_t *conn);
 long db_last_insert_id(db_conn_t *conn);

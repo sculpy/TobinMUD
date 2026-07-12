@@ -124,6 +124,7 @@ bool cmd_zonefile(descriptor_t *d, const char *args);
 bool cmd_edtrigger(descriptor_t *d, const char *args);
 bool cmd_consider(descriptor_t *d, const char *args);
 bool cmd_egotrip(descriptor_t *d, const char *args);
+bool cmd_stat(descriptor_t *d, const char *args);
 bool cmd_examine(descriptor_t *d, const char *args);
 bool cmd_sip(descriptor_t *d, const char *args);
 bool cmd_show(descriptor_t *d, const char *args);
@@ -201,6 +202,10 @@ bool look_at_target(descriptor_t *d, const char *args);
  * matching `balance`'s tier -- "should be used seldomly" per the
  * original's own help text. */
 #define EGOTRIP_MIN_LEVEL 60
+
+/* `stat` (see everything about an obj/mob/room prototype by vnum): 55+,
+ * user-specified (2026-07-12). */
+#define STAT_MIN_LEVEL 55
 
 /* `snoop`: 59+, user-specified (2026-07-11). Same-or-higher-level targets
  * are refused inside cmd_snoop.c itself, not by this table gate alone. */

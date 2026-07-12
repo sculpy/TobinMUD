@@ -2061,10 +2061,27 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       halving HP each time (loosened to a tolerance band after finding
       the periodic HP-regen tick (`REGEN_PULSES`) nudges the exact
       before/after numbers by a point or two between reads).
-- [ ] **`stat` command (Implementor 55+)** — `stat obj|mob|room <vnum>`
-      shows everything about that object/mob/room. User: "add stat command
-      so an immortal of level 55+ can see everything about the mob obj or
-      room with a vnum argument (Ex.: stat obj 101) from sneezy."
+- [x] **`stat` command (Implementor 55+)** — done. User: "add stat
+      command so an immortal of level 55+ can see everything about the
+      mob obj or room with a vnum argument (Ex.: stat obj 101) from
+      sneezy." Rather than hardcode each of `obj`/`mob`/`room`'s ~20-40
+      column names by hand (and risk silently going stale whenever a
+      column gets added), `stat` dumps every column of the row
+      generically via two new small accessors added to `db.c`/`db.h`
+      (`db_col_count()`/`db_col_name()`, alongside the already-existing
+      `db_get_idx()`) -- "<column>: <value>" per line, driven entirely
+      by whatever the query actually returned. Distinct from the
+      existing `vnum` command (cmd_vnum.c), which searches BY NAME and
+      shows one summary line per match -- `stat` takes an exact vnum and
+      shows everything about that one row. Also appends what a bare
+      column dump alone would miss: a room's exits (`roomexit` table)
+      and an object's hitroll/damroll/AC-style affects (`objaffect`
+      table). `tests/smoke_test_stat.py` covers the 55+ gate, all three
+      categories (obj/mob/room) each showing their own header plus a
+      couple of known column values, the extra exits/affects sections,
+      and a nonexistent vnum reporting plainly instead of an empty dump.
+      `smoke_test_vnum.py` re-run clean (same `db.c` file touched, but
+      only additive new functions).
 - [ ] **Boxed ASCII-art menu rework, all character-facing menus** — user
       gave the exact account-menu before/after and said to apply the same
       boxed style everywhere. Old:

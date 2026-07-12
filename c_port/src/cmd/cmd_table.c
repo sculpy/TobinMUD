@@ -187,6 +187,9 @@ static const cmd_entry_t COMMANDS[] = {
     /* "re" already reaches "rest" (above) -- "remove" needs "rem". */
     { "remove",  cmd_remove,  "Take off a worn or held item (remove <item>).",     MORTAL_LEVEL_MIN },
     { "vnum",    cmd_vnum,    "List vnums of rooms/objs/mobs by name (vnum <room|obj|mob> <pat>).", BUILD_MIN_LEVEL },
+    /* "sta" already reaches "stand" (registered earlier, above) -- "stat"
+     * typed in full is safe either way (they diverge at the 4th letter). */
+    { "stat",    cmd_stat,    "See every field of an obj/mob/room prototype (stat <obj|mob|room> <vnum>).", STAT_MIN_LEVEL },
     { "zone",    cmd_zone,    "zone reset <zone>, or zone assign <zone> <bottom> <top> <builder> (55+).", BUILD_MIN_LEVEL },
     /* Must stay AFTER "zone" above -- a bare "zone" abbreviation must match
      * the shorter "zone" entry first (see cmd_dispatch()'s prefix-match

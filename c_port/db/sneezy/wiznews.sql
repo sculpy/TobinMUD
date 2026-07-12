@@ -359,3 +359,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Major Limbs Are Now Fatal, and Bigger Targets Get Hit More', 'Losing your head, neck, waist, or torso to combat damage is now instant death -- losing an arm, leg, finger, or foot still is not. Taking off the neck also takes the head with it. Which limb gets hit is no longer a flat coin-flip across all thirteen either: a torso is a much bigger target than a finger, so it (and the other bigger limbs) gets hit far more often, mirroring real Sneezy''s own body-part weighting.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New Builder Tool: stat (55+)', '`stat obj|mob|room <vnum>` dumps every single field of that prototype''s row, plus its exits (for a room) or its hitroll/damroll/AC affects (for an object). Unlike `vnum`, which searches by name, `stat` needs an exact vnum -- but shows everything about it once you have one.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

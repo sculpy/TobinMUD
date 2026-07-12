@@ -236,6 +236,16 @@ const char *db_get_idx(db_conn_t *conn, unsigned int idx) {
     return conn->row[idx] ? conn->row[idx] : "";
 }
 
+unsigned int db_col_count(db_conn_t *conn) {
+    return conn ? conn->col_count : 0;
+}
+
+const char *db_col_name(db_conn_t *conn, unsigned int idx) {
+    if (!conn || idx >= conn->col_count)
+        return "";
+    return conn->col_names[idx];
+}
+
 bool db_has_results(db_conn_t *conn) {
     return conn && conn->res && mysql_num_rows(conn->res) > 0;
 }
