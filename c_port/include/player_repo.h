@@ -112,6 +112,20 @@ bool player_progress_load(long player_id, progress_t *out);
 /* Upserts (insert-or-replace) the player_progress row for player_id. */
 bool player_progress_save(long player_id, const progress_t *progress);
 
+/* Persists everything about a live character in one call: attrs,
+ * progress (level/xp/hp/etc), and inventory (obj_repo.h). Mirrors the
+ * original's real `TBeing::doSave()` (user request, 2026-07-07: "add a
+ * save command to manually save your character") -- a genuine port, not
+ * a Tobin invention, consolidating the scattered player_attrs_save/
+ * player_progress_save/player_inventory_save call sites into one place.
+ * Backs the player-invokable `save` command (cmd_save.c) and the
+ * quit/death auto-save in descriptor_leave_to_menu() (user, 2026-07-12:
+ * "the game should automatically save a char upon death or quit").
+ * Limb HP is deliberately NOT included -- it isn't persisted at all
+ * (recalculated from strength on every fresh load, see being.c). Returns
+ * false if any individual save failed (still attempts all three). */
+bool player_save(long player_id, const being_t *b);
+
 /* Sets the persisted level of any player by exact name -- deliberately NOT
  * scoped to an account, unlike everything else here: this backs the
  * immortal-only `promote` command, which acts across accounts. Returns

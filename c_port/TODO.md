@@ -2401,27 +2401,33 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       need XP).
 - [ ] **Mid-fight persistence** — HP and limb HP are only saved at defeat; a
       mid-fight disconnect reloads at last-saved values.
-- [ ] **`player_save()` + a `save` command** (user request, 2026-07-07) — a
-      single function that persists everything about a character in one
-      call (progress/attrs/inventory, and by extension HP/limb HP once
-      those are added to it), plus a player-invokable `save` command that
-      calls it on demand. Mirrors the original's real `TBeing::doSave()`
-      (`cmd/cmd_save.cc`) -- a genuine port, not a Tobin invention. This
-      would consolidate the currently-scattered save-at-mutation-point
-      calls (`player_attrs_save`/`player_progress_save`/
-      `player_inventory_save`, each called separately from `set`,
-      `cmd_mortal.c`, `combat_defeat()`, and every object command) into one
-      place, and directly close the "Mid-fight persistence" gap above.
+- [x] **`player_save()` + a `save` command** (user request, 2026-07-07) —
+      done. A single `player_save(player_id, being_t*)` (`player_repo.c`/
+      `.h`) persists attrs, progress (level/xp/hp/etc), and inventory in
+      one call -- mirrors the original's real `TBeing::doSave()`
+      (`cmd/cmd_save.cc`), a genuine port, not a Tobin invention. A new
+      player-invokable `save` command (`cmd_save.c`) calls it on demand
+      ("Saved." / "Save failed -- the database is unavailable."). Limb HP
+      deliberately isn't included -- it's never persisted at all,
+      recalculated from strength on every fresh load (see being.c).
       Follow-up (user, 2026-07-12): **quit and death should auto-save**.
-      Confirmed this is a real gap, not just theoretical: neither
+      Confirmed this was a real gap, not just theoretical: neither
       `cmd_quit.c`'s `descriptor_leave_to_menu()` nor `being_destroy()`
-      (`being.c`) persists anything before freeing the character --
-      today's quit/death only keeps whatever was already flushed by an
-      earlier scattered save call, so state changed since the last one
-      (attrs, inventory, HP) is silently lost. Once `player_save()`
-      exists, call it from `descriptor_leave_to_menu()` (covers both
-      `quit!` and a defeat's loser path, since both already route through
-      it) BEFORE `being_destroy()` frees the character.
+      persisted anything before freeing the character, so state changed
+      since the last scattered save call (attrs, inventory, HP) was
+      silently lost. Fixed by calling `player_save()` from
+      `descriptor_leave_to_menu()` right before `being_destroy()` frees
+      the character -- covers both `quit!` (`cmd_quit.c`) and a PC's
+      combat defeat (`combat_defeat()`'s loser-has-a-desc path,
+      `combat.c`), since both already route through that one function.
+      `tests/smoke_test_save.py` uses mid-fight HP loss as the test
+      signal, since it's the one state change in the game deliberately
+      NOT saved the instant it happens (see "Mid-fight persistence"
+      above): confirms damage sits unsaved in memory until `save` (or a
+      `quit!` with no explicit save first) writes it to
+      `player_progress.hp`. `smoke_test_quit.py`/`smoke_test_multiplay.py`
+      re-run clean (shared `descriptor.c`/`cmd_table.c` touched, but only
+      additive).
 
 ## Blocked on Objects / Mobs (Phase 2C/2D/2E)
 

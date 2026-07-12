@@ -552,3 +552,10 @@ bool player_set_pflags(long player_id, int flags) {
     db_close(db);
     return ok;
 }
+
+bool player_save(long player_id, const being_t *b) {
+    bool ok = player_attrs_save(player_id, &b->attrs);
+    ok = player_progress_save(player_id, &b->progress) && ok;
+    ok = player_inventory_save(player_id, b) && ok;
+    return ok;
+}

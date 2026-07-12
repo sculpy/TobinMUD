@@ -613,6 +613,14 @@ static void show_account_menu(descriptor_t *d) {
  * closes the connection instead. */
 void descriptor_leave_to_menu(descriptor_t *d) {
     if (d->character) {
+        /* Auto-save (user, 2026-07-12: "the game should automatically
+         * save a char upon death or quit") -- this is the one choke
+         * point both `quit!` (cmd_quit.c) and a PC's combat defeat
+         * (combat.c's combat_defeat(), loser->desc route) already share,
+         * so a single call here covers both without duplicating it at
+         * each call site. Must run BEFORE being_destroy() frees the
+         * character. */
+        player_save(d->character->player_id, d->character);
         being_destroy(d->character); /* also removes it from its room */
         d->character = NULL;
     }

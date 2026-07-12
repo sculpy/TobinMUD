@@ -203,6 +203,7 @@ static const cmd_entry_t COMMANDS[] = {
      * unified edit dispatcher below). */
     { "time",    cmd_time,    "Show the current mud clock, weekday, and date.",     MORTAL_LEVEL_MIN },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
+    { "save",    cmd_save,    "Save your character now.",                           MORTAL_LEVEL_MIN },
     /* "bamfin"/"bamfout" now set `goto`'s custom teleport messages;
      * "poofin"/"poofout" (their old name, before a same-session rename to
      * "bamfin"/"bamfout" and then back) set the WALKING move messages --
