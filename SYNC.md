@@ -40,9 +40,15 @@ derived, not authoritative.
 
 ### Arriving at a location
 ```bash
+sudo dnf update -y                       # FIRST: keep the toolchain matched across boxes (see Toolchain parity)
 cd ~/NewMUD && git pull --ff-only        # or reset --hard origin/main if the tree is derived-only
 ```
 Then, on that location's build box, run the deploy sequence below.
+
+> **`dnf update` is step 0 every session** (user habit, 2026-07-13) so Home and
+> Work never drift apart on gcc/cmake. `mud` is in sudoers on both boxes but
+> sudo needs a password, so a human runs this (or grant a scoped
+> `NOPASSWD: /usr/bin/dnf` drop-in via `visudo` to let it be automated).
 
 ### Leaving a location
 ```bash
