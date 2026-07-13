@@ -11,6 +11,11 @@ vnum argument (Ex.: stat obj 101) from sneezy"). Covers:
      exits.
   5. A nonexistent vnum reports "No such <table> vnum <n>." instead of
      an empty/blank dump.
+  6. `stat player <name>` (user 2026-07-12: "stat player <name> to stat
+     a player") dumps the player/player_progress/player_attrs rows,
+     decoded the same way (class/race/gender as words, alignment tier
+     alongside the raw number), and reports plainly for a name that
+     doesn't exist.
 
     python3 tests/smoke_test_stat.py [host] [port]
 """
@@ -103,9 +108,9 @@ def make_char(name, pw, class_choice="1"):
     send_line(s, pw); recv_all(s)
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
-    send_line(s, "done"); recv_all(s)
     send_line(s, "1"); recv_all(s)
     send_line(s, class_choice); recv_all(s)
+    send_line(s, "done"); recv_all(s)
     send_line(s, "2"); recv_all(s)
     cmd(s, "color off")
     return s
@@ -199,6 +204,27 @@ check("room_flag" in out and "[ INDOORS ]" in out, "stat room shows room_flag de
 # --- 5: a nonexistent vnum is reported plainly ---
 out = cmd(s_imm, "stat obj 999999999")
 check("No such obj vnum 999999999" in out, "a nonexistent vnum is reported plainly, not a blank dump")
+
+# --- 6: stat player dumps the player/progress/attrs tables ---
+# imm_name already went through a real quit! (above, before promotion),
+# so player_save() persisted it; the later set_level() SQL edit ran AFTER
+# that close, the safe order (see the quit!-autosave regression notes),
+# so player_progress genuinely holds level=55 on disk.
+out = cmd(s_imm, f"stat player {imm_name}")
+check(f"Player {imm_name}" in out, "stat player shows the player header")
+check("class" in out and "Warrior" in out, "stat player shows class as a readable name (Warrior)")
+check("race" in out and "Human" in out, "stat player shows race as a readable name (Human)")
+check("gender" in out and "neuter" in out, "stat player shows gender as a readable name (neuter default)")
+check("Progress" in out and "level" in out and "55" in out,
+      "stat player shows the player_progress section with the persisted level")
+check("alignment_tier" in out and "neutral" in out,
+      "stat player shows a decoded alignment tier alongside the raw value")
+check("Attributes" in out and "strength" in out,
+      "stat player shows the player_attrs section")
+
+out = cmd(s_imm, "stat player NoSuchPlayerAtAll")
+check("No such player 'NoSuchPlayerAtAll'" in out,
+      "a nonexistent player name is reported plainly, not a blank dump")
 
 s_imm.close()
 s_mort.close()

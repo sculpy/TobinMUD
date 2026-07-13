@@ -249,9 +249,9 @@ UPDATE `help_topic` SET `body` = 'Usage: get <item> [container]\n\nPicks up an i
   WHERE `name` = 'get' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Containers -- bags, chests, pouches, corpses, and the like -- can hold\nother items.\n\n  put <item> <container>        stash a carried item inside\n  get <item> <container>        take an item back out\n  get all <container>           take EVERYTHING out at once\n  look <container>              see what''s inside (when open)\n  open / close <container>      shut or unshut a closeable container\n\nA closed container keeps its contents to itself until you open it, and\nnothing more fits once its weight capacity is full. Locks and keys\naren''t built yet, so a locked container can''t be opened for now.'
   WHERE `name` = 'containers' AND `updated_by` = 'seed';
-UPDATE `help_topic` SET `body` = 'Usage: open <direction|container>\n\nOpens a closed door blocking that exit, or a closeable container (a\nbag, chest, and the like) that you''re carrying or that''s on the floor.\nA locked door or container can''t be opened this way -- that needs a\nkey, which isn''t built yet. Close it again with `close`.'
+UPDATE `help_topic` SET `body` = 'Usage: open <direction>   |   open door [direction]   |   open <container>\n\nOpens a closed door blocking that exit, or a closeable container (a\nbag, chest, and the like) that you''re carrying or that''s on the floor.\n`door` is an optional word in front of the direction (`open door\nnorth`, matching Sneezy''s original phrasing) -- `open north` alone\nstill works too. A bare `open door` with no direction opens the room''s\none door, if it has exactly one. A locked door or container can''t be\nopened this way -- that needs a key, which isn''t built yet. Close it\nagain with `close`.'
   WHERE `name` = 'open' AND `updated_by` = 'seed';
-UPDATE `help_topic` SET `body` = 'Usage: close <direction|container>\n\nCloses a door blocking that exit, or a closeable container you''re\ncarrying or that''s on the floor. A closed door blocks movement; a\nclosed container keeps its contents sealed until someone opens it\nagain with `open`.'
+UPDATE `help_topic` SET `body` = 'Usage: close <direction>   |   close door [direction]   |   close <container>\n\nCloses a door blocking that exit, or a closeable container you''re\ncarrying or that''s on the floor. `door` is an optional word in front\nof the direction (`close door north`, matching Sneezy''s original\nphrasing) -- `close north` alone still works too. A bare `close door`\nwith no direction closes the room''s one door, if it has exactly one.\nA closed door blocks movement; a closed container keeps its contents\nsealed until someone opens it again with `open`.'
   WHERE `name` = 'close' AND `updated_by` = 'seed';
 
 -- Merge oload/mload into `load` (user 2026-07-09: one command, category as
@@ -667,3 +667,20 @@ UPDATE `help_topic` SET `body` = 'Usage: help [topic]\n\nWith no argument, lists
   WHERE `name` = 'help' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Usage: wizhelp\n\nImmortals only: lists the immortal-only commands, with the minimum\nlevel each one requires. New immortal? Start with `help\nadministration`.\n\nRelated: administration help edit'
   WHERE `name` = 'wizhelp' AND `updated_by` = 'seed';
+
+-- `stat player <name>` (user 2026-07-12: "stat player <name> to stat a
+-- player") -- full-body replacement, same guarded pattern as help/wizhelp
+-- above, since ON DUPLICATE KEY UPDATE name=name would otherwise leave
+-- the old obj/mob/room-only wording in place for anyone who already has
+-- this row seeded.
+UPDATE `help_topic` SET `body` = 'Usage: stat <obj|mob|room> <vnum>   |   stat player <name>\n\nBuilder tool (level 55+): dumps EVERY column of that exact prototype\nrow -- name/short/long descriptions, every stat and flag -- decoded to\nreadable text wherever a raw number alone would not mean anything\n(wear/action flags as bracketed names, class/race/sector as words, not\nnumbers). A room additionally lists its exits; an object its\nhitroll/damroll-style affects. Unlike `vnum` (which searches BY NAME\nand shows one summary line per match), `stat` needs an exact vnum but\nthen holds nothing back.\n\n`stat player <name>` is the one form keyed by name instead of vnum --\nit looks a player up across all three of their tables (identity,\nlevel/experience/HP/alignment, and attributes) and dumps each as its\nown section, decoded the same way (class/race/gender as words, plus an\nalignment tier alongside the raw number).'
+  WHERE `name` = 'stat' AND `updated_by` = 'seed';
+
+-- `goto guildmaster`/`goto rent`/`goto surplus` (user 2026-07-12: "add a
+-- goto class function that mortals can do to help find thier
+-- guildmasters"; follow-up: "goto guildmaster should give them
+-- directions, not transfer. also add a goto rent, goto surplus for now
+-- with goto expanding for mortals") -- full-body replacement, same
+-- guarded pattern as above.
+UPDATE `help_topic` SET `body` = 'Usage: goto guildmaster|rent|surplus   |   goto <room vnum | player> (immortals)\n\nThree landmark forms are open to everyone: `goto guildmaster` reports\nwalking directions to the nearest guildmaster of your own class, `goto\nrent` to the inn, and `goto surplus` to the surplus store -- none of\nthese teleport you, they just tell you the way (shortest real path,\nby actual room exits). Standing right there already just says so.\nEvery other form of `goto` is immortals only, and DOES teleport -- a\nroom by its vnum, or another online player by name (you land in their\nroom). Useful vnums: 0 (The Void), 1 (Imperia).\n\nRelated: practice rent bamfin bamfout transfer'
+  WHERE `name` = 'goto' AND `updated_by` = 'seed';

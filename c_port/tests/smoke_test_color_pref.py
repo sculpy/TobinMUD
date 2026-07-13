@@ -98,9 +98,9 @@ send_line(s, ""); recv_all(s)              # accept the (none) time zone default
 # now at account menu -> create a character
 send_line(s, "new"); recv_all(s)
 send_line(s, name); recv_all(s)
-send_line(s, "done"); recv_all(s)         # in game now
 send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
 send_line(s, "1"); recv_all(s)  # class: mage
+send_line(s, "done"); recv_all(s)         # in game now
 send_line(s, "2"); recv_all(s)  # alignment: neutral
 
 check("currently OFF" in cmd(s, "color"), "color reports OFF in game after declining")

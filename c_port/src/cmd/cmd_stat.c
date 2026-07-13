@@ -13,6 +13,7 @@
 #include "db.h"
 #include "mob_ai.h"
 #include "obj.h"
+#include "player_repo.h"
 #include "room.h"
 
 /* `stat obj|mob|room <vnum>` (Sneezy port, user 2026-07-12: "add stat
@@ -52,7 +53,19 @@
  * obj_action_flag_names() (obj.c); room's `sector` and `room_flag`
  * decode via the already-existing sector_name()/room_flag_names()
  * (room.c) -- those two already existed for `look`/`redit` and just
- * weren't wired into `stat` yet. */
+ * weren't wired into `stat` yet.
+ *
+ * Fourth follow-up (user 2026-07-12: "stat player <name> to stat a
+ * player"): players aren't a single vnum-keyed table like obj/mob/room --
+ * they're a name-keyed row in `player`, plus one-to-one rows in
+ * `player_progress` and `player_attrs` -- so stat_player() below looks the
+ * name up via the existing player_id_for_name() (player_repo.c) and dumps
+ * all three tables as separate sections, same generic dump_row() as
+ * everywhere else. Reads straight from the DB, not the live in-memory
+ * being_t, matching how `stat mob`/`stat room` already show the DB
+ * prototype rather than any particular spawned instance's live state --
+ * an online player's most current data is on disk anyway via player_save()
+ * at their last quit/death, or default values pre-first-save. */
 
 /* Column names dump_row() should skip entirely -- either because this
  * file prints its own decoded line for them instead, or (faction/
@@ -76,6 +89,10 @@ static bool is_skipped_column(const char *table, const char *col) {
     if (strcmp(table, "room") == 0) {
         return strcasecmp(col, "room_flag") == 0 || strcasecmp(col, "sector") == 0;
     }
+    if (strcmp(table, "player") == 0) {
+        return strcasecmp(col, "class") == 0 || strcasecmp(col, "race") == 0
+            || strcasecmp(col, "gender") == 0;
+    }
     return false;
 }
 
@@ -90,15 +107,72 @@ static void dump_row(char *out, size_t out_sz, size_t *n, db_conn_t *db, const c
     }
 }
 
+/* `stat player <name>` (user 2026-07-12: "stat player <name> to stat a
+ * player"): name-keyed instead of vnum-keyed, and spread across three
+ * tables instead of one -- see the header comment's fourth follow-up. */
+static bool stat_player(descriptor_t *d, const char *name) {
+    long pid = player_id_for_name(name);
+    if (pid < 0) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "No such player '%s'.\r\n", name);
+        descriptor_send(d, msg);
+        return true;
+    }
+
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db) {
+        descriptor_send(d, "The database is unavailable.\r\n");
+        return true;
+    }
+
+    char out[8192];
+    size_t n = 0;
+    n += (size_t)snprintf(out + n, sizeof(out) - n, "\r\n<c>-- Player %s --<z>\r\n", name);
+
+    if (db_query(db, "select * from player where id=%i", (int)pid) && db_fetch_row(db)) {
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "class",
+                              class_name((player_class_t)atoi(db_get(db, "class"))));
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "race",
+                              race_name((player_race_t)atoi(db_get(db, "race"))));
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "gender",
+                              gender_name((gender_t)atoi(db_get(db, "gender"))));
+        dump_row(out, sizeof(out), &n, db, "player");
+    }
+
+    n += (size_t)snprintf(out + n, sizeof(out) - n, "<c>-- Progress --<z>\r\n");
+    if (db_query(db, "select * from player_progress where player_id=%i", (int)pid) && db_fetch_row(db)) {
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "alignment_tier",
+                              alignment_word(atoi(db_get(db, "alignment"))));
+        dump_row(out, sizeof(out), &n, db, "player_progress");
+    } else {
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  (never saved)\r\n");
+    }
+
+    n += (size_t)snprintf(out + n, sizeof(out) - n, "<c>-- Attributes --<z>\r\n");
+    if (db_query(db, "select * from player_attrs where player_id=%i", (int)pid) && db_fetch_row(db)) {
+        dump_row(out, sizeof(out), &n, db, "player_attrs");
+    } else {
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  (never saved)\r\n");
+    }
+
+    db_close(db);
+    descriptor_send(d, out);
+    return true;
+}
+
 bool cmd_stat(descriptor_t *d, const char *args) {
     char cat[16] = "";
-    int vnum = 0;
-    if (sscanf(args, "%15s %d", cat, &vnum) != 2) {
-        descriptor_send(d, "Usage: stat <obj|mob|room> <vnum>\r\n");
+    char arg2[PLAYER_NAME_LEN] = "";
+    if (sscanf(args, "%15s %63s", cat, arg2) != 2) {
+        descriptor_send(d, "Usage: stat <obj|mob|room> <vnum> | stat player <name>\r\n");
         return true;
     }
 
     size_t clen = strlen(cat);
+    if (strncasecmp(cat, "player", clen) == 0)
+        return stat_player(d, arg2);
+
+    int vnum = atoi(arg2);
     const char *table, *label;
     if (strncasecmp(cat, "object", clen) == 0) {
         table = "obj"; label = "Object";
@@ -107,7 +181,7 @@ bool cmd_stat(descriptor_t *d, const char *args) {
     } else if (strncasecmp(cat, "room", clen) == 0) {
         table = "room"; label = "Room";
     } else {
-        descriptor_send(d, "Usage: stat <obj|mob|room> <vnum>\r\n");
+        descriptor_send(d, "Usage: stat <obj|mob|room> <vnum> | stat player <name>\r\n");
         return true;
     }
 

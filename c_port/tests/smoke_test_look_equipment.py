@@ -98,9 +98,9 @@ def make_char(name, pw):
     send_line(s, pw); recv_all(s)
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
-    send_line(s, "done"); recv_all(s)
     send_line(s, "1"); recv_all(s)  # race
     send_line(s, "1"); recv_all(s)  # class
+    send_line(s, "done"); recv_all(s)
     send_line(s, "2"); recv_all(s)  # alignment
     cmd(s, "color off")
     return s

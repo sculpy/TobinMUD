@@ -116,9 +116,9 @@ def make_char(sock, name, pw):
     send_line(sock, pw); recv_all(sock)
     send_line(sock, "new"); recv_all(sock)
     send_line(sock, name); recv_all(sock)
-    send_line(sock, "done"); recv_all(sock)
     send_line(sock, "1"); recv_all(sock)  # race: human
     send_line(sock, "1"); recv_all(sock)  # class: mage (irrelevant -- HP is overridden via SQL)
+    send_line(sock, "done"); recv_all(sock)
     send_line(sock, "2"); recv_all(sock)  # alignment: neutral
 
 

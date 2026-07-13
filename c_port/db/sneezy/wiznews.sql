@@ -399,3 +399,34 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Help Gets a Real Front Door', 'Two new topics -- `help playing` and `help administration` -- are now the front door to the whole help system: a first-timer sees a one-time nudge toward `help playing` right at character creation, and both `help` and `wizhelp`''s own footers point newcomers there too. `playing` walks a new player through looking around, talking, fighting, classes and skills, and the safe (`rent`) versus risky (`quit!`) way to leave. `administration` explains the immortal level ladder (51 through 60) by WHY each tier sits where it does, not just what unlocks -- including why the debug tools (`hurtlimb`, `aitick`, `stat`, `balance`, `egotrip`, `test`) exist at all: real combat, world ticks, and decay are slow and random by design, and these make them instant and deterministic for testing. Alongside that, every command that had gone entirely without a help entry -- `stat`, `save`, `rent`, `cast`, `pray`, `practice`, `skills`, `affects`, `consider`, `continue`, `examine`, `show`, `sip`, `tell`, `whisper`, `balance`, `egotrip`, `settrap`, `disarmtrap`, `hurtlimb`, `aitick`, `immort`, `test` -- now has one. Found and fixed a real bug chasing this down: the old edroom/edzone/edplayer/edhelp/ednews/edwiznews/edrules -> edit-<noun> rename from Session 21 was never actually safe to re-run -- it would collide with itself and abort partway through on a second deploy. Fixed for good.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'goto guildmaster/rent/surplus: Directions, Not Transfers', '`goto` gained three mortal-usable landmark forms: `goto guildmaster` reports walking directions to the nearest guildmaster of your own class, `goto rent` to the inn, and `goto surplus` to the surplus store -- none of these teleport you, they just tell you the shortest real way there, by actual room exits. Standing right there already just says so. Every other form of `goto` (a room vnum, or another player''s name) is still immortal-only, and still teleports as before.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+-- goto guildmaster was redesigned from a teleport into directions before
+-- this ever shipped in a push (user follow-up, same day: "goto
+-- guildmaster should give them directions, not transfer. also add a
+-- goto rent, goto surplus") -- the INSERT above already carries the
+-- corrected wording under a new title (for a fresh install, and for any
+-- DB that hasn't seeded the old title yet); the earlier "teleports you
+-- straight to" row was already live-seeded once this session under the
+-- OLD title, so it's now a stale duplicate of the same announcement --
+-- delete it rather than rename it (renaming would collide with the new
+-- title the INSERT above just created, same class of bug as the
+-- edroom-rename migration fixed earlier this session).
+DELETE FROM `wiznews` WHERE `title` = 'goto guildmaster: Mortals Can Find Their Trainer Now'
+  AND EXISTS (SELECT 1 FROM (SELECT title FROM wiznews) w
+              WHERE w.title = 'goto guildmaster/rent/surplus: Directions, Not Transfers');
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Character Creation: Choose Race and Class First, and See Who You Are Becoming', 'Two changes to new-character creation. First, you now choose your race and class BEFORE allocating attributes, not after -- so your point-buy choices can be made knowing who you already are. Second, the race and class screens no longer show raw stat bonuses ("+2 Dex, -4 Con"); each entry is now a short, evocative description of what that race or class is actually like to play. The real mechanics behind the scenes have not changed at all -- only how they are presented before you have even started playing.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'stat player: See Everything About a Character', '`stat` now has a fourth form: `stat player <name>` dumps a player''s identity, level/experience/HP/alignment, and attributes, decoded the same way the object/mob/room forms already were -- class, race, and gender as readable words, plus an alignment tier alongside the raw number. Also fixed a real dispatch bug found while testing this batch of changes: typing the exact command `set` was occasionally landing on `settrap` instead, because of how commands are matched by table order -- fixed for good.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'open door <direction> Works Now', '`open`/`close` now accept the word "door" in front of a direction (`open door north`, `close door east`), matching the original game''s documented phrasing -- previously only the bare direction form worked. A bare `open door` with no direction opens the room''s one door, if it has exactly one.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

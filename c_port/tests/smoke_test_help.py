@@ -9,7 +9,9 @@
      hides over-level commands entirely as of Phase 2A).
   4. `wizhelp` for an immortal (hand-promoted via the DB, same pattern as
      every other immortal-only test) lists the real immortal-only commands
-     (`goto`, `promote`), and the immortal's `help` includes them too.
+     (`transfer`, `promote` -- `goto` moved to mortal-visible 2026-07-12
+     once its landmark forms opened up to everyone), and the immortal's
+     `help` includes them too.
 
     python3 tests/smoke_test_help.py [host] [port]
 """
@@ -101,10 +103,10 @@ def make_player(tag):
     recv_all(s)
     send_line(s, name)
     recv_all(s)
-    send_line(s, "done")
-    recv_all(s)
     send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
     send_line(s, "1"); recv_all(s)  # class: mage
+    send_line(s, "done")
+    recv_all(s)
     send_line(s, "2"); recv_all(s)  # alignment: neutral
     return s, name
 
@@ -117,7 +119,7 @@ check("Available commands" in out, "help shows a header")
 for cmd in MORTAL_COMMANDS:
     check(cmd in out, f"help lists '{cmd}'")
 
-check("goto" not in out and "promote" not in out and "wizhelp" not in out,
+check("transfer" not in out and "promote" not in out and "wizhelp" not in out,
       "a mortal's help does not leak immortal-only commands (wizhelp included)")
 
 # --- Part 2: wizhelp is INVISIBLE to mortals (Tier 3) ---
@@ -144,7 +146,7 @@ recv_all(sA)
 send_line(sA, "wizhelp")
 out = recv_all(sA)
 check("Immortal-only commands" in out, "an immortal calling wizhelp sees the immortal-only header")
-check("goto" in out, "wizhelp lists the level-51 immortal commands")
+check("transfer" in out, "wizhelp lists the level-51 immortal commands")
 check("delbug" not in out and "promote" not in out,
       "a level-51's wizhelp does NOT reveal higher-level commands (delbug 59+, promote 58+)")
 check("[51+]" not in out and "[51 +]" not in out,

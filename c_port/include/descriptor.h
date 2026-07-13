@@ -34,10 +34,10 @@ typedef enum {
     CONN_GET_TIMEZONE, /* new-account real-time-zone-offset prompt */
     CONN_ACCOUNT_MENU,
     CONN_CHAR_CREATE_NAME,
-    CONN_CHAR_CREATE_ATTRS,
-    CONN_CHAR_CREATE_RACE,      /* after attrs "done": pick one of 6 races */
+    CONN_CHAR_CREATE_RACE,      /* after name: pick one of 6 races */
     CONN_CHAR_CREATE_CLASS,     /* after race: pick one of 6 classes */
-    CONN_CHAR_CREATE_ALIGNMENT, /* after class: pick good/neutral/evil, then create */
+    CONN_CHAR_CREATE_ATTRS,     /* after class: point-buy, race/class bonuses folded in on "done" */
+    CONN_CHAR_CREATE_ALIGNMENT, /* after attrs: pick good/neutral/evil, then create */
     CONN_CHAR_DELETE_CONFIRM,
     CONN_CHAR_DELETE_PASSWORD, /* typed YES accepted; now re-verify the account password */
     CONN_ACCOUNT_DELETE_CONFIRM,

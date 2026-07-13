@@ -127,10 +127,10 @@ def make_player(suffix_tag):
     recv_all(s)
     send_line(s, name)
     recv_all(s)
-    send_line(s, "done")
-    recv_all(s)
     send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
     send_line(s, "1"); recv_all(s)  # class: mage
+    send_line(s, "done")
+    recv_all(s)
     send_line(s, "2"); recv_all(s)  # alignment: neutral
     return s, name
 

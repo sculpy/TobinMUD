@@ -2114,6 +2114,233 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       `sector_name()`/`room_flag_names()` (room.c) -- those two already
       existed for `look`/`redit` and just weren't wired into `stat` yet.
       `smoke_test_stat.py` extended again; 34/34 checks pass.
+      Fourth follow-up (user 2026-07-12): "stat player <name> to stat a
+      player". Players aren't a single vnum-keyed table like obj/mob/
+      room -- a name-keyed row in `player`, plus one-to-one rows in
+      `player_progress`/`player_attrs` -- so a new `stat_player()`
+      helper (cmd_stat.c) looks the name up via the already-existing
+      `player_id_for_name()` (player_repo.c) and dumps all three tables
+      as separate sections via the same generic `dump_row()`, decoded
+      the same way (class/race/gender as words via the already-existing
+      `class_name()`/`race_name()`/`gender_name()`, plus an
+      `alignment_tier` line via `alignment_word()` alongside the raw
+      alignment number). Reads straight from the DB, matching how `stat
+      mob`/`stat room` already show the prototype rather than any one
+      spawned instance's live state. A nonexistent name reports plainly
+      ("No such player '<name>'.") rather than a blank dump, matching
+      the existing nonexistent-vnum behavior. Caught and fixed a real
+      bug while wiring this up: `db_query()`'s format parser (db.c) only
+      supports `%s`/`%i`/`%f`/`%r`, not real printf's `%li` -- the first
+      draft used `%li` for the player_id (a `long`) and every player-
+      table/player_progress/player_attrs lookup silently returned zero
+      rows. Fixed by casting to `int` and using `%i`, matching the
+      convention already used elsewhere in the codebase for other `long`
+      ID columns (e.g. `player_repo.c`'s account_id lookups).
+      `smoke_test_stat.py` extended with a sixth section covering the
+      header, decoded class/race/gender, the Progress section showing a
+      persisted level, the alignment tier line, the Attributes section,
+      and the nonexistent-name case; all checks pass. `help_topic.sql`'s
+      `stat` entry updated to document the new form.
+- [x] **`goto guildmaster` (mortal-usable)** — done. User: "add a goto
+      class function that mortals can do to help find thier
+      guildmasters." `cmd_goto.c`'s table-level gate lowered from
+      immortal to mortal, but only the literal `goto guildmaster` form
+      is reachable by a mortal -- `goto <vnum>` and `goto <player>`
+      still refuse a mortal caller outright, same message as before
+      ("Command not found..."). `goto guildmaster` uses a new
+      world-wide `world_for_each_mob()` scan (staged through file-scope
+      statics, same pattern as `trigger.c`'s random-trigger tick, since
+      the callback takes no userdata pointer) to find any mob keyworded
+      "guildmaster" whose `mob_class_known`/`char_class` matches the
+      caller's own class, then reuses the same bamfout/bamfin/look
+      teleport tail as the vnum/player forms. Kept as its own small copy
+      rather than sharing `cmd_practice.c`'s existing `find_guildmaster()`
+      (that one is deliberately scoped to "in this room only"; this one
+      is deliberately world-wide -- sharing would need a mode flag for
+      one caller each). `tests/smoke_test_goto_guildmaster.py` covers a
+      mortal Mage reaching a real seeded guildmaster, a mortal still
+      being refused the vnum/player forms, and an immortal still able to
+      use the vnum form. A fourth "no seeded guildmaster anywhere"
+      negative case was drafted but dropped -- a live DB check showed
+      every one of Sneezy's class bits already has a seeded guildmaster
+      somewhere in the world, so every one of Tobin's 6 real classes has
+      a real match and there's no safe way to construct a true "nobody
+      trains this" scenario without mutating real seed content; the
+      refusal path itself is a simple early-return, low risk, and was
+      manually verified during development. `stat`/`administration`
+      help topics unaffected; `goto`'s own help topic still needs a
+      follow-up pass to mention the new mortal form.
+      Follow-up (user 2026-07-12): "goto guildmaster should give them
+      directions, not transfer. also add a goto rent, goto surplus for
+      now with goto expanding for mortals." Redesigned from a teleport
+      into a walking-direction list: a new `goto_bfs()` (cmd_goto.c)
+      breadth-first-searches outward from the caller's current room over
+      real room exits until it reaches a room satisfying a caller-
+      supplied predicate, then reports the shortest direction sequence
+      instead of moving anyone. `world_get_room()` (world.c) is a linear
+      scan over a linked list of ~20,500 real rooms -- far too slow to
+      call once per BFS edge -- so `goto_bfs()` builds its own flat
+      open-addressed vnum->room_t* hash table once per call (via the
+      existing `world_for_each_room()` bare-callback iterator) and
+      searches against that instead, O(1)-average per edge. `goto
+      guildmaster`'s predicate now checks each BFS-visited room
+      individually for a matching guildmaster (closest one wins, unlike
+      the old world-wide "any match" scan). Two new fixed-room landmarks
+      share the same direction-giving path: `goto rent` (room 557, The
+      Roaring Lion Inn) and `goto surplus` (room 563, Surplus -- both
+      vnums user-specified 2026-07-12). Standing exactly in the target
+      room reports "You're already there" instead of a meaningless
+      zero-hop direction list. All three landmark forms are reachable by
+      immortals too, not just mortals -- checked before the immortal-
+      only gate, same as before; only the raw vnum/player-name forms
+      stay immortal-only. `smoke_test_goto_guildmaster.py` rewritten:
+      confirms `goto guildmaster` no longer teleports (room unchanged
+      before/after) and reports a direction list instead, `goto rent`/
+      `goto surplus` do the same, and the "already there" message fires
+      once an immortal is actually parked in room 557/563 via the
+      still-working vnum teleport. `goto`'s help topic and command-table
+      description updated to describe all three landmark forms.
+      Follow-up conflicts found and fixed (user 2026-07-12: "leave it
+      alone and resolve conflicts as they occur", re: help-system work):
+      two smoke tests used `goto` as their stock example of an
+      "immortal-only command" for leak-testing purposes
+      (`smoke_test_help.py`'s wizhelp/help listing checks,
+      `smoke_test_help_topics.py`'s "help <topic> leaks nothing to a
+      mortal" check) -- both stale now that `goto`'s landmark forms are
+      genuinely mortal-visible. Swapped both to `transfer` (still
+      IMMORTAL_LEVEL_MIN, unaffected) as the example instead; both files
+      re-run clean.
+- [x] **Character creation: descriptive race/class text instead of raw
+      numbers** — done. User: "char creation, dont tell the player
+      number bonuses, tell them this class X or this race X. be
+      descriptive so they can imagine the rest." `descriptor.c`'s
+      `show_race_screen()`/`show_class_screen()` rewritten from raw
+      stat-delta lines (e.g. "+2 Dex, +2 Int, -4 Con") to a short
+      evocative sentence per race/class, in the same direction as its
+      real stat shift (an Elf really is quick and clever, an Ogre really
+      is strong and thick, etc) without showing the exact numbers. The
+      real mechanics (`race_stat_bonus()`/`class_stat_bonus()`,
+      being.c) are completely unchanged -- display-only. Buffers bumped
+      900->1600 bytes for the longer prose.
+- [x] **Character creation: race/class before attribute point-buy** —
+      done. User: "also, selection of race and class should go before
+      picking attributes." `descriptor.h`'s `CONN_CHAR_CREATE_*` state
+      order and `descriptor.c`'s case-block order both changed from
+      NAME->ATTRS->RACE->CLASS->ALIGNMENT to
+      NAME->RACE->CLASS->ATTRS->ALIGNMENT. Race/class choices are now
+      just recorded at selection time; `race_stat_bonus()`/
+      `class_stat_bonus()` are applied later, in the ATTRS "done"
+      handler, once point-buy is finished -- keeps `attrs_allocated()`
+      measuring pure point-buy spend rather than race/class deltas
+      leaking into the net-pool calculation. This touched every smoke
+      test that creates a character (~90 files): wrote a one-shot
+      migration script to swap the `done`/race/class send-line order in
+      each file's `make_char()`-style helper, then hand-fixed ~13
+      outlier files the script's pattern didn't cover (tuple-form
+      `for step in (...)` creation, single-statement `cmd()` calls
+      instead of `send_line`+`recv_all` pairs, and one file
+      (`smoke_test_gender.py`) where the script's naive "peel back
+      preceding attr-command lines" logic broke an `if gender:`/`if
+      appearance:` guard's indentation -- fixed by hand). All 124 test
+      files verified to `py_compile` cleanly afterward; a broad sample
+      re-run clean.
+- [x] **Fixed: `set` command dispatch collided with `settrap`** — found
+      while re-testing the char-creation reorder above (unrelated to
+      it): `smoke_test_alignment.py`'s `set <name> alignment 500` was
+      landing on `settrap`'s "Usage: settrap <direction>" instead.
+      Root cause: `cmd_table.c` resolves commands by first-prefix-match
+      in table order, and `settrap` (which "set" is a literal prefix
+      of) appeared earlier in the table than the actual `set` entry, so
+      the exact 3-letter command "set" was shadowed by the longer,
+      earlier "settrap" instead of matching its own exact entry. This is
+      the same class of bug the file already had one guard comment
+      for (`set` vs `setsev`) but not this second collision. Fixed by
+      moving `set`+`setsev` immediately before `settrap` in the table,
+      same "shorter exact match must come first" convention already
+      established. Wrote a one-off script checking every command name
+      against every earlier command name for this exact shadowing
+      pattern across the whole table -- no other collisions found.
+      `smoke_test_alignment.py`/`smoke_test_set.py`/`smoke_test_trap.py`
+      all re-run clean.
+- [x] **Fixed: 20 more test files missed by the char-creation-reorder
+      migration** — found while re-testing after the goto redesign
+      below: `smoke_test_help.py` hung mid-character-creation because
+      its `make_player()` helper (not `make_char()` -- a second, unrelated
+      naming convention the earlier migration script never searched for)
+      still sent `done` before race/class. Audited ALL 124 test files by
+      pattern rather than by function name this time (a "done" send
+      immediately followed by a `# race` comment, in any statement-
+      pairing style) and found 20 total still broken: 14 using a bare
+      `send_line(s, "done")` + `recv_all(s)` on separate lines with a
+      `make_player()` helper (`smoke_test_color.py`, `_combat.py`,
+      `_copyover.py`, `_help.py`, `_immortal_cmds.py`, `_kill.py`,
+      `_level_titles.py`, `_logs.py`, `_notify.py`, `_regen.py`, `_say.py`,
+      `_sector_color.py`, `_target_abbrev.py`, `_telnet_iac.py`), 4 more
+      tuple-form `for step in (..., "done", "1", "1", "2")` creations
+      (`smoke_test_held.py`, `_mudstats.py`, `_multiplay.py` x2), and 2
+      more separate-line stragglers missed by the original 8-file
+      hand-fix pass (`smoke_test_help_topics.py`,
+      `_mortal_toggle.py`). All 20 fixed by hand, same swap as
+      everywhere else (race/class before done). Re-audited with the same
+      pattern-based script afterward: 0 remaining. All 124 files verified
+      to `py_compile` cleanly; a 19-file regression batch covering every
+      touched file re-run clean.
+- [x] **`open door <direction>` / bare `open door`** — done. User: "open
+      dootr doesnt work, did we add that to todo file?" Root cause: the
+      original Sneezy `open`/`close` (`lib/help/open`) documents `open
+      door <direction>` as the primary phrasing ("open door north",
+      "open door east", ...) -- Tobin's port (`cmd_open.c`) had only
+      ever implemented the bare `open <direction>` half of that, so the
+      natural "open door"/"open door north" phrasing silently fell
+      through to "you don't see that here." Fixed by trying a leading
+      "door" token as a fallback ONLY once the first token fails to
+      parse as a direction outright -- "door" and "down" share a prefix
+      ("do" matches both), so checking direction-parsing first means
+      `open d`/`open do` still mean down exactly as before, and the new
+      "door" handling can never shadow it. A bare `open door` with no
+      direction opens the room's one door if it has exactly one
+      (matching the original's own "try to determine what you mean"
+      disambiguation for an ambiguous target); with zero or multiple
+      doors it asks for a direction instead of guessing.
+      `smoke_test_doors.py` extended with `open door north`/`close door
+      north` and bare `open door`/`close door` cases. `open`/`close`
+      help topics updated to document the new phrasing.
+- [x] **Immortal commands moved lower in the command table** — done.
+      User: "place immortal commands lower in the list of commands, that
+      way the immortals are less likely to make mistakes when working on
+      the game." `cmd_table.c`'s `COMMANDS[]` (113 entries) reorganized
+      into two blocks: every `MORTAL_LEVEL_MIN` command first, every
+      immortal-tier command (anything above) second -- relative order
+      *within* each block is unchanged from before. Since dispatch
+      resolves an abbreviation to the FIRST matching entry in table
+      order, this means any short abbreviation an immortal types that's
+      ambiguous between an everyday mortal action and a rarer, more
+      consequential immortal one now always resolves to the mortal
+      action -- exactly the class of mistake the `set`/`settrap` and
+      `get`/`goto` bugs fixed earlier this session both were, now
+      prevented structurally instead of one collision at a time.
+      One deliberate exception, called out in a new table-wide comment
+      at the top of the file: `settrap`/`disarmtrap` (mortal Thief
+      skills) stay grouped with `set`/`setsev` in the immortal block
+      rather than moving to the mortal block, since `settrap` is a
+      literal prefix of "set" -- moving it ahead of `set`/`setsev` would
+      have silently reintroduced that exact bug. `hurtlimb`/`aitick`
+      (two immortal debug tools that used to sit in the middle of the
+      mortal combat block, between kill and hit, for no documented
+      reason) moved down too. Wrote a one-off collision-checker script
+      (checks every command name against every EARLIER command name for
+      "exact match shadowed by a longer earlier prefix", the same class
+      of bug as set/settrap) and ran it against the new order -- 0
+      collisions found. Corrected two pre-existing stale comments found
+      while touching this file (unrelated to the reorder itself): the
+      `inventory`/`immort` "bare i reaches immort" claim was already
+      backwards before any of today's changes (inventory was already
+      registered earlier in the table and always won "i"; immort's real
+      shortest abbreviation was already "im", not "i"). Full regression
+      batch covering abbreviation-sensitive tests (`smoke_test_
+      immortal_cmds.py`, `_alignment.py`, `_set.py`, `_trap.py`,
+      `_menu_letters.py`, `_help.py`, plus a broad general sweep) re-run
+      clean.
 - [x] **Toggle listing split into categories** — done. User: "split the
       toggle listing into categories: Preferences, Prompt,
       Communication." `cmd_toggle.c`'s `toggle_t` gained a `category`

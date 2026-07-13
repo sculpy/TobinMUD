@@ -116,9 +116,9 @@ send_line(s, pw); recv_all(s)
 send_line(s, pw); recv_all(s)
 send_line(s, "new"); recv_all(s)
 send_line(s, name); recv_all(s)
-send_line(s, "done"); recv_all(s)
 send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
 send_line(s, "1"); recv_all(s)  # class: mage
+send_line(s, "done"); recv_all(s)
 send_line(s, "2"); recv_all(s)  # alignment: neutral
 
 set_level(name, 51)
@@ -182,6 +182,19 @@ check("It's already closed" in cmd(s, "close north"), "closing an already-closed
 
 out = cmd(s, "north")
 check("The door is closed" in out, "the door blocks movement again after closing")
+
+# --- 'door <direction>' / bare 'door' phrasing (user report: "open
+# dootr doesnt work" -- Sneezy's documented syntax, lib/help/open,
+# is "open door <direction>", which Tobin had never actually ported) ---
+out = cmd(s, "open door north")
+check("You open the door to the north" in out, "'open door north' works")
+out = cmd(s, "close door north")
+check("You close the door to the north" in out, "'close door north' works")
+
+out = cmd(s, "open door")
+check("You open the door to the north" in out, "bare 'open door' opens the room's one door")
+out = cmd(s, "close door")
+check("You close the door to the north" in out, "bare 'close door' closes the room's one door")
 
 # --- persistence: the closed condition actually landed in the DB ---
 cond = query(f"SELECT condition_flag FROM roomexit WHERE vnum={BASE} AND direction=0;")

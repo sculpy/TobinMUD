@@ -118,10 +118,10 @@ send_line(s, "new")
 recv_all(s)
 send_line(s, name)
 recv_all(s)
-send_line(s, "done")
-recv_all(s)
 send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
 send_line(s, "1"); recv_all(s)  # class: mage
+send_line(s, "done")
+recv_all(s)
 send_line(s, "2"); recv_all(s)  # alignment: neutral
 
 # --- Part 1: reading topics as a mortal ---
@@ -147,7 +147,7 @@ send_line(s, "help '")
 out = recv_all(s)
 check("-- Help: Say --" in out, "help ' resolves to the say topic")
 
-send_line(s, "help goto")
+send_line(s, "help transfer")
 out = recv_all(s)
 check("No help available" in out,
       "a mortal asking about an immortal-only command's topic gets no leak")

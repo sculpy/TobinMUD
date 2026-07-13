@@ -108,13 +108,48 @@ static bool do_openclose(descriptor_t *d, const char *args, bool opening) {
     char tok[64];
     if (sscanf(args, "%63s", tok) != 1) {
         char msg[64];
-        snprintf(msg, sizeof(msg), "Usage: %s <direction|container>\r\n", opening ? "open" : "close");
+        snprintf(msg, sizeof(msg), "Usage: %s <direction|door [direction]|container>\r\n", opening ? "open" : "close");
         descriptor_send(d, msg);
         return true;
     }
 
     room_t *r = ch->base.roomp;
     int dir = parse_dir(tok);
+
+    /* "door <direction>", or bare "door" (user report: "open dootr
+     * doesnt work" -- Tobin had only ever ported the bare-direction
+     * half of Sneezy's documented syntax, lib/help/open: "open door
+     * north", "open door east", ...). Tried only once the first token
+     * fails to parse as a direction outright, so it can never shadow a
+     * real direction abbreviation -- "door" and "down" share a prefix,
+     * and parse_dir() above already gets first crack at every token, so
+     * "open d"/"open do" still mean down exactly as before. A bare
+     * "door" with no direction opens the room's one door if it has
+     * exactly one, matching the original's own "try to determine what
+     * you mean" disambiguation for an ambiguous target. */
+    if (dir < 0) {
+        size_t tok_len = strlen(tok);
+        if (tok_len && strncasecmp(tok, "door", tok_len) == 0) {
+            char tok2[64];
+            if (sscanf(args + tok_len, "%63s", tok2) == 1) {
+                dir = parse_dir(tok2);
+            } else {
+                int found = -1, count = 0;
+                for (int i = 0; i < ROOM_NUM_EXITS; i++) {
+                    if (r->exits[i] >= 0 && r->exit_door[i] != 0) {
+                        found = i;
+                        count++;
+                    }
+                }
+                if (count != 1) {
+                    descriptor_send(d, count == 0 ? "There is no door here.\r\n"
+                                                  : "Which door? Try 'open door <direction>'.\r\n");
+                    return true;
+                }
+                dir = found;
+            }
+        }
+    }
 
     /* A real exit with a door in that direction -> operate the door. */
     if (dir >= 0 && r->exits[dir] >= 0 && r->exit_door[dir] != 0) {

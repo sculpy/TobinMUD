@@ -676,40 +676,78 @@ static void show_attr_screen(descriptor_t *d) {
 
 /* CONN_CHAR_CREATE_RACE / CONN_CHAR_CREATE_CLASS / CONN_CHAR_CREATE_ALIGNMENT
  * (user 2026-07-11: "implement races, 6 player races" / "implement classes,
- * 6 player classes" / "ask player to choose initial alignment"): three
- * short numbered-choice steps between attribute allocation and actually
- * creating the character. Race and class each apply a fixed stat bonus/
- * penalty on top of the point-buy attrs already chosen (race_stat_bonus()/
- * class_stat_bonus(), being.c) -- shown live so the player sees the actual
- * post-bonus numbers before confirming. */
+ * 6 player classes" / "ask player to choose initial alignment"): short
+ * numbered-choice steps on the way to creating the character. Race and
+ * class are chosen FIRST, before attribute point-buy (user 2026-07-12:
+ * "selection of race and class should go before picking attributes"),
+ * then each applies a fixed stat bonus/penalty on top of the point-buy
+ * result once it's finished (race_stat_bonus()/class_stat_bonus(),
+ * being.c, applied in the CONN_CHAR_CREATE_ATTRS "done" handler) -- the
+ * ACTUAL mechanics.
+ *
+ * What's shown here, though, is deliberately NOT those numbers (user
+ * 2026-07-12: "char creation, dont tell the player number bonuses, tell
+ * them this class X or this race X. be descriptive so they can imagine
+ * the rest") -- each entry is a short evocative sentence in the same
+ * direction as its real stat shift (an Elf really is quick and clever,
+ * an Ogre really is strong and thick, etc), letting a new player feel
+ * out a race or class by what it's LIKE rather than reading a spreadsheet
+ * before they've even seen the game. The exact deltas still apply and
+ * still show up for real in `score`'s attribute line once played. */
 static void show_race_screen(descriptor_t *d) {
-    char out[900];
+    char out[1600];
     snprintf(out, sizeof(out),
              "\r\n-- Choose a race for %s --\r\n"
-             "Each race applies a fixed shift on top of the attributes you already\r\n"
-             "allocated.\r\n\r\n"
-             "  1) Human   -- no change, a versatile baseline\r\n"
-             "  2) Elf     -- +2 Dex, +2 Int, -4 Con\r\n"
-             "  3) Ogre    -- +4 Str, -2 Int, -2 Cha\r\n"
-             "  4) Dwarf   -- +4 Con, -2 Dex, -2 Cha\r\n"
-             "  5) Hobbit  -- +4 Dex, -2 Str, -2 Con\r\n"
-             "  6) Gnome   -- +4 Int, -2 Str, -2 Con\r\n\r\n"
+             "Each race leaves its own mark on you -- some traits sharpened,\r\n"
+             "others dulled -- on top of whatever attributes you allocate next.\r\n\r\n"
+             "  1) Human   -- Adaptable and unremarkable in the best way: no\r\n"
+             "                particular gift, but no particular weakness either.\r\n"
+             "  2) Elf     -- Graceful and quick-witted, with keen reflexes and a\r\n"
+             "                mind suited to magic -- but their slight frames tire\r\n"
+             "                and break more easily than sturdier folk.\r\n"
+             "  3) Ogre    -- Towering brutes of raw physical power, built to\r\n"
+             "                smash through anything in their path -- wit and\r\n"
+             "                charm were never their strong suits.\r\n"
+             "  4) Dwarf   -- Stout and famously hardy, shrugging off punishment\r\n"
+             "                that would fell lesser folk -- though their stocky\r\n"
+             "                build makes them a touch clumsy, and their bluntness\r\n"
+             "                doesn't win many friends.\r\n"
+             "  5) Hobbit  -- Small, nimble, and quick on their feet -- but they\r\n"
+             "                lack the brute strength or staying power of the\r\n"
+             "                bigger races.\r\n"
+             "  6) Gnome   -- Brilliant and inventive, with minds built for study\r\n"
+             "                and spellcraft -- but their small stature leaves\r\n"
+             "                them physically fragile.\r\n\r\n"
              "Enter a number (1-6), or 'quit!' to cancel: ",
              d->new_char_name);
     descriptor_send(d, out);
 }
 
 static void show_class_screen(descriptor_t *d) {
-    char out[900];
+    char out[1600];
     snprintf(out, sizeof(out),
              "\r\n-- Choose a class for %s --\r\n"
-             "Each class shifts your attributes further, on top of your race.\r\n\r\n"
-             "  1) Mage     -- +4 Int, -4 Str\r\n"
-             "  2) Cleric   -- +4 Wis, -2 Str, -2 Dex\r\n"
-             "  3) Warrior  -- +3 Con, +3 Str, -3 Cha, -3 Wis\r\n"
-             "  4) Thief    -- +4 Dex, -4 Str\r\n"
-             "  5) Druid    -- +2 Wis, +2 Con, -4 Int\r\n"
-             "  6) Monk     -- +2 Str, +2 Con, -4 Cha\r\n\r\n"
+             "Your class shapes you further still, on top of your race.\r\n\r\n"
+             "  1) Mage     -- Wields raw arcane power through study and\r\n"
+             "                 spellcraft, formidable at a distance -- but\r\n"
+             "                 relies on the mind over muscle, and can't take\r\n"
+             "                 a hit.\r\n"
+             "  2) Cleric   -- A devoted channel for divine power, wise beyond\r\n"
+             "                 their years, healing allies and smiting the\r\n"
+             "                 wicked -- deliberate and grounded rather than\r\n"
+             "                 quick or forceful.\r\n"
+             "  3) Warrior  -- A hardened fighter built for the front line,\r\n"
+             "                 tough as nails and strong as an ox -- not known\r\n"
+             "                 for tact or deep wisdom.\r\n"
+             "  4) Thief    -- Fast, agile, and light on their feet, relying on\r\n"
+             "                 speed and cunning over brute force -- deadly\r\n"
+             "                 from the shadows, but not built to trade blows.\r\n"
+             "  5) Druid    -- In tune with nature, sturdy and wise in the ways\r\n"
+             "                 of the wild -- but bookish arcane study was\r\n"
+             "                 never their calling.\r\n"
+             "  6) Monk     -- A disciplined martial artist honed through\r\n"
+             "                 rigorous training, strong and resilient -- but\r\n"
+             "                 their austere ways leave little room for charm.\r\n\r\n"
              "Enter a number (1-6), or 'quit!' to cancel: ",
              d->new_char_name);
     descriptor_send(d, out);
@@ -1803,6 +1841,52 @@ static bool handle_line(descriptor_t *d, const char *line) {
             d->new_char_handed = 1; /* right unless chosen otherwise */
             d->new_char_gender = GENDER_NEUTER; /* neuter unless chosen otherwise */
             d->new_char_appearance[0] = '\0';   /* no appearance unless set */
+            d->new_char_race = RACE_HUMAN;      /* placeholder until CONN_CHAR_CREATE_RACE */
+            d->new_char_class = CLASS_MAGE;     /* placeholder until CONN_CHAR_CREATE_CLASS */
+            d->new_char_alignment = 0;          /* placeholder until CONN_CHAR_CREATE_ALIGNMENT */
+            d->state = CONN_CHAR_CREATE_RACE;
+            show_race_screen(d);
+            return true;
+        }
+
+        case CONN_CHAR_CREATE_RACE: {
+            if (strcasecmp(line, "quit!") == 0) {
+                descriptor_send(d, "Character creation cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            int choice = 0;
+            if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > RACE_COUNT) {
+                descriptor_send(d, "Enter a number from 1 to 6, or 'quit!'.\r\n");
+                show_race_screen(d);
+                return true;
+            }
+            /* Bonus applied later, once attrs are point-bought (see the
+             * CONN_CHAR_CREATE_ATTRS "done" handler) -- picking race here
+             * only records the choice. */
+            d->new_char_race = (player_race_t)(choice - 1);
+            d->state = CONN_CHAR_CREATE_CLASS;
+            show_class_screen(d);
+            return true;
+        }
+
+        case CONN_CHAR_CREATE_CLASS: {
+            if (strcasecmp(line, "quit!") == 0) {
+                descriptor_send(d, "Character creation cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            int choice = 0;
+            if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > CLASS_COUNT) {
+                descriptor_send(d, "Enter a number from 1 to 6, or 'quit!'.\r\n");
+                show_class_screen(d);
+                return true;
+            }
+            /* Bonus applied later too, alongside race's (see the
+             * CONN_CHAR_CREATE_ATTRS "done" handler). */
+            d->new_char_class = (player_class_t)(choice - 1);
             d->state = CONN_CHAR_CREATE_ATTRS;
             show_attr_screen(d);
             return true;
@@ -1864,11 +1948,16 @@ static bool handle_line(descriptor_t *d, const char *line) {
             }
 
             if (strcasecmp(line, "done") == 0) {
-                d->new_char_race = RACE_HUMAN;
-                d->new_char_class = CLASS_MAGE;
-                d->new_char_alignment = 0;
-                d->state = CONN_CHAR_CREATE_RACE;
-                show_race_screen(d);
+                /* Race and class are already chosen by this point (user
+                 * 2026-07-12: "selection of race and class should go before
+                 * picking attributes") -- their stat bonuses fold into the
+                 * point-buy result now, same as before the reorder, just
+                 * applied here instead of at selection time so attrs_allocated()
+                 * still measures pure point-buy spend, not race/class deltas. */
+                race_stat_bonus(d->new_char_race, &d->new_char_attrs);
+                class_stat_bonus(d->new_char_class, &d->new_char_attrs);
+                d->state = CONN_CHAR_CREATE_ALIGNMENT;
+                show_alignment_screen(d);
                 return true;
             }
 
@@ -1911,46 +2000,6 @@ static bool handle_line(descriptor_t *d, const char *line) {
             }
 
             show_attr_screen(d);
-            return true;
-        }
-
-        case CONN_CHAR_CREATE_RACE: {
-            if (strcasecmp(line, "quit!") == 0) {
-                descriptor_send(d, "Character creation cancelled.\r\n");
-                d->state = CONN_ACCOUNT_MENU;
-                show_account_menu(d);
-                return true;
-            }
-            int choice = 0;
-            if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > RACE_COUNT) {
-                descriptor_send(d, "Enter a number from 1 to 6, or 'quit!'.\r\n");
-                show_race_screen(d);
-                return true;
-            }
-            d->new_char_race = (player_race_t)(choice - 1);
-            race_stat_bonus(d->new_char_race, &d->new_char_attrs);
-            d->state = CONN_CHAR_CREATE_CLASS;
-            show_class_screen(d);
-            return true;
-        }
-
-        case CONN_CHAR_CREATE_CLASS: {
-            if (strcasecmp(line, "quit!") == 0) {
-                descriptor_send(d, "Character creation cancelled.\r\n");
-                d->state = CONN_ACCOUNT_MENU;
-                show_account_menu(d);
-                return true;
-            }
-            int choice = 0;
-            if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > CLASS_COUNT) {
-                descriptor_send(d, "Enter a number from 1 to 6, or 'quit!'.\r\n");
-                show_class_screen(d);
-                return true;
-            }
-            d->new_char_class = (player_class_t)(choice - 1);
-            class_stat_bonus(d->new_char_class, &d->new_char_attrs);
-            d->state = CONN_CHAR_CREATE_ALIGNMENT;
-            show_alignment_screen(d);
             return true;
         }
 
