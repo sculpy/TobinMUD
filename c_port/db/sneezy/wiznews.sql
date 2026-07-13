@@ -430,3 +430,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'open door <direction> Works Now', '`open`/`close` now accept the word "door" in front of a direction (`open door north`, `close door east`), matching the original game''s documented phrasing -- previously only the bare direction form worked. A bare `open door` with no direction opens the room''s one door, if it has exactly one.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Command List Reordered: Mortal Commands First', 'The `help`/`wizhelp` command tables were fully reordered so every mortal-usable command now sorts ahead of every immortal-only one -- less chance of an immortal fat-fingering a mortal command''s abbreviation into an immortal one by accident. Found and fixed two real abbreviation collisions while at it: `set` was occasionally landing on `settrap` instead, and after `goto` became mortal-visible, `g` started reaching it instead of `get`. Further alphabetizing within each tier is on hold pending a follow-up decision.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

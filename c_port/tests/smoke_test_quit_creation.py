@@ -106,18 +106,22 @@ check("or 'quit!' to cancel" in out, "name prompt mentions the quit! option")
 out = step(s, "bare 'quit' at the name prompt should NOT cancel", "quit")
 check("Character creation cancelled" not in out, "bare 'quit' did not cancel creation")
 
-out = step(s, "type a name, then move to the attribute screen", abandoned_name)
-check("Allocate attributes" in out, "moved on to the attribute screen")
+out = step(s, "type a name, then move to the race screen", abandoned_name)
+check("Choose a race" in out, "moved on to the race screen")
 
-out = step(s, "bare 'quit' at the attribute screen should NOT cancel", "quit")
+out = step(s, "bare 'quit' at the race screen should NOT cancel", "quit")
 check("Character creation cancelled" not in out, "bare 'quit' did not cancel creation here either")
+
+step(s, "race: human", "1")
+out = step(s, "class: mage", "1")
+check("Allocate attributes" in out, "moved on to the attribute screen")
 
 out = step(s, "quit! from the attribute screen", "quit!")
 check("Character creation cancelled" in out, "cancellation message shown")
 check("Your characters" in out, "back at the account menu")
 check("(none yet)" in out, "no character was created -- menu is still empty")
 
-# --- Cancel again, this time right at the name prompt itself (before any attrs step) ---
+# --- Cancel again, this time right at the name prompt itself (before any other step) ---
 step(s, "choose 'new' again", "new")
 out = step(s, "quit! immediately at the name prompt", "quit!")
 check("Character creation cancelled" in out, "cancellation message shown at the name step")
@@ -126,6 +130,8 @@ check("(none yet)" in out, "still no character created")
 # --- Cancel a THIRD time, but after actually allocating some points ---
 step(s, "choose 'new' a third time", "new")
 step(s, "name it", abandoned_name2)
+step(s, "race: human", "1")
+step(s, "class: mage", "1")
 step(s, "allocate some points", "str 20")
 out = step(s, "quit! after allocating -- should still discard everything", "quit!")
 check("Character creation cancelled" in out, "cancellation works even mid-allocation")
@@ -134,11 +140,11 @@ check("(none yet)" in out, "allocated-but-uncommitted character was never persis
 # --- Now actually finish creating a real character, to confirm the flow still works ---
 step(s, "choose 'new' for real this time", "new")
 step(s, "real name", real_name)
-step(s, "allocate", "str 15")
-step(s, "finish for real", "done")
 step(s, "race: human", "1")
 step(s, "class: mage", "1")
-out = step(s, "alignment: neutral", "2")
+step(s, "allocate", "str 15")
+step(s, "finish attrs -> alignment screen", "done")
+out = step(s, "alignment: neutral -> playing", "2")
 check(f"Welcome, {real_name_display}" in out, "a real character can still be created after two cancellations")
 
 s.close()

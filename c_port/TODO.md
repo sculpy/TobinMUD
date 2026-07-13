@@ -2667,6 +2667,72 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       own comment "same 'Huh?!' wording the command table itself would
       have given"). All five updated together so none silently fell out
       of sync with the other four.
+- [x] **`goto` redesign for mortals** — done. User: "goto guildmaster
+      should give them directions, not transfer. also add a goto rent,
+      goto surplus for now with goto expanding for mortals." Mortal-
+      visible now; gives walking directions via a new BFS pathfinder
+      instead of teleporting (`goto guildmaster`/`goto rent`/`goto
+      surplus`). Immortals keep instant teleport for every other form.
+- [x] **`stat player <name>`** — done. User: "stat player <name> to stat
+      a player." Stats an offline/online player; fixed a `%li`-format
+      bug in `db_query()` along the way (it only supports `%s/%i/%f/%r`).
+- [x] **`open door <direction>` syntax** — done. User: "open dootr
+      doesnt work, did we add that to todo file?" Was missing entirely
+      (bare-direction form only).
+- [x] **`cmd_table.c` mortal-first/immortal-second reorder** — done.
+      User: "place immortal commands lower in the list of commands, that
+      way the immortals are less likely to make mistakes." Full table
+      reorder; found/fixed a `set`/`settrap` and a `get`/`goto`
+      abbreviation collision along the way. **Further alphabetizing each
+      tier block was requested, then explicitly halted mid-edit by the
+      user ("STOP... wait for the user to tell you how to proceed") —
+      PAUSED, do not resume without explicit go-ahead.**
+- [x] **Player help content pass** — done. User: "player help files get
+      priority" / "help playing remove the phrase 'Sneezy always warned
+      about'". Removed that phrase; fixed the hand-authored `classes`
+      topic (typos, missing Druid); two stale "goto is immortal-only"
+      test assumptions swapped to `transfer` instead, per "leave [the
+      help architecture] alone and resolve conflicts as they occur."
+- [x] **Sweep-failure triage after the char-creation reorder** — done.
+      A 101-passed/23-failed sweep was triaged file-by-file; 9 were real
+      stale-step-order regressions in test scripts (fixed), 14 were
+      pre-existing unrelated test bugs or DB seed drift, none were
+      product-code regressions. Full breakdown in STATUS.md. Found (but
+      did not fix, out of scope) an architectural pulse-timing bug in
+      `game_loop.c` — flagged as background task `task_2c2e0409`.
+- [ ] **Practice system redesign (multi-part, design locked, not yet
+      implemented)** — user: "practice needs to work differently. a
+      player that levels gets 6-8 practices per level gain (calculated
+      by wisdom as a modifier) and spends those practices at their
+      guildmaster. they can split their practices among combat skills
+      and basic until they have learned 100% in both disciplines before
+      they can move on to advanced. The advanced guild master, the basic
+      guildmaster, and the combat guildmaster need to be different mobs
+      located in different places. the combat guildmaster can be shared
+      with all classes, the basic and advanced ones must be separate.
+      the goto for mortals should be modified to go to each guildmaster;
+      goto guildmaster goes to basic guildmaster, goto combat goes to
+      the shared combat trainer, and goto advanced should state that no
+      one knows where the advanced trainer is." Refined via follow-up
+      into: practice points on level-up = `random(6,8) +
+      round(wisdom_bonus * wisdom_practice_modifier)` (wisdom_bonus =
+      floor((wisdom-120)/10), modifier defaults 1 via new `game_config`
+      row + `balance wisdom` subcommand); each point spends for a random
+      1-2% discipline gain; three disciplines (Basic/Combat/Advanced,
+      Combat is new); Advanced unlocks only once Basic AND Combat both
+      hit 100%. Guildmasters: Basic = existing level-51 mobs (unchanged),
+      Advanced = existing level-100 mobs (unchanged), Combat = **6 NEW
+      per-class mobs** (reversed from "shared" after user confirmed
+      6-per-class is simpler in code — "would it be easier to just have
+      6 combat trainers, one for each class?"). `goto combat` checks the
+      caller's class and routes to that class's own trainer (same
+      mechanism `goto guildmaster` already uses); `goto advanced` always
+      refuses with flavor text, no pathfinding. NOT YET IMPLEMENTED —
+      next step is DB schema (`player_progress.combat_disc_pct` +
+      `practice_points` columns, `game_config` row), then the level-up
+      code path, then `cmd_practice.c`/`cmd_goto.c`/`cmd_balance.c`, then
+      the 6 new combat-trainer mobs/rooms (check in with user before
+      creating world content).
 - [ ] **Message boards + related commands** — port from Sneezy. User:
       "implement message boards and related commands from sneezy."
 

@@ -168,7 +168,7 @@ check("DEAD" not in cmd(sv, "score"), "the victim survives this sever too")
 
 # --- 3: the head reaching 0 HP decapitates (instant kill) ---
 out = cmd(s, f"hurtlimb {victim_name} head 0")
-check("Decapitated" in out, "hurtlimb reports the decapitation")
+check("Instant death" in out, "hurtlimb reports the decapitation")
 
 outVictim = recv_all(sv, timeout=1.0)
 check("your head is severed clean off" in outVictim.lower(), "the victim is told their head was severed")

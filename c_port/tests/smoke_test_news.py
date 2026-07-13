@@ -165,7 +165,7 @@ check("News posted" in cmd(s, "/s"), "edit news saves the story")
 _, full = news_read(s)
 check(headline in full, "the posted item shows up in news, newest first")
 
-check("post a news item" in cmd(s, "help ednews"), "help ednews describes the command")
+check("post a news item" in cmd(s, "help edit news"), "help edit news describes the command")
 
 set_level(name, 1)
 

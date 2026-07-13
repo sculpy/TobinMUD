@@ -93,7 +93,9 @@ step(s, "confirm new account creation", "y")
 step(s, "password (first entry)", password)
 step(s, "confirm password -> menu", password)
 step(s, "new", "new")
-out = step(s, "char name -> attr screen", char_name)
+step(s, "char name -> race screen", char_name)
+step(s, "race: human", "1")
+out = step(s, "class: mage -> attr screen", "1")
 check("Points remaining: 30" in out, "starts with the full 30-point net pool")
 
 # Per-stat cap: +30 is fine (and, since pool == cap here, also exactly

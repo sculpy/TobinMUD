@@ -119,7 +119,9 @@ out = step(s, "answer time zone prompt -> account menu", "")
 check("(none yet)" in out, "brand-new account starts with an empty character list")
 
 step(s, "choose 'new'", "new")
-out = step(s, "character name -> attr screen (defaults)", char1_name)
+step(s, "character name -> race screen", char1_name)
+step(s, "race: human", "1")
+out = step(s, "class: mage -> attr screen (defaults)", "1")
 check("Strength:      120" in out, "attributes start at ATTR_BASE (120)")
 check("Points remaining: 30" in out, "full pool (30) available before spending")
 
@@ -140,8 +142,6 @@ out = step(s, "overspend rejected", "dex 5")
 check("Not enough points remaining" in out, "spending more than what's left is rejected")
 
 step(s, "finish creation", "done")
-step(s, "race: human", "1")
-step(s, "class: mage", "1")
 out = step(s, "alignment: neutral", "2")
 check(f"Welcome, {char1_name}" in out, "'done' creates the character and enters the world")
 
@@ -162,10 +162,10 @@ check(f"{char1_name} (Level 1)" in out,
       "the menu lists each character's level next to the name")
 
 step(s2, "create second character", "new")
-step(s2, "second character name -> attr screen", char2_name)
-step(s2, "accept defaults, finish", "done")
+step(s2, "second character name -> race screen", char2_name)
 step(s2, "race: human", "1")
-step(s2, "class: mage", "1")
+step(s2, "class: mage -> attr screen", "1")
+step(s2, "accept defaults, finish", "done")
 out = step(s2, "alignment: neutral", "2")
 check(f"Welcome, {char2_name}" in out, "second character created with default (unallocated) attrs")
 

@@ -275,7 +275,7 @@ check("slain" in out.lower() or "aren't here" in out.lower(),
 out = cmd(s, "look")
 check("vrock demon is here" not in out.lower(),
       "the mob is gone from the room for good after defeat (as a living presence)")
-check("the corpse of vrock demon lies here" in out.lower(),
+check("the corpse of a vrock demon lies here" in out.lower(),
       "...but leaves a corpse behind (Session 43 corpse-on-death feature)")
 
 # --- 5: a mob's death does NOT broadcast the world-wide [INFO] taunt (user

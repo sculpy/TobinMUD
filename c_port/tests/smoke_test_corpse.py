@@ -198,7 +198,7 @@ out = cmd(s, f"kill corpsedummy{_suffix}")
 check("slain" in out.lower(), "the immortal instakills the mob")
 
 outRoom = cmd(s, "look")
-check(f"The corpse of corpsedummy{_suffix} lies here." in outRoom, "the mob's death ALSO leaves a corpse")
+check("The corpse of a corpse test dummy lies here." in outRoom, "the mob's death ALSO leaves a corpse")
 
 s.close()
 sv.close()

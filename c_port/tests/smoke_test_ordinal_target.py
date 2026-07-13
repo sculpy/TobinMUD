@@ -12,6 +12,7 @@ should attack the 1st 2nd and 3rd, same for getting multiple objects, obj
 
     python3 tests/smoke_test_ordinal_target.py [host] [port]
 """
+import re
 import socket
 import subprocess
 import sys
@@ -83,6 +84,17 @@ def check(condition, message):
     if not condition:
         raise AssertionError(message)
     print(f">>> OK: {message}")
+
+
+def count_standing(look_output, standing_text):
+    """Room listings stack identical mobs/objects as one line with an
+    '(xN)' suffix (object/mob stacking feature) rather than repeating the
+    line N times -- a naive substring .count() would always see at most 1.
+    Returns the real instance count, whether stacked or not."""
+    m = re.search(re.escape(standing_text) + r"(?: \(x(\d+)\))?", look_output)
+    if not m:
+        return 0
+    return int(m.group(1)) if m.group(1) else 1
 
 
 def sql(stmt):
@@ -202,17 +214,17 @@ def reload_three_dummies():
 
 reload_three_dummies()
 out = cmd(s, f"kill 2.{mobword}")
-check(cmd(s, "look").count(standing) == 2,
+check(count_standing(cmd(s, "look"), standing) == 2,
       "'kill 2.dummy' killed exactly one of the three dummies (two remain standing)")
 
 reload_three_dummies()
 out = cmd(s, f"kill 3.{mobword}")
-check(cmd(s, "look").count(standing) == 2,
+check(count_standing(cmd(s, "look"), standing) == 2,
       "'kill 3.dummy' killed a specific dummy out of a fresh set of three (two remain standing)")
 
 reload_three_dummies()
 out = cmd(s, f"kill {mobword}")
-check(cmd(s, "look").count(standing) == 2,
+check(count_standing(cmd(s, "look"), standing) == 2,
       "bare 'kill dummy' (defaults to ordinal 1) kills one dummy out of a fresh set of three")
 
 s.close()

@@ -208,7 +208,7 @@ out = cmd(s, f"kill zonedummy{_suffix}")
 check("slain" in out.lower(), "the immortal instakills the zone-loaded mob")
 
 outRoom = cmd(s, "look")
-check(f"the corpse of zonedummy{_suffix} lies here" in outRoom.lower(),
+check("the corpse of a zone test dummy lies here" in outRoom.lower(),
       "the mob's corpse appears (Session 43 corpse feature, reused here as an inspection tool)")
 
 out = cmd(s, "get helmet corpse")

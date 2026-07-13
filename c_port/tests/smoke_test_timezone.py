@@ -111,9 +111,9 @@ check("Time zone set" in out, "a valid offset (-3) is accepted")
 
 send_line(s, "new"); recv_all(s)
 send_line(s, name); recv_all(s)
-cmd(s, "done")
 cmd(s, "1")  # race: human (zero stat modifier)
 cmd(s, "1")  # class: mage
+cmd(s, "done")
 cmd(s, "2")  # alignment: neutral
 s.close()
 
