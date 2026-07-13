@@ -102,6 +102,35 @@ bash tests/sweep.sh                                           # full smoke suite
   standalone (`python3 tests/smoke_test_X.py 127.0.0.1 4000`) before treating
   it as a real regression.
 
+## Toolchain parity (Home and Work must match — stricter wins)
+
+Both locations build the same code, so they must build it the same way. The
+compiler flags are shared via git (`add_compile_options(-Wall -Wextra)` in
+`c_port/CMakeLists.txt`), but **warnings still vary by gcc version** — a newer
+gcc flags things an older one lets slide. So a "clean" build at one location
+does not guarantee clean at the other.
+
+**Rule: the stricter toolchain wins, and zero warnings is non-negotiable.**
+- Keep gcc/cmake at the **same version** on both build boxes (both are Fedora
+  44 — `sudo dnf update` to converge; don't let one drift behind).
+- **Always `rm -rf build` and do a full clean rebuild before committing** —
+  never trust an incremental build or a build from only one location. (An
+  incremental/home-only build is exactly how two `-Wformat-truncation`
+  warnings slipped into a commit on 2026-07-13; the Work box's newer gcc
+  caught them, the Home build had not.)
+- If Home and Work ever disagree, fix to satisfy the **stricter** one.
+
+Reference — Work box (`db.kullit.com`) as of 2026-07-13:
+`gcc (GCC) 16.1.1`, `cmake 4.3.0`, Fedora Linux 44. Home should confirm
+`gcc --version` matches (or is newer) before trusting a local clean build.
+
+> Optional hard enforcement: adding `-Werror` to the shared
+> `add_compile_options` makes any warning fail the build in *both* locations —
+> the strongest form of "stricter wins." Not enabled yet because a
+> bleeding-edge gcc can introduce new warnings that would then break the build
+> outright; enable it only once both boxes are confirmed clean and you want CI-
+> grade strictness. Team decision.
+
 ## Safety checklist before a `reset --hard`
 
 The build boxes' working trees can drift (older file-sync habits, local

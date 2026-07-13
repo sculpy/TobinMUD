@@ -65,8 +65,14 @@ freeze makes tests flake).
   behavior.
 - Deviations from the original are allowed but must be deliberate and
   documented in STATUS.md's decisions table.
-- Zero-warning builds; every feature ships with a smoke test; full suite
-  before commit.
+- Zero-warning builds (`-Wall -Wextra`); every feature ships with a smoke
+  test; full suite before commit. **Toolchain parity (both locations):**
+  keep the same gcc/cmake at both Home and Work, and **the stricter one
+  wins** — warnings vary by gcc version, so ALWAYS do a clean rebuild
+  (`rm -rf build`) before committing and never trust an incremental or
+  home-only build. (The Work box's newer gcc caught two format-truncation
+  warnings a Home build had missed — 2026-07-13.) See SYNC.md's Toolchain
+  parity note.
 - Help topics are updated IN THE SAME CHANGE as the feature they document
   (new command → new topic; changed behavior → refreshed topic). Evaluate
   at every commit.
