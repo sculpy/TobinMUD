@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "being.h"
@@ -20,9 +21,31 @@
 
 /* 100,000 microseconds = 100ms = 1 pulse, matching the original's literal
  * OPT_USEC pulse unit (sys/socket.h). select()'s timeout doubles as the
- * pulse clock: the scheduler runs once per loop iteration regardless of
- * whether select() returned ready sockets or simply timed out. */
+ * loop's own wake-up clock, but the pulse scheduler is gated on real
+ * elapsed wall-clock time (see now_usec()/next_pulse_due below), NOT on
+ * how many times the loop happens to iterate. */
 #define OPT_USEC 100000
+
+/* Bug found 2026-07-12 (chasing a flaky trigger-damage smoke test): pulse
+ * advancement used to be "once per loop iteration", and select() returns
+ * IMMEDIATELY whenever any watched socket already has data ready -- not
+ * just on its OPT_USEC timeout. Under concurrent connection traffic (a
+ * test sweep, several players active at once) that let the loop iterate,
+ * and therefore the pulse counter advance, far faster than real time,
+ * so every pulse-gated system (REGEN_PULSES, COMBAT_ROUND_PULSES, the
+ * ~60s zone/gametime/mob-AI ticks, etc. -- see main.c's pulse_register()
+ * calls) could fire many times more often than its constant implies. Caps
+ * how many pulse boundaries get caught up in one go after a genuine stall
+ * (a debugger pause, a slow query, the process being suspended) so that
+ * doesn't queue an unbounded catch-up burst either -- resyncs to "now"
+ * instead once the cap is hit. */
+#define MAX_PULSE_CATCHUP 50 /* ~5s worth at 100ms/pulse */
+
+static long long now_usec(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long)ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
+}
 
 static volatile sig_atomic_t g_shutdown = 0;
 static int g_listen_fd = -1;
@@ -103,6 +126,7 @@ int game_loop_run(int port, const char *copyover_file) {
         log_info("Listening on port %d. Press Ctrl+C to stop.", port);
 
     long pulse_count = 0;
+    long long next_pulse_due = now_usec() + OPT_USEC;
 
     while (!g_shutdown) {
         fd_set readfds;
@@ -153,8 +177,19 @@ int game_loop_run(int port, const char *copyover_file) {
             d = next;
         }
 
-        pulse_count++;
-        pulse_scheduler_run(pulse_count);
+        /* Real-elapsed-time gate (see MAX_PULSE_CATCHUP above) -- fires
+         * every pulse boundary actually crossed since the last check,
+         * instead of exactly once per loop iteration. */
+        long long t = now_usec();
+        int caught_up = 0;
+        while (t >= next_pulse_due && caught_up < MAX_PULSE_CATCHUP) {
+            pulse_count++;
+            pulse_scheduler_run(pulse_count);
+            next_pulse_due += OPT_USEC;
+            caught_up++;
+        }
+        if (caught_up == MAX_PULSE_CATCHUP)
+            next_pulse_due = t + OPT_USEC;
 
         /* The single prompt authority (Session 21): any playing,
          * non-editing connection that received output this iteration --

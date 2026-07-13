@@ -1,5 +1,25 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-13 — Session 45 (background task, follow-up to
+Session 44's sweep triage): fixed the pulse-scheduler timing bug flagged
+below rather than just noted. `src/game_loop.c`'s pulse counter used to
+advance once per main-loop iteration; `select()` returns immediately
+whenever a socket has data ready (not just on its 100ms timeout), so
+under concurrent connection traffic every `pulse_register()`-based system
+(HP regen, combat rounds, the game clock, mob AI, zone aging, puddle
+decay) could fire far more often than its constant's real-time meaning
+implied. Fixed by gating pulse advancement on real elapsed wall-clock
+time (`clock_gettime(CLOCK_MONOTONIC)`, `now_usec()`/`next_pulse_due` in
+game_loop.c) instead of loop iterations, with a bounded catch-up
+(`MAX_PULSE_CATCHUP` = 50, ~5s) so a genuine stall doesn't queue an
+unbounded burst. Rebuilt, deployed, restarted; verified via
+`smoke_test_trigger_seed.py` (the flaky "damage 2" check that originally
+surfaced this now passes clean, previously observed net -1 HP instead of
+-2 from a regen tick racing in), plus `smoke_test_combat.py`,
+`smoke_test_zones.py`, `smoke_test_gametime.py` (confirms the clock still
+advances by exactly the intended 15-mud-minute tick), and
+`smoke_test_multiplay.py`. wiznews + TODO entries added.
+
 Last updated: 2026-07-12 — Session 44 (home): large batch this session,
 **committed locally as `06995c5` (119 files) but NOT YET PUSHED** — blocked
 on a clean full sweep (see failures below, mid-triage).

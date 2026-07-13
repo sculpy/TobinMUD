@@ -2700,6 +2700,22 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       product-code regressions. Full breakdown in STATUS.md. Found (but
       did not fix, out of scope) an architectural pulse-timing bug in
       `game_loop.c` — flagged as background task `task_2c2e0409`.
+- [x] **Pulse scheduler timing bug (`game_loop.c`)** — done (background
+      task `task_2c2e0409`, follow-up to the item above). The pulse
+      counter advanced once per main-loop iteration, and `select()`
+      returns immediately whenever a socket has data ready -- so under
+      concurrent connection traffic the loop (and every `pulse_register()`
+      system: HP regen, combat rounds, the game clock, mob AI, zone
+      aging, puddle decay) could fire far more often than its constant's
+      real-time meaning implied. Fixed by gating pulse advancement on
+      real elapsed wall-clock time (`clock_gettime(CLOCK_MONOTONIC)`)
+      instead of loop iterations, with a bounded catch-up (`
+      MAX_PULSE_CATCHUP`) so a genuine stall (slow query, debugger pause)
+      doesn't queue an unbounded burst either. Verified via
+      `smoke_test_trigger_seed.py` (the flaky "damage 2" check that
+      originally surfaced this now passes clean), plus
+      `smoke_test_combat.py`/`smoke_test_zones.py`/`smoke_test_gametime.py`/
+      `smoke_test_multiplay.py`.
 - [ ] **Practice system redesign (multi-part, design locked, not yet
       implemented)** — user: "practice needs to work differently. a
       player that levels gets 6-8 practices per level gain (calculated
