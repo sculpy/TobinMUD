@@ -90,7 +90,12 @@ freeze makes tests flake).
   redit), 54+ log reading, 56+ help editing (hedit), 58+ promote/users, 59+
   operations (copyover, log rotate). Commands above the caller's level
   are invisible, not refused.
-- The `ed*` editor family (renamed from `*edit`, 2026-07-05): `edroom`
-  (rooms), `edhelp` (help), `ednews` (news), `edwiznews` (wiznews) exist;
-  `edobject`/`edmob`/`edzone`/`edplayer`/`edaccount` planned (see TODO.md).
-  All menu-driven. Read-only viewers keep plain names (`news`, `wiznews`).
+- **Editors are unified under `edit <noun> [args]`** (user 2026-07-11,
+  superseding the earlier separate `ed<noun>`/`*edit` verbs): `edit room`,
+  `edit zone`, `edit player`, `edit help`, `edit news`, `edit wiznews`,
+  `edit rules`, `edit trigger` (dispatch in `cmd_edit.c`); `edit object`/
+  `edit mob`/`edit account` planned. All **menu-driven**, like character
+  creation — **the user provides a wireframe for each**. Read-only viewers
+  keep plain names (`news`, `wiznews`).
+- **Colorize tastefully with LOWERCASE color codes** — player/immortal
+  output gets tinted with the lowercase (dim) tags by habit.
