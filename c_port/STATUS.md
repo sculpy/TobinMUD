@@ -72,10 +72,18 @@ on a clean full sweep (see failures below, mid-triage).
   phrasing after confirming 6-per-class is actually simpler in code). `goto
   guildmaster`→Basic (existing), `goto combat`→per-class Combat trainer
   (needs class-aware routing, same pattern as Basic), `goto advanced`→
-  always refuses with flavor text, no pathfinding. Next implementation
-  step: DB schema (`player_progress.combat_disc_pct` +
+  always refuses with flavor text, no pathfinding. Command syntax (added
+  2026-07-13): `practice <discipline> [<#>]` -- e.g. `practice combat 7`
+  spends 7 points in one command instead of seven separate ones; bare
+  `practice <discipline>` still spends exactly 1. The spend loop must
+  stop early and report the actual count landed if points run out or the
+  discipline hits 100% partway through a requested `<#>`. Next
+  implementation step: DB schema (`player_progress.combat_disc_pct` +
   `player_progress.practice_points` columns, `game_config` row), then find
-  the level-up code path to wire in the award.
+  the level-up code path to wire in the award (already located:
+  `progress_add_xp()` in `src/core/being.c:647`, called from
+  `combat_defeat()` in `src/core/combat.c` around line 466-488 — see
+  TODO.md's fully-ordered implementation plan for this feature).
 
 **Sweep triage — COMPLETE (this session).** A full sweep came back 101
 passed, 23 failed. Every failure was individually re-run standalone and

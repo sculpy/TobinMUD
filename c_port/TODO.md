@@ -2683,10 +2683,28 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       User: "place immortal commands lower in the list of commands, that
       way the immortals are less likely to make mistakes." Full table
       reorder; found/fixed a `set`/`settrap` and a `get`/`goto`
-      abbreviation collision along the way. **Further alphabetizing each
+      abbreviation collision along the way. Further alphabetizing each
       tier block was requested, then explicitly halted mid-edit by the
-      user ("STOP... wait for the user to tell you how to proceed") —
-      PAUSED, do not resume without explicit go-ahead.**
+      user ("STOP... wait for the user to tell you how to proceed").
+- [ ] **Alphabetize each `cmd_table.c` tier block — GO-AHEAD GIVEN
+      2026-07-13, no further confirmation needed.** User: "sort by
+      alphabet first then level lowest to highest" ... "leave important
+      commands at the top." The stall last time was a real conflict:
+      naive alphabetizing breaks the movement-must-be-first invariant
+      (single-letter `n`/`e`/`s`/`w`/`u`/`d` abbreviations depend on
+      movement sitting earliest in the table so nothing else can shadow
+      them) and would also re-open the `set`/`settrap` and `get`/`goto`
+      collisions this session just fixed by ordering. Resolve it as:
+      keep movement (and any other pair the table already documents as
+      deliberately non-alphabetical, e.g. `set` before `settrap`, `get`
+      before `goto`, `wiznews` before `wiznet`) pinned at the top of its
+      tier as documented exceptions, then alphabetize everything else
+      within each of the two tiers (mortal, then immortal) around them.
+      After editing: rebuild, deploy, re-run
+      `smoke_test_immortal_cmds.py` (has the `g`→get/`s`→settrap-style
+      abbreviation checks) plus a couple of movement smoke tests before
+      calling it done — this exact class of collision bit the table
+      reorder twice already this session, don't skip verification here.
 - [x] **Player help content pass** — done. User: "player help files get
       priority" / "help playing remove the phrase 'Sneezy always warned
       about'". Removed that phrase; fixed the hand-authored `classes`
@@ -2716,8 +2734,10 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       originally surfaced this now passes clean), plus
       `smoke_test_combat.py`/`smoke_test_zones.py`/`smoke_test_gametime.py`/
       `smoke_test_multiplay.py`.
-- [ ] **Practice system redesign (multi-part, design locked, not yet
-      implemented)** — user: "practice needs to work differently. a
+- [ ] **Practice system redesign — GO-AHEAD GIVEN 2026-07-13, design is
+      fully locked, implement without asking for further design input.**
+      (multi-part, not yet implemented) — user: "practice needs to work
+      differently. a
       player that levels gets 6-8 practices per level gain (calculated
       by wisdom as a modifier) and spends those practices at their
       guildmaster. they can split their practices among combat skills
@@ -2744,11 +2764,54 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       caller's class and routes to that class's own trainer (same
       mechanism `goto guildmaster` already uses); `goto advanced` always
       refuses with flavor text, no pathfinding. NOT YET IMPLEMENTED —
-      next step is DB schema (`player_progress.combat_disc_pct` +
-      `practice_points` columns, `game_config` row), then the level-up
-      code path, then `cmd_practice.c`/`cmd_goto.c`/`cmd_balance.c`, then
-      the 6 new combat-trainer mobs/rooms (check in with user before
-      creating world content).
+      implementation order:
+      1. DB schema: `ALTER TABLE player_progress ADD COLUMN IF NOT EXISTS
+         combat_disc_pct ...` + `practice_points ...`; a `game_config` row
+         for `wisdom_practice_modifier` (default `'1'`), following
+         `multiplay.c`'s exact load/cache/set pattern (`src/core/`).
+      2. Level-up hook: `progress_add_xp()` (`src/core/being.c:647`) is
+         the actual level-incrementing function -- it loops `p->level++`
+         per level crossed and returns `levels_gained`, but only touches
+         a bare `progress_t` (no attrs/class access). Its one caller,
+         `combat_defeat()` in `src/core/combat.c` (around line 466-488,
+         right where it already does the post-level-up full-heal/"You
+         feel more experienced!" reward using the full `being_t winner`),
+         is where to add the practice-points award -- loop
+         `levels_gained` times, each awarding `random(6,8) +
+         round(wisdom_bonus * wisdom_practice_modifier)` where
+         `wisdom_bonus = floor((winner->attrs.wisdom - ATTR_BASE) / 10)`.
+      3. `cmd_balance.c`: add a `balance wisdom [<value>]` subcommand
+         (view with no arg, set with an arg) -- a direct scalar
+         read/write, not the existing menu-driven
+         `descriptor_balance_begin()` machinery (that's for 4-field
+         class/race records).
+      4. `cmd_practice.c`: full rewrite -- practice-points-as-spendable-
+         resource instead of unlimited flat-step visits, three
+         disciplines each with their own guildmaster-type match, random
+         1-2%-per-point spend, Advanced gated on Basic==100 AND
+         Combat==100. **Syntax** (user 2026-07-13): `practice <discipline>
+         [<#>]` -- e.g. `practice combat 7` spends 7 points on Combat in
+         one command instead of making the player type `practice combat`
+         seven separate times; bare `practice <discipline>` (no count)
+         still spends exactly 1, same as today. Spend loop must stop
+         early and report how many points actually landed if the player
+         runs out of points or the discipline hits 100% partway through
+         a requested `<#>` (don't silently no-op the whole batch, and
+         don't let a discipline overshoot 100% mid-batch either).
+      5. `cmd_goto.c`: repurpose `goto guildmaster`→Basic (existing BFS
+         logic, unchanged target type), add `goto combat`→per-class
+         Combat trainer (class-aware routing, same mechanism as Basic),
+         add `goto advanced`→always refuses, no pathfinding attempted.
+      6. The 6 new per-class Combat guildmaster mobs/rooms — **check in
+         with the user before creating this world content**, per the
+         explicit commitment already made; how Basic/Advanced mobs get
+         identified by role (existing level-51/level-100 mobs, by
+         mob.level threshold or a keyword) also needs a decision before
+         `cmd_practice.c`/`cmd_goto.c` can match them reliably.
+      7. Help topics (`practice`, `goto`, `skills`, `balance`) + wiznews
+         entry once shipped, plus new/extended smoke tests covering
+         practice-point earning/spending, the three-discipline gate, the
+         three `goto` forms, and `balance wisdom`.
 - [ ] **Message boards + related commands** — port from Sneezy. User:
       "implement message boards and related commands from sneezy."
 
