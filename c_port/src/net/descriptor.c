@@ -53,7 +53,7 @@ descriptor_t *descriptor_create(int fd) {
         TN_IAC, TN_WILL, TN_SGA,
         TN_IAC, TN_DO, TN_SGA,
     };
-    socket_write(fd, (const char *)negotiate, sizeof(negotiate));
+    descriptor_write(d, (const char *)negotiate, sizeof(negotiate));
 
     /* The TobinMUD banner (user-supplied art, Session 21). The <_> in the
      * O of "Tobin" is an unrecognized color tag and passes through
@@ -223,7 +223,7 @@ void descriptor_keepalive(long pulse_num) {
      * NAT/router idle windows. */
     static const unsigned char nop[2] = {255, 241};
     for (descriptor_t *d = g_descriptors; d; d = d->next)
-        socket_write(d->fd, (const char *)nop, sizeof(nop));
+        descriptor_write(d, (const char *)nop, sizeof(nop));
 }
 
 void descriptor_idle_timeout(long pulse_num) {
@@ -364,6 +364,57 @@ const char *descriptor_display_host(const descriptor_t *d) {
     return d->hostname[0] ? d->hostname : d->ip;
 }
 
+/* See descriptor.h. Replaces a bare socket_write() everywhere in this file
+ * -- that always either sent everything or silently dropped whatever
+ * didn't fit in one write() call, with no retry. Under bursty output
+ * (several new connections landing in the same select() tick, each
+ * getting the banner + several prompts in a row) that could drop real
+ * bytes the client was still waiting on: the server believed the reply
+ * had gone out, the client's recv() then blocked forever. Found
+ * 2026-07-17 chasing the long-standing "a session silently stalls under
+ * concurrent load" bug. */
+void descriptor_write(descriptor_t *d, const char *data, size_t len) {
+    if (len == 0)
+        return;
+
+    size_t sent = 0;
+    if (d->out_len == 0) {
+        int n = socket_write(d->fd, data, len);
+        if (n < 0)
+            return; /* hard error -- the next read will discover the dead connection */
+        sent = (size_t)n;
+        if (sent == len)
+            return; /* common case: it all went out in one call */
+    }
+
+    size_t remain = len - sent;
+    if (d->out_len + remain > sizeof(d->out_buf)) {
+        log_error("descriptor fd %d: output backlog full (%zu bytes pending), dropping %zu bytes",
+                  d->fd, d->out_len, remain);
+        remain = sizeof(d->out_buf) > d->out_len ? sizeof(d->out_buf) - d->out_len : 0;
+        if (remain == 0)
+            return;
+    }
+    memcpy(d->out_buf + d->out_len, data + sent, remain);
+    d->out_len += remain;
+}
+
+bool descriptor_flush_output(descriptor_t *d) {
+    if (d->out_len == 0)
+        return true;
+
+    int n = socket_write(d->fd, d->out_buf, d->out_len);
+    if (n < 0)
+        return false;
+    if ((size_t)n == d->out_len) {
+        d->out_len = 0;
+        return true;
+    }
+    memmove(d->out_buf, d->out_buf + n, d->out_len - (size_t)n);
+    d->out_len -= (size_t)n;
+    return true;
+}
+
 /* Sends `msg`, normalizing any bare '\n' (not preceded by '\r') to "\r\n"
  * first. This matters because DB-sourced text (room descriptions in
  * particular, seeded from the original SneezyMUD dump) uses Unix-style
@@ -380,14 +431,14 @@ void descriptor_send(descriptor_t *d, const char *msg) {
     size_t color_cap = colorstring_translate_maxlen(len);
     char *colored = malloc(color_cap);
     if (!colored) {
-        socket_write(d->fd, msg, len); /* best-effort fallback */
+        descriptor_write(d, msg, len); /* best-effort fallback */
         return;
     }
     size_t clen = colorstring_translate(msg, colored, color_cap, d->color_enabled);
 
     char *normalized = malloc(clen * 2 + 1);
     if (!normalized) {
-        socket_write(d->fd, colored, clen); /* best-effort fallback */
+        descriptor_write(d, colored, clen); /* best-effort fallback */
         free(colored);
         return;
     }
@@ -399,14 +450,15 @@ void descriptor_send(descriptor_t *d, const char *msg) {
         normalized[out++] = colored[i];
     }
 
-    socket_write(d->fd, normalized, out);
+    descriptor_write(d, normalized, out);
 
     /* `snoop` mirror: whatever this descriptor sees, its watcher (if any)
      * sees too -- the exact same bytes already rendered for THIS
      * descriptor's own color preference (matching a real snoop: you're
      * watching their literal screen, not re-rendering for your own). A
-     * direct socket_write, not a recursive descriptor_send() call, so a
-     * chain/cycle of snoops can never recurse.
+     * direct descriptor_write on the WATCHER's own backlog, not a
+     * recursive descriptor_send() call, so a chain/cycle of snoops can
+     * never recurse.
      *
      * A "% " marker (same literal prefix the typed-command mirror below
      * already uses) is written ahead of every mirrored output chunk too
@@ -416,8 +468,8 @@ void descriptor_send(descriptor_t *d, const char *msg) {
      * unmarked, indistinguishable from the snooper's own screen. */
     if (d->snooped_by) {
         static const char marker[] = "% ";
-        socket_write(d->snooped_by->fd, marker, strlen(marker));
-        socket_write(d->snooped_by->fd, normalized, out);
+        descriptor_write(d->snooped_by, marker, strlen(marker));
+        descriptor_write(d->snooped_by, normalized, out);
     }
 
     free(normalized);
@@ -510,7 +562,7 @@ static bool drain_lines(descriptor_t *d) {
         if (b == '\r' || b == '\n') {
             if (b == '\r' && d->raw_pos < d->raw_len && d->raw[d->raw_pos] == '\n')
                 d->raw_pos++;
-            socket_write(d->fd, "\r\n", 2);
+            descriptor_write(d, "\r\n", 2);
             d->line[d->line_len] = '\0';
             char line_copy[DESC_LINE_MAX];
             snprintf(line_copy, sizeof(line_copy), "%s", d->line);
@@ -524,7 +576,7 @@ static bool drain_lines(descriptor_t *d) {
             if (d->line_len > 0) {
                 d->line_len--;
                 if (!is_password_state(d->state))
-                    socket_write(d->fd, "\b \b", 3);
+                    descriptor_write(d, "\b \b", 3);
             }
             continue;
         }
@@ -536,7 +588,7 @@ static bool drain_lines(descriptor_t *d) {
             d->line[d->line_len++] = (char)b;
             if (!is_password_state(d->state)) {
                 char echo[2] = { (char)b, '\0' };
-                socket_write(d->fd, echo, 1);
+                descriptor_write(d, echo, 1);
             }
         }
     }

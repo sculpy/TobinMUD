@@ -108,6 +108,30 @@ in-game between iterations.
   hitting the pre-existing hang (10/19 and 6/16 respectively) passed
   clean, validating the rewrites even though a full end-to-end pass is
   blocked on the bug above.
+- **CORRECTION, same day (continued session): the "connection-handling
+  bug" above was a false positive, not a real bug.** `smoke_test_kill.py`'s
+  `recv_all()` helper blocks for its FULL timeout on every call (never
+  exits early just because a complete reply arrived); `make_player()`
+  calls it ~9 times per character, and the full script creates 5
+  characters — 45+ seconds of legitimate, correct blocking with zero bugs
+  anywhere. Every "hang" this session (and presumably the original sweep's
+  11 failures) was the script still correctly running, checked against a
+  15-25s "stuck" threshold that was simply too tight. Proved by re-running
+  the exact same repro with a 90s timeout: completed in 72.8s, all checks
+  passed except one small unrelated flake (a bystander's trailing prompt
+  arriving slightly after `recv_until()`'s 5s deadline, plausibly due to
+  Center Square being cluttered with a couple dozen linkdead test
+  characters from today's repeated runs — a DB-cleanup item, not a code
+  bug, and not yet investigated further). See TODO.md's RESOLVED entry
+  for the full trail. One real, unrelated improvement survives from the
+  investigation: `socket_write()` silently dropped data on `EAGAIN`/short
+  writes with no retry (a genuine, if never-yet-triggered, bug) — replaced
+  with a proper per-descriptor output backlog (`descriptor_write()`/
+  `descriptor_flush_output()`, `writefds` watched in `game_loop.c`,
+  flushed before `copyover`'s `execl()` too). Deployed to the live Home VM
+  server via a hard kill+restart (user pre-authorized this going forward:
+  "when you need a reboot, just hard boot as i may not be here to
+  copyover"), binary md5 confirmed live.
 - **Deploy mechanics this session**: iterated live against the Home VM
   (192.168.254.200) via per-file `scp` + `make` (plain-make, not cmake —
   cmake isn't on the Windows dev box) + `bash db/apply-tobin-schema.sh` +

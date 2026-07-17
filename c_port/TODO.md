@@ -2865,11 +2865,79 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       a fresh post-restart instance currently shows 0 linkdead, which
       rules OUT "accumulated orphaned linkdead bodies" as the connection
       bug's cause, at least as the state stands right now.
-- [ ] **PRE-EXISTING connection-handling bug: a live descriptor's session
-      can silently stall mid-command under concurrent load, dropping the
-      connection some time later with no server-side error.** Discovered
-      2026-07-17 while triaging sweep failures for a suspected regression
-      from that session's other work. **Confirmed NOT a regression**:
+- [x] **RESOLVED 2026-07-17 (same day, continued session): this was NEVER a
+      server bug. It was a false positive caused by every diagnostic/catch
+      script in this investigation (including this session's own) using a
+      "still running after N=15-25 seconds -> STUCK" heuristic that was too
+      tight for the test helper's actual, correct, worst-case runtime.**
+      `smoke_test_kill.py`'s `recv_all(sock, timeout)` helper ALWAYS blocks
+      for the full `timeout` on every single call -- it only returns early
+      on EOF/connection-close, never early just because a complete reply
+      arrived (it can't tell "done" from "server is about to send more").
+      `make_player()` calls it ~9 times per character created (name, y,
+      pw, pw-confirm, "new", name, race, class, done, alignment), and the
+      full script creates 5 characters (2 in Part 1, 3 in Part 2) --
+      roughly 45+ seconds of individually-correct, unavoidable blocking
+      even with ZERO bugs anywhere. Every "hang" reproduced and gdb-
+      captured throughout this investigation (including a fresh capture
+      this session showing `d->out_len == 0`, `raw_pos == raw_len` -- no
+      buffered/dropped bytes anywhere, socket-level TCP receive buffer
+      genuinely empty) was the script still legitimately running, not
+      stuck. **Proof**: re-ran the exact same reproduction with a 90s
+      timeout instead of 25s -- completed in 72.8 real seconds with every
+      check passing except one unrelated minor assertion (see below); no
+      hang, no stall, no server-side anomaly of any kind.
+      **Lesson for future sessions**: when a test script "hangs," check
+      its own blocking-call budget (timeout × call count) against however
+      long you're willing to wait BEFORE suspecting the server. A `kill
+      -0 $PID` check after N seconds only proves "still running," not
+      "stuck" -- these are very different for a script built on
+      always-block-the-full-timeout helpers like `recv_all()` here.
+      **One genuine, minor, unrelated finding from the 90s run**: the very
+      last check (`the unsolicited broadcast still leaves the bystander at
+      a prompt`, `smoke_test_kill.py` line ~195) failed -- `outObs`'s
+      trailing prompt didn't arrive within `recv_until()`'s 5s deadline
+      even though the death-taunt broadcast itself did. Center Square (the
+      test's room) had accumulated a couple dozen `(linkdead)` bodies from
+      this session's own repeated test runs by that point -- plausible
+      that room-broadcast iteration over that many entries pushed the
+      trailing-prompt emission past 5s under that specific clutter, though
+      this wasn't confirmed. Low priority; likely resolves itself once
+      test-generated linkdead debris is cleaned out of the DB (hundreds of
+      `Kill*`-named test characters have accumulated across today's
+      sessions -- a housekeeping pass, not a code fix, is probably all
+      this needs). Not investigated further this session.
+      **Real, unrelated improvement made while chasing this (kept
+      regardless of the false-positive finding above)**: `socket_write()`
+      (`src/net/socket.c`) was a single raw `write()` with no retry and no
+      partial-write handling -- on `EAGAIN`/`EWOULDBLOCK` it silently
+      dropped the data entirely, and every call site ignored a short
+      write's return value too. This was a real, if apparently never-yet-
+      triggered-in-practice, data-loss bug. Replaced with a proper
+      per-descriptor output backlog: new `descriptor_write()`/
+      `descriptor_flush_output()` (`descriptor.h`/`descriptor.c`) queue
+      whatever a `write()` call doesn't finish into a new `out_buf`
+      (`DESC_OUT_BUF` = 64KB) on the descriptor, and `game_loop.c` now
+      also watches `writefds` for any descriptor with backlog and retries
+      via `descriptor_flush_output()` each iteration. Every prior
+      `socket_write()` call site (telnet negotiate, NOP keepalive,
+      character echo/backspace, `descriptor_send()`, the snoop mirror, the
+      prompt writer) now goes through `descriptor_write()`. `cmd_copyover.c`
+      flushes every descriptor's backlog right before `execl()` too (a
+      backlog lives only in this process's heap and would otherwise vanish
+      across the exec). Verified: clean build, live-deployed to the Home
+      VM production server via a hard kill+restart (user: "when you need a
+      reboot, just hard boot as i may not be here to copyover"), binary
+      md5 confirmed live.
+      Historical investigation trail preserved below for context (repro
+      attempts, ruled-out theories, tooling notes) -- none of it pointed
+      at a real bug in the end, but the methodology notes (gdb without
+      sudo, A/B pristine-build testing, etc.) remain useful technique
+      references.
+- [x] (historical, see RESOLVED entry above) **investigation trail for the
+      "connection-handling bug"** -- originally discovered 2026-07-17 while
+      triaging sweep failures for a suspected regression from that
+      session's other work. **Confirmed NOT a regression**:
       reproduces identically against a completely pristine build of commit
       `74ead6d` (the last commit before ANY of 2026-07-17's changes),
       built fresh in `/tmp/ab_pristine` on a separate port (4001) sharing
@@ -3034,10 +3102,14 @@ these; each ships with a smoke test + (if player-facing) a news entry.
           crash), but is real defensive infrastructure for whatever
           crash, if any, comes up in the future.
 - [x] **`smoke_test_practice.py`/`smoke_test_skills.py` rewritten for the
-      practice-system redesign** — done 2026-07-17, partially verified
-      (see the connection-handling bug above -- both hit that PRE-EXISTING
-      issue partway through a live run, but every check that ran before
-      the stall passed, validating the rewrite logic itself).
+      practice-system redesign** — done 2026-07-17, partially verified at
+      the time (see the RESOLVED "connection-handling bug" entry above --
+      both runs were flagged as hitting that issue partway through, but
+      it's now understood there was no real hang; they just hadn't been
+      given enough wall-clock time to finish. Every check that ran before
+      the timeout passed either way, validating the rewrite logic itself
+      -- worth a follow-up run with a generous timeout to confirm full
+      completion, not yet re-verified end-to-end this session).
       `smoke_test_skills.py`: Combat tier is no longer "innate" (this
       session's redesign made it a real discipline gated by
       `combat_disc_pct`, same as Basic/Advanced) -- a fresh 0%-everywhere

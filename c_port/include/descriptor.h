@@ -120,6 +120,14 @@ typedef enum {
 #define DESC_RAW_BUF 1024
 #define DESC_LINE_MAX 256
 
+/* Outgoing-data backlog (see descriptor_write()/descriptor_flush_output()
+ * in descriptor.c). Bytes that don't fit in one write() -- a full or
+ * partial socket send-buffer, common under bursty output like several
+ * new connections landing in the same select() tick -- wait here for the
+ * game loop to retry once the socket is writable again, instead of being
+ * silently dropped. */
+#define DESC_OUT_BUF 65536
+
 /* Held-message buffer (people in an editor aren't interrupted by game
  * messages -- they save up here for `catchup`, and expire after the TTL). */
 #define HELD_MSG_MAX 64
@@ -149,6 +157,12 @@ typedef struct descriptor {
     unsigned char raw[DESC_RAW_BUF];
     int raw_len;
     int raw_pos;
+
+    /* Output backlog -- see DESC_OUT_BUF above. Empty (out_len == 0) the
+     * overwhelming majority of the time; game_loop.c only watches this fd
+     * for writability while it's non-empty. */
+    char out_buf[DESC_OUT_BUF];
+    size_t out_len;
     /* An IAC SB ... IAC SE subnegotiation may arrive split across reads;
      * the scan state persists here so leftover payload bytes are never
      * mistaken for typed input on the next read. */
@@ -327,6 +341,19 @@ void descriptor_destroy(descriptor_t *d);
 bool descriptor_process_input(descriptor_t *d);
 
 void descriptor_send(descriptor_t *d, const char *msg);
+
+/* Queues already-formatted bytes for `d`, replacing a bare socket_write().
+ * Tries an immediate write() first (the common case never touches
+ * out_buf); whatever doesn't go out -- a partial write or EAGAIN -- is
+ * buffered for descriptor_flush_output() to retry once the socket is
+ * writable again, instead of being silently discarded. */
+void descriptor_write(descriptor_t *d, const char *data, size_t len);
+
+/* Retries whatever's buffered in d->out_buf once game_loop.c's select()
+ * reports the fd writable. Returns false on a hard write error (the
+ * connection is dead) -- caller should descriptor_destroy(), same
+ * contract as descriptor_process_input(). */
+bool descriptor_flush_output(descriptor_t *d);
 
 /* The resolved reverse-DNS hostname for this connection, or the raw IP if
  * the lookup hasn't finished (or failed) yet -- every log line and

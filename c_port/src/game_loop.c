@@ -129,19 +129,28 @@ int game_loop_run(int port, const char *copyover_file) {
     long long next_pulse_due = now_usec() + OPT_USEC;
 
     while (!g_shutdown) {
-        fd_set readfds;
+        fd_set readfds, writefds;
         FD_ZERO(&readfds);
+        FD_ZERO(&writefds);
         FD_SET(ms.listen_fd, &readfds);
         int maxfd = ms.listen_fd;
 
         for (descriptor_t *d = g_descriptors; d; d = d->next) {
             FD_SET(d->fd, &readfds);
+            /* Only watch for writability while output is actually backed
+             * up (see descriptor_write()/descriptor_flush_output() in
+             * descriptor.c) -- the overwhelming majority of descriptors
+             * have nothing pending, and a socket is writable almost all
+             * the time, so unconditionally watching it would just spin
+             * select() uselessly. */
+            if (d->out_len > 0)
+                FD_SET(d->fd, &writefds);
             if (d->fd > maxfd)
                 maxfd = d->fd;
         }
 
         struct timeval tv = { .tv_sec = 0, .tv_usec = OPT_USEC };
-        int ready = select(maxfd + 1, &readfds, NULL, NULL, &tv);
+        int ready = select(maxfd + 1, &readfds, &writefds, NULL, &tv);
         if (ready < 0) {
             if (errno == EINTR)
                 continue;
@@ -170,6 +179,14 @@ int game_loop_run(int port, const char *copyover_file) {
         descriptor_t *d = g_descriptors;
         while (d) {
             descriptor_t *next = d->next;
+            /* Flush any backed-up output before reading -- a descriptor
+             * that's been unwritable for a while (backlog full) is
+             * treated as dead, same as a failed read. */
+            if (FD_ISSET(d->fd, &writefds) && !descriptor_flush_output(d)) {
+                descriptor_destroy(d);
+                d = next;
+                continue;
+            }
             if (FD_ISSET(d->fd, &readfds)) {
                 if (!descriptor_process_input(d))
                     descriptor_destroy(d);
@@ -195,7 +212,8 @@ int game_loop_run(int port, const char *copyover_file) {
          * non-editing connection that received output this iteration --
          * from its own command, someone's say, a combat round, a
          * broadcast -- gets exactly one fresh prompt. Written directly
-         * via socket_write so it doesn't re-mark needs_prompt. */
+         * via descriptor_write (queues/retries same as any other output)
+         * so it doesn't re-mark needs_prompt. */
         for (descriptor_t *p = g_descriptors; p; p = p->next) {
             if (p->needs_prompt && p->state == CONN_PLAYING && p->edit_kind == EDIT_NONE
                 && p->page_len == 0) {
@@ -207,9 +225,9 @@ int game_loop_run(int port, const char *copyover_file) {
                     char pbuf[48];
                     int pn = snprintf(pbuf, sizeof(pbuf), "\r\n\r\nHP: %d > ",
                                       p->character->progress.hp);
-                    socket_write(p->fd, pbuf, (size_t)pn);
+                    descriptor_write(p, pbuf, (size_t)pn);
                 } else {
-                    socket_write(p->fd, "\r\n\r\n> ", 6);
+                    descriptor_write(p, "\r\n\r\n> ", 6);
                 }
                 p->needs_prompt = false;
             }

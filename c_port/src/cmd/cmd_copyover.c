@@ -100,6 +100,15 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
     }
     fclose(f);
 
+    /* Flush anything still queued (descriptor_write(), descriptor.c) --
+     * a backlog lives only in this process's heap, so unflushed bytes
+     * would simply vanish across the exec below. One more non-blocking
+     * attempt is all that's safe here (this can't block on a slow
+     * client) -- the 5-second warning sleep above already gives normal
+     * backlogs time to drain, so in practice this is a no-op. */
+    for (descriptor_t *it = g_descriptors; it; it = it->next)
+        descriptor_flush_output(it);
+
     /* Exec by PATH, not /proc/self/exe: the path resolves to a freshly
      * rebuilt binary, while /proc/self/exe would pin the deleted old inode
      * after a rebuild and silently relaunch the OLD code (found the hard
