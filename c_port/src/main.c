@@ -12,6 +12,7 @@
 #include "balance.h"
 #include "combat.h"
 #include "config.h"
+#include "crash_handler.h"
 #include "db.h"
 #include "descriptor.h"
 #include "game_loop.h"
@@ -62,6 +63,7 @@ int main(int argc, char **argv) {
      * anything logs. A copyover successor lands here too, so every server
      * generation naturally starts its own file. */
     log_open();
+    crash_handler_install();
 
     srand((unsigned int)time(NULL));
 

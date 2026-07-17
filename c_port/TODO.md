@@ -2981,6 +2981,58 @@ these; each ships with a smoke test + (if player-facing) a news entry.
           already uses the correct letters-only suffix and was never
           affected by this -- noted here only so a future session doesn't
           waste time rediscovering the same false lead.
+        - **BREAKTHROUGH, still not fully solved: got a clean, isolated,
+          gdb-confirmed backtrace of the server at the exact moment a hang
+          was reproduced (`gdb -p <pid> -batch -ex 'thread apply all bt
+          full'` -- works fine WITHOUT sudo, same-UID ptrace, no need for
+          the passwordless-sudo workaround speculated above).** The result
+          rules out a server-side hang ENTIRELY: the main thread is
+          sitting in a plain, healthy `select()` call
+          (`game_loop.c:144`), `ready=0`, correctly watching exactly the
+          real live fds (`readfds` bitmask decodes to fds 5/6/11/12 --
+          listen socket + the 3 actually-connected sockets, confirmed
+          against both `/proc/<pid>/fd/` and `ss -tnp | grep 4000` at the
+          same instant, with no mismatch). No stuck DB call, no infinite
+          loop, no dropped/orphaned descriptor still open but unwatched --
+          every hypothesis chased earlier this session (stale `maxfd`,
+          blocking `mysql_query()` with no timeout, orphaned linkdead fds)
+          is now DEFINITIVELY ruled out by direct observation, not just
+          reasoning.
+          **This flips the investigation: the server is innocent and
+          idle, so the bug must be in what the CLIENT is waiting for that
+          never arrives** -- either the server already sent a valid
+          response that the test script's own parsing/state-tracking
+          fails to recognize (causing it to keep waiting on a `recv()`
+          that will genuinely never satisfy its check), or a genuine
+          telnet-protocol-level edge case (an IAC negotiation sequence,
+          a color-code edge case, something `drain_lines()` mishandles
+          for one specific input shape) that leaves the CLIENT confused
+          about what it already received, even though the SERVER did its
+          job correctly. Next session: capture the RAW BYTES the client
+          actually received right before it stalls (not just the
+          decoded/printed text) and diff that against what a working run
+          received at the equivalent point -- the answer is almost
+          certainly hiding in a byte-level mismatch, not a logic bug in
+          either the server's command dispatch or its select() loop,
+          both of which are now confirmed healthy.
+        - Added `crash_handler.c`/`.h` (user, once this investigation
+          confirmed the server ISN'T crashing during this specific bug:
+          "if the game detects an oncoming crash, add debug info to a
+          separate log file... or do a core dump with the datetime
+          attached"). Confirmed Fedora's `systemd-coredump` is already
+          active and `ulimit -c` is unlimited on the Home VM -- a REAL
+          crash already gets a fully timestamped, retrievable core dump
+          for free via `coredumpctl list`/`coredumpctl dump <pid>`, no
+          changes needed there. Added a lightweight supplementary
+          handler (SIGSEGV/SIGABRT/SIGFPE/SIGBUS/SIGILL) that writes a
+          quick app-level marker (timestamp, signal, uptime, active
+          connection count) to `logs/crashes/crash-<timestamp>-pid<pid>.log`
+          before re-raising the signal with default disposition, so the
+          OS's own core dump still happens -- this just adds context a
+          raw core dump doesn't carry (how many players were connected).
+          Doesn't apply to the bug investigated above (confirmed NOT a
+          crash), but is real defensive infrastructure for whatever
+          crash, if any, comes up in the future.
 - [x] **`smoke_test_practice.py`/`smoke_test_skills.py` rewritten for the
       practice-system redesign** — done 2026-07-17, partially verified
       (see the connection-handling bug above -- both hit that PRE-EXISTING
