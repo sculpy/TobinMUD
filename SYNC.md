@@ -19,12 +19,33 @@ whichever machine set it locally:
 
 | | Dev tree | Build/test box | Reach it via |
 |---|---|---|---|
-| **Home** | `~/NewMUD/` | VirtualBox VM `NUDServer` (Fedora) | `ssh mud@192.168.254.200` |
-| **Work** | `C:\Users\jhines\NewMUD\` (Windows) | `db.kullit.com` (10.0.0.12, Fedora) | `ssh -i ~/.ssh/id_ed25519_kullit mud@db.kullit.com` |
+| **Home** | `E:\New MUD\` (Windows) | VirtualBox VM `NUDServer` (Fedora), tree at `~/NewMUD/` | `ssh mud@192.168.254.200` |
+| **Work** | `C:\Users\jhines\NewMUD\` (Windows) | `db.kullit.com` (10.0.0.12, Fedora), tree at `~/NewMUD/` | `ssh -i ~/.ssh/id_ed25519_kullit mud@db.kullit.com` |
 
-Both keep the whole tree at `~/NewMUD/` (repo root = the whole tree). MariaDB
-is local to each build box; the server listens on port 4000; logs land in
-`c_port/logs/`.
+Both dev machines are **Windows** (the Gotchas below apply to both). Repo root
+is the whole tree (`c_port/` is one subdir). MariaDB is local to each build
+box; the server listens on port 4000; logs land in `c_port/logs/`.
+
+### Home specifics (differs from the git golden rule below — read this)
+
+The Home build box (`192.168.254.200:~/NewMUD/`) is currently a **plain
+scp-populated copy with no `.git`** — it *cannot* `git pull`, unlike the Work
+box which is a proper deploy-key checkout. So on Home, code reaches the build
+box two ways:
+
+- **Iterating:** per-file `scp` from `E:\New MUD\...` to the matching
+  `~/NewMUD/c_port/...` path on the VM, then build on the VM. (This is what
+  the whole session-to-session dev loop uses.)
+- **Authoritative sync to the *other location*:** still git — commit + push
+  from Windows `E:\New MUD\`; Work pulls it. Home's own VM does **not** pull;
+  it only ever receives code via scp.
+
+> **Recommended fix (brings Home in line with the golden rule):** clone the VM
+> as a real checkout so it can `git pull` like Work does — set up its own
+> read-only deploy key (see "First-time setup for a build box" below), then
+> `git clone git@github.com:sculpy/NewMUD.git ~/NewMUD` on the VM. Until that's
+> done, the VM tree is derived/scp-only and must never be treated as a source
+> of truth.
 
 ## Golden rule: git is the only sync channel
 
@@ -43,7 +64,11 @@ derived, not authoritative.
 sudo dnf update -y                       # FIRST: keep the toolchain matched across boxes (see Toolchain parity)
 cd ~/NewMUD && git pull --ff-only        # or reset --hard origin/main if the tree is derived-only
 ```
-Then, on that location's build box, run the deploy sequence below.
+The `git pull` is on the **dev tree** — `E:\New MUD\` at Home,
+`C:\Users\jhines\NewMUD\` at Work (both Windows; `cd` there, not to
+`~/NewMUD`). The `dnf update` is on the Fedora build box. Then, on that
+location's build box, run the deploy sequence below (at Home, scp the changed
+files to the VM first — see Home specifics).
 
 > **`dnf update` is step 0 every session** (user habit, 2026-07-13) so Home and
 > Work never drift apart on gcc/cmake. `mud` is in sudoers on both boxes but
