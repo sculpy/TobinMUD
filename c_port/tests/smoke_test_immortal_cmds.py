@@ -244,8 +244,14 @@ check("Command not found" in recv_all(sMort), "a mortal typing users gets Comman
 
 send_line(sImm, "users")
 out = recv_all(sImm)
-check(nameImm.capitalize() in out and "127.0.0.1" in out and "playing" in out,
-      "users lists this connection with IP and state")
+# The Host column is descriptor_display_host(): the reverse-DNS hostname once
+# the off-thread lookup lands, else the raw IP. Loopback resolves to
+# "localhost" on the build box, so accept either -- asserting the bare IP made
+# this racy on the resolver (it predated hostname resolution entirely).
+check(nameImm.capitalize() in out
+      and ("127.0.0.1" in out or "localhost" in out)
+      and "playing" in out,
+      "users lists this connection with its host and state")
 check("connection" in out, "users reports the connection count")
 
 sImm.close()

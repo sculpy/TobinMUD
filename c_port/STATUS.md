@@ -1,5 +1,66 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-17 — Session 46 (home): **`cmd_table.c` alphabetized,
+as a pure refactor with zero behavior change.** This finishes the reorder
+that Session 44 deliberately left on hold (its wiznews entry said "further
+alphabetizing within each tier is on hold pending a follow-up decision").
+
+- **The reframing that unblocked it.** The original plan was "pin the
+  documented exceptions, alphabetize the rest, accept the fallout." But this
+  table's *order is its semantics* — `cmd_dispatch()` takes the FIRST entry
+  the caller can see whose name starts with the typed verb — so that plan
+  would silently rewire player muscle memory (`a` attack→affects, `c`
+  close→cast, `h` hit→help, `p` pray→practice). Reframed as: *find the
+  alphabetically-smallest ordering that still resolves every abbreviation
+  exactly as it does today.* That's a topological sort — derive precedence
+  edges mechanically (for every prefix at every level, today's winner must
+  keep preceding the other matches), then Kahn's algorithm with an
+  alphabetical min-heap tiebreak yields the lexicographically smallest legal
+  order.
+- **It cost far less than expected.** Only **16 of 74** mortal entries and
+  **1 of 39** immortal ones must break strict A-to-Z, and every one is a
+  local swap of an adjacent pair: `say`<`save` ("sa"), `score`<`scan`
+  ("sc"), `sit`<`sip` ("si"), `who`<`whisper` ("wh"), `look`<`limbs` ("l"),
+  `rest`<`remove`/`rent` ("r"/"re"), `drop`<`drink` ("dr"),
+  `exits`<`examine` ("ex"), `continue`<`consider` ("con"),
+  `news`<`newbie` ("new"), `inventory`<`idea`/`immort` ("i"),
+  `attack`<`affects` ("a"), `close`<`catchup`<`cast` ("c"/"ca"),
+  `hit`<`help` ("h"), `pray`<`practice` ("p"), `wiznews`<`wizhelp`/`wiznet`
+  ("wiz"). Each is marked inline with the abbreviation it protects. The
+  movement head stays pinned; the mortal/immortal tier split is unchanged.
+- **Verified mechanically, not by eye** — this collision class had already
+  bitten the table three times. A script resolves all **432** prefixes at
+  all **8** distinct levels against both the old and new tables and diffs
+  them: **zero differences**. Kept in-repo at
+  `tests/tools/cmd_abbrev_check.py`; run it against any future reorder
+  (`git show HEAD:c_port/src/cmd/cmd_table.c > /tmp/old.c` for the
+  baseline). It also has a report mode listing each command's shortest
+  reachable abbreviation and what shadows it.
+- **Stale comments corrected.** The per-entry prose had drifted from
+  reality: it claimed `"c"` reached `color` and `"h"` reached `help`, but
+  `close` and `hit` had quietly owned those since they were added ahead of
+  them. New comments were written from the tool's measured output rather
+  than from prose, and the file's header now says to trust a prefix diff
+  over any comment, including its own.
+- **Pre-existing test bug fixed (not a regression from this change).**
+  `smoke_test_immortal_cmds.py` asserted `users` prints the raw IP
+  `127.0.0.1`, but `descriptor_display_host()` (descriptor.c:353) returns
+  the reverse-DNS hostname once the off-thread lookup lands, falling back to
+  the IP — loopback resolves to "localhost" (live game log confirms:
+  `[localhost]` ×28). The test predated hostname resolution and was racing
+  the resolver. Now accepts either. **Confirmed pre-existing by A/B**:
+  rebuilt the ORIGINAL table and reproduced the identical failure.
+- Clean build, zero warnings. Smoke: `immortal_cmds`, `doors`,
+  `exits_display`, `room_stacking`, `alignment` (the test that originally
+  caught `set`→`settrap`), `goto_guildmaster`, `limbs_cmd`,
+  `mortal_toggle`, `news`, `save`, `socials`, `trap`, `wiznews`,
+  `practice`, `combat`. wiznews + TODO entries added.
+- Environment note: the Home VM had just booted when this session started —
+  SSH timed out and ping failed for ~30s, which looks exactly like the
+  bridged-over-WiFi failure the adapter config invites. It was only the boot
+  race. Zone boot also takes ~2s after the process starts, so a restart
+  needs a wait-for-"Listening on port" gate, not a fixed `sleep 2`.
+
 Last updated: 2026-07-13 — Session 45 (background task, follow-up to
 Session 44's sweep triage): fixed the pulse-scheduler timing bug flagged
 below rather than just noted. `src/game_loop.c`'s pulse counter used to

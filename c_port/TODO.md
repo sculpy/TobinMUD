@@ -2686,25 +2686,45 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       abbreviation collision along the way. Further alphabetizing each
       tier block was requested, then explicitly halted mid-edit by the
       user ("STOP... wait for the user to tell you how to proceed").
-- [ ] **Alphabetize each `cmd_table.c` tier block — GO-AHEAD GIVEN
-      2026-07-13, no further confirmation needed.** User: "sort by
-      alphabet first then level lowest to highest" ... "leave important
-      commands at the top." The stall last time was a real conflict:
-      naive alphabetizing breaks the movement-must-be-first invariant
-      (single-letter `n`/`e`/`s`/`w`/`u`/`d` abbreviations depend on
-      movement sitting earliest in the table so nothing else can shadow
-      them) and would also re-open the `set`/`settrap` and `get`/`goto`
-      collisions this session just fixed by ordering. Resolve it as:
-      keep movement (and any other pair the table already documents as
-      deliberately non-alphabetical, e.g. `set` before `settrap`, `get`
-      before `goto`, `wiznews` before `wiznet`) pinned at the top of its
-      tier as documented exceptions, then alphabetize everything else
-      within each of the two tiers (mortal, then immortal) around them.
-      After editing: rebuild, deploy, re-run
-      `smoke_test_immortal_cmds.py` (has the `g`→get/`s`→settrap-style
-      abbreviation checks) plus a couple of movement smoke tests before
-      calling it done — this exact class of collision bit the table
-      reorder twice already this session, don't skip verification here.
+- [x] **Alphabetize each `cmd_table.c` tier block** — done 2026-07-17
+      (GO-AHEAD was given 2026-07-13). User: "sort by alphabet first then
+      level lowest to highest" ... "leave important commands at the top."
+      Shipped as a **pure refactor: zero abbreviation changes**, which is
+      better than the "pin the documented exceptions and let the rest
+      change" plan this entry originally sketched — see below.
+      **The insight:** the table's order IS its semantics (`cmd_dispatch()`
+      takes the FIRST entry the caller can see whose name starts with the
+      typed verb), so "alphabetize it" really means "find the
+      alphabetically-smallest order that still resolves every abbreviation
+      the way it does today" — a topological sort. Derived the precedence
+      edges mechanically (for every prefix at every level, today's winner
+      must keep preceding the other matches), then Kahn's algorithm with an
+      alphabetical min-heap tiebreak = the lexicographically smallest legal
+      order. Result: only **16 of 74** mortal entries and **1 of 39**
+      immortal ones must sit out of strict A-to-Z, each a local swap of an
+      adjacent pair, each marked inline with the abbreviation it protects
+      (`say` before `save` for "sa"; `attack` before `affects` for "a";
+      `close` before `cast`/`catchup` for "c"; `hit` before `help` for
+      "h"; `pray` before `practice` for "p"; `wiznews` before
+      `wizhelp`/`wiznet` for "wiz"). Everything else is plain alphabetical.
+      **Verification** (this class of collision bit the reorder twice
+      before, so it was NOT done by eye): a script resolves all 432
+      prefixes at all 8 distinct levels against both the old and new tables
+      and diffs them — reported **zero differences**. Clean build, zero
+      warnings. Smoke: `immortal_cmds`, `doors`, `exits_display`,
+      `room_stacking`, `alignment` (the test that originally caught
+      `set`→`settrap`), `goto_guildmaster`, `limbs_cmd`, `mortal_toggle`,
+      `news`, `save`, `socials`, `trap`, `wiznews`, `practice`, `combat`.
+      The tooling is kept at `tests/tools/cmd_abbrev_check.py` — **run it
+      against any future reorder of this table.**
+      **Also fixed (pre-existing, found by A/B):** `smoke_test_immortal_cmds.py`
+      asserted `users` prints the raw IP `127.0.0.1`, but
+      `descriptor_display_host()` shows the reverse-DNS hostname once the
+      off-thread lookup lands (loopback → "localhost"; live game log
+      confirms `[localhost]`). The test predated hostname resolution and was
+      racing the resolver; it now accepts either. Verified pre-existing by
+      rebuilding the ORIGINAL table and reproducing the identical failure —
+      not a regression from this change.
 - [x] **Player help content pass** — done. User: "player help files get
       priority" / "help playing remove the phrase 'Sneezy always warned
       about'". Removed that phrase; fixed the hand-authored `classes`
