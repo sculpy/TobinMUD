@@ -38,6 +38,12 @@ being_t *world_find_linkdead_pc(long player_id);
  * many were removed. */
 int world_purge_linkdead(void);
 
+/* Read-only count of linkdead PCs (base.kind == THING_PC, desc == NULL) in
+ * every registered room -- same scope as world_purge_linkdead() but never
+ * removes anything. Used by `who` to report the split between active links
+ * and bodies left behind by a lost connection. */
+int world_count_linkdead(void);
+
 /* Calls `visit(m)` for every mob (base.kind == THING_MOB) in every
  * registered room -- the iteration primitive mob_ai.c's pulse-driven
  * wander/scavenge logic runs on each tick. Saves each room's mob list

@@ -729,3 +729,9 @@ UPDATE `help_topic` SET `body` = 'Usage: disarmtrap <direction>\n\nA Thief who k
 -- pattern as every other post-seed `set` update.
 UPDATE `help_topic` SET `body` = 'Usage: set <name> <field> <value>\n\nAdministrator (58+) only: a one-shot sibling of edplayer for quick,\nscriptable single-field edits -- one line in, one field changed, no\nmenu. Works on any player, online or offline, by exact name; an online\ntarget is updated immediately.\n\nFields: level, xp, hp <hp> <max hp>, alignment, str/dex/con/int/wis/cha,\ngender, title (or ''none'' to clear), loadroom, handed, practices\n(spendable practice points), basic/combat/advanced (discipline\npercentages, 0-100 -- see `help practice`). This field list grows over\ntime as new player-facing stats get added; see `edplayer` for a menu\ncovering every field at once.\n\nRelated: promote'
   WHERE `name` = 'set' AND `updated_by` = 'seed';
+
+-- `who` grew a global active/linkdead/total footer (user 2026-07-17:
+-- "who should report player count (active links) and linkdeads in a
+-- total player count").
+UPDATE `help_topic` SET `body` = 'Usage: who [name|immortals|mortals]\n\nLists everyone currently playing, with their level (or immortal rank\ntitle) shown in brackets before their name and any personal title after\nit. With an argument, filters the list: `who imm` shows only immortals,\n`who mort` only mortals, and any other word matches part of a name.\n\nA personal title (see `help title`) can use color tags (`help colors`)\nand <N>/<n> to insert your own name anywhere in the text.\n\nEvery `who` also ends with a global summary line -- active links,\nlinkdead bodies still in the world, and the total -- regardless of any\nfilter applied above. A linkdead character (disconnected without a\nclean `quit!`/`rent`) stays in the world until the same account\nreconnects or an immortal runs `purge linkdead`.\n\nRelated: users score'
+  WHERE `name` = 'who' AND `updated_by` = 'seed';

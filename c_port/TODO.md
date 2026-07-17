@@ -2851,6 +2851,20 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       originally surfaced this now passes clean), plus
       `smoke_test_combat.py`/`smoke_test_zones.py`/`smoke_test_gametime.py`/
       `smoke_test_multiplay.py`.
+- [x] **`who` reports active links / linkdead / total player count** — done
+      2026-07-17. User: "who should report player count (active links) and
+      linkdeads in a total player count" -- raised while diagnosing the
+      connection-handling bug below, to make linkdead accumulation directly
+      observable instead of inferred. New `world_count_linkdead()`
+      (world.h/world.c), a read-only twin of the existing
+      `world_purge_linkdead()` (same room-walk, just doesn't destroy
+      anything). `who`'s footer now always shows the GLOBAL count
+      (`<c>N active links, M linkdead, N+M total players.<z>`), regardless
+      of any filter (`who imm`/`who mort`/`who <name>`) applied above it --
+      this is a server-health stat, not a scoped listing. Verified live:
+      a fresh post-restart instance currently shows 0 linkdead, which
+      rules OUT "accumulated orphaned linkdead bodies" as the connection
+      bug's cause, at least as the state stands right now.
 - [ ] **PRE-EXISTING connection-handling bug: a live descriptor's session
       can silently stall mid-command under concurrent load, dropping the
       connection some time later with no server-side error.** Discovered
@@ -2908,6 +2922,65 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       - This is now the PRIMARY known blocker for a fully clean sweep --
         every other 2026-07-17 sweep failure has a specific, understood
         cause (see the two entries below).
+      - **Follow-up investigation session (2026-07-17, continued)**: set
+        up a real git checkout on the Home VM (see SYNC.md) and did a full
+        clean server restart specifically to chase this further. Findings:
+        - `game_loop.c`'s `select()` loop recomputes `maxfd` fresh every
+          iteration (not cached) -- ruled OUT the "stale maxfd excludes a
+          new fd" theory.
+        - Sockets are confirmed non-blocking (`O_NONBLOCK` set in
+          `socket.c`); `descriptor_process_input()` correctly handles
+          `EAGAIN`/`EWOULDBLOCK`.
+        - **Live lead, not yet confirmed or ruled out**: `db.c`'s
+          `db_query()` calls `mysql_query()` synchronously with NO
+          timeout configured anywhere (`pool_get()` never calls
+          `mysql_options()` for `MYSQL_OPT_READ_TIMEOUT`/`_WRITE_TIMEOUT`/
+          `_CONNECT_TIMEOUT`). Since this is a single-threaded event loop,
+          ANY query that blocks server-side (e.g. an InnoDB row-lock wait,
+          default 50s timeout) would freeze EVERY connection for that
+          whole duration. Attempted to catch this live with `gdb -p <pid>
+          -batch -ex 'thread apply all bt'` at the exact moment of a
+          reproduced hang -- blocked by `sudo` requiring a password
+          non-interactively (same `dnf` gotcha noted elsewhere in this
+          file); never got a live backtrace. **Next session should either
+          get passwordless sudo for gdb (a scoped `visudo` drop-in, same
+          idea as the `dnf` one already suggested in SYNC.md) or run gdb
+          as a NON-root ptrace of a same-UID process (should work without
+          sudo at all if `/proc/sys/kernel/yama/ptrace_scope` isn't
+          hardened -- try `gdb -p <pid>` as plain `mud` first, before
+          reaching for sudo).**
+        - Built a `who` command upgrade (see the entry above) specifically
+          to make one hypothesis (accumulated linkdead bodies degrading
+          room-list operations) directly observable rather than inferred.
+          **Ruled OUT** for the current server lifetime: a freshly
+          restarted, actively-tested instance showed 0 linkdead at a point
+          where the hang had already been reproduced multiple times since
+          the restart -- so linkdead accumulation is not (solely)
+          responsible, at least not on a short timescale.
+        - Reproduced the hang inconsistently even right after a clean
+          restart: the FIRST full run of `smoke_test_kill.py` post-restart
+          passed completely ("ALL CHECKS PASSED"), but 3 immediate
+          back-to-back re-runs all hung at the same early point (right
+          after Part 1). This rules out "purely a long-uptime degradation"
+          as the sole explanation too -- something about RAPID repeated
+          runs specifically seems to matter, not just elapsed server
+          uptime. Possibly relevant: rapid-fire test runs create many
+          near-simultaneous DB writes (SQL from the raw `mariadb` CLI in
+          test helpers, interleaved with the server's own queries) --
+          worth checking `SHOW ENGINE INNODB STATUS` for lock waits
+          DURING an active hang (not after, which is what was checked this
+          session -- by the time `SHOW PROCESSLIST` was checked, whatever
+          was blocking had already resolved).
+        - Also confirmed some of THIS session's own ad-hoc diagnostic
+          scripts (not the real test suite) produced a red herring: a
+          quick script using a NUMERIC name suffix hit the pre-documented
+          "names must be letters only" rejection, which cascaded into a
+          confusing "reconnect shows an empty account menu" symptom that
+          looked like the real bug but was purely a scripting mistake, not
+          a server issue. The REAL test suite (`smoke_test_kill.py` etc.)
+          already uses the correct letters-only suffix and was never
+          affected by this -- noted here only so a future session doesn't
+          waste time rediscovering the same false lead.
 - [x] **`smoke_test_practice.py`/`smoke_test_skills.py` rewritten for the
       practice-system redesign** — done 2026-07-17, partially verified
       (see the connection-handling bug above -- both hit that PRE-EXISTING

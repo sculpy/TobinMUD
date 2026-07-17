@@ -73,6 +73,20 @@ int world_purge_linkdead(void) {
     return count;
 }
 
+int world_count_linkdead(void) {
+    int count = 0;
+    for (room_entry_t *e = g_rooms; e; e = e->next) {
+        for (thing_t *t = e->room->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC)
+                continue;
+            being_t *b = (being_t *)t;
+            if (!b->desc)
+                count++;
+        }
+    }
+    return count;
+}
+
 void world_for_each_mob(void (*visit)(being_t *m)) {
     for (room_entry_t *e = g_rooms; e; e = e->next) {
         thing_t *t = e->room->base.stuff_head;

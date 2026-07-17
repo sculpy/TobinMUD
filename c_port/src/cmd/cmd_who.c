@@ -9,6 +9,8 @@
 #include <strings.h>
 #include <time.h>
 
+#include "world.h"
+
 /* Fixed width for who's bracketed level/title field -- matches the longest
  * title ("Administrator", 13 chars) so every row lines up regardless of
  * whether it's showing a title or a "Level: N" fallback. */
@@ -156,6 +158,25 @@ bool cmd_who(descriptor_t *d, const char *args) {
     if (shown == 0 && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  No one%s is online.\r\n",
                       filter == WHO_ALL ? "" : " matching that");
+
+    /* Summary footer (user 2026-07-17: "who should report player count
+     * (active links) and linkdeads in a total player count") -- always the
+     * GLOBAL numbers regardless of any filter above, since this is a
+     * server-health stat, not a scoped listing. A linkdead body (desc ==
+     * NULL) has no descriptor_t at all, so it's invisible to the loop
+     * above entirely -- world_count_linkdead() walks every room directly
+     * to find them (see `purge linkdead`, cmd_purge.c, which uses the same
+     * scan to remove them). */
+    int active = 0;
+    for (descriptor_t *o = g_descriptors; o; o = o->next) {
+        if (o->character)
+            active++;
+    }
+    int linkdead = world_count_linkdead();
+    if ((size_t)n < sizeof(out))
+        n += snprintf(out + n, sizeof(out) - (size_t)n,
+                      "\r\n<c>Active: [%d]  Linkdead: [%d]  Total players: [%d]<z>\r\n",
+                      active, linkdead, active + linkdead);
 
     descriptor_send(d, out);
     return true;
