@@ -3018,7 +3018,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                             descriptor_send(d, "Saving the trigger failed.\r\n");
                         }
                     } else {
-                        char final_body[HELP_BODY_MAX];
+                        char final_body[HELP_BODY_MAX + sizeof(d->edit_related) + 16];
                         if (d->edit_related[0])
                             snprintf(final_body, sizeof(final_body), "%s\nRelated: %s",
                                      d->edit_buf, d->edit_related);

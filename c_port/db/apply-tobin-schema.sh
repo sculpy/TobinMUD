@@ -19,8 +19,18 @@ DB_NAME="${1:-sneezy}"
 DB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/sneezy" && pwd)"
 
 shopt -s nullglob
-for sql in "${DB_DIR}"/*.sql; do
+sqls=("${DB_DIR}"/*.sql)
+shopt -u nullglob
+
+# Apply in a stable, locale-INDEPENDENT (ASCII/C) order. Bash pathname
+# expansion sorts per LC_COLLATE, which differs across boxes -- under some
+# locales `trigger_seed.sql` (INSERTs) sorts before `trigger.sql` (CREATE
+# TABLE) because punctuation is ignored ("triggerseed" < "triggersql"),
+# which fails on a fresh DB. In C collation '.' (0x2E) < '_' (0x5F), so a
+# base file like `trigger.sql` always precedes its `trigger_seed.sql`.
+readarray -t sqls < <(printf '%s\n' "${sqls[@]}" | LC_ALL=C sort)
+
+for sql in "${sqls[@]}"; do
   echo "applying '${sql}' -> ${DB_NAME}"
   mariadb "${DB_NAME}" < "${sql}"
 done
-shopt -u nullglob

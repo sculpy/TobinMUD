@@ -60,7 +60,7 @@ static bool apply_bamf_tokens(const char *tmpl, room_t *room, gender_t gender,
  * wording when empty. */
 static void announce_bamf(being_t *ch, room_t *room, const char *tmpl, bool arriving) {
     char body[BEING_BAMF_LEN + 96];
-    char msg[256];
+    char msg[sizeof(body) + sizeof(ch->base.name) + 16];
     if (tmpl[0]) {
         bool named = apply_bamf_tokens(tmpl, room, ch->gender, ch->base.name, body, sizeof(body));
         if (named)

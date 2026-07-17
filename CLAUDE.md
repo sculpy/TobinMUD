@@ -65,8 +65,16 @@ freeze makes tests flake).
   behavior.
 - Deviations from the original are allowed but must be deliberate and
   documented in STATUS.md's decisions table.
-- Zero-warning builds; every feature ships with a smoke test; full suite
-  before commit.
+- Zero-warning builds (`-Wall -Wextra`); every feature ships with a smoke
+  test; full suite before commit. **Toolchain parity (both locations):**
+  keep the same gcc/cmake at both Home and Work (habit: run `sudo dnf update
+  -y` as step 0 of every session on each box — `mud` is a password-sudoer,
+  so a human runs it), and **the stricter one
+  wins** — warnings vary by gcc version, so ALWAYS do a clean rebuild
+  (`rm -rf build`) before committing and never trust an incremental or
+  home-only build. (The Work box's newer gcc caught two format-truncation
+  warnings a Home build had missed — 2026-07-13.) See SYNC.md's Toolchain
+  parity note.
 - Help topics are updated IN THE SAME CHANGE as the feature they document
   (new command → new topic; changed behavior → refreshed topic). Evaluate
   at every commit.
@@ -90,7 +98,12 @@ freeze makes tests flake).
   redit), 54+ log reading, 56+ help editing (hedit), 58+ promote/users, 59+
   operations (copyover, log rotate). Commands above the caller's level
   are invisible, not refused.
-- The `ed*` editor family (renamed from `*edit`, 2026-07-05): `edroom`
-  (rooms), `edhelp` (help), `ednews` (news), `edwiznews` (wiznews) exist;
-  `edobject`/`edmob`/`edzone`/`edplayer`/`edaccount` planned (see TODO.md).
-  All menu-driven. Read-only viewers keep plain names (`news`, `wiznews`).
+- **Editors are unified under `edit <noun> [args]`** (user 2026-07-11,
+  superseding the earlier separate `ed<noun>`/`*edit` verbs): `edit room`,
+  `edit zone`, `edit player`, `edit help`, `edit news`, `edit wiznews`,
+  `edit rules`, `edit trigger` (dispatch in `cmd_edit.c`); `edit object`/
+  `edit mob`/`edit account` planned. All **menu-driven**, like character
+  creation — **the user provides a wireframe for each**. Read-only viewers
+  keep plain names (`news`, `wiznews`).
+- **Colorize tastefully with LOWERCASE color codes** — player/immortal
+  output gets tinted with the lowercase (dim) tags by habit.
