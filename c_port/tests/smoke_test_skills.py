@@ -76,6 +76,19 @@ def cmd(sock, line, timeout=1.0):
     return recv_all(sock, timeout)
 
 
+def cmd_paged(sock, line, timeout=1.0, max_pages=10):
+    # `skills` now pages its output (2026-07-17 pagination fix) -- a
+    # single class's 3-tier roster easily exceeds the pager's default
+    # 20-line page, so the checks below need the WHOLE listing, not just
+    # page 1. Keep hitting ENTER until no "more" prompt remains.
+    out = cmd(sock, line, timeout)
+    pages = 0
+    while "ENTER" in out and "more" in out and pages < max_pages:
+        out += cmd(sock, "", timeout)
+        pages += 1
+    return out
+
+
 def check(condition, message):
     if not condition:
         raise AssertionError(message)
@@ -88,6 +101,19 @@ def sql(stmt):
 
 def set_level(name, level):
     sql(f"UPDATE player_progress SET level={level} WHERE player_id="
+        f"(SELECT id FROM player WHERE name='{name}');")
+
+
+def set_disciplines(name, basic=100, combat=100, advanced=100):
+    # Practice-system redesign (2026-07-17): Combat is no longer "innate" --
+    # it's a real discipline gated by combat_disc_pct just like Basic/
+    # Advanced, so a fresh 0%-everywhere character now sees every skill as
+    # locked-by-discipline. This test is about the SKILLS DISPLAY (headers,
+    # level-gating), not the practice system itself (see
+    # smoke_test_practice.py for that) -- so max out all three disciplines
+    # up front, sidestepping the discipline gate entirely.
+    sql(f"UPDATE player_progress SET basic_disc_pct={basic}, combat_disc_pct={combat}, "
+        f"advanced_disc_pct={advanced} WHERE player_id="
         f"(SELECT id FROM player WHERE name='{name}');")
 
 
@@ -105,6 +131,14 @@ def make_char(name, pw, class_choice):
     send_line(s, "done"); recv_all(s)
     send_line(s, "2"); recv_all(s)  # alignment: neutral
     cmd(s, "color off")
+    set_disciplines(name)
+    s.close()
+    s = socket.create_connection((host, port), timeout=5)
+    recv_all(s)
+    send_line(s, name); recv_all(s)
+    send_line(s, pw); recv_all(s)
+    send_line(s, "1"); recv_all(s)
+    cmd(s, "color off")
     return s
 
 
@@ -112,7 +146,7 @@ def make_char(name, pw, class_choice):
 warrior_name = f"Skwar{_suffix}"
 pw = "skillstestpw123"
 sw = make_char(warrior_name, pw, "3")
-out = cmd(sw, "skills")
+out = cmd_paged(sw, "skills")
 check("-- Combat --" in out, "warrior sees the Combat tier header")
 check("-- Warrior Skills --" in out, "warrior sees the Warrior Skills tier header")
 check("-- Advanced Warrior Skills --" in out, "warrior sees the Advanced Warrior Skills tier header")
@@ -129,7 +163,7 @@ send_line(sw, warrior_name); recv_all(sw)
 send_line(sw, pw); recv_all(sw)
 send_line(sw, "1"); recv_all(sw)
 cmd(sw, "color off")
-out = cmd(sw, "skills")
+out = cmd_paged(sw, "skills")
 disarm_line = [l for l in out.splitlines() if "disarm" in l][0]
 check("(level" not in disarm_line, "leveling up to 45 unlocks 'disarm' (no longer marked locked)")
 
@@ -143,7 +177,7 @@ for class_choice, cls_label, signature in (
 ):
     name = f"Sk{cls_label[:3]}{_suffix}"
     s = make_char(name, pw, class_choice)
-    out = cmd(s, "skills")
+    out = cmd_paged(s, "skills")
     check(f"-- {cls_label} Skills --" in out, f"{cls_label} sees the '{cls_label} Skills' tier header")
     check(f"-- Advanced {cls_label} Skills --" in out, f"{cls_label} sees the 'Advanced {cls_label} Skills' tier header")
     check(signature in out, f"{cls_label} sees its signature skill/spell ({signature})")

@@ -122,3 +122,39 @@ ALTER TABLE `player_progress`
 -- help text).
 ALTER TABLE `player_progress`
   ADD COLUMN IF NOT EXISTS `rented_at` int(11) NOT NULL DEFAULT 0;
+
+-- Practice-system redesign (user 2026-07-13, design locked; guildmaster
+-- decisions resolved 2026-07-17 -- see TODO.md). Adds a THIRD discipline,
+-- Combat (SKILL_TIER_COMBAT), alongside Basic and Advanced, plus a pool of
+-- spendable practice points. On level-up a player earns
+--   random(6,8) + round(wisdom_bonus * wisdom_practice_modifier)
+-- points (wisdom_bonus = floor((wisdom - ATTR_BASE) / 10)); each point
+-- spent at a guildmaster raises one discipline by a random 1-2%. Advanced
+-- unlocks only once Basic AND Combat both reach 100%. The three
+-- guildmaster tiers are told apart by mob.level: 51 = Basic, 80 = Combat,
+-- 100 = Advanced (no new world content -- the 80-tier already exists,
+-- one per class, each already placed; see cmd_practice.c).
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `combat_disc_pct` int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `practice_points` int(11) NOT NULL DEFAULT 0;
+
+-- Scales the wisdom contribution to per-level practice-point awards.
+-- Default '1'. Viewed/changed live with `balance wisdom [<value>]`.
+INSERT INTO `game_config` (`name`, `value`) VALUES ('wisdom_practice_modifier', '1')
+  ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Per-skill/spell proficiency (user 2026-07-17: "the actual gain in
+-- proficiency should be gained as in sneezy" -- learn-by-doing, separate
+-- from the coarse *_disc_pct access gate above). One row per player per
+-- skill they've actually attempted; a skill never attempted has no row
+-- (treated as 0%, i.e. "not yet learned by doing"). `last_gain_at` is a
+-- unix timestamp, used as a simple anti-grind cooldown (skill.c). See
+-- skill_repo.h/skill.c for the read/write API and the gain formula.
+CREATE TABLE IF NOT EXISTS `player_skill` (
+  `player_id` bigint(20) unsigned NOT NULL,
+  `skill_name` varchar(64) NOT NULL,
+  `pct` int(11) NOT NULL DEFAULT 0,
+  `last_gain_at` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`player_id`, `skill_name`)
+);

@@ -6,8 +6,12 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
+
+#include "skill_repo.h"
 
 /* Ported from SneezyMUD's real discArray[] (misc/spell_info.cc), trimmed
  * to Tobin's simplified 3-tier scheme -- see skill.h's doc comment.
@@ -388,8 +392,11 @@ bool being_knows_skill(const being_t *b, const char *name) {
             return false;
         if (sk->tier == SKILL_TIER_CLASS && b->progress.basic_disc_pct <= 0)
             return false;
+        if (sk->tier == SKILL_TIER_COMBAT && b->progress.combat_disc_pct <= 0)
+            return false;
         if (sk->tier == SKILL_TIER_ADVANCED &&
-            (b->progress.basic_disc_pct < 95 || b->progress.advanced_disc_pct <= 0))
+            (b->progress.basic_disc_pct < 100 || b->progress.combat_disc_pct < 100
+             || b->progress.advanced_disc_pct <= 0))
             return false;
         return true;
     }
@@ -415,4 +422,105 @@ const char *skill_tier_label(player_class_t cls, skill_tier_t tier, char *buf, s
             break;
     }
     return buf;
+}
+
+const skill_def_t *skill_find(player_class_t cls, const char *name, bool any_class) {
+    int count = skill_count();
+    for (int i = 0; i < count; i++) {
+        const skill_def_t *sk = skill_at(i);
+        if (!any_class && sk->cls != cls)
+            continue;
+        if (strcasecmp(sk->name, name) == 0)
+            return sk;
+    }
+    return NULL;
+}
+
+/* The discipline percentage that acts as this skill's proficiency
+ * ceiling -- rising it (via `practice`) is what lets learn-by-doing keep
+ * climbing, same relationship as Sneezy's getMaxSkillValue(). */
+static int skill_ceiling(const being_t *ch, const skill_def_t *sk) {
+    if (sk->tier == SKILL_TIER_COMBAT)   return ch->progress.combat_disc_pct;
+    if (sk->tier == SKILL_TIER_ADVANCED) return ch->progress.advanced_disc_pct;
+    return ch->progress.basic_disc_pct;
+}
+
+/* First-ever-attempted proficiency floor, matching Sneezy's own minimum
+ * initial value (never literal 0 -- you're barely competent, not
+ * hopeless, the first time you try something you already have access
+ * to). */
+#define SKILL_PROFICIENCY_FLOOR 1
+
+/* Anti-grind: a skill won't gain-check again this soon after its last
+ * gain-check, win or lose. Sneezy scales this 30s/3min by current skill
+ * level; one flat cooldown is a deliberate simplification. */
+#define SKILL_GAIN_COOLDOWN_SECS 30
+
+int skill_proficiency(const being_t *ch, const skill_def_t *sk) {
+    skill_proficiency_t sp;
+    if (!skill_repo_get(ch->player_id, sk->name, &sp))
+        return 0;
+    return sp.pct;
+}
+
+int skill_learn_from_doing(being_t *ch, const skill_def_t *sk) {
+    int ceiling = skill_ceiling(ch, sk);
+    if (ceiling <= 0)
+        return 0; /* shouldn't happen -- the caller's discipline gate already blocks this */
+
+    skill_proficiency_t sp;
+    long now = (long)time(NULL);
+
+    if (!skill_repo_get(ch->player_id, sk->name, &sp)) {
+        /* First-ever attempt: establish the floor, no roll needed. */
+        sp.pct = SKILL_PROFICIENCY_FLOOR;
+        if (sp.pct > ceiling)
+            sp.pct = ceiling;
+        sp.last_gain_at = now;
+        skill_repo_set(ch->player_id, sk->name, sp.pct, sp.last_gain_at);
+        return sp.pct;
+    }
+
+    if (sp.pct >= ceiling)
+        return sp.pct; /* capped -- practice the discipline further to raise the ceiling */
+
+    if (now - sp.last_gain_at < SKILL_GAIN_COOLDOWN_SECS)
+        return sp.pct; /* too soon since the last gain-check */
+
+    /* Headroom shrinks the gain chance as proficiency nears its ceiling
+     * (Sneezy: chance = 1000 * headroom^power). Wisdom softens the
+     * curve by lowering the exponent -- a high-Wisdom character keeps a
+     * good gain chance further into their climb. Integer exponent
+     * (instead of Sneezy's continuous 1.0-3.0 float via pow()) avoids
+     * needing libm, matching practice.c's own no-math.h precedent. */
+    int power = 2;
+    if (ch->attrs.wisdom >= ATTR_BASE + 10)
+        power = 1;
+    else if (ch->attrs.wisdom <= ATTR_BASE - 10)
+        power = 3;
+
+    double headroom = (double)(ceiling - sp.pct) / (double)ceiling;
+    double chance_ratio = headroom;
+    for (int i = 1; i < power; i++)
+        chance_ratio *= headroom;
+    int chance = (int)(1000.0 * chance_ratio);
+    if (chance < 15)
+        chance = 15;
+
+    if (rand() % 1000 < chance) {
+        sp.pct++;
+        if (sp.pct > ceiling)
+            sp.pct = ceiling;
+    }
+    sp.last_gain_at = now;
+    skill_repo_set(ch->player_id, sk->name, sp.pct, sp.last_gain_at);
+    return sp.pct;
+}
+
+bool skill_roll_success(int pct) {
+    if (pct >= 100)
+        return true;
+    if (pct <= 0)
+        return false;
+    return (rand() % 100) < pct;
 }

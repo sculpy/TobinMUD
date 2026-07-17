@@ -11,18 +11,20 @@
 #include "skill.h"
 
 /* `skills`: lists a player's class's skill/spell roster, grouped into the
- * three tiers (Combat / <Class> Skills / Advanced <Class> Skills) --
- * user 2026-07-11: "assign all warrior skills to warriors in three
- * disciplines...", repeated per class. A skill is "known" once level
- * reaches its threshold AND (for the Class/Advanced tiers -- Combat is
- * innate) the player's discipline percentage is above 0 (user
- * 2026-07-12: "add the practice command so players have to visit a
- * guildmaster to gain skills based upon percentage of discipline
- * learned" -- see cmd_practice.c). `force_known` (immortals) shows
- * everything as known regardless of level/percentage. */
-static void print_tier(descriptor_t *d, player_class_t cls, skill_tier_t tier, int level,
-                       int basic_pct, int advanced_pct, bool force_known,
-                       char *out, size_t outsz, size_t *n) {
+ * three tiers (Combat / <Class> Skills / Advanced <Class> Skills). A skill
+ * is "known" (usable) once level reaches its threshold AND the player's
+ * relevant discipline percentage is above 0 -- that ACCESS gate is
+ * unchanged. A known skill also shows its own individual proficiency
+ * percentage (Sneezy-style learn-by-doing, user 2026-07-17), which is a
+ * separate number that climbs with use and gates the actual success of
+ * each attempt (see skill_learn_from_doing()/skill_roll_success() in
+ * cmd_cast.c/cmd_pray.c/cmd_trap.c/combat.c). `force_known` (immortals)
+ * shows everything as accessible regardless of level/percentage, but
+ * still shows their own real (usually 0%) proficiency, since immortals
+ * bypass the gates rather than having pre-set skill values. */
+static void print_tier(descriptor_t *d, const being_t *ch, player_class_t cls, skill_tier_t tier,
+                       int level, int basic_pct, int combat_pct, int advanced_pct,
+                       bool force_known, char *out, size_t outsz, size_t *n) {
     char label[48];
     skill_tier_label(cls, tier, label, sizeof(label));
 
@@ -44,13 +46,21 @@ static void print_tier(descriptor_t *d, player_class_t cls, skill_tier_t tier, i
         if (tier == SKILL_TIER_CLASS) {
             disc_ok = basic_pct > 0;
             disc_reason = "practice Basic discipline";
+        } else if (tier == SKILL_TIER_COMBAT) {
+            disc_ok = combat_pct > 0;
+            disc_reason = "practice Combat discipline";
         } else if (tier == SKILL_TIER_ADVANCED) {
-            disc_ok = basic_pct >= 95 && advanced_pct > 0;
-            disc_reason = basic_pct < 95 ? "need 95% Basic first" : "practice Advanced discipline";
+            disc_ok = basic_pct >= 100 && combat_pct >= 100 && advanced_pct > 0;
+            if (basic_pct < 100 || combat_pct < 100)
+                disc_reason = "master Basic and Combat first";
+            else
+                disc_reason = "practice Advanced discipline";
         }
 
         if (force_known || (level_ok && disc_ok)) {
-            *n += (size_t)snprintf(out + *n, outsz - *n, "  %-26s %s\r\n", sk->name, sk->desc);
+            int prof = skill_proficiency(ch, sk);
+            *n += (size_t)snprintf(out + *n, outsz - *n, "  %-26s %s <y>[%d%%]<z>\r\n",
+                                   sk->name, sk->desc, prof);
         } else if (!level_ok) {
             *n += (size_t)snprintf(out + *n, outsz - *n,
                                    "  <k>%-26s %s (level %d)<z>\r\n",
@@ -72,8 +82,6 @@ bool cmd_skills(descriptor_t *d, const char *args) {
         return true;
 
     if (skill_at(0) == NULL) {
-        /* Unreachable in practice (the roster is never empty), but keeps
-         * this loop-free if it ever were. */
         descriptor_send(d, "No skills are defined yet.\r\n");
         return true;
     }
@@ -81,29 +89,28 @@ bool cmd_skills(descriptor_t *d, const char *args) {
     char out[8192];
     size_t n = 0;
 
-    /* Immortals see and can use every class's full roster (user
-     * 2026-07-12: "immortals can use any skill or spell in game, no
-     * class restrictions") -- print every class's tiers, all shown as
-     * known (level 999 sidesteps the per-skill min_level dimming, same
-     * as the level-gate bypass in cmd_cast.c/cmd_pray.c). */
+    /* Immortals see every class's full roster, all shown as known --
+     * accumulated into one buffer and paged, same as the mortal path
+     * below (six classes' worth of skills is well beyond one screen). */
     if (being_is_immortal(d->character)) {
+        char out[16000];
+        size_t n = 0;
         for (player_class_t cls = 0; cls < CLASS_COUNT; cls++) {
-            char cout[4096];
-            size_t cn = 0;
             char header[64];
             snprintf(header, sizeof(header), "\r\n<y>=== %s ===<z>\r\n", class_name(cls));
-            cn += (size_t)snprintf(cout + cn, sizeof(cout) - cn, "%s", header);
-            print_tier(d, cls, SKILL_TIER_COMBAT, 999, 100, 100, true, cout, sizeof(cout), &cn);
-            print_tier(d, cls, SKILL_TIER_CLASS, 999, 100, 100, true, cout, sizeof(cout), &cn);
-            print_tier(d, cls, SKILL_TIER_ADVANCED, 999, 100, 100, true, cout, sizeof(cout), &cn);
-            descriptor_send(d, cout);
+            n += (size_t)snprintf(out + n, sizeof(out) - n, "%s", header);
+            print_tier(d, d->character, cls, SKILL_TIER_COMBAT, 999, 100, 100, 100, true, out, sizeof(out), &n);
+            print_tier(d, d->character, cls, SKILL_TIER_CLASS, 999, 100, 100, 100, true, out, sizeof(out), &n);
+            print_tier(d, d->character, cls, SKILL_TIER_ADVANCED, 999, 100, 100, 100, true, out, sizeof(out), &n);
         }
+        descriptor_page_start(d, out, 0);
         return true;
     }
 
     player_class_t cls = d->character->char_class;
     int level = d->character->progress.level;
     int basic_pct = d->character->progress.basic_disc_pct;
+    int combat_pct = d->character->progress.combat_disc_pct;
     int advanced_pct = d->character->progress.advanced_disc_pct;
 
     bool has_any = false;
@@ -119,12 +126,13 @@ bool cmd_skills(descriptor_t *d, const char *args) {
     }
 
     n += (size_t)snprintf(out + n, sizeof(out) - n,
-                          "Basic discipline: <y>%d%%<z>   Advanced discipline: <y>%d%%<z>%s\r\n",
-                          basic_pct, advanced_pct,
-                          basic_pct < 95 ? " <k>(locked until Basic reaches 95%)<z>" : "");
-    print_tier(d, cls, SKILL_TIER_COMBAT, level, basic_pct, advanced_pct, false, out, sizeof(out), &n);
-    print_tier(d, cls, SKILL_TIER_CLASS, level, basic_pct, advanced_pct, false, out, sizeof(out), &n);
-    print_tier(d, cls, SKILL_TIER_ADVANCED, level, basic_pct, advanced_pct, false, out, sizeof(out), &n);
-    descriptor_send(d, out);
+                          "Basic: <y>%d%%<z>   Combat: <y>%d%%<z>   Advanced: <y>%d%%<z>%s\r\n",
+                          basic_pct, combat_pct, advanced_pct,
+                          (basic_pct < 100 || combat_pct < 100)
+                              ? " <k>(Advanced locked until Basic and Combat reach 100%)<z>" : "");
+    print_tier(d, d->character, cls, SKILL_TIER_COMBAT, level, basic_pct, combat_pct, advanced_pct, false, out, sizeof(out), &n);
+    print_tier(d, d->character, cls, SKILL_TIER_CLASS, level, basic_pct, combat_pct, advanced_pct, false, out, sizeof(out), &n);
+    print_tier(d, d->character, cls, SKILL_TIER_ADVANCED, level, basic_pct, combat_pct, advanced_pct, false, out, sizeof(out), &n);
+    descriptor_page_start(d, out, 0);
     return true;
 }

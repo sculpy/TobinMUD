@@ -21,6 +21,7 @@
 #include "multiplay.h"
 #include "log.h"
 #include "obj.h"
+#include "practice.h"
 #include "pulse.h"
 #include "regen.h"
 #include "trigger.h"
@@ -81,6 +82,7 @@ int main(int argc, char **argv) {
     multiplay_load(); /* restore the persisted multiplay game flag */
     gametime_load();  /* restore the persisted game clock */
     balance_cache_load(); /* class/race balance modifiers (cmd_balance.c) */
+    wisdom_practice_load(); /* wisdom->practice-points scalar (practice.c) */
 
     /* Zones Part 2 (Session 43): populate rooms from the zone_reset data
      * migrated in Part 1. Runs unconditionally here -- for both a cold

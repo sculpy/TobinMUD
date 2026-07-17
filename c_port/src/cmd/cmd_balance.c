@@ -5,8 +5,11 @@
 #include "cmd_internal.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+
+#include "practice.h"
 
 /* `balance class|race <name>` (Implementor-only, 60+ -- user 2026-07-12:
  * "a balance command (60) where you take args: balance <class|race>
@@ -29,7 +32,25 @@ bool cmd_balance(descriptor_t *d, const char *args) {
     sscanf(args, "%15s %31s", kind, name);
 
     if (!kind[0]) {
-        descriptor_send(d, "Usage: balance class <name>  or  balance race <name>\r\n");
+        descriptor_send(d, "Usage: balance class <name>  |  balance race <name>  |  balance wisdom [<value>]\r\n");
+        return true;
+    }
+
+    /* `balance wisdom [<value>]` -- view or set the wisdom->practice-points
+     * scalar (practice.h). No value = display, value = update cache + DB. */
+    if (strncasecmp(kind, "wisdom", strlen(kind)) == 0) {
+        if (!name[0]) {
+            char buf[80];
+            snprintf(buf, sizeof(buf), "Wisdom practice modifier: <c>%g<z>\r\n",
+                     wisdom_practice_modifier());
+            descriptor_send(d, buf);
+        } else {
+            double v = atof(name);
+            wisdom_practice_modifier_set(v);
+            char buf[80];
+            snprintf(buf, sizeof(buf), "Wisdom practice modifier set to <c>%g<z>.\r\n", v);
+            descriptor_send(d, buf);
+        }
         return true;
     }
 

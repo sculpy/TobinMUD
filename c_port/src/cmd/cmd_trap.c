@@ -66,6 +66,16 @@ bool cmd_settrap(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* Per-skill proficiency (Sneezy-style learn-by-doing, user 2026-07-17)
+     * -- a fumbled rig wastes the attempt but leaves the door untrapped,
+     * same "attempt made, effect not guaranteed" spirit as cast/pray. */
+    bool imm = being_is_immortal(ch);
+    const skill_def_t *sk = skill_find(ch->char_class, "set trap (door)", imm);
+    if (!imm && sk && !skill_roll_success(skill_learn_from_doing(ch, sk))) {
+        descriptor_send(d, "You fumble rigging the trap -- it doesn't take.\r\n");
+        return true;
+    }
+
     r->exit_cond[dir] |= EXIT_COND_TRAPPED;
     room_repo_save_exit(r->vnum, dir, r->exits[dir], r->exit_door[dir], r->exit_cond[dir]);
     descriptor_send(d, "You rig a trap on the door.\r\n");
@@ -94,6 +104,16 @@ bool cmd_disarmtrap(descriptor_t *d, const char *args) {
     room_t *r = ch->base.roomp;
     if (!(r->exit_cond[dir] & EXIT_COND_TRAPPED)) {
         descriptor_send(d, "There's no trap there.\r\n");
+        return true;
+    }
+
+    /* Per-skill proficiency (Sneezy-style learn-by-doing, user 2026-07-17)
+     * -- a fumbled disarm leaves the trap rigged; it does not spring on
+     * the disarmer (kept deliberately non-punishing, v1 scope). */
+    bool imm = being_is_immortal(ch);
+    const skill_def_t *sk = skill_find(ch->char_class, "disarm trap", imm);
+    if (!imm && sk && !skill_roll_success(skill_learn_from_doing(ch, sk))) {
+        descriptor_send(d, "You fumble disarming the trap -- it's still rigged.\r\n");
         return true;
     }
 

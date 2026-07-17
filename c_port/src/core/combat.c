@@ -18,6 +18,7 @@
 #include "obj.h"
 #include "obj_repo.h"
 #include "player_repo.h"
+#include "practice.h"
 #include "room.h"
 #include "skill.h"
 #include "thing.h"
@@ -299,10 +300,24 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * off-hand weapon", so a dual-wield-trained attacker's off-hand
      * strike loses its -1 (a plain 0, same as bare-handed) instead of
      * being worse than their main-hand default. */
-    if (attacker->off_hand_next)
-        dmg += being_knows_skill(attacker, "dual wield") ? 0 : -1;
-    else
+    if (attacker->off_hand_next) {
+        bool dual_wield_known = being_knows_skill(attacker, "dual wield");
+        dmg += dual_wield_known ? 0 : -1;
+        /* Per-skill proficiency (Sneezy-style learn-by-doing, user
+         * 2026-07-17): dual wield is a passive stance with no discrete
+         * success/failure, so only the proficiency number climbs with
+         * use -- the mitigation above stays the existing binary
+         * know-it-or-don't gate, unaffected. PCs only (mobs have no
+         * player_id/practice-points system to hang this on, same
+         * THING_PC gate combat_defeat() uses for XP/practice points). */
+        if (dual_wield_known && attacker->base.kind == THING_PC && !being_is_immortal(attacker)) {
+            const skill_def_t *sk = skill_find(attacker->char_class, "dual wield", false);
+            if (sk)
+                skill_learn_from_doing(attacker, sk);
+        }
+    } else {
         dmg += 1;
+    }
     attacker->off_hand_next = !attacker->off_hand_next;
 
     /* Weapon sharpness (user 2026-07-12, weapon depth): an edged/
@@ -483,6 +498,12 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             winner->progress.hp = winner->progress.max_hp;
             being_limbs_full_heal(winner);
             tell(winner, "You feel more experienced!\r\n");
+            int pp = 0;
+            for (int i = 0; i < levels_gained; i++)
+                pp += practice_points_for_level(winner);
+            winner->progress.practice_points += pp;
+            tell(winner, "<g>You gain %d practice point%s.<z>\r\n",
+                 pp, pp == 1 ? "" : "s");
         }
         player_progress_save(winner->player_id, &winner->progress);
     }

@@ -29,8 +29,9 @@ bool cmd_bug(descriptor_t *d, const char *args) {
         if (being_is_immortal(ch)) {
             char out[8192];
             if (bug_repo_list(out, sizeof(out), 40)) {
-                descriptor_send(d, "\r\n<c>-- Bug reports --<z>\r\n");
-                descriptor_send(d, out);
+                char full[8300];
+                snprintf(full, sizeof(full), "\r\n<c>-- Bug reports --<z>\r\n%s", out);
+                descriptor_page_start(d, full, 0);
             } else {
                 descriptor_send(d, "No bug reports are on file.\r\n");
             }

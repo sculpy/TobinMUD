@@ -107,6 +107,14 @@ typedef struct {
      * See skill.h's skill_tier_t. */
     int basic_disc_pct;
     int advanced_disc_pct;
+    /* Combat discipline (SKILL_TIER_COMBAT) + the spendable practice-point
+     * pool -- the 2026-07-13 practice redesign. Practice points are earned
+     * on level-up (combat.c's combat_defeat()) and spent at a guildmaster
+     * via `practice <discipline> [<#>]` to raise Basic/Combat/Advanced. A
+     * point buys a random 1-2%. Advanced is gated on Basic AND Combat both
+     * at 100 (see cmd_practice.c / skill.c). */
+    int combat_disc_pct;
+    int practice_points;
     /* Unix timestamp of the last `rent` (cmd_rent.c, user 2026-07-12:
      * "make rent work from sneezy"), or 0 if not currently rented out.
      * player_load() (player_repo.c) heals a flat rate for the real time

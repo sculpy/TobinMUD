@@ -14,6 +14,7 @@
 #include "being.h"
 #include "cmd.h"
 #include "obj.h"
+#include "practice.h"
 #include "room.h"
 #include "room_repo.h"
 #include "thing.h"
@@ -269,7 +270,10 @@ static bool goto_send_directions(descriptor_t *d, bool (*is_goal)(room_t *r),
  * since the teleporting version's old world_for_each_mob() scan gave no
  * way to know which match was actually closest. */
 static player_class_t g_gm_search_class;
+static int g_gm_search_tier;
 
+/* Matches a room containing a guildmaster mob of the caller's class AND
+ * the requested tier (identified by mob.level 51/80/100). */
 static bool goto_is_guildmaster_room(room_t *r) {
     for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
         if (t->kind != THING_MOB)
@@ -277,17 +281,54 @@ static bool goto_is_guildmaster_room(room_t *r) {
         being_t *m = (being_t *)t;
         if (!m->mob_class_known || m->char_class != g_gm_search_class)
             continue;
+        if (g_gm_search_tier && m->progress.level != g_gm_search_tier)
+            continue;
         if (thing_name_matches(m->base.name, "guildmaster", strlen("guildmaster")))
             return true;
     }
     return false;
 }
 
+/* `goto guildmaster` -- directions to the nearest Basic (level-51) trainer. */
 static bool goto_guildmaster(descriptor_t *d) {
     g_gm_search_class = d->character->char_class;
+    g_gm_search_tier = GUILD_LEVEL_BASIC;
     return goto_send_directions(d, goto_is_guildmaster_room,
         "a guildmaster of your discipline",
         "You don't know where to find a guildmaster of your discipline.\r\n");
+}
+
+/* `goto combat` -- directions to the nearest Combat (level-80) trainer. */
+static bool goto_combat(descriptor_t *d) {
+    g_gm_search_class = d->character->char_class;
+    g_gm_search_tier = GUILD_LEVEL_COMBAT;
+    return goto_send_directions(d, goto_is_guildmaster_room,
+        "a combat guildmaster of your discipline",
+        "You don't know where to find a combat guildmaster of your discipline.\r\n");
+}
+
+/* `goto <classname>` -- directions to that NAMED class's Basic (level-51)
+ * trainer, regardless of the caller's own class (unlike `goto guildmaster`,
+ * which is always self-class only). Useful for checking on another class's
+ * guildmaster without switching characters. Returns false if `word` isn't
+ * a recognized class name (prefix match, same convention as `balance
+ * class <name>`). */
+static bool goto_class_guildmaster(descriptor_t *d, const char *word, size_t wlen) {
+    if (!wlen)
+        return false;
+    for (player_class_t cls = 0; cls < CLASS_COUNT; cls++) {
+        if (strncasecmp(class_name(cls), word, wlen) != 0)
+            continue;
+        g_gm_search_class = cls;
+        g_gm_search_tier = GUILD_LEVEL_BASIC;
+        char label[64];
+        snprintf(label, sizeof(label), "a %s guildmaster", class_name(cls));
+        char not_found[96];
+        snprintf(not_found, sizeof(not_found), "You don't know where to find a %s guildmaster.\r\n", class_name(cls));
+        goto_send_directions(d, goto_is_guildmaster_room, label, not_found);
+        return true;
+    }
+    return false;
 }
 
 /* `goto rent`/`goto surplus`: one fixed target room each (user
@@ -330,7 +371,7 @@ bool cmd_goto(descriptor_t *d, const char *args) {
         return true;
     }
     if (!*args) {
-        descriptor_send(d, "Usage: goto guildmaster|rent|surplus   |   goto <room vnum | player name> (immortals)\r\n");
+        descriptor_send(d, "Usage: goto guildmaster|combat|rent|surplus|<classname>   |   goto <room vnum | player name> (immortals)\r\n");
         return true;
     }
 
@@ -340,10 +381,24 @@ bool cmd_goto(descriptor_t *d, const char *args) {
         size_t flen = strlen(first);
         if (flen && strncasecmp(first, "guildmaster", flen) == 0)
             return goto_guildmaster(d);
+        if (flen && strncasecmp(first, "combat", flen) == 0)
+            return goto_combat(d);
+        if (flen && strncasecmp(first, "advanced", flen) == 0) {
+            descriptor_send(d, "The path to the Advanced guildmaster is known only to those who seek it.\r\n");
+            return true;
+        }
         if (flen && strncasecmp(first, "rent", flen) == 0)
             return goto_rent(d);
         if (flen && strncasecmp(first, "surplus", flen) == 0)
             return goto_surplus(d);
+        /* `goto <classname>` -- directions to that class's own Basic
+         * guildmaster, not just the caller's own class (checked last, so
+         * a class name that happens to abbreviate-collide with one of the
+         * fixed landmarks above -- "c" for Cleric vs. combat -- loses to
+         * the more commonly used landmark, same shadowing convention as
+         * cmd_table.c's command dispatch). */
+        if (goto_class_guildmaster(d, first, flen))
+            return true;
     }
 
     if (!being_is_immortal(d->character)) {

@@ -72,6 +72,34 @@ static const char *apply_field(being_t *w, int load_room, int *out_load_room,
         return msg;
     }
 
+    if (strcasecmp(field, "practices") == 0 || strcasecmp(field, "practicepoints") == 0) {
+        char *end;
+        long v = strtol(rest, &end, 10);
+        if (end == rest || v < 0)
+            return "Practice points must be a non-negative number.\r\n";
+        w->progress.practice_points = (int)v;
+        if (!player_progress_save(w->player_id, &w->progress))
+            return "Save failed -- the DB rejected it.\r\n";
+        snprintf(msg, sizeof(msg), "%s's practice points are now %ld.\r\n", w->base.name, v);
+        return msg;
+    }
+
+    if (strcasecmp(field, "basic") == 0 || strcasecmp(field, "combat") == 0
+        || strcasecmp(field, "advanced") == 0) {
+        char *end;
+        long v = strtol(rest, &end, 10);
+        if (end == rest || v < 0 || v > 100)
+            return "Discipline percentage must be between 0 and 100.\r\n";
+        int *pct = strcasecmp(field, "basic") == 0 ? &w->progress.basic_disc_pct
+                 : strcasecmp(field, "combat") == 0 ? &w->progress.combat_disc_pct
+                 : &w->progress.advanced_disc_pct;
+        *pct = (int)v;
+        if (!player_progress_save(w->player_id, &w->progress))
+            return "Save failed -- the DB rejected it.\r\n";
+        snprintf(msg, sizeof(msg), "%s's %s discipline is now %ld%%.\r\n", w->base.name, field, v);
+        return msg;
+    }
+
     if (strcasecmp(field, "hp") == 0) {
         int hp = 0, max_hp = 0;
         if (sscanf(rest, "%d %d", &hp, &max_hp) != 2 || hp < 0 || max_hp < 1 || hp > max_hp)
@@ -146,7 +174,8 @@ static const char *apply_field(being_t *w, int load_room, int *out_load_room,
     }
 
     (void)load_room;
-    return "Unknown field. Try: level, xp, hp, alignment, str/dex/con/int/wis/cha, gender, title, loadroom, handed.\r\n";
+    return "Unknown field. Try: level, xp, hp, alignment, str/dex/con/int/wis/cha, "
+           "gender, title, loadroom, handed, practices, basic, combat, advanced.\r\n";
 }
 
 bool cmd_set(descriptor_t *d, const char *args) {
@@ -159,7 +188,7 @@ bool cmd_set(descriptor_t *d, const char *args) {
     if (got < 2) {
         descriptor_send(d, "Usage: set <name> <field> <value>\r\n"
                             "Fields: level, xp, hp, alignment, str/dex/con/int/wis/cha, "
-                            "gender, title, loadroom, handed\r\n");
+                            "gender, title, loadroom, handed, practices, basic, combat, advanced\r\n");
         return true;
     }
 

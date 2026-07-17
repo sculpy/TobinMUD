@@ -256,9 +256,14 @@ bool cmd_pray(descriptor_t *d, const char *args) {
             descriptor_send(d, "You haven't practiced your Basic discipline yet -- visit a guildmaster.\r\n");
             return true;
         }
+        if (sk->tier == SKILL_TIER_COMBAT && ch->progress.combat_disc_pct <= 0) {
+            descriptor_send(d, "You haven't practiced your Combat discipline yet -- visit a combat guildmaster.\r\n");
+            return true;
+        }
         if (sk->tier == SKILL_TIER_ADVANCED &&
-            (ch->progress.basic_disc_pct < 95 || ch->progress.advanced_disc_pct <= 0)) {
-            descriptor_send(d, "You need 95% in your Basic discipline, and some Advanced practice, before this.\r\n");
+            (ch->progress.basic_disc_pct < 100 || ch->progress.combat_disc_pct < 100
+             || ch->progress.advanced_disc_pct <= 0)) {
+            descriptor_send(d, "Master your Basic and Combat disciplines, and begin Advanced practice, before this.\r\n");
             return true;
         }
     }
@@ -278,7 +283,18 @@ bool cmd_pray(descriptor_t *d, const char *args) {
         return true;
     }
 
-    task_pray(d, ch, target, sk);
+    /* Per-skill proficiency (Sneezy-style learn-by-doing, user 2026-07-17)
+     * -- separate from the discipline-percentage ACCESS gate above, this
+     * is the caster's own success chance at THIS specific prayer, and it
+     * climbs with every attempt. Immortals always succeed, same "no
+     * restrictions" spirit as their other gate bypasses. */
+    if (imm || skill_roll_success(skill_learn_from_doing(ch, sk))) {
+        task_pray(d, ch, target, sk);
+    } else {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "You fumble the prayer for %s -- nothing happens.\r\n", sk->name);
+        descriptor_send(d, msg);
+    }
     obj_destroy(symbol);
     return true;
 }

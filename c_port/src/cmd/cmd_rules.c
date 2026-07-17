@@ -22,9 +22,11 @@ bool cmd_rules(descriptor_t *d, const char *args) {
     if (!*args) {
         char out[4096];
         if (rules_repo_list(out, sizeof(out))) {
-            descriptor_send(d, "\r\n<c>-- Game Rules --<z>\r\n");
-            descriptor_send(d, out);
-            descriptor_send(d, "\r\nType 'rules <number>' to read a rule in full.\r\n");
+            char full[4300];
+            snprintf(full, sizeof(full),
+                     "\r\n<c>-- Game Rules --<z>\r\n%s\r\nType 'rules <number>' to read a rule in full.\r\n",
+                     out);
+            descriptor_page_start(d, full, 0);
         } else {
             descriptor_send(d, "No rules have been posted yet.\r\n");
         }

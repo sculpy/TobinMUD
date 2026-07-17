@@ -20,6 +20,103 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-11 (continued) — working these next
 
+- [x] **`practice <discipline>` now shows the skill listing anywhere**
+      — done 2026-07-17. User reported testing `practice combat` away
+      from a guildmaster: "You don't see a Combat guildmaster of your
+      discipline here" -- then: "this command should display the skill
+      listing for that discipline along with percentage of proficiency
+      unless in front of a guildmaster then the offer to practice still
+      applies along with the percentage of each seperate skill/spell
+      proficiency." Reworked `cmd_practice.c`'s `<discipline>` form to
+      split on whether an explicit count was given: `practice combat`
+      (bare, no count) now ALWAYS shows that one discipline's skill/spell
+      listing with each accessible skill's own individual proficiency
+      (new `practice_show_discipline()`, reuses `skill_proficiency()`
+      from the same-session per-skill-proficiency work), with NO
+      guildmaster required -- if one happens to be present, a training
+      reminder is appended. Only `practice combat <count>` (an EXPLICIT
+      count) still spends practice points, and that form is unchanged --
+      still requires the matching guildmaster present. This is a real
+      behavior change from before (bare `practice combat` used to
+      silently spend exactly 1 point); the new split is deliberate --
+      checking status shouldn't cost a scarce resource. Help topic +
+      wiznews entry updated to document the split clearly.
+- [x] **`set` grew practices/basic/combat/advanced fields** — done
+      2026-07-17. User: "need the ability for the set command to adjust
+      practices and any other stat you can think of, we'll get in the
+      habit of updating set with new items as we go." Added 4 new
+      `apply_field()` cases to `cmd_set.c`: `practices`/`practicepoints`
+      (progress.practice_points, >=0), `basic`/`combat`/`advanced`
+      (the three discipline percentages, 0-100, matching `practice
+      <discipline>`'s own vocabulary). No new online-sync code needed --
+      the existing sync loop already copies the whole `progress_t`
+      struct wholesale. **Standing habit going forward**: `set` should
+      grow a matching field whenever a new player-facing stat gets
+      added (like this session's practice_points/*_disc_pct did before
+      this item, and skill proficiency conceivably could later -- though
+      per-skill fields don't fit `set`'s one-name-one-value shape as
+      cleanly, so that may need its own subcommand if ever added).
+- [x] **Per-skill proficiency (Sneezy-style learn-by-doing)** — done
+      2026-07-17. User: "when typing skill or any other item that has
+      long output, pass it to pagination" (see the pagination item below)
+      then, separately: "also as far as skills/spells are concerned, they
+      should gain access to a skill by practicing, but the actual gain in
+      proficiency should be gained as in sneezy." Researched Sneezy's real
+      mechanic first (`code/code/misc/skills.cc`/`discipline.cc`): each
+      skill/spell has its OWN 0-100% proficiency, separate from the
+      coarse discipline-tier ACCESS gate (Tobin's `*_disc_pct`, unchanged)
+      -- proficiency climbs via `learnFromDoing()` on every attempt (win
+      or lose), the gain chance shrinks as it nears a ceiling set by the
+      discipline percentage (Wisdom softens the curve), and it then gates
+      a real d100 success roll. Confirmed scope with the user via
+      AskUserQuestion before building (matching the practice-redesign
+      precedent for multi-part features): real success roll (not just
+      cosmetic tracking), hooked into `cast`/`pray` plus every
+      already-mechanically-wired skill (`settrap`/`disarmtrap`, dual
+      wield; sanctuary comes free since it's invoked via `pray`).
+      New `player_skill` table (player_id, skill_name, pct, last_gain_at
+      -- one row per player per skill actually attempted; unattempted =
+      0%). New `skill_repo.h`/`.c` (DB access) + `skill.c` additions:
+      `skill_find()` (exact-name lookup, for callers that already know
+      the name rather than parsing player input), `skill_proficiency()`
+      (read-only getter, for display), `skill_learn_from_doing()` (the
+      gain-check + increment, returns the resulting pct), `skill_roll_success()`
+      (d100 vs pct). Formula is a Tobin-simplified port: integer exponent
+      (1/2/3 by Wisdom tier around ATTR_BASE) instead of Sneezy's
+      continuous float exponent via `pow()`, avoiding a new libm
+      dependency (matching practice.c's own no-`math.h` precedent from
+      earlier this session) -- `chance = 1000 * headroom^power`, floored
+      at 15/1000, first-ever attempt floors at 1%. A flat 30s anti-grind
+      cooldown replaces Sneezy's two-tier 30s/3min. `cmd_cast.c`/
+      `cmd_pray.c`: after the existing component/symbol gate, roll
+      proficiency (immortals always succeed); the material is still
+      consumed either way, a failure just fizzles ("You fumble the
+      casting/prayer..."). `cmd_trap.c`: `settrap`/`disarmtrap` roll the
+      same way -- a fumble wastes the attempt (door stays un/re-trapped)
+      but still nudges proficiency; a fumbled disarm deliberately does
+      NOT spring the trap on the disarmer (kept non-punishing, v1 scope).
+      `combat.c`'s dual wield check: learn-by-doing only, no roll (it's a
+      passive stance already gated by the existing binary
+      `being_knows_skill()` check, unaffected) -- PCs only, mobs have no
+      practice-points system to hang this on. `cmd_skills.c` shows each
+      known skill's proficiency in brackets (e.g. "bash [34%]"). Help
+      topics (`cast`/`pray`/`skills`/`settrap`/`disarmtrap`) + wiznews
+      entry updated. **Not yet done**: no dedicated smoke test written
+      this session (time-boxed to shipping the mechanic + docs); the
+      full sweep before the eventual repo push will need one.
+- [x] **Pagination for long-output commands (`skills`/`bug`/`idea`/`rules`)**
+      — done 2026-07-17. User: "also when typing skill or any other item
+      that has long output, pass it to pagination." `skills` (now showing
+      three discipline percentages plus every tier, worse for immortals
+      who see all 6 classes at once), `bug`, `idea`, and `rules` all
+      built an unpaginated buffer and dumped it in one `descriptor_send()`
+      -- same bug class `news`/`wiznews` already had fixed earlier this
+      session. All four now go through the existing shared pager
+      (`descriptor_page_start()`, `descriptor.c`) instead: one screen at
+      a time, ENTER for more, Q to stop. `skills`' immortal branch was
+      also restructured to accumulate all 6 classes into one buffer and
+      page it once, instead of sending each class's block immediately
+      per-iteration (which bypassed pagination entirely for that path).
 - [x] **Room-listing stacking (`(xN)`)** — done. User: "in look at room,
       object stacking and mob stacking. for 2 gremlins you would see
       A gremlin is standing here. (x2)." `cmd_look.c`'s room loop used to
@@ -2754,7 +2851,105 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       originally surfaced this now passes clean), plus
       `smoke_test_combat.py`/`smoke_test_zones.py`/`smoke_test_gametime.py`/
       `smoke_test_multiplay.py`.
-- [ ] **Practice system redesign — GO-AHEAD GIVEN 2026-07-13, design is
+- [ ] **PRE-EXISTING connection-handling bug: a live descriptor's session
+      can silently stall mid-command under concurrent load, dropping the
+      connection some time later with no server-side error.** Discovered
+      2026-07-17 while triaging sweep failures for a suspected regression
+      from that session's other work. **Confirmed NOT a regression**:
+      reproduces identically against a completely pristine build of commit
+      `74ead6d` (the last commit before ANY of 2026-07-17's changes),
+      built fresh in `/tmp/ab_pristine` on a separate port (4001) sharing
+      the same DB, isolated from the live server entirely. Symptoms:
+      - A connected session (already past login, mid-test-script) simply
+        stops responding to further commands -- `recv()` blocks
+        indefinitely, well past any test's own bounded retry/timeout
+        logic (ruling out the test scripts themselves).
+      - The server process itself stays alive and healthy throughout --
+        confirmed via `top` (near-idle CPU, no busy-loop), continued zone
+        resets firing on schedule, MySQL `SHOW PROCESSLIST` showing only
+        idle `Sleep` connections (no lock/deadlock), and a stable file
+        descriptor count (`/proc/<pid>/fd`, nowhere near any limit).
+      - Reproduces under BOTH concurrent-load patterns observed so far:
+        3 near-simultaneous NEW connections (`smoke_test_kill.py`'s
+        Imm/Tgt/Obs, `smoke_test_weapon_depth.py`'s bare-handed combat
+        against a mob), and just 2 ALREADY-CONNECTED sessions under
+        general server activity (`smoke_test_practice.py`'s cleric+
+        immortal pair, `smoke_test_skills.py`'s sequential make_char()
+        loop). No single common trigger pinned down yet -- looks load/
+        timing-sensitive rather than tied to one specific command.
+      - When it happens, typically TWO OR MORE connections "lose their
+        link" in the log at the exact same timestamp, and any newly
+        INITIATED connection around that same moment never completes
+        character creation either (its socket opens at the OS level --
+        logged "New connection" -- but the app-level accept/login flow
+        never proceeds for it).
+      - Affects at minimum: `smoke_test_affects.py`, `smoke_test_continue.py`,
+        `smoke_test_immortal_castpray.py`, `smoke_test_kill.py`,
+        `smoke_test_logging.py`, `smoke_test_ordinal_target.py`,
+        `smoke_test_practice.py`, `smoke_test_skills.py`,
+        `smoke_test_trap.py`, `smoke_test_weapon_depth.py`,
+        `smoke_test_weapon_messaging.py` (11 of the 2026-07-17 sweep's
+        113-passed/11-failed run) -- likely more under the right timing,
+        this just happens to be the set that hit it during one sweep run.
+      - **Next steps for whoever picks this up**: this smells like a
+        `select()`/descriptor-handling bug in `game_loop.c` or
+        `descriptor.c` -- something that can leave a connection's read
+        state stuck (not polled, or polled but never actually serviced)
+        once enough OTHER connections/activity are in flight at once.
+        Worth checking: is `maxfd` tracked correctly as connections churn
+        (a stale/wrong `maxfd` after several opens+closes could exclude a
+        newer fd from the `select()` set entirely)? Does anything hold a
+        connection's descriptor in a state where the main loop's dispatch
+        skips it (an editor-mode flag left set, a pager state left
+        pending, a wait-state counter that never decrements)? A live
+        reproduction with `strace -f -p <pid>` attached at the moment of
+        stall, or add temporary trace logging around `select()`'s fd_set
+        construction, would likely nail it faster than guessing further.
+      - This is now the PRIMARY known blocker for a fully clean sweep --
+        every other 2026-07-17 sweep failure has a specific, understood
+        cause (see the two entries below).
+- [x] **`smoke_test_practice.py`/`smoke_test_skills.py` rewritten for the
+      practice-system redesign** — done 2026-07-17, partially verified
+      (see the connection-handling bug above -- both hit that PRE-EXISTING
+      issue partway through a live run, but every check that ran before
+      the stall passed, validating the rewrite logic itself).
+      `smoke_test_skills.py`: Combat tier is no longer "innate" (this
+      session's redesign made it a real discipline gated by
+      `combat_disc_pct`, same as Basic/Advanced) -- a fresh 0%-everywhere
+      character now sees every skill locked-by-discipline, breaking the
+      old assumption that a level-1 skill like "bash" shows known by
+      default. Fixed by maxing out all three disciplines via SQL right
+      after character creation (`set_disciplines()`), reconnecting once so
+      the live `being_t` actually picks it up (SQL never reaches an
+      already-connected session's in-memory state, a lesson repeated
+      throughout this session's other test fixes). Also added
+      `cmd_paged()`: `skills`' new pagination (see the pagination TODO
+      entry) means a single class's full 3-tier roster can exceed the
+      pager's 20-line default page, so the test now drains every page by
+      sending blank lines until no "ENTER for more" prompt remains.
+      `smoke_test_practice.py`: full rewrite, not a patch -- the entire
+      flat-+10%-per-use, no-guildmaster-required-refused, Combat-doesn't-
+      exist model it tested is gone. Covers the actual current behavior:
+      bare `practice` works anywhere showing 0%/0 points; `practice
+      <discipline>` (no count) shows that discipline's listing anywhere,
+      no guildmaster needed; `practice <discipline> <count>` is the only
+      form that spends and DOES need the matching guildmaster (refused
+      with none present, refused at the wrong class's); grants points via
+      `set <name> practices <n>` (dogfooding this session's own new `set`
+      field); spending raises the percentage and stops at 100%
+      ("already mastered" on a re-spend); Advanced refused until Basic
+      AND Combat both hit 100% (`set <name> combat 100` again for live-
+      sync, not raw SQL); `practice <yourclass>` as a Basic synonym; and
+      -- the main new mechanic -- per-skill proficiency actually gating
+      `pray` success: a spell SQL-forced to 100% proficiency
+      (`player_skill` table) succeeds reliably, one left at the natural
+      1% first-attempt floor fumbles in a clear majority of a small
+      statistical sample (8 attempts, expects >=5 fumbles). Found and
+      fixed one bug in my own first draft while writing this: a raw SQL
+      `combat_disc_pct` update while the cleric stayed connected
+      wouldn't reach the live session either -- switched to `set <name>
+      combat 100` for the same live-sync reason as skills.py above.
+- [x] **Practice system redesign — GO-AHEAD GIVEN 2026-07-13, design is
       fully locked, implement without asking for further design input.**
       (multi-part, not yet implemented) — user: "practice needs to work
       differently. a
@@ -2822,16 +3017,57 @@ these; each ships with a smoke test + (if player-facing) a news entry.
          logic, unchanged target type), add `goto combat`→per-class
          Combat trainer (class-aware routing, same mechanism as Basic),
          add `goto advanced`→always refuses, no pathfinding attempted.
-      6. The 6 new per-class Combat guildmaster mobs/rooms — **check in
-         with the user before creating this world content**, per the
-         explicit commitment already made; how Basic/Advanced mobs get
-         identified by role (existing level-51/level-100 mobs, by
-         mob.level threshold or a keyword) also needs a decision before
-         `cmd_practice.c`/`cmd_goto.c` can match them reliably.
+      6. Combat guildmasters — **RESOLVED 2026-07-17, no new world content
+         needed.** The check-in happened and both open questions are now
+         decided by the user:
+         - **Reuse the existing level-80 guildmaster tier** as the Combat
+           trainers, rather than creating 6 new mobs/rooms. Investigating
+           the seed data turned up a THIRD guildmaster tier the locked
+           design never accounted for: Sneezy ships 51/80/100 sets
+           (keyworded `level15`/`level40`/`level50`), each one-per-class
+           and each already placed in a distinct room. The level-80 set
+           covers exactly Tobin's 6 classes and already sits scattered
+           away from the city guild offices — which is precisely the
+           "different mobs located in different places" requirement.
+           Combat trainers, mob → room: 216 mage → 14435 In a Pipeweed
+           Patch; 217 cleric → 11309 Tiny Alcove; 218 warrior → 7800
+           Watchtower On The Southern Wall; 219 thief → 11472 Inside the
+           Pile; 223 monk → 7803 Large Chamber in the Rock; 220
+           ranger→Druid → 23293 Tree Spanning a Stream in Arden Forest.
+           (Masks 16/32 = shaman/deikhan stay unmapped by
+           `mob_class_mask_to_tobin()`, so those tier-mates are invisible
+           to Tobin — harmless.)
+         - **Identify role by `mob.level`: 51 = Basic, 80 = Combat, 100 =
+           Advanced.** Zero DB edits, the levels are already distinct in
+           the seed. `find_guildmaster()` takes a tier argument and
+           matches keyword "guildmaster" + class + level. Known tradeoff
+           the user accepted: it's an implicit convention, so a
+           guildmaster added at some other level matches nothing — keep
+           the tier levels named as constants in one place, and if that
+           ever bites, switch to explicit `basic`/`combat`/`advanced`
+           keywords (~18 UPDATE rows).
       7. Help topics (`practice`, `goto`, `skills`, `balance`) + wiznews
          entry once shipped, plus new/extended smoke tests covering
          practice-point earning/spending, the three-discipline gate, the
          three `goto` forms, and `balance wisdom`.
+      **Shipped 2026-07-17, live and verified.** Three follow-up
+      refinements landed post-ship from in-game testing (user, same
+      session): (a) bare `practice` originally required a guildmaster in
+      the room just to show your own percentages/points -- fixed to
+      always show your own status regardless of location, only adding a
+      guildmaster's training-prompt line when one happens to be present;
+      (b) that training-prompt line originally suggested all three
+      disciplines regardless of which guildmaster tier was actually
+      standing there -- fixed to suggest only the one that guildmaster
+      teaches (`find_guildmaster()`'s strict tier match already refused
+      the others correctly, only the flavor text was misleading); (c)
+      `practice <yourclassname>` (e.g. `practice warrior`) now works as a
+      synonym for `practice basic`, matching how `skills` already labels
+      that tier by class name ("Warrior Skills", not "Basic Skills");
+      (d) new `goto <classname>` (e.g. `goto thief`) gives directions to
+      that NAMED class's own Basic guildmaster, not just the caller's own
+      class -- checked last in the landmark chain, so it never shadows
+      the fixed landmarks above it.
 - [ ] **Message boards + related commands** — port from Sneezy. User:
       "implement message boards and related commands from sneezy."
 

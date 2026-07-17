@@ -1,5 +1,127 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-17 — Session 47 (home): **Practice-system follow-up
+polish, real per-skill proficiency (Sneezy-style learn-by-doing), and `set`
+command growth.** Direct continuation of Session 46's practice redesign,
+worked live against the running server with the user testing each fix
+in-game between iterations.
+
+- **Practice-system polish** (playtesting found 4 real UX bugs in Session
+  46's redesign): bare `practice` used to require a guildmaster in the room
+  just to show your OWN percentages/points — now always shows status
+  anywhere, guildmaster only adds a training reminder. That reminder used to
+  invite all three disciplines regardless of which guildmaster tier was
+  actually present — now only suggests the one that guildmaster teaches
+  (the underlying gate was already correct, only the flavor text was
+  misleading). `practice <yourclassname>` (e.g. `practice warrior`) now
+  works as a synonym for `practice basic`, matching how `skills` already
+  labels that tier by class name. New `goto <classname>` (e.g.
+  `goto thief`) gives directions to that NAMED class's own Basic
+  guildmaster, not just the caller's own class — checked last in `goto`'s
+  landmark chain so it never shadows the fixed landmarks.
+- **`practice <discipline>` reworked to be useful anywhere**: user tested
+  `practice combat` away from a guildmaster and got flatly refused — not
+  useful for checking progress. Split on whether an explicit count is
+  given: bare `practice combat` now always shows that ONE discipline's
+  skill/spell listing with each accessible skill's own proficiency
+  percentage (new `practice_show_discipline()`, cmd_practice.c), no
+  guildmaster required; a guildmaster present adds a training reminder.
+  Only `practice combat <count>` (explicit count) still spends points, and
+  that form is unchanged — still needs the matching guildmaster. Real
+  behavior change from before (bare form used to silently spend 1 point);
+  deliberate, since checking status shouldn't cost a scarce resource.
+- **Real per-skill proficiency — Sneezy-style learn-by-doing** (user:
+  "they should gain access to a skill by practicing, but the actual gain in
+  proficiency should be gained as in sneezy"). Researched the actual Sneezy
+  mechanic first (`code/code/misc/skills.cc`/`discipline.cc` in the
+  reference tree) rather than guessing, then locked scope via
+  AskUserQuestion before building (same precedent as the practice
+  redesign): real d100 success roll (not cosmetic), hooked into
+  `cast`/`pray` plus every already-mechanically-wired skill
+  (`settrap`/`disarmtrap`, dual wield). Discipline percentages
+  (`*_disc_pct`) now ONLY gate tier ACCESS; each individual skill/spell
+  additionally has its OWN 0-100% proficiency (new `player_skill` table:
+  player_id, skill_name, pct, last_gain_at) that climbs via
+  `skill_learn_from_doing()` on every attempt, win or lose — gain chance
+  shrinks as it nears a ceiling set by the relevant discipline percentage
+  (raising the discipline via `practice` raises the ceiling; using the
+  skill climbs toward it), Wisdom softens the diminishing-returns curve
+  (integer exponent 1/2/3 by Wisdom tier, avoiding a new libm dependency —
+  same no-`math.h` precedent as `practice.c`). `cast`/`pray` roll
+  `skill_roll_success()` against the resulting proficiency for every
+  attempt (component/symbol still consumed either way; failure fizzles —
+  "You fumble the casting/prayer..."). `settrap`/`disarmtrap` roll the
+  same way; a fumbled disarm deliberately does NOT spring the trap on the
+  disarmer (kept non-punishing, v1 scope). Dual wield gets learn-by-doing
+  only (no roll — it's a passive stance, PCs only). `skills` shows each
+  known skill's proficiency in brackets (`bash [34%]`). New
+  `skill_repo.h`/`.c` (DB access) + `skill.c` additions (`skill_find()`,
+  `skill_proficiency()`, `skill_learn_from_doing()`, `skill_roll_success()`).
+  **Gap**: no dedicated smoke test written this session (time-boxed to
+  shipping the mechanic + docs) — needed before the next full sweep is
+  trusted to catch a regression here.
+- **`set` command grows practices/basic/combat/advanced fields** (user:
+  "need the ability for the set command to adjust practices and any other
+  stat you can think of, we'll get in the habit of updating set with new
+  items as we go" — saved as a standing habit memory). 4 new
+  `apply_field()` cases in `cmd_set.c`; no new online-sync code needed
+  since the existing sync loop already copies the whole `progress_t`
+  struct wholesale.
+- **Pagination for long-output commands** (user: "when typing skill or any
+  other item that has long output, pass it to pagination"). `skills`,
+  `bug`, `idea`, `rules` all built an unpaginated buffer and dumped it in
+  one `descriptor_send()` — same bug class `news`/`wiznews` already had
+  fixed in an earlier session. All four now go through the existing shared
+  pager (`descriptor_page_start()`). `skills`' immortal branch also
+  restructured to accumulate all 6 classes into one buffer and page it
+  once, instead of sending each class's block immediately per-iteration
+  (which bypassed pagination entirely).
+- **`snoop` notifies on target disconnect** (user: "when you are snooping
+  and the player loses connection, send a message to the snooper saying
+  you are no longer snooping <target name>" — found while the user was
+  live-snooping a test character during the sweep-failure investigation
+  below). `descriptor_destroy()` already unhooked the `snoop_target`/
+  `snooped_by` link in both directions on teardown, silently — now tells
+  the snooper first.
+- **Major discovery: a PRE-EXISTING connection-handling bug, confirmed
+  NOT caused by this session.** The pre-push full sweep (113 passed, 11
+  failed) initially looked like a serious regression — most failures were
+  live hangs in combat-adjacent tests. Traced it methodically: A/B-reverted
+  the session's own two `combat.c` changes (still hung, ruling them out),
+  then built a completely pristine copy of the last commit (`74ead6d`,
+  zero of this session's changes) on a separate port (4001) sharing the
+  same DB, isolated from the live server — **the identical hang reproduced
+  there too.** This is a genuine pre-existing bug: a connected session can
+  silently stop responding under concurrent load (2-3 connections active
+  at once), with the server itself staying healthy throughout (idle CPU,
+  zone resets still firing, no MySQL deadlock, normal fd count) — looks
+  like a `select()`/descriptor dispatch issue, not a code path this
+  session touched. Logged as a detailed, prioritized TODO item with next-
+  steps for whoever investigates (likely `game_loop.c`'s `maxfd` tracking
+  or a descriptor state that silently excludes a connection from
+  dispatch). Affects 11 existing smoke tests; none of them are actually
+  regressions.
+- **Two genuinely stale tests updated** (the OTHER 2 of the 11 sweep
+  failures, unrelated to the bug above): `smoke_test_skills.py` and a full
+  rewrite of `smoke_test_practice.py`, both still testing the pre-redesign
+  behavior. Verified as far as possible — every check that ran before
+  hitting the pre-existing hang (10/19 and 6/16 respectively) passed
+  clean, validating the rewrites even though a full end-to-end pass is
+  blocked on the bug above.
+- **Deploy mechanics this session**: iterated live against the Home VM
+  (192.168.254.200) via per-file `scp` + `make` (plain-make, not cmake —
+  cmake isn't on the Windows dev box) + `bash db/apply-tobin-schema.sh` +
+  `copyover`, with the user manually running `copyover` in-game each time
+  and reporting results back live. One real deploy gap found: an early
+  `copyover` request was answered before the rebuild had actually finished
+  (binary mtime AFTER the copyover timestamp) — the "fix" the user tested
+  was still the old binary. Lesson: confirm the build's `md5sum` matches
+  the running process's `/proc/<pid>/exe` before declaring a fix live, not
+  just that `make` exited 0.
+- Clean builds throughout, zero warnings. Full sweep run before this
+  session's push (113 passed, 11 failed — every failure now understood
+  and none are regressions, see above).
+
 Last updated: 2026-07-17 — Session 46 (home): **`cmd_table.c` alphabetized,
 as a pure refactor with zero behavior change.** This finishes the reorder
 that Session 44 deliberately left on hold (its wiznews entry said "further

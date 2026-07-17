@@ -1,22 +1,30 @@
 #!/usr/bin/env python3
-"""Smoke test for `practice` + guildmaster-gated discipline percentages
-(user 2026-07-12: "add the practice command so players have to visit a
-guildmaster to gain skills based upon percentage of discipline learned.
-cant get to advanced disc until basic disc is at least 95% complete").
-Covers:
+"""Smoke test for `practice` + the practice-points/discipline system
+(redesigned 2026-07-17, superseding the original 2026-07-12 flat-+10%-
+per-use version). Covers:
 
-  1. `practice` with no guildmaster in the room is refused.
-  2. A guildmaster of the WRONG class doesn't count.
-  3. A Basic-tier Cleric prayer ("heal light") is refused at 0% Basic
-     discipline, even though level/holy-symbol are satisfied.
-  4. `practice basic` at the right guildmaster raises Basic discipline
-     10% per use; `practice advanced` is refused below 95% Basic.
-  5. Once Basic reaches 100%, the Basic-tier prayer succeeds; an
-     Advanced-tier prayer ("heal full") is still refused at 0% Advanced.
-  6. `practice advanced` succeeds once Basic >= 95%, and afterward the
-     Advanced-tier prayer succeeds too.
-  7. `skills` shows the Basic/Advanced discipline percentages and locks
-     the Advanced tier's header note until Basic >= 95%.
+  1. Bare `practice` (no guildmaster, no points) shows 0% on all three
+     disciplines and 0 practice points -- no refusal, works anywhere.
+  2. `practice <discipline>` with NO count shows that discipline's skill
+     listing (with per-skill proficiency) anywhere, no guildmaster
+     needed -- a level-1 skill shows locked-by-discipline at 0%.
+  3. `practice <discipline> <count>` (an explicit count) is the only form
+     that spends points, and DOES require the matching guildmaster --
+     refused with no guildmaster present, and refused at the WRONG
+     class's guildmaster.
+  4. Spending is refused with 0 practice points; `set <name> practices
+     <n>` (this session's new `set` field) grants some.
+  5. Spending raises the discipline percentage (random 1-2%/point,
+     capped at 100, stops early when out of points or at the cap);
+     re-spending at 100% is refused ("already mastered").
+  6. `practice advanced <count>` is refused until Basic AND Combat both
+     reach 100%.
+  7. `practice <yourclassname>` is a synonym for `practice basic`.
+  8. Per-skill proficiency (separate from the discipline gate) actually
+     gates `pray` success: a spell forced to 100% proficiency succeeds
+     reliably; one left at the 1% first-attempt floor fumbles far more
+     often than not (statistical, small sample).
+  9. `skills` shows each known skill's own proficiency in brackets.
 
     python3 tests/smoke_test_practice.py [host] [port]
 """
@@ -58,9 +66,11 @@ announce("smoke_test_practice")
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 ROOM = 900000 + (int(time.time()) % 70000)
-GM_CLERIC = ROOM + 1
-GM_MAGE = ROOM + 2
-SYMBOL = ROOM + 3
+GM_MAGE_BASIC = ROOM + 1
+GM_CLERIC_BASIC = ROOM + 2
+GM_CLERIC_COMBAT = ROOM + 3
+GM_CLERIC_ADVANCED = ROOM + 4
+SYMBOL = ROOM + 5
 
 
 def recv_all(sock, timeout=1.0):
@@ -86,6 +96,15 @@ def cmd(sock, line, timeout=1.0):
     return recv_all(sock, timeout)
 
 
+def cmd_paged(sock, line, timeout=1.0, max_pages=10):
+    out = cmd(sock, line, timeout)
+    pages = 0
+    while "ENTER" in out and "more" in out and pages < max_pages:
+        out += cmd(sock, "", timeout)
+        pages += 1
+    return out
+
+
 def check(condition, message):
     if not condition:
         raise AssertionError(message)
@@ -99,6 +118,12 @@ def sql(stmt):
 def set_level(name, level):
     sql(f"UPDATE player_progress SET level={level} WHERE player_id="
         f"(SELECT id FROM player WHERE name='{name}');")
+
+
+def set_skill_pct(name, skill_name, pct):
+    sql(f"INSERT INTO player_skill (player_id, skill_name, pct, last_gain_at) "
+        f"SELECT id, '{skill_name}', {pct}, 0 FROM player WHERE name='{name}' "
+        f"ON DUPLICATE KEY UPDATE pct={pct}, last_gain_at=0;")
 
 
 def make_char(name, pw, class_choice):
@@ -118,14 +143,14 @@ def make_char(name, pw, class_choice):
     return s
 
 
-def make_guildmaster(vnum, keyword, class_mask):
+def make_guildmaster(vnum, keyword, class_mask, level):
     sql(f"INSERT INTO mob (vnum,name,short_desc,long_desc,description,actions,affects,"
         f"faction,fact_perc,letter,attacks,class,level,tohit,ac,hpbonus,damage_level,"
         f"damage_precision,gold,race,weight,height,str,bra,con,dex,agi,intel,wis,foc,"
         f"per,cha,kar,spe,pos,def_position,sex,spec_proc,skin,vision,can_be_seen,max_exist) "
         f"VALUES ({vnum},'guildmaster {keyword}','a guildmaster of {keyword}',"
         f"'A guildmaster of {keyword} stands here.',"
-        f"'desc',0,0,0,0,'A',1.0,{class_mask},1,0,0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
+        f"'desc',0,0,0,0,'A',1.0,{class_mask},{level},0,0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
         f"10,10,1,0,0,0,1,1);")
 
 
@@ -145,7 +170,7 @@ send_line(s_imm, "1"); recv_all(s_imm)
 send_line(s_imm, "done"); recv_all(s_imm)
 send_line(s_imm, "2"); recv_all(s_imm)
 s_imm.close()
-set_level(imm_name, 51)
+set_level(imm_name, 58)  # 58+ needed for the `set` command used below (SET_MIN_LEVEL)
 s_imm = socket.create_connection((host, port), timeout=5)
 recv_all(s_imm)
 send_line(s_imm, imm_name); recv_all(s_imm)
@@ -162,17 +187,11 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"VALUES ({SYMBOL},'symbol holy silver','a tarnished silver holy symbol',"
     f"'A tarnished silver holy symbol is lying here.',12,1,1);")
 
-# --- Cleric test character (basic prayer: "heal light", advanced: "heal full") ---
+# --- Cleric test character ---
 cleric_name = f"Praccle{_suffix}"
 pw = "practicepw123"
 sc = make_char(cleric_name, pw, "2")
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{cleric_name}';")
-# Level must be set (and the connection dropped+re-logged-in to actually
-# pick it up from the DB) BEFORE the session under test -- setting it via
-# SQL on an already-connected descriptor doesn't reach the live in-memory
-# being_t. 40 is high enough for "heal full" (min_level 12) but still
-# mortal (>=51 flips being_is_immortal() true and bypasses every gate
-# this test exists to check).
 cmd(sc, "quit!")
 sc.close()
 set_level(cleric_name, 40)
@@ -183,68 +202,87 @@ send_line(sc, pw); recv_all(sc)
 send_line(sc, "1"); recv_all(sc)
 cmd(sc, "color off")
 
-check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "the holy symbol is loaded")
+# --- 1: bare `practice` works anywhere, no guildmaster, shows 0% status ---
+out = cmd(sc, "practice")
+check("Basic:" in out and "0%" in out and "Combat:" in out and "Advanced:" in out,
+      "bare practice shows all three disciplines at 0% with no guildmaster present")
+check("Practice points available:" in out and "0" in out.split("Practice points available:")[1][:5],
+      "bare practice shows 0 practice points")
+check("is here" not in out, "no guildmaster flavor line when none is present")
+
+# --- 2: `practice basic` (no count) shows the listing anywhere ---
+out = cmd_paged(sc, "practice basic")
+check("Basic discipline: 0%" in out, "practice basic (no count) shows the 0% Basic discipline header")
+check("practice this discipline to unlock" in out,
+      "a level-1 Basic skill shows locked-by-discipline, not locked-by-level")
+
+# --- 3: an explicit count DOES need a guildmaster; wrong class doesn't count ---
+out = cmd(sc, "practice basic 1")
+check("don't see a Basic guildmaster" in out, "practice basic <count> is refused with no guildmaster present")
+
+make_guildmaster(GM_MAGE_BASIC, "mages", 1, 51)
+check("You conjure" in cmd(s_imm, f"load mob {GM_MAGE_BASIC}"), "the Mage Basic guildmaster is loaded")
+out = cmd(sc, "practice basic 1")
+check("don't see a Basic guildmaster" in out, "a Mage guildmaster doesn't count for a Cleric")
+
+# --- 4: right guildmaster, but no practice points yet ---
+make_guildmaster(GM_CLERIC_BASIC, "clerics", 2, 51)
+check("You conjure" in cmd(s_imm, f"load mob {GM_CLERIC_BASIC}"), "the Cleric Basic guildmaster is loaded")
+out = cmd(sc, "practice basic 1")
+check("no practice points" in out, "spending is refused with 0 practice points")
+
+# --- 5: grant practice points via `set` (this session's new field), then spend ---
+out = cmd(s_imm, f"set {cleric_name} practices 200")
+check("practice points are now 200" in out, "`set <name> practices <n>` grants practice points")
+
+out = cmd(sc, "practice basic 200")
+check("Basic discipline: 100%" in out, "spending enough points reaches 100% Basic discipline")
+
+out = cmd(sc, "practice basic 1")
+check("already mastered your Basic discipline" in out, "spending again at 100% is refused")
+
+# --- 6: Advanced is refused until Basic AND Combat are both 100% ---
+make_guildmaster(GM_CLERIC_ADVANCED, "clerics advanced", 2, 100)
+check("You conjure" in cmd(s_imm, f"load mob {GM_CLERIC_ADVANCED}"), "the Cleric Advanced guildmaster is loaded")
+cmd(s_imm, f"set {cleric_name} practices 50")
+out = cmd(sc, "practice advanced 1")
+check("Master your Basic and Combat disciplines first" in out,
+      "practice advanced is refused while Combat is still below 100%")
+
+out = cmd(s_imm, f"set {cleric_name} combat 100")
+check("combat discipline is now 100" in out, "`set <name> combat <pct>` raises Combat discipline live")
+out = cmd(sc, "practice advanced 1")
+check("Advanced discipline:" in out and "already mastered" not in out,
+      "practice advanced succeeds once Basic and Combat both reached 100%")
+
+# --- 7: class name is a synonym for `basic` ---
+out = cmd_paged(sc, "practice cleric")
+check("Basic discipline:" in out, "`practice <yourclass>` shows the same listing as `practice basic`")
+
+# --- 8: per-skill proficiency actually gates pray success ---
+check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "a holy symbol is loaded")
 out = cmd(sc, "get symbol")
-check("you get" in out.lower(), "the cleric picks up the holy symbol")
+check("you get" in out.lower(), "the cleric picks up a holy symbol")
 
-# --- 1: no guildmaster in room ---
-out = cmd(sc, "practice")
-check("don't see a guildmaster" in out, "practice is refused with no guildmaster present")
-
-# --- 2: wrong-class guildmaster doesn't count ---
-make_guildmaster(GM_MAGE, "mages", 1)
-check("You conjure" in cmd(s_imm, f"load mob {GM_MAGE}"), "the Mage guildmaster is loaded")
-out = cmd(sc, "practice")
-check("don't see a guildmaster" in out, "a Mage guildmaster doesn't count for a Cleric")
-
-# --- 3: Basic-tier prayer refused at 0% Basic discipline ---
+set_skill_pct(cleric_name, "heal light", 100)
 out = cmd(sc, "pray heal light")
-check("haven't practiced your Basic discipline" in out, "Basic-tier prayer refused at 0% Basic discipline")
+check("You pray for heal light" in out, "a spell forced to 100% proficiency succeeds")
 
-# --- 4: right guildmaster; practice basic; advanced refused below 95% ---
-make_guildmaster(GM_CLERIC, "clerics", 2)
-check("You conjure" in cmd(s_imm, f"load mob {GM_CLERIC}"), "the Cleric guildmaster is loaded")
+# "heal full" left untouched -- first attempt floors at 1% and is rolled
+# against immediately, so it should fumble far more often than not over
+# a handful of tries (statistical, not a guaranteed single-shot).
+fumbles = 0
+for _ in range(8):
+    check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "a fresh holy symbol is loaded")
+    cmd(sc, "get symbol")
+    out = cmd(sc, "pray heal full")
+    if "fumble" in out:
+        fumbles += 1
+check(fumbles >= 5, f"a freshly-floored (~1%) spell fumbles most attempts ({fumbles}/8 fumbled)")
 
-out = cmd(sc, "practice")
-check("Basic discipline: 0%" in out, "practice status shows 0% Basic at the right guildmaster")
-
-out = cmd(sc, "practice advanced")
-check("Master your Basic discipline first" in out, "practice advanced refused below 95% Basic")
-
-for _ in range(10):
-    out = cmd(sc, "practice basic")
-check("Basic discipline: 100%" in out, "Basic discipline reaches 100% after 10 practices")
-
-out = cmd(sc, "practice basic")
-check("already mastered your Basic discipline" in out, "practicing Basic again at 100% is refused")
-
-# --- 5: Basic-tier prayer succeeds now; Advanced-tier still refused (0% Advanced) ---
-out = cmd(sc, "pray heal light")
-check("You pray for heal light" in out, "Basic-tier prayer succeeds once Basic discipline is 100%")
-
-out = cmd(sc, "pray heal full")
-check("need 95% in your Basic discipline, and some Advanced practice" in out,
-      "Advanced-tier prayer still refused at 0% Advanced discipline")
-
-# --- 6: practice advanced now works; Advanced-tier prayer succeeds ---
-out = cmd(sc, "practice advanced")
-check("Advanced discipline: 10%" in out, "practice advanced succeeds once Basic is 100%")
-
-# The holy symbol from earlier was consumed by the successful "heal
-# light" above (user 2026-07-12: "holy symbols should use the same
-# logic as components" -- consumed every successful pray, no longer a
-# reusable keepsake) -- a fresh one is needed here.
-check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "a fresh holy symbol is loaded")
-out = cmd(sc, "get symbol")
-check("you get" in out.lower(), "the cleric picks up the fresh holy symbol")
-
-out = cmd(sc, "pray heal full")
-check("You pray for heal full" in out, "Advanced-tier prayer succeeds once Advanced discipline is nonzero")
-
-# --- 7: skills output reflects discipline percentages ---
-out = cmd(sc, "skills")
-check("Basic discipline:" in out and "Advanced discipline:" in out, "skills shows both discipline percentages")
-check("100" in out, "skills shows the 100% Basic discipline value")
+# --- 9: skills shows each known skill's own proficiency ---
+out = cmd_paged(sc, "skills")
+check("[100%]" in out, "skills shows the forced 100% proficiency for heal light")
 
 s_imm.close()
 sc.close()

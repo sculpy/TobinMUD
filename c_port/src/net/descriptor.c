@@ -340,11 +340,21 @@ void descriptor_destroy(descriptor_t *d) {
     }
 
     /* Unhook any live `snoop` relationship in either direction so neither
-     * side is left pointing at a descriptor about to be freed. */
+     * side is left pointing at a descriptor about to be freed. If someone
+     * was snooping THIS connection, tell them their target just vanished
+     * (user 2026-07-17: "when you are snooping and the player loses
+     * connection, send a message to the snooper saying you are no longer
+     * snooping <target name>") -- otherwise a snooper watching a link-drop
+     * gets no indication their snoop silently ended. */
     if (d->snoop_target)
         d->snoop_target->snooped_by = NULL;
-    if (d->snooped_by)
+    if (d->snooped_by) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "<c>You are no longer snooping %s.<z>\r\n",
+                 d->character ? d->character->base.name : "them");
+        descriptor_send(d->snooped_by, msg);
         d->snooped_by->snoop_target = NULL;
+    }
 
     close(d->fd);
     free(d);
