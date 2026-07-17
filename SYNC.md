@@ -26,26 +26,30 @@ Both dev machines are **Windows** (the Gotchas below apply to both). Repo root
 is the whole tree (`c_port/` is one subdir). MariaDB is local to each build
 box; the server listens on port 4000; logs land in `c_port/logs/`.
 
-### Home specifics (differs from the git golden rule below — read this)
+### Home specifics
 
-The Home build box (`192.168.254.200:~/NewMUD/`) is currently a **plain
-scp-populated copy with no `.git`** — it *cannot* `git pull`, unlike the Work
-box which is a proper deploy-key checkout. So on Home, code reaches the build
-box two ways:
+**As of 2026-07-17, Home is a real git checkout**, same golden rule as Work:
+`192.168.254.200:~/NewMUD/` is a proper deploy-key clone (`git -C ~/NewMUD
+pull --ff-only` just works). Its own read-only deploy key is
+`~/.ssh/newmud_deploy` (public key registered on the repo as "NUDServer home
+VM (read-only)"), with `core.sshCommand` already configured in that clone.
 
-- **Iterating:** per-file `scp` from `E:\New MUD\...` to the matching
-  `~/NewMUD/c_port/...` path on the VM, then build on the VM. (This is what
-  the whole session-to-session dev loop uses.)
-- **Authoritative sync to the *other location*:** still git — commit + push
-  from Windows `E:\New MUD\`; Work pulls it. Home's own VM does **not** pull;
-  it only ever receives code via scp.
+Before this date, Home was a plain scp-populated copy with no `.git`, so a
+lot of session history refers to "per-file scp from `E:\New MUD\...`" as the
+only way code reached the box — that workflow still works for quick
+iteration (scp a changed file, build, test, without committing yet), but it
+is no longer the *only* path, and a real `git pull` is now the correct way
+to bring the box fully current. The old scp-only tree was preserved as
+`~/NewMUD_scp_backup` on the VM in case anything from that era needs
+cross-checking; it is not kept in sync and should not be treated as
+authoritative.
 
-> **Recommended fix (brings Home in line with the golden rule):** clone the VM
-> as a real checkout so it can `git pull` like Work does — set up its own
-> read-only deploy key (see "First-time setup for a build box" below), then
-> `git clone git@github.com:sculpy/NewMUD.git ~/NewMUD` on the VM. Until that's
-> done, the VM tree is derived/scp-only and must never be treated as a source
-> of truth.
+Iterating still typically looks like: per-file `scp` from `E:\New MUD\...`
+to `~/NewMUD/c_port/...` for a quick test build (fast, no commit needed
+yet), then a real `commit` + `push` from `E:\New MUD\` once it's solid, at
+which point the VM's own `git pull` picks it up cleanly (or the next scp
+cycle just continues working the same as before — both are fine, since the
+VM tree is a real checkout either way now).
 
 ## Golden rule: git is the only sync channel
 
@@ -101,14 +105,18 @@ GitHub → NewMUD → Settings → Deploy keys, **or** from any machine with `gh
 ```bash
 gh repo deploy-key add newmud_deploy.pub --repo sculpy/NewMUD --title "<box name> (read-only)"
 ```
-After that, `git pull` on the box just works. (The work box `db.kullit.com`
-is already set up this way; the home `NUDServer` VM needs its own key.)
+After that, `git pull` on the box just works. (Both `db.kullit.com` and the
+home `NUDServer` VM are set up this way as of 2026-07-17.)
 
 Also make sure the upstream reference clone sits beside `c_port/` (it is
-gitignored, so git never carries it — re-clone per location):
+gitignored, so git never carries it — re-clone per location) **if that
+location's work needs it**:
 ```bash
 git clone https://github.com/sneezymud/sneezymud.git ~/NewMUD/sneezymud-master
 ```
+Not required to build or run Tobin — only for looking up the original
+SneezyMUD C++ source during porting/research work. The Home VM doesn't
+currently have it (never needed it yet).
 
 ## Deploy sequence (on a build box, after pulling)
 
