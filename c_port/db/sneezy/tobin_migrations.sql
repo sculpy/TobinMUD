@@ -183,3 +183,41 @@ CREATE TABLE IF NOT EXISTS `account_alias` (
 -- their killer directly on defeat (combat.c); shops (below) are the sink.
 ALTER TABLE `player_progress`
   ADD COLUMN IF NOT EXISTS `gold` int(11) NOT NULL DEFAULT 0;
+
+-- Components + commodities (user 2026-07-18: "implement components and
+-- commodities again from sneezy"). No new code needed -- ITEM_COMPONENT/
+-- RAW_MATERIAL/RAW_ORGANIC (obj.type 30/42/50) already collapse into a
+-- working generic category (OBJ_CAT_OTHER, obj.c) and 380 real objects of
+-- these types already exist in the upstream `obj` seed, with real
+-- shoptype rows declaring which shops buy each category. The gap: every
+-- one of their upstream zone_reset ground/mob placements sits in a zone
+-- that's disabled or missing entirely in this DB, so none were actually
+-- reachable, AND the shops flavored as component/commodity dealers
+-- (Camron's Components, the "well-stocked commodities shop of
+-- Brightmoon", etc.) had empty `shopproducing` catalogs -- nothing to
+-- buy. This stocks those already-real, already-enabled shops with a
+-- curated sample of the upstream game's own component/raw-material/
+-- organic object vnums (no fabricated content), so `list`/`buy` there
+-- actually offers something, and any shop that already declares it buys
+-- that category (shoptype) completes the loop on the sell side. The full
+-- upstream merge-stack/decay/alchemy component system (obj_component.cc)
+-- remains out of scope -- these are plain, individually-vnum'd objects,
+-- same as everything else Tobin sells.
+INSERT INTO `shopproducing` (`shop_nr`, `producing`) VALUES
+  -- Camron's Components (shop 12, room 554, Market Place) -- spell
+  -- reagents, ITEM_COMPONENT (type 30).
+  (12, 202), (12, 205), (12, 208), (12, 209), (12, 213), (12, 218), (12, 225), (12, 232),
+  -- The commodities shop of Brightmoon (shop 57, room 1393) -- refined
+  -- metal bars/rods/ingots, ITEM_RAW_MATERIAL (type 42).
+  (57, 50), (57, 51), (57, 52), (57, 53),
+  -- Logrus commodities (shop 58, room 3709) -- more of the same catalog.
+  (58, 54), (58, 55), (58, 56), (58, 60),
+  -- Eldon's shop, Xanesla (shop 238, room 6420) -- more of the same catalog.
+  (238, 57), (238, 58), (238, 61), (238, 64),
+  -- Amber commodities (shop 56, room 8734) -- more of the same catalog.
+  (56, 59), (56, 62), (56, 63), (56, 65),
+  -- Tuvar's organic commodities (shop 105, room 7805) -- his own room
+  -- description says "hides, skins, herbal ingredients" verbatim;
+  -- ITEM_RAW_ORGANIC (type 50) animal hides.
+  (105, 2400), (105, 2402), (105, 2403), (105, 2405), (105, 2406), (105, 2408), (105, 2420)
+ON DUPLICATE KEY UPDATE `shop_nr` = `shop_nr`;

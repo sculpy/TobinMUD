@@ -521,3 +521,7 @@ INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Sickness Is Now a Thing', 'Drink from a puddle on the ground and you might come away with more than a poison scare -- there''s now a 15% chance of catching a Cold, the Flu, Food Poisoning, or (worst luck) the Plague. A disease saps a little HP every so often while it runs its course, then wears off on its own -- or get it cured at a hospital, see below. Immortals are immune.'),
 ('The TobinMUD Team', 'Hospitals Open Their Doors', 'Six real hospitals are now staffed and ready -- Tobin City, Amber, Logrus, Brightmoon, a field medic''s post, and Xanesla. Walk up to the doctor and `list` to see what ails you (damaged limbs, active diseases), then `buy <#>` to be cured on the spot for gold. Lost track of where the nearest one is? `goto hospital` points the way from anywhere in the world, same as `goto rent` or `goto surplus`.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Component and Commodity Shops Are Finally Stocked', 'Mages and Druids: Camron''s Components (Market Place) now actually sells spellcasting components, so `cast` works again with something to buy rather than nothing to find. Katherine''s Commodities in Brightmoon, plus sister shops in Logrus, Xanesla, and Amber, now carry real metal bars and ingots, and Tuvar''s hides-and-herbs shop is stocked with real animal hides. All buyable and re-sellable, same as any other goods.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

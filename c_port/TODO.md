@@ -1804,6 +1804,32 @@ already tracked — pointers, not duplicates):
       <container>`), so these never actually sit in inventory. User,
       2026-07-17: "once you pick up an object that contains gold it
       should increase your wealth and get rid of the obj in inventory."
+- [x] **Components and commodities** — done 2026-07-18 (user: "implement
+      components and commodities again from sneezy"). Turned out to need
+      no new code: `ITEM_COMPONENT`/`RAW_MATERIAL`/`RAW_ORGANIC` (obj.type
+      30/42/50) already collapse into a working generic category
+      (`OBJ_CAT_OTHER`, obj.c), 380 real objects of these types already
+      exist in the upstream seed, and real `shoptype` rows already declare
+      which shops buy each category — get/drop/inventory/buy/sell all
+      already worked generically. The actual gap: every one of these
+      objects' upstream zone_reset placements sat in a disabled or
+      missing zone, unreachable, and the shops flavored as component/
+      commodity dealers (Camron's Components, Katherine's/Brightmoon's,
+      Logrus, Xanesla, Amber, Tuvar's hides-and-herbs) had empty
+      `shopproducing` catalogs — nothing to actually buy.
+      `tobin_migrations.sql` stocks those six already-live shops with a
+      curated sample of the game's own real component/raw-material/
+      organic vnums (no fabricated content). **Real bug fixed as a
+      side effect**: `cast`'s existing component-consumption requirement
+      (see "`cast`/`pray` with component/holy-symbol requirements" above)
+      had no reachable source anywhere in the world for the "component"-
+      keyworded item it needs — mages/druids could never actually cast
+      until Camron's Components had something to sell. Verified live:
+      buying a component at Camron's and casting a spell consumes it.
+      The original's full merge-stack/decay/alchemy component system
+      (`obj_component.cc`, 2471 lines) remains out of scope — these are
+      plain, individually-vnum'd objects, same as everything else sold
+      in Tobin's shops.
 - [ ] **Liquids** — drinkable liquids; pouring one out pools on the ground
       (from Sneezy). Needs objects/containers.
 - [ ] **`fill`** — fill a container from a liquid pool. Needs liquids+objects.
