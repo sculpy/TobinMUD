@@ -737,14 +737,44 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       by every `ed*`/`edit` line editor) now indents each paragraph's
       FIRST line 2 spaces; wrapped continuation lines within the same
       paragraph are not re-indented.
-- [ ] **Sweep `help_topic.sql` for redundant level-gate phrasing** —
-      follow-up to the help-format reformat above: many EXISTING topic
-      bodies still open with phrasing like "Administrator (59+) only:",
-      "Builder tool (level 51+):", "Immortal tool (58+):" -- all redundant
-      now that the footer always shows `Minimum Level:`. Only `snoop`'s
-      body (the user's worked example) has been cleaned up so far. Wide
-      but mechanical (dozens of rows); needs its own pass rather than
-      being folded into unrelated feature work.
+- [x] **Sweep `help_topic.sql` for redundant level-gate phrasing** — done
+      2026-07-17. Follow-up to the help-format reformat (`snoop`'s body
+      was the original worked example). Checked `cmd_help.c` first: the
+      cyan `Minimum Level:` footer only appears when the topic's `name`
+      EXACTLY matches a `cmd_table.c` entry (`strcasecmp` against
+      `resolved`) -- so a lead-in like "Administrator (59+) only:" is
+      truly redundant ONLY for topics with a real, single-level command
+      entry. Stripped it from 15: `balance`, `copyover`, `delbug`,
+      `delidea`, `edbug`, `egotrip`, `exec`, `gametog`, `load`, `purge`
+      (bare-purge sentence only), `set`, `stat`, `vnum`, `zone`,
+      `zonefile`. Deliberately LEFT ALONE: `administration` (the numbers
+      are the topic's actual subject -- explaining the level ladder --
+      not boilerplate), `edit`/`trigger`/`edit player`/`edit rules` (none
+      of these four have an exact-name `cmd_table.c` match -- "edit"
+      dispatches sub-nouns at DIFFERENT levels internally, and "edit
+      player"/"edit rules"/"trigger" as topic names never match "edit"'s
+      own table entry -- so no footer ever shows for them, and their
+      inline level text is the ONLY place that information appears).
+      `purge`'s `linkdead` sub-form's "(58+)" was also kept -- the base
+      `purge` command's own table entry is level 51, so the footer alone
+      doesn't cover the elevated sub-case. Applied directly to the live
+      DB via targeted `REPLACE()` (verified per-row before and after),
+      then mirrored into `help_topic.sql`'s AUTHORITATIVE source line for
+      each (several topics have a later `UPDATE ... WHERE updated_by =
+      'seed'` overriding their original `INSERT` -- fixed whichever one
+      actually wins). Side finding while at it: `copyover`'s LIVE topic
+      turned out to be a completely different, much older placeholder
+      body ("The copyover command will allow an higher level immortal
+      reboot the mud...") -- the seed file's polished `Usage:`/footer-
+      style text existed on disk but had never actually reached the DB
+      (an existing row + the seed's `ON DUPLICATE KEY UPDATE name=name`
+      no-op silently skipped it). Pushed the seed's version live too.
+      **Not investigated further, flagging as a possible follow-up**:
+      this same "seed file has the intended text, but an existing DB row
+      + a no-op ON DUPLICATE KEY guard means it was never actually
+      applied" pattern could affect OTHER topics beyond `copyover` --
+      would need a systematic live-vs-seed diff across all ~140 topics
+      to find out, which is a bigger task than this session's scope.
 - [x] **Room look: list permanent fixtures (lamppost, fountain, ...)
       first** — done -- deployed and verified via standalone smoke test
       (`tests/smoke_test_look_fixture_order.py`). User: "permanent items
