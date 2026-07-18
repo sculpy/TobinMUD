@@ -91,6 +91,13 @@ bool player_name_exists(const char *name);
  * `zoneassign`, zone_repo.h) rather than a live in-room being_t. */
 long player_id_for_name(const char *name);
 
+/* account_id owning `name`, or -1 if no such character exists. Used by
+ * `wipe` (cmd_wipe.c), the one admin action that must reach a character
+ * regardless of which account owns it -- every other by-name lookup above
+ * is deliberately scoped to a caller-supplied account_id and won't cross
+ * accounts. */
+long player_account_id_for_name(const char *name);
+
 /* Persists the prompt customization bitmask (cmd_prompt.c). */
 bool player_set_prompt_flags(long player_id, int flags);
 

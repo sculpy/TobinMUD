@@ -23,8 +23,9 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 User's own list, cross-checked against existing entries below (most were
 already tracked — pointers, not duplicates):
 
-- `wipe` command + a real (non-hardcoded) master password — already
-  tracked: **`wipe` (59+)** and **`wipe` master password** entries above.
+- `wipe` command + a real (non-hardcoded) master password — done
+  2026-07-18, see **`wipe` (59+)** and **`wipe` master password** entries
+  above.
 - `dig`, `edaccount`, Typed logs, Tips system, PK opt-in flag, Diseases —
   all already tracked (their own entries above).
 - News edit/delete, redit extra descriptions, personalized immortal log
@@ -1650,9 +1651,18 @@ already tracked — pointers, not duplicates):
       `<YYYY-MM-DD>.log` per day, appended across reboots/copyovers; `*.log`
       older than 21 days pruned (by mtime) at each open; `log rotate` now just
       re-opens the day's file. `smoke_test_logs.py` updated.
-- [ ] **`wipe` (59+)** — wipe a pfile or an account; requires a password to
-      execute; only *lower*-level characters may be targeted (a 59 cannot wipe
-      another 59, etc.). Destructive -- confirm + password gate.
+- [x] **`wipe` (59+)** — done 2026-07-18. `wipe <name> <password>` /
+      `wipe account <name> <password>`, ported from the original's
+      `doWipe()`. Only strictly-lower-level targets (or, for an account,
+      every character on it) can be targeted -- naturally blocks
+      self-wipe too. Every player-scoped table cascades on delete
+      (player_progress, player_attrs, player_inventory, and ~20 more --
+      confirmed via an FK survey), so `player_delete()`/`account_delete()`
+      alone is genuinely everything, no manual per-table cleanup. An
+      online target is disconnected, belongings drop to the room floor,
+      then the being is fully removed (not left linkdead). Logged to
+      `[GAME]` (visible to online immortals), closing the "Account-delete
+      logging lands with `wipe`" note above.
 - [x] **`;` wiznet shorthand** — done 2026-07-05: `;<msg>` broadcasts to
       immortals (cmd_dispatch special-case, like `'` for say).
 - [x] **`alias` command** — done 2026-07-17. New `account_alias` table
@@ -1771,8 +1781,11 @@ already tracked — pointers, not duplicates):
 - [x] **`point` (no arg)** — done 2026-07-05: basic `point` social ("You point
       around randomly." / "You point at X."). The held-item form ("...with his
       <item>") is objects-blocked above.
-- [ ] **`wipe` master password** — the pending `wipe` command's password is a
-      compile-time master password (settable in code).
+- [x] **`wipe` master password** — done 2026-07-18, alongside **`wipe`
+      (59+)** above: `TOBIN_WIPE_PASSWORD` (config.c), read once from the
+      environment at process start, no fallback value anywhere in the
+      source (the original hardcoded a literal "ole'chicken" --
+      misc/immortal.cc). `wipe` refuses outright if it's unset.
 
 ### User batch 2026-07-05 (night) — BLOCKED on Objects (Phase 2C)
 

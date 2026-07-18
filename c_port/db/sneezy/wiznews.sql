@@ -507,3 +507,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The Mystery Tag Solved', 'A few old items and rooms had a stray `<h>` sitting in their text where a name was supposed to go -- leftover from the original game''s template system, never carried over to this port. It now fills in as "TobinMUD" wherever it appears, the way it always meant to. A handful of other leftover mentions of the old game''s name, scattered through a book, a couple of rooms, and an item description, are now TobinMUD too.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', '`wipe` Arrives -- Administrator Only', 'The most permanent command in the game is here: `wipe <name> <password>` erases a character for good, and `wipe account <name> <password>` takes the whole account with it, every character on it included. It needs the wipe master password to run at all (ask whoever holds it), and only reaches someone below your own level. There is no undo, so it earns its own confirmation: getting the password wrong just fails quietly, no second-guessing needed on our end.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

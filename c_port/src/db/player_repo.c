@@ -240,6 +240,17 @@ long player_id_for_name(const char *name) {
     return id;
 }
 
+long player_account_id_for_name(const char *name) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+    long account_id = -1;
+    if (db_query(db, "select account_id from player where name='%s'", name) && db_fetch_row(db))
+        account_id = atol(db_get(db, "account_id"));
+    db_close(db);
+    return account_id;
+}
+
 bool player_set_load_room(const char *name, long account_id, int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

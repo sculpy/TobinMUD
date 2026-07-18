@@ -12,6 +12,7 @@ typedef struct {
     const char *db_name_tobin;
     const char *db_name_immortal;
     int telnet_port;
+    const char *wipe_password;
 } config_t;
 
 /* Loaded once from environment variables on first call:
@@ -23,6 +24,14 @@ typedef struct {
  *                             db/ wasn't renamed, see STATUS.md)
  *   TOBIN_DB_NAME_IMMORTAL  (default "immortal")
  *   TOBIN_PORT     (default 4000)
+ *   TOBIN_WIPE_PASSWORD  (default NULL -- `wipe` (cmd_wipe.c) refuses
+ *                          outright if unset, rather than falling back to
+ *                          any password baked into the source. The
+ *                          original hardcoded a literal string
+ *                          ("ole'chicken", misc/immortal.cc) -- user,
+ *                          2026-07-17: "a real (non-hardcoded) master
+ *                          password". Runtime-configurable like the DB
+ *                          creds above, not stored anywhere in git.)
  */
 const config_t *config_get(void);
 

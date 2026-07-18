@@ -225,6 +225,11 @@ static const cmd_entry_t COMMANDS[] = {
     { "whisper", cmd_whisper, "Send a private message to someone in the room (whisper <name> <message>).", MORTAL_LEVEL_MIN },
     /* Weapons only; a non-weapon refuses wield and points to hold. */
     { "wield",   cmd_wield,   "Wield a weapon in a free hand (wield <item>).",      MORTAL_LEVEL_MIN },
+    /* "wip" is already unambiguous ("wi" is shared with wield/wiznews/
+     * wizhelp/wiznet, all resolved by their own longer prefixes). The
+     * most destructive command short of `shutdown` -- permanently erases
+     * a character or account. */
+    { "wipe",    cmd_wipe,    "Permanently erase a character or account (wipe <name>|account <name> <password>).", WIPE_MIN_LEVEL },
 
     /* ==================== IMMORTAL-ONLY COMMANDS ==================== */
     /* Alphabetical throughout, with one swap (wiznews/wizhelp, below).

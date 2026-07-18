@@ -89,6 +89,7 @@ bool cmd_catchup(descriptor_t *d, const char *args);
 bool cmd_cast(descriptor_t *d, const char *args);
 bool cmd_pray(descriptor_t *d, const char *args);
 bool cmd_wiznews(descriptor_t *d, const char *args);
+bool cmd_wipe(descriptor_t *d, const char *args);
 bool cmd_edwiznews(descriptor_t *d, const char *args);
 bool cmd_socials(descriptor_t *d, const char *args);
 bool cmd_wiznet(descriptor_t *d, const char *args);
@@ -226,6 +227,12 @@ bool look_at_target(descriptor_t *d, const char *args);
 /* `edplayer`: Administrator (58+), matching `promote`'s tier -- it's an
  * admin superset of promote (TODO.md). */
 #define EDPLAYER_MIN_LEVEL 58
+
+/* `wipe`: Administrator (59+), per the TODO's own spec ("wipe a pfile or
+ * an account... 59+"). Same-or-higher-level targets are refused inside
+ * cmd_wipe.c itself, not by this table gate alone (mirrors `snoop`'s
+ * comment above). */
+#define WIPE_MIN_LEVEL 59
 
 /* `set`: Administrator (58+), same tier as edplayer -- its one-shot,
  * scriptable sibling (user spec: build both). */

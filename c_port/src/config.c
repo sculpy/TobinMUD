@@ -27,6 +27,8 @@ const config_t *config_get(void) {
         if (g_config.telnet_port <= 0 || g_config.telnet_port > 65535)
             g_config.telnet_port = 4000;
 
+        g_config.wipe_password = getenv("TOBIN_WIPE_PASSWORD");
+
         g_loaded = 1;
     }
     return &g_config;

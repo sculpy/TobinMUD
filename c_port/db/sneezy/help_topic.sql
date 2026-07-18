@@ -754,3 +754,9 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('shutdown', 'Usage: shutdown\n       shutdown <seconds>\n       shutdown cancel\n\nEnds the game. Every connected player is warned and their character\nis saved first. Bare `shutdown` does this right away; `shutdown 60`\ncounts down that many seconds first, warning everyone at intervals\nalong the way, without freezing the game for anyone in the\nmeantime -- `shutdown cancel` aborts a countdown already running.\nImplementor only (60).\n\nRelated: copyover', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `wipe` (user 2026-07-17: "`wipe` command + a real (non-hardcoded)
+-- master password"). Administrator (59+).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('wipe', 'Usage: wipe <name> <password>\n       wipe account <name> <password>\n\nPermanently erases a character, or an entire account and every\ncharacter on it. Requires the wipe master password (set outside the\ngame, not something any command shows or changes) -- get it wrong\nand nothing happens. You can only wipe someone below your own level\n(for an account, every character on it must be below your level).\nAn online target is disconnected and their belongings drop to the\nfloor first. There is no undo.\n\nRelated: promote set', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
