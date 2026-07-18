@@ -1160,14 +1160,15 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       swatch/glyph reference, not a literal template; a giant empty box
       around 5 short lines would look absurd). `show_account_menu()`:
       hidden state shows the 5-line boxed letter-menu (`C`/`N`/`D`/`X`/`Q`,
-      bright-cyan letters); revealed state shows a plain "-- Your players
-      --" numbered list ending "Choose a number to connect that player to
-      the game: " (matches the user's exact wireframe wording) instead of
-      the old repeated C/N/D/X/Q footer. `C <number|name>` (already-known
-      target) still connects directly, unchanged -- confirmed the
-      sensible default rather than re-asking, given the note already
-      leaned that way. A single-character account still auto-connects on
-      bare `C` without ever needing the reveal.
+      bright-cyan letters); revealed state (originally a plain "-- Your
+      players --" numbered list, see the follow-up below) ends "Choose a
+      number to connect that player to the game: " (matches the user's
+      exact wireframe wording) instead of the old repeated C/N/D/X/Q
+      footer. `C <number|name>` (already-known target) still connects
+      directly, unchanged -- confirmed the sensible default rather than
+      re-asking, given the note already leaned that way. A single-
+      character account still auto-connects on bare `C` without ever
+      needing the reveal.
       7 existing smoke tests referenced the old literal text ("Your
       characters", "C [number|name]", "Connect which one?") and needed
       updating to match: `smoke_test_kill.py` (the slain target's
@@ -1180,6 +1181,26 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       `smoke_test_menu_letters.py` (the dedicated menu-letters test --
       updated its 3 literal-text assertions to match the new box/reveal
       wording). Verified live against the running server, all 8 pass.
+      **Follow-up, same session**: user: "place the character list in
+      connection inside a box, colorize the number list with <C>" -- the
+      revealed listing (was a plain "-- Your players --\n  1. Name
+      [Level]" list) is now ALSO boxed via `send_boxed_menu()`, one line
+      per character, its number colorized `<C>N.<z>` bright-cyan; the
+      "-- Your players --" heading is gone (redundant once it's visibly
+      a menu box). Then: "do the same for character creation menu" --
+      `show_race_screen()`/`show_class_screen()`/`show_alignment_screen()`
+      (the three numbered-choice screens between name entry and playing)
+      got the same treatment: each option's full multi-line description
+      is now one `send_boxed_menu()` call (auto-sized to its widest
+      line, ~70-75 chars given the existing prose), with each leading
+      "N)" recolored `<C>N)<z>`. The point-buy attribute screen
+      (`show_attr_screen()`) was left alone -- it's a live-updating
+      table/pool display, not a numbered-choice menu, a different shape
+      that doesn't fit this same box-per-option pattern. No smoke test
+      referenced the exact old option-list text (only "Choose a race"
+      substring, unaffected), so no test updates needed; verified live
+      (`smoke_test_menu_letters.py`, `smoke_test_quit_creation.py`) plus
+      manual preview of all three screens on an isolated test port.
 - [x] **Port Sneezy's crit-hit system + decapitation object creation** (user
       2026-07-09) — done, scope confirmed with the user first: (1) no
       separate crit-roll -- triggers purely on a limb's HP crossing to 0%

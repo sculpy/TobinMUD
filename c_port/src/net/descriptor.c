@@ -728,38 +728,39 @@ static void show_account_menu(descriptor_t *d) {
         return;
     }
 
-    char out[2048];
-    int n = snprintf(out, sizeof(out), "\r\n-- Your players --\r\n");
     if (d->char_count == 0) {
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  (none yet)\r\n");
-    } else {
-        for (int i = 0; i < d->char_count && (size_t)n < sizeof(out); i++) {
-            /* Same convention as `who`: immortals show their rank title,
-             * mortals show the level number. A character already in the
-             * world (on any connection) is marked (user request). */
-            bool online = false;
-            for (descriptor_t *it = g_descriptors; it && !online; it = it->next) {
-                if (it->state == CONN_PLAYING && it->character
-                    && strcasecmp(it->character->base.name, d->char_list[i]) == 0)
-                    online = true;
-            }
-            const char *title = being_level_title(d->char_levels[i]);
-            if (title)
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s\t\t[%s]%s\r\n",
-                              i + 1, d->char_list[i], title,
-                              online ? " (connected)" : "");
-            else
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s\t\t[Level %d]%s\r\n",
-                              i + 1, d->char_list[i], d->char_levels[i],
-                              online ? " (connected)" : "");
+        descriptor_send(d,
+            "\r\n-- Your players --\r\n  (none yet)\r\n"
+            "\r\n  N create   D <name> delete   X delete account   Q quit\r\n\r\n> ");
+        return;
+    }
+
+    /* Revealed listing (user: "colorize the number list with <C>") --
+     * boxed the same as the hidden letter-menu above, one line per
+     * character, its number bright-cyan. */
+    char lines[MAX_CHARS_PER_ACCOUNT][96];
+    const char *line_ptrs[MAX_CHARS_PER_ACCOUNT];
+    for (int i = 0; i < d->char_count; i++) {
+        /* Same convention as `who`: immortals show their rank title,
+         * mortals show the level number. A character already in the
+         * world (on any connection) is marked (user request). */
+        bool online = false;
+        for (descriptor_t *it = g_descriptors; it && !online; it = it->next) {
+            if (it->state == CONN_PLAYING && it->character
+                && strcasecmp(it->character->base.name, d->char_list[i]) == 0)
+                online = true;
         }
+        const char *title = being_level_title(d->char_levels[i]);
+        if (title)
+            snprintf(lines[i], sizeof(lines[i]), "<C>%d.<z> %s [%s]%s",
+                     i + 1, d->char_list[i], title, online ? " (connected)" : "");
+        else
+            snprintf(lines[i], sizeof(lines[i]), "<C>%d.<z> %s [Level %d]%s",
+                     i + 1, d->char_list[i], d->char_levels[i], online ? " (connected)" : "");
+        line_ptrs[i] = lines[i];
     }
-    if ((size_t)n < sizeof(out)) {
-        n += snprintf(out + n, sizeof(out) - (size_t)n, d->char_count == 0
-                 ? "\r\n  N create   D <name> delete   X delete account   Q quit\r\n\r\n> "
-                 : "Choose a number to connect that player to the game: ");
-    }
-    descriptor_send(d, out);
+    send_boxed_menu(d, line_ptrs, d->char_count);
+    descriptor_send(d, "Choose a number to connect that player to the game: ");
 }
 
 /* Unloads the current character and returns to the account menu, without
@@ -851,77 +852,85 @@ static void show_attr_screen(descriptor_t *d) {
  * before they've even seen the game. The exact deltas still apply and
  * still show up for real in `score`'s attribute line once played. */
 static void show_race_screen(descriptor_t *d) {
-    char out[1600];
-    snprintf(out, sizeof(out),
-             "\r\n-- Choose a race for %s --\r\n"
-             "Each race leaves its own mark on you -- some traits sharpened,\r\n"
-             "others dulled -- on top of whatever attributes you allocate next.\r\n\r\n"
-             "  1) Human   -- Adaptable and unremarkable in the best way: no\r\n"
-             "                particular gift, but no particular weakness either.\r\n"
-             "  2) Elf     -- Graceful and quick-witted, with keen reflexes and a\r\n"
-             "                mind suited to magic -- but their slight frames tire\r\n"
-             "                and break more easily than sturdier folk.\r\n"
-             "  3) Ogre    -- Towering brutes of raw physical power, built to\r\n"
-             "                smash through anything in their path -- wit and\r\n"
-             "                charm were never their strong suits.\r\n"
-             "  4) Dwarf   -- Stout and famously hardy, shrugging off punishment\r\n"
-             "                that would fell lesser folk -- though their stocky\r\n"
-             "                build makes them a touch clumsy, and their bluntness\r\n"
-             "                doesn't win many friends.\r\n"
-             "  5) Hobbit  -- Small, nimble, and quick on their feet -- but they\r\n"
-             "                lack the brute strength or staying power of the\r\n"
-             "                bigger races.\r\n"
-             "  6) Gnome   -- Brilliant and inventive, with minds built for study\r\n"
-             "                and spellcraft -- but their small stature leaves\r\n"
-             "                them physically fragile.\r\n\r\n"
-             "Enter a number (1-6), or 'quit!' to cancel: ",
-             d->new_char_name);
-    descriptor_send(d, out);
+    char head[96];
+    snprintf(head, sizeof(head), "-- Choose a race for %s --", d->new_char_name);
+    descriptor_send(d, "\r\n");
+    static const char *const lines[] = {
+        "Each race leaves its own mark on you -- some traits sharpened,",
+        "others dulled -- on top of whatever attributes you allocate next.",
+        "",
+        "<C>1)<z> Human   -- Adaptable and unremarkable in the best way: no",
+        "              particular gift, but no particular weakness either.",
+        "<C>2)<z> Elf     -- Graceful and quick-witted, with keen reflexes and a",
+        "              mind suited to magic -- but their slight frames tire",
+        "              and break more easily than sturdier folk.",
+        "<C>3)<z> Ogre    -- Towering brutes of raw physical power, built to",
+        "              smash through anything in their path -- wit and",
+        "              charm were never their strong suits.",
+        "<C>4)<z> Dwarf   -- Stout and famously hardy, shrugging off punishment",
+        "              that would fell lesser folk -- though their stocky",
+        "              build makes them a touch clumsy, and their bluntness",
+        "              doesn't win many friends.",
+        "<C>5)<z> Hobbit  -- Small, nimble, and quick on their feet -- but they",
+        "              lack the brute strength or staying power of the",
+        "              bigger races.",
+        "<C>6)<z> Gnome   -- Brilliant and inventive, with minds built for study",
+        "              and spellcraft -- but their small stature leaves",
+        "              them physically fragile.",
+    };
+    descriptor_send(d, head);
+    send_boxed_menu(d, lines, (int)(sizeof(lines) / sizeof(lines[0])));
+    descriptor_send(d, "Enter a number (1-6), or 'quit!' to cancel: ");
 }
 
 static void show_class_screen(descriptor_t *d) {
-    char out[1600];
-    snprintf(out, sizeof(out),
-             "\r\n-- Choose a class for %s --\r\n"
-             "Your class shapes you further still, on top of your race.\r\n\r\n"
-             "  1) Mage     -- Wields raw arcane power through study and\r\n"
-             "                 spellcraft, formidable at a distance -- but\r\n"
-             "                 relies on the mind over muscle, and can't take\r\n"
-             "                 a hit.\r\n"
-             "  2) Cleric   -- A devoted channel for divine power, wise beyond\r\n"
-             "                 their years, healing allies and smiting the\r\n"
-             "                 wicked -- deliberate and grounded rather than\r\n"
-             "                 quick or forceful.\r\n"
-             "  3) Warrior  -- A hardened fighter built for the front line,\r\n"
-             "                 tough as nails and strong as an ox -- not known\r\n"
-             "                 for tact or deep wisdom.\r\n"
-             "  4) Thief    -- Fast, agile, and light on their feet, relying on\r\n"
-             "                 speed and cunning over brute force -- deadly\r\n"
-             "                 from the shadows, but not built to trade blows.\r\n"
-             "  5) Druid    -- In tune with nature, sturdy and wise in the ways\r\n"
-             "                 of the wild -- but bookish arcane study was\r\n"
-             "                 never their calling.\r\n"
-             "  6) Monk     -- A disciplined martial artist honed through\r\n"
-             "                 rigorous training, strong and resilient -- but\r\n"
-             "                 their austere ways leave little room for charm.\r\n\r\n"
-             "Enter a number (1-6), or 'quit!' to cancel: ",
-             d->new_char_name);
-    descriptor_send(d, out);
+    char head[96];
+    snprintf(head, sizeof(head), "-- Choose a class for %s --", d->new_char_name);
+    descriptor_send(d, "\r\n");
+    static const char *const lines[] = {
+        "Your class shapes you further still, on top of your race.",
+        "",
+        "<C>1)<z> Mage     -- Wields raw arcane power through study and",
+        "               spellcraft, formidable at a distance -- but",
+        "               relies on the mind over muscle, and can't take",
+        "               a hit.",
+        "<C>2)<z> Cleric   -- A devoted channel for divine power, wise beyond",
+        "               their years, healing allies and smiting the",
+        "               wicked -- deliberate and grounded rather than",
+        "               quick or forceful.",
+        "<C>3)<z> Warrior  -- A hardened fighter built for the front line,",
+        "               tough as nails and strong as an ox -- not known",
+        "               for tact or deep wisdom.",
+        "<C>4)<z> Thief    -- Fast, agile, and light on their feet, relying on",
+        "               speed and cunning over brute force -- deadly",
+        "               from the shadows, but not built to trade blows.",
+        "<C>5)<z> Druid    -- In tune with nature, sturdy and wise in the ways",
+        "               of the wild -- but bookish arcane study was",
+        "               never their calling.",
+        "<C>6)<z> Monk     -- A disciplined martial artist honed through",
+        "               rigorous training, strong and resilient -- but",
+        "               their austere ways leave little room for charm.",
+    };
+    descriptor_send(d, head);
+    send_boxed_menu(d, lines, (int)(sizeof(lines) / sizeof(lines[0])));
+    descriptor_send(d, "Enter a number (1-6), or 'quit!' to cancel: ");
 }
 
 static void show_alignment_screen(descriptor_t *d) {
-    char out[500];
-    snprintf(out, sizeof(out),
-             "\r\n-- Choose an alignment for %s --\r\n"
-             "  1) Good     -- other good-aligned mobs leave you be; evil ones may\r\n"
-             "                 target you, and you'll never be picked on by mobs that\r\n"
-             "                 favor good\r\n"
-             "  2) Neutral  -- no faction leans your way, but you may draw the odd\r\n"
-             "                 taunt from evil or word of support from good\r\n"
-             "  3) Evil     -- the mirror of Good\r\n\r\n"
-             "Enter a number (1-3), or 'quit!' to cancel: ",
-             d->new_char_name);
-    descriptor_send(d, out);
+    char head[96];
+    snprintf(head, sizeof(head), "-- Choose an alignment for %s --", d->new_char_name);
+    descriptor_send(d, "\r\n");
+    static const char *const lines[] = {
+        "<C>1)<z> Good     -- other good-aligned mobs leave you be; evil ones may",
+        "               target you, and you'll never be picked on by mobs that",
+        "               favor good",
+        "<C>2)<z> Neutral  -- no faction leans your way, but you may draw the odd",
+        "               taunt from evil or word of support from good",
+        "<C>3)<z> Evil     -- the mirror of Good",
+    };
+    descriptor_send(d, head);
+    send_boxed_menu(d, lines, (int)(sizeof(lines) / sizeof(lines[0])));
+    descriptor_send(d, "Enter a number (1-3), or 'quit!' to cancel: ");
 }
 
 /* Shared finish-up for both "play an existing character" and "just

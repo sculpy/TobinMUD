@@ -474,3 +474,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Boxed Account Menu + a New Login Banner', 'Reaching the account menu used to dump your full character list immediately, with a repeated block of C/N/D/X/Q instructions underneath every single time. It now opens with a clean boxed menu instead -- just the five letter options -- and only lists your characters by name once you actually press C, at which point it shows them numbered and asks which one to connect. A single-character account still connects straight through on C, same as before. The connection screen ahead of login also has a new look: a fortress gate now stands above the TobinMUD logo, greeting every new arrival before they even give an account name.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Boxed Character Creation Screens', 'The revealed character list at the account menu is now boxed too, with each number in bright cyan. New character creation got the same treatment: the race, class, and alignment screens each now present their full option list inside a bordered box, with the option numbers colorized to match.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
