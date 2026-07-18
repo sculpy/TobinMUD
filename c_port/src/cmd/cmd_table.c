@@ -131,6 +131,7 @@ static const cmd_entry_t COMMANDS[] = {
      * ("e" is east -- movement head.) */
     { "exits",   cmd_exits,   "List this room's exits and where they lead.",        MORTAL_LEVEL_MIN },
     { "examine", cmd_examine, "Look at something in detail -- a synonym for look <target>.", MORTAL_LEVEL_MIN },
+    { "extinguish", cmd_extinguish, "Put out a light source (extinguish <item> [held|room]).", MORTAL_LEVEL_MIN },
     { "flee",    cmd_flee,    "Try to escape a fight through a random exit.",       MORTAL_LEVEL_MIN },
     /* "g" must reach get, not goto -- alphabetical already delivers that
      * (get < goto), but it is load-bearing, not incidental: goto's landmark
@@ -162,6 +163,10 @@ static const cmd_entry_t COMMANDS[] = {
     { "look",    cmd_look,    "Look around the room you're in.",                    MORTAL_LEVEL_MIN },
     { "limbs",   cmd_limbs,   "Show the current health of all your limbs.",         MORTAL_LEVEL_MIN },
     { "list",    cmd_list,    "List a shopkeeper's wares, if you're at a shop.",    MORTAL_LEVEL_MIN },
+    /* Placed after look/limbs/list (not strict alphabetical, which would
+     * put it before limbs) so "l"/"li" keep meaning look/limbs exactly as
+     * before -- "lig" is already unambiguous either way. */
+    { "light",   cmd_light,   "Light a light source (light <item> [held|room]).",  MORTAL_LEVEL_MIN },
     { "mudstats", cmd_mudstats, "Show basic statistics about the game world.",      MORTAL_LEVEL_MIN },
     /* SWAP: news before newbie, so "new" still means news; newbie needs
      * "newb". ("n"/"ne" are movement -- head above.) */
@@ -185,6 +190,7 @@ static const cmd_entry_t COMMANDS[] = {
      * so "r"/"re" keep meaning rest, per that block's own SWAP -- "read"/
      * "rea" stay unambiguous regardless, since nothing else starts "rea". */
     { "read",    cmd_read,    "Read the messages on a bulletin board (read [<#>]).", MORTAL_LEVEL_MIN },
+    { "refuel",  cmd_refuel,  "Refuel a light source from a fuel item (refuel <light> <fuel> [held|room]).", MORTAL_LEVEL_MIN },
     /* SWAP: say before save, so "sa" still speaks; save needs "sav".
      * ("s" is south -- movement head.) */
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },

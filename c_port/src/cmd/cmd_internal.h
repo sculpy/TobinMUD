@@ -142,6 +142,9 @@ bool cmd_tell(descriptor_t *d, const char *args);
 bool cmd_whisper(descriptor_t *d, const char *args);
 bool cmd_read(descriptor_t *d, const char *args);
 bool cmd_write(descriptor_t *d, const char *args);
+bool cmd_light(descriptor_t *d, const char *args);
+bool cmd_extinguish(descriptor_t *d, const char *args);
+bool cmd_refuel(descriptor_t *d, const char *args);
 
 /* cmd_look.c's own `look <name>` resolver -- shared with `examine`
  * (cmd_examine.c), which Sneezy documents as a plain synonym for

@@ -538,3 +538,8 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Few Bugs Squashed', '`stat obj/mob/room <name>` now actually searches by name when you don''t give it a vnum, instead of quietly showing you whatever happens to sit at vnum 0. The doctor''s hospital greeting is properly capitalized now ("The Tobin City Doctor...", not "the..."). And `load` (Immortal-only) now warns you -- without ever refusing -- if spawning something pushes its world count past what that prototype was ever meant to have loose at once, so it''s easier to remember to clean up after testing.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Torches and Lanterns Actually Work Now', '`light`/`extinguish <item> [held|room]` turn a light source on or off; `refuel <light> <fuel> [held|room]` tops one up from a fuel brick (Lumor''s Illuminations sells them). A lit light burns down over time and eventually goes out on its own -- refuel it before then. You can''t refuel while it''s lit (might explode), and a torch can''t be refueled at all, only replaced. A lit light source shows "(lit)" where it''s sitting so you can actually tell.'),
+('The TobinMUD Team', 'The Lamp-Lighting Boy Is Back on the Job', 'Grimhaven''s lamp-lighting boy (and Brightmoon''s eager page) once again light the streetlamps at dusk and put them out at dawn, wherever they happen to be standing when it happens -- an honest, much smaller version of the original''s scripted patrol route, not the real thing.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

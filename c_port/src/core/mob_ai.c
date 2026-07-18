@@ -7,9 +7,12 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
 #include "being.h"
 #include "descriptor.h"
+#include "gametime.h"
 #include "obj.h"
 #include "pulse.h"
 #include "room.h"
@@ -286,11 +289,69 @@ static void mob_try_align_flavor(being_t *m) {
     descriptor_notify(target->desc, msg);
 }
 
+/* Same keyword-abbreviation matching spirit as cmd_drink.c's own local
+ * copy (a "puddle"-style tag search, not a prefix match) -- duplicated
+ * rather than shared, same established precedent across this codebase. */
+static bool keyword_matches(const char *keywords, const char *tok) {
+    size_t tok_len = strlen(tok);
+    if (tok_len == 0)
+        return false;
+    const char *p = keywords;
+    while (*p) {
+        while (*p == ' ')
+            p++;
+        const char *start = p;
+        while (*p && *p != ' ')
+            p++;
+        size_t wlen = (size_t)(p - start);
+        if (wlen >= tok_len && strncasecmp(start, tok, tok_len) == 0)
+            return true;
+    }
+    return false;
+}
+
+/* SPEC_PROC_LAMPLIGHTER (mob_ai.h has the full scope-down rationale):
+ * lights every "lamppost"-keyworded OBJ_CAT_LIGHT object in this mob's
+ * OWN current room at night, extinguishes it by day, auto-refueling to
+ * full each time it lights one (the original's own "infinite fuel
+ * supply for the NPC" -- TLight::lampLightStuff(), obj_light.cc). */
+static void mob_try_lamplighter(being_t *m) {
+    if (m->mob_spec_proc != SPEC_PROC_LAMPLIGHTER || !m->base.roomp)
+        return;
+
+    bool daytime = gametime_is_daytime();
+    char capbuf[128], msg[256];
+    for (thing_t *t = m->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        obj_t *o = (obj_t *)t;
+        if (o->category != OBJ_CAT_LIGHT || !keyword_matches(o->base.name, "lamppost"))
+            continue;
+
+        if (daytime && o->val[3]) {
+            o->val[3] = 0;
+            snprintf(msg, sizeof(msg), "%s reaches up and extinguishes %s for the day.\r\n",
+                     cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), o->base.short_descr);
+            descriptor_room_echo(m->base.roomp, NULL, msg);
+        } else if (!daytime && !o->val[3]) {
+            if (o->val[1] >= 0)
+                o->val[2] = o->val[1];
+            if (o->val[2] <= 0)
+                continue; /* unrefuelable (val[1]<0) and already spent -- nothing this mob can do */
+            o->val[3] = 1;
+            snprintf(msg, sizeof(msg), "%s reaches up high and lights %s for the night.\r\n",
+                     cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), o->base.short_descr);
+            descriptor_room_echo(m->base.roomp, NULL, msg);
+        }
+    }
+}
+
 static void mob_ai_visit(being_t *m) {
     mob_try_wander(m);
     mob_try_scavenge(m);
     mob_try_aggress(m);
     mob_try_align_flavor(m);
+    mob_try_lamplighter(m);
 }
 
 void mob_ai_tick(long pulse_num) {

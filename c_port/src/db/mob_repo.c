@@ -16,7 +16,7 @@ bool mob_proto_load(int vnum, mob_proto_t *out) {
 
     bool found = false;
     if (db_query(db, "select name, short_desc, description, level, hpbonus, sex, actions, align, class, "
-                      "max_exist from mob where vnum=%i",
+                      "max_exist, spec_proc from mob where vnum=%i",
                  vnum)
         && db_fetch_row(db)) {
         snprintf(out->name, sizeof(out->name), "%s", db_get(db, "name"));
@@ -29,6 +29,7 @@ bool mob_proto_load(int vnum, mob_proto_t *out) {
         out->align = atoi(db_get(db, "align"));
         out->class_mask = atoi(db_get(db, "class"));
         out->max_exist = atoi(db_get(db, "max_exist"));
+        out->spec_proc = atoi(db_get(db, "spec_proc"));
         found = true;
     }
 

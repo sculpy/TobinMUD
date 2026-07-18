@@ -3985,6 +3985,42 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
       `being_display_name_cap()` (already existed, just wasn't used here)
       wherever a shopkeeper's name opens a message, including the plain
       `list`'s "<keeper> offers:" line too.
+- [x] **Light refuel + the lamp-lighting boy** — done 2026-07-18 (user:
+      "light refuel and the lamp lighting boy code need to be
+      implemented, from sneezy"). Real seeded OBJ_CAT_LIGHT objects
+      (lampposts, torches, lanterns) and ITEM_FUEL objects (sold at
+      Lumor's Illuminations, room 550) already existed but had no command
+      layer at all -- new `light`/`extinguish`/`refuel <light> <fuel>
+      [held|room]` (cmd_light.c), matching the original's obj_light.cc/
+      obj_fuel.cc split: refueling rejects a lit lamp ("might explode"),
+      an already-full one, or an unrefuelable one (val[1]<0, e.g. a
+      torch). Found and fixed along the way: obj.h's own val[] doc
+      comment for LIGHT was WRONG (claimed val[0]=is-lit; the real
+      seeded data is val[0]=radius, val[1]=max burn, val[2]=current burn,
+      val[3]=is-lit) -- never noticed before since nothing read it.
+      New `obj_light_burn_tick()` (obj.c, ~60s pulse like pool decay)
+      drains 1 unit from every LIT light's burn -- room-floor, carried by
+      a connected player, AND carried by a mob (world_for_each_obj()
+      alone only covers room floors), extinguishing it at 0, silently
+      (same "no message" precedent as pool decay). Room floor listings
+      now tag a lit OBJ_CAT_LIGHT item "(lit)" (cmd_look.c) -- otherwise
+      invisible state with no way to tell.
+      Lamplighter: the original's "Lamp-Lighter" spec-proc (spec_mobs.cc,
+      real seeded on mob vnum 99 "a lamp-lighting boy"/Grimhaven and 1303
+      "an eager page"/Brightmoon) walks a hardcoded scripted patrol route
+      between named lampposts (misc/paths.h). Tobin's version drops the
+      patrol entirely (no path-following primitive exists) -- a mob whose
+      `mob.spec_proc` (now cached on `being_t.mob_spec_proc` at spawn,
+      mob_repo.h, so mob_ai.c's per-tick check needs no DB round trip)
+      equals `SPEC_PROC_LAMPLIGHTER` just lights/extinguishes any
+      "lamppost"-keyworded light already in its OWN current room each AI
+      tick, gated on `gametime_is_daytime()`, auto-refueling to full each
+      time it lights one -- same "infinite fuel supply for the NPC" the
+      original's `lampLightStuff()` does. A lamplighter that never shares
+      a room with a lamppost simply does nothing; honest scope-down, not
+      faked patrol coverage. Verified live: a fresh lamppost (seeded
+      already-lit) + the mob + `aitick` correctly extinguished it with
+      the room message "... reaches up and extinguishes ... for the day."
 - [x] **Classes** — already shipped: 6 classes (mage/cleric/warrior/thief/
       druid/monk) chosen at creation (`show_class_screen()`, descriptor.c),
       shown in score/who, with `class_stat_bonus()` (being.c) applying

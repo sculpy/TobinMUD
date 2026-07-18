@@ -83,7 +83,20 @@ typedef struct obj {
     /* Generic 4-int payload; meaning depends on `category` (placeholder
      * formulas, same precedent as the XP curve / regen rate -- revisit per
      * category as real gameplay lands):
-     *   LIGHT:    val[0]=is lit (0/1)      val[1]=max fuel (-1=infinite) val[2]=fuel remaining
+     *   LIGHT:    val[0]=light radius (flavor only, unused) val[1]=max
+     *             burn/fuel capacity (-1=unrefuelable, e.g. a torch --
+     *             see cmd_light.c's `refuel`) val[2]=current burn/fuel
+     *             remaining val[3]=is lit (0/1). Corrected 2026-07-18 --
+     *             an earlier placeholder comment here (val[0]=is lit,
+     *             val[1]=max fuel, val[2]=remaining) didn't match the
+     *             real seeded data at all once `light`/`extinguish`/
+     *             `refuel` actually needed to read it; verified against
+     *             real obj rows (vnum 100 lamppost: 15/100/100/1, vnum
+     *             105 torch: 5/-1/40/0).
+     *   FUEL (obj.type==6/ITEM_FUEL, collapses into OBJ_CAT_OTHER --
+     *             see cmd_light.c's `refuel`): val[0]=fuel units
+     *             remaining val[1]=max fuel units (a fresh brick's own
+     *             capacity, e.g. "a small brick of solid fuel" is 40/40).
      *   WEAPON:   val[0]=damage dice count val[1]=damage dice sides
      *   ARMOR:    val[0]=armor class (protection value)
      *   CONTAINER:val[0]=max weight cap.   val[1]=flags(closeable/closed/locked/pickproof) val[2]=key vnum (0=no lock)
@@ -192,6 +205,14 @@ void obj_grow_pool(struct room *room, const char *type_tag, const char *keywords
  * comment. Pulse-registered in main.c; also forced by `aitick` for
  * deterministic testing. */
 void obj_pool_decay_tick(long pulse_num);
+
+/* Drains 1 burn/fuel unit (val[2]) from every currently-LIT OBJ_CAT_LIGHT
+ * object in the world, extinguishing it (val[3]=0) once it hits 0 -- see
+ * obj.h's val[] comment and cmd_light.c's `light`/`extinguish`/`refuel`.
+ * Silent, same "no message" precedent as obj_pool_decay_tick() (a pure
+ * ambient world tick, not tied to any one connected player) -- pulse-
+ * registered in main.c at the same ~60s cadence. */
+void obj_light_burn_tick(long pulse_num);
 
 /* Detaches (thing_remove_from_parent) and frees an obj_t. Safe to call on a
  * worn/held item too (the caller is responsible for first clearing whatever

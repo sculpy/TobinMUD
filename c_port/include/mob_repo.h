@@ -61,6 +61,12 @@ typedef struct {
     int max_exist; /* upstream world-wide instance cap, 0 = uncapped -- see
                      * cmd_load.c's `load` command for the one place Tobin
                      * reads this (a warning, not an enforced cap). */
+    int spec_proc; /* same real seeded value mob_repo_get_spec_proc() reads
+                     * by vnum for shop_repo_is_hospital() -- included here
+                     * too and copied onto being_t.mob_spec_proc at spawn
+                     * time (being_create_mob()) so a live mob's own AI
+                     * (mob_ai.c's lamplighter behavior) can check it every
+                     * tick without a DB round trip per mob per tick. */
 } mob_proto_t;
 
 /* Loads the prototype row for `vnum` from the `mob` table into *out.

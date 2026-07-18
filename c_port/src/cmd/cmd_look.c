@@ -51,10 +51,16 @@ static void render_room_item(char *buf, size_t bufsz, const room_t *r, const thi
          * fallback -- long_descr is already a full sentence. */
         const obj_t *o = (const obj_t *)t;
         char groundbuf3[OBJ_LONG_DESCR_LEN + 32];
-        snprintf(buf, bufsz, "%s",
+        /* A light's own on/off state (val[3], obj.h) is otherwise
+         * invisible to a player -- same "(linkdead)" tagging convention
+         * as the PC branch below, so `light`/`extinguish`/the lamplighter
+         * (cmd_light.c/mob_ai.c) have an actual visible effect. */
+        bool lit = o->category == OBJ_CAT_LIGHT && o->val[3];
+        snprintf(buf, bufsz, "%s%s",
                  o->long_descr[0]
                      ? obj_apply_ground_token(o->long_descr, r, groundbuf3, sizeof(groundbuf3))
-                     : cap_first(label, capbuf3, sizeof(capbuf3)));
+                     : cap_first(label, capbuf3, sizeof(capbuf3)),
+                 lit ? " (lit)" : "");
     } else {
         /* Mob short_descr is lowercase by convention ("a city watchman");
          * capitalize for the sentence start (PC names are already

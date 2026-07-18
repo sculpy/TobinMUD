@@ -354,6 +354,16 @@ typedef struct being {
      * evil and evil will attack good randomly ... people who are neutral
      * should be taunted by evil and supported by good"). */
     int mob_align;
+    /* THING_MOB only, 0 for a PC: mob.spec_proc, copied at spawn time
+     * same as mob_actions/mob_align (mob_repo.h) -- a pure DATA marker
+     * (Tobin has no spec-proc EXECUTION engine; triggers.c replaced that
+     * concept), read by mob_ai.c's lamplighter behavior to recognize a
+     * real seeded lamp-lighting mob (SPEC_PROC_LAMPLIGHTER) without a
+     * per-tick DB round trip, same precedent as shop_repo_is_hospital()'s
+     * SPEC_PROC_DOCTOR check (just cached instead of looked up live,
+     * since this one runs every mob every AI tick rather than only when
+     * a player interacts with a shop). */
+    int mob_spec_proc;
     attrs_t attrs;
     progress_t progress;
     limb_state_t limbs[LIMB_COUNT];

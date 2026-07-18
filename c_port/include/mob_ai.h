@@ -46,4 +46,26 @@ void mob_ai_tick(long pulse_num);
  * convention as room.h's room_flag_names(). */
 const char *mob_action_names(int flags, char *buf, size_t size);
 
+/* The original engine's "Lamp-Lighter" spec-proc id (spec/spec_mobs.cc,
+ * misc/paths.h's scripted patrol routes) -- seeded verbatim into
+ * mob.spec_proc for the two real lamp-lighting NPCs in the import (vnum
+ * 99 "a lamp-lighting boy", Grimhaven; vnum 1303 "an eager page",
+ * Brightmoon). A data-driven signal, same SPEC_PROC_DOCTOR precedent as
+ * shop_repo_is_hospital() -- no spec-proc EXECUTION happens, just a
+ * lookup key (cached on being_t.mob_spec_proc at spawn, mob_repo.h).
+ *
+ * Scoped DOWN from the original: the upstream spec-proc walks a
+ * hardcoded, per-zone scripted patrol route between named lampposts
+ * (lamp_path_pos[][], misc/paths.h) to reach them; Tobin's version skips
+ * the patrol entirely (a mob AI system this small has no path-following
+ * primitive to reuse) and just acts on whatever OBJ_CAT_LIGHT object
+ * keyworded "lamppost" happens to already be in its OWN current room
+ * each AI tick -- lighting it at night, extinguishing it by day, same
+ * `gametime_is_daytime()` gate and auto-refuel-to-full the original uses
+ * (TLight::lampLightStuff(), obj_light.cc). A lamplighter mob that never
+ * wanders into a lamppost's room (most don't share one at boot) simply
+ * never does anything -- honest about the scope-down rather than faking
+ * patrol coverage. */
+#define SPEC_PROC_LAMPLIGHTER 96
+
 #endif

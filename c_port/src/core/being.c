@@ -91,6 +91,7 @@ being_t *being_create_mob(int vnum) {
     b->progress.experience = 0;
     b->mob_actions = proto.actions;
     b->mob_align = proto.align;
+    b->mob_spec_proc = proto.spec_proc;
     b->mob_class_known = mob_class_mask_to_tobin(proto.class_mask, &b->char_class);
 
     /* Placeholder attrs/HP formulas (see STATUS.md's Mobiles decision row):

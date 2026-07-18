@@ -11,6 +11,7 @@
 #include <strings.h>
 
 #include "being.h"
+#include "descriptor.h"
 #include "obj_repo.h"
 #include "room.h"
 #include "thing.h"
@@ -469,6 +470,39 @@ static void pool_decay_visit(obj_t *o) {
 void obj_pool_decay_tick(long pulse_num) {
     (void)pulse_num;
     world_for_each_obj(pool_decay_visit);
+}
+
+static void light_burn_visit(obj_t *o) {
+    if (o->category != OBJ_CAT_LIGHT || !o->val[3])
+        return;
+    o->val[2]--;
+    if (o->val[2] <= 0) {
+        o->val[2] = 0;
+        o->val[3] = 0;
+    }
+}
+
+/* Runs light_burn_visit() over a being's own carried/worn/held chain --
+ * lamps and torches are usually CARRIED, not sitting on a room floor, so
+ * world_for_each_obj() alone (room-floor objects only, see its own doc
+ * comment) would never burn one down. */
+static void light_burn_being(const being_t *b) {
+    for (thing_t *t = b->base.stuff_head; t; t = t->stuff_next)
+        if (t->kind == THING_OBJ)
+            light_burn_visit((obj_t *)t);
+}
+
+static void light_burn_mob_visit(being_t *m) {
+    light_burn_being(m);
+}
+
+void obj_light_burn_tick(long pulse_num) {
+    (void)pulse_num;
+    world_for_each_obj(light_burn_visit); /* room-floor lights (lampposts, ...) */
+    for (descriptor_t *d = g_descriptors; d; d = d->next)
+        if (d->character)
+            light_burn_being(d->character); /* connected players' carried lights */
+    world_for_each_mob(light_burn_mob_visit); /* mob-carried lights */
 }
 
 void obj_destroy(obj_t *o) {
