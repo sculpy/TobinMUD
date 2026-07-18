@@ -130,3 +130,46 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Quiet Heartbeat',
  'Once every hour, on the half hour, your screen gets a single blank line -- no message, just a nudge that time is passing.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Gold and Shops Have Arrived',
+ 'Killing something now has a payoff: defeated creatures hand their killer gold on the spot. Check your purse with score. Shops across the world are open for business too -- find a shopkeeper, list their wares, buy or sell (only certain goods, matching what each shop actually deals in). Every shop keeps its own personality in its buy and sell messages. Old piles of treasure lying around the world pay out in gold when picked up, same as anything else.'),
+('The TobinMUD Team', 'Numbered Shopping', 'list at a shop now numbers every item alongside its price -- buy by number, or by name, whichever is quicker.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Sickness Is Now a Thing',
+ 'Drink from a puddle on the ground and you might come away with more than a poison scare -- there is a real chance of catching a nasty cold, or something considerably worse. A disease saps a little strength every so often while it runs its course, then wears off on its own -- or get it cured at a hospital, see below. NPCs can catch these too, and will visibly wince from a flare-up same as anyone else.'),
+('The TobinMUD Team', 'A Poison That Actually Lingers',
+ 'Drinking something foul now leaves you genuinely poisoned for a while instead of just a single jolt of pain -- check affects to see what is wrong with you and how long it will last.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Hospitals Open Their Doors',
+ 'Real hospitals are now staffed and ready in several of the world''s major cities. Walk up to the doctor and list to see what ails you -- damaged limbs, active diseases, even poison -- then buy the cure on the spot for gold. Lost track of where the nearest one is? goto hospital points the way from anywhere in the world.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Component and Commodity Shops Are Finally Stocked',
+ 'Mages and Druids: the components shop in the Market Place now actually sells spellcasting components, so casting works again with something to buy rather than nothing to find. A handful of sister shops around the world now carry real metal bars, ingots, and animal hides too -- all buyable and re-sellable, same as any other goods.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Bulletin Boards Are Live',
+ 'The boards mounted on walls across the world finally do something. read at one lists what is posted; read followed by a number shows a message in full. write followed by a subject and a message posts a new one on the spot. If a room happens to have more than one board, name which one you mean.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Look Can Count Too',
+ 'kill and get have long been able to reach a second or third match when more than one thing shares a name -- look can now do the same, and so can drink, sip, open, show, and sell. Point at a specific one instead of always the first.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Torches and Lanterns Actually Work Now',
+ 'light and extinguish turn a light source on or off; refuel tops one up from a fuel item you are carrying. A lit light burns down over time and eventually goes out on its own, so refuel it before then -- though a plain torch can never be refueled, only replaced. A lit light source shows as lit wherever it is sitting so you can actually tell. And keep an eye out after dark: the streetlamps in a few of the world''s cities are tended once again.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Few Small Conveniences',
+ 'prompt can now show your gold alongside your hit points. point mentions whatever you are holding instead of always pointing around randomly. And toggle pk is here for anyone who wants to fight other players -- both sides have to opt in, so nobody is dragged into a fight they did not choose.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
