@@ -5,8 +5,10 @@
 #include "cmd.h"
 
 #include <ctype.h>
+#include <stdio.h>
 #include <string.h>
 
+#include "alias_repo.h"
 #include "being.h"
 #include "cmd_internal.h"
 #include "socials.h"
@@ -102,6 +104,7 @@ static const cmd_entry_t COMMANDS[] = {
      * than printing a buff list. affects needs "af". */
     { "attack",  cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
     { "affects", cmd_affects, "List your currently active buffs/debuffs.",          MORTAL_LEVEL_MIN },
+    { "alias",   cmd_alias,   "Manage your command aliases (alias [<name> [<expansion>]] | alias remove <name>).", MORTAL_LEVEL_MIN },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
     /* SWAP: close before cast/catchup/color, so "c" still closes doors.
      * SWAP: catchup before cast, so "ca" reaches catchup; cast needs "cas".
@@ -380,6 +383,28 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
 
     if (strcmp(verb, "quit!") == 0)
         return cmd_quit(d, args);
+
+    /* Alias expansion (user 2026-07-17: "players define their own
+     * aliases... stored on the account and shared across that account's
+     * characters", scoped by tier). Checked after the quit! special-case
+     * so "quit!" itself can never be shadowed by an alias -- it stays the
+     * one guaranteed, un-redefinable escape hatch. Expands ONCE against
+     * the caller's account+tier, then falls straight through to normal
+     * dispatch on the EXPANDED line -- an alias can never itself be
+     * re-expanded (only a real command's own verb can appear next), so a
+     * two-alias naming cycle can't loop. */
+    if (d->character) {
+        char expansion[ALIAS_EXPANSION_LEN];
+        const char *tier = being_is_immortal(d->character) ? "immortal" : "mortal";
+        if (alias_repo_find(d->account.account_id, tier, verb, expansion, sizeof(expansion))) {
+            char expanded[ALIAS_EXPANSION_LEN + 256];
+            if (*args)
+                snprintf(expanded, sizeof(expanded), "%s %s", expansion, args);
+            else
+                snprintf(expanded, sizeof(expanded), "%s", expansion);
+            return cmd_dispatch(d, expanded);
+        }
+    }
 
     /* Wait-state gate (see pulse.h / being_get_wait()): a laggy mortal
      * can't issue any further command until their wait clears. Immortals

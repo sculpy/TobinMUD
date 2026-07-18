@@ -1583,12 +1583,31 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       another 59, etc.). Destructive -- confirm + password gate.
 - [x] **`;` wiznet shorthand** — done 2026-07-05: `;<msg>` broadcasts to
       immortals (cmd_dispatch special-case, like `'` for say).
-- [ ] **`alias` command** — players define their own aliases, stored on the
-      ACCOUNT and shared across that account's characters. Scoped by tier: an
-      immortal's aliases apply only to their immortal characters; a mortal's
-      apply to all mortal characters on the account. Needs a DB table
-      (account_id, tier, name, expansion), an `alias` command (add/list/remove),
-      and alias expansion in cmd_dispatch before command matching.
+- [x] **`alias` command** — done 2026-07-17. New `account_alias` table
+      (`account_id`, `tier`, `name`, `expansion`, tobin_migrations.sql) +
+      `alias_repo.h`/`.c` (get/set/remove/list, following the same shape
+      as this session's `skill_repo`/`balance_repo`). `cmd_alias.c`: bare
+      `alias` lists (paginated -- `descriptor_page_start`, not boxed,
+      matching every other in-game list command; boxes are for the pre-
+      login menu screens only), `alias <name>` shows one, `alias <name>
+      <expansion>` sets/overwrites, `alias remove <name>` deletes. Capped
+      at `ALIAS_MAX_PER_TIER` (20) per account per tier -- editing an
+      EXISTING alias never counts against the cap, only adding a
+      genuinely new name does. Expansion wired into `cmd_dispatch()`
+      (cmd_table.c), checked right after the hardcoded `quit!` special-
+      case (so `quit!` itself can never be shadowed) and before the wait-
+      state gate: looks up `verb` against the caller's account+tier
+      (`being_is_immortal()` picks 'mortal' vs 'immortal'), and on a hit,
+      re-dispatches ONCE on `expansion + " " + args` -- an alias is never
+      itself re-expanded (only the resulting real command's own verb can
+      match next), so a two-alias naming cycle can't loop. Command-table
+      entry placed alphabetically between `attack`/`affects` (an already-
+      swapped pair protecting bare "a") and `bug` -- no abbreviation
+      collisions. Verified live: set/list/show/overwrite/remove all work;
+      `k self` (aliased to `kill`) correctly routes through the real
+      `kill` command's own target parsing; promoting the SAME account to
+      immortal and reconnecting shows an EMPTY alias list and the mortal
+      alias does NOT expand -- tier scoping confirmed working both ways.
 - [x] **Immortal color tiers in who/score** — done 2026-07-05:
       `being_rank_color()` (51-53 `<c>`, 54-56 `<C>`, 57-58 `<p>`, 59+ `<P>`)
       tints the name in who and score.

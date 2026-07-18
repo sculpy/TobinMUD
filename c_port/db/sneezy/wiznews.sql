@@ -486,3 +486,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', '`pee` Now Takes a Liquid Type', 'Bare `pee` still works exactly as before. `pee <liquid>` -- water, wine, beer, or acid so far, abbreviations welcome -- leaves a puddle of that liquid instead. A second pee of the same liquid grows the existing puddle bigger; a different liquid starts its own puddle alongside it.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New: Define Your Own Command Aliases', '`alias <name> <expansion>` lets you set up your own shortcuts -- `alias k kill` means typing `k orc` sends `kill orc`. Bare `alias` lists what you have, `alias <name>` shows one, `alias remove <name>` deletes one. Aliases live on your account and follow you to every character you play, but mortal and immortal aliases are kept separate -- an immortal alias only works while playing an immortal character, even on the same account. Up to 20 per tier. See `help alias`.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

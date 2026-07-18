@@ -158,3 +158,20 @@ CREATE TABLE IF NOT EXISTS `player_skill` (
   `last_gain_at` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`player_id`, `skill_name`)
 );
+
+-- Player-defined command aliases (`alias` command, cmd_alias.c). Stored on
+-- the ACCOUNT, not the character, and shared across every character on it
+-- -- but scoped by tier: an immortal alias only expands for an immortal
+-- caller, a mortal alias only for a mortal one, so the same short name
+-- (e.g. "k") can mean something different depending which side of the
+-- account is playing. `tier` is the literal string 'mortal'/'immortal'
+-- (matches being_is_immortal()'s boolean, kept as text for readability in
+-- a raw SELECT). PRIMARY KEY on (account_id, tier, name) lets a mortal and
+-- immortal alias share the same name independently.
+CREATE TABLE IF NOT EXISTS `account_alias` (
+  `account_id` bigint(20) unsigned NOT NULL,
+  `tier` varchar(9) NOT NULL,
+  `name` varchar(32) NOT NULL,
+  `expansion` varchar(255) NOT NULL,
+  PRIMARY KEY (`account_id`, `tier`, `name`)
+);
