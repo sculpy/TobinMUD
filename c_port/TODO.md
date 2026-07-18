@@ -1841,9 +1841,18 @@ already tracked — pointers, not duplicates):
       per-player newbie toggle, `tipedit` (53+). DB-backed like news/help.
 - [ ] **Typed logs** — `log.h` log-type taxonomy; every log line gets a type,
       `log search` can filter by type.
-- [ ] **`dig`** — builder-walk: moving into a nonexistent exit auto-creates
-      the room + reverse exit (redit's exit machinery already does this).
-      Needs a next-free-vnum strategy.
+- [x] **`dig`** — done 2026-07-18. `dig <direction>` (BUILD_MIN_LEVEL): if
+      there's no exit that way yet, creates a new room, wires this room's
+      exit to it and its own exit back (REV_DIR), then walks the digger
+      through exactly like a normal move (`cmd_dispatch()` of the
+      direction word itself, so every bit of `do_move()`'s own logic --
+      arrival triggers, poofin/poofout, the fighting/position gates --
+      applies unchanged). The next-free-vnum strategy: the new room lands
+      within the CURRENT room's own zone range (one query,
+      `room_repo_next_free_vnum()`, not a per-vnum exists() loop), gated
+      by the same `zone_can_edit()` ownership check `edroom`/`edtrigger`
+      already enforce -- refuses on an unzoned room (no range to place
+      from) or a zone whose range is already full.
 - [x] **`edplayer`** (player files) — done 2026-07-06: menu-driven editor
       (58+, matching `promote`'s tier) for level, experience, HP/max HP,
       attributes, gender, title, load room, and handedness -- an admin
@@ -1858,7 +1867,19 @@ already tracked — pointers, not duplicates):
       appearance_by_name()` in `player_repo.c`. `smoke_test_edplayer.py`
       (gate, every field, save-persists via reconnect, live sync to an
       already-connected session, and discard-truly-discards) + help topic.
-- [ ] **`edaccount`** (accounts) — menu-driven: rename, password reset, list chars.
+- [x] **`edit account`** (accounts) — done 2026-07-18, as `edit account
+      <name>` (Administrator, 58+, matching edplayer's tier) -- unified
+      under the `edit <noun>` dispatcher from the start, never a
+      standalone `edaccount` verb (user, 2026-07-11:
+      "unify all ed* commands into one edit command"). Menu-driven, but
+      unlike edplayer/edzone/balance NOT a working-copy-plus-Save editor
+      -- rename and password reset each commit immediately (same
+      reasoning as edzone's builder-assignment toggle), since there's no
+      real "cancel" state worth staging for either. Lists every character
+      on the account with its level. New `account_load_by_id()`/
+      `account_set_name()`/`account_set_password()` (account_repo.c),
+      `CONN_EDACCOUNT_*` states (descriptor.c). No self-service
+      equivalent -- same as promote/edplayer, a player asks an immortal.
 - [x] **wiznews** — done 2026-07-05: an immortal-only (51+) news channel like
       `news`; `edwiznews` posts items that concern immortals. Parallel to
       news/ednews.

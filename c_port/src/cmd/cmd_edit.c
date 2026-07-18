@@ -20,13 +20,13 @@
  * needing a HIGHER level than that (player 58+, help/news/wiznews 56+,
  * rules 59+) checks it here and refuses with the same "Huh?!" wording the
  * command table itself would have given, so nothing was quietly
- * loosened. `trigger` (added 2026-07-11, cmd_edtrigger.c) is the one noun
- * that ISN'T a folded-in old command -- it's the new mob/obj/room
- * scripting system's editor, added straight into this dispatcher rather
- * than getting its own standalone verb first. `object`/`mob` (as in
- * "edit an object/mob prototype", not the trigger target types of the
- * same name) are reserved in the usage line for the day those editors
- * exist (see TODO.md) -- not wired to anything yet. */
+ * loosened. `trigger` (added 2026-07-11, cmd_edtrigger.c) and `account`
+ * (added 2026-07-18, cmd_edaccount.c) are the two nouns that ISN'T a
+ * folded-in old command -- new editors added straight into this
+ * dispatcher rather than getting their own standalone verb first.
+ * `object`/`mob` (as in "edit an object/mob prototype", not the trigger
+ * target types of the same name) are reserved in the usage line for the
+ * day those editors exist (see TODO.md) -- not wired to anything yet. */
 bool cmd_edit(descriptor_t *d, const char *args) {
     while (*args == ' ')
         args++;
@@ -35,7 +35,7 @@ bool cmd_edit(descriptor_t *d, const char *args) {
     int n = sscanf(args, "%31s", noun);
     if (n != 1) {
         descriptor_send(d,
-            "Usage: edit <room|zone|player|help|news|wiznews|rules|trigger> [args]\r\n");
+            "Usage: edit <room|zone|player|account|help|news|wiznews|rules|trigger> [args]\r\n");
         return true;
     }
 
@@ -58,6 +58,13 @@ bool cmd_edit(descriptor_t *d, const char *args) {
             return true;
         }
         return cmd_edplayer(d, rest);
+    }
+    if (strcasecmp(noun, "account") == 0) {
+        if (level < EDACCOUNT_MIN_LEVEL) {
+            descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+            return true;
+        }
+        return cmd_edaccount(d, rest);
     }
     if (strcasecmp(noun, "help") == 0) {
         if (level < HELP_EDIT_MIN_LEVEL) {
@@ -89,6 +96,6 @@ bool cmd_edit(descriptor_t *d, const char *args) {
     }
 
     descriptor_send(d,
-        "Usage: edit <room|zone|player|help|news|wiznews|rules> [args]\r\n");
+        "Usage: edit <room|zone|player|account|help|news|wiznews|rules> [args]\r\n");
     return true;
 }

@@ -49,6 +49,26 @@ bool account_load(const char *name, account_t *out) {
     return ok;
 }
 
+bool account_load_by_id(long account_id, account_t *out) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = false;
+    if (db_query(db, "select account_id, name, passwd, color_pref, time_adjust from account where account_id=%i", (int)account_id)
+        && db_fetch_row(db)) {
+        out->account_id = atol(db_get(db, "account_id"));
+        snprintf(out->name, sizeof(out->name), "%s", db_get(db, "name"));
+        snprintf(out->passwd, sizeof(out->passwd), "%s", db_get(db, "passwd"));
+        out->color_pref = atoi(db_get(db, "color_pref")) != 0;
+        out->time_adjust = atoi(db_get(db, "time_adjust"));
+        ok = true;
+    }
+
+    db_close(db);
+    return ok;
+}
+
 bool account_create(const char *name, const char *plain_password, account_t *out) {
     account_t existing;
     if (account_load(name, &existing)) {
@@ -112,6 +132,44 @@ bool account_set_timezone(long account_id, int hours) {
 
     bool ok = db_query(db, "update account set time_adjust=%i where account_id=%i",
                        hours, (int)account_id);
+
+    db_close(db);
+    return ok;
+}
+
+bool account_set_name(long account_id, const char *new_name) {
+    account_t existing;
+    if (account_load(new_name, &existing) && existing.account_id != account_id) {
+        log_error("account_set_name: name '%s' already taken", new_name);
+        return false;
+    }
+
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db, "update account set name=lower('%s') where account_id=%i",
+                        new_name, (int)account_id);
+
+    db_close(db);
+    return ok;
+}
+
+bool account_set_password(long account_id, const char *plain_password) {
+    char salt[32];
+    make_salt(salt, sizeof(salt));
+    char *hash = crypt(plain_password, salt);
+    if (!hash) {
+        log_error("account_set_password: crypt() failed");
+        return false;
+    }
+
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db, "update account set passwd='%s' where account_id=%i",
+                        hash, (int)account_id);
 
     db_close(db);
     return ok;

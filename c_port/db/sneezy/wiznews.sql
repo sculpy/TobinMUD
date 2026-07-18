@@ -511,3 +511,8 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', '`wipe` Arrives -- Administrator Only', 'The most permanent command in the game is here: `wipe <name> <password>` erases a character for good, and `wipe account <name> <password>` takes the whole account with it, every character on it included. It needs the wipe master password to run at all (ask whoever holds it), and only reaches someone below your own level. There is no undo, so it earns its own confirmation: getting the password wrong just fails quietly, no second-guessing needed on our end.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Dig Your Own Way', '`dig <direction>` is here for builders. Walk into a direction with no exit yet and it creates a brand new room right then, wires it back to where you were standing, and steps you straight through -- picking the lowest free room number in your own zone automatically. The new room starts bare; `edit room` gives it real shape.'),
+('The TobinMUD Team', 'Account Editing for Admins', '`edit account <name>` lets an Administrator rename any account, reset its password, or see who''s on it and at what level. Every change lands immediately, no Save step to remember.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

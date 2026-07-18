@@ -113,6 +113,17 @@ typedef enum {
     CONN_BALANCE_TOHIT_MOD,
     CONN_BALANCE_AC_MOD,
     CONN_BALANCE_QUIT_CONFIRM,
+    /* Menu-driven account editor (edaccount, TODO.md: "rename, password
+     * reset, list chars"). Unlike edplayer/edzone/balance above, NOT a
+     * working-copy-plus-Save editor -- every action here (rename, reset)
+     * is a single atomic DB write applied the moment it's confirmed, same
+     * reasoning as CONN_EDZONE_BUILDER's immediate apply above: there's
+     * no in-between state worth letting someone "cancel" out of. See
+     * descriptor_edaccount_begin() and the CONN_EDACCOUNT_* cases in
+     * descriptor.c. */
+    CONN_EDACCOUNT_MENU,
+    CONN_EDACCOUNT_RENAME,
+    CONN_EDACCOUNT_PASSWORD,
     CONN_PLAYING,
     CONN_CLOSED
 } conn_state_t;
@@ -296,6 +307,14 @@ typedef struct descriptor {
     balance_mod_t balance_work;
     bool balance_dirty;
 
+    /* Menu-driven account editor (CONN_EDACCOUNT_*, TODO.md: "rename,
+     * password reset, list chars"). Just the id, not a working-copy
+     * struct -- every action commits immediately (see the CONN_EDACCOUNT_
+     * MENU enum comment), so the menu re-reads the row fresh
+     * (account_load_by_id()) rather than caching a copy that could go
+     * stale the moment a rename lands. */
+    long edaccount_id;
+
     being_t *character;
 
     /* Time (epoch seconds) of the last input line -- who shows "(idle)" after
@@ -404,6 +423,12 @@ bool descriptor_edzone_begin(descriptor_t *d, int zone_nr);
  * way -- caller (cmd_balance.c) passes whichever is meaningful; the
  * other is ignored. Caller owns the level gate. */
 bool descriptor_balance_begin(descriptor_t *d, bool is_class, int index);
+
+/* Opens the menu-driven account editor on the account named `name`
+ * (rename, password reset, list its characters -- TODO.md), entering
+ * CONN_EDACCOUNT_MENU. Returns false if no such account exists. Caller
+ * (cmd_edaccount.c) owns the level gate. */
+bool descriptor_edaccount_begin(descriptor_t *d, const char *name);
 
 /* Sends `msg` to every connected player in room `r` except `except` (may
  * be NULL to include everyone). Shared by movement, quit/link-drop, and

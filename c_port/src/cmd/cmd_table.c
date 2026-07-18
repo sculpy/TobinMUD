@@ -250,6 +250,11 @@ static const cmd_entry_t COMMANDS[] = {
     { "delidea", cmd_delidea, "Delete a handled idea by id.",                       DELIDEA_MIN_LEVEL },
     /* Mortal Thief skill (see settrap's note); "di" reaches it. */
     { "disarmtrap", cmd_disarmtrap, "Safely remove a trap from a door (Thief, disarmtrap <direction>).", MORTAL_LEVEL_MIN },
+    /* disarmtrap (above) already owns "di"/"dis" -- listed first, so it
+     * keeps winning that shared abbreviation for mortals. "dig" itself is
+     * still unambiguous (disarmtrap doesn't start with "dig"), just not
+     * reachable via a bare "di". */
+    { "dig",     cmd_dig,     "Dig a new room in the current direction, if none exists yet (dig <direction>).", BUILD_MIN_LEVEL },
     { "edbug",   cmd_edbug,   "Resolve a bug report in place (edbug <id> [note]).", EDBUG_MIN_LEVEL },
     /* Unified editor dispatcher (user 2026-07-11: "unify all ed* commands
      * into one edit command"): `edit room [vnum]`, `edit zone <num>`,
@@ -258,7 +263,7 @@ static const cmd_entry_t COMMANDS[] = {
      * ed* verbs. Gated at BUILD_MIN_LEVEL (the lowest of any sub-editor);
      * nouns needing more (player 58+, help/news/wiznews 56+, rules 59+)
      * check that internally, in cmd_edit.c. */
-    { "edit",    cmd_edit,    "Edit a room/zone/player/help/news/wiznews/rules/trigger (edit <noun> ...).", BUILD_MIN_LEVEL },
+    { "edit",    cmd_edit,    "Edit a room/zone/player/account/help/news/wiznews/rules/trigger (edit <noun> ...).", BUILD_MIN_LEVEL },
     { "egotrip", cmd_egotrip, "Immortal toy-box -- only 'blast <target>' is implemented.", EGOTRIP_MIN_LEVEL },
     { "exec",    cmd_exec,    "Run a shell command on the host box (Implementor).", EXEC_MIN_LEVEL },
     { "gametog", cmd_gametog, "View or flip global game-wide switches (58+).",      GAMETOG_MIN_LEVEL },

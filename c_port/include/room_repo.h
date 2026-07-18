@@ -19,6 +19,14 @@ room_t *room_repo_load(int vnum);
 /* True if a room row with this vnum exists. */
 bool room_repo_exists(int vnum);
 
+/* The lowest unused vnum in [bottom, top] (one query, not a per-vnum
+ * exists() loop -- walks the sorted list of vnums already in range and
+ * returns the first gap, or the vnum right after the last one used if
+ * the range is gapless so far). -1 if the whole range is already full.
+ * Used by `dig` (cmd_dig.c) to place a newly created room within the
+ * current room's own zone. */
+int room_repo_next_free_vnum(int bottom, int top);
+
 /* The `zone` column for room `vnum` -- which zone this room belongs to,
  * for the zone-ownership edit gate (zone.h's zone_can_edit()). -1 if the
  * room doesn't exist or its zone column is NULL (an unzoned room, editable

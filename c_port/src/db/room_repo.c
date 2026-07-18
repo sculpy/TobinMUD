@@ -58,6 +58,30 @@ bool room_repo_exists(int vnum) {
     return found;
 }
 
+int room_repo_next_free_vnum(int bottom, int top) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+
+    int result = -1;
+    if (db_query(db, "select vnum from room where vnum between %i and %i order by vnum", bottom, top)) {
+        int expected = bottom;
+        while (db_fetch_row(db)) {
+            int v = atoi(db_get(db, "vnum"));
+            if (v > expected) {
+                result = expected;
+                break;
+            }
+            expected = v + 1;
+        }
+        if (result < 0 && expected <= top)
+            result = expected;
+    }
+
+    db_close(db);
+    return result;
+}
+
 int room_repo_get_zone(int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

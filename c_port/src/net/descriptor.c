@@ -183,6 +183,7 @@ bool descriptor_in_editor(const descriptor_t *d) {
         || (d->state >= CONN_EDPLAYER_MENU && d->state <= CONN_EDPLAYER_QUIT_CONFIRM)
         || (d->state >= CONN_EDZONE_MENU && d->state <= CONN_EDZONE_QUIT_CONFIRM)
         || (d->state >= CONN_BALANCE_MENU && d->state <= CONN_BALANCE_QUIT_CONFIRM)
+        || (d->state >= CONN_EDACCOUNT_MENU && d->state <= CONN_EDACCOUNT_PASSWORD)
         || d->page_len > 0; /* mid-pager -- same "no interruptions" treatment */
 }
 
@@ -1647,6 +1648,60 @@ bool descriptor_balance_begin(descriptor_t *d, bool is_class, int index) {
                                 : *race_balance_get((player_race_t)index);
     d->balance_dirty = false;
     show_balance_menu(d);
+    return true;
+}
+
+/* No working copy to re-render from -- every edaccount action commits
+ * immediately (see the CONN_EDACCOUNT_MENU enum comment), so the menu
+ * always re-reads the row fresh. Falls back to CONN_PLAYING if the
+ * account vanished out from under the editor (e.g. someone else wiped it
+ * concurrently) rather than showing a menu for a row that's gone. */
+static void show_edaccount_menu(descriptor_t *d) {
+    account_t acct;
+    if (!account_load_by_id(d->edaccount_id, &acct)) {
+        descriptor_send(d, "That account no longer exists.\r\n");
+        d->state = CONN_PLAYING;
+        descriptor_editor_exit_notice(d);
+        return;
+    }
+
+    char names[MAX_CHARS_PER_ACCOUNT][PLAYER_NAME_LEN];
+    int levels[MAX_CHARS_PER_ACCOUNT];
+    int count = 0;
+    player_list_by_account(acct.account_id, names, levels, MAX_CHARS_PER_ACCOUNT, &count);
+
+    char charlist[512];
+    size_t n = 0;
+    charlist[0] = '\0';
+    for (int i = 0; i < count && n < sizeof(charlist); i++)
+        n += (size_t)snprintf(charlist + n, sizeof(charlist) - n, "%s%s (%d)",
+                              i ? ", " : "", names[i], levels[i]);
+    if (count == 0)
+        snprintf(charlist, sizeof(charlist), "(none)");
+
+    char out[900];
+    snprintf(out, sizeof(out),
+             "\r\n<c>Editing account:<z> %s\r\n\r\n"
+             "   Characters: %s\r\n\r\n"
+             "   1) Rename account          2) Reset password\r\n\r\n"
+             "   Q) Quit\r\n[edit account] ",
+             acct.name, charlist);
+    descriptor_send(d, out);
+    d->state = CONN_EDACCOUNT_MENU;
+}
+
+static void edaccount_leave(descriptor_t *d) {
+    d->state = CONN_PLAYING;
+    descriptor_send(d, "Leaving the account editor.\r\n");
+    descriptor_editor_exit_notice(d);
+}
+
+bool descriptor_edaccount_begin(descriptor_t *d, const char *name) {
+    account_t acct;
+    if (!account_load(name, &acct))
+        return false;
+    d->edaccount_id = acct.account_id;
+    show_edaccount_menu(d);
     return true;
 }
 
@@ -3141,6 +3196,58 @@ static bool handle_line(descriptor_t *d, const char *line) {
             } else {
                 show_balance_menu(d);
             }
+            return true;
+        }
+
+        case CONN_EDACCOUNT_MENU: {
+            if (isdigit((unsigned char)line[0])) {
+                switch (atoi(line)) {
+                    case 1:
+                        descriptor_send(d, "\r\nEnter new account name (blank to cancel): ");
+                        d->state = CONN_EDACCOUNT_RENAME;
+                        break;
+                    case 2:
+                        descriptor_send(d, "\r\nEnter new password (blank to cancel): ");
+                        d->state = CONN_EDACCOUNT_PASSWORD;
+                        break;
+                    default:
+                        descriptor_send(d, "Pick a menu number (1-2), or Q.\r\n");
+                        show_edaccount_menu(d);
+                        break;
+                }
+                return true;
+            }
+            if (toupper((unsigned char)line[0]) == 'Q') {
+                edaccount_leave(d);
+            } else {
+                descriptor_send(d, "Pick a menu number (1-2), or Q.\r\n");
+                show_edaccount_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_EDACCOUNT_RENAME: {
+            if (line[0]) {
+                if (account_set_name(d->edaccount_id, line))
+                    descriptor_send(d, "Account renamed.\r\n");
+                else
+                    descriptor_send(d, "Rename failed -- that name may already be taken.\r\n");
+            }
+            show_edaccount_menu(d);
+            return true;
+        }
+
+        case CONN_EDACCOUNT_PASSWORD: {
+            if (line[0]) {
+                if (strlen(line) < 3) {
+                    descriptor_send(d, "Password must be at least 3 characters.\r\n");
+                } else if (account_set_password(d->edaccount_id, line)) {
+                    descriptor_send(d, "Password reset.\r\n");
+                } else {
+                    descriptor_send(d, "Password reset failed.\r\n");
+                }
+            }
+            show_edaccount_menu(d);
             return true;
         }
 

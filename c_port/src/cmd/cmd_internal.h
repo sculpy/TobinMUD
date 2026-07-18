@@ -23,6 +23,7 @@ bool cmd_continue(descriptor_t *d, const char *args);
 bool cmd_balance(descriptor_t *d, const char *args);
 bool cmd_settrap(descriptor_t *d, const char *args);
 bool cmd_disarmtrap(descriptor_t *d, const char *args);
+bool cmd_dig(descriptor_t *d, const char *args);
 bool cmd_affects(descriptor_t *d, const char *args);
 bool cmd_alias(descriptor_t *d, const char *args);
 bool cmd_quit(descriptor_t *d, const char *args);
@@ -99,6 +100,7 @@ bool cmd_mudstats(descriptor_t *d, const char *args);
 bool cmd_multiplay(descriptor_t *d, const char *args);
 bool cmd_setsev(descriptor_t *d, const char *args);
 bool cmd_edplayer(descriptor_t *d, const char *args);
+bool cmd_edaccount(descriptor_t *d, const char *args);
 bool cmd_set(descriptor_t *d, const char *args);
 bool cmd_open(descriptor_t *d, const char *args);
 bool cmd_close(descriptor_t *d, const char *args);
@@ -227,6 +229,10 @@ bool look_at_target(descriptor_t *d, const char *args);
 /* `edplayer`: Administrator (58+), matching `promote`'s tier -- it's an
  * admin superset of promote (TODO.md). */
 #define EDPLAYER_MIN_LEVEL 58
+
+/* `edaccount`: Administrator (58+), same tier as edplayer -- both are
+ * admin-only account/character management, no self-service equivalent. */
+#define EDACCOUNT_MIN_LEVEL 58
 
 /* `wipe`: Administrator (59+), per the TODO's own spec ("wipe a pfile or
  * an account... 59+"). Same-or-higher-level targets are refused inside

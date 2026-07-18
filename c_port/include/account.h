@@ -24,6 +24,11 @@ typedef struct {
  * Returns true and fills *out on success, false if no such account. */
 bool account_load(const char *name, account_t *out);
 
+/* Same as account_load(), but by account_id -- needed once a caller only
+ * has the id, e.g. after account_set_name() changes the name a prior
+ * lookup was keyed on (edaccount, cmd_edaccount.c/descriptor.c). */
+bool account_load_by_id(long account_id, account_t *out);
+
 /* Creates a new account row with a freshly salted crypt() hash of
  * plain_password. Fails if the name is already taken. */
 bool account_create(const char *name, const char *plain_password, account_t *out);
@@ -39,6 +44,17 @@ bool account_set_color(long account_id, bool color_on);
  * the server's own Eastern clock). Backs the creation prompt and the
  * `time <difference>` command. */
 bool account_set_timezone(long account_id, int hours);
+
+/* Renames the account (edaccount, admin-only -- a player never renames
+ * their own account, no self-service equivalent exists). Fails if
+ * new_name is already taken by a DIFFERENT account (case-insensitive,
+ * same collation the login lookup uses) or if account_id doesn't exist. */
+bool account_set_name(long account_id, const char *new_name);
+
+/* Resets the account's password to a freshly salted hash of
+ * plain_password (edaccount, admin-only -- same crypt() scheme
+ * account_create() uses for a brand new account). */
+bool account_set_password(long account_id, const char *plain_password);
 
 /* Deletes the account row outright. `player.account_id` carries an ON
  * DELETE CASCADE FK to `account`, so every character on the account (and,
