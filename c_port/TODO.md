@@ -1739,11 +1739,13 @@ already tracked — pointers, not duplicates):
       on defeat (`combat.c`'s `combat_defeat()`, level-scaled). Legacy
       seeded "pile of talens" treasure objects (16 vnums, ITEM_MONEY/
       `OBJ_CAT_MONEY`) had their flavor text renamed talens→gold for
-      consistency, but picking one up still does nothing special — no
-      code reads `OBJ_CAT_MONEY`/val[0] to credit the wallet. Real gap,
-      not built this pass: **wire `OBJ_CAT_MONEY` pickup to auto-credit
-      gold + destroy the object**, or these seeded treasure piles/quest
-      rewards stay inert junk.
+      consistency. **Follow-up done same day**: picking one up now
+      auto-credits its `val[0]` coin amount to the wallet and destroys the
+      object (`pick_up_money()`, cmd_object.c) — wired into all three
+      `get` pickup paths (room floor, `get <item> <container>`, `get all
+      <container>`), so these never actually sit in inventory. User,
+      2026-07-17: "once you pick up an object that contains gold it
+      should increase your wealth and get rid of the obj in inventory."
 - [ ] **Liquids** — drinkable liquids; pouring one out pools on the ground
       (from Sneezy). Needs objects/containers.
 - [ ] **`fill`** — fill a container from a liquid pool. Needs liquids+objects.

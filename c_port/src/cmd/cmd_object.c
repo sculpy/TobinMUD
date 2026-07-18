@@ -69,6 +69,35 @@ static bool obj_name_matches(const char *keywords, const char *tok, size_t tok_l
     return false;
 }
 
+/* Money-pile objects (category OBJ_CAT_MONEY -- the seeded "pile of gold"
+ * treasure/quest-reward objects, val[0]=coin amount) aren't real inventory
+ * items in Tobin's gold-coin-only economy (see [[Money system]]/shop_repo.h):
+ * picking one up credits its coin amount straight to the wallet
+ * (player_progress.gold) and destroys the object instead of letting it sit
+ * as an inert prop forever (user 2026-07-17: "once you pick up an object
+ * that contains gold it should increase your wealth and get rid of the
+ * obj"). Returns true if `o` was money and has been consumed this way --
+ * callers must not touch `o` (or move it into inventory) afterward. */
+static bool pick_up_money(descriptor_t *d, being_t *ch, obj_t *o) {
+    if (o->category != OBJ_CAT_MONEY)
+        return false;
+
+    int amount = o->val[0];
+    ch->progress.gold += amount;
+    player_progress_save(ch->player_id, &ch->progress);
+    game_log(LOG_SILENT, "%s picks up %d gold (obj vnum %d) in room %d",
+             ch->base.name, amount, o->vnum, ch->base.roomp->vnum);
+
+    char msg[256];
+    snprintf(msg, sizeof(msg), "You find %d gold.\r\n", amount);
+    descriptor_send(d, msg);
+    snprintf(msg, sizeof(msg), "%s finds some gold.\r\n", ch->base.name);
+    descriptor_room_echo(ch->base.roomp, ch, msg);
+
+    obj_destroy(o);
+    return true;
+}
+
 static bool is_loose(const being_t *ch, const obj_t *o) {
     if (ch->held[0] == o || ch->held[1] == o)
         return false;
@@ -174,6 +203,10 @@ bool cmd_get(descriptor_t *d, const char *args) {
         while (t) {
             thing_t *next = t->stuff_next; /* thing_move_to() relinks t out of cont's list */
             obj_t *item = (obj_t *)t;
+            if (pick_up_money(d, ch, item)) {
+                t = next;
+                continue;
+            }
             thing_move_to(&item->base, &ch->base);
 
             game_log(LOG_SILENT, "%s gets %s (vnum %d) from %s (vnum %d) in room %d",
@@ -223,6 +256,8 @@ bool cmd_get(descriptor_t *d, const char *args) {
             descriptor_send(d, "You don't see that in there.\r\n");
             return true;
         }
+        if (pick_up_money(d, ch, item))
+            return true;
         thing_move_to(&item->base, &ch->base);
         player_inventory_save(ch->player_id, ch);
         /* Dispute-research log (user: "anytime a char gets an item ... i
@@ -252,6 +287,8 @@ bool cmd_get(descriptor_t *d, const char *args) {
         descriptor_send(d, "You can't take that.\r\n");
         return true;
     }
+    if (pick_up_money(d, ch, o))
+        return true;
 
     thing_move_to(&o->base, &ch->base);
     player_inventory_save(ch->player_id, ch);

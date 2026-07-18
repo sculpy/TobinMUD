@@ -494,3 +494,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Gold and Shops Have Arrived', 'Killing something now has a payoff: defeated creatures hand their killer gold on the spot, scaled to their level. Check your purse with `score`. All 264 of the game''s original shops are open for business too -- find a shopkeeper, `list` their wares, `buy <item>` or `sell <item>` (only certain goods, matching what each shop actually deals in). Every shop keeps its own personality in its buy/sell messages, same as the original game, just counted in gold now instead of talens. Not built yet: an in-game shop editor, and the old seeded piles of treasure lying around the world do not yet convert to gold when picked up -- both are on the list.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Treasure Piles Now Pay Out', 'Those old piles of gold scattered around the world -- treasure hoards, quest rewards, that sort of thing -- actually do something now. Pick one up and its worth goes straight into your purse instead of sitting in your inventory as a prop; check `score` to see it land.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
