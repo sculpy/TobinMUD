@@ -53,6 +53,20 @@ static const char *ansi_for_tag(char c) {
 
 static const char ANSI_RESET[] = "\033[0m";
 
+/* <h>/<H> aren't color codes at all -- in the original (sys/colorstring.cc's
+ * colorString()) they're a name-template substitution: <h> inserts
+ * MUD_NAME ("SneezyMUD"), <H> the versioned MUD_NAME_VERS string, into
+ * seeded content so it isn't hardcoded to one mud's name (e.g. an obj's
+ * long_desc reading "The <h> new player's guide"). Never ported here, so
+ * they fell through to the "unrecognized tag, pass through literally"
+ * branch below and showed up as literal "<h>" text in-game (user,
+ * 2026-07-17: "ive noticed a <h> tag ... what does <h> mean and get it
+ * working"). Tobin has no separate versioned-name string, so <H> aliases
+ * the same text as <h>. Matches the original's asymmetry: substituted
+ * when colors are on, stripped to nothing when they're off (same as
+ * every other tag below), NOT left as literal text either way. */
+#define TOBIN_MUD_NAME "TobinMUD"
+
 size_t colorstring_translate_maxlen(size_t src_len) {
     /* Worst case is ~7/3 bytes per source byte (every "<X>" -> up to
      * "\033[1;31m") plus a possible trailing auto-reset; *7 is a
@@ -71,6 +85,17 @@ size_t colorstring_translate(const char *src, char *dst, size_t dst_size, bool c
 
     while (si < len) {
         if (src[si] == '<' && si + 2 < len && src[si + 2] == '>') {
+            if (src[si + 1] == 'h' || src[si + 1] == 'H') {
+                if (color_on) {
+                    size_t name_len = strlen(TOBIN_MUD_NAME);
+                    if (di + name_len < dst_size) {
+                        memcpy(dst + di, TOBIN_MUD_NAME, name_len);
+                        di += name_len;
+                    }
+                }
+                si += 3;
+                continue;
+            }
             const char *code = ansi_for_tag(src[si + 1]);
             if (code) {
                 if (color_on) {

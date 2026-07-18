@@ -744,7 +744,13 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- Money + shops (user 2026-07-17: "implement money and shops").
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
-('list', 'Usage: list\n\nShows what the shop in your current room has for sale, with its\nprice in gold next to each item. You must be standing where a\nshopkeeper is actually present -- a shop with no keeper around is\nclosed. A listed item never runs out; the shop can always sell it.\n\nRelated: buy sell', 'seed'),
-('buy', 'Usage: buy <item>\n\nPurchases an item from the shop in your current room, deducting its\ngold price from your purse (see `score`). The item must be something\nthat shop actually stocks -- check `list` first. You need a live\nshopkeeper present and enough gold on hand.\n\nRelated: list sell score', 'seed'),
+('list', 'Usage: list\n\nShows what the shop in your current room has for sale, each item\nnumbered and priced in gold. You must be standing where a\nshopkeeper is actually present -- a shop with no keeper around is\nclosed. A listed item never runs out; the shop can always sell it.\n\nRelated: buy sell', 'seed'),
+('buy', 'Usage: buy <item>\n       buy <#>\n\nPurchases an item from the shop in your current room, deducting its\ngold price from your purse (see `score`). Either name it or give its\nnumber from `list` -- `buy 3` and `buy` followed by its name buy the\nsame item. You need a live shopkeeper present and enough gold on\nhand.\n\nRelated: list sell score', 'seed'),
 ('sell', 'Usage: sell <item>\n\nSells a carried item (not worn or held) to the shop in your current\nroom for gold, credited to your purse (see `score`). Each shop only\nbuys certain kinds of goods -- offering something it does not deal in\nis refused. The item is gone for good once sold.\n\nRelated: list buy score', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `shutdown` (user 2026-07-17: "write a shutdown command to kill the mud
+-- kindly along with a time function that will shutdown in <X> seconds").
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('shutdown', 'Usage: shutdown\n       shutdown <seconds>\n       shutdown cancel\n\nEnds the game. Every connected player is warned and their character\nis saved first. Bare `shutdown` does this right away; `shutdown 60`\ncounts down that many seconds first, warning everyone at intervals\nalong the way, without freezing the game for anyone in the\nmeantime -- `shutdown cancel` aborts a countdown already running.\nImplementor only (60).\n\nRelated: copyover', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;

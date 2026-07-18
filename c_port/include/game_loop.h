@@ -21,6 +21,15 @@ int game_loop_run(int port, const char *copyover_file);
  * keep accepting connections without rebinding the port. */
 int game_loop_listen_fd(void);
 
+/* Requests a clean stop of the main loop -- same path SIGINT already takes
+ * (handle_sigint() sets the same internal flag), just triggered from
+ * in-game instead of a signal. The loop finishes its current iteration,
+ * then closes every descriptor and the listening socket before
+ * game_loop_run() returns. Used by shutdown.c once it has finished
+ * broadcasting/saving; NOT a substitute for that -- calling this alone
+ * skips the "kindly" warning and save step entirely. */
+void game_loop_request_shutdown(void);
+
 /* Absolute path of this server binary, resolved from argv[0] at startup
  * (main.c). cmd_copyover.c execs THIS PATH, deliberately not
  * /proc/self/exe: after a rebuild replaces the file, /proc/self/exe still

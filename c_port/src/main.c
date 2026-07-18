@@ -25,6 +25,7 @@
 #include "practice.h"
 #include "pulse.h"
 #include "regen.h"
+#include "shutdown.h"
 #include "trigger.h"
 #include "wait_tick.h"
 #include "zone.h"
@@ -93,6 +94,7 @@ int main(int argc, char **argv) {
     zone_boot_all();
 
     pulse_register(1, wait_tick_run);
+    pulse_register(10, shutdown_pulse_tick);     /* ~1s: pending `shutdown <seconds>` countdown */
     pulse_register(COMBAT_ROUND_PULSES, combat_process_run);
     pulse_register(COMBAT_ROUND_PULSES, affect_tick_run); /* counts down active buffs/debuffs every round */
     pulse_register(REGEN_PULSES, regen_tick_run);

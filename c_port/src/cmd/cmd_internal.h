@@ -93,6 +93,7 @@ bool cmd_edwiznews(descriptor_t *d, const char *args);
 bool cmd_socials(descriptor_t *d, const char *args);
 bool cmd_wiznet(descriptor_t *d, const char *args);
 bool cmd_system(descriptor_t *d, const char *args);
+bool cmd_shutdown(descriptor_t *d, const char *args);
 bool cmd_mudstats(descriptor_t *d, const char *args);
 bool cmd_multiplay(descriptor_t *d, const char *args);
 bool cmd_setsev(descriptor_t *d, const char *args);
@@ -152,6 +153,11 @@ bool look_at_target(descriptor_t *d, const char *args);
 
 /* `exec` runs shell commands on the host box -- Implementor-only (60). */
 #define EXEC_MIN_LEVEL 60
+
+/* `shutdown` ends the whole process -- more consequential than `copyover`
+ * (which keeps every connection alive across the reboot), so it's gated a
+ * tier above that, at Implementor (60), same as `exec`. */
+#define SHUTDOWN_MIN_LEVEL 60
 
 /* `delbug` removes a handled bug report -- Administrator (59) and up. */
 #define DELBUG_MIN_LEVEL 59

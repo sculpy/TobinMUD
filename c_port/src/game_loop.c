@@ -54,6 +54,10 @@ int game_loop_listen_fd(void) {
     return g_listen_fd;
 }
 
+void game_loop_request_shutdown(void) {
+    g_shutdown = 1;
+}
+
 static void handle_sigint(int sig) {
     (void)sig;
     g_shutdown = 1;

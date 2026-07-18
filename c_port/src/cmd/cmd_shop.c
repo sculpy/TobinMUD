@@ -6,6 +6,7 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
@@ -65,7 +66,13 @@ static being_t *find_active_shop(room_t *room, shop_t *shop) {
  * actually stocks these keepers that way), priced at each item's own
  * prototype `price` times the shop's `profit_buy` multiplier. Every
  * listed item is always available -- a shop never "runs out" of what it
- * produces. */
+ * produces.
+ *
+ * Numbered (user 2026-07-17: "number the list of items in a shop so a
+ * player can buy #") -- each line's number is its 1-based position in
+ * shop_repo_producing()'s (stable, ORDER BY producing) vnum list, and
+ * cmd_buy() below indexes into that exact same list, so the number always
+ * means the same item whether or not `list` was run first this session. */
 bool cmd_list(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
@@ -95,21 +102,26 @@ bool cmd_list(descriptor_t *d, const char *args) {
         int price = (int)(proto.price * shop.profit_buy);
         char capbuf[128];
         const char *label = proto.short_descr[0] ? proto.short_descr : proto.name;
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-42s %d gold\r\n",
-                      cap_first(label, capbuf, sizeof(capbuf)), price);
+        n += snprintf(out + n, sizeof(out) - (size_t)n, " %2d) %-42s %d gold\r\n",
+                      i + 1, cap_first(label, capbuf, sizeof(capbuf)), price);
         shown++;
     }
     if (shown == 0 && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  (nothing for sale right now)\r\n");
+    else if ((size_t)n < sizeof(out))
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "\r\n(buy <#> or buy <name>)\r\n");
     descriptor_page_start(d, out, 0);
     return true;
 }
 
-/* `buy <item>`: purchase an item from the shop's `shopproducing` catalog
- * (see cmd_list()'s comment) -- spawns a fresh instance
- * (obj_create_from_proto()) rather than moving a pre-existing one, since
- * the catalog is an infinite "this shop always sells these" list, not a
- * finite pool. */
+/* `buy <item>` / `buy <#>`: purchase an item from the shop's
+ * `shopproducing` catalog (see cmd_list()'s comment) -- spawns a fresh
+ * instance (obj_create_from_proto()) rather than moving a pre-existing
+ * one, since the catalog is an infinite "this shop always sells these"
+ * list, not a finite pool. A purely-numeric argument is the item's
+ * `list` position (1-based, same order shop_repo_producing() always
+ * returns -- see cmd_list()'s comment); anything else matches by keyword
+ * as before. */
 bool cmd_buy(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -117,7 +129,7 @@ bool cmd_buy(descriptor_t *d, const char *args) {
         return true;
     }
     if (!*args) {
-        descriptor_send(d, "Buy what? Usage: buy <item>\r\n");
+        descriptor_send(d, "Buy what? Usage: buy <item> | buy <#>\r\n");
         return true;
     }
 
@@ -132,12 +144,28 @@ bool cmd_buy(descriptor_t *d, const char *args) {
     int count = 0;
     shop_repo_producing(shop.shop_nr, vnums, SHOP_PRODUCING_MAX, &count);
 
+    char tok[64] = "";
+    sscanf(args, "%63s", tok);
+    bool all_digits = tok[0] != '\0';
+    for (const char *p = tok; *p; p++) {
+        if (!isdigit((unsigned char)*p)) {
+            all_digits = false;
+            break;
+        }
+    }
+
     obj_proto_t proto;
     int matched_vnum = -1;
-    for (int i = 0; i < count; i++) {
-        if (obj_proto_load(vnums[i], &proto) && keyword_matches(proto.name, args)) {
-            matched_vnum = vnums[i];
-            break;
+    if (all_digits) {
+        int idx = atoi(tok);
+        if (idx >= 1 && idx <= count && obj_proto_load(vnums[idx - 1], &proto))
+            matched_vnum = vnums[idx - 1];
+    } else {
+        for (int i = 0; i < count; i++) {
+            if (obj_proto_load(vnums[i], &proto) && keyword_matches(proto.name, args)) {
+                matched_vnum = vnums[i];
+                break;
+            }
         }
     }
     if (matched_vnum < 0) {

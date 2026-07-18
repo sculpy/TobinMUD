@@ -45,6 +45,51 @@ already tracked — pointers, not duplicates):
 - Mid-fight persistence (HP only saves at defeat — a real crash-loss risk)
   — already tracked: **Mid-fight persistence** entry below.
 
+### User batch 2026-07-17 (continued) — shutdown, shop numbering, branding
+
+- [x] **`shutdown` command** — done 2026-07-17. User: "write a shutdown
+      command to kill the mud kindly along with a time function that will
+      shutdown in <X> seconds", then "shutdown should be level 60 only",
+      then "shutdown should display a countdown from 5 seconds until
+      shutdown to everyone" ("shutdown in 5, 4, 3, 2, 1, shutdown"). Bare
+      `shutdown` counts down from 5 seconds (the new default); `shutdown
+      <seconds>` counts down from any number instead; `shutdown cancel`
+      aborts a countdown in progress (not explicitly asked for, added as a
+      minimal safety valve). Implementor-only (60). Every connected
+      character is saved before the process actually exits ("kindly" --
+      `player_save()`, same call `save` uses). Ticks via the pulse
+      scheduler at 1-second granularity (`shutdown_pulse_tick()`,
+      shutdown.c) rather than blocking the game loop the way `copyover`'s
+      5-second `sleep()` does, so a long countdown doesn't freeze anyone's
+      play. `game_loop_request_shutdown()` (game_loop.h/.c) reuses the
+      exact same clean-exit path SIGINT already took. Help topic added.
+- [x] **Numbered shop `list` + `buy <#>`** — done 2026-07-17. User: "should
+      also number the list of items in a shop so a player can buy #".
+      `list` now shows each item's 1-based position; `buy 3` buys that
+      exact item, same as typing its name -- both index into the exact
+      same stable `shop_repo_producing()` order, so the number always
+      means the same item whether or not `list` was run first.
+- [x] **`<h>`/`<H>` tag + SneezyMUD branding cleanup** — done 2026-07-17.
+      User noticed a literal `<h>` in a book's title and asked what it
+      meant. Turned out to be a real, never-ported original-game feature
+      (sys/colorstring.cc's `colorString()`): NOT a color code at all, a
+      name-template substitution -- `<h>` inserts `MUD_NAME`
+      ("SneezyMUD" in the original), `<H>` a versioned variant. Ported as
+      literal-text substitution in `colorstring_translate()`
+      (colorstring.c), both aliasing "TobinMUD" (no separate
+      versioned-name concept here). Then, user: "SneezyMUD should be
+      TobinMUD, replace all instances of SneezyMUD with TobinMUD in the
+      database" -- surveyed every text column across the seed DB and
+      fixed the 4 unambiguous rows (a book's name/short_desc/long_desc,
+      two room descriptions, one item's extra-description, plus the
+      book's own search keyword). Deliberately left 2 `wiznews`
+      dev-changelog entries untouched (user confirmed) -- they correctly
+      name SneezyMUD as the original codebase this port is based on
+      ("unlike SneezyMUD's old spec proc system"), not a branding
+      artifact. DB-content fix applied live only, same as the earlier
+      talens→gold fix -- not captured in tobin_migrations.sql, so a
+      from-scratch fresh install would need it re-applied by hand.
+
 ### User batch 2026-07-11 (continued) — working these next
 
 - [x] **`practice <discipline>` now shows the skill listing anywhere**

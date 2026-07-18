@@ -106,7 +106,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "affects", cmd_affects, "List your currently active buffs/debuffs.",          MORTAL_LEVEL_MIN },
     { "alias",   cmd_alias,   "Manage your command aliases (alias [<name> [<expansion>]] | alias remove <name>).", MORTAL_LEVEL_MIN },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
-    { "buy",     cmd_buy,     "Buy an item from a shopkeeper (buy <item>).",        MORTAL_LEVEL_MIN },
+    { "buy",     cmd_buy,     "Buy an item from a shopkeeper (buy <item>|<#> -- see list).", MORTAL_LEVEL_MIN },
     /* SWAP: close before cast/catchup/color, so "c" still closes doors.
      * SWAP: catchup before cast, so "ca" reaches catchup; cast needs "cas".
      * color needs "co". (Older comments here claimed color owned "c" -- it
@@ -194,6 +194,10 @@ static const cmd_entry_t COMMANDS[] = {
      * full. */
     { "shout",   cmd_shout,   "Shout something to everyone in the game (shout <msg>).", MORTAL_LEVEL_MIN },
     { "show",    cmd_show,    "Show a carried item to someone in the room (show <item> <person>).", MORTAL_LEVEL_MIN },
+    /* "shu" is already unambiguous ("sh"/"sho" still resolve to shout,
+     * above) -- no collision to guard against. Implementor-only (60),
+     * same tier as `exec`: ends the whole process. */
+    { "shutdown", cmd_shutdown, "End the game gracefully, now or in N seconds (shutdown [seconds|cancel]).", SHUTDOWN_MIN_LEVEL },
     /* SWAP: sit before sip, so "si" sits; sip must be typed in full. */
     { "sit",     cmd_sit,     "Sit down.",                                          MORTAL_LEVEL_MIN },
     { "sip",     cmd_sip,     "Taste a bit of a puddle or fountain, low risk (sip <liquid>).", MORTAL_LEVEL_MIN },

@@ -498,3 +498,12 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Treasure Piles Now Pay Out', 'Those old piles of gold scattered around the world -- treasure hoards, quest rewards, that sort of thing -- actually do something now. Pick one up and its worth goes straight into your purse instead of sitting in your inventory as a prop; check `score` to see it land.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Kinder Way to Close Up Shop', '`shutdown` is here, Implementor only. Bare `shutdown` counts down from 5 seconds, warning everyone along the way; `shutdown 120` (or any number of seconds) does the same over a longer window without freezing the game for anyone in the meantime. Every connected character is saved right before the world actually closes. Started one by mistake? `shutdown cancel` calls it off.'),
+('The TobinMUD Team', 'Shop Listings Are Numbered', '`list` at a shop now numbers every item alongside its price. `buy 3` buys the third thing listed, same as typing its name -- whichever is quicker.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Mystery Tag Solved', 'A few old items and rooms had a stray `<h>` sitting in their text where a name was supposed to go -- leftover from the original game''s template system, never carried over to this port. It now fills in as "TobinMUD" wherever it appears, the way it always meant to. A handful of other leftover mentions of the old game''s name, scattered through a book, a couple of rooms, and an item description, are now TobinMUD too.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
