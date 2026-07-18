@@ -10,6 +10,7 @@
 
 #include "being.h"
 #include "descriptor.h"
+#include "obj.h"
 #include "room.h"
 #include "thing.h"
 
@@ -104,6 +105,34 @@ static being_t *find_room_pc(being_t *ch, const char *arg) {
     return NULL;
 }
 
+/* `point`'s held-item form (TODO.md: "the original's item-referencing
+ * form -- 'X points at you with his/her/its <primary-hand item>' --
+ * doesn't [exist]"). NULL if empty-handed, in which case `point` falls
+ * back to its plain random-point wording exactly as before. Strips a
+ * leading "a "/"an "/"the " -- short_descr already carries its own
+ * article ("a torch"), and the message templates below supply their own
+ * "your"/"his"/"her"/"its", so leaving both in would read "with your a
+ * torch" (just advances past the article in-place, no copy needed). */
+static const char *point_item_label(const being_t *ch) {
+    if (!ch->held[0])
+        return NULL;
+    const char *label = ch->held[0]->base.short_descr[0]
+                             ? ch->held[0]->base.short_descr
+                             : ch->held[0]->base.name;
+    /* Skip a leading inline color tag ("<o>a torch<1>", real seeded
+     * content) before checking for the article -- same tag shape
+     * cap_first() (cmd_look.c/cmd_object.c) already skips. */
+    while (label[0] == '<' && label[1] != '\0' && label[2] == '>')
+        label += 3;
+    if (strncasecmp(label, "a ", 2) == 0)
+        return label + 2;
+    if (strncasecmp(label, "an ", 3) == 0)
+        return label + 3;
+    if (strncasecmp(label, "the ", 4) == 0)
+        return label + 4;
+    return label;
+}
+
 bool social_try(descriptor_t *d, const char *verb, const char *args) {
     /* Abbreviation matching, same rule as the command table (cmd_table.c):
      * any non-empty prefix resolves to the FIRST social it matches, so
@@ -127,9 +156,15 @@ bool social_try(descriptor_t *d, const char *verb, const char *args) {
     }
 
     char buf[256];
+    const char *point_item = strcmp(soc->name, "point") == 0 ? point_item_label(ch) : NULL;
 
     if (!args || !args[0]) {
-        descriptor_send(d, soc->self);
+        if (point_item) {
+            snprintf(buf, sizeof(buf), "You point around with your %s.\r\n", point_item);
+            descriptor_send(d, buf);
+        } else {
+            descriptor_send(d, soc->self);
+        }
         if (strcmp(soc->name, "shake") == 0)
             snprintf(buf, sizeof(buf), "%s shakes %s head.\r\n", ch->base.name, gender_possess(ch->gender));
         else if (strcmp(soc->name, "comfort") == 0)
@@ -137,6 +172,9 @@ bool social_try(descriptor_t *d, const char *verb, const char *args) {
                      ch->base.name, gender_subject(ch->gender));
         else if (strcmp(soc->name, "poke") == 0)
             snprintf(buf, sizeof(buf), "%s pokes %s.\r\n", ch->base.name, gender_reflexive(ch->gender));
+        else if (point_item)
+            snprintf(buf, sizeof(buf), "%s points around with %s %s.\r\n",
+                     ch->base.name, gender_possess(ch->gender), point_item);
         else
             snprintf(buf, sizeof(buf), soc->others, ch->base.name);
         descriptor_room_echo(ch->base.roomp, ch, buf);
@@ -156,11 +194,17 @@ bool social_try(descriptor_t *d, const char *verb, const char *args) {
         return true;
     }
 
-    snprintf(buf, sizeof(buf), soc->self_targ, tgt->base.name);
+    if (point_item)
+        snprintf(buf, sizeof(buf), "You point at %s with your %s.\r\n", tgt->base.name, point_item);
+    else
+        snprintf(buf, sizeof(buf), soc->self_targ, tgt->base.name);
     descriptor_send(d, buf);
     if (tgt->desc) {
         if (strcmp(soc->name, "shake") == 0)
             snprintf(buf, sizeof(buf), "%s shakes %s head at you.\r\n", ch->base.name, gender_possess(ch->gender));
+        else if (point_item)
+            snprintf(buf, sizeof(buf), "%s points at you with %s %s.\r\n",
+                     ch->base.name, gender_possess(ch->gender), point_item);
         else
             snprintf(buf, sizeof(buf), soc->targ, ch->base.name);
         descriptor_notify(tgt->desc, buf); /* held if the target is editing */
@@ -175,6 +219,9 @@ bool social_try(descriptor_t *d, const char *verb, const char *args) {
             if (strcmp(soc->name, "shake") == 0)
                 snprintf(buf, sizeof(buf), "%s shakes %s head at %s.\r\n",
                          ch->base.name, gender_possess(ch->gender), tgt->base.name);
+            else if (point_item)
+                snprintf(buf, sizeof(buf), "%s points at %s with %s %s.\r\n",
+                         ch->base.name, tgt->base.name, gender_possess(ch->gender), point_item);
             else
                 snprintf(buf, sizeof(buf), soc->others_targ, ch->base.name, tgt->base.name);
             descriptor_notify(o->desc, buf);

@@ -1723,13 +1723,12 @@ already tracked — pointers, not duplicates):
       commands (cmd_object.c) -- entry pruned 2026-07-17, was stale
       (marked "BLOCKED on Objects/2C" long after Objects landed and these
       shipped in a later session).
-- [ ] **`point` social: reference the held item** — genuinely still open
-      (unlike the holdable-items item above): the basic no-arg `point` ->
-      "You point around randomly." already exists (socials.c), but the
-      original's item-referencing form -- "X points at you with his/her/
-      its <primary-hand item>" -- doesn't. Small follow-up now that
-      holdable items exist: read `ch->held[0]`, fall back to the plain
-      random-point wording if empty-handed.
+- [x] **`point` social: reference the held item** — done 2026-07-18.
+      `point`/`point <target>` now reads `ch->held[0]` (socials.c) and
+      substitutes it into the message ("You point around with your
+      <item>.", "X points at you with his/her/its <item>.") whenever
+      something's actually held; falls back to the original plain
+      random-point wording exactly as before when empty-handed.
 
 ### User batch 2026-07-05 (night, follow-ups) — working these now
 
@@ -1878,8 +1877,16 @@ already tracked — pointers, not duplicates):
 - [x] **Health strings** — done 2026-07-05: `being_health_word()` maps HP%
       to a word (near death ... perfect); shown in `score`'s HP line.
       Optional follow-up: also show it in the prompt (prompt-flag system).
-- [ ] **PK opt-in flag** — player flag; BOTH players must have opted in for
-      attack/kill between players. Toggle command + persistence + combat gate.
+- [x] **PK opt-in flag** — done 2026-07-18. `toggle pk` (player.pflags
+      bit `PLR_PK_OPTIN`, being.h). Gated in `combat_find_room_target()`
+      (combat.c) rather than at the command layer, so `attack`/`kill`/
+      `hit` all get it for free -- a PC target that hasn't opted in (or
+      whose attacker hasn't) is simply invisible to targeting, same as a
+      linkdead PC already is. Mob targets are always fine; either side
+      being immortal bypasses the gate entirely (instakill and the
+      existing immortal-vs-immortal guard, cmd_kill.c, are unaffected --
+      this only governs mortal-vs-mortal). Default off (opt IN, not
+      out).
 - [ ] **Tips system** — `tips` command + periodic tip echoes (pulse-driven),
       per-player newbie toggle, `tipedit` (53+). DB-backed like news/help.
 - [ ] **Typed logs** — `log.h` log-type taxonomy; every log line gets a type,
@@ -2953,17 +2960,15 @@ already tracked — pointers, not duplicates):
       built for the near-identical earlier request "dont forget a zone
       list so we can see whats been assigned and to whom" -- no code
       change needed, just confirmed it's live and matches the ask.
-- [ ] **Expand `prompt` toggles** — add mana, piety, vitality, gold, etc
-      to the existing `prompt` command's toggle set. User: "expand prompt
-      command toggles to include mana, piety, vitality, gold, etc."
-      BLOCKED on those stats existing at all first: `being_t`/`progress_t`
-      currently has no mana pool, piety stat, or vitality stat (prayer/
-      casting is component-consumption-based, task 44, not mana-based),
-      and no gold/currency field (task 29, "Money system", still
-      pending). `prompt hp` (the one toggle that exists today,
-      `cmd_prompt.c`/`game_loop.c`) is a clean, small template to extend
-      once each underlying stat is real -- but adding the toggles before
-      the stats themselves would just be dead bitmask flags.
+- [x] **Expand `prompt` toggles** — partially done 2026-07-18: `prompt
+      gold` joins `prompt hp` (`PROMPT_FLAG_GOLD`, being.h/cmd_prompt.c/
+      game_loop.c), unblocked now that the Money system shipped
+      (`progress_t.gold`). Both flags render together when both are on
+      ("HP: 25 Gold: 40 > "). mana/piety/vitality remain genuinely
+      blocked -- `being_t`/`progress_t` still has no mana pool, piety
+      stat, or vitality stat (prayer/casting is component-consumption-
+      based, not mana-based) -- add their own toggles once/if those
+      stats ever get built.
 - [x] **Port Sneezy commands: consider, examine, sip, show, tell,
       whisper** — done. User: "port the sneezy commands consider and
       examine and sip and show and tell and whisper." Each scoped down

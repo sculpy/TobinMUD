@@ -222,14 +222,22 @@ int game_loop_run(int port, const char *copyover_file) {
             if (p->needs_prompt && p->state == CONN_PLAYING && p->edit_kind == EDIT_NONE
                 && p->page_len == 0) {
                 /* Prompt customization (cmd_prompt.c): render the player's
-                 * chosen stats ahead of the "> ". */
+                 * chosen stats ahead of the "> ", each toggled
+                 * independently so any combination renders together
+                 * (e.g. "HP: 25 Gold: 40 > "). */
                 /* A blank line separates the previous output from the prompt
                  * (user request: insert a \r\n before each new prompt). */
-                if (p->character && (p->character->prompt_flags & PROMPT_FLAG_HP)) {
-                    char pbuf[48];
-                    int pn = snprintf(pbuf, sizeof(pbuf), "\r\n\r\nHP: %d > ",
-                                      p->character->progress.hp);
-                    descriptor_write(p, pbuf, (size_t)pn);
+                if (p->character && p->character->prompt_flags) {
+                    char pbuf[96];
+                    size_t pn = (size_t)snprintf(pbuf, sizeof(pbuf), "\r\n\r\n");
+                    if (p->character->prompt_flags & PROMPT_FLAG_HP)
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "HP: %d ",
+                                               p->character->progress.hp);
+                    if (p->character->prompt_flags & PROMPT_FLAG_GOLD)
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Gold: %d ",
+                                               p->character->progress.gold);
+                    pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "> ");
+                    descriptor_write(p, pbuf, pn);
                 } else {
                     descriptor_write(p, "\r\n\r\n> ", 6);
                 }

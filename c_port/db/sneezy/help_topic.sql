@@ -805,3 +805,14 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('extinguish', 'Usage: extinguish <item> [held|room]\n\nPuts out a lit light source. Same carried-then-room search order as\n`light`, with the same optional "held"/"room" to disambiguate.\n\nRelated: light refuel', 'seed'),
 ('refuel', 'Usage: refuel <light> <fuel> [held|room]\n\nTops up a light source from a fuel item you''re carrying (bricks of\nsolid/lantern fuel are sold at Lumor''s Illuminations). Refuses if the\nlight is already full, already lit (you don''t refuel something while\nit''s burning -- it might explode), or can''t be refueled at all (a\nplain torch burns down and is gone for good, no refilling it). The\nfuel item is used up and destroyed once its own supply runs out.\n\nRelated: light extinguish', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `prompt gold` (user 2026-07-18: "expand prompt command toggles to
+-- include mana, piety, vitality, gold, etc" -- gold unblocked once the
+-- Money system shipped) -- full-body replacement, same guarded pattern.
+UPDATE `help_topic` SET `body` = 'Usage: prompt [hp|gold]\n\n`prompt hp` toggles your hit points into the prompt line; `prompt\ngold` toggles your gold. Either, both, or neither -- whatever''s on\nrenders together ("HP: 25 Gold: 40 >"). Bare `prompt` shows the\ncurrent setting. Your choice is saved with your character. More stats\nwill join the prompt as they exist (mana/piety/vitality aren''t real\nstats yet).\n\nRelated: toggle score'
+  WHERE `name` = 'prompt' AND `updated_by` = 'seed';
+
+-- `toggle pk` (user 2026-07-18: "PK opt-in flag; BOTH players must have
+-- opted in for attack/kill between players") -- full-body replacement.
+UPDATE `help_topic` SET `body` = 'Usage: toggle [name]\n\nWith no argument, lists your on/off switches and their current values.\n`toggle <name>` flips one (abbreviations welcome). Player toggles like\ncolor and hp affect only you; game toggles like multiplay are global\nand only 55+ immortals may change them.\n\n`toggle pk` is worth calling out specifically: it opts YOU in to\nfighting other players, but `attack`/`kill`/`hit` only ever reaches\nanother player if BOTH of you have it on -- otherwise they''re simply\nnot a valid target, same as if they weren''t in the room. Off by\ndefault. Mob combat is completely unaffected either way.\n\nRelated: gametog prompt'
+  WHERE `name` = 'toggle' AND `updated_by` = 'seed';

@@ -177,7 +177,7 @@ static const cmd_entry_t COMMANDS[] = {
      * practice needs "prac", prompt needs "pro", put needs "pu". */
     { "pray",    cmd_pray,    "Pray for a spell (Cleric) -- requires a holy symbol.", MORTAL_LEVEL_MIN },
     { "practice", cmd_practice, "Train your Basic/Advanced discipline with a guildmaster (practice basic|advanced).", MORTAL_LEVEL_MIN },
-    { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp).",                 MORTAL_LEVEL_MIN },
+    { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp|gold).",            MORTAL_LEVEL_MIN },
     { "put",     cmd_put,     "Put a carried item into a container (put <item> <container>).", MORTAL_LEVEL_MIN },
     /* SWAP: rest before remove/rent, so "r"/"re" still rest; remove needs
      * "rem", rent needs "ren", rules needs "ru". */

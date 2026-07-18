@@ -708,6 +708,21 @@ void combat_process_run(long pulse_num) {
     }
 }
 
+/* PK opt-in gate (TODO.md: "player flag; BOTH players must have opted
+ * in for attack/kill between players"). Mob targets are always fine;
+ * an immortal on EITHER side bypasses this entirely -- immortal-vs-
+ * mortal combat (instakill) and immortal-vs-immortal (guarded
+ * separately, see cmd_kill.c) are governed by their own existing rules,
+ * unaffected by PLR_PK_OPTIN. Only mortal-vs-mortal PC combat needs
+ * both sides to have `toggle pk` on. */
+static bool combat_pk_allowed(const being_t *self, const being_t *t) {
+    if (t->base.kind != THING_PC)
+        return true;
+    if (being_is_immortal(self) || being_is_immortal(t))
+        return true;
+    return (self->pflags & PLR_PK_OPTIN) && (t->pflags & PLR_PK_OPTIN);
+}
+
 being_t *combat_find_room_target(being_t *self, const char *name) {
     if (!self || !self->base.roomp || !name || !*name)
         return NULL;
@@ -731,6 +746,8 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
             if (t->kind != THING_PC && t->kind != THING_MOB)
                 continue;
             if (t->kind == THING_PC && !((being_t *)t)->desc)
+                continue;
+            if (!combat_pk_allowed(self, (being_t *)t))
                 continue;
             if (thing_name_matches(t->name, rest, name_len)) {
                 seen++;
@@ -760,6 +777,8 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
          * linkdead char") can't be targeted by name at all -- invisible to
          * attack/kill, same as if they weren't there. */
         if (t->kind == THING_PC && !((being_t *)t)->desc)
+            continue;
+        if (!combat_pk_allowed(self, (being_t *)t))
             continue;
         if (strcasecmp(t->name, rest) == 0)
             return (being_t *)t;

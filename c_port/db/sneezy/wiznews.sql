@@ -543,3 +543,7 @@ INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Torches and Lanterns Actually Work Now', '`light`/`extinguish <item> [held|room]` turn a light source on or off; `refuel <light> <fuel> [held|room]` tops one up from a fuel brick (Lumor''s Illuminations sells them). A lit light burns down over time and eventually goes out on its own -- refuel it before then. You can''t refuel while it''s lit (might explode), and a torch can''t be refueled at all, only replaced. A lit light source shows "(lit)" where it''s sitting so you can actually tell.'),
 ('The TobinMUD Team', 'The Lamp-Lighting Boy Is Back on the Job', 'Grimhaven''s lamp-lighting boy (and Brightmoon''s eager page) once again light the streetlamps at dusk and put them out at dawn, wherever they happen to be standing when it happens -- an honest, much smaller version of the original''s scripted patrol route, not the real thing.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Few Small Ones', '`prompt gold` joins `prompt hp` -- turn on either or both. `point` (with no target, or aimed at someone) now mentions whatever you''re holding in your primary hand instead of always "pointing around randomly." And `toggle pk` is here: player-vs-player combat only ever works if BOTH sides have opted in with it -- otherwise `attack`/`kill`/`hit` simply can''t find the other player at all. Off by default; mobs are unaffected either way.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

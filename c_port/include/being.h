@@ -131,8 +131,14 @@ typedef struct {
 } progress_t;
 
 /* Prompt customization bits (player.prompt_flags, cmd_prompt.c; rendered
- * by the game loop's prompter). */
+ * by the game loop's prompter). Only HP and gold exist -- mana/piety/
+ * vitality (user's original "expand prompt toggles" ask) stay blocked on
+ * those stats not existing at all yet (no mana pool, no piety, no
+ * vitality resource -- prayer/casting is component-consumption-based,
+ * see cmd_cast.c/cmd_pray.c); gold unblocked 2026-07-18 once the Money
+ * system shipped (progress_t.gold, above). */
 #define PROMPT_FLAG_HP 1
+#define PROMPT_FLAG_GOLD 2
 
 /* Player flag bits (player.pflags). PLR_NEWBIE = on the newbie help channel
  * (default on; toggle off with `toggle newbie`). PLR_NOSHOUT = opted out of
@@ -153,6 +159,13 @@ typedef struct {
  * automatically loots all from the corpse" -- checked in combat.c's
  * combat_defeat() right after the corpse is populated. */
 #define PLR_AUTOLOOT 8
+/* PLR_PK_OPTIN = willing to fight other players (default off; toggle on
+ * with `toggle pk`) -- BOTH the attacker AND the defender need this set
+ * for `attack`/`kill`/`hit` to reach a PC target at all; enforced in
+ * combat.c's combat_find_room_target() rather than at the command layer,
+ * so every attack-style command gets the gate for free. Mob targeting is
+ * completely unaffected -- this only gates PC-vs-PC. */
+#define PLR_PK_OPTIN 16
 
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in

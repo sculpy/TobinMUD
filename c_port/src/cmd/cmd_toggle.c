@@ -125,6 +125,22 @@ static void tg_autoloot_set(descriptor_t *d, bool v) {
     player_set_pflags(d->character->player_id, d->character->pflags);
 }
 
+/* --- pk: willing to fight other players (player.pflags bit) -- BOTH
+ * sides need this on for attack/kill/hit to even find each other,
+ * enforced in combat.c's combat_find_room_target(), not here. */
+static bool tg_pk_get(descriptor_t *d) {
+    return d->character && (d->character->pflags & PLR_PK_OPTIN);
+}
+static void tg_pk_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->pflags |= PLR_PK_OPTIN;
+    else
+        d->character->pflags &= ~PLR_PK_OPTIN;
+    player_set_pflags(d->character->player_id, d->character->pflags);
+}
+
 /* --- multiplay: global game toggle (55+) --- */
 static bool tg_multiplay_get(descriptor_t *d) { (void)d; return multiplay_allowed(); }
 static void tg_multiplay_set(descriptor_t *d, bool v) { (void)d; multiplay_set(v); }
@@ -136,6 +152,7 @@ static const toggle_t TOGGLES[] = {
     { "hp",        "hit points shown in prompt",    false, "Prompt",        tg_hp_get,        tg_hp_set },
     { "newbie",    "on the newbie help channel",    false, "Communication", tg_newbie_get,    tg_newbie_set },
     { "noshout",   "opted out of hearing shouts",   false, "Communication", tg_noshout_get,   tg_noshout_set },
+    { "pk",        "willing to fight other players", false, "Preferences",  tg_pk_get,        tg_pk_set },
     { "multiplay", "one account, many characters",  true,  NULL,            tg_multiplay_get, tg_multiplay_set },
 };
 #define NUM_TOGGLES (sizeof(TOGGLES) / sizeof(TOGGLES[0]))
