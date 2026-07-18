@@ -18,6 +18,33 @@ viewers keep plain names (`news`, `wiznews`).
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.
 
+### User batch 2026-07-17 — queued after Money/Shops, working these next
+
+User's own list, cross-checked against existing entries below (most were
+already tracked — pointers, not duplicates):
+
+- `wipe` command + a real (non-hardcoded) master password — already
+  tracked: **`wipe` (59+)** and **`wipe` master password** entries above.
+- `dig`, `edaccount`, Typed logs, Tips system, PK opt-in flag, Diseases —
+  all already tracked (their own entries above).
+- News edit/delete, redit extra descriptions, personalized immortal log
+  messages — News edit/delete is **News follow-ups**; extra descs is
+  **redit Extra Descriptions**; personalized log messages already partly
+  shipped under **Typed logs (LOG_GAME + personalized)** (LOG_JESUS-style
+  per-immortal routing) — a duplicate stale **Typed logs** entry further
+  down still lists `log search`-by-type as unbuilt, which is real/accurate,
+  not stale.
+- Meaningful limb damage, Thief "peek" skill — already tracked (their own
+  entries above).
+- [ ] **Split gold on kill** — new, unblocked now that [[Money system]]
+      exists. Needs groups (who's in the kill's group, split evenly or by
+      level/contribution — design TBD) — pairs with **Meaningful limb
+      damage**'s combat-adjacent work.
+- Expand `prompt` toggles, Boxed-menu rework for the remaining editors —
+  already tracked (their own entries above).
+- Mid-fight persistence (HP only saves at defeat — a real crash-loss risk)
+  — already tracked: **Mid-fight persistence** entry below.
+
 ### User batch 2026-07-11 (continued) — working these next
 
 - [x] **`practice <discipline>` now shows the skill listing anywhere**
@@ -1620,11 +1647,17 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       game flag persisted in `game_config`; enter_world refuses a mortal
       account's second connected character when off; immortals exempt.
       `smoke_test_multiplay.py`.
-- [ ] **Holdable items + `point` social** (BLOCKED on Objects/2C) — players
-      grab/hold items in hand (primary, then secondary); a `point` social
-      shows "X points at you with his/her/its <primary-hand item>". Needs the
-      object system. (Basic no-arg `point` -> "You point around randomly." is
-      buildable now, in the night batch below.)
+- [x] **Holdable items** — already shipped: `hold`/`wield`/`switch`
+      commands (cmd_object.c) -- entry pruned 2026-07-17, was stale
+      (marked "BLOCKED on Objects/2C" long after Objects landed and these
+      shipped in a later session).
+- [ ] **`point` social: reference the held item** — genuinely still open
+      (unlike the holdable-items item above): the basic no-arg `point` ->
+      "You point around randomly." already exists (socials.c), but the
+      original's item-referencing form -- "X points at you with his/her/
+      its <primary-hand item>" -- doesn't. Small follow-up now that
+      holdable items exist: read `ch->held[0]`, fall back to the plain
+      random-point wording if empty-handed.
 
 ### User batch 2026-07-05 (night, follow-ups) — working these now
 
@@ -1698,23 +1731,38 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-05 (night) — BLOCKED on Objects (Phase 2C)
 
-- [ ] **Money system** — gold-coin currency + commodities (ingots, nuggets,
-      shards of gold/silver/obsidian/...). Repurpose Sneezy's talens/components
-      for inspiration. Future: mobs drop them (economy), used in skills
-      (repair, spell/prayer fuel). Needs objects.
+- [x] **Money system** — done 2026-07-17. Shipped scoped-down from the
+      original spec: GOLD-COIN-ONLY wallet stat (`player_progress.gold`,
+      same shape as practice_points — not a pickupable/lootable object).
+      Commodities (ingots/nuggets/shards) deliberately NOT built — out of
+      scope per the Shops entry below's own simpler spec. Mobs drop gold
+      on defeat (`combat.c`'s `combat_defeat()`, level-scaled). Legacy
+      seeded "pile of talens" treasure objects (16 vnums, ITEM_MONEY/
+      `OBJ_CAT_MONEY`) had their flavor text renamed talens→gold for
+      consistency, but picking one up still does nothing special — no
+      code reads `OBJ_CAT_MONEY`/val[0] to credit the wallet. Real gap,
+      not built this pass: **wire `OBJ_CAT_MONEY` pickup to auto-credit
+      gold + destroy the object**, or these seeded treasure piles/quest
+      rewards stay inert junk.
 - [ ] **Liquids** — drinkable liquids; pouring one out pools on the ground
       (from Sneezy). Needs objects/containers.
 - [ ] **`fill`** — fill a container from a liquid pool. Needs liquids+objects.
-- [ ] **`switch`** — swap primary/secondary held items. Needs holdable items.
+- [x] **`switch`** — already shipped alongside `hold`/`wield`
+      (cmd_object.c) -- entry pruned 2026-07-17, was a stale duplicate.
 - [ ] **`examine`** — look closer at things (extra descriptions). Needs room/
       object extra descriptions (partly objects, partly redit extra-desc item).
 
-### User batch 2026-07-05 (night) — BLOCKED on Classes
-
-- [ ] **Druid class** — add druid to the selectable classes (lands with the
-      Classes system).
-
-
+- [x] **Druid class** — already shipped as one of the 6 selectable classes
+      (see `show_class_screen()`, descriptor.c) -- entry pruned 2026-07-17,
+      was stale (still marked open after Classes landed in a later
+      session).
+<!-- Orphaned fragment, pre-existing (not introduced by this prune) --
+     references a never-finished "Vitality" stat/item whose own bullet
+     marker and title are missing from the file; Terrain movement cost
+     below still says "Depends on Vitality", and no such stat exists in
+     the codebase (confirmed via grep 2026-07-17), so this is real
+     unfinished content, not stale -- left in place rather than guessed
+     at, flagged here for a future pass to either reconstruct or drop. -->
       the regen tick (weight by position, like HP already does). New
       `player_progress` column; show in score/prompt. Take from Sneezy.
 - [ ] **Terrain movement cost** — each sector type modifies the vitality cost
@@ -1951,11 +1999,13 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       cmd_object.c each have their own independent copy of the same
       function, still with the old bug. Fixed both. New
       `tests/smoke_test_getdrop_log.py` (6 checks).
-- [ ] **Mob AI: wandering + mob actions** — implemented locally, not yet
-      deployed/tested (sweep from an earlier batch this session still
-      running, deploy queued right behind it). User: "in pulse, make sure
-      that mob actions click and mobs that can wander will do so, look at
-      mob ai from sneezy". New `mob.actions` field wired all the way
+- [x] **Mob AI: wandering + mob actions** — done, deployed, and live (its
+      pulse registration -- `pulse_register(600, mob_ai_tick)` -- has been
+      confirmed wired in `main.c` all session; entry corrected 2026-07-17,
+      was stale ("not yet deployed" from a snapshot taken mid-deploy that
+      was never updated once it actually landed). User: "in pulse, make
+      sure that mob actions click and mobs that can wander will do so,
+      look at mob ai from sneezy". New `mob.actions` field wired all the way
       through: `mob_proto_t`/`mob_proto_load()` (mob_repo.h/mob_repo.c)
       now loads it, `being_t.mob_actions` (being.h) carries it onto the
       in-world instance (being_create_mob(), being.c). New
@@ -3636,10 +3686,14 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
 - [ ] **`edmobile` (medit)** — mob editor (menu-driven, DB prototype rows
       in the existing `mob` table). See NEXT UP note above. Sneezy's
       `send_mob_menu` has 30 fields (STATUS / create_mobs.cc).
-- [ ] **Mob AI / aggression** — `ACT_AGGRESSIVE` (and the rest of the
-      `actions`/`affects` bitmask columns) is completely unused -- mobs
-      are reactive-only today (never act until attacked). A real AI/pulse
-      tick is a separate, larger follow-up.
+- [x] **Mob AI / aggression** — `ACT_AGGRESSIVE` shipped (see the
+      "Mobile_Attitude"/alignment entry earlier in this file,
+      `mob_ai_tick()` in mob_ai.c, `tests/smoke_test_alignment.py`) --
+      entry pruned 2026-07-17, was a stale duplicate claiming it was
+      "completely unused" after it had already landed. Scoped down from
+      Sneezy's full attitude/opinion system (still real future work, see
+      that entry) but a working aggro tick exists today, mobs are no
+      longer reactive-only.
 - [~] **>>> Zones / zonefiles (2E) <<<** (user 2026-07-07) — in progress.
   - [x] **Part 1: convert zonefiles -> DB** — done 2026-07-07: `db/import-zones.py`
         parses the upstream `lib/zonefiles/*` into `db/sneezy/zone_reset.sql`
@@ -3722,8 +3776,14 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
       matching a KEY-category object's val[0] against the exit's key
       requirement. The object system this was blocked on (Session 31) now
       exists -- separate follow-up, not built this pass.
-- [ ] **Shops + money** — shopkeeper buy/sell, shop editor, GOLD-COIN-ONLY
-      currency (shop tables already in the seed DB). Needs objects.
+- [x] **Shops + money** — done 2026-07-17. `list`/`buy`/`sell` shipped
+      against the real seeded shop economy (264 `shop` rows, `shoptype`
+      buy-categories, `shopproducing` catalogs — not the keeper's carried
+      items, which the seed data never actually stocks). Each shop keeps
+      its own authentic flavor text (talens→gold bulk-renamed, 263 rows).
+      **Shop editor NOT built** — real gap, still open. Immortals can't
+      create/modify shops in-game; only read-only consumption of the
+      pre-existing seeded tables exists.
 - [ ] **Player-state logging** — log get/drop + pfile changes so `log search
       <name>` tells a player's story. Needs objects; design a uniform helper.
 - [ ] **Body types** — `body.h` body-type concept (creatures have different
@@ -3741,16 +3801,21 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
       cost (gold? time? risk?); whether it also cures poison (see `drink`
       from pools) or only limb damage; whether it's instant or takes time
       (a queued/timed repair). Not started.
-- [ ] **Classes** — warrior/cleric/thief/monk/mage, chosen at creation, shown
-      in score/who. Stat affinities (user spec): mage high INT / low STR;
-      warrior high CON+STR, dump CHA+WIS; thief high DEX / low STR; cleric
-      high WIS / low STR+DEX; monk STR+CON / low CHA. Port Sneezy's class
-      tables/formulas onto Tobin's 6-stat set. (Ignore DISC_* for now.)
-- [ ] **Races** — curated player list + open mob list; race stat bonuses from
-      Sneezy's race tables.
-- [ ] **Game balance layer + `gameedit` (60 ONLY)** — race/class PERCENTAGE
-      bonuses; a level-60 live tuner in 0.1% increments, exact-word like
-      `quit!` (never by typo), DB-persisted. Needs classes+races.
+- [x] **Classes** — already shipped: 6 classes (mage/cleric/warrior/thief/
+      druid/monk) chosen at creation (`show_class_screen()`, descriptor.c),
+      shown in score/who, with `class_stat_bonus()` (being.c) applying
+      affinities on top of point-buy attributes -- entries pruned
+      2026-07-17, were stale.
+- [x] **Races** — already shipped: 6 curated player races (human/elf/ogre/
+      dwarf/hobbit/gnome, `show_race_screen()`) with `race_stat_bonus()`
+      (being.c), plus an open mob-race list not limited to those 6 (e.g.
+      "GOBLIN", confirmed via `smoke_test_stat.py`'s mob race check).
+- [x] **Game balance layer (60 ONLY)** — shipped as the `balance` command
+      (not `gameedit`, but the same intent): `balance class|race <name>`,
+      a menu-driven, DB-persisted, Implementor-only live tuner for 4
+      gamewide class/race modifiers (HP/damage multiplier, to-hit/AC
+      modifier), applied with no restart needed (`balance_repo.h`/
+      `balance.c`, `tests/smoke_test_balance.py`).
 - [ ] **Limbs → `wearSlotT`** — reshape the 13-limb enum toward Sneezy's
       `wearSlotT` (back, wrist, hand vs finger, HOLD, EX_* for mobs). **Open
       question:** keep the Tobin-added `genitalia` slot? include HOLD/EX for

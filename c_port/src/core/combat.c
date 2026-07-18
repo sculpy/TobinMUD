@@ -631,6 +631,22 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         }
     }
 
+    /* Gold drop (Money system, user 2026-07-17: "implement money and
+     * shops" -- TODO's own "Future: mobs drop them (economy)" note). A
+     * mob loser hands its killer a scaled amount of gold directly -- gold
+     * is a wallet stat (progress_t.gold), not a pickupable/lootable
+     * object, so there's no coin object to place in the corpse. Same PC-
+     * winner-only, non-immortal gate as the XP award above; PCs never
+     * drop gold on death (no real PK economy to protect yet, see the
+     * still-open "PK opt-in flag" TODO entry). */
+    if (!loser_is_pc && winner->base.kind == THING_PC && !being_is_immortal(winner)) {
+        int mob_level = loser->progress.level > 0 ? loser->progress.level : 1;
+        int gold_gain = mob_level * (1 + rand() % 5);
+        winner->progress.gold += gold_gain;
+        tell(winner, "You find %d gold.\r\n", gold_gain);
+        player_progress_save(winner->player_id, &winner->progress);
+    }
+
     if (loser_is_pc) {
         if (loser->desc)
             descriptor_leave_to_menu(loser->desc);

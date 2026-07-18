@@ -175,3 +175,11 @@ CREATE TABLE IF NOT EXISTS `account_alias` (
   `expansion` varchar(255) NOT NULL,
   PRIMARY KEY (`account_id`, `tier`, `name`)
 );
+
+-- Money system (user 2026-07-17: "implement money and shops"). GOLD-COIN-
+-- ONLY currency (no talens/commodities/shards, per the Shops TODO entry's
+-- own scoped-down spec) -- a plain wallet stat on progress_t, same shape
+-- as practice_points, not a pickupable/lootable object. Mobs hand it to
+-- their killer directly on defeat (combat.c); shops (below) are the sink.
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `gold` int(11) NOT NULL DEFAULT 0;

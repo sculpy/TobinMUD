@@ -389,7 +389,7 @@ bool player_progress_load(long player_id, progress_t *out) {
     bool found = false;
     if (db_query(db, "select level, experience, hp, max_hp, true_level, alignment, "
                       "basic_disc_pct, advanced_disc_pct, combat_disc_pct, practice_points, "
-                      "rented_at from player_progress where player_id=%i",
+                      "rented_at, gold from player_progress where player_id=%i",
                  (int)player_id)
         && db_fetch_row(db)) {
         out->level = atoi(db_get(db, "level"));
@@ -403,6 +403,7 @@ bool player_progress_load(long player_id, progress_t *out) {
         out->combat_disc_pct = atoi(db_get(db, "combat_disc_pct"));
         out->practice_points = atoi(db_get(db, "practice_points"));
         out->rented_at = atol(db_get(db, "rented_at"));
+        out->gold = atoi(db_get(db, "gold"));
         found = true;
     }
 
@@ -417,14 +418,14 @@ bool player_progress_save(long player_id, const progress_t *progress) {
 
     bool ok = db_query(db,
         "insert into player_progress (player_id, level, experience, hp, max_hp, true_level, alignment, "
-        "basic_disc_pct, advanced_disc_pct, combat_disc_pct, practice_points, rented_at) "
-        "values (%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i) "
+        "basic_disc_pct, advanced_disc_pct, combat_disc_pct, practice_points, rented_at, gold) "
+        "values (%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i) "
         "on duplicate key update level=%i, experience=%i, hp=%i, max_hp=%i, true_level=%i, alignment=%i, "
-        "basic_disc_pct=%i, advanced_disc_pct=%i, combat_disc_pct=%i, practice_points=%i, rented_at=%i",
+        "basic_disc_pct=%i, advanced_disc_pct=%i, combat_disc_pct=%i, practice_points=%i, rented_at=%i, gold=%i",
         (int)player_id, progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment,
-        progress->basic_disc_pct, progress->advanced_disc_pct, progress->combat_disc_pct, progress->practice_points, (int)progress->rented_at,
+        progress->basic_disc_pct, progress->advanced_disc_pct, progress->combat_disc_pct, progress->practice_points, (int)progress->rented_at, progress->gold,
         progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment,
-        progress->basic_disc_pct, progress->advanced_disc_pct, progress->combat_disc_pct, progress->practice_points, (int)progress->rented_at);
+        progress->basic_disc_pct, progress->advanced_disc_pct, progress->combat_disc_pct, progress->practice_points, (int)progress->rented_at, progress->gold);
 
     db_close(db);
     return ok;

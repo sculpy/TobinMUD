@@ -106,6 +106,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "affects", cmd_affects, "List your currently active buffs/debuffs.",          MORTAL_LEVEL_MIN },
     { "alias",   cmd_alias,   "Manage your command aliases (alias [<name> [<expansion>]] | alias remove <name>).", MORTAL_LEVEL_MIN },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
+    { "buy",     cmd_buy,     "Buy an item from a shopkeeper (buy <item>).",        MORTAL_LEVEL_MIN },
     /* SWAP: close before cast/catchup/color, so "c" still closes doors.
      * SWAP: catchup before cast, so "ca" reaches catchup; cast needs "cas".
      * color needs "co". (Older comments here claimed color owned "c" -- it
@@ -160,6 +161,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* SWAP: look before limbs, so "l" looks; limbs needs "li". */
     { "look",    cmd_look,    "Look around the room you're in.",                    MORTAL_LEVEL_MIN },
     { "limbs",   cmd_limbs,   "Show the current health of all your limbs.",         MORTAL_LEVEL_MIN },
+    { "list",    cmd_list,    "List a shopkeeper's wares, if you're at a shop.",    MORTAL_LEVEL_MIN },
     { "mudstats", cmd_mudstats, "Show basic statistics about the game world.",      MORTAL_LEVEL_MIN },
     /* SWAP: news before newbie, so "new" still means news; newbie needs
      * "newb". ("n"/"ne" are movement -- head above.) */
@@ -186,6 +188,7 @@ static const cmd_entry_t COMMANDS[] = {
      * "sca". */
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },
     { "scan",    cmd_scan,    "Peer several rooms down each exit (scan [dir|name]).", MORTAL_LEVEL_MIN },
+    { "sell",    cmd_sell,    "Sell a carried item to a shopkeeper (sell <item>).", MORTAL_LEVEL_MIN },
     /* shout before show is already alphabetical, but it is load-bearing:
      * "sho" is ambiguous and shout wins it -- "show" must be typed in
      * full. */

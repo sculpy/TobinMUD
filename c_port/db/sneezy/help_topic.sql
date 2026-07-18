@@ -741,3 +741,10 @@ UPDATE `help_topic` SET `body` = 'Usage: who [name|immortals|mortals]\n\nLists e
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('alias', 'Usage: alias\n       alias <name>\n       alias <name> <expansion>\n       alias remove <name>\n\nDefine your own command shortcuts. Bare `alias` lists everything you\nhave defined; `alias <name>` shows one; `alias <name> <expansion>`\ncreates or overwrites one; `alias remove <name>` deletes one. Typing\nthe alias name later expands to its full text, with anything else you\ntyped after it tacked on the end -- e.g. `alias k kill` then `k orc`\nsends `kill orc`.\n\nAliases live on your ACCOUNT, not the character, so every character\nyou play shares the same set -- but they are split by tier: a mortal''s\naliases only work while playing a mortal character, an immortal''s only\nwhile playing an immortal one, even on the same account. Up to 20 per\ntier.\n\nRelated: help', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Money + shops (user 2026-07-17: "implement money and shops").
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('list', 'Usage: list\n\nShows what the shop in your current room has for sale, with its\nprice in gold next to each item. You must be standing where a\nshopkeeper is actually present -- a shop with no keeper around is\nclosed. A listed item never runs out; the shop can always sell it.\n\nRelated: buy sell', 'seed'),
+('buy', 'Usage: buy <item>\n\nPurchases an item from the shop in your current room, deducting its\ngold price from your purse (see `score`). The item must be something\nthat shop actually stocks -- check `list` first. You need a live\nshopkeeper present and enough gold on hand.\n\nRelated: list sell score', 'seed'),
+('sell', 'Usage: sell <item>\n\nSells a carried item (not worn or held) to the shop in your current\nroom for gold, credited to your purse (see `score`). Each shop only\nbuys certain kinds of goods -- offering something it does not deal in\nis refused. The item is gone for good once sold.\n\nRelated: list buy score', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

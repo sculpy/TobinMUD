@@ -122,6 +122,12 @@ typedef struct {
      * while rented out" per Sneezy's own `rent` help text, without a
      * standing background job for offline characters. */
     long rented_at;
+    /* Wallet gold (Money system, user 2026-07-17: "implement money and
+     * shops"). GOLD-COIN-ONLY -- a plain int stat, not a pickupable
+     * object, same shape as practice_points. Mobs hand it to their killer
+     * directly on defeat (combat.c's combat_defeat()); shops (cmd_shop.c,
+     * shop_repo.h) are the spending sink. */
+    int gold;
 } progress_t;
 
 /* Prompt customization bits (player.prompt_flags, cmd_prompt.c; rendered
