@@ -92,6 +92,10 @@ sneezymud-master/
 .clangd/
 compile_commands.json
 
+# Per-box secrets sourced by watchdog.sh/manual restarts (TOBIN_WIPE_PASSWORD
+# and friends) -- never committed, set once on each box that runs the server.
+c_port/.env.local
+
 # Claude Code local state
 .claude/settings.local.json
 .claude/scheduled_tasks.lock

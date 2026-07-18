@@ -12,5 +12,10 @@ flock -n 200 || exit 0  # another watchdog tick is already mid-restart
 
 pgrep -x tobin_c >/dev/null && exit 0
 
+# Per-box secrets (TOBIN_WIPE_PASSWORD -- see cmd_wipe.c/config.c), never
+# committed (.gitignore'd) -- set once per box, sourced here so `wipe`
+# keeps working across every auto-restart, not just a manual one.
+[ -f .env.local ] && . ./.env.local
+
 setsid nohup ./build/tobin_c >> tobin_c.log 2>&1 < /dev/null &
 disown
