@@ -38,20 +38,30 @@ static int parse_dir(const char *tok) {
 }
 
 /* A container matching `tok` among your own carried/worn items, then the room
- * floor -- the same search order `put`/`get <container>` use. */
+ * floor -- the same search order `put`/`get <container>` use. Supports the
+ * "N.keyword" ordinal prefix (user 2026-07-18: "make it true as part of
+ * everything that can exist"), same convention as cmd_object.c's own
+ * find_obj() -- parsed once here, per chain in sequence (not pooled across
+ * both), same as find_obj's own single-chain-per-call contract. */
 static obj_t *find_container(being_t *ch, const char *tok) {
-    size_t len = strlen(tok);
+    const char *rest;
+    int ordinal = thing_parse_ordinal(tok, &rest);
+    size_t len = strlen(rest);
     thing_t *chains[2] = {
         ch->base.stuff_head,
         ch->base.roomp ? ch->base.roomp->base.stuff_head : NULL,
     };
     for (int c = 0; c < 2; c++) {
+        int seen = 0;
         for (thing_t *t = chains[c]; t; t = t->stuff_next) {
             if (t->kind != THING_OBJ)
                 continue;
             obj_t *o = (obj_t *)t;
-            if (obj_is_container(o) && thing_name_matches(t->name, tok, len))
-                return o;
+            if (obj_is_container(o) && thing_name_matches(t->name, rest, len)) {
+                seen++;
+                if (seen == ordinal)
+                    return o;
+            }
         }
     }
     return NULL;

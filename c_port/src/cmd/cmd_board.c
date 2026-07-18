@@ -81,6 +81,28 @@ static obj_t *find_board(const being_t *ch, const char *filter) {
     return NULL;
 }
 
+/* The Nth board (room order) -- "read 2.board" / "write 2.board ..."
+ * (user 2026-07-18: "make it true as part of everything that can exist"),
+ * the same ordinal convention `look`/`kill`/`get` use everywhere else,
+ * offered here alongside (not instead of) "at <name>" -- either
+ * disambiguates a multi-board room, whichever's easier to type. */
+static obj_t *find_board_ordinal(const being_t *ch, int ordinal) {
+    if (!ch->base.roomp)
+        return NULL;
+    int seen = 0;
+    for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        obj_t *o = (obj_t *)t;
+        if (o->category != OBJ_CAT_WRITTEN || !keyword_matches(o->base.name, "board"))
+            continue;
+        seen++;
+        if (seen == ordinal)
+            return o;
+    }
+    return NULL;
+}
+
 /* How many DISTINCT boards are in `ch`'s current room -- some rooms (a
  * builder office with both a Wizard board and a plain bulletin board, see
  * user 2026-07-18 bug report) have more than one, so a bare `read`/`write`
@@ -113,20 +135,24 @@ static const char *board_label(const obj_t *board) {
     return board->base.short_descr[0] ? board->base.short_descr : board->base.name;
 }
 
-/* `read [<#>]` / `write <subject> <message>` normally, or `read at
- * <boardname> [<#>]` / `write at <boardname> <subject> <message>` when
- * the room has more than one board (user 2026-07-18 bug report: a
- * builder office with both a Wizard board and a plain bulletin board
- * silently read/posted to whichever one happened to be first in the
- * room, not necessarily the one meant). The "at <boardname>" prefix is
- * only ever RECOGNIZED when there's real ambiguity to resolve -- with
- * just one board present, an ordinary post whose subject happens to be
- * the word "at" still works fine, since there's nothing to disambiguate
- * and the ordinary path never inspects the first word at all.
+/* `read [<#>]` / `write <subject> <message>` normally, or when the room
+ * has more than one board (user 2026-07-18 bug report: a builder office
+ * with both a Wizard board and a plain bulletin board silently read/
+ * posted to whichever one happened to be first in the room, not
+ * necessarily the one meant) either `read 2.board [<#>]` / `write
+ * 2.board <subject> <message>` (the same "N.keyword" ordinal convention
+ * `look`/`kill`/`get` use everywhere else -- user 2026-07-18: "make it
+ * true as part of everything that can exist") or `read at <boardname>
+ * [<#>]` / `write at <boardname> <subject> <message>`, whichever's
+ * easier to type. Both forms are only ever RECOGNIZED when there's real
+ * ambiguity to resolve -- with just one board present, an ordinary post
+ * whose subject happens to be the word "at" (or start with a number)
+ * still works fine, since there's nothing to disambiguate and the
+ * ordinary path never inspects the first word at all.
  *
  * Returns NULL (having already sent an error) if no board could be
- * resolved. `*rest` is left pointing at whatever comes after the "at
- * <boardname>" prefix, or unchanged (still `args`) if there wasn't one. */
+ * resolved. `*rest` is left pointing at whatever comes after the
+ * disambiguation prefix, or unchanged (still `args`) if there wasn't one. */
 static obj_t *resolve_board(descriptor_t *d, being_t *ch, const char *args, const char **rest,
                              const char *verb) {
     *rest = args;
@@ -144,9 +170,24 @@ static obj_t *resolve_board(descriptor_t *d, being_t *ch, const char *args, cons
     char first[16] = "";
     int consumed = 0;
     sscanf(args, "%15s %n", first, &consumed);
+
+    const char *ord_rest;
+    int ordinal = thing_parse_ordinal(first, &ord_rest);
+    if (ordinal > 1) {
+        obj_t *board = find_board_ordinal(ch, ordinal);
+        if (!board) {
+            descriptor_send(d, "There aren't that many boards here.\r\n");
+            return NULL;
+        }
+        *rest = args + consumed;
+        return board;
+    }
+
     if (strcasecmp(first, "at") != 0) {
-        char msg[96];
-        snprintf(msg, sizeof(msg), "There's more than one board here -- %s at <board name> ...\r\n", verb);
+        char msg[128];
+        snprintf(msg, sizeof(msg),
+                 "There's more than one board here -- %s 2.board or %s at <board name> ...\r\n",
+                 verb, verb);
         descriptor_send(d, msg);
         return NULL;
     }

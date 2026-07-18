@@ -575,6 +575,23 @@ already tracked — pointers, not duplicates):
       name"). `tests/smoke_test_ordinal_target.py` covers get 1st/2nd/3rd/
       (4th fails) and kill 1st/2nd/3rd, each reloading a fresh set before
       every check since consuming/killing depletes the pool.
+      **Extended 2026-07-18** (user: "make look board, look 2.board to
+      look at second board... make it true as part of everything that
+      can exist, l mob, l 2.mob, kill 2.mob, etc."): `look`/`examine` had
+      been the one real gap left -- `look_at_target()` (cmd_look.c) only
+      ever matched the first PC/mob/object, no ordinal support at all.
+      Now uses the same `thing_parse_ordinal()` primitive as everywhere
+      else, for both the being search and the object search (room floor,
+      then carried/worn/held). Also newly wired into `drink`/`sip`
+      (cmd_drink.c/cmd_sip.c, "2.puddle" when more than one pool/fountain
+      matches), `open`/`close`'s container lookup (cmd_open.c), `show`'s
+      item token (cmd_show.c), `sell` (cmd_shop.c, "2.sword" among loose
+      carried items), and `read`/`write`'s board disambiguation
+      (cmd_board.c, "read 2.board" alongside the existing "read at
+      <name>" form). `buy` was deliberately left alone -- it already has
+      its own numbered `buy <#>` (from `list`'s own numbering), a
+      cleaner disambiguator than an ordinal would add on top of a
+      catalog that can't actually contain duplicate-keyword entries.
 - [x] **Armor Class + completed to-hit/defense formula** — done (user
       2026-07-11: "Armor & protection (AC) go in next, complete the
       to-hit / defense formula depth"). New `obj_armor_ac()` (obj.c) --

@@ -34,14 +34,24 @@ bool cmd_show(descriptor_t *d, const char *args) {
         return true;
     }
 
-    size_t item_len = strlen(item_tok);
+    /* Ordinal support on the item token (user 2026-07-18: "make it true
+     * as part of everything that can exist") -- "show 2.sword <name>"
+     * picks the second matching carried item. Not applied to the person
+     * token below -- players are uniquely named, nothing to disambiguate. */
+    const char *item_rest;
+    int item_ordinal = thing_parse_ordinal(item_tok, &item_rest);
+    size_t item_len = strlen(item_rest);
     obj_t *item = NULL;
+    int item_seen = 0;
     for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
         if (t->kind != THING_OBJ)
             continue;
-        if (thing_name_matches(t->name, item_tok, item_len)) {
-            item = (obj_t *)t;
-            break;
+        if (thing_name_matches(t->name, item_rest, item_len)) {
+            item_seen++;
+            if (item_seen == item_ordinal) {
+                item = (obj_t *)t;
+                break;
+            }
         }
     }
     if (!item) {

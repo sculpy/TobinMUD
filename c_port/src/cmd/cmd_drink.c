@@ -88,25 +88,38 @@ bool cmd_drink(descriptor_t *d, const char *args) {
         return true;
     }
 
-    char tok[64];
-    if (sscanf(args, "%63s", tok) != 1) {
+    char raw[64];
+    if (sscanf(args, "%63s", raw) != 1) {
         descriptor_send(d, "Usage: drink <puddle|fountain>\r\n");
         return true;
     }
+    const char *tok;
+    int ordinal = thing_parse_ordinal(raw, &tok);
 
+    /* Ordinal support (user 2026-07-18: "make it true as part of
+     * everything that can exist") -- "2.puddle" picks the second
+     * qualifying puddle/fountain in room order instead of always the
+     * first; plain "puddle" (ordinal defaults to 1) is unchanged. */
     obj_t *pool = NULL, *fount = NULL;
+    int seen = 0;
     for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
         if (t->kind != THING_OBJ)
             continue;
         obj_t *o = (obj_t *)t;
         if (!keyword_matches(o->base.name, tok))
             continue;
-        if (!pool && keyword_matches(o->base.name, "puddle")) {
+        bool is_pool = keyword_matches(o->base.name, "puddle");
+        bool is_fount = o->category == OBJ_CAT_DRINK;
+        if (!is_pool && !is_fount)
+            continue;
+        seen++;
+        if (seen != ordinal)
+            continue;
+        if (is_pool)
             pool = o;
-            break;
-        }
-        if (!fount && o->category == OBJ_CAT_DRINK)
+        else
             fount = o;
+        break;
     }
 
     if (!pool && !fount) {

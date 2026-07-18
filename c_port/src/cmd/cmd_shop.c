@@ -15,6 +15,7 @@
 #include "obj.h"
 #include "obj_repo.h"
 #include "shop_repo.h"
+#include "thing.h"
 
 /* Same keyword-abbreviation matching spirit as cmd_object.c's
  * obj_name_matches() -- duplicated locally rather than shared, same
@@ -375,7 +376,15 @@ bool cmd_sell(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* Ordinal support (user 2026-07-18: "make it true as part of
+     * everything that can exist") -- "sell 2.sword" picks the second
+     * matching loose carried item, e.g. when you're holding two of the
+     * same thing. */
+    const char *sell_tok;
+    int sell_ordinal = thing_parse_ordinal(args, &sell_tok);
+
     obj_t *found = NULL;
+    int sell_seen = 0;
     for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
         if (t->kind != THING_OBJ)
             continue;
@@ -387,9 +396,12 @@ bool cmd_sell(descriptor_t *d, const char *args) {
                 worn = true;
         if (worn)
             continue;
-        if (keyword_matches(t->name, args)) {
-            found = (obj_t *)t;
-            break;
+        if (keyword_matches(t->name, sell_tok)) {
+            sell_seen++;
+            if (sell_seen == sell_ordinal) {
+                found = (obj_t *)t;
+                break;
+            }
         }
     }
     if (!found) {

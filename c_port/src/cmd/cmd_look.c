@@ -109,13 +109,20 @@ static int group_room_items(const room_t *r, const being_t *viewer, bool want_fi
 }
 
 /* Finds an object by keyword in a thing_t chain (room floor, or a being's
- * own carried/worn/held things) -- shared by look_at_target() below. */
-static obj_t *find_obj_here(thing_t *chain, const char *tok, size_t len) {
+ * own carried/worn/held things) -- shared by look_at_target() below.
+ * `ordinal` (see thing_parse_ordinal()) picks the Nth match instead of
+ * always the first, e.g. "2.board" -- 1 (the default with no "N."
+ * prefix) reproduces the old always-first-match behavior exactly. */
+static obj_t *find_obj_here(thing_t *chain, const char *tok, size_t len, int ordinal) {
+    int seen = 0;
     for (thing_t *t = chain; t; t = t->stuff_next) {
         if (t->kind != THING_OBJ)
             continue;
-        if (thing_name_matches(t->name, tok, len))
-            return (obj_t *)t;
+        if (thing_name_matches(t->name, tok, len)) {
+            seen++;
+            if (seen == ordinal)
+                return (obj_t *)t;
+        }
     }
     return NULL;
 }
@@ -147,21 +154,36 @@ static const char *obj_condition_text(const obj_t *o) {
  * "nothing special" line -- a mob's `description` column is loaded into
  * this same `appearance` field by being_create_mob(), so this needs no
  * mob-specific branch. An object shows its long_descr plus a condition
- * line derived from cur_struct/max_struct (when the prototype set one). */
+ * line derived from cur_struct/max_struct (when the prototype set one).
+ *
+ * Supports the "N.keyword" ordinal prefix (user 2026-07-18: "make look
+ * board, look 2.board to look at second board... make it true as part of
+ * everything that can exist, l mob, l 2.mob, kill 2.mob, etc.") --
+ * `thing_parse_ordinal()` already backed `kill`/`get` (combat.c/
+ * cmd_object.c); `look` was the one gap. Plain `look <name>` (no "N."
+ * prefix, ordinal defaults to 1) reproduces the old always-first-match
+ * behavior exactly -- no behavior change for existing muscle memory. */
 bool look_at_target(descriptor_t *d, const char *args) {
-    char tok[64];
-    if (sscanf(args, "%63s", tok) != 1)
+    char raw[64];
+    if (sscanf(args, "%63s", raw) != 1)
         return false;
+
+    const char *tok;
+    int ordinal = thing_parse_ordinal(raw, &tok);
 
     room_t *r = d->character->base.roomp;
     size_t len = strlen(tok);
     being_t *tgt = NULL;
+    int seen = 0;
     for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
         if (t->kind != THING_PC && t->kind != THING_MOB)
             continue;
         if (thing_name_matches(t->name, tok, len)) {
-            tgt = (being_t *)t;
-            break;
+            seen++;
+            if (seen == ordinal) {
+                tgt = (being_t *)t;
+                break;
+            }
         }
     }
     if (tgt) {
@@ -215,9 +237,9 @@ bool look_at_target(descriptor_t *d, const char *args) {
 
     /* Not a PC/mob -- try an object: the room floor first, then whatever
      * the looker is carrying/wearing/holding. */
-    obj_t *o = find_obj_here(r->base.stuff_head, tok, len);
+    obj_t *o = find_obj_here(r->base.stuff_head, tok, len, ordinal);
     if (!o)
-        o = find_obj_here(d->character->base.stuff_head, tok, len);
+        o = find_obj_here(d->character->base.stuff_head, tok, len, ordinal);
     if (!o) {
         descriptor_send(d, "You don't see that here.\r\n");
         return true;

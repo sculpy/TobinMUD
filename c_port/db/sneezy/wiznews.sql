@@ -532,5 +532,9 @@ INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ON DUPLICATE KEY UPDATE `title` = `title`;
 
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', '`look` Can Now Count Too', '`kill 2.mob` and `get 2.sword` have worked for a while when more than one thing matches -- `look` was the odd one out. Now it counts the same way: `look board` looks at the first matching thing in the room (or your own gear), `look 2.board` the second, and so on. Same trick works for `drink`/`sip` (a room with two puddles), `open` (two chests), `show`, `sell`, and reading/writing to a specific bulletin board when a room has more than one.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Few Bugs Squashed', '`stat obj/mob/room <name>` now actually searches by name when you don''t give it a vnum, instead of quietly showing you whatever happens to sit at vnum 0. The doctor''s hospital greeting is properly capitalized now ("The Tobin City Doctor...", not "the..."). And `load` (Immortal-only) now warns you -- without ever refusing -- if spawning something pushes its world count past what that prototype was ever meant to have loose at once, so it''s easier to remember to clean up after testing.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
