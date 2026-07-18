@@ -173,3 +173,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Few Small Conveniences',
  'prompt can now show your gold alongside your hit points. point mentions whatever you are holding instead of always pointing around randomly. And toggle pk is here for anyone who wants to fight other players -- both sides have to opt in, so nobody is dragged into a fight they did not choose.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Tip a Day',
+ 'Type tips any time for a random piece of gameplay advice. If you are still on the newbie channel you will also get one every so often without asking.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

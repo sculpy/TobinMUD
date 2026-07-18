@@ -145,6 +145,8 @@ bool cmd_write(descriptor_t *d, const char *args);
 bool cmd_light(descriptor_t *d, const char *args);
 bool cmd_extinguish(descriptor_t *d, const char *args);
 bool cmd_refuel(descriptor_t *d, const char *args);
+bool cmd_tips(descriptor_t *d, const char *args);
+bool cmd_tipedit(descriptor_t *d, const char *args);
 
 /* cmd_look.c's own `look <name>` resolver -- shared with `examine`
  * (cmd_examine.c), which Sneezy documents as a plain synonym for
@@ -182,6 +184,9 @@ bool look_at_target(descriptor_t *d, const char *args);
 
 /* `edrules` writes the numbered game rules -- Administrator (59) and up. */
 #define EDRULES_MIN_LEVEL 59
+
+/* `tipedit` adds/lists/deletes tips (TODO.md-planned tier). */
+#define TIPEDIT_MIN_LEVEL 53
 
 /* `redit` (the room builder): 51+ -- every immortal builds (user spec,
  * Session 21; future oedit/medit/zedit land at 51 too). Help editing

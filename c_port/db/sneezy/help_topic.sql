@@ -816,3 +816,10 @@ UPDATE `help_topic` SET `body` = 'Usage: prompt [hp|gold]\n\n`prompt hp` toggles
 -- opted in for attack/kill between players") -- full-body replacement.
 UPDATE `help_topic` SET `body` = 'Usage: toggle [name]\n\nWith no argument, lists your on/off switches and their current values.\n`toggle <name>` flips one (abbreviations welcome). Player toggles like\ncolor and hp affect only you; game toggles like multiplay are global\nand only 55+ immortals may change them.\n\n`toggle pk` is worth calling out specifically: it opts YOU in to\nfighting other players, but `attack`/`kill`/`hit` only ever reaches\nanother player if BOTH of you have it on -- otherwise they''re simply\nnot a valid target, same as if they weren''t in the room. Off by\ndefault. Mob combat is completely unaffected either way.\n\nRelated: gametog prompt'
   WHERE `name` = 'toggle' AND `updated_by` = 'seed';
+
+-- Tips system (user 2026-07-18: "tips command + periodic tip echoes,
+-- per-player newbie toggle, tipedit").
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('tips', 'Usage: tips\n\nShows one random gameplay tip. If you''re still on the newbie\nchannel (`toggle newbie`), you''ll also get one echoed to you\nautomatically every so often without asking.\n\nRelated: toggle', 'seed'),
+('tipedit', 'Usage: tipedit <text>   |   tipedit list   |   tipedit delete <id>\n\nImmortal only (53+): manages the pool `tips` draws from. Bare\n`tipedit <text>` adds a new one-line tip; `tipedit list` shows every\ntip with its number; `tipedit delete <id>` removes one.\n\nRelated: tips', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

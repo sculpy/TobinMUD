@@ -547,3 +547,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Few Small Ones', '`prompt gold` joins `prompt hp` -- turn on either or both. `point` (with no target, or aimed at someone) now mentions whatever you''re holding in your primary hand instead of always "pointing around randomly." And `toggle pk` is here: player-vs-player combat only ever works if BOTH sides have opted in with it -- otherwise `attack`/`kill`/`hit` simply can''t find the other player at all. Off by default; mobs are unaffected either way.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Tips Have Arrived', '`tips` shows a random gameplay tip on demand; anyone still on the newbie channel also gets one echoed automatically every so often. `tipedit <text>` / `tipedit list` / `tipedit delete <id>` (53+) manage the pool -- DB-backed like news and help, but kept flat like `bug`/`idea` since a tip is one short sentence, not long-form content.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

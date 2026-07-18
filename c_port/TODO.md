@@ -1887,8 +1887,16 @@ already tracked — pointers, not duplicates):
       existing immortal-vs-immortal guard, cmd_kill.c, are unaffected --
       this only governs mortal-vs-mortal). Default off (opt IN, not
       out).
-- [ ] **Tips system** — `tips` command + periodic tip echoes (pulse-driven),
-      per-player newbie toggle, `tipedit` (53+). DB-backed like news/help.
+- [x] **Tips system** — done 2026-07-18. DB-backed (`tip` table,
+      tips_repo.h/.c, seeded with a real starter set) like news/help, but
+      kept one-liner-flat like `bug`/`idea` rather than a full menu
+      editor -- a tip is one short sentence, not long-form titled
+      content. `tips` (mortal) shows one random tip on demand;
+      `tipedit <text>`/`tipedit list`/`tipedit delete <id>` (53+) manage
+      the pool. `tips_pulse_tick()` (~10min cadence) echoes a random tip
+      to every connected player currently on the newbie channel
+      (`PLR_NEWBIE`, already existed) -- "per-player newbie toggle" reuses
+      that flag rather than adding a second one.
 - [ ] **Typed logs** — `log.h` log-type taxonomy; every log line gets a type,
       `log search` can filter by type.
 - [x] **`dig`** — done 2026-07-18. `dig <direction>` (BUILD_MIN_LEVEL): if
