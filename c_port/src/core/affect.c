@@ -12,6 +12,24 @@
 static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "(none)",
     "Sanctuary",
+    "Cold",
+    "Flu",
+    "Food Poisoning",
+    "Plague",
+};
+
+/* HP drained per damage sub-tick (see affect_tick_run()'s DISEASE_TICK_
+ * EVERY gate) for each AFFECT_DISEASE_* value, indexed the same as
+ * AFFECT_NAMES. Non-disease entries are unused (0). Roughly scaled to
+ * each disease's own duration (cmd_drink.c) so the worse ones both hit
+ * harder AND last longer, matching the original disease.h's flavor
+ * without porting its full 27-type spec-proc system -- a "modest list"
+ * (TODO.md), not a straight port. */
+static const int DISEASE_HP_DRAIN[AFFECT_COUNT] = {
+    [AFFECT_DISEASE_COLD] = 1,
+    [AFFECT_DISEASE_FLU] = 2,
+    [AFFECT_DISEASE_FOOD_POISONING] = 3,
+    [AFFECT_DISEASE_PLAGUE] = 4,
 };
 
 /* Looks up the display name for an affect type, e.g. for the `affects`
@@ -21,6 +39,11 @@ const char *affect_name(affect_type_t type) {
     if (type < 0 || type >= AFFECT_COUNT)
         return "(unknown)";
     return AFFECT_NAMES[type];
+}
+
+bool affect_is_disease(affect_type_t type) {
+    return type == AFFECT_DISEASE_COLD || type == AFFECT_DISEASE_FLU
+        || type == AFFECT_DISEASE_FOOD_POISONING || type == AFFECT_DISEASE_PLAGUE;
 }
 
 /* Checks whether `b` currently has a given buff/debuff active by
@@ -76,11 +99,24 @@ void being_remove_affect(struct being *b, affect_type_t type) {
     }
 }
 
+/* A disease deals its DISEASE_HP_DRAIN[] damage only every 10th round
+ * (not every affect_tick_run() call -- COMBAT_ROUND_PULSES is ~1.2s, so
+ * every round would drain a "modest" disease's whole duration in HP
+ * within seconds) -- stateless, just a modulus on the same rounds_left
+ * counter everything else already uses, no extra field needed. */
+#define DISEASE_TICK_EVERY 10
+
 /* Runs on a timer (see main.c) for every connected being: counts each
  * of their active buffs/debuffs down by one round, and clears (with a
  * "wears off" message) any that just hit zero. Applies regardless of
  * whether the being is currently fighting -- a buff keeps wearing off
- * even outside combat. */
+ * even outside combat. Diseases (AFFECT_DISEASE_*) also drain HP on
+ * their own slower sub-tick along the way -- see DISEASE_TICK_EVERY
+ * above -- clamped so it can never drop anyone below 1 HP outside
+ * combat (same non-lethal convention cmd_drink.c's poison roll uses),
+ * and skipped outright for an immortal (TODO.md: "immortals immune" --
+ * covers a being promoted mid-disease, not just the infection roll
+ * itself, which is gated separately at the source in cmd_drink.c). */
 void affect_tick_run(long pulse_num) {
     (void)pulse_num;
     for (descriptor_t *d = g_descriptors; d; d = d->next) {
@@ -91,6 +127,17 @@ void affect_tick_run(long pulse_num) {
             if (b->affects[i].type == AFFECT_NONE)
                 continue;
             b->affects[i].rounds_left--;
+            if (affect_is_disease(b->affects[i].type) && !being_is_immortal(b)
+                && b->affects[i].rounds_left % DISEASE_TICK_EVERY == 0) {
+                int dmg = DISEASE_HP_DRAIN[b->affects[i].type];
+                b->progress.hp -= dmg;
+                if (b->progress.hp < 1)
+                    b->progress.hp = 1;
+                char dmsg[80];
+                snprintf(dmsg, sizeof(dmsg), "Your %s flares up, sapping your strength.\r\n",
+                         affect_name(b->affects[i].type));
+                descriptor_send(d, dmsg);
+            }
             if (b->affects[i].rounds_left <= 0) {
                 char msg[64];
                 snprintf(msg, sizeof(msg), "Your %s wears off.\r\n", affect_name(b->affects[i].type));

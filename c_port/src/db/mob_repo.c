@@ -49,3 +49,16 @@ int mob_find_vnum_by_name(const char *name) {
     db_close(db);
     return vnum;
 }
+
+int mob_repo_get_spec_proc(int vnum) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+
+    int spec_proc = -1;
+    if (db_query(db, "select spec_proc from mob where vnum=%i", vnum) && db_fetch_row(db))
+        spec_proc = atoi(db_get(db, "spec_proc"));
+
+    db_close(db);
+    return spec_proc;
+}

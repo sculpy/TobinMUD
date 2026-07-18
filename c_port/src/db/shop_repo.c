@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "db.h"
+#include "mob_repo.h"
 #include "obj.h"
 
 bool shop_repo_find_by_room(int room_vnum, shop_t *out) {
@@ -58,6 +59,19 @@ bool shop_repo_buys_category(int shop_nr, int category) {
 
     db_close(db);
     return buys;
+}
+
+bool shop_repo_is_hospital(int shop_nr) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    int keeper = -1;
+    if (db_query(db, "select keeper from shop where shop_nr=%i", shop_nr) && db_fetch_row(db))
+        keeper = atoi(db_get(db, "keeper"));
+
+    db_close(db);
+    return keeper >= 0 && mob_repo_get_spec_proc(keeper) == SPEC_PROC_DOCTOR;
 }
 
 void shop_repo_producing(int shop_nr, int *out, int max, int *count) {

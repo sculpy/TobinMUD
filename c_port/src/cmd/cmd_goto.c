@@ -355,6 +355,19 @@ static bool goto_surplus(descriptor_t *d) {
         "You don't know how to get there from here.\r\n");
 }
 
+/* `goto hospital`: nearest room flagged ROOM_FLAG_HOSPITAL (6 real ones
+ * seeded -- Tobin City, Amber, Logrus, Brightmoon, a field medic, and
+ * Xanesla, see shop_repo.h's SPEC_PROC_DOCTOR comment), so new players
+ * get pointed to whichever is closest rather than one fixed room. */
+static bool goto_is_hospital_room(room_t *r) {
+    return (r->room_flag & ROOM_FLAG_HOSPITAL) != 0;
+}
+
+static bool goto_hospital(descriptor_t *d) {
+    return goto_send_directions(d, goto_is_hospital_room, "a hospital",
+        "You don't know how to get to a hospital from here.\r\n");
+}
+
 /* `goto <vnum>` or `goto <player>`: immortal-only teleport. A number goes
  * straight to that room; a name goes to that online being's current room
  * (players now; mobs once they exist). Mirrors the original doGoto's
@@ -371,7 +384,7 @@ bool cmd_goto(descriptor_t *d, const char *args) {
         return true;
     }
     if (!*args) {
-        descriptor_send(d, "Usage: goto guildmaster|combat|rent|surplus|<classname>   |   goto <room vnum | player name> (immortals)\r\n");
+        descriptor_send(d, "Usage: goto guildmaster|combat|rent|surplus|hospital|<classname>   |   goto <room vnum | player name> (immortals)\r\n");
         return true;
     }
 
@@ -391,6 +404,8 @@ bool cmd_goto(descriptor_t *d, const char *args) {
             return goto_rent(d);
         if (flen && strncasecmp(first, "surplus", flen) == 0)
             return goto_surplus(d);
+        if (flen && strncasecmp(first, "hospital", flen) == 0)
+            return goto_hospital(d);
         /* `goto <classname>` -- directions to that class's own Basic
          * guildmaster, not just the caller's own class (checked last, so
          * a class name that happens to abbreviate-collide with one of the

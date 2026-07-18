@@ -32,8 +32,32 @@ typedef enum {
     /* Halves incoming damage in combat_strike() -- the Cleric spell
      * "sanctuary" ("A strong aura that reduces incoming damage."). */
     AFFECT_SANCTUARY,
+    /* Diseases (TODO.md: "modest list affecting players (immortals
+     * immune); pulse-driven affect/tick, cure path TBD"). Reuse this
+     * SAME buff/debuff array rather than a parallel disease.h/.c module
+     * -- storage, the `affects` display, and expiry-message plumbing all
+     * already exist; only the periodic HP-drain sub-tick
+     * (affect_tick_run(), affect.c) is disease-specific (affect_is_
+     * disease() + DISEASE_HP_DRAIN[], gated so it only fires every 10th
+     * round rather than every affect_tick_run() call, or a "modest"
+     * disease would out-damage what its own duration implies). Caught
+     * by drinking from a puddle (cmd_drink.c), on top of its existing
+     * one-shot poison roll; immortals never catch one (gated at the
+     * application site) and stop taking damage from one mid-tick if
+     * ever promoted while sick. No active cure yet -- these just run
+     * their course and wear off like any other affect; a real cure
+     * (spell/item/hospital) is a natural follow-up, not v1 scope. */
+    AFFECT_DISEASE_COLD,
+    AFFECT_DISEASE_FLU,
+    AFFECT_DISEASE_FOOD_POISONING,
+    AFFECT_DISEASE_PLAGUE,
     AFFECT_COUNT,
 } affect_type_t;
+
+/* True for the AFFECT_DISEASE_* values above -- used by affect_tick_run()
+ * to gate the periodic HP-drain sub-tick, and by cmd_drink.c to pick a
+ * random disease to apply. */
+bool affect_is_disease(affect_type_t type);
 
 #define MAX_ACTIVE_AFFECTS 4
 

@@ -9,6 +9,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "affect.h"
 #include "being.h"
 #include "log.h"
 #include "obj.h"
@@ -17,6 +18,19 @@
 #define DRINK_POISON_CHANCE_PCT 30
 #define DRINK_POISON_MIN_DMG 2
 #define DRINK_POISON_MAX_DMG 8
+
+/* Disease infection roll (TODO.md: "Diseases -- modest list affecting
+ * players... cure path TBD"), independent of the poison roll above --
+ * getting lucky on one doesn't protect against the other. Only puddles
+ * carry this risk, same as poison; a fountain's clean water never rolls
+ * for either. Durations are in COMBAT_ROUND_PULSES rounds (~1.2s each,
+ * see affect.h) -- picked so DISEASE_TICK_EVERY (affect.c) divides them
+ * evenly, landing a damage tick right as each one expires too. */
+#define DRINK_DISEASE_CHANCE_PCT 15
+static const affect_type_t DRINK_DISEASES[] = {
+    AFFECT_DISEASE_COLD, AFFECT_DISEASE_FLU, AFFECT_DISEASE_FOOD_POISONING, AFFECT_DISEASE_PLAGUE,
+};
+static const int DRINK_DISEASE_DURATIONS[] = { 30, 50, 40, 80 };
 
 /* Same keyword-abbreviation matching spirit as cmd_object.c's
  * obj_name_matches() (a case-insensitive prefix of any individual
@@ -114,6 +128,19 @@ bool cmd_drink(descriptor_t *d, const char *args) {
                  ch->base.name, label, pool->vnum, ch->base.roomp->vnum);
     } else {
         descriptor_send(d, "Thankfully, it doesn't seem to have made you sick.\r\n");
+    }
+
+    if (!being_is_immortal(ch) && rand() % 100 < DRINK_DISEASE_CHANCE_PCT) {
+        int idx = rand() % (int)(sizeof(DRINK_DISEASES) / sizeof(DRINK_DISEASES[0]));
+        affect_type_t disease = DRINK_DISEASES[idx];
+        if (!being_has_affect(ch, disease)) {
+            being_apply_affect(ch, disease, DRINK_DISEASE_DURATIONS[idx]);
+            char dmsg[96];
+            snprintf(dmsg, sizeof(dmsg), "Ugh -- you feel like you've caught %s.\r\n", affect_name(disease));
+            descriptor_send(d, dmsg);
+            game_log(LOG_SILENT, "%s caught %s drinking %s (vnum %d) in room %d",
+                     ch->base.name, affect_name(disease), label, pool->vnum, ch->base.roomp->vnum);
+        }
     }
 
     return true;

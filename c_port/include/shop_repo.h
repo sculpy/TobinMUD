@@ -55,4 +55,19 @@ bool shop_repo_buys_category(int shop_nr, int category);
  * it never "runs out". */
 void shop_repo_producing(int shop_nr, int *out, int max, int *count);
 
+/* The original engine's "doctor" spec-proc id (misc/hospital.cc) -- seeded
+ * verbatim into mob.spec_proc for every real hospital keeper in the
+ * import (6 of them: Tobin City, Amber, Logrus, Brightmoon, a field
+ * medic, and Xanesla). A data-driven signal, not a hardcoded room/shop
+ * vnum list the way the original's own getDoctor() was -- see
+ * shop_repo_is_hospital(). */
+#define SPEC_PROC_DOCTOR 48
+
+/* True if shop `shop_nr`'s keeper mob is a "doctor" (Hospital, TODO.md:
+ * "add hospital code" -- limb repair + disease cures, cmd_shop.c). A
+ * hospital shop's own `shopproducing` is empty (nothing physical to
+ * sell) -- `list`/`buy` special-case this instead, listing/curing
+ * ailments in its place. */
+bool shop_repo_is_hospital(int shop_nr);
+
 #endif

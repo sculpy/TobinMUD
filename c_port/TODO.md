@@ -1885,8 +1885,15 @@ already tracked — pointers, not duplicates):
       news/ednews.
 - [x] **ed* rename** — done 2026-07-05: redit→edroom, hedit→edhelp,
       addnews→ednews (command names, help topics, tests, editor prompts).
-- [ ] **Diseases** — modest list affecting players (immortals immune);
-      pulse-driven affect/tick, cure path TBD (`disease.h` for inspiration).
+- [x] **Diseases** — done 2026-07-18: 4 diseases (Cold/Flu/Food Poisoning/
+      Plague, `affect_type_t`, affect.h), immortals immune. Caught from
+      drinking a pool (`cmd_drink.c`, 15% chance on the puddle-drinking
+      branch, one of the 4 picked at random with its own duration). Ticks
+      via the existing `affect_tick_run()` pulse: every 10th round-left
+      tick drains 1-4 HP (by severity) with a "flares up" message, clamped
+      to a minimum of 1 HP, until it wears off naturally or is cured (see
+      Hospital below). Not DB-persisted (like all affects) -- lost on
+      reconnect.
 - [ ] **News follow-ups** — edit/delete existing news in-game (addnews only
       creates); show unseen news at login (per-player last-seen).
 - [ ] **redit Extra Descriptions** — keyword extra descs (`roomextra` table
@@ -3872,16 +3879,15 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
 
 ## Bigger systems (need design / a decision)
 
-- [ ] **Hospital (limb repair)** — user, 2026-07-11: "add hospital code to
-      the todo list." Right now a destroyed limb (`being_has_destroyed_limb()`,
-      being.h) has no in-game cure -- the only fix is dying and respawning
-      (`being_limbs_full_heal()` at combat defeat). A hospital would let a
-      living character repair a destroyed/damaged limb mid-game instead.
-      Needs design decisions: a physical hospital room/building + a `heal`
-      or `repair` command there (vs. an NPC healer to interact with);
-      cost (gold? time? risk?); whether it also cures poison (see `drink`
-      from pools) or only limb damage; whether it's instant or takes time
-      (a queued/timed repair). Not started.
+- [x] **Hospital (limb repair)** — done 2026-07-18: reuses the real seeded
+      doctor shops (6 of them -- Tobin City, Amber, Logrus, Brightmoon, a
+      field medic, Xanesla -- identified via `mob.spec_proc=48`,
+      `shop_repo_is_hospital()`, no hardcoded vnum list) and the ROOM_HOSPITAL
+      room flag (`goto hospital` finds the nearest one). `list`/`buy` at a
+      hospital shop (`cmd_shop.c`) special-case into an ailment menu instead
+      of the normal item catalog: every damaged limb and active disease is
+      priced and numbered, `buy <#>` cures it instantly (full limb heal or
+      `being_remove_affect()`) and deducts gold. Instant, not timed/queued.
 - [x] **Classes** — already shipped: 6 classes (mage/cleric/warrior/thief/
       druid/monk) chosen at creation (`show_class_screen()`, descriptor.c),
       shown in score/who, with `class_stat_bonus()` (being.c) applying
@@ -3938,7 +3944,7 @@ conversation and in `sneezymud-master`): `positionTypeT` (done), `prompt_mesg`
 ## Deferred decisions (blocked on choosing, not on code)
 
 - [ ] Which ~8-10 `disc/` disciplines to keep; which 1-2 `task/` professions.
-- [ ] Hospital mechanic for destroyed limbs (only cure now is death/respawn).
+- [x] Hospital mechanic for destroyed limbs — done 2026-07-18, see above.
 - [ ] Whether the destroyed-limb hit penalty scales with count (flat -15 now).
 - [x] Immortal-vs-immortal `kill` guard — done (Session 43): `cmd_kill.c`
       refuses to instakill a PC target whose TRUE rank (true_level if set,

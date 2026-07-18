@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 
 #include "combat.h"
 
@@ -55,7 +56,11 @@ bool cmd_hurtlimb(descriptor_t *d, const char *args) {
         return true;
     }
 
-    being_t *target = combat_find_room_target(d->character, target_name);
+    being_t *target = NULL;
+    if (strcasecmp(target_name, "self") == 0 || strcasecmp(target_name, d->character->base.name) == 0)
+        target = d->character;
+    else
+        target = combat_find_room_target(d->character, target_name);
     if (!target) {
         descriptor_send(d, "They aren't here.\r\n");
         return true;

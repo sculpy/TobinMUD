@@ -10,6 +10,8 @@
 #include <string.h>
 #include <strings.h>
 
+#include "affect.h"
+#include "being.h"
 #include "obj.h"
 #include "obj_repo.h"
 #include "shop_repo.h"
@@ -60,6 +62,144 @@ static being_t *find_active_shop(room_t *room, shop_t *shop) {
     return NULL;
 }
 
+/* Hospital (TODO.md: "add hospital code to the todo list" -- limb repair
+ * + disease cures, ported from the original's hospital.cc `doctor` spec-
+ * proc). A hospital shop's own `shopproducing` is empty -- nothing
+ * physical to sell -- so `list`/`buy` branch here instead whenever
+ * shop_repo_is_hospital() says the active shop's keeper is a doctor.
+ * Deliberately NOT a port of the original's per-level-squared pricing
+ * formula or its wound-flag (PART_BLEEDING/BROKEN/...) tiers -- Tobin has
+ * no wound-flag tracking yet (see TODO.md's "Limbs.h gap review"), just
+ * raw limb HP, so pricing is simply 1 gold per missing point, and every
+ * limb below full is listed (not just the badly hurt ones -- a hospital
+ * can top off a scratch same as a shattered arm). */
+typedef struct {
+    bool is_limb;
+    limb_t limb;
+    affect_type_t disease;
+    int price;
+} ailment_t;
+
+#define HOSPITAL_MAX_AILMENTS (LIMB_COUNT + MAX_ACTIVE_AFFECTS)
+
+/* Flat per-type disease cure price, roughly scaled to how nasty each one
+ * is (affect.c's own DISEASE_HP_DRAIN/duration pairing) -- not level-
+ * scaled like the original's doctorCost(), matching Tobin's much smaller
+ * gold economy (see shop pricing elsewhere: a torch is 3 gold). */
+static int disease_cure_price(affect_type_t type) {
+    switch (type) {
+        case AFFECT_DISEASE_COLD: return 10;
+        case AFFECT_DISEASE_FLU: return 25;
+        case AFFECT_DISEASE_FOOD_POISONING: return 35;
+        case AFFECT_DISEASE_PLAGUE: return 75;
+        default: return 50;
+    }
+}
+
+/* Enumerates `ch`'s current ailments (damaged limbs, then active
+ * diseases) into `out` (capacity `max`), in a STABLE order (LIMB_COUNT
+ * order, then MAX_ACTIVE_AFFECTS slot order) -- both list_hospital() and
+ * buy_hospital_cure() call this fresh each time rather than caching, so
+ * the two always agree on what number means what, the same "recompute,
+ * don't cache" contract cmd_edaccount.c's menu uses. Returns the count
+ * found. */
+static int hospital_ailments(const being_t *ch, ailment_t *out, int max) {
+    int n = 0;
+    for (int i = 0; i < LIMB_COUNT && n < max; i++) {
+        if (ch->limbs[i].hp < ch->limbs[i].max_hp) {
+            int missing = ch->limbs[i].max_hp - ch->limbs[i].hp;
+            out[n].is_limb = true;
+            out[n].limb = (limb_t)i;
+            out[n].price = missing > 0 ? missing : 1;
+            n++;
+        }
+    }
+    for (int i = 0; i < MAX_ACTIVE_AFFECTS && n < max; i++) {
+        if (affect_is_disease(ch->affects[i].type)) {
+            out[n].is_limb = false;
+            out[n].disease = ch->affects[i].type;
+            out[n].price = disease_cure_price(ch->affects[i].type);
+            n++;
+        }
+    }
+    return n;
+}
+
+static void list_hospital(descriptor_t *d, being_t *ch, being_t *keeper) {
+    ailment_t ailments[HOSPITAL_MAX_AILMENTS];
+    int count = hospital_ailments(ch, ailments, HOSPITAL_MAX_AILMENTS);
+
+    char out[2048];
+    int n = snprintf(out, sizeof(out), "\r\n%s looks you over:\r\n", being_display_name(keeper));
+    for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
+        if (ailments[i].is_limb) {
+            int pct = ch->limbs[ailments[i].limb].max_hp > 0
+                ? (ch->limbs[ailments[i].limb].hp * 100) / ch->limbs[ailments[i].limb].max_hp
+                : 0;
+            n += snprintf(out + n, sizeof(out) - (size_t)n, " %2d) Your %-16s (%3d%% health)      %d gold\r\n",
+                          i + 1, limb_name(ailments[i].limb), pct, ailments[i].price);
+        } else {
+            n += snprintf(out + n, sizeof(out) - (size_t)n, " %2d) %-25s                %d gold\r\n",
+                          i + 1, affect_name(ailments[i].disease), ailments[i].price);
+        }
+    }
+    if (count == 0 && (size_t)n < sizeof(out))
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "  You look perfectly healthy to me.\r\n");
+    else if ((size_t)n < sizeof(out))
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "\r\n(buy <#> to be treated)\r\n");
+    descriptor_page_start(d, out, 0);
+}
+
+static void buy_hospital_cure(descriptor_t *d, being_t *ch, being_t *keeper, const shop_t *shop, const char *args) {
+    ailment_t ailments[HOSPITAL_MAX_AILMENTS];
+    int count = hospital_ailments(ch, ailments, HOSPITAL_MAX_AILMENTS);
+
+    char tok[64] = "";
+    sscanf(args, "%63s", tok);
+    bool all_digits = tok[0] != '\0';
+    for (const char *p = tok; *p; p++) {
+        if (!isdigit((unsigned char)*p)) {
+            all_digits = false;
+            break;
+        }
+    }
+    int idx = all_digits ? atoi(tok) : -1;
+    if (idx < 1 || idx > count) {
+        char msg[SHOP_MSG_LEN + 4];
+        snprintf(msg, sizeof(msg), "%s\r\n", shop->no_such_item1);
+        descriptor_send(d, msg);
+        return;
+    }
+
+    ailment_t ail = ailments[idx - 1];
+    if (ch->progress.gold < ail.price) {
+        char msg[SHOP_MSG_LEN + 4];
+        snprintf(msg, sizeof(msg), "%s\r\n", shop->missing_cash1);
+        descriptor_send(d, msg);
+        return;
+    }
+
+    char confirm[160];
+    if (ail.is_limb) {
+        ch->limbs[ail.limb].hp = ch->limbs[ail.limb].max_hp;
+        snprintf(confirm, sizeof(confirm), "%s tends to your %s -- it feels much better!\r\n",
+                 being_display_name(keeper), limb_name(ail.limb));
+    } else {
+        being_remove_affect(ch, ail.disease);
+        snprintf(confirm, sizeof(confirm), "%s administers a cure for your %s!\r\n",
+                 being_display_name(keeper), affect_name(ail.disease));
+    }
+    descriptor_send(d, confirm);
+
+    char paid[SHOP_MSG_LEN + 16];
+    snprintf(paid, sizeof(paid), shop->message_buy, ail.price);
+    strncat(paid, "\r\n", sizeof(paid) - strlen(paid) - 1);
+    descriptor_send(d, paid);
+
+    ch->progress.gold -= ail.price;
+    player_progress_save(ch->player_id, &ch->progress);
+}
+
 /* `list` (user 2026-07-17: "implement money and shops"): shows the active
  * shop's wares from its `shopproducing` catalog (see shop_repo.h -- NOT
  * the keeper mob's own carried items; the seeded zone-reset data never
@@ -85,6 +225,10 @@ bool cmd_list(descriptor_t *d, const char *args) {
     being_t *keeper = find_active_shop(ch->base.roomp, &shop);
     if (!keeper) {
         descriptor_send(d, "You don't see a shop here.\r\n");
+        return true;
+    }
+    if (shop_repo_is_hospital(shop.shop_nr)) {
+        list_hospital(d, ch, keeper);
         return true;
     }
 
@@ -137,6 +281,10 @@ bool cmd_buy(descriptor_t *d, const char *args) {
     being_t *keeper = find_active_shop(ch->base.roomp, &shop);
     if (!keeper) {
         descriptor_send(d, "You don't see a shop here.\r\n");
+        return true;
+    }
+    if (shop_repo_is_hospital(shop.shop_nr)) {
+        buy_hospital_cure(d, ch, keeper, &shop, args);
         return true;
     }
 

@@ -62,6 +62,11 @@ const char *room_flag_name(int bit);
  * test it directly. */
 #define ROOM_FLAG_NO_MOB (1 << 2)
 
+/* Bit 16 of ROOM_FLAG_NAMES (room.c) -- matches the upstream ROOM_HOSPITAL
+ * bit position verbatim. Named here since cmd_goto.c's `goto hospital`
+ * landmark search needs to test it directly. */
+#define ROOM_FLAG_HOSPITAL (1 << 16)
+
 /* Sector-based ground-surface word (Sneezy's TRoom::describeGroundType(),
  * misc/create_rooms.cc) -- "street", "road", "water", "mud", "sand",
  * "floor" (indoors), or "ground" (default). Backs the `$$g`/`$g` token in

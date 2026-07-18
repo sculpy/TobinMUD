@@ -70,4 +70,13 @@ bool mob_proto_load(int vnum, mob_proto_t *out);
  * bare vnum. */
 int mob_find_vnum_by_name(const char *name);
 
+/* The `spec_proc` column for mob `vnum`, or -1 if the mob doesn't exist.
+ * Not part of mob_proto_t/mob_proto_load() -- Tobin has no spec-proc
+ * EXECUTION engine (triggers.c replaced that concept), but the seeded
+ * value itself is still real, useful data: shop_repo_is_hospital()
+ * (shop_repo.h) reads it to tell a "doctor" shopkeeper (spec_proc 48 in
+ * the original engine) from an ordinary one, purely as a lookup key --
+ * no original spec-proc behavior is executed. */
+int mob_repo_get_spec_proc(int vnum);
+
 #endif
