@@ -195,6 +195,15 @@ typedef struct descriptor {
     int char_levels[MAX_CHARS_PER_ACCOUNT];
     int char_count;
 
+    /* Whether the character list has been revealed this visit to the menu
+     * (user: "hide the character list until C"). False on every FRESH
+     * arrival at the menu (login, quit!-while-playing, a cancelled
+     * creation/deletion, ...); a bare `C` flips it true for the rest of
+     * this visit, so a later redisplay (after a typo, say) doesn't hide it
+     * again. `C <number|name>` (an already-known target) still connects
+     * directly without ever needing to reveal the list. */
+    bool char_list_shown;
+
     /* CONN_CHAR_CREATE_NAME / CONN_CHAR_CREATE_ATTRS / CONN_CHAR_CREATE_RACE /
      * CONN_CHAR_CREATE_CLASS / CONN_CHAR_CREATE_ALIGNMENT scratch. */
     char new_char_name[PLAYER_NAME_LEN];

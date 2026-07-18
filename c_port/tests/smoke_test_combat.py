@@ -106,7 +106,7 @@ def try_read_hp(out):
 
 
 def check_ejected(out, who):
-    check("You are DEAD!" in out and "Your characters" in out,
+    check("You are DEAD!" in out and "Connect Player" in out,
           f"{who} didn't survive and was properly ejected to the account menu")
 
 

@@ -55,10 +55,33 @@ descriptor_t *descriptor_create(int fd) {
     };
     descriptor_write(d, (const char *)negotiate, sizeof(negotiate));
 
-    /* The TobinMUD banner (user-supplied art, Session 21). The <_> in the
+    /* The TobinMUD banner (user-supplied art, Session 21 -- the <_> in the
      * O of "Tobin" is an unrecognized color tag and passes through
-     * literally by design. */
+     * literally by design), now preceded by a keep's gate (user-supplied
+     * wireframe keep1.txt, Session 47) you enter through, with the logo
+     * displayed just below it. An earlier version also opened with a
+     * distant castle-skyline piece (castle1.txt) ahead of this, but the
+     * user cut it: "remove the castle art from the connection screen,
+     * its too long displaying 2 seperate ascii art pieces." */
     descriptor_send(d,
+        "\r\n"
+        "   /\\                                                        /\\\r\n"
+        "  |  |                                                      |  |\r\n"
+        " /----\\                                                    /----\\\r\n"
+        "[______]                                                  [______]\r\n"
+        " |    |         _____                        _____         |    |\r\n"
+        " |[]  |        [     ]                      [     ]        |  []|\r\n"
+        " |    |       [_______][ ][ ][ ][][ ][ ][ ][_______]       |    |\r\n"
+        " |    [ ][ ][ ]|     |  ,----------------,  |     |[ ][ ][ ]    |\r\n"
+        " |             |     |/'    ____..____    '\\|     |             |\r\n"
+        "  \\  []        |     |    /'    ||    '\\    |     |        []  /\r\n"
+        "   |      []   |     |   |o     ||     o|   |     |  []       |\r\n"
+        "   |           |  _  |   |     _||_     |   |  _  |           |\r\n"
+        "   |   []      | (_) |   |    (_||_)    |   | (_) |       []  |\r\n"
+        "   |           |     |   |     (||)     |   |     |           |\r\n"
+        "   |           |     |   |      ||      |   |     |           |\r\n"
+        " /''           |     |   |o     ||     o|   |     |           ''\\\r\n"
+        "[_____________[_______]--'------''------'--[_______]_____________]\r\n"
         "\r\n"
         "___________   ___.   .__           _____   ____ ___________\r\n"
         "\\__    ___/___\\_ |__ |__| ____    /     \\ |    |   \\______ \\\r\n"
@@ -627,12 +650,86 @@ static int attrs_allocated(const attrs_t *a) {
 }
 
 /* Refreshes d->char_list from the DB and prints the account menu. */
+/* Returns the ON-SCREEN character count of a "<X>"-tagged string (see
+ * colorstring.h): each well-formed tag renders to either an ANSI escape
+ * (color on) or nothing at all (color off) -- zero screen columns either
+ * way -- so box/column alignment has to measure around them, not count
+ * them. Multi-byte UTF-8 box-drawing glyphs are never fed through this
+ * (they're only ever emitted directly by send_boxed_menu() itself), so a
+ * plain byte scan is safe here. */
+static size_t visible_len(const char *s) {
+    size_t len = strlen(s);
+    size_t vis = 0;
+    for (size_t i = 0; i < len; ) {
+        if (s[i] == '<' && i + 2 < len && s[i + 2] == '>') {
+            i += 3;
+            continue;
+        }
+        vis++;
+        i++;
+    }
+    return vis;
+}
+
+/* Renders `lines` inside a double-line Unicode box (user-supplied
+ * wireframe, box1.txt -- the ╔═╗║╚╝ glyph set is the intended style for
+ * every character-facing letter-menu, not a literal fixed-size template:
+ * each box is auto-sized to its own widest line). Lines may use the
+ * normal "<X>" color-tag markup; padding is computed on the tag-free
+ * visible width (see visible_len()) so a color-off render still lines up. */
+static void send_boxed_menu(descriptor_t *d, const char *const *lines, int count) {
+    size_t maxw = 0;
+    for (int i = 0; i < count; i++) {
+        size_t w = visible_len(lines[i]);
+        if (w > maxw)
+            maxw = w;
+    }
+    size_t inner = maxw + 2; /* one space of padding each side */
+
+    char out[4096];
+    size_t n = 0;
+    n += (size_t)snprintf(out + n, sizeof(out) - n, "\r\n\xe2\x95\x94");
+    for (size_t i = 0; i < inner && n < sizeof(out); i++)
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "\xe2\x95\x90");
+    n += (size_t)snprintf(out + n, sizeof(out) - n, "\xe2\x95\x97\r\n");
+
+    for (int i = 0; i < count && n < sizeof(out); i++) {
+        size_t pad = maxw - visible_len(lines[i]);
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "\xe2\x95\x91 %s%*s \xe2\x95\x91\r\n",
+                              lines[i], (int)pad, "");
+    }
+
+    n += (size_t)snprintf(out + n, sizeof(out) - n, "\xe2\x95\x9a");
+    for (size_t i = 0; i < inner && n < sizeof(out); i++)
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "\xe2\x95\x90");
+    n += (size_t)snprintf(out + n, sizeof(out) - n, "\xe2\x95\x9d\r\n");
+
+    descriptor_send(d, out);
+}
+
 static void show_account_menu(descriptor_t *d) {
     player_list_by_account(d->account.account_id, d->char_list, d->char_levels,
                            MAX_CHARS_PER_ACCOUNT, &d->char_count);
 
+    /* Hidden by default (user: "hide the character list until C") -- a
+     * boxed letter-menu (box1.txt wireframe) instead of the full listing.
+     * Nothing to hide for a brand-new account, so that case skips
+     * straight to the (empty) listing below instead. */
+    if (!d->char_list_shown && d->char_count > 0) {
+        static const char *const box[] = {
+            "<C>C<z>  Connect Player",
+            "<C>N<z>  New Player",
+            "<C>D<z>  Delete Player",
+            "<C>X<z>  Delete Account",
+            "<C>Q<z>  Quit Game",
+        };
+        send_boxed_menu(d, box, 5);
+        descriptor_send(d, "> ");
+        return;
+    }
+
     char out[2048];
-    int n = snprintf(out, sizeof(out), "\r\n-- Your characters --\r\n");
+    int n = snprintf(out, sizeof(out), "\r\n-- Your players --\r\n");
     if (d->char_count == 0) {
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  (none yet)\r\n");
     } else {
@@ -648,23 +745,19 @@ static void show_account_menu(descriptor_t *d) {
             }
             const char *title = being_level_title(d->char_levels[i]);
             if (title)
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s (%s)%s\r\n",
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s\t\t[%s]%s\r\n",
                               i + 1, d->char_list[i], title,
                               online ? " (connected)" : "");
             else
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s (Level %d)%s\r\n",
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d. %s\t\t[Level %d]%s\r\n",
                               i + 1, d->char_list[i], d->char_levels[i],
                               online ? " (connected)" : "");
         }
     }
     if ((size_t)n < sizeof(out)) {
-        snprintf(out + n, sizeof(out) - (size_t)n,
-                 "\r\n  C [number|name] -- connect a character\r\n"
-                 "  N               -- create a new character\r\n"
-                 "  D <name>        -- delete a character\r\n"
-                 "  X               -- delete this ENTIRE ACCOUNT\r\n"
-                 "  Q               -- quit the game\r\n"
-                 "(Letters work in either case; a bare number still connects too.)\r\n\r\n> ");
+        n += snprintf(out + n, sizeof(out) - (size_t)n, d->char_count == 0
+                 ? "\r\n  N create   D <name> delete   X delete account   Q quit\r\n\r\n> "
+                 : "Choose a number to connect that player to the game: ");
     }
     descriptor_send(d, out);
 }
@@ -688,6 +781,7 @@ void descriptor_leave_to_menu(descriptor_t *d) {
     }
     d->edit_kind = EDIT_NONE; /* a mid-edit defeat/quit discards the edit */
     d->state = CONN_ACCOUNT_MENU;
+    d->char_list_shown = false; /* fresh arrival at the menu -- start hidden again */
     show_account_menu(d);
 }
 
@@ -1743,10 +1837,12 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 if (!*arg) {
                     if (d->char_count == 1) {
                         pick = d->char_list[0];
+                    } else if (d->char_count == 0) {
+                        descriptor_send(d, "No characters yet -- N creates one.\r\n");
+                        show_account_menu(d);
+                        return true;
                     } else {
-                        descriptor_send(d, d->char_count == 0
-                            ? "No characters yet -- N creates one.\r\n"
-                            : "Connect which one? C <number or name>\r\n");
+                        d->char_list_shown = true; /* bare C reveals the list (user spec) */
                         show_account_menu(d);
                         return true;
                     }

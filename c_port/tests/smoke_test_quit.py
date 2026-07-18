@@ -143,7 +143,7 @@ check("return to the character menu" in out, "quit! sends the return-to-menu mes
 
 # The connection should still be open -- confirm by getting a further reply
 # (the account menu re-listing) rather than a timeout/EOF.
-check("Your characters" in out, "account menu shown, connection still alive")
+check("Connect Player" in out, "account menu shown, connection still alive")
 
 # The observer (same room) is told about the departure -- a quit must not
 # be a silent evaporation (Session 21).

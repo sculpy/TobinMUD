@@ -118,7 +118,7 @@ check("Allocate attributes" in out, "moved on to the attribute screen")
 
 out = step(s, "quit! from the attribute screen", "quit!")
 check("Character creation cancelled" in out, "cancellation message shown")
-check("Your characters" in out, "back at the account menu")
+check("(none yet)" in out, "back at the account menu")
 check("(none yet)" in out, "no character was created -- menu is still empty")
 
 # --- Cancel again, this time right at the name prompt itself (before any other step) ---

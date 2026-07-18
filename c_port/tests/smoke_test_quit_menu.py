@@ -110,7 +110,7 @@ check("Command not found" in out, "bare 'quit' falls through to the unknown-comm
 # `quit!` while playing should NOT disconnect -- it should return to the menu.
 out = step(s, "quit! while playing", "quit!")
 check("return to the character menu" in out, "quit!-while-playing message shown")
-check("Your characters" in out, "account menu is shown after quitting the character")
+check("Connect Player" in out, "account menu is shown after quitting the character")
 check(expected_name in out, "the character just played still shows up in the menu")
 
 # Bare "quit" at the account menu must also be rejected (not disconnect).

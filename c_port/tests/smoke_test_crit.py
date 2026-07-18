@@ -174,7 +174,7 @@ outVictim = recv_all(sv, timeout=1.0)
 check("your head is severed clean off" in outVictim.lower(), "the victim is told their head was severed")
 check(f"you have been slain by {imm_name}".lower() in outVictim.lower(), "decapitation kills via the normal slain path")
 check("You are DEAD!" in outVictim, "the victim sees the DEAD message")
-check("Your characters" in outVictim, "the victim is dropped at the account menu, not respawned in-world")
+check("Connect Player" in outVictim, "the victim is dropped at the account menu, not respawned in-world")
 
 outRoom = cmd(s, "look")
 check(f"{victim_name}'s severed head lies here" in outRoom, "a severed-head object drops in the room")

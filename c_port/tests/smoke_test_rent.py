@@ -179,7 +179,7 @@ witness_out = recv_all(sb, timeout=0.5)
 check(f"{mort2_name} rents a room and disappears." in witness_out, "the room is told the character rented out")
 
 out = cmd(s2, "look")
-check("-- Your characters --" in out, "rent leaves the caller at the account menu, connection still alive")
+check("Connect Player" in out, "rent leaves the caller at the account menu, connection still alive")
 
 check(rented_at(mort2_name) > 0, "rented_at is stamped in the DB after renting")
 

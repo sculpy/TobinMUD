@@ -176,12 +176,18 @@ check("You attack" not in out, "immortal 'kill' does NOT go through the normal a
 # The target should have been notified, told they're DEAD, and dropped at
 # the account menu (not permadeleted -- descriptor_leave_to_menu(), same
 # path `quit!`-while-playing uses -- their character still exists and is
-# still selectable from that menu).
+# still selectable from that menu). The account menu is boxed and hidden
+# by default now (Session 47, "hide the character list until C") -- a
+# single-character account like this one never shows the name as text, so
+# existence is proven by reconnecting instead of scraping the menu text.
 outTarget = recv_all(sTarget, timeout=1.0)
 check(f"You have been slain by {proper(nameImm)}" in outTarget, "the slain target is notified")
 check("You are DEAD!" in outTarget, "the slain target sees the DEAD message")
-check("Your characters" in outTarget, "the slain target is dropped at the account menu, not respawned in-world")
-check(proper(nameTarget) in outTarget, "the slain character still exists and is listed in the account menu")
+check("Connect Player" in outTarget, "the slain target is dropped at the account menu, not respawned in-world")
+send_line(sTarget, "c")
+outReconnect = recv_all(sTarget, timeout=1.0)
+check("Welcome" in outReconnect or proper(nameTarget) in outReconnect,
+      "the slain character still exists and can be reconnected from the account menu")
 
 # The whole world (here: the bystander) gets a teasing death announcement
 # naming both parties -- neither winner nor loser receives it themselves.

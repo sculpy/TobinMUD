@@ -92,7 +92,7 @@ send_line(s, "y")       # accept color -> time zone prompt
 recv_all(s)
 send_line(s, "")        # accept the (none) time zone default -> account menu
 out = recv_all(s)
-check("C [number|name]" in out, "the menu shows the lettered command table")
+check("(none yet)" in out and "N create" in out, "the empty-account menu shows the lettered options")
 
 # N (uppercase) starts creation.
 send_line(s, "N")
@@ -132,7 +132,7 @@ recv_all(s)
 
 send_line(s, "c")
 out = recv_all(s)
-check("Connect which one?" in out, "bare 'c' with two characters asks which")
+check("Choose a number to connect" in out, "bare 'c' with two characters reveals the list")
 
 send_line(s, f"C {name2}")
 out = recv_all(s)
@@ -155,7 +155,7 @@ out = recv_all(s)
 check("Enter your account password" in out, "YES prompts for account password reconfirmation")
 send_line(s, "menupw")
 out = recv_all(s)
-check("deleted" in out.lower() and name2.capitalize() not in out.split("--")[-1],
+check("deleted" in out.lower() and name2.capitalize() not in out,
       "the character is deleted and gone from the menu")
 
 # Q quits -- the one place a bare q works.

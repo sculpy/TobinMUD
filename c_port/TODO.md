@@ -1137,14 +1137,49 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       while a mob-as-killer still taunts normally (the taunt names the
       loser, not the winner). `smoke_test_mobiles.py` section 5 covers it
       (bystander confirms no `[INFO]` on a mob death).
-- [ ] **Account menu: hide the character list until `C`** — currently
-      `-- Your characters --` lists every character immediately on reaching
-      the account menu. Change so the list is HIDDEN until the player types
-      `C` (bare, no number/name yet); typing bare `C` then reveals the list
-      and prompts for a number/name (or `N` to create) as a follow-up step.
-      `C <number|name>` (already-known target) should probably still connect
-      directly without the extra round trip -- confirm with user if that
-      one-step form should stay.
+- [x] **Account menu: hide the character list until `C`, boxed style** —
+      done 2026-07-17, merged with the "Boxed ASCII-art menu rework" item
+      below (same feature, described twice). User supplied the exact
+      before/after wireframe, then later "i created 3 text files for the
+      new menus that contain ascii art. use those to create new menu
+      output" -- `box1.txt` (a blank double-line `╔═╗║╚╝` frame) for the
+      letter-menu container.
+      New `descriptor_t.char_list_shown` (descriptor.h): false by default
+      (calloc'd), true only after a bare `C` reveals the list for the
+      REST of that menu visit -- every sub-flow return (cancelled
+      creation, cancelled/failed deletion, ...) naturally preserves
+      whatever state was already set just by never touching the flag,
+      except `descriptor_leave_to_menu()` (quit!-while-playing, combat
+      defeat, `rent`), which explicitly resets it to false since that's a
+      genuinely FRESH arrival at the menu, not a same-visit return.
+      New `send_boxed_menu()`/`visible_len()` (descriptor.c): a reusable
+      double-line-box renderer, auto-sized to its widest line, that
+      measures width around `<X>` color tags (zero screen columns either
+      way, color on or off) rather than counting them -- so it's not tied
+      to box1.txt's own fixed 82x22 dimensions (which is really a style
+      swatch/glyph reference, not a literal template; a giant empty box
+      around 5 short lines would look absurd). `show_account_menu()`:
+      hidden state shows the 5-line boxed letter-menu (`C`/`N`/`D`/`X`/`Q`,
+      bright-cyan letters); revealed state shows a plain "-- Your players
+      --" numbered list ending "Choose a number to connect that player to
+      the game: " (matches the user's exact wireframe wording) instead of
+      the old repeated C/N/D/X/Q footer. `C <number|name>` (already-known
+      target) still connects directly, unchanged -- confirmed the
+      sensible default rather than re-asking, given the note already
+      leaned that way. A single-character account still auto-connects on
+      bare `C` without ever needing the reveal.
+      7 existing smoke tests referenced the old literal text ("Your
+      characters", "C [number|name]", "Connect which one?") and needed
+      updating to match: `smoke_test_kill.py` (the slain target's
+      single-character account now only proves it via a live reconnect,
+      not by scraping its name out of the menu text -- a single-char
+      account never lists names as text at all now), `smoke_test_combat.py`,
+      `smoke_test_crit.py`, `smoke_test_quit.py`, `smoke_test_quit_creation.py`,
+      `smoke_test_quit_menu.py`, `smoke_test_rent.py` (all switched to
+      checking for "Connect Player"/"(none yet)" instead),
+      `smoke_test_menu_letters.py` (the dedicated menu-letters test --
+      updated its 3 literal-text assertions to match the new box/reveal
+      wording). Verified live against the running server, all 8 pass.
 - [x] **Port Sneezy's crit-hit system + decapitation object creation** (user
       2026-07-09) — done, scope confirmed with the user first: (1) no
       separate crit-roll -- triggers purely on a limb's HP crossing to 0%
@@ -2499,9 +2534,13 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       mortals" behavior -- unrelated to this fix, just surfaced by the
       same re-test) both pass clean now; `smoke_test_purge.py` re-run
       clean too.
-- [ ] **Boxed ASCII-art menu rework, all character-facing menus** — user
-      gave the exact account-menu before/after and said to apply the same
-      boxed style everywhere. Old:
+- [ ] **Boxed ASCII-art menu rework, remaining editors** — the account
+      menu itself is DONE (see the merged entry above); this entry now
+      covers just the "audit every other menu-driven screen" half:
+      `edit room`/`edit zone`/`edit player`/`edit zone`/`balance`'s
+      menu screens (per [[editors-menu-driven]] memory) haven't been
+      touched, and `send_boxed_menu()`/`visible_len()` (descriptor.c) are
+      ready to reuse for them. Original spec, for reference. Old:
       ```
       -- Your characters --
         1. Jesus (Implementor)
@@ -2536,6 +2575,17 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       "make all character facing menus in this fashion" -- audit every
       other menu-driven screen (editors, `edit` menus, etc, per
       [[editors-menu-driven]] memory) for the same boxed treatment.
+- [x] **Login banner: keep-gate art above the TobinMUD logo** — done
+      2026-07-17. Same "3 text files ... use those to create new menu
+      output" request as the account-menu box above; user confirmed via
+      AskUserQuestion that `castle1.txt`/`keep1.txt` map to the login/
+      welcome banner (vs. `box1.txt` for letter-menus). First version
+      opened with BOTH pieces (a distant castle-skyline silhouette, then
+      the keep's gate) above the existing "TobinMUD" text logo -- user
+      cut the skyline right after seeing it live: "remove the castle art
+      from the connection screen, its too long displaying 2 seperate
+      ascii art pieces." Final: `keep1.txt`'s gate, then the logo,
+      unchanged otherwise (`descriptor_create()`, descriptor.c).
 - [x] **Autoloot toggle** — done. User: "add an autoloot toggle where a
       player upon opponent death automatically loots all from the
       corpse." New `PLR_AUTOLOOT` player-flag bit (being.h) plumbed into
