@@ -16,6 +16,7 @@
 #include "obj_repo.h"
 #include "room.h"
 #include "thing.h"
+#include "world.h"
 
 /* `load <mob|obj> <vnum|name>` -- immortal builder tool (BUILD_MIN_LEVEL,
  * same tier as `edroom`/`goto`): instantiates a mob or object prototype into
@@ -35,6 +36,52 @@ static bool is_all_digits(const char *s) {
         if (!isdigit((unsigned char)*s))
             return false;
     return true;
+}
+
+/* Live world-wide instance count for a mob/obj vnum -- world_for_each_mob()/
+ * world_for_each_obj() plus a static-global target+counter, same "counting
+ * visitor" idiom cmd_goto.c's goto_is_guildmaster_room() already uses for a
+ * different search. Only `load` needs a world-wide count (everywhere else
+ * that cares, like zone.c's per-room reset cap, only ever counts ONE room),
+ * so this stays local rather than becoming new world.h API surface. */
+static int g_count_target_vnum;
+static int g_count_result;
+
+static void count_mob_visit(being_t *m) {
+    if (m->base.id == g_count_target_vnum)
+        g_count_result++;
+}
+
+static void count_obj_visit(obj_t *o) {
+    if (o->vnum == g_count_target_vnum)
+        g_count_result++;
+}
+
+/* Warns (never blocks) when loading `vnum` pushes its world-wide instance
+ * count over the prototype's own `max_exist` (0 = uncapped, no warning) --
+ * user 2026-07-18: "when a immortal loads an obj or mob... max exist
+ * should be bypassed with a warning to clean up after the immort is done
+ * with the mob or obj if he goes over max exist". An immortal manually
+ * spawning something is deliberately exempt from the cap that a zone
+ * reset's own per-room check (zone.c's zone_count_in_room()) enforces --
+ * this is a "please remember to clean up" nudge, not a refusal. */
+static void warn_if_over_max_exist(descriptor_t *d, int vnum, int max_exist, bool is_mob) {
+    if (max_exist <= 0)
+        return;
+    g_count_target_vnum = vnum;
+    g_count_result = 0;
+    if (is_mob)
+        world_for_each_mob(count_mob_visit);
+    else
+        world_for_each_obj(count_obj_visit);
+    if (g_count_result <= max_exist)
+        return;
+    char msg[160];
+    snprintf(msg, sizeof(msg),
+             "Warning: %d of vnum %d now exist in the world (its own limit is %d) -- "
+             "please clean up when you're done with it.\r\n",
+             g_count_result, vnum, max_exist);
+    descriptor_send(d, msg);
 }
 
 static void load_mob(descriptor_t *d, being_t *ch, const char *trimmed) {
@@ -58,6 +105,10 @@ static void load_mob(descriptor_t *d, being_t *ch, const char *trimmed) {
     descriptor_send(d, msg);
     snprintf(msg, sizeof(msg), "%s conjures %s into being.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, msg);
+
+    mob_proto_t proto;
+    if (mob_proto_load(vnum, &proto))
+        warn_if_over_max_exist(d, vnum, proto.max_exist, true);
 }
 
 static void load_obj(descriptor_t *d, being_t *ch, const char *trimmed) {
@@ -81,6 +132,10 @@ static void load_obj(descriptor_t *d, being_t *ch, const char *trimmed) {
     descriptor_send(d, msg);
     snprintf(msg, sizeof(msg), "%s conjures %s into being.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, msg);
+
+    obj_proto_t proto;
+    if (obj_proto_load(vnum, &proto))
+        warn_if_over_max_exist(d, vnum, proto.max_exist, false);
 }
 
 bool cmd_load(descriptor_t *d, const char *args) {

@@ -58,6 +58,9 @@ typedef struct {
                                    * being.c). race/tohit/ac/damage_level/
                                    * actions(non-AI-relevant bits)/spec_proc
                                    * remain deferred. */
+    int max_exist; /* upstream world-wide instance cap, 0 = uncapped -- see
+                     * cmd_load.c's `load` command for the one place Tobin
+                     * reads this (a warning, not an enforced cap). */
 } mob_proto_t;
 
 /* Loads the prototype row for `vnum` from the `mob` table into *out.

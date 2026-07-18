@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -160,6 +161,21 @@ static bool stat_player(descriptor_t *d, const char *name) {
     return true;
 }
 
+/* True iff every character of `s` is a digit (and there's at least one) --
+ * used to tell a real vnum apart from a name/keyword search term, so
+ * `stat obj phos` doesn't silently fall through atoi()'s "0 on failure"
+ * behavior and stat whatever happens to be sitting at vnum 0 (user
+ * 2026-07-18 bug report: `stat o phos` statted a blank "Object 0" instead
+ * of erroring or finding the vial of red phosphorus). */
+static bool is_all_digits(const char *s) {
+    if (!*s)
+        return false;
+    for (const char *p = s; *p; p++)
+        if (!isdigit((unsigned char)*p))
+            return false;
+    return true;
+}
+
 bool cmd_stat(descriptor_t *d, const char *args) {
     char cat[16] = "";
     char arg2[PLAYER_NAME_LEN] = "";
@@ -172,7 +188,6 @@ bool cmd_stat(descriptor_t *d, const char *args) {
     if (strncasecmp(cat, "player", clen) == 0)
         return stat_player(d, arg2);
 
-    int vnum = atoi(arg2);
     const char *table, *label;
     if (strncasecmp(cat, "object", clen) == 0) {
         table = "obj"; label = "Object";
@@ -193,6 +208,25 @@ bool cmd_stat(descriptor_t *d, const char *args) {
 
     char out[8192];
     size_t n = 0;
+
+    /* A non-numeric arg2 is a name/keyword, not a vnum (cmd_vnum.c's own
+     * substring convention) -- resolved to the first matching vnum here so
+     * `stat obj phos` finds "a vial of red phosphorus" instead of atoi()
+     * silently defaulting to vnum 0. */
+    int vnum;
+    if (is_all_digits(arg2)) {
+        vnum = atoi(arg2);
+    } else if (db_query(db, "select vnum from %r where name like '%%%s%%' order by vnum limit 1",
+                         table, arg2)
+               && db_fetch_row(db)) {
+        vnum = atoi(db_get(db, "vnum"));
+    } else {
+        n = (size_t)snprintf(out, sizeof(out), "No such %s matching '%s'.\r\n", table, arg2);
+        descriptor_send(d, out);
+        db_close(db);
+        return true;
+    }
+
     if (!db_query(db, "select * from %s where vnum=%i", table, vnum) || !db_fetch_row(db)) {
         n = (size_t)snprintf(out, sizeof(out), "No such %s vnum %d.\r\n", table, vnum);
         descriptor_send(d, out);

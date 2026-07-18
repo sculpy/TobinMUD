@@ -32,8 +32,17 @@ typedef enum {
     /* Halves incoming damage in combat_strike() -- the Cleric spell
      * "sanctuary" ("A strong aura that reduces incoming damage."). */
     AFFECT_SANCTUARY,
+    /* Drinking from a puddle (cmd_drink.c) can poison the drinker instead
+     * of/alongside a disease roll -- a debuff, not a one-shot hit, so it
+     * shows in `affects`, drains HP on its own tick (affect_tick_run(),
+     * affect.c), and is curable at a hospital (cmd_shop.c) exactly like a
+     * disease, just its own separate affect type rather than folded into
+     * affect_is_disease(). Immortals never catch it, same gating as
+     * disease. */
+    AFFECT_POISON,
     /* Diseases (TODO.md: "modest list affecting players (immortals
-     * immune); pulse-driven affect/tick, cure path TBD"). Reuse this
+     * immune); pulse-driven affect/tick, cure path TBD"; user 2026-07-18:
+     * "may as well include all disease now, from sneezy"). Reuse this
      * SAME buff/debuff array rather than a parallel disease.h/.c module
      * -- storage, the `affects` display, and expiry-message plumbing all
      * already exist; only the periodic HP-drain sub-tick
@@ -41,23 +50,69 @@ typedef enum {
      * disease() + DISEASE_HP_DRAIN[], gated so it only fires every 10th
      * round rather than every affect_tick_run() call, or a "modest"
      * disease would out-damage what its own duration implies). Caught
-     * by drinking from a puddle (cmd_drink.c), on top of its existing
-     * one-shot poison roll; immortals never catch one (gated at the
-     * application site) and stop taking damage from one mid-tick if
-     * ever promoted while sick. No active cure yet -- these just run
-     * their course and wear off like any other affect; a real cure
-     * (spell/item/hospital) is a natural follow-up, not v1 scope. */
+     * by drinking from a puddle (cmd_drink.c); immortals never catch one
+     * (gated at the application site) and stop taking damage from one
+     * mid-tick if ever promoted while sick. Curable at any hospital
+     * (cmd_shop.c), priced via affect_cure_price() below.
+     *
+     * This is the FULL upstream `diseaseTypeT` roster (misc/disease.h,
+     * 27 entries, DISEASE_NULL..MAX_DISEASE) minus DISEASE_NULL (a
+     * placeholder, no Tobin equivalent needed) and DISEASE_POISON
+     * (already modeled separately as AFFECT_POISON above, applied by
+     * the SAME drink roll rather than duplicated here) -- 26 entries,
+     * kept CONTIGUOUS so affect_is_disease() below is a cheap range
+     * check instead of a 26-way switch. Deliberately NOT a port of each
+     * disease's own upstream spec_proc mechanic (disease.cc is ~2000
+     * lines of bespoke per-disease effects -- blindness, muteness,
+     * limping, spec-proc-driven progression stages, etc.) -- same v1
+     * scope as the original 4: a name, a duration, a periodic HP drain,
+     * and a hospital cure. A few upstream diseases (broken bone, numbed
+     * limb, voicebox, eyeball) upstream tie into wound-flag/body-part
+     * systems Tobin doesn't have; here they're just another flavor of
+     * HP-drain debuff, same as a cold. */
     AFFECT_DISEASE_COLD,
     AFFECT_DISEASE_FLU,
-    AFFECT_DISEASE_FOOD_POISONING,
+    AFFECT_DISEASE_FROSTBITE,
+    AFFECT_DISEASE_BLEEDING,
+    AFFECT_DISEASE_INFECTION,
+    AFFECT_DISEASE_HERPES,
+    AFFECT_DISEASE_BROKEN_BONE,
+    AFFECT_DISEASE_NUMBED_LIMB,
+    AFFECT_DISEASE_VOICEBOX,
+    AFFECT_DISEASE_EYEBALL,
+    AFFECT_DISEASE_LUNG,
+    AFFECT_DISEASE_STOMACH,
+    AFFECT_DISEASE_HEMORRHAGE,
+    AFFECT_DISEASE_LEPROSY,
     AFFECT_DISEASE_PLAGUE,
+    AFFECT_DISEASE_SUFFOCATE,
+    AFFECT_DISEASE_FOOD_POISONING,
+    AFFECT_DISEASE_DROWNING,
+    AFFECT_DISEASE_GARROTTE,
+    AFFECT_DISEASE_SYPHILIS,
+    AFFECT_DISEASE_BRUISED,
+    AFFECT_DISEASE_SCURVY,
+    AFFECT_DISEASE_DYSENTERY,
+    AFFECT_DISEASE_PNEUMONIA,
+    AFFECT_DISEASE_GANGRENE,
+    AFFECT_DISEASE_EXTREME_PAIN,
     AFFECT_COUNT,
 } affect_type_t;
 
-/* True for the AFFECT_DISEASE_* values above -- used by affect_tick_run()
- * to gate the periodic HP-drain sub-tick, and by cmd_drink.c to pick a
- * random disease to apply. */
+/* True for the AFFECT_DISEASE_* range above -- a plain bounds check since
+ * they're kept contiguous in the enum on purpose. Used by affect_tick_run()
+ * to gate the periodic HP-drain sub-tick, by cmd_drink.c to pick a random
+ * disease to apply, and by cmd_shop.c's hospital to know what's curable. */
 bool affect_is_disease(affect_type_t type);
+
+/* Gold cost to cure `type` at a hospital (cmd_shop.c) -- covers both
+ * AFFECT_POISON and every AFFECT_DISEASE_* value, roughly ranked by the
+ * upstream DiseaseInfo[].cure_cost ordering (misc/disease.cc) but
+ * rescaled into Tobin's much smaller gold economy (a torch is 3 gold),
+ * same "roughly scaled to how nasty each one is" spirit as the original
+ * 4-disease pricing. Returns 0 for AFFECT_NONE/AFFECT_SANCTUARY (never
+ * offered as a cure at a hospital). */
+int affect_cure_price(affect_type_t type);
 
 #define MAX_ACTIVE_AFFECTS 4
 

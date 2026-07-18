@@ -525,3 +525,12 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Component and Commodity Shops Are Finally Stocked', 'Mages and Druids: Camron''s Components (Market Place) now actually sells spellcasting components, so `cast` works again with something to buy rather than nothing to find. Katherine''s Commodities in Brightmoon, plus sister shops in Logrus, Xanesla, and Amber, now carry real metal bars and ingots, and Tuvar''s hides-and-herbs shop is stocked with real animal hides. All buyable and re-sellable, same as any other goods.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Bulletin Boards Are Live', 'The boards mounted on walls across the world finally do something. `read` at one lists what''s posted; `read <#>` shows a message in full. `write <subject> <message>` posts a new one on the spot. A handful of boards need real rank to use -- try anyway and it''ll tell you. If a room happens to have more than one board, name which: `read at <board name>` / `write at <board name> <subject> <message>`.'),
+('The TobinMUD Team', 'A Much Sicker World', 'Diseases went from a short list to the whole thing -- 26 in all, from a common Cold up through Gangrene and the Plague, each with its own bite and its own price to cure. Poison got an upgrade too: drinking something foul now leaves you genuinely poisoned for a while (check `affects`), not just a single jolt of pain that vanished without a trace -- and yes, a hospital can cure that too now. NPCs can carry these same afflictions as players can; a diseased or poisoned creature nearby will visibly wince from it same as anyone else.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Few Bugs Squashed', '`stat obj/mob/room <name>` now actually searches by name when you don''t give it a vnum, instead of quietly showing you whatever happens to sit at vnum 0. The doctor''s hospital greeting is properly capitalized now ("The Tobin City Doctor...", not "the..."). And `load` (Immortal-only) now warns you -- without ever refusing -- if spawning something pushes its world count past what that prototype was ever meant to have loose at once, so it''s easier to remember to clean up after testing.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -35,6 +35,9 @@ typedef struct {
     int cur_struct;
     int volume;
     int material;
+    int max_exist; /* upstream world-wide instance cap, 0 = uncapped -- see
+                     * cmd_load.c's `load` command for the one place Tobin
+                     * reads this (a warning, not an enforced cap). */
 } obj_proto_t;
 
 /* Loads the prototype row for `vnum` from the `obj` table into *out. Returns

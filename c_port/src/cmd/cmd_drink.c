@@ -16,8 +16,7 @@
 #include "thing.h"
 
 #define DRINK_POISON_CHANCE_PCT 30
-#define DRINK_POISON_MIN_DMG 2
-#define DRINK_POISON_MAX_DMG 8
+#define DRINK_POISON_DURATION 20
 
 /* Disease infection roll (TODO.md: "Diseases -- modest list affecting
  * players... cure path TBD"), independent of the poison roll above --
@@ -27,10 +26,24 @@
  * see affect.h) -- picked so DISEASE_TICK_EVERY (affect.c) divides them
  * evenly, landing a damage tick right as each one expires too. */
 #define DRINK_DISEASE_CHANCE_PCT 15
+/* Full upstream diseaseTypeT roster (misc/disease.h) minus DISEASE_NULL/
+ * DISEASE_POISON -- see affect.h's enum comment. Duration ordering
+ * loosely follows affect.c's DISEASE_HP_DRAIN/AFFECT_CURE_PRICE severity
+ * ranking (worse ones both hit harder AND last longer). */
 static const affect_type_t DRINK_DISEASES[] = {
-    AFFECT_DISEASE_COLD, AFFECT_DISEASE_FLU, AFFECT_DISEASE_FOOD_POISONING, AFFECT_DISEASE_PLAGUE,
+    AFFECT_DISEASE_COLD, AFFECT_DISEASE_FLU, AFFECT_DISEASE_FROSTBITE,
+    AFFECT_DISEASE_BLEEDING, AFFECT_DISEASE_INFECTION, AFFECT_DISEASE_HERPES,
+    AFFECT_DISEASE_BROKEN_BONE, AFFECT_DISEASE_NUMBED_LIMB, AFFECT_DISEASE_VOICEBOX,
+    AFFECT_DISEASE_EYEBALL, AFFECT_DISEASE_LUNG, AFFECT_DISEASE_STOMACH,
+    AFFECT_DISEASE_HEMORRHAGE, AFFECT_DISEASE_LEPROSY, AFFECT_DISEASE_PLAGUE,
+    AFFECT_DISEASE_SUFFOCATE, AFFECT_DISEASE_FOOD_POISONING, AFFECT_DISEASE_DROWNING,
+    AFFECT_DISEASE_GARROTTE, AFFECT_DISEASE_SYPHILIS, AFFECT_DISEASE_BRUISED,
+    AFFECT_DISEASE_SCURVY, AFFECT_DISEASE_DYSENTERY, AFFECT_DISEASE_PNEUMONIA,
+    AFFECT_DISEASE_GANGRENE, AFFECT_DISEASE_EXTREME_PAIN,
 };
-static const int DRINK_DISEASE_DURATIONS[] = { 30, 50, 40, 80 };
+static const int DRINK_DISEASE_DURATIONS[] = {
+    30, 50, 60, 40, 40, 50, 50, 40, 60, 60, 70, 70, 80, 60, 80, 90, 40, 90, 90, 80, 20, 40, 30, 50, 70, 20,
+};
 
 /* Same keyword-abbreviation matching spirit as cmd_object.c's
  * obj_name_matches() (a case-insensitive prefix of any individual
@@ -118,11 +131,8 @@ bool cmd_drink(descriptor_t *d, const char *args) {
     snprintf(msg, sizeof(msg), "%s scoops up some of %s and drinks it.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, msg);
 
-    if (rand() % 100 < DRINK_POISON_CHANCE_PCT) {
-        int dmg = DRINK_POISON_MIN_DMG + rand() % (DRINK_POISON_MAX_DMG - DRINK_POISON_MIN_DMG + 1);
-        ch->progress.hp -= dmg;
-        if (ch->progress.hp < 1)
-            ch->progress.hp = 1;
+    if (!being_is_immortal(ch) && rand() % 100 < DRINK_POISON_CHANCE_PCT) {
+        being_apply_affect(ch, AFFECT_POISON, DRINK_POISON_DURATION);
         descriptor_send(d, "You feel a sharp pain as poison courses through you!\r\n");
         game_log(LOG_SILENT, "%s was poisoned drinking %s (vnum %d) in room %d",
                  ch->base.name, label, pool->vnum, ch->base.roomp->vnum);

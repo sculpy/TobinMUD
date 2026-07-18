@@ -76,33 +76,19 @@ static being_t *find_active_shop(room_t *room, shop_t *shop) {
 typedef struct {
     bool is_limb;
     limb_t limb;
-    affect_type_t disease;
+    affect_type_t affect; /* the cure target when !is_limb -- a disease or AFFECT_POISON */
     int price;
 } ailment_t;
 
 #define HOSPITAL_MAX_AILMENTS (LIMB_COUNT + MAX_ACTIVE_AFFECTS)
 
-/* Flat per-type disease cure price, roughly scaled to how nasty each one
- * is (affect.c's own DISEASE_HP_DRAIN/duration pairing) -- not level-
- * scaled like the original's doctorCost(), matching Tobin's much smaller
- * gold economy (see shop pricing elsewhere: a torch is 3 gold). */
-static int disease_cure_price(affect_type_t type) {
-    switch (type) {
-        case AFFECT_DISEASE_COLD: return 10;
-        case AFFECT_DISEASE_FLU: return 25;
-        case AFFECT_DISEASE_FOOD_POISONING: return 35;
-        case AFFECT_DISEASE_PLAGUE: return 75;
-        default: return 50;
-    }
-}
-
 /* Enumerates `ch`'s current ailments (damaged limbs, then active
- * diseases) into `out` (capacity `max`), in a STABLE order (LIMB_COUNT
- * order, then MAX_ACTIVE_AFFECTS slot order) -- both list_hospital() and
- * buy_hospital_cure() call this fresh each time rather than caching, so
- * the two always agree on what number means what, the same "recompute,
- * don't cache" contract cmd_edaccount.c's menu uses. Returns the count
- * found. */
+ * diseases/poison) into `out` (capacity `max`), in a STABLE order
+ * (LIMB_COUNT order, then MAX_ACTIVE_AFFECTS slot order) -- both
+ * list_hospital() and buy_hospital_cure() call this fresh each time
+ * rather than caching, so the two always agree on what number means
+ * what, the same "recompute, don't cache" contract cmd_edaccount.c's
+ * menu uses. Returns the count found. */
 static int hospital_ailments(const being_t *ch, ailment_t *out, int max) {
     int n = 0;
     for (int i = 0; i < LIMB_COUNT && n < max; i++) {
@@ -115,10 +101,11 @@ static int hospital_ailments(const being_t *ch, ailment_t *out, int max) {
         }
     }
     for (int i = 0; i < MAX_ACTIVE_AFFECTS && n < max; i++) {
-        if (affect_is_disease(ch->affects[i].type)) {
+        affect_type_t type = ch->affects[i].type;
+        if (affect_is_disease(type) || type == AFFECT_POISON) {
             out[n].is_limb = false;
-            out[n].disease = ch->affects[i].type;
-            out[n].price = disease_cure_price(ch->affects[i].type);
+            out[n].affect = type;
+            out[n].price = affect_cure_price(type);
             n++;
         }
     }
@@ -129,8 +116,11 @@ static void list_hospital(descriptor_t *d, being_t *ch, being_t *keeper) {
     ailment_t ailments[HOSPITAL_MAX_AILMENTS];
     int count = hospital_ailments(ch, ailments, HOSPITAL_MAX_AILMENTS);
 
+    char keeper_name[128];
+    being_display_name_cap(keeper, keeper_name, sizeof(keeper_name));
+
     char out[2048];
-    int n = snprintf(out, sizeof(out), "\r\n%s looks you over:\r\n", being_display_name(keeper));
+    int n = snprintf(out, sizeof(out), "\r\n%s looks you over:\r\n", keeper_name);
     for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
         if (ailments[i].is_limb) {
             int pct = ch->limbs[ailments[i].limb].max_hp > 0
@@ -140,7 +130,7 @@ static void list_hospital(descriptor_t *d, being_t *ch, being_t *keeper) {
                           i + 1, limb_name(ailments[i].limb), pct, ailments[i].price);
         } else {
             n += snprintf(out + n, sizeof(out) - (size_t)n, " %2d) %-25s                %d gold\r\n",
-                          i + 1, affect_name(ailments[i].disease), ailments[i].price);
+                          i + 1, affect_name(ailments[i].affect), ailments[i].price);
         }
     }
     if (count == 0 && (size_t)n < sizeof(out))
@@ -179,15 +169,18 @@ static void buy_hospital_cure(descriptor_t *d, being_t *ch, being_t *keeper, con
         return;
     }
 
-    char confirm[160];
+    char keeper_name[128];
+    being_display_name_cap(keeper, keeper_name, sizeof(keeper_name));
+
+    char confirm[300];
     if (ail.is_limb) {
         ch->limbs[ail.limb].hp = ch->limbs[ail.limb].max_hp;
         snprintf(confirm, sizeof(confirm), "%s tends to your %s -- it feels much better!\r\n",
-                 being_display_name(keeper), limb_name(ail.limb));
+                 keeper_name, limb_name(ail.limb));
     } else {
-        being_remove_affect(ch, ail.disease);
+        being_remove_affect(ch, ail.affect);
         snprintf(confirm, sizeof(confirm), "%s administers a cure for your %s!\r\n",
-                 being_display_name(keeper), affect_name(ail.disease));
+                 keeper_name, affect_name(ail.affect));
     }
     descriptor_send(d, confirm);
 
@@ -236,8 +229,11 @@ bool cmd_list(descriptor_t *d, const char *args) {
     int count = 0;
     shop_repo_producing(shop.shop_nr, vnums, SHOP_PRODUCING_MAX, &count);
 
+    char keeper_name[128];
+    being_display_name_cap(keeper, keeper_name, sizeof(keeper_name));
+
     char out[4096];
-    int n = snprintf(out, sizeof(out), "\r\n%s offers:\r\n", being_display_name(keeper));
+    int n = snprintf(out, sizeof(out), "\r\n%s offers:\r\n", keeper_name);
     int shown = 0;
     for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
         obj_proto_t proto;

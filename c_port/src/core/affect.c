@@ -8,28 +8,115 @@
 
 #include "being.h"
 #include "descriptor.h"
+#include "world.h"
 
+/* Indexed identically to affect_type_t -- see affect.h's enum comment for
+ * where each of these 26 disease names comes from (upstream DiseaseInfo[],
+ * misc/disease.cc), trimmed to fit a 16-wide `affects` column. */
 static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "(none)",
     "Sanctuary",
+    "Poison",
     "Cold",
     "Flu",
-    "Food Poisoning",
+    "Frostbite",
+    "Bleeding",
+    "Infection",
+    "Herpes",
+    "Broken Bone",
+    "Numbed Limb",
+    "Voicebox",
+    "Eyeball",
+    "Lung",
+    "Stomach Wound",
+    "Internal Bleeding",
+    "Leprosy",
     "Plague",
+    "Suffocation",
+    "Food Poisoning",
+    "Drowning",
+    "Garrotte",
+    "Syphilis",
+    "Bruised",
+    "Scurvy",
+    "Dysentery",
+    "Pneumonia",
+    "Gangrene",
+    "Extreme Pain",
 };
+
+/* HP drained per damage sub-tick for AFFECT_POISON -- its own faster gate
+ * (POISON_TICK_EVERY below) than a disease's, so a poisoning reads as
+ * more urgent than catching a cold. */
+#define POISON_HP_DRAIN 2
+#define POISON_TICK_EVERY 5
 
 /* HP drained per damage sub-tick (see affect_tick_run()'s DISEASE_TICK_
  * EVERY gate) for each AFFECT_DISEASE_* value, indexed the same as
- * AFFECT_NAMES. Non-disease entries are unused (0). Roughly scaled to
- * each disease's own duration (cmd_drink.c) so the worse ones both hit
- * harder AND last longer, matching the original disease.h's flavor
- * without porting its full 27-type spec-proc system -- a "modest list"
- * (TODO.md), not a straight port. */
+ * AFFECT_NAMES. Non-disease entries are unused (0). Roughly ranked by the
+ * upstream DiseaseInfo[].cure_cost ordering (misc/disease.cc) -- NOT a
+ * linear rescale of it (the real range spans 100 to 100000), just the
+ * same relative "worse diseases hit harder" ordering, rescaled into
+ * Tobin's own "modest list" numbers like the original 4 always were. */
 static const int DISEASE_HP_DRAIN[AFFECT_COUNT] = {
     [AFFECT_DISEASE_COLD] = 1,
     [AFFECT_DISEASE_FLU] = 2,
-    [AFFECT_DISEASE_FOOD_POISONING] = 3,
+    [AFFECT_DISEASE_FROSTBITE] = 3,
+    [AFFECT_DISEASE_BLEEDING] = 2,
+    [AFFECT_DISEASE_INFECTION] = 2,
+    [AFFECT_DISEASE_HERPES] = 2,
+    [AFFECT_DISEASE_BROKEN_BONE] = 3,
+    [AFFECT_DISEASE_NUMBED_LIMB] = 2,
+    [AFFECT_DISEASE_VOICEBOX] = 3,
+    [AFFECT_DISEASE_EYEBALL] = 3,
+    [AFFECT_DISEASE_LUNG] = 4,
+    [AFFECT_DISEASE_STOMACH] = 4,
+    [AFFECT_DISEASE_HEMORRHAGE] = 5,
+    [AFFECT_DISEASE_LEPROSY] = 3,
     [AFFECT_DISEASE_PLAGUE] = 4,
+    [AFFECT_DISEASE_SUFFOCATE] = 6,
+    [AFFECT_DISEASE_FOOD_POISONING] = 3,
+    [AFFECT_DISEASE_DROWNING] = 6,
+    [AFFECT_DISEASE_GARROTTE] = 6,
+    [AFFECT_DISEASE_SYPHILIS] = 4,
+    [AFFECT_DISEASE_BRUISED] = 1,
+    [AFFECT_DISEASE_SCURVY] = 2,
+    [AFFECT_DISEASE_DYSENTERY] = 2,
+    [AFFECT_DISEASE_PNEUMONIA] = 3,
+    [AFFECT_DISEASE_GANGRENE] = 4,
+    [AFFECT_DISEASE_EXTREME_PAIN] = 1,
+};
+
+/* Hospital cure price (cmd_shop.c) for AFFECT_POISON and every
+ * AFFECT_DISEASE_* value -- see affect_cure_price()'s header comment. */
+static const int AFFECT_CURE_PRICE[AFFECT_COUNT] = {
+    [AFFECT_POISON] = 20,
+    [AFFECT_DISEASE_COLD] = 10,
+    [AFFECT_DISEASE_FLU] = 25,
+    [AFFECT_DISEASE_FROSTBITE] = 55,
+    [AFFECT_DISEASE_BLEEDING] = 15,
+    [AFFECT_DISEASE_INFECTION] = 20,
+    [AFFECT_DISEASE_HERPES] = 28,
+    [AFFECT_DISEASE_BROKEN_BONE] = 30,
+    [AFFECT_DISEASE_NUMBED_LIMB] = 25,
+    [AFFECT_DISEASE_VOICEBOX] = 90,
+    [AFFECT_DISEASE_EYEBALL] = 90,
+    [AFFECT_DISEASE_LUNG] = 65,
+    [AFFECT_DISEASE_STOMACH] = 70,
+    [AFFECT_DISEASE_HEMORRHAGE] = 80,
+    [AFFECT_DISEASE_LEPROSY] = 35,
+    [AFFECT_DISEASE_PLAGUE] = 75,
+    [AFFECT_DISEASE_SUFFOCATE] = 140,
+    [AFFECT_DISEASE_FOOD_POISONING] = 35,
+    [AFFECT_DISEASE_DROWNING] = 140,
+    [AFFECT_DISEASE_GARROTTE] = 150,
+    [AFFECT_DISEASE_SYPHILIS] = 130,
+    [AFFECT_DISEASE_BRUISED] = 12,
+    [AFFECT_DISEASE_SCURVY] = 22,
+    [AFFECT_DISEASE_DYSENTERY] = 18,
+    [AFFECT_DISEASE_PNEUMONIA] = 32,
+    [AFFECT_DISEASE_GANGRENE] = 45,
+    [AFFECT_DISEASE_EXTREME_PAIN] = 8,
 };
 
 /* Looks up the display name for an affect type, e.g. for the `affects`
@@ -42,8 +129,13 @@ const char *affect_name(affect_type_t type) {
 }
 
 bool affect_is_disease(affect_type_t type) {
-    return type == AFFECT_DISEASE_COLD || type == AFFECT_DISEASE_FLU
-        || type == AFFECT_DISEASE_FOOD_POISONING || type == AFFECT_DISEASE_PLAGUE;
+    return type >= AFFECT_DISEASE_COLD && type <= AFFECT_DISEASE_EXTREME_PAIN;
+}
+
+int affect_cure_price(affect_type_t type) {
+    if (type < 0 || type >= AFFECT_COUNT)
+        return 0;
+    return AFFECT_CURE_PRICE[type];
 }
 
 /* Checks whether `b` currently has a given buff/debuff active by
@@ -106,45 +198,103 @@ void being_remove_affect(struct being *b, affect_type_t type) {
  * counter everything else already uses, no extra field needed. */
 #define DISEASE_TICK_EVERY 10
 
-/* Runs on a timer (see main.c) for every connected being: counts each
- * of their active buffs/debuffs down by one round, and clears (with a
- * "wears off" message) any that just hit zero. Applies regardless of
- * whether the being is currently fighting -- a buff keeps wearing off
- * even outside combat. Diseases (AFFECT_DISEASE_*) also drain HP on
- * their own slower sub-tick along the way -- see DISEASE_TICK_EVERY
- * above -- clamped so it can never drop anyone below 1 HP outside
- * combat (same non-lethal convention cmd_drink.c's poison roll uses),
- * and skipped outright for an immortal (TODO.md: "immortals immune" --
- * covers a being promoted mid-disease, not just the infection roll
- * itself, which is gated separately at the source in cmd_drink.c). */
+/* The three per-tick notices below (disease flare-up, poison burn, wears
+ * off) each need two phrasings: "Your X ..." sent straight to a connected
+ * PC's own descriptor, or "<Name>'s X ..." echoed to the room for a mob
+ * (user 2026-07-18: "include affects for players and NPCs" -- a mob has
+ * no descriptor to send a first-person message to, but everyone standing
+ * there can still see it happen to them). `d` is NULL for a mob. */
+static void notify_flare(being_t *b, descriptor_t *d, affect_type_t type) {
+    if (d) {
+        char msg[80];
+        snprintf(msg, sizeof(msg), "Your %s flares up, sapping your strength.\r\n", affect_name(type));
+        descriptor_send(d, msg);
+    } else if (b->base.roomp) {
+        char namebuf[64], msg[128];
+        being_display_name_cap(b, namebuf, sizeof(namebuf));
+        snprintf(msg, sizeof(msg), "%s's %s flares up.\r\n", namebuf, affect_name(type));
+        descriptor_room_echo(b->base.roomp, NULL, msg);
+    }
+}
+
+static void notify_poison_burn(being_t *b, descriptor_t *d) {
+    if (d) {
+        descriptor_send(d, "The poison in your veins burns anew!\r\n");
+    } else if (b->base.roomp) {
+        char namebuf[64], msg[128];
+        being_display_name_cap(b, namebuf, sizeof(namebuf));
+        snprintf(msg, sizeof(msg), "The poison in %s's veins burns anew!\r\n", namebuf);
+        descriptor_room_echo(b->base.roomp, NULL, msg);
+    }
+}
+
+static void notify_wears_off(being_t *b, descriptor_t *d, affect_type_t type) {
+    if (d) {
+        char msg[64];
+        snprintf(msg, sizeof(msg), "Your %s wears off.\r\n", affect_name(type));
+        descriptor_send(d, msg);
+    } else if (b->base.roomp) {
+        char namebuf[64], msg[96];
+        being_display_name_cap(b, namebuf, sizeof(namebuf));
+        snprintf(msg, sizeof(msg), "%s's %s wears off.\r\n", namebuf, affect_name(type));
+        descriptor_room_echo(b->base.roomp, NULL, msg);
+    }
+}
+
+/* Ticks every one of `b`'s active buffs/debuffs down by one round,
+ * clearing (with a "wears off" notice) any that just hit zero. Diseases
+ * and poison also drain HP on their own slower sub-tick along the way --
+ * see DISEASE_TICK_EVERY/POISON_TICK_EVERY -- clamped so it can never
+ * drop anyone below 1 HP outside combat (same non-lethal convention
+ * cmd_drink.c's original poison roll used), and skipped outright for an
+ * immortal (TODO.md: "immortals immune" -- covers a being promoted
+ * mid-disease, not just the infection roll itself). `d` is the being's
+ * live descriptor for a connected PC, or NULL for a mob -- see the
+ * notify_*() helpers above for how each is announced. */
+static void tick_being_affects(being_t *b, descriptor_t *d) {
+    for (int i = 0; i < MAX_ACTIVE_AFFECTS; i++) {
+        if (b->affects[i].type == AFFECT_NONE)
+            continue;
+        affect_type_t type = b->affects[i].type;
+        b->affects[i].rounds_left--;
+        if (affect_is_disease(type) && !being_is_immortal(b)
+            && b->affects[i].rounds_left % DISEASE_TICK_EVERY == 0) {
+            b->progress.hp -= DISEASE_HP_DRAIN[type];
+            if (b->progress.hp < 1)
+                b->progress.hp = 1;
+            notify_flare(b, d, type);
+        }
+        if (type == AFFECT_POISON && !being_is_immortal(b)
+            && b->affects[i].rounds_left % POISON_TICK_EVERY == 0) {
+            b->progress.hp -= POISON_HP_DRAIN;
+            if (b->progress.hp < 1)
+                b->progress.hp = 1;
+            notify_poison_burn(b, d);
+        }
+        if (b->affects[i].rounds_left <= 0) {
+            notify_wears_off(b, d, type);
+            b->affects[i].type = AFFECT_NONE;
+            b->affects[i].rounds_left = 0;
+        }
+    }
+}
+
+static void mob_affect_tick_visit(being_t *m) {
+    tick_being_affects(m, NULL);
+}
+
+/* Runs on a timer (see main.c): ticks affects for every connected PC
+ * (regardless of whether they're currently fighting -- a buff keeps
+ * wearing off even outside combat) AND every mob in the world
+ * (world_for_each_mob(), same iteration primitive mob_ai.c's own pulse
+ * uses) -- user 2026-07-18: "include affects for players and NPCs". */
 void affect_tick_run(long pulse_num) {
     (void)pulse_num;
     for (descriptor_t *d = g_descriptors; d; d = d->next) {
         being_t *b = d->character;
         if (!b)
             continue;
-        for (int i = 0; i < MAX_ACTIVE_AFFECTS; i++) {
-            if (b->affects[i].type == AFFECT_NONE)
-                continue;
-            b->affects[i].rounds_left--;
-            if (affect_is_disease(b->affects[i].type) && !being_is_immortal(b)
-                && b->affects[i].rounds_left % DISEASE_TICK_EVERY == 0) {
-                int dmg = DISEASE_HP_DRAIN[b->affects[i].type];
-                b->progress.hp -= dmg;
-                if (b->progress.hp < 1)
-                    b->progress.hp = 1;
-                char dmsg[80];
-                snprintf(dmsg, sizeof(dmsg), "Your %s flares up, sapping your strength.\r\n",
-                         affect_name(b->affects[i].type));
-                descriptor_send(d, dmsg);
-            }
-            if (b->affects[i].rounds_left <= 0) {
-                char msg[64];
-                snprintf(msg, sizeof(msg), "Your %s wears off.\r\n", affect_name(b->affects[i].type));
-                descriptor_send(d, msg);
-                b->affects[i].type = AFFECT_NONE;
-                b->affects[i].rounds_left = 0;
-            }
-        }
+        tick_being_affects(b, d);
     }
+    world_for_each_mob(mob_affect_tick_visit);
 }

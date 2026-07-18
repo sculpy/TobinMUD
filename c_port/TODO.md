@@ -1911,15 +1911,39 @@ already tracked — pointers, not duplicates):
       news/ednews.
 - [x] **ed* rename** — done 2026-07-05: redit→edroom, hedit→edhelp,
       addnews→ednews (command names, help topics, tests, editor prompts).
-- [x] **Diseases** — done 2026-07-18: 4 diseases (Cold/Flu/Food Poisoning/
-      Plague, `affect_type_t`, affect.h), immortals immune. Caught from
-      drinking a pool (`cmd_drink.c`, 15% chance on the puddle-drinking
-      branch, one of the 4 picked at random with its own duration). Ticks
-      via the existing `affect_tick_run()` pulse: every 10th round-left
-      tick drains 1-4 HP (by severity) with a "flares up" message, clamped
+- [x] **Diseases** — done 2026-07-18, then expanded same day (user: "may as
+      well include all disease now, from sneezy along with affects for
+      players and NPCs"). ALL 26 diseases from the upstream
+      `diseaseTypeT` roster (misc/disease.h) -- Cold, Flu, Frostbite,
+      Bleeding, Infection, Herpes, Broken Bone, Numbed Limb, Voicebox,
+      Eyeball, Lung, Stomach Wound, Internal Bleeding, Leprosy, Plague,
+      Suffocation, Food Poisoning, Drowning, Garrotte, Syphilis, Bruised,
+      Scurvy, Dysentery, Pneumonia, Gangrene, Extreme Pain (`affect_type_t`,
+      affect.h) -- immortals immune. Caught from drinking a pool
+      (`cmd_drink.c`, 15% chance on the puddle-drinking branch, one of the
+      26 picked at random with its own duration). Ticks via the existing
+      `affect_tick_run()` pulse: every 10th round-left tick drains HP
+      (per-type, `DISEASE_HP_DRAIN[]`) with a "flares up" message, clamped
       to a minimum of 1 HP, until it wears off naturally or is cured (see
-      Hospital below). Not DB-persisted (like all affects) -- lost on
-      reconnect.
+      Hospital below). Deliberately NOT a port of each disease's own
+      upstream spec_proc mechanic (disease.cc is ~2000 lines of bespoke
+      per-disease effects like blindness/muteness/limping) -- same v1
+      scope as the original 4: a name, a duration, a periodic HP drain,
+      a hospital cure price (`affect_cure_price()`). Poison (drinking,
+      30% chance, independent roll from disease) is its own `AFFECT_POISON`
+      rather than folded into the disease list, since the original keeps
+      DISEASE_POISON separate too, and Tobin's `drink` already had its own
+      poison roll predating the disease work -- converted from a one-shot
+      instant hit into a proper timed affect (user 2026-07-18 bug report:
+      "i peed and drank acid, said it poisoned me... did a score and no
+      message stating that i was poisoned" -- poison had no persistent
+      state to show; now it does, in `affects`, same as any disease).
+      **Now ticks for mobs too, not just connected players**
+      (`world_for_each_mob()`, same iteration primitive mob_ai.c's own
+      pulse uses) -- a mob has no descriptor to send a first-person
+      message to, so its own tick/expiry is echoed to the room in third
+      person instead ("The rat's Cold flares up."/"...wears off."). Not
+      DB-persisted (like all affects) -- lost on reconnect.
 - [ ] **News follow-ups** — edit/delete existing news in-game (addnews only
       creates); show unseen news at login (per-player last-seen).
 - [ ] **redit Extra Descriptions** — keyword extra descs (`roomextra` table
@@ -3615,8 +3639,30 @@ already tracked — pointers, not duplicates):
       that NAMED class's own Basic guildmaster, not just the caller's own
       class -- checked last in the landmark chain, so it never shadows
       the fixed landmarks above it.
-- [ ] **Message boards + related commands** — port from Sneezy. User:
-      "implement message boards and related commands from sneezy."
+- [x] **Message boards + related commands** — done 2026-07-18. User:
+      "implement message boards and related commands from sneezy" ->
+      "we need to make bulletin boards function, read and write commands,
+      from sneezy". Real seeded ITEM_BOARD objects (obj.type=24, e.g.
+      "board bulletin galek brightmoon") and the real upstream
+      `board_message` table (already-imported schema, FK'd to obj.vnum)
+      back two new commands: `read` (no arg lists a board's live posts;
+      `read <#>` shows one in full) and `write <subject> <message>`
+      (posts directly). Per-board minimum level is the real seeded
+      `obj.val0` (e.g. 52 for "board bulletin wizard immortal"), gating
+      both commands with no immortal bypass, matching the original's own
+      boardHandler. `read at <name>`/`write at <name> ...` disambiguates
+      when a room has more than one board (found live during testing --
+      a builder office has both a Wizard board and a plain bulletin
+      board); with only one board present the "at" prefix is never even
+      inspected, so an ordinary subject that happens to start with the
+      word "at" still posts fine. Deliberately scoped DOWN from the
+      original's two-step "write a note object, then post the note" flow
+      -- Tobin has no separate writable-note-object system, so `write`
+      inserts straight to the board instead; faction-gated boards
+      (Brotherhood/Serpent/Logrus) are skipped entirely (no faction
+      system); pulling a post back off the board (`get <#>` upstream) is
+      not included -- board_repo.h's `date_removed` column is ready for
+      it whenever that's wanted.
 
 ## Small near-term gameplay follow-ups
 
@@ -3911,9 +3957,17 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
       `shop_repo_is_hospital()`, no hardcoded vnum list) and the ROOM_HOSPITAL
       room flag (`goto hospital` finds the nearest one). `list`/`buy` at a
       hospital shop (`cmd_shop.c`) special-case into an ailment menu instead
-      of the normal item catalog: every damaged limb and active disease is
+      of the normal item catalog: every damaged limb and active disease
+      (now also poison, and all 26 diseases -- see Diseases above) is
       priced and numbered, `buy <#>` cures it instantly (full limb heal or
       `being_remove_affect()`) and deducts gold. Instant, not timed/queued.
+      Bugfix same day: the doctor's own line ("the Tobin City Doctor looks
+      you over:") wasn't capitalized at the start of the sentence for any
+      mob whose short_desc begins lowercase (a mid-sentence keyword
+      convention, e.g. "the Tobin City Doctor") -- now runs through
+      `being_display_name_cap()` (already existed, just wasn't used here)
+      wherever a shopkeeper's name opens a message, including the plain
+      `list`'s "<keeper> offers:" line too.
 - [x] **Classes** — already shipped: 6 classes (mage/cleric/warrior/thief/
       druid/monk) chosen at creation (`show_class_screen()`, descriptor.c),
       shown in score/who, with `class_stat_bonus()` (being.c) applying
@@ -3958,6 +4012,33 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
       row still says "11/66 ported" (list: look/who/score/quit!/color/
       attack/kill/say/limbs/help/wizhelp); there are 40+ `cmd_*.c` files
       now. Needs a dedicated audit pass, not a quick fix mid-feature.
+- [x] **`stat obj|mob|room <name>` silently statted vnum 0** — fixed
+      2026-07-18 (user: `stat o phos` dumped a blank "Object 0" instead of
+      finding the vial of red phosphorus). `stat` only ever atoi()'d its
+      vnum argument -- a non-numeric name silently became 0 rather than
+      erroring, and vnum 0 happens to be a real (empty/placeholder) row.
+      Now checks whether the argument is all-digits first; if not, it's
+      resolved via a `name like '%...%'` search (same substring
+      convention `vnum`/`obj_find_vnum_by_name` already use), erroring
+      cleanly if nothing matches instead of ever falling through to atoi().
+- [x] **`load` should bypass max_exist, not silently ignore it** — done
+      2026-07-18 (user: "when a immortal loads an obj or mob... max exist
+      should be bypassed with a warning to clean up after the immort is
+      done... if he goes over max exist"). `load` never enforced a
+      world-wide instance cap in the first place (zone.c's own comment
+      already documents this as a deliberate simplification -- only
+      per-room zone-reset caps are tracked) -- so there was nothing to
+      "bypass". What it does now: after loading, counts every live
+      instance of that vnum anywhere in the world
+      (`world_for_each_mob()`/`world_for_each_obj()` + the real seeded
+      `max_exist` column, now read into `obj_proto_t`/`mob_proto_t`) and
+      warns (never refuses) the immortal if they've pushed it over that
+      prototype's own limit, so they know to clean up. Every ALREADY-
+      loaded instance genuinely was (and remains) an independent live
+      object/mob, never a "prototype" reference -- `obj_create_from_proto()`/
+      `being_create_mob()` always built a real, separate instance each
+      call; the confusing `stat o phos` symptom above was `stat`'s own
+      bug, not a `load` one.
 
 ## Reference material (Sneezy enums, provided 2026-07-04)
 
