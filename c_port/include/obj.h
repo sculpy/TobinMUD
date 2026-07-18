@@ -92,6 +92,12 @@ typedef struct obj {
      *   MONEY:    val[0]=coin amount
      *   KEY:      val[0]=vnum this key unlocks
      *   MAGIC_DEVICE: val[0]=charges/uses remaining
+     *   WRITTEN (board only, obj.type==24/ITEM_BOARD -- see cmd_board.c):
+     *             val[0]=minimum level to `read`/`write` this specific
+     *             board (0=everyone); real seeded data, e.g. 52 for
+     *             "board bulletin wizard immortal". Every OTHER WRITTEN
+     *             sub-type (book/note/audio/card deck) leaves val[]
+     *             unused, same as any other unlisted category below.
      * Categories not listed leave val[] unused/decorative for now. */
     int val[4];
     double weight;

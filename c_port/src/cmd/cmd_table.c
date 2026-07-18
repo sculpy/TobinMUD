@@ -180,6 +180,11 @@ static const cmd_entry_t COMMANDS[] = {
     { "remove",  cmd_remove,  "Take off a worn or held item (remove <item>).",      MORTAL_LEVEL_MIN },
     { "rent",    cmd_rent,    "Store your belongings and leave the game safely.",   MORTAL_LEVEL_MIN },
     { "rules",   cmd_rules,   "Read the game rules (rules, or rules <number>).",    MORTAL_LEVEL_MIN },
+    /* Bulletin boards (user 2026-07-18). Placed after the whole r-block
+     * above (not in strict alpha order, which would put it before "rest")
+     * so "r"/"re" keep meaning rest, per that block's own SWAP -- "read"/
+     * "rea" stay unambiguous regardless, since nothing else starts "rea". */
+    { "read",    cmd_read,    "Read the messages on a bulletin board (read [<#>]).", MORTAL_LEVEL_MIN },
     /* SWAP: say before save, so "sa" still speaks; save needs "sav".
      * ("s" is south -- movement head.) */
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
@@ -230,6 +235,9 @@ static const cmd_entry_t COMMANDS[] = {
      * most destructive command short of `shutdown` -- permanently erases
      * a character or account. */
     { "wipe",    cmd_wipe,    "Permanently erase a character or account (wipe <name>|account <name> <password>).", WIPE_MIN_LEVEL },
+    /* Bulletin boards (user 2026-07-18) -- "wr" is already unambiguous
+     * (nothing else starts "wr"). */
+    { "write",   cmd_write,   "Post a message on a bulletin board (write <subject> <message>).", MORTAL_LEVEL_MIN },
 
     /* ==================== IMMORTAL-ONLY COMMANDS ==================== */
     /* Alphabetical throughout, with one swap (wiznews/wizhelp, below).
