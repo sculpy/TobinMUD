@@ -79,7 +79,7 @@ bool cmd_edtrigger(descriptor_t *d, const char *args) {
             if (len >= sizeof(out))
                 break;
         }
-        descriptor_send(d, out);
+        descriptor_page_start(d, out, 0);
         return true;
     }
 

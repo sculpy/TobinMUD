@@ -1349,13 +1349,79 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       gets the normal multi-round combat process instead of `kill`/
       `attack`'s instant slay. Those two are unchanged. New help topic +
       `smoke_test_combat.py` Part 4.
-- [ ] **General output pagination (20-line threshold)** — any command
-      output longer than 20 lines should paginate automatically (a "more"
-      prompt, ENTER for next page / Q to stop -- same UX `news`/`wiznews`
-      already have), with one blank line before and after each page.
-      Currently only `news`/`wiznews` paginate; this asks for a shared,
-      reusable helper so every long output gets it for free, not just
-      those two commands.
+- [x] **General output pagination (20-line threshold)** — done 2026-07-17.
+      Turned out `descriptor_page_start(d, text, 0)` (descriptor.c) was
+      ALREADY the reusable helper asked for: it's a safe drop-in
+      replacement for `descriptor_send()` -- text under the ~20-line
+      `page_size` default goes out in one shot with zero pager UI (no
+      "ENTER for more" line, identical to plain `descriptor_send()`),
+      only genuinely-long text arms the pager. No new function needed,
+      just retrofitting call sites. Surveyed every `cmd_*.c` for a final,
+      single-buffer reply whose length is realistically unbounded and
+      switched its closing `descriptor_send(d, out)` to
+      `descriptor_page_start(d, out, 0)`: `cmd_help.c`'s `send_columns()`
+      (covers both `help` and `wizhelp`'s command listings -- the
+      clearest case, since the command table only grows), `cmd_who.c`,
+      `cmd_users.c` (both scale with concurrent connections), `cmd_stat.c`
+      (both `stat_player()` and `cmd_stat()` -- generic DB-column dumps,
+      already routinely 20-40 lines for a real mob/room), `cmd_object.c`'s
+      `cmd_inventory()` (unbounded carried-item count), `cmd_look.c`'s
+      container-contents branch in `look_at_target()` (unbounded, but NOT
+      the bare per-move room look -- deliberately left untouched, a
+      pager UI interrupting normal movement flow would be a real UX
+      regression, not a fix), `cmd_log.c`'s `log list`, `cmd_edtrigger.c`'s
+      `edit trigger list`. Left alone as genuinely bounded (checked each
+      against its real cap, never realistically &gt;20 lines):
+      `cmd_equipment`/`cmd_limbs` (`LIMB_COUNT`=13), `cmd_affects.c`
+      (`MAX_ACTIVE_AFFECTS`=4), `cmd_score.c`. `cmd_log.c`'s `log <n>`/
+      `log search` are a known gap -- genuinely unbounded (up to
+      `LOG_TAIL_MAX`=100 / `LOG_MATCH_MAX`=20 lines) but send each ring-
+      buffer line via its OWN `descriptor_send()` call in a loop rather
+      than one accumulated buffer, so retrofitting needs restructuring
+      first (build one string, or extend the pager to accept a line
+      array) -- left as a follow-up, not done this pass.
+      3 smoke tests broke from real pagination now actually kicking in
+      (`help`'s command list, `stat`'s DB-column dumps) and needed a
+      page-draining helper added to their `cmd()`/send+recv wrapper:
+      `smoke_test_help.py`, `smoke_test_help_content.py`,
+      `smoke_test_stat.py` (same drain-until-no-"ENTER for more" pattern
+      `smoke_test_skills.py` already used from the earlier per-command
+      pagination work). ~20 other tests touching `who`/`users`/
+      `inventory`/etc. were spot-checked live and unaffected (their
+      output stays under the threshold in normal test conditions, where
+      pagination is correctly a no-op).
+- [x] **Point-buy attribute screen boxed too** — done 2026-07-17. Follow-up
+      to the account-menu/creation-screen boxing above: user: "allocate
+      attribute menu should be boxed in the same way." `show_attr_screen()`
+      (descriptor.c) was deliberately left out of the earlier pass (it's a
+      live-updating table, not a numbered-choice menu, a different shape)
+      but boxes cleanly regardless -- commands list + current
+      attribute/handedness/gender/appearance values, all inside one
+      `send_boxed_menu()` box, header ("-- Allocate attributes for X --")
+      and the bare "> " prompt outside it, matching every other creation
+      screen. Verified live: initial values render correctly, and an
+      adjustment (`str 20`) redisplays the box with the changed value and
+      recalculated points-remaining.
+- [x] **`pee <liquid>`** — done 2026-07-17. User: "pee should be able to
+      pee liquid types, pee defaults to pee, pee <arg> tries to find a
+      matching liquid type and leave a puddle of that liquid type."
+      `cmd_pee.c`: new `PEE_LIQUIDS[]` catalog (pee/water/wine/beer/acid,
+      each with its own `obj_grow_pool()` keywords), prefix-matched
+      against `<arg>` same as every other command's abbreviation
+      convention; bare `pee` still defaults to plain pee, unchanged.
+      An unrecognized type is refused with the valid list rather than
+      silently falling back. A DIFFERENT liquid starts its own separate
+      puddle in the room (obj_grow_pool() only merges into a puddle whose
+      keywords already match the requested type) -- verified live:
+      `pee water` twice grew one water pool, `pee` afterward left a
+      SEPARATE pee puddle alongside it, both visible in `look`. No
+      broader "Liquids" system exists yet (still a separate, unbuilt
+      TODO item below) -- this is a small fixed catalog scoped to `pee`
+      itself, easy to extend with more entries later. `pool_noun_color()`
+      (obj.c) already falls back to plain white for any noun besides
+      blood/pee, so the three new liquids needed no color-table changes
+      unless a future pass wants each its own color. Help topic and
+      command-table one-liner updated to mention the new form.
 - [x] **Smoke tests still aren't logging start/finish to the MUD's log** —
       fixed 2026-07-07 (Session 36): the Session 32 `announce()` helper had
       in practice only ever landed in the one file that introduced it

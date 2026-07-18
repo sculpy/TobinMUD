@@ -476,5 +476,13 @@ INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ON DUPLICATE KEY UPDATE `title` = `title`;
 
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
-('The TobinMUD Team', 'Boxed Character Creation Screens', 'The revealed character list at the account menu is now boxed too, with each number in bright cyan. New character creation got the same treatment: the race, class, and alignment screens each now present their full option list inside a bordered box, with the option numbers colorized to match.')
+('The TobinMUD Team', 'Boxed Character Creation Screens', 'The revealed character list at the account menu is now boxed too, with each number in bright cyan. New character creation got the same treatment: the race, class, and alignment screens each now present their full option list inside a bordered box, with the option numbers colorized to match. The attribute point-buy screen is boxed now too.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Long Command Output Now Pages Automatically', 'Any command whose reply runs past about 20 lines now shows it a page at a time (ENTER for more, Q to stop) instead of dumping it all at once -- the same behavior `news`/`wiznews`/`skills` already had. Covers `help`, `wizhelp`, `who`, `users`, `stat`, `inventory`, looking inside a well-stocked container, `log list`, and `edit trigger list`. Short output is completely unaffected -- no pager prompt appears unless there is actually more than one page to show.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', '`pee` Now Takes a Liquid Type', 'Bare `pee` still works exactly as before. `pee <liquid>` -- water, wine, beer, or acid so far, abbreviations welcome -- leaves a puddle of that liquid instead. A second pee of the same liquid grows the existing puddle bigger; a different liquid starts its own puddle alongside it.')
 ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -393,7 +393,7 @@ bool cmd_inventory(descriptor_t *d, const char *args) {
     if (!any && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  Nothing.\r\n");
 
-    descriptor_send(d, out);
+    descriptor_page_start(d, out, 0);
     return true;
 }
 

@@ -139,7 +139,7 @@ static void log_list(descriptor_t *d) {
     closedir(dir);
     if (shown == 0)
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  (no log files)\r\n");
-    descriptor_send(d, out);
+    descriptor_page_start(d, out, 0);
 }
 
 bool cmd_log(descriptor_t *d, const char *args) {

@@ -789,46 +789,52 @@ void descriptor_leave_to_menu(descriptor_t *d) {
 /* Prints the current point-buy allocation and remaining pool. */
 static void show_attr_screen(descriptor_t *d) {
     int remaining = ATTR_POOL - attrs_allocated(&d->new_char_attrs);
-
     const char *appear = d->new_char_appearance[0] ? d->new_char_appearance : "(none set)";
 
-    /* Sized for the fixed menu text plus a full-length appearance (up to
-     * BEING_APPEARANCE_LEN, bumped Session 43 continued for the mob-
-     * description truncation fix -- new_char_appearance shares that
-     * buffer size) with generous headroom so gcc's -Wformat-truncation
-     * worst-case estimate (which sums every %s field's own declared
-     * bound, not just the actual data) can prove it always fits. */
-    char out[BEING_APPEARANCE_LEN + 2048];
-    snprintf(out, sizeof(out),
-             "\r\n-- Allocate attributes for %s --\r\n"
-             "Every attribute starts at %d. Raise or lower any attribute by up to\r\n"
-             "%d in either direction -- lowering one frees up room to raise another.\r\n"
-             "Net pool: %d points. Commands:\r\n"
-             "  str/dex/con/int/wis/cha <amount>   set that attribute's adjustment,\r\n"
-             "                                      e.g. \"str 30\" or \"wis -20\"\r\n"
-             "  hand left|right                    choose your primary hand (default right)\r\n"
-             "  gender male|female|neuter          choose your gender (default neuter)\r\n"
-             "  appearance <text>                  describe how you look to others\r\n"
-             "  reset                              clear all adjustments\r\n"
-             "  done                                finish and create the character\r\n"
-             "  quit!                               cancel and return to the character menu\r\n\r\n"
-             "  Strength:      %3d\r\n"
-             "  Dexterity:     %3d\r\n"
-             "  Constitution:  %3d\r\n"
-             "  Intelligence:  %3d\r\n"
-             "  Wisdom:        %3d\r\n"
-             "  Charisma:      %3d\r\n"
-             "  Handedness:    %s\r\n"
-             "  Gender:        %s\r\n"
-             "  Appearance:    %s\r\n"
-             "Points remaining: %d\r\n\r\n> ",
-             d->new_char_name, ATTR_BASE, ATTR_DELTA_CAP, ATTR_POOL,
-             d->new_char_attrs.strength, d->new_char_attrs.dexterity, d->new_char_attrs.constitution,
-             d->new_char_attrs.intelligence, d->new_char_attrs.wisdom, d->new_char_attrs.charisma,
-             d->new_char_handed ? "right" : "left",
-             gender_name(d->new_char_gender), appear,
-             remaining);
-    descriptor_send(d, out);
+    char head[96];
+    snprintf(head, sizeof(head), "-- Allocate attributes for %s --", d->new_char_name);
+
+    char intro1[96], intro2[96], intro3[64];
+    snprintf(intro1, sizeof(intro1), "Every attribute starts at %d. Raise or lower any attribute by up to", ATTR_BASE);
+    snprintf(intro2, sizeof(intro2), "%d in either direction -- lowering one frees up room to raise another.", ATTR_DELTA_CAP);
+    snprintf(intro3, sizeof(intro3), "Net pool: %d points. Commands:", ATTR_POOL);
+
+    /* Sized for a full-length appearance line (up to BEING_APPEARANCE_LEN,
+     * bumped Session 43 continued for the mob-description truncation fix
+     * -- new_char_appearance shares that buffer size) plus its label. */
+    char strength[32], dexterity[32], constitution[32], intelligence[32], wisdom[32], charisma[32];
+    char handedness[32], gender[48], appearance[BEING_APPEARANCE_LEN + 32], points[48];
+    snprintf(strength, sizeof(strength), "  Strength:      %3d", d->new_char_attrs.strength);
+    snprintf(dexterity, sizeof(dexterity), "  Dexterity:     %3d", d->new_char_attrs.dexterity);
+    snprintf(constitution, sizeof(constitution), "  Constitution:  %3d", d->new_char_attrs.constitution);
+    snprintf(intelligence, sizeof(intelligence), "  Intelligence:  %3d", d->new_char_attrs.intelligence);
+    snprintf(wisdom, sizeof(wisdom), "  Wisdom:        %3d", d->new_char_attrs.wisdom);
+    snprintf(charisma, sizeof(charisma), "  Charisma:      %3d", d->new_char_attrs.charisma);
+    snprintf(handedness, sizeof(handedness), "  Handedness:    %s", d->new_char_handed ? "right" : "left");
+    snprintf(gender, sizeof(gender), "  Gender:        %s", gender_name(d->new_char_gender));
+    snprintf(appearance, sizeof(appearance), "  Appearance:    %s", appear);
+    snprintf(points, sizeof(points), "Points remaining: %d", remaining);
+
+    const char *const lines[] = {
+        intro1, intro2, intro3,
+        "",
+        "  str/dex/con/int/wis/cha <amount>   set that attribute's adjustment,",
+        "                                      e.g. \"str 30\" or \"wis -20\"",
+        "  hand left|right                    choose your primary hand (default right)",
+        "  gender male|female|neuter          choose your gender (default neuter)",
+        "  appearance <text>                  describe how you look to others",
+        "  reset                              clear all adjustments",
+        "  done                                finish and create the character",
+        "  quit!                               cancel and return to the character menu",
+        "",
+        strength, dexterity, constitution, intelligence, wisdom, charisma,
+        handedness, gender, appearance,
+        points,
+    };
+    descriptor_send(d, "\r\n");
+    descriptor_send(d, head);
+    send_boxed_menu(d, lines, (int)(sizeof(lines) / sizeof(lines[0])));
+    descriptor_send(d, "> ");
 }
 
 /* CONN_CHAR_CREATE_RACE / CONN_CHAR_CREATE_CLASS / CONN_CHAR_CREATE_ALIGNMENT

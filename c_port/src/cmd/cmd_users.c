@@ -55,6 +55,6 @@ bool cmd_users(descriptor_t *d, const char *args) {
     if ((size_t)n < sizeof(out))
         snprintf(out + n, sizeof(out) - (size_t)n, "%d connection%s.\r\n",
                  count, count == 1 ? "" : "s");
-    descriptor_send(d, out);
+    descriptor_page_start(d, out, 0);
     return true;
 }

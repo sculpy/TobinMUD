@@ -156,7 +156,7 @@ static bool stat_player(descriptor_t *d, const char *name) {
     }
 
     db_close(db);
-    descriptor_send(d, out);
+    descriptor_page_start(d, out, 0);
     return true;
 }
 
@@ -257,6 +257,6 @@ bool cmd_stat(descriptor_t *d, const char *args) {
     }
 
     db_close(db);
-    descriptor_send(d, out);
+    descriptor_page_start(d, out, 0);
     return true;
 }

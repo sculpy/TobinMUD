@@ -342,7 +342,7 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- New topic: `pee` (2026-07-11).
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
-('pee', 'Usage: pee\n\nImmortal-only: relieves yourself, leaving a puddle on the floor of\nyour current room for everyone to see. Purely for flavor.', 'seed')
+('pee', 'Usage: pee\n       pee <liquid>\n\nRelieves yourself, leaving a puddle on the floor of your current room\nfor everyone to see. Bare `pee` leaves plain pee; `pee <liquid>` (e.g.\n`pee water`, `pee wine`) leaves a puddle of that liquid instead, if\nrecognized -- abbreviations welcome. A second pee of the SAME liquid in\nthe same room grows the existing puddle bigger instead of starting a\nnew one; a different liquid starts its own puddle alongside it. Purely\nfor flavor.\n\nRelated: drink', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- New topic: `drink` (2026-07-11).

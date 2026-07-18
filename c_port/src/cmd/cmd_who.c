@@ -178,6 +178,6 @@ bool cmd_who(descriptor_t *d, const char *args) {
                       "\r\n<c>Active: [%d]  Linkdead: [%d]  Total players: [%d]<z>\r\n",
                       active, linkdead, active + linkdead);
 
-    descriptor_send(d, out);
+    descriptor_page_start(d, out, 0);
     return true;
 }

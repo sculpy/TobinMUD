@@ -80,6 +80,19 @@ def send_line(sock, line):
     sock.sendall((line + "\r\n").encode())
 
 
+def paged(sock, timeout=1.0, max_pages=15):
+    """Drains a paginated reply (help/wizhelp now page past ~20 lines,
+    2026-07-17 general-pagination sweep) by hitting ENTER until no "more"
+    prompt remains. Call right after send_line() instead of recv_all()."""
+    out = recv_all(sock, timeout)
+    pages = 0
+    while "ENTER" in out and "more" in out and pages < max_pages:
+        send_line(sock, "")
+        out += recv_all(sock, timeout)
+        pages += 1
+    return out
+
+
 def check(condition, message):
     if not condition:
         raise AssertionError(message)
@@ -114,7 +127,7 @@ def make_player(tag):
 # --- Part 1: `help` lists every mortal command ---
 sA, nameA = make_player("A")
 send_line(sA, "help")
-out = recv_all(sA)
+out = paged(sA)
 check("Available commands" in out, "help shows a header")
 for cmd in MORTAL_COMMANDS:
     check(cmd in out, f"help lists '{cmd}'")
@@ -124,7 +137,7 @@ check("transfer" not in out and "promote" not in out and "wizhelp" not in out,
 
 # --- Part 2: wizhelp is INVISIBLE to mortals (Tier 3) ---
 send_line(sA, "wizhelp")
-out = recv_all(sA)
+out = paged(sA)
 check("Command not found" in out, "a mortal typing wizhelp gets Command not found (hidden, not just refused)")
 
 # --- Part 3: an immortal sees the real immortal-only list ---
@@ -144,7 +157,7 @@ send_line(sA, "1")
 recv_all(sA)
 
 send_line(sA, "wizhelp")
-out = recv_all(sA)
+out = paged(sA)
 check("Immortal-only commands" in out, "an immortal calling wizhelp sees the immortal-only header")
 check("transfer" in out, "wizhelp lists the level-51 immortal commands")
 check("delbug" not in out and "promote" not in out,
@@ -153,7 +166,7 @@ check("[51+]" not in out and "[51 +]" not in out,
       "wizhelp no longer shows the level tag")
 
 send_line(sA, "help")
-out = recv_all(sA)
+out = paged(sA)
 check("goto" in out, "an immortal's help includes their immortal commands")
 check("delbug" not in out and "promote" not in out,
       "a level-51's help does not reveal delbug (59+) or promote (58+)")

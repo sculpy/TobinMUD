@@ -79,9 +79,17 @@ def send_line(sock, line):
     sock.sendall((line + "\r\n").encode())
 
 
-def cmd(sock, line, timeout=1.0):
+def cmd(sock, line, timeout=1.0, max_pages=15):
+    """Drains a paginated reply too (`stat` now pages past ~20 lines,
+    2026-07-17 general-pagination sweep) -- a no-op for anything short."""
     send_line(sock, line)
-    return recv_all(sock, timeout)
+    out = recv_all(sock, timeout)
+    pages = 0
+    while "ENTER" in out and "more" in out and pages < max_pages:
+        send_line(sock, "")
+        out += recv_all(sock, timeout)
+        pages += 1
+    return out
 
 
 def check(condition, message):

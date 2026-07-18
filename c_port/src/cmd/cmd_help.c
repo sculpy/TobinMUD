@@ -36,7 +36,7 @@ static void send_columns(descriptor_t *d, const char **names, int cnt,
         n += (size_t)snprintf(out + n, sizeof(out) - n, "\r\n");
     if (footer && n < sizeof(out))
         snprintf(out + n, sizeof(out) - n, "%s", footer);
-    descriptor_send(d, out);
+    descriptor_page_start(d, out, 0);
 }
 
 /* `help`: lists every available command with a one-line description.
