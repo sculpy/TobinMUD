@@ -37,6 +37,41 @@ already tracked — pointers, not duplicates):
   not stale.
 - Meaningful limb damage, Thief "peek" skill — already tracked (their own
   entries above).
+- [x] **Zone `A` opcode (random-room roll) — fixes 1119+ dead mob spawns**
+      — done. Found chasing why the trigger just attached to mob 149
+      (see the item above) never fired for a real player: the mob was
+      never spawning through the normal zone reset system AT ALL, in
+      ANY zone. Root-caused against the real SneezyMUD C++ source
+      (`sneezymud-master/code/code/sys/db.cc`): the upstream zonefile
+      opcode `A <lo> <hi>` rolls a random room number in that inclusive
+      range and stores it as the zone's current "random room"
+      (`ZONE_ROOM_RANDOM = -99` in the original, `db.h`); any following
+      `M`/`O` command whose own room arg is that same `-99` sentinel
+      uses the rolled room instead of a literal vnum, for the rest of
+      that reset pass. Tobin's `zone_execute()` (`src/core/zone.c`)
+      only ever implemented six opcodes (M/O/E/G/P/D) -- `A` fell into
+      the same silent "unhandled opcode" bucket as a dozen others,
+      which meant its own `-99` sentinel was never substituted with
+      anything, and `zone_get_room(-99)` always failed. Confirmed via
+      direct query: **1119 `M` rows and 25 `O` rows across the whole DB**
+      use `-99` as their room -- these are wandering/ambient mobs by
+      theme ("grimhaven youth", "scarred tomcat", "filthy dog", "ugly
+      crow", ...), never a fixed spot, exactly matching the mechanic's
+      purpose. New `zone_cmd_random_room()` (rolls arg1..arg2, retries
+      up to 10x on an invalid candidate, matching the original's
+      shape) + `zone_resolve_target_room()` (substitutes the current
+      random room for the `-99` sentinel, used-as-is otherwise) wired
+      into `M`/`O`'s existing handlers. Verified live: preview's boot
+      mob/object count jumped from 649/587 to 769/652 with this fix in
+      (120 more mobs, 65 more objects now successfully spawning
+      world-wide); scanned the full 101-244 room range used by mob
+      149/148's own `A` rolls and found them landing in real, different
+      random rooms (105, 119, 138, 211) across repeated resets, exactly
+      as designed. Zone-related smoke tests
+      (edzone/zone_identity/zonefile/zones) all still pass --
+      `smoke_test_zones.py`'s one failure (room 200 expected "Farm
+      House", is actually "Inside the City Gates") is confirmed
+      pre-existing/stale, unrelated to this change.
 - [x] **Trigger `wait`/`say` actions** — done. User (2026-07-19, pasted a
       Monty-Python-esque market-vendor script -- "wait 1 / say Larks'
       tongues. / wait 1 / say Wrens' livers. / ..."): "i want to put this

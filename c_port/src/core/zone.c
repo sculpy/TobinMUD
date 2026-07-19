@@ -5,6 +5,7 @@
 #include "zone.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "being.h"
@@ -18,6 +19,19 @@
 
 #define MAX_ZONES 512
 #define MAX_RESETS_PER_ZONE 2048
+
+/* Sentinel room value meaning "use the zone's current random room" instead
+ * of a literal vnum -- ZONE_ROOM_RANDOM in the original engine (db.h),
+ * value -99. Set by an 'A' command (arg1/arg2 = an inclusive room-vnum
+ * range to pick from), consumed by any M/O whose own room arg is this
+ * sentinel, for the rest of the SAME reset pass (until the next 'A' rolls
+ * a new one). Real, common upstream data -- 1119 M rows and 25 O rows
+ * across the whole DB use -99 as their room, all silently failing before
+ * this: 'A' wasn't one of Tobin's six implemented opcodes yet (found
+ * live, 2026-07-19, chasing why a trigger the user attached to mob 149
+ * never fired -- the mob was never spawning via the normal zone reset at
+ * all, in ANY zone, since it depends on this). */
+#define ZONE_ROOM_RANDOM (-99)
 
 /* In-memory zone age tracking (minutes since last reset) -- not persisted,
  * same precedent as other session-only state (fighting/desc/off_hand_next
@@ -60,14 +74,45 @@ static int zone_count_in_room(const room_t *room, thing_kind_t kind, int vnum) {
     return n;
 }
 
-/* 'M': load mob `arg1` into room `arg3`, unless the room already has
- * `arg2` or more of that vnum. Sets *last_mob to the new mob (or NULL on
- * any failure -- cascades to a following E/G/if_flag row failing too,
- * same as the original's mob==NULL-on-failure behavior). */
-static bool zone_cmd_load_mob(const zone_reset_cmd_t *cmd, being_t **last_mob) {
+/* 'A': rolls a random room number in [arg1, arg2] (inclusive), retrying
+ * up to 10 times if a candidate doesn't actually exist -- same shape as
+ * the original's runResetCmdA(). Stores it into *random_room for any
+ * following M/O in this same reset pass whose own room arg is
+ * ZONE_ROOM_RANDOM to pick up. Leaves *random_room unchanged (not reset
+ * to -1) on failure to find a valid room in 10 tries -- matches the
+ * original, which only logs and moves on, still leaving whatever the
+ * PREVIOUS 'A' rolled in place rather than blanking it. */
+static bool zone_cmd_random_room(const zone_reset_cmd_t *cmd, int *random_room) {
+    if (cmd->arg2 < cmd->arg1)
+        return false;
+    int span = cmd->arg2 - cmd->arg1 + 1;
+    for (int tries = 0; tries < 10; tries++) {
+        int candidate = cmd->arg1 + (rand() % span);
+        if (zone_get_room(candidate)) {
+            *random_room = candidate;
+            return true;
+        }
+    }
+    return false;
+}
+
+/* Substitutes the zone's current random room (set by the most recent 'A'
+ * in this pass) for the ZONE_ROOM_RANDOM sentinel; any other value is a
+ * literal room vnum, used as-is. */
+static room_t *zone_resolve_target_room(int arg3, int random_room) {
+    int vnum = (arg3 == ZONE_ROOM_RANDOM) ? random_room : arg3;
+    return zone_get_room(vnum);
+}
+
+/* 'M': load mob `arg1` into room `arg3` (or the zone's current random room,
+ * see zone_resolve_target_room()), unless the room already has `arg2` or
+ * more of that vnum. Sets *last_mob to the new mob (or NULL on any failure
+ * -- cascades to a following E/G/if_flag row failing too, same as the
+ * original's mob==NULL-on-failure behavior). */
+static bool zone_cmd_load_mob(const zone_reset_cmd_t *cmd, int random_room, being_t **last_mob) {
     *last_mob = NULL;
 
-    room_t *room = zone_get_room(cmd->arg3);
+    room_t *room = zone_resolve_target_room(cmd->arg3, random_room);
     if (!room)
         return false;
 
@@ -83,18 +128,19 @@ static bool zone_cmd_load_mob(const zone_reset_cmd_t *cmd, being_t **last_mob) {
     return true;
 }
 
-/* 'O': load object `arg1` onto the floor of room `arg3`, unless the room
- * already has `arg2` or more. Boot-time only (matches the original: O is
- * "ground boot", periodic non-boot resets skip it entirely -- otherwise
- * every reset tick would keep adding fresh ground clutter forever, since
- * nothing currently removes a dropped-and-forgotten object). */
+/* 'O': load object `arg1` onto the floor of room `arg3` (or the zone's
+ * current random room), unless the room already has `arg2` or more.
+ * Boot-time only (matches the original: O is "ground boot", periodic
+ * non-boot resets skip it entirely -- otherwise every reset tick would
+ * keep adding fresh ground clutter forever, since nothing currently
+ * removes a dropped-and-forgotten object). */
 static bool zone_cmd_load_obj_ground(const zone_reset_cmd_t *cmd, bool boot_time,
-                                      obj_t **last_obj) {
+                                      int random_room, obj_t **last_obj) {
     *last_obj = NULL;
     if (!boot_time)
         return false;
 
-    room_t *room = zone_get_room(cmd->arg3);
+    room_t *room = zone_resolve_target_room(cmd->arg3, random_room);
     if (!room)
         return false;
 
@@ -212,10 +258,13 @@ static bool zone_cmd_door(const zone_reset_cmd_t *cmd) {
 /* Runs one zone's reset -- every row in cmd_no order, `if_flag` gating a
  * row on whether the PREVIOUS row fired (a simple linear dependency
  * chain, matching the original's "skip commands dependent on a failed
- * prev command"). Unhandled opcodes (Y/X/Z/A/V/H/F/T/L/K/C/R/I/J) always
+ * prev command"). Unhandled opcodes (Y/X/Z/V/H/F/T/L/K/C/R/I/J) always
  * count as a no-op failure -- silently, not logged per-row (would be
  * thousands of lines at boot); a one-line per-zone summary is logged by
- * the caller instead. */
+ * the caller instead. 'A' (random-room roll) IS handled -- see
+ * zone_cmd_random_room() -- as of 2026-07-19; it wasn't before, which is
+ * why every M/O row depending on it (ZONE_ROOM_RANDOM, -99) always
+ * failed. */
 static void zone_execute(int zone_nr, bool boot_time, int *out_mobs, int *out_objs) {
     static zone_reset_cmd_t cmds[MAX_RESETS_PER_ZONE];
     int n = zone_repo_load_resets(zone_nr, cmds, MAX_RESETS_PER_ZONE);
@@ -223,6 +272,7 @@ static void zone_execute(int zone_nr, bool boot_time, int *out_mobs, int *out_ob
     being_t *last_mob = NULL;
     obj_t *last_obj = NULL;
     bool last_ok = true;
+    int random_room = -1;
     int mobs = 0, objs = 0;
 
     for (int i = 0; i < n; i++) {
@@ -233,14 +283,17 @@ static void zone_execute(int zone_nr, bool boot_time, int *out_mobs, int *out_ob
 
         bool ok = false;
         switch (cmd->command) {
+            case 'A':
+                ok = zone_cmd_random_room(cmd, &random_room);
+                break;
             case 'M':
-                ok = zone_cmd_load_mob(cmd, &last_mob);
+                ok = zone_cmd_load_mob(cmd, random_room, &last_mob);
                 last_obj = NULL;
                 if (ok) mobs++;
                 break;
             case 'O': {
                 obj_t *o = NULL;
-                ok = zone_cmd_load_obj_ground(cmd, boot_time, &o);
+                ok = zone_cmd_load_obj_ground(cmd, boot_time, random_room, &o);
                 if (ok) { last_obj = o; objs++; }
                 break;
             }
