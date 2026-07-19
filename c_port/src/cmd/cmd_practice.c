@@ -92,6 +92,24 @@ static skill_tier_t guild_tier_to_skill_tier(int tier) {
     return SKILL_TIER_CLASS;
 }
 
+/* What `cast`/`pray` (cmd_cast.c/cmd_pray.c) actually consume to invoke a
+ * given class's non-combat spells -- shown inline in the listing below
+ * (user 2026-07-18: "write help files for each including what symbol/
+ * component/commodity is needed to cast/pray"), rather than a help_topic
+ * row per spell (~300 of them; this codebase reserves help_topic for
+ * commands, not individual spell entries). NULL for classes/tiers that
+ * don't cast at all (Warrior/Thief/Monk, and everyone's SKILL_TIER_COMBAT
+ * weapon-proficiency rows, which `cast`/`pray` refuse outright). */
+static const char *spell_reagent_note(player_class_t cls, skill_tier_t sktier) {
+    if (sktier == SKILL_TIER_COMBAT)
+        return NULL;
+    if (cls == CLASS_MAGE || cls == CLASS_DRUID)
+        return "`cast` needs a spell component";
+    if (cls == CLASS_CLERIC)
+        return "`pray` needs a holy symbol";
+    return NULL;
+}
+
 /* `practice <discipline>` (no count): shows the skill/spell listing for
  * that ONE discipline, with each accessible skill's own individual
  * proficiency percentage (Sneezy-style learn-by-doing, see skill.c) --
@@ -115,11 +133,15 @@ static void practice_show_discipline(descriptor_t *d, being_t *ch, int tier, boo
             lock_reason = "master Basic and Combat first";
     }
 
+    const char *reagent = spell_reagent_note(cls, sktier);
+
     char out[8192];
     size_t n = 0;
     n += (size_t)snprintf(out + n, sizeof(out) - n,
                           "\r\n<c>-- %s discipline: %d%% --<z>\r\n",
                           tier_name(tier), this_pct);
+    if (reagent)
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  <y>(%s to invoke any of these)<z>\r\n", reagent);
 
     int shown = 0;
     int count = skill_count();

@@ -5,6 +5,7 @@
 #include "affect.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "being.h"
 #include "descriptor.h"
@@ -136,6 +137,11 @@ int affect_cure_price(affect_type_t type) {
     if (type < 0 || type >= AFFECT_COUNT)
         return 0;
     return AFFECT_CURE_PRICE[type];
+}
+
+affect_type_t affect_random_disease(void) {
+    int span = AFFECT_DISEASE_EXTREME_PAIN - AFFECT_DISEASE_COLD + 1;
+    return (affect_type_t)(AFFECT_DISEASE_COLD + rand() % span);
 }
 
 /* Checks whether `b` currently has a given buff/debuff active by

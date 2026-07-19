@@ -10,6 +10,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "affect.h"
 #include "obj.h"
 #include "skill.h"
 #include "thing.h"
@@ -80,15 +81,56 @@ static const skill_def_t *find_spell(player_class_t cls, const char *name, bool 
     return NULL;
 }
 
-/* Applies a small, honest placeholder effect based on keywords in the
- * spell's own one-line description -- real per-spell mechanics are
- * follow-up work (see this file's header comment). */
+/* Applies a real effect for the categories of spell this roster
+ * actually contains, based on the spell's own name/one-line description
+ * (both real Sneezy flavor text, see skill.c) -- expanded 2026-07-18
+ * (user: "implement spell/skill affects... make each work from sneezy
+ * code") beyond the original heal/damage-only v1. Cure poison/disease
+ * reuse THIS session's own disease/poison affect work (affect.h) --
+ * casting "cure poison" now genuinely removes AFFECT_POISON, closing
+ * the loop with `drink`'s puddle-poison roll and the hospital's cure.
+ * Protective spells (armor/shield/resistance/stone skin/wards, a large
+ * chunk of the Mage/Druid roster) all reuse the SAME AFFECT_SANCTUARY
+ * damage-reduction mechanic "sanctuary" itself already uses -- an honest
+ * scope-down (one real shared buff, not ~30 bespoke elemental-resistance
+ * systems Tobin has no damage-type model to back anyway) rather than a
+ * silent no-op. Still not attempted: mana costs (no mana pool exists),
+ * and anything needing a subsystem Tobin doesn't have at all yet
+ * (teleport/summon/polymorph/invisibility/...) -- those fall through to
+ * the same honest "nothing happens yet" placeholder as before. */
 static void task_cast(descriptor_t *d, being_t *ch, const skill_def_t *sk) {
     char msg[192];
-    if (ci_contains(sk->desc, "heal")) {
+    if (strcasecmp(sk->name, "cure poison") == 0) {
+        bool had = being_has_affect(ch, AFFECT_POISON);
+        if (had)
+            being_remove_affect(ch, AFFECT_POISON);
+        snprintf(msg, sizeof(msg), had
+                 ? "You cast %s -- the poison in your veins fades away!\r\n"
+                 : "You cast %s, but you weren't poisoned to begin with.\r\n", sk->name);
+        descriptor_send(d, msg);
+    } else if (strcasecmp(sk->name, "cure disease") == 0) {
+        bool cured = false;
+        for (int i = 0; i < MAX_ACTIVE_AFFECTS; i++) {
+            if (affect_is_disease(ch->affects[i].type)) {
+                being_remove_affect(ch, ch->affects[i].type);
+                cured = true;
+            }
+        }
+        snprintf(msg, sizeof(msg), cured
+                 ? "You cast %s -- your sickness lifts!\r\n"
+                 : "You cast %s, but you weren't sick to begin with.\r\n", sk->name);
+        descriptor_send(d, msg);
+    } else if (ci_contains(sk->desc, "heal")) {
         int amount = 8 + ch->progress.level / 2;
         being_heal(ch, amount);
         snprintf(msg, sizeof(msg), "You cast %s and feel restored! (+%d HP)\r\n", sk->name, amount);
+        descriptor_send(d, msg);
+    } else if (ci_contains(sk->desc, "armor bonus") || ci_contains(sk->desc, "reduces incoming damage")
+               || ci_contains(sk->desc, "resistance to") || ci_contains(sk->desc, "reflective shield")
+               || ci_contains(sk->desc, "self-ward") || ci_contains(sk->name, "shield")
+               || ci_contains(sk->name, "stone skin") || ci_contains(sk->name, "barkskin")) {
+        being_apply_affect(ch, AFFECT_SANCTUARY, 12);
+        snprintf(msg, sizeof(msg), "You cast %s -- a protective ward settles over you!\r\n", sk->name);
         descriptor_send(d, msg);
     } else if (ch->fighting && (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "bolt")
                                  || ci_contains(sk->desc, "beam") || ci_contains(sk->desc, "blast")

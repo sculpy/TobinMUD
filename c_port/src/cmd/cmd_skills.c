@@ -10,6 +10,23 @@
 #include "being.h"
 #include "skill.h"
 
+/* What `cast`/`pray` (cmd_cast.c/cmd_pray.c) consume to invoke a class's
+ * non-combat spells -- shown inline here (user 2026-07-18: "write help
+ * files for each including what symbol/component/commodity is needed to
+ * cast/pray"), same duplicated-static-helper convention as
+ * cmd_practice.c's identical spell_reagent_note(). NULL for classes/tiers
+ * that don't cast (Warrior/Thief/Monk, and every class's SKILL_TIER_COMBAT
+ * weapon rows, which `cast`/`pray` refuse outright). */
+static const char *spell_reagent_note(player_class_t cls, skill_tier_t tier) {
+    if (tier == SKILL_TIER_COMBAT)
+        return NULL;
+    if (cls == CLASS_MAGE || cls == CLASS_DRUID)
+        return "`cast` needs a spell component";
+    if (cls == CLASS_CLERIC)
+        return "`pray` needs a holy symbol";
+    return NULL;
+}
+
 /* `skills`: lists a player's class's skill/spell roster, grouped into the
  * three tiers (Combat / <Class> Skills / Advanced <Class> Skills). A skill
  * is "known" (usable) once level reaches its threshold AND the player's
@@ -31,6 +48,9 @@ static void print_tier(descriptor_t *d, const being_t *ch, player_class_t cls, s
     char header[64];
     snprintf(header, sizeof(header), "\r\n<c>-- %s --<z>\r\n", label);
     *n += (size_t)snprintf(out + *n, outsz - *n, "%s", header);
+    const char *reagent = spell_reagent_note(cls, tier);
+    if (reagent)
+        *n += (size_t)snprintf(out + *n, outsz - *n, "  <y>(%s to invoke any of these)<z>\r\n", reagent);
 
     int shown = 0;
     int count = skill_count();

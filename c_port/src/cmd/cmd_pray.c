@@ -145,23 +145,101 @@ static void pray_apply_heal(descriptor_t *d, being_t *ch, being_t *target, const
     }
 }
 
-/* Works out what a successful prayer actually does: heals the target
- * if the spell's description mentions healing, damages the caster's
- * current opponent if it mentions an attack, or otherwise just prints
- * an honest "nothing happens yet" placeholder. Remembers heal-type
+/* Works out what a successful prayer actually does, expanded 2026-07-18
+ * (user: "implement spell/skill affects... make each work from sneezy
+ * code") beyond the original heal/sanctuary/damage-only v1 -- see
+ * cmd_cast.c's matching header comment for the full rationale (cure
+ * poison/disease reuse this session's own affect work, closing the loop
+ * with `drink`'s puddle roll and the hospital's cure; the offensive
+ * mirrors -- Cleric's own "poison"/"disease"/"infect" prayers -- now
+ * actually inflict them on the caster's current opponent, same targeting
+ * convention the damage branch below already used). Remembers heal-type
  * prayers so `continue` (cmd_continue.c) can keep repeating them. */
 static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill_def_t *sk) {
     char msg[192];
-    if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")) {
+    if (strcasecmp(sk->name, "cure poison") == 0) {
+        ch->last_heal_target = NULL;
+        bool had = being_has_affect(target, AFFECT_POISON);
+        if (had)
+            being_remove_affect(target, AFFECT_POISON);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), had
+                     ? "You pray for %s -- the poison in your veins fades away!\r\n"
+                     : "You pray for %s, but you weren't poisoned to begin with.\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), had
+                     ? "You pray for %s over %s -- their poison fades away!\r\n"
+                     : "You pray for %s over %s, but they weren't poisoned.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc && had)
+                descriptor_notify(target->desc, "The poison in your veins fades away!\r\n");
+        }
+    } else if (strcasecmp(sk->name, "cure disease") == 0) {
+        ch->last_heal_target = NULL;
+        bool cured = false;
+        for (int i = 0; i < MAX_ACTIVE_AFFECTS; i++) {
+            if (affect_is_disease(target->affects[i].type)) {
+                being_remove_affect(target, target->affects[i].type);
+                cured = true;
+            }
+        }
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), cured
+                     ? "You pray for %s -- your sickness lifts!\r\n"
+                     : "You pray for %s, but you weren't sick to begin with.\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), cured
+                     ? "You pray for %s over %s -- their sickness lifts!\r\n"
+                     : "You pray for %s over %s, but they weren't sick.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc && cured)
+                descriptor_notify(target->desc, "Your sickness lifts!\r\n");
+        }
+    } else if (ch->fighting && strcasecmp(sk->name, "poison") == 0) {
+        ch->last_heal_target = NULL;
+        being_t *foe = ch->fighting;
+        being_apply_affect(foe, AFFECT_POISON, 20);
+        snprintf(msg, sizeof(msg), "You pray for %s, poisoning %s!\r\n", sk->name, being_display_name(foe));
+        descriptor_send(d, msg);
+        if (foe->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s prays for %s, poisoning you!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
+            descriptor_notify(foe->desc, msg);
+        }
+    } else if (ch->fighting && (ci_contains(sk->name, "disease") || ci_contains(sk->name, "infect"))) {
+        ch->last_heal_target = NULL;
+        being_t *foe = ch->fighting;
+        affect_type_t dis = affect_random_disease();
+        being_apply_affect(foe, dis, 40);
+        snprintf(msg, sizeof(msg), "You pray for %s, afflicting %s with %s!\r\n",
+                 sk->name, being_display_name(foe), affect_name(dis));
+        descriptor_send(d, msg);
+        if (foe->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s prays for %s, afflicting you with %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, affect_name(dis));
+            descriptor_notify(foe->desc, msg);
+        }
+    } else if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")) {
         pray_apply_heal(d, ch, target, sk->name);
         ch->last_heal_target = target;
         snprintf(ch->last_heal_spell, sizeof(ch->last_heal_spell), "%s", sk->name);
-    } else if (ci_contains(sk->desc, "reduces incoming damage")) {
+    } else if (ci_contains(sk->desc, "reduces incoming damage") || ci_contains(sk->desc, "improves armor class")
+               || ci_contains(sk->desc, "improves hit and damage") || ci_contains(sk->desc, "reflective shield")
+               || ci_contains(sk->name, "plasma mirror")) {
         /* Affects system (user 2026-07-11's "buffs/debuffs/status"
          * backlog item) -- flagship example: "sanctuary"'s own
          * description ("A strong aura that reduces incoming damage.")
          * now actually does that (combat.c's combat_strike() halves
-         * damage against anyone with AFFECT_SANCTUARY active). */
+         * damage against anyone with AFFECT_SANCTUARY active). Expanded
+         * 2026-07-18 to cover "armor"/"bless"/"plasma mirror" too --
+         * same shared mechanic, an honest scope-down from three bespoke
+         * ones (see cmd_cast.c's matching comment). */
         ch->last_heal_target = NULL;
         being_apply_affect(target, AFFECT_SANCTUARY, 12);
         if (target == ch) {

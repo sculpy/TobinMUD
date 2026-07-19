@@ -114,6 +114,13 @@ bool affect_is_disease(affect_type_t type);
  * offered as a cure at a hospital). */
 int affect_cure_price(affect_type_t type);
 
+/* Picks one of the 26 AFFECT_DISEASE_* values uniformly at random --
+ * shared by anything that inflicts "a disease" without caring which one
+ * (cmd_drink.c's puddle-drinking roll has its own weighted duration
+ * table and predates this; this is for newer callers, e.g. cast/pray's
+ * disease-inflicting spells, cmd_cast.c/cmd_pray.c). */
+affect_type_t affect_random_disease(void);
+
 #define MAX_ACTIVE_AFFECTS 4
 
 typedef struct {

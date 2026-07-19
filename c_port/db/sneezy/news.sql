@@ -178,3 +178,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Tip a Day',
  'Type tips any time for a random piece of gameplay advice. If you are still on the newbie channel you will also get one every so often without asking.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Spells and Prayers Do More Now',
+ 'Cure poison and cure disease now genuinely cure you (or, for a prayer, someone you name). A family of armor, shield, and resistance spells and prayers now really do protect you, not just say so. And a Cleric locked in a fight can call down poison or disease on their foe for real. The skills list now tells you right up front, for every spell or prayer, whether you will need a component or a holy symbol to cast it.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

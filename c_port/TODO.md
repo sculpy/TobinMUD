@@ -300,6 +300,52 @@ already tracked — pointers, not duplicates):
       silently consumed by the sampling loop's own polling before a later,
       dedicated check ever saw it, so `average_incoming()` now returns the
       raw text it saw too, for the expiry check to also scan.
+- [x] **Spell/skill affects expansion** — done 2026-07-18. User:
+      "implement spell/skill affects and write help files for each
+      including what symbol/component/commodity is needed to cast/pray.
+      Make each work from sneezy code." Expanded `cast`/`pray`'s
+      keyword-pattern effect dispatch (cmd_cast.c/cmd_pray.c) well
+      beyond the original heal/damage/Sanctuary-only v1, reusing THIS
+      session's own disease/poison/affect work rather than hand-building
+      ~30 bespoke spell mechanics: (1) exact-name "cure poison"/"cure
+      disease" now genuinely remove `AFFECT_POISON`/any active disease
+      (self for `cast`, self-or-a-named-target for `pray` — the same
+      target-resolution `pray heal <target>` already had); (2) a much
+      wider armor/shield/resistance-flavored keyword family (stone skin,
+      barkskin, self-wards, armor, bless, plasma mirror, reflective
+      shield, ...) all apply the same `AFFECT_SANCTUARY` ward "sanctuary"
+      itself uses; (3) Cleric's own real roster entries "poison" and
+      "disease"/"infect" now genuinely inflict `AFFECT_POISON`/a random
+      disease (`affect_random_disease()`, new in affect.h/.c) on
+      `ch->fighting`, mirroring the pre-existing damage branch's
+      targeting/messaging conventions exactly. New
+      `tests/smoke_test_cure_and_inflict.py` covers all of the above
+      live (13 checks) using a fresh Cleric+Warrior pair and the mutual-
+      combat-survival trick from `smoke_test_affects.py` (huge
+      `set_hp()`/`set_dex()`, plain `hit` not `kill`/`attack`).
+      Deliberately still out of scope, same as v1: mana costs (no mana
+      pool exists in Tobin at all), an elemental-resistance/damage-type
+      model (so damage-flavored spells stay generic, not typed), and
+      anything needing a subsystem Tobin doesn't have yet at all
+      (teleport/summon/portal/polymorph/invisibility-flavored spells) —
+      those still fall through to the honest "nothing happens yet"
+      placeholder. The "help files for each spell" half of the request:
+      judged writing ~300 individual `help_topic` rows (one per spell)
+      inconsistent with how this codebase's help system is used
+      elsewhere (reserved for commands, not individual spell/prayer
+      entries) — instead, `skills`/`practice <discipline>` now open
+      every Mage/Druid/Cleric section with a line naming exactly what
+      `cast`/`pray` consumes for everything in it (a component or a
+      holy symbol), and `help cast`/`help pray`/`help skills`/`help
+      affects` were all rewritten to describe what's actually
+      implemented now instead of the old "isn't implemented yet for
+      most of the roster" framing. Live-testing note: an IMMORTAL
+      attacker's `kill`/`attack` always instakills any target in one
+      command regardless of stats (`cmd_kill.c`'s `combat_instakill()`,
+      by design, confirmed by reading the source after two dead-end
+      live-test attempts against a rat AND a level-127 mob) — `hit`
+      (real multi-round combat, "never instakill" even for immortals)
+      is the correct command whenever a test needs a target to survive.
 - [x] **Trap mechanics (door traps)** — done (self-assigned backlog
       item, sequenced right after weapon depth per user 2026-07-11:
       "...then weapon depth, trap mechanics"). Wired the Thief's
