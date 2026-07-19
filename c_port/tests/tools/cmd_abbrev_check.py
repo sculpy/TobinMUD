@@ -56,6 +56,9 @@ LEVELS = {
     "EXEC_MIN_LEVEL": 60,
     "BALANCE_MIN_LEVEL": 60,
     "EGOTRIP_MIN_LEVEL": 60,
+    "TIPEDIT_MIN_LEVEL": 53,
+    "WIPE_MIN_LEVEL": 59,
+    "SHUTDOWN_MIN_LEVEL": 60,
 }
 
 # { "name", cmd_fn, "help text" | NULL, LEVEL_MACRO },

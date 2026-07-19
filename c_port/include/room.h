@@ -118,6 +118,11 @@ typedef struct room {
     int exits[ROOM_NUM_EXITS];  /* destination vnum per direction, -1 = no exit */
     int exit_door[ROOM_NUM_EXITS]; /* doorTypeT per exit (0 = DOOR_NONE) */
     int exit_cond[ROOM_NUM_EXITS]; /* exit condition bitmask per exit */
+    int exit_key[ROOM_NUM_EXITS]; /* roomexit.key_num -- vnum of the KEY-category
+                                 * object that locks/unlocks this exit (0/-1 =
+                                 * no keyhole). Real upstream seed data, was
+                                 * loaded and silently discarded before `lock`/
+                                 * `unlock` existed to read it -- see cmd_lock.c. */
 } room_t;
 
 room_t *room_create(int vnum, const char *name, const char *description, int sector);

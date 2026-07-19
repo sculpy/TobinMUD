@@ -173,6 +173,7 @@ static const cmd_entry_t COMMANDS[] = {
      * put it before limbs) so "l"/"li" keep meaning look/limbs exactly as
      * before -- "lig" is already unambiguous either way. */
     { "light",   cmd_light,   "Light a light source (light <item> [held|room]).",  MORTAL_LEVEL_MIN },
+    { "lock",    cmd_lock,    "Lock a closed door or container (lock <direction|container>).", MORTAL_LEVEL_MIN },
     { "mudstats", cmd_mudstats, "Show basic statistics about the game world.",      MORTAL_LEVEL_MIN },
     /* SWAP: news before newbie, so "new" still means news; newbie needs
      * "newb". ("n"/"ne" are movement -- head above.) */
@@ -230,6 +231,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "tips",    cmd_tips,    "Show a random gameplay tip.",                        MORTAL_LEVEL_MIN },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
     { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
+    { "unlock",  cmd_unlock,  "Unlock a locked door or container (unlock <direction|container>).", MORTAL_LEVEL_MIN },
     /* "w"/"we" are west (movement head); wake needs "wa", wear needs "wea",
      * wield needs "wi". */
     { "wake",    cmd_wake,    "Wake up from sleep.",                                MORTAL_LEVEL_MIN },

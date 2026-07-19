@@ -4268,10 +4268,30 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
       (saved loose to avoid loss, reload un-nested — needs a `player_inventory`
       parent column); lock/unlock+keys (pairs with the doors/keys item below).
       **This unblocks Zones Part 2's `P` opcode** (put obj in container).
-- [ ] **Keys unlocking doors** — `unlock`/`lock <direction> with <item>`,
-      matching a KEY-category object's val[0] against the exit's key
-      requirement. The object system this was blocked on (Session 31) now
-      exists -- separate follow-up, not built this pass.
+- [x] **Keys unlocking doors** — done 2026-07-19. New `lock`/`unlock
+      <direction>` and `lock`/`unlock <container>` (cmd_lock.c). Researched
+      the real matching rule against the bundled SneezyMUD C++ source
+      (`has_key()`/`keyCheck()`, misc/movement.cc) before writing anything:
+      a key is identified by its own OBJ VNUM, not any val[] field on the
+      key -- this TODO's own original wording ("val[0]") turned out to be
+      wrong, confirmed against real seeded key rows (val0/val1 both 0 on
+      every one). A door's `roomexit.key_num` / a container's `val[2]`
+      names the vnum a carried object must have; `room_t` gained an
+      `exit_key[]` field to actually carry key_num through (it was selected
+      into nothing before this and silently discarded). Both must be closed
+      first before `lock` works; `unlock` only needs the key, doesn't care
+      about open/closed. 1,141 real seeded doors and dozens of seeded
+      containers already carry working key data -- immediately testable
+      against real content. New `tests/smoke_test_keys.py` (23 checks,
+      SQL-bootstrapped sandbox rooms/objects, same pattern as
+      `smoke_test_doors.py`/`smoke_test_containers.py`). `cmd_table.c`
+      entries verified with `tests/tools/cmd_abbrev_check.py` (zero
+      abbreviation collisions among existing commands; also had to patch
+      the tool itself -- it was missing 3 level macros added by later
+      sessions and errored out before it could even run). Also corrected
+      two stale comments this surfaced: obj.h's KEY val[0] doc (see above)
+      and cmd_open.c's "a real lock/unlock command needs a key... deferred"
+      note.
 - [x] **Shops + money** — done 2026-07-17. `list`/`buy`/`sell` shipped
       against the real seeded shop economy (264 `shop` rows, `shoptype`
       buy-categories, `shopproducing` catalogs — not the keeper's carried

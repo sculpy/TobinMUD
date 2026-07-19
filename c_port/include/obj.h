@@ -103,7 +103,11 @@ typedef struct obj {
      *   DRINK:    val[0]=max units         val[1]=current units
      *   FOOD:     val[0]=max units (hunger)val[1]=current units
      *   MONEY:    val[0]=coin amount
-     *   KEY:      val[0]=vnum this key unlocks
+     *   KEY:      val[] unused -- a key is matched by its own OBJ VNUM, not
+     *             any val[] field (confirmed against real seeded data and
+     *             the original's keyCheck(): a door/container's key_num/
+     *             val[2] names the vnum a carried KEY object must have).
+     *             See cmd_lock.c's `lock`/`unlock`.
      *   MAGIC_DEVICE: val[0]=charges/uses remaining
      *   WRITTEN (board only, obj.type==24/ITEM_BOARD -- see cmd_board.c):
      *             val[0]=minimum level to `read`/`write` this specific
@@ -140,9 +144,9 @@ typedef struct obj {
  * are named here; the original defines a few more (CONT_EMPTYTRAP, etc.) that
  * are decorative for now. */
 #define CONT_CLOSEABLE (1 << 0) /* can be opened/closed at all */
-#define CONT_PICKPROOF (1 << 1) /* lock cannot be picked (unused until keys) */
+#define CONT_PICKPROOF (1 << 1) /* lock cannot be picked (no lockpicking skill yet) */
 #define CONT_CLOSED    (1 << 2) /* currently shut */
-#define CONT_LOCKED    (1 << 3) /* currently locked (unlock/keys deferred) */
+#define CONT_LOCKED    (1 << 3) /* currently locked -- see cmd_lock.c's `lock`/`unlock` */
 
 /* Armor class this piece contributes if worn (0 for anything else). The
  * upstream seed's `val0` field ("armor class") is uniformly 0 across

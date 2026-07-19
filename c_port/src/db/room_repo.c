@@ -33,14 +33,15 @@ room_t *room_repo_load(int vnum) {
      * diagonals restored in Session 21. `type` is the doorTypeT and
      * `condition_flag` the exit condition bitmask (builder-editable). */
     db_conn_t *db2 = db_open(DB_TOBIN);
-    if (db2 && db_query(db2, "select direction, destination, type, condition_flag "
-                             "from roomexit where vnum=%i", vnum)) {
+    if (db2 && db_query(db2, "select direction, destination, type, condition_flag, "
+                             "key_num from roomexit where vnum=%i", vnum)) {
         while (db_fetch_row(db2)) {
             int dir = atoi(db_get(db2, "direction"));
             if (dir >= 0 && dir < ROOM_NUM_EXITS) {
                 r->exits[dir] = atoi(db_get(db2, "destination"));
                 r->exit_door[dir] = atoi(db_get(db2, "type"));
                 r->exit_cond[dir] = atoi(db_get(db2, "condition_flag"));
+                r->exit_key[dir] = atoi(db_get(db2, "key_num"));
             }
         }
     }

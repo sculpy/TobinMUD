@@ -208,3 +208,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Thieves Can Now Peek',
  'A Thief who knows the skill can attempt to peek at what someone nearby is carrying, without them ever knowing -- unless the attempt goes badly, in which case they will feel like someone just tried.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Locks Finally Mean Something',
+ 'Locked doors and chests were always around, but nothing could open them -- until now. Track down the right key and use `lock`/`unlock` to work a locked door or container. No need to name the key, just carry it; the wrong one simply will not turn.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -57,7 +57,7 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('log', 'Usage: log [lines] | log search <text> | log rotate | log list\n\nLevel 54+: reads the server''s game log from in game. Bare `log` shows\nthe last 20 lines (or `log 50` for more, up to 100). `search` finds\nlines containing your text, case-insensitively. `list` shows all log\nfiles in the logs/ directory. `rotate` (level 59+ only) closes the\ncurrent file and starts a fresh one.', 'seed'),
 ('setsev', 'Usage: setsev [type]\n\nImmortals only: controls which typed log messages (the colored [TAG]\nlines other commands echo to you as they happen) reach your screen.\nBare `setsev` lists every type with its current on/off state; `setsev\n<type>` (abbreviations welcome) flips one. Everything is on by default\neach time you log in. Types: game, pio, combat, bug, db, edit.', 'seed'),
 ('exits', 'Usage: exits\n\nLists this room''s exits and the name of the place each one leads to.\n(`look` shows the same directions as a one-line summary.) A secret exit\nnever appears here even if you know it''s there -- you can still walk\nit, it just isn''t listed.', 'seed'),
-('open', 'Usage: open <direction>\n\nOpens a door blocking that exit, if there is one. A locked door can''t\nbe opened this way -- that needs a key, which isn''t built yet. Once\nopen, you (and everyone else) can walk through; closing it again with\n`close` blocks movement until it''s reopened.', 'seed'),
+('open', 'Usage: open <direction>\n\nOpens a door blocking that exit, if there is one. A locked door can''t\nbe opened this way -- see `help unlock`. Once open, you (and everyone\nelse) can walk through; closing it again with `close` blocks movement\nuntil it''s reopened.', 'seed'),
 ('close', 'Usage: close <direction>\n\nCloses a door blocking that exit, if there is one and it is open.\nA closed door blocks movement through it (`The door is closed.`)\nuntil someone opens it again with `open`.', 'seed'),
 ('loadroom', 'Usage: loadroom [vnum]\n\nImmortals only: sets the room your character enters the game in at\nlogin (e.g. `loadroom 43`). Bare `loadroom` shows the current setting.\nThe room must exist.', 'seed'),
 ('users', 'Usage: users\n\nLevel 58+ only: lists every live connection -- character, account,\nIP address, and connection state (logging in, at the menu, creating,\nplaying, mid-editor). The admin''s who-is-really-here view.', 'seed'),
@@ -868,3 +868,12 @@ UPDATE `help_topic` SET `body` = 'Usage: edit trigger <room|mob|obj> <vnum> <tri
 -- aitick now also forces along any `wait`-paused trigger script.
 UPDATE `help_topic` SET `body` = 'Usage: aitick [count]\n\nImmortal debug tool: forces `count` (default 1, max 100) mob-AI /\npuddle-decay / random-trigger ticks to run right now, synchronously,\nplus resolves any `wait`-paused trigger script immediately instead of\nwaiting on its real countdown. These all normally only fire on the\nreal world pulse (~60s for most; ~1s for a `wait`) -- far too slow to\nwait on live, and far too slow for an automated test -- so this\ncollapses real time into an instant for testing wander/scavenge/\ndecay/random-trigger/wait behavior.\n\nRelated: hurtlimb'
   WHERE `name` = 'aitick' AND `updated_by` = 'seed';
+
+-- `lock`/`unlock` (TODO.md "Keys unlocking doors" -- the object system it
+-- was blocked on now exists). A key is matched by its own object vnum
+-- against a door's key_num / a container's val[2], not any val[] field on
+-- the key itself -- see cmd_lock.c.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('lock', 'Usage: lock <direction>   |   lock <container>\n\nLocks a closed door or container, if you''re carrying the right key.\nA door or container without a keyhole at all can''t be locked this\nway (nothing to turn). Must already be closed -- `close` it first.\nA locked door/container blocks `open` until `unlock`ed again.\n\nRelated: unlock open close', 'seed'),
+('unlock', 'Usage: unlock <direction>   |   unlock <container>\n\nUnlocks a locked door or container, if you''re carrying the matching\nkey -- you don''t need to name the key, just have it on you (carried,\nworn, or held). Wrong key, or no key at all, and it refuses. Once\nunlocked, `open` it as normal.\n\nRelated: lock open close', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

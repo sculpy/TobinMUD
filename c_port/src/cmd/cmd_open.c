@@ -23,9 +23,8 @@
  * Opening/closing one side does NOT affect the other side's exit; that's
  * a deliberate simplification consistent with the existing schema, not an
  * oversight -- see STATUS.md. Locked doors can only be opened once the
- * Locked bit is cleared (currently only `edroom`'s toggle submenu can do
- * that -- a real `lock`/`unlock` command needs a key, which needs the
- * object system; deferred, see TODO.md). */
+ * Locked bit is cleared -- via `edroom`'s toggle submenu, or for real, with
+ * a key: see cmd_lock.c's `lock`/`unlock`. */
 
 static int parse_dir(const char *tok) {
     size_t len = strlen(tok);
