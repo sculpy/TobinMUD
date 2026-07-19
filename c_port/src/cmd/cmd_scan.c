@@ -26,7 +26,9 @@
  * blindness gate (Tobin has neither system yet); the multi-room ray-cast,
  * distance words, direction/name arguments, and door hindrance are ported. */
 
-#define SCAN_MAX_RANGE 6
+/* Was 6 -- user 2026-07-19: "scan works too well, can we cut the range
+ * down to 4 or 5 rooms distance?" Split the difference at 5. */
+#define SCAN_MAX_RANGE 5
 
 /* Distance description indexed by rooms away (1..SCAN_MAX_RANGE); [0] unused.
  * Trimmed from the original's longer rng_desc[] table. */
@@ -37,7 +39,6 @@ static const char *const SCAN_DIST[] = {
     "not too far off",
     "a good way off",
     "far off",
-    "way off in the distance",
 };
 
 /* Prefix-match a direction word (same convention as cmd_open's parse_dir). */
