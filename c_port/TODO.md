@@ -175,6 +175,36 @@ implementation inspiration before each one, not guessed at.
       flooring at 1, immortal immunity) — uses tolerant ranges rather than
       exact equality on a couple of checks since a real background tick can
       in principle land mid-test (caught live once while writing this).
+- [x] **Death processing (XP loss, resurrection)** — done 2026-07-19.
+      Checked Sneezy's own `death-processing.md` doc first: real death
+      there is a whole pipeline (`die()` -> `rawKill()` -> `makeCorpse()`)
+      built around genuine permadeath (the character record itself is
+      deleted) with a corpse and a resurrection SPELL to revive it. Asked
+      the user before building anything (AskUserQuestion, since Tobin's
+      PC "death" was already NOT permadeath -- `combat_defeat()`
+      half-heals HP, fully heals limbs, and ejects the loser to the
+      account menu, same soft-respawn design as before this session):
+      answer was XP loss only -- "resurrection" is already covered by the
+      existing relog flow, so no corpse or spell system was built. New
+      logic in `combat_defeat()` (`combat.c`), inside the existing
+      `loser_is_pc` block: docks XP on death using `min(20% of current
+      XP, XP banked past the current level's own threshold)` -- adapted
+      from Sneezy's own `min(20%, 25 * mob_exp(level))` formula, but the
+      cap here needs no separate mob-XP curve since it's just
+      `progress_xp_for_level()` (already existed for leveling) -- and
+      means a death can never de-level anyone, only eat into progress
+      toward the next level. PvP (a PC winner, i.e. a mutual `toggle pk`
+      duel) divides the result by 10, same reduction Sneezy applies; a
+      MOB winner (the ordinary "died to a monster" case) gets the full
+      penalty. Immortals never lose XP (already past the mortal ladder,
+      same precedent as the winner-XP-gain block just below it). New
+      `tests/smoke_test_death_xploss.py` (6 checks: PvE death loses
+      exactly 20% with ample banked XP, a tiny-banked-XP death is capped
+      at exactly the level threshold without de-leveling, and a PvP death
+      loses 1/10th what the same banked XP would in PvE) -- regression-
+      verified clean against `smoke_test_pk_gold.py`,
+      `smoke_test_levelup_hp.py`, and `smoke_test_group.py`, all three of
+      which also exercise `combat_defeat()`.
 
 ## Buildable now (no blocked dependencies)
 

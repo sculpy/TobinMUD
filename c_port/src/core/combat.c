@@ -494,6 +494,40 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             loser->progress.hp = 1;
         being_limbs_full_heal(loser);
 
+        /* XP loss on death (Sneezy → Tobin feature audit, "Death
+         * processing (XP loss, resurrection)"). User, AskUserQuestion
+         * 2026-07-19: XP loss only -- Tobin's PC "death" was already NOT
+         * permadeath (see this function's own doc comment above), so
+         * there's no corpse to build a resurrection spell around;
+         * "resurrection" is already covered by the existing soft-respawn/
+         * relog flow. Adapted from Sneezy's own min(20% of current XP,
+         * level-scaled cap) formula (docs/systems/important/
+         * death-processing.md) -- the cap here is simpler and needs no
+         * separate mob-XP curve: never lose more than the XP banked PAST
+         * the current level's own threshold (progress_xp_for_level()), so
+         * a death can never de-level anyone, only eat into progress
+         * toward the next one. PvP (a PC winner) divides the result by
+         * 10, same reduction Sneezy applies -- PK combat already requires
+         * mutual `toggle pk` opt-in, so this is a consensual penalty, not
+         * a punitive one; a MOB winner (the ordinary "died to a monster"
+         * case) gets the full penalty. Immortals never lose XP (they're
+         * already past the mortal ladder, same "immortals don't need XP"
+         * precedent as the winner-XP block below). */
+        if (!being_is_immortal(loser) && loser->progress.experience > 0) {
+            long base_loss = loser->progress.experience / 5;
+            long level_floor = progress_xp_for_level(loser->progress.level);
+            long max_loss = loser->progress.experience - level_floor;
+            if (max_loss < 0)
+                max_loss = 0;
+            long xp_loss = base_loss < max_loss ? base_loss : max_loss;
+            if (winner->base.kind == THING_PC)
+                xp_loss /= 10;
+            if (xp_loss > 0) {
+                loser->progress.experience -= xp_loss;
+                tell(loser, "You lose %ld experience point%s.\r\n", xp_loss, xp_loss == 1 ? "" : "s");
+            }
+        }
+
         /* Split gold on kill (TODO.md, user: "also upon death get all
          * gold from the victim and split it between all group members if
          * groupped"). SOLO case only -- no group/party system exists yet
