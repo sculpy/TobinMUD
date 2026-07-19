@@ -55,6 +55,44 @@ rebuilt+restarted only once the sweep finishes clean.
   `_look_fixture_order`/`_room_stacking`/`_parser_display` tests (all
   still pass) rather than a new dedicated test, since this is pure
   whitespace with no new behavior to assert.
+- **Trigger `wait`/`say`, zone opcode `A`, world-wide `max_exist`, `scan`
+  range trim** — same-day continuation, not detailed again here; see
+  TODO.md/wiznews.sql for the full writeup of each (search "wait", "Zone
+  opcode", "max_exist", "scan").
+- **`lock`/`unlock` for doors and containers** (TODO.md "Keys unlocking
+  doors", now unblocked) — new `cmd_lock.c`. A key is matched by its own
+  object vnum, not any val[] field on the key itself, confirmed against
+  the real SneezyMUD C++ source before writing anything
+  (`has_key()`/`keyCheck()`, misc/movement.cc); `room_t` gained
+  `exit_key[]` to actually carry `roomexit.key_num` through (previously
+  loaded and silently discarded). 1,141 real seeded doors and dozens of
+  containers already carry working key data. New
+  `tests/smoke_test_keys.py` (23 checks); `cmd_table.c` additions
+  verified with `tests/tools/cmd_abbrev_check.py` (also patched — it was
+  missing 3 level macros added by later sessions and errored out before
+  this).
+- **Mid-fight HP persistence** (TODO.md) — HP was only saved at
+  defeat/quit; a mid-fight disconnect (crash, or a losing player quietly
+  pulling the plug) reloaded at whatever HP was last saved BEFORE the
+  fight started, silently undoing all damage taken.
+  `combat_process_run()` now saves both PC participants' HP after every
+  round the fight is still ongoing (reuses the existing
+  `player_progress_save()` call, not a new mechanism). Limb HP
+  deliberately NOT covered — it isn't persisted at all yet by any path,
+  defeat included; separate "Meaningful limb damage" item. New
+  `tests/smoke_test_mid_fight_persist.py`: fights a tanky sandbox mob,
+  hard-closes the socket mid-fight (no `quit!`), reconnects — HP landed
+  exactly where it was, not reset to the pre-fight max. Found and fixed a
+  real stale-test bug along the way: `smoke_test_combat.py`'s PvP setup
+  predated the PK opt-in feature, so two fresh mortals could no longer
+  `attack` each other without `toggle pk` first.
+- **TODO.md backlog triage**: closed 4 stale entries found while sweeping
+  for unblocked work — `examine`, `drink`/`sip`, and "Typed logs" were
+  already fully shipped in earlier sessions and never checked off;
+  "Personalized immortal log messages" was based on a misread of the
+  original engine (LOG_JESUS/LOG_PEEL are each a named developer's own
+  ad-hoc scratch debug channel, not a fixed set of messages to build —
+  Tobin already has the real infrastructure for it).
 
 ### Session 47 (home): **Practice-system follow-up
 polish, real per-skill proficiency (Sneezy-style learn-by-doing), and `set`
