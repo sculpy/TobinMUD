@@ -12,9 +12,11 @@
 
 #include "balance.h"
 #include "descriptor.h"
+#include "gametime.h"
 #include "log.h"
 #include "mob_repo.h"
 #include "obj.h"
+#include "room.h"
 
 int *attrs_field(attrs_t *a, const char *tok) {
     if (strcasecmp(tok, "str") == 0 || strcasecmp(tok, "strength") == 0) return &a->strength;
@@ -220,6 +222,32 @@ void being_leave_group(being_t *b) {
 
 bool being_is_immortal(const being_t *b) {
     return b && b->progress.level >= IMMORTAL_LEVEL_MIN;
+}
+
+bool room_is_dark_for(const struct room *r, const being_t *ch) {
+    const room_t *room = (const room_t *)r;
+    if (!room || !ch)
+        return false;
+    if (being_is_immortal(ch))
+        return false;
+    if (room->room_flag & (ROOM_FLAG_ALWAYS_LIT | ROOM_FLAG_INDOORS))
+        return false;
+    if (gametime_is_daytime())
+        return false;
+    return !being_has_active_light(ch);
+}
+
+bool being_has_active_light(const being_t *b) {
+    if (!b)
+        return false;
+    for (thing_t *t = b->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        const obj_t *o = (const obj_t *)t;
+        if (o->category == OBJ_CAT_LIGHT && o->val[3])
+            return true;
+    }
+    return false;
 }
 
 void being_normalize_name(char *name) {

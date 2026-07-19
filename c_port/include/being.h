@@ -597,6 +597,25 @@ void being_leave_group(being_t *b);
 /* True iff b->progress.level >= IMMORTAL_LEVEL_MIN. */
 bool being_is_immortal(const being_t *b);
 
+/* True iff b is carrying/wearing/holding at least one currently-lit
+ * OBJ_CAT_LIGHT object (val[3], obj.h) anywhere in its stuff_head chain --
+ * matches obj_light_burn_tick()'s own scope (obj.c), not just held[]/
+ * equipment[], since a lit lamp works the same whether held or just
+ * loose in a pack. Used by the "Weather & light levels" audit item's
+ * darkness gate (cmd_look.c/cmd_exits.c) to decide whether a dark,
+ * unlit room is still visible to this particular looker. */
+bool being_has_active_light(const being_t *b);
+
+/* True iff `r` is currently dark FOR `ch` specifically -- an immortal
+ * always sees fine (same "commands above your level are invisible, but
+ * darkness isn't a limitation" spirit as their other blanket exemptions);
+ * anyone else needs the room to be lit (ROOM_FLAG_ALWAYS_LIT,
+ * ROOM_FLAG_INDOORS, or plain daylight, gametime_is_daytime()) OR their
+ * own being_has_active_light() to see. Shared by cmd_look.c's bare `look`
+ * and cmd_exits.c -- gating only one of the two would let a player just
+ * route around the darkness restriction with the other. */
+bool room_is_dark_for(const struct room *r, const being_t *ch);
+
 /* A word describing b's health as a fraction of max HP ("near death" ...
  * "perfect"), from the original's prompt_mesg[]. Shown in `score`. */
 const char *being_health_word(const being_t *b);

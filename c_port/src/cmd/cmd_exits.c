@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 
+#include "being.h"
 #include "room.h"
 #include "room_repo.h"
 #include "world.h"
@@ -23,6 +24,14 @@ bool cmd_exits(descriptor_t *d, const char *args) {
         return true;
     }
     room_t *r = d->character->base.roomp;
+
+    /* Weather & light levels (Sneezy → Tobin feature audit): same darkness
+     * gate as bare `look` (cmd_look.c) -- gating only one of the two would
+     * let a player just route around the restriction with the other. */
+    if (room_is_dark_for((struct room *)r, d->character)) {
+        descriptor_send(d, "It is pitch black... you cannot see a thing.\r\n");
+        return true;
+    }
 
     char out[1024];
     int n = snprintf(out, sizeof(out), "\r\nObvious exits:\r\n");

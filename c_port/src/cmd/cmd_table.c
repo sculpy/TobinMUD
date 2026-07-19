@@ -255,6 +255,10 @@ static const cmd_entry_t COMMANDS[] = {
      * a holdable item refuses `wear` and points at whichever of hold/wield
      * applies. */
     { "wear",    cmd_wear,    "Put on a carried item's body slot (wear <item>).",   MORTAL_LEVEL_MIN },
+    /* "wea" is already claimed by "wear" (sits first) -- weather needs
+     * "weat" to diverge from it, same spirit as the drop/drink swap
+     * elsewhere in this table. */
+    { "weather", cmd_weather, "Check the current sky and whether it's day or night.", MORTAL_LEVEL_MIN },
     /* SWAP: who before whisper, so "wh" lists players; whisper needs
      * "whi". */
     { "who",     cmd_who,     "List everyone currently playing.",                   MORTAL_LEVEL_MIN },

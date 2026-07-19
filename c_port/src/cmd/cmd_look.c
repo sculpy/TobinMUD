@@ -303,6 +303,19 @@ bool cmd_look(descriptor_t *d, const char *args) {
 
     room_t *r = d->character->base.roomp;
 
+    /* Weather & light levels (Sneezy → Tobin feature audit): a dark,
+     * unlit outdoor room at night with no personal light source shows
+     * nothing but darkness -- classic MUD convention, and the actual
+     * payoff that makes carried light sources (cmd_light.c) matter for
+     * the first time. Deliberately does NOT also block `look <target>`
+     * (look_at_target(), just above) -- scoped to the informational room
+     * description only, same "don't over-reach past what was asked" call
+     * as everywhere else this session. */
+    if (room_is_dark_for((struct room *)r, d->character)) {
+        descriptor_send(d, "It is pitch black... you cannot see a thing.\r\n");
+        return true;
+    }
+
     /* Tint the room by its sector: the NAME gets the bright (uppercase)
      * variant, the DESCRIPTION only the dim (lowercase) one (user spec). */
     char dim = sector_color(r->sector);

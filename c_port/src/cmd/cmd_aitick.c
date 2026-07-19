@@ -7,19 +7,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "gametime.h"
 #include "mob_ai.h"
 #include "obj.h"
 #include "trigger.h"
 #include "vitals.h"
+#include "weather.h"
 
 /* Immortal-only debug/testing tool (Session 43 continued), same precedent
  * as `hurtlimb` (cmd_hurtlimb.c): mob_ai_tick()'s wander/scavenge chances
  * (20%/25%, also now the lamplighter's light/extinguish check),
  * obj_pool_decay_tick()'s puddle shrinkage, obj_light_burn_tick()'s
- * fuel burn-down, trigger_random_tick()'s "random" scripted triggers, and
+ * fuel burn-down, trigger_random_tick()'s "random" scripted triggers,
  * (Sneezy → Tobin feature audit, "Vital statistics") vitals_tick_run()'s
- * hunger/thirst drain + starvation only actually fire on the real ~60s
- * pulse cadence, far too slow to wait on in an automated smoke test.
+ * hunger/thirst drain + starvation, and (same audit, "Weather & light
+ * levels") gametime_tick()'s clock advance + weather_tick_run()'s sky
+ * transitions only actually fire on the real ~60s pulse cadence, far too
+ * slow to wait on in an automated smoke test.
  * `aitick [count]` forces `count` (default 1, capped at 100) consecutive
  * world ticks synchronously, so a test can force overwhelming odds of a
  * wander/scavenge/random-trigger firing (e.g. `aitick 30` for a ~99.9%
@@ -51,6 +55,8 @@ bool cmd_aitick(descriptor_t *d, const char *args) {
         obj_light_burn_tick(0);
         trigger_random_tick(0);
         vitals_tick_run(0);
+        gametime_tick(0);
+        weather_tick_run(0);
     }
 
     char msg[64];

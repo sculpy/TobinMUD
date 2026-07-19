@@ -57,6 +57,12 @@ const char *room_flag_name(int bit);
  * it directly, not just display it. */
 #define ROOM_FLAG_INDOORS (1 << 3)
 
+/* Bit 0 of ROOM_FLAG_NAMES (room.c) -- matches the upstream ROOM_ALWAYS_LIT
+ * bit position verbatim. Named here since the "Weather & light levels"
+ * audit item's darkness gate (cmd_look.c/cmd_exits.c) needs to test it
+ * directly, not just display it. */
+#define ROOM_FLAG_ALWAYS_LIT (1 << 0)
+
 /* Bit 2 of ROOM_FLAG_NAMES (room.c) -- matches the upstream ROOM_NO_MOB bit
  * position verbatim. Named here since mob_ai.c's wander logic needs to
  * test it directly. */

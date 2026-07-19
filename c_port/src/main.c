@@ -30,6 +30,7 @@
 #include "trigger.h"
 #include "vitals.h"
 #include "wait_tick.h"
+#include "weather.h"
 #include "zone.h"
 
 static char g_binary_path[PATH_MAX];
@@ -86,6 +87,7 @@ int main(int argc, char **argv) {
 
     multiplay_load(); /* restore the persisted multiplay game flag */
     gametime_load();  /* restore the persisted game clock */
+    weather_load();   /* restore the persisted world weather state */
     balance_cache_load(); /* class/race balance modifiers (cmd_balance.c) */
     wisdom_practice_load(); /* wisdom->practice-points scalar (practice.c) */
 
@@ -110,6 +112,7 @@ int main(int argc, char **argv) {
     pulse_register(600, obj_pool_decay_tick);    /* ~60s: ground puddles shrink, then vanish */
     pulse_register(600, obj_light_burn_tick);    /* ~60s: lit lights burn down, then go out */
     pulse_register(VITALS_PULSES, vitals_tick_run); /* ~60s: hunger/thirst drain + starvation */
+    pulse_register(WEATHER_PULSES, weather_tick_run); /* ~60s: world weather transitions */
     pulse_register(600, trigger_random_tick);    /* ~60s: mob/room "random" scripted triggers */
     pulse_register(10, trigger_pending_tick);    /* ~1s: resume `wait`-paused trigger scripts */
     pulse_register(6000, tips_pulse_tick);       /* ~10min: echo a random tip to newbie-flagged players */

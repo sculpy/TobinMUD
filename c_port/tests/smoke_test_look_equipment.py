@@ -123,7 +123,12 @@ cmd(s_imm, "color off")
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Look Equipment Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    # room_flag=1 (ROOM_FLAG_ALWAYS_LIT, room.h) -- this test isn't about
+    # darkness, so it needs to be immune to whatever the world's current
+    # day/night state happens to be (Sneezy → Tobin feature audit,
+    # "Weather & light levels" wired real darkness into `look`/`exits`
+    # after this test was first written).
+    f"VALUES ({ROOM},0,0,0,'Look Equipment Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 check("Look Equipment Sandbox" in cmd(s_imm, f"goto {ROOM}"), "goto lands in the sandbox room")
 
 mort_name = f"Lookeqmor{_suffix}"

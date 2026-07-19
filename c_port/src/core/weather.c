@@ -1,0 +1,127 @@
+/*******************************************************************
+ * TobinMUD ver. 0.1 - All rights reserved                         *
+ * The TobinMUD Development Team                                   *
+ *******************************************************************/
+#include "weather.h"
+
+#include <stdlib.h>
+
+#include "db.h"
+#include "descriptor.h"
+
+static weather_t g_weather = WEATHER_CLEAR;
+
+const char *weather_name(weather_t w) {
+    switch (w) {
+        case WEATHER_CLEAR:  return "clear";
+        case WEATHER_CLOUDY: return "cloudy";
+        case WEATHER_RAINY:  return "rainy";
+        case WEATHER_STORMY: return "stormy";
+        default:             return "unknown";
+    }
+}
+
+weather_t weather_current(void) {
+    return g_weather;
+}
+
+const char *weather_forecast_hint(void) {
+    switch (g_weather) {
+        case WEATHER_CLEAR:  return "It looks like it should stay clear for a while.";
+        case WEATHER_CLOUDY: return "It looks like it could rain before long.";
+        case WEATHER_RAINY:  return "The rain could ease up, or it could worsen into a real storm.";
+        case WEATHER_STORMY: return "This storm can't last forever -- it should ease up soon.";
+        default:              return "";
+    }
+}
+
+void weather_load(void) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return;
+    if (db_query(db, "select value from game_config where name='weather_state'")
+        && db_fetch_row(db)) {
+        int v = atoi(db_get(db, "value"));
+        if (v >= WEATHER_CLEAR && v <= WEATHER_STORMY)
+            g_weather = (weather_t)v;
+    }
+    db_close(db);
+}
+
+static void weather_save(void) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return;
+    db_query(db, "insert into game_config (name, value) values ('weather_state', '%i') "
+                 "on duplicate key update value=values(value)",
+             (int)g_weather);
+    db_close(db);
+}
+
+/* Same "broadcast to everyone connected, held for anyone mid-edit"
+ * convention as gametime.c's own gametime_announce() -- duplicated
+ * locally rather than shared, matching this codebase's established
+ * precedent for small single-purpose helpers (e.g. the several local
+ * copies of keyword_matches() across cmd_*.c). */
+static void weather_announce(const char *msg) {
+    for (descriptor_t *it = g_descriptors; it; it = it->next) {
+        if (!it->character)
+            continue;
+        descriptor_notify(it, msg);
+    }
+}
+
+/* Weighted transition table (percent chance per tick of moving to each
+ * NEXT state, remainder stays put) -- a simple Markov chain standing in
+ * for the original's real barometric-pressure simulation. Biased to favor
+ * clear/mild weather (matches most real climates spending more time calm
+ * than stormy) while still allowing a full clear-to-storm escalation over
+ * several ticks. */
+static weather_t weather_roll_next(weather_t current) {
+    int roll = rand() % 100;
+    switch (current) {
+        case WEATHER_CLEAR:
+            return roll < 15 ? WEATHER_CLOUDY : WEATHER_CLEAR;
+        case WEATHER_CLOUDY:
+            if (roll < 30) return WEATHER_CLEAR;
+            if (roll < 50) return WEATHER_RAINY;
+            return WEATHER_CLOUDY;
+        case WEATHER_RAINY:
+            if (roll < 25) return WEATHER_CLOUDY;
+            if (roll < 40) return WEATHER_STORMY;
+            return WEATHER_RAINY;
+        case WEATHER_STORMY:
+            return roll < 50 ? WEATHER_RAINY : WEATHER_STORMY;
+        default:
+            return WEATHER_CLEAR;
+    }
+}
+
+static const char *weather_change_message(weather_t from, weather_t to) {
+    if (to == WEATHER_CLOUDY && from == WEATHER_CLEAR)
+        return "\r\n<c>Clouds begin to gather overhead.<z>\r\n";
+    if (to == WEATHER_CLEAR)
+        return "\r\n<C>The clouds part and the sky clears up.<z>\r\n";
+    if (to == WEATHER_RAINY && from == WEATHER_CLOUDY)
+        return "\r\n<b>It begins to rain.<z>\r\n";
+    if (to == WEATHER_CLOUDY && from == WEATHER_RAINY)
+        return "\r\n<c>The rain tapers off, leaving the sky overcast.<z>\r\n";
+    if (to == WEATHER_STORMY)
+        return "\r\n<B>The rain intensifies into a full storm!<z>\r\n";
+    if (to == WEATHER_RAINY && from == WEATHER_STORMY)
+        return "\r\n<b>The storm eases back into steady rain.<z>\r\n";
+    return NULL;
+}
+
+void weather_tick_run(long pulse_num) {
+    (void)pulse_num;
+    weather_t next = weather_roll_next(g_weather);
+    if (next == g_weather)
+        return;
+
+    const char *msg = weather_change_message(g_weather, next);
+    g_weather = next;
+    weather_save();
+    if (msg)
+        weather_announce(msg);
+}

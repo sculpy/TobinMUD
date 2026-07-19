@@ -277,6 +277,51 @@ implementation inspiration before each one, not guessed at.
       advancing to an undescribed stage, cleared at stage 0) --
       regression-verified against `smoke_test_set.py`/
       `smoke_test_alignment.py`, which also exercise `cmd_set.c`.
+- [x] **Weather & light levels** — done 2026-07-19. Checked Sneezy's own
+      `misc/weather.h`/`.cc` first: a real barometric-pressure random
+      walk driving sky-state transitions, a 0-31 moon-phase cycle,
+      per-room "wetness" tracking, and season-aware sunrise/sunset --
+      trimmed hard to a single WORLD-WIDE sky state (clear/cloudy/rainy/
+      stormy, not per-room -- Tobin has no distinct climate zones to make
+      that meaningful) advanced by a simple weighted transition table
+      instead of a pressure simulation. `weather` (mortal, new
+      `cmd_weather.c`) shows the current condition, a fixed flavor "hint"
+      per state (not a real forecast -- that's exactly the simulation
+      depth trimmed), and day/night. New `weather.h`/`.c`,
+      `pulse_register(WEATHER_PULSES, weather_tick_run)` in main.c, same
+      ~60s "once a minute" cadence as gametime/mob AI/vitals, persisted
+      via `game_config` (same table/convention `gametime.c` already uses,
+      no new table needed); world-wide announcement on every actual state
+      change, same broadcast-to-everyone precedent gametime.c's own noon/
+      midnight announcements already use. The "light levels" half is the
+      more concrete payoff: `gametime_is_daytime()` already existed
+      (used by the lamplighter mob, mob_ai.c) but nothing actually gated
+      visibility on it. New `being_has_active_light()` (any lit
+      OBJ_CAT_LIGHT anywhere in a being's carried/worn/held chain, same
+      scope as `obj_light_burn_tick()`'s own burn-down) and
+      `room_is_dark_for()` (being.c) -- a room is dark for a non-immortal
+      looker with no active light unless ROOM_FLAG_ALWAYS_LIT,
+      ROOM_FLAG_INDOORS, or plain daylight. Wired into both `look` (bare
+      room description only, not `look <target>` -- a deliberate, smaller
+      scope) and `exits` (gating only one of the two would let a player
+      just route around the restriction with the other) -- this is what
+      makes carried light sources (cmd_light.c) matter for the first
+      time. `aitick` now also forces `gametime_tick()`/`weather_tick_run()`,
+      same deterministic-testing precedent as every other ~60s tick this
+      session added. New `tests/smoke_test_weather.py` (8 checks) --
+      building it surfaced a real cross-test hazard: darkness is brand
+      new, so ANY pre-existing test with a plain (room_flag=0, not
+      ALWAYS-LIT/INDOORS) sandbox room that calls `look`/`exits` on it can
+      now intermittently fail depending on the shared server's current
+      in-game time of day. Confirmed and fixed one real casualty
+      (`smoke_test_look_equipment.py`, now flagged ALWAYS-LIT); a ~54-file
+      grep found many more tests using the same unflagged-sandbox-room
+      pattern, most of which don't actually touch look/exits and aren't
+      at risk, but a full audit was spun off as a follow-up task rather
+      than scope-creeping this session further. `smoke_test_weather.py`
+      itself restores a neutral daytime hour when it finishes, so it
+      doesn't leave the shared preview/production clock stuck at night
+      for whatever runs next.
 
 ## Buildable now (no blocked dependencies)
 
