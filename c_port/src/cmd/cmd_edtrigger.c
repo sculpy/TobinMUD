@@ -146,8 +146,8 @@ bool cmd_edtrigger(descriptor_t *d, const char *args) {
     char head[320];
     snprintf(head, sizeof(head),
         "\r\n-- Writing trigger: %s %d %s%s%s --\r\n"
-        "Type the script, one action per line (echo/echoroom/emote/teleport/give/"
-        "damage/log). /s saves, /a aborts, /b blanks, /f reflows to width.\r\n] ",
+        "Type the script, one action per line (echo/echoroom/emote/say/teleport/"
+        "give/damage/log/wait). /s saves, /a aborts, /b blanks, /f reflows to width.\r\n] ",
         a, vnum, c,
         d->trig_match_text[0] ? " keyword=" : "", d->trig_match_text);
     descriptor_send(d, head);

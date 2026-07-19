@@ -21,7 +21,10 @@
  * 1, capped at 100) consecutive world ticks synchronously, so a test can
  * force overwhelming odds of a wander/scavenge/random-trigger firing
  * (e.g. `aitick 30` for a ~99.9% chance) or fully decay a pool/burn down
- * a light without waiting on real time at all. */
+ * a light without waiting on real time at all. Also forces along any
+ * `wait`-paused trigger script (trigger_pending_force_all()) -- those
+ * otherwise resume on their own ~1s real-time cadence, still too slow for
+ * a test that wants to walk through a multi-`wait` script deterministically. */
 bool cmd_aitick(descriptor_t *d, const char *args) {
     int count = 1;
     if (*args)
@@ -32,6 +35,13 @@ bool cmd_aitick(descriptor_t *d, const char *args) {
         count = 100;
 
     for (int i = 0; i < count; i++) {
+        /* Resolve whatever was ALREADY pending (from a real tick, or a
+         * previous iteration of this loop) before running this iteration's
+         * OWN random-trigger pass -- reversed, a script's own `wait` would
+         * get force-resolved in the very same pass that just scheduled it,
+         * collapsing the pause into a no-op (caught live: `aitick 1` was
+         * showing a two-line wait/say script's whole output at once). */
+        trigger_pending_force_all();
         mob_ai_tick(0);
         obj_pool_decay_tick(0);
         obj_light_burn_tick(0);

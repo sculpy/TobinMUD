@@ -6,8 +6,13 @@
 
 #include "log.h"
 
-#define MAX_PULSE_PROCESSES 16 /* was 8 -- bumped Session 43 when gametime_tick
-                                  filled the last slot. */
+#define MAX_PULSE_PROCESSES 24 /* was 8, then 16 (Session 43, gametime_tick) --
+                                  bumped again when trigger_pending_tick (the
+                                  17th registration, main.c) silently got
+                                  dropped: pulse_register()'s own overflow
+                                  guard logged an error but didn't stop the
+                                  boot, so `wait` in trigger scripts just
+                                  quietly never fired until this was caught. */
 
 typedef struct {
     int trigger_pulse;

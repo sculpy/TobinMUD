@@ -37,6 +37,39 @@ already tracked — pointers, not duplicates):
   not stale.
 - Meaningful limb damage, Thief "peek" skill — already tracked (their own
   entries above).
+- [x] **Trigger `wait`/`say` actions** — done. User (2026-07-19, pasted a
+      Monty-Python-esque market-vendor script -- "wait 1 / say Larks'
+      tongues. / wait 1 / say Wrens' livers. / ..."): "i want to put this
+      script on a mob." The trigger vocabulary had no `say` (only `emote`,
+      which doesn't render "says, '...'") and no pause primitive at all --
+      a script ran start-to-finish in one synchronous pass
+      (trigger_run()). Confirmed with the user before building (this
+      breaks the system's own documented "deliberately small, not a
+      general-purpose language" design intent, trigger.sql) rather than
+      picking a direction unprompted. `say <text>` renders "<Name> says,
+      '<text>'" to the room, same shape as `emote`. `wait <seconds>`
+      (1-3600, clamped) pauses everything AFTER that line and schedules a
+      real continuation (trigger_pending_tick(), ~1s pulse cadence,
+      main.c) -- the paused actor is deliberately NOT preserved across the
+      pause (may be long gone by the time it resumes), only room/self are,
+      safely RE-DERIVED fresh at resume time from the trigger's own
+      target_type/target_vnum rather than holding a raw pointer across an
+      unbounded real-time gap. `aitick` (cmd_aitick.c) forces pending waits
+      along too (`trigger_pending_force_all()`), for deterministic
+      testing. Caught two real bugs building this: (1) the new pulse
+      registration silently exceeded `MAX_PULSE_PROCESSES` (16, pulse.c)
+      and got dropped with only a log line, no boot failure -- `wait`
+      would have just never fired in production; bumped to 24. (2)
+      `aitick`'s original ordering ran the pending-force step in the SAME
+      loop iteration as the random-trigger fire that might just have
+      scheduled a NEW wait, immediately resolving it and collapsing the
+      pause into a no-op within a single `aitick 1` call -- reordered so
+      each iteration resolves what was ALREADY pending before creating
+      anything new. `tests/smoke_test_trigger_wait.py` -- its own first
+      version used `wait 1`, which raced against the server's real ~1s
+      background pulse and sometimes resolved before the test's own
+      "hasn't fired yet" check ran; fixed by using `wait 3600` so only the
+      explicit `aitick` force can resolve it.
 - [ ] **Split gold on kill** — new, unblocked now that [[Money system]]
       exists. Needs groups (who's in the kill's group, split evenly or by
       level/contribution — design TBD) — pairs with **Meaningful limb

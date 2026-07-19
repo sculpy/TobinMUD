@@ -17,8 +17,8 @@
 -- meaningful for `random` (rolled once per world tick, same ~60s cadence
 -- as mob_ai_tick/obj_pool_decay_tick) -- 100 for every other type (always
 -- fires). `script` is a newline-separated list of actions from a small,
--- fixed vocabulary (echo/echoroom/emote/teleport/give/damage/log -- see
--- trigger.c's trigger_run()), not a general-purpose language.
+-- fixed vocabulary (echo/echoroom/emote/say/teleport/give/damage/log/wait --
+-- see trigger.c's trigger_run()), not a general-purpose language.
 CREATE TABLE IF NOT EXISTS `trigger` (
   `id` int NOT NULL AUTO_INCREMENT,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,

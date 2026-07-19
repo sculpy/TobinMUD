@@ -109,6 +109,7 @@ int main(int argc, char **argv) {
     pulse_register(600, obj_pool_decay_tick);    /* ~60s: ground puddles shrink, then vanish */
     pulse_register(600, obj_light_burn_tick);    /* ~60s: lit lights burn down, then go out */
     pulse_register(600, trigger_random_tick);    /* ~60s: mob/room "random" scripted triggers */
+    pulse_register(10, trigger_pending_tick);    /* ~1s: resume `wait`-paused trigger scripts */
     pulse_register(6000, tips_pulse_tick);       /* ~10min: echo a random tip to newbie-flagged players */
 
     int rc = game_loop_run(cfg->telnet_port, copyover_file);

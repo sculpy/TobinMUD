@@ -45,6 +45,14 @@ static void do_emote(room_t *room, const char *self_name, const char *arg) {
     descriptor_room_echo(room, NULL, msg);
 }
 
+static void do_say(room_t *room, const char *self_name, const char *arg) {
+    if (!room)
+        return;
+    char msg[320];
+    snprintf(msg, sizeof(msg), "%s says, '%s'\r\n", self_name ? self_name : "Something", arg);
+    descriptor_room_echo(room, NULL, msg);
+}
+
 static void do_teleport(being_t *actor, const char *arg) {
     if (!actor)
         return;
@@ -87,35 +95,98 @@ static void do_log(being_t *actor, const char *arg) {
     game_log(LOG_SILENT, "trigger: %s [%s]", arg, actor ? actor->base.name : "no actor");
 }
 
-void trigger_run(const trigger_t *trig, being_t *actor, room_t *room, const char *self_name) {
-    if (!trig)
+/* Pending `wait`-paused continuations -- see trigger.h's `wait` doc for the
+ * design (actor is deliberately NOT preserved; target_type/target_vnum +
+ * room_vnum are, so a mob/room's identity is safely re-derived fresh at
+ * resume time instead of holding a raw pointer across the pause). Fixed-
+ * size like RANDOM_VNUM_SET_MAX below -- a builder-facing tool, not
+ * expected to ever need more than a handful of these live at once. */
+#define PENDING_MAX 32
+typedef struct {
+    bool active;
+    long resume_at_pulse;
+    char target_type[8];
+    int target_vnum;
+    int room_vnum;
+    char remaining[TRIGGER_SCRIPT_MAX];
+} pending_trigger_t;
+static pending_trigger_t g_pending[PENDING_MAX];
+
+#define TRIGGER_PULSES_PER_SEC 10 /* pulse.h: a pulse is 100ms */
+#define TRIGGER_WAIT_MAX_SECS 3600
+
+static void schedule_pending(const char *target_type, int target_vnum, int room_vnum,
+                             const char *remaining, int wait_secs, long now_pulse) {
+    if (wait_secs < 1)
+        wait_secs = 1;
+    if (wait_secs > TRIGGER_WAIT_MAX_SECS)
+        wait_secs = TRIGGER_WAIT_MAX_SECS;
+    for (int i = 0; i < PENDING_MAX; i++) {
+        if (g_pending[i].active)
+            continue;
+        g_pending[i].active = true;
+        snprintf(g_pending[i].target_type, sizeof(g_pending[i].target_type), "%s", target_type);
+        g_pending[i].target_vnum = target_vnum;
+        g_pending[i].room_vnum = room_vnum;
+        snprintf(g_pending[i].remaining, sizeof(g_pending[i].remaining), "%s", remaining);
+        g_pending[i].resume_at_pulse = now_pulse + (long)wait_secs * TRIGGER_PULSES_PER_SEC;
         return;
+    }
+    /* Pool full -- dropped silently, same typo-tolerant spirit as an
+     * unrecognized verb (trigger.h). */
+}
 
-    char script[TRIGGER_SCRIPT_MAX];
-    snprintf(script, sizeof(script), "%s", trig->script);
+static long g_now_pulse = 0;
 
-    char *saveptr = NULL;
-    char *line = strtok_r(script, "\n", &saveptr);
-    while (line) {
-        while (*line == ' ')
-            line++;
+/* Runs `script_text` (a newline-separated action list -- either a whole
+ * trigger's script, or the tail of one resuming after a `wait`) against
+ * this context. `trig` supplies target_type/target_vnum, needed only if a
+ * `wait` line is hit (to schedule its continuation) -- may be NULL when
+ * resuming (the continuation record already captured what a fresh `wait`
+ * inside it would need). Manual line-scanning over the ORIGINAL text
+ * (not strtok_r) so hitting `wait` can hand off "everything after this
+ * line, verbatim" without needing to un-mutate anything. */
+static void run_script(const trigger_t *trig, being_t *actor, room_t *room,
+                       const char *self_name, const char *script_text) {
+    const char *cursor = script_text;
+    while (cursor && *cursor) {
+        const char *nl = strchr(cursor, '\n');
+        size_t linelen = nl ? (size_t)(nl - cursor) : strlen(cursor);
+        if (linelen > 255)
+            linelen = 255;
+        char line[256];
+        memcpy(line, cursor, linelen);
+        line[linelen] = '\0';
+        const char *next = nl ? nl + 1 : NULL;
+
+        char *p = line;
+        while (*p == ' ')
+            p++;
         char verb[16];
         int vlen = 0;
-        while (line[vlen] && line[vlen] != ' ' && vlen < (int)sizeof(verb) - 1) {
-            verb[vlen] = line[vlen];
+        while (p[vlen] && p[vlen] != ' ' && vlen < (int)sizeof(verb) - 1) {
+            verb[vlen] = p[vlen];
             vlen++;
         }
         verb[vlen] = '\0';
-        const char *arg = line + vlen;
+        const char *arg = p + vlen;
         while (*arg == ' ')
             arg++;
 
+        if (strcasecmp(verb, "wait") == 0) {
+            if (trig && next && *next)
+                schedule_pending(trig->target_type, trig->target_vnum,
+                                 room ? room->vnum : -1, next, atoi(arg), g_now_pulse);
+            return; /* stop here regardless -- either scheduled or nothing left to do */
+        }
         if (strcasecmp(verb, "echo") == 0)
             do_echo(actor, arg);
         else if (strcasecmp(verb, "echoroom") == 0)
             do_echoroom(actor, room, arg);
         else if (strcasecmp(verb, "emote") == 0)
             do_emote(room, self_name, arg);
+        else if (strcasecmp(verb, "say") == 0)
+            do_say(room, self_name, arg);
         else if (strcasecmp(verb, "teleport") == 0)
             do_teleport(actor, arg);
         else if (strcasecmp(verb, "give") == 0)
@@ -126,8 +197,76 @@ void trigger_run(const trigger_t *trig, being_t *actor, room_t *room, const char
             do_log(actor, arg);
         /* Unrecognized verbs are silently skipped -- see trigger.h. */
 
-        line = strtok_r(NULL, "\n", &saveptr);
+        cursor = next;
     }
+}
+
+void trigger_run(const trigger_t *trig, being_t *actor, room_t *room, const char *self_name) {
+    if (!trig)
+        return;
+    run_script(trig, actor, room, self_name, trig->script);
+}
+
+/* short_descr may start with a color tag (e.g. "<o>a dirty refuse
+ * hauler<1>") -- skip it before capitalizing, same bug class already
+ * fixed in cmd_look.c/cmd_object.c/cmd_scan.c/mob_ai.c's own cap_first()
+ * copies (each file keeps its own rather than sharing one). */
+static const char *cap_mob_name(const char *short_descr, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%s", short_descr);
+    size_t i = 0;
+    while (buf[i] == '<' && buf[i + 1] != '\0' && buf[i + 2] == '>')
+        i += 3;
+    if (buf[i])
+        buf[i] = (char)toupper((unsigned char)buf[i]);
+    return buf[0] ? buf : NULL;
+}
+
+void trigger_pending_tick(long pulse_num) {
+    g_now_pulse = pulse_num;
+    for (int i = 0; i < PENDING_MAX; i++) {
+        if (!g_pending[i].active || g_pending[i].resume_at_pulse > pulse_num)
+            continue;
+
+        pending_trigger_t p = g_pending[i];
+        g_pending[i].active = false; /* free the slot before running -- a
+                                       * fresh `wait` inside p.remaining is
+                                       * free to reuse it (or any slot) */
+
+        room_t *room = world_get_room(p.room_vnum);
+        if (!room)
+            continue; /* room gone -- drop silently */
+
+        const char *self_name = NULL;
+        char capbuf[128];
+        if (strcasecmp(p.target_type, "mob") == 0) {
+            being_t *self = NULL;
+            for (thing_t *t = room->base.stuff_head; t; t = t->stuff_next) {
+                if (t->kind == THING_MOB && t->id == p.target_vnum) {
+                    self = (being_t *)t;
+                    break;
+                }
+            }
+            if (!self)
+                continue; /* mob no longer here -- drop silently */
+            self_name = cap_mob_name(self->base.short_descr, capbuf, sizeof(capbuf));
+        }
+        /* target_type "room": self_name stays NULL, same "Something"
+         * fallback do_emote()/do_say() already use. */
+
+        trigger_t fake_trig = {0};
+        snprintf(fake_trig.target_type, sizeof(fake_trig.target_type), "%s", p.target_type);
+        fake_trig.target_vnum = p.target_vnum;
+
+        run_script(&fake_trig, NULL, room, self_name, p.remaining);
+    }
+}
+
+void trigger_pending_force_all(void) {
+    for (int i = 0; i < PENDING_MAX; i++) {
+        if (g_pending[i].active)
+            g_pending[i].resume_at_pulse = g_now_pulse; /* due "now" on the next tick */
+    }
+    trigger_pending_tick(g_now_pulse);
 }
 
 /* Gate for the two visitors below: which vnums actually have a "random"
@@ -159,21 +298,9 @@ static void random_visit_mob(being_t *m) {
     for (int i = 0; i < n; i++) {
         if (rand() % 100 >= trigs[i].chance_pct)
             continue;
-        /* short_descr may start with a color tag (e.g. "<o>a dirty refuse
-         * hauler<1>") -- skip it before capitalizing, same bug class already
-         * fixed in cmd_look.c/cmd_object.c/cmd_scan.c/mob_ai.c's own
-         * cap_first() copies (each file keeps its own rather than sharing
-         * one). Without this, toupper() hits '<' (a no-op) and the real
-         * first letter stays lowercase -- exactly the "a dirty refuse
-         * hauler grumbles..." bug seen live. */
         char capbuf[128];
-        snprintf(capbuf, sizeof(capbuf), "%s", m->base.short_descr);
-        size_t ci = 0;
-        while (capbuf[ci] == '<' && capbuf[ci + 1] != '\0' && capbuf[ci + 2] == '>')
-            ci += 3;
-        if (capbuf[ci])
-            capbuf[ci] = (char)toupper((unsigned char)capbuf[ci]);
-        trigger_run(&trigs[i], NULL, m->base.roomp, capbuf[0] ? capbuf : NULL);
+        const char *name = cap_mob_name(m->base.short_descr, capbuf, sizeof(capbuf));
+        trigger_run(&trigs[i], NULL, m->base.roomp, name);
     }
 }
 

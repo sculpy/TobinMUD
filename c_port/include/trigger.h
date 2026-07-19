@@ -17,9 +17,9 @@ struct room;
  * trigger with no specific instigator); `room` is where it's happening
  * (may be NULL only if `actor` is also NULL, i.e. never in practice --
  * every real firing has a room). `self_name` is the mob/obj's own
- * capitalized display name, used by the `emote` action (NULL for room
- * triggers, which have no single "self" to speak as -- `emote` falls back
- * to "Something" in that case).
+ * capitalized display name, used by the `emote`/`say` actions (NULL for
+ * room triggers, which have no single "self" to speak as -- they fall
+ * back to "Something" in that case).
  *
  * Fixed action vocabulary (one per script line, verb then rest-of-line
  * argument) -- deliberately small, not a general-purpose scripting
@@ -28,6 +28,8 @@ struct room;
  *   echoroom <text>  -- sent to everyone else in `room` (actor excluded)
  *   emote <text>     -- "<self_name> <text>" sent to everyone in `room`
  *                        (actor included -- it's the mob/room "speaking")
+ *   say <text>       -- "<self_name> says, '<text>'" sent to everyone in
+ *                        `room` (actor included, same as emote)
  *   teleport <vnum>  -- moves `actor` to room <vnum> (no-op if no actor)
  *   give <vnum>      -- spawns object <vnum> into `actor`'s inventory
  *   damage <n>       -- deals <n> damage to `actor`, clamped so it can
@@ -36,6 +38,22 @@ struct room;
  *                        `drink`'s poison already accepted)
  *   log <text>       -- LOG_SILENT game log entry (audit/debug, never
  *                        broadcast live)
+ *   wait <seconds>   -- pauses the REST of this script (everything after
+ *                        this line) for <seconds> real seconds (1-3600,
+ *                        clamped), then resumes it -- e.g. a market-vendor
+ *                        mob crying out one line at a time. The pause
+ *                        survives past this trigger_run() call returning
+ *                        (see trigger_pending_tick() below); `actor` is
+ *                        NOT preserved across it (may have disconnected/
+ *                        died/moved away by the time it resumes) -- only
+ *                        `say`/`emote`/`echoroom`/`log` lines make sense
+ *                        after a `wait`, since those only need `room`/
+ *                        `self_name`, both safely re-derived at resume
+ *                        time from the trigger's own target_type/
+ *                        target_vnum (`echo`/`teleport`/`give`/`damage`,
+ *                        which need a live `actor`, silently no-op if
+ *                        placed after a `wait`, same as if actor were
+ *                        NULL for any other reason).
  * Unrecognized verbs are silently skipped (typo-tolerant, matching the
  * spirit of a builder-facing tool over a strict compiler). */
 void trigger_run(const trigger_t *trig, struct being *actor, struct room *room,
@@ -47,5 +65,23 @@ void trigger_run(const trigger_t *trig, struct being *actor, struct room *room,
  * cadence as mob_ai_tick()/obj_pool_decay_tick(); also forced by `aitick`
  * for deterministic testing (same precedent as those two). */
 void trigger_random_tick(long pulse_num);
+
+/* Resumes any `wait`-paused trigger scripts whose time has come. Pulse-
+ * registered in main.c at a ~1s cadence (matching `wait`'s whole-seconds
+ * granularity) -- see trigger_run()'s `wait` doc above for what does and
+ * doesn't survive the pause. A mob/room that's gone by resume time (purged,
+ * moved, room unloaded) just silently drops that continuation -- no crash,
+ * no error, matching every other trigger action's "actor missing -> no-op"
+ * convention. */
+void trigger_pending_tick(long pulse_num);
+
+/* Testing/debug hook (`aitick`, cmd_aitick.c): runs EVERY currently-pending
+ * `wait` continuation right now, regardless of how much real time is left
+ * on its clock -- forcing trigger_pending_tick() itself to fire early would
+ * need a fake pulse number far enough past whatever real g_now_pulse the
+ * live game loop last saw, which risks corrupting the base a real `wait`
+ * scheduled in the same window would resume from. This sidesteps that
+ * entirely by not touching the pulse clock at all. */
+void trigger_pending_force_all(void);
 
 #endif
