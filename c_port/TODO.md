@@ -2176,8 +2176,20 @@ already tracked — pointers, not duplicates):
       to every connected player currently on the newbie channel
       (`PLR_NEWBIE`, already existed) -- "per-player newbie toggle" reuses
       that flag rather than adding a second one.
-- [ ] **Typed logs** — `log.h` log-type taxonomy; every log line gets a type,
-      `log search` can filter by type.
+- [x] **Typed logs** — already done, clarified/closed 2026-07-19, was
+      stale. Both halves already shipped, just never checked off: `log.h`'s
+      `log_type_t` taxonomy (SILENT/GAME/PIO/COMBAT/BUG/IDEA/DB/EDIT/
+      JESUS/TEST) has been in real use throughout the codebase for a long
+      time (`game_log(<type>, ...)` calls everywhere; per-type on/off via
+      `setsev`), and every line `game_log()` writes to the file is ALREADY
+      tagged verbatim as `[TYPE] message` (`descriptor.c`'s `game_log()`:
+      `log_info("[%s] %s", log_type_name(type), msg)`), regardless of
+      whether it's echoed live -- confirmed against a real log file.
+      `log search`'s existing case-insensitive substring match (cmd_log.c)
+      therefore already filters by type today: `log search [combat]`
+      matches only COMBAT-tagged lines. No dedicated `log search
+      type <type>` syntax was added on top of that -- the substring form
+      already covers it with no functional gap.
 - [x] **`dig`** — done 2026-07-18. `dig <direction>` (BUILD_MIN_LEVEL): if
       there's no exit that way yet, creates a new room, wires this room's
       exit to it and its own exit back (REV_DIR), then walks the digger
@@ -2288,8 +2300,24 @@ already tracked — pointers, not duplicates):
       +15 hit-roll bonus against them in `combat_strike()` -- attacking
       only auto-stands the ATTACKER (cmd_attack.c), so this stays in
       effect for as long as the defender chooses to stay down.
-- [ ] **Personalized immortal log messages (57+)** — per-immortal flavor on
-      log lines (`log.h` LOG_JESUS/LOG_PEEL/LOG_LOW inspiration).
+- [x] **Personalized immortal log messages (57+)** — clarified/closed
+      2026-07-19, was based on a misread of the original engine. Checked
+      the real SneezyMUD source before touching anything: `LOG_JESUS`/
+      `LOG_PEEL` (misc/log.h) are each a named DEVELOPER's own personal
+      SCRATCH DEBUG CHANNEL -- whoever's actively chasing a bug drops ad-
+      hoc `vlogf(LOG_JESUS, "...")`/`vlogf(LOG_PEEL, "...")` calls into
+      whatever code they're debugging that session, visible ONLY to that
+      one named immortal (gated by character name), so their in-progress
+      noise never spams every other immortal's screen -- then the calls
+      get pulled once the bug's fixed. `LOG_LOW` is unrelated (a generic
+      mob-data-integrity warning severity, not personalized at all --
+      this TODO's own "inspiration" list conflated it with the other two).
+      Tobin already has the real infrastructure for this (`LOG_JESUS` in
+      `log.h`, name-gated in `cmd_setsev.c`'s toggle list) -- there's
+      nothing further to build; it's a standing CONVENTION for whoever's
+      debugging to use ad-hoc, not a discrete feature with a fixed set of
+      messages. No `LOG_PEEL` equivalent added -- no second named
+      immortal exists in this game to gate it to.
 - [x] **`<d>` bold color tag** — done (Session 43, user: "investigate <d>
       and $$g tags from sneezy and implement in tobin"). Sneezy's `<d>`/
       `<D>` is a standalone BOLD toggle (`\033[1m`), distinct from the
