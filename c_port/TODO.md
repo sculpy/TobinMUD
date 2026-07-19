@@ -4188,8 +4188,15 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
       **Shop editor NOT built** — real gap, still open. Immortals can't
       create/modify shops in-game; only read-only consumption of the
       pre-existing seeded tables exists.
-- [ ] **Player-state logging** — log get/drop + pfile changes so `log search
-      <name>` tells a player's story. Needs objects; design a uniform helper.
+- [x] **Player-state logging** — done. get/drop already logged
+      (`LOG_SILENT`, cmd_object.c, predates this item). Added the other
+      half: `title`, `prompt`, `poofin`/`poofout`, `bamfin`/`bamfout` each
+      now log a `LOG_SILENT` line on set/clear, so `log search <name>`
+      surfaces a player's vanity-customization history alongside their
+      get/drop activity. `color` deliberately left out -- it's an
+      account-level connection preference (toggled far more casually,
+      closer to a terminal setting than "a player's story"), not a
+      pfile change. `tests/smoke_test_pfile_logging.py`.
 - [ ] **Body types** — `body.h` body-type concept (creatures have different
       limb sets). Pairs with mobs + limbs.
 

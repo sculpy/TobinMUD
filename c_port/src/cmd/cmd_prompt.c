@@ -8,6 +8,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "log.h"
 #include "player_repo.h"
 
 /* `prompt [stat]`: per-player prompt customization (user spec, Session
@@ -55,8 +56,11 @@ bool cmd_prompt(descriptor_t *d, const char *args) {
 
     ch->prompt_flags ^= flag;
     player_set_prompt_flags(ch->player_id, ch->prompt_flags);
+    bool now_on = (ch->prompt_flags & flag) != 0;
+    game_log(LOG_SILENT, "%s turns %s %s in their prompt", ch->base.name,
+             now_on ? "on" : "off", label);
     snprintf(msg, sizeof(msg), "Your prompt will %s show %s.\r\n",
-             (ch->prompt_flags & flag) ? "now" : "no longer", label);
+             now_on ? "now" : "no longer", label);
     descriptor_send(d, msg);
     return true;
 }

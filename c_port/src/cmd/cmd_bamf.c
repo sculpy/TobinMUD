@@ -9,6 +9,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "log.h"
 #include "player_repo.h"
 
 /* `bamfin`/`bamfout` (user 2026-07-11: "bamfin|out should modify goto
@@ -44,6 +45,7 @@ static bool set_bamf(descriptor_t *d, const char *args, bool is_in) {
             player_set_bamfin(ch->base.name, ch->account_id, NULL);
         else
             player_set_bamfout(ch->base.name, ch->account_id, NULL);
+        game_log(LOG_SILENT, "%s clears their %s", ch->base.name, label);
         char msg[64];
         snprintf(msg, sizeof(msg), "%s cleared.\r\n", label);
         descriptor_send(d, msg);
@@ -55,6 +57,7 @@ static bool set_bamf(descriptor_t *d, const char *args, bool is_in) {
         player_set_bamfin(ch->base.name, ch->account_id, dest);
     else
         player_set_bamfout(ch->base.name, ch->account_id, dest);
+    game_log(LOG_SILENT, "%s sets their %s to '%s'", ch->base.name, label, dest);
 
     char msg[BEING_BAMF_LEN + 32];
     snprintf(msg, sizeof(msg), "%s set to: %s\r\n", label, dest);

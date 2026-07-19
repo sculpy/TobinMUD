@@ -9,6 +9,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "log.h"
 #include "player_repo.h"
 
 /* `title [text]`: sets the free-form descriptor shown after your name in
@@ -28,12 +29,14 @@ bool cmd_title(descriptor_t *d, const char *args) {
     if (!*args || strcasecmp(args, "none") == 0 || strcasecmp(args, "clear") == 0) {
         ch->title[0] = '\0';
         player_set_title(ch->base.name, ch->account_id, NULL);
+        game_log(LOG_SILENT, "%s clears their title", ch->base.name);
         descriptor_send(d, "Title cleared.\r\n");
         return true;
     }
 
     snprintf(ch->title, sizeof(ch->title), "%s", args);
     player_set_title(ch->base.name, ch->account_id, ch->title);
+    game_log(LOG_SILENT, "%s sets their title to '%s'", ch->base.name, ch->title);
 
     char msg[BEING_TITLE_LEN + 32];
     snprintf(msg, sizeof(msg), "Title set to: %s\r\n", ch->title);
