@@ -73,11 +73,19 @@ WEAR_TAKE = 1
 WEAR_HOLD = 16384  # obj.c's WEAR_HOLD -- the bit wear_slot_for_flag() maps to WEAR_SLOT_HELD (wield/hold)
 
 
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
+def recv_all(sock, timeout=1.0, idle_gap=0.3):
+    # `timeout` is a hard deadline; `idle_gap` is how long a genuine quiet
+    # moment must last before treating the response as complete -- the old
+    # single-`timeout` version used it as a PER-RECV idle-gap, so every call
+    # burned the full timeout even for an instant reply (same root cause
+    # diagnosed and fixed in smoke_test_affects.py 2026-07-18; this file
+    # just hadn't gotten the same fix yet -- caught when it stalled the
+    # full sweep for 10+ minutes).
+    sock.settimeout(idle_gap)
     chunks = []
+    deadline = time.time() + timeout
     try:
-        while True:
+        while time.time() < deadline:
             data = sock.recv(4096)
             if not data:
                 break
