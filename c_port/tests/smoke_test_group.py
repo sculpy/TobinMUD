@@ -247,6 +247,11 @@ check(xp_of(foll_name) > xp_before_foll, "the grouped, in-room follower ALSO gai
 # (descriptor_leave_to_menu(), descriptor.c), which would otherwise
 # overwrite our direct SQL update with the leader's stale in-memory gold
 # (1, left over from the kill's loot drop) the instant they quit.
+# The follower never relogs here, so their gold is checked by DELTA, not
+# absolute value -- phase 4's kill already granted them a small random
+# share of the mob's gold drop (also group-split, since they were
+# grouped for that kill too), which a same-value check would miss.
+foll_gold_before_split = gold_of(foll_name)
 cmd(sA, "quit!")
 sA.close()
 set_gold(leader_name, 100)
@@ -255,7 +260,7 @@ cmd(sB, f"follow {leader_name}")
 cmd(sA, f"group {foll_name}")
 out = cmd(sA, "split 100")
 check("50 each" in out, "split reports an even 50/50 division between 2 present members")
-check(gold_of(foll_name) == 50, "the follower received their even split share")
+check(gold_of(foll_name) - foll_gold_before_split == 50, "the follower received their even split share")
 
 # --- 6: stop breaks the relationship ---
 out = cmd(sB, "stop")
