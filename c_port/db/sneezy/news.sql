@@ -203,3 +203,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Never Miss an Announcement Again',
  'If something has been posted to the news since you last checked, you will now see a quick reminder the moment you log in. Read it whenever suits you -- the reminder clears itself once you do.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Thieves Can Now Peek',
+ 'A Thief who knows the skill can attempt to peek at what someone nearby is carrying, without them ever knowing -- unless the attempt goes badly, in which case they will feel like someone just tried.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

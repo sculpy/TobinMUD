@@ -307,6 +307,15 @@ static const cmd_entry_t COMMANDS[] = {
     { "mortal",  cmd_mortal,  "Walk the world as a mortal (immort to return).",     IMMORTAL_LEVEL_MIN },
     { "multiplay", cmd_multiplay, "Toggle whether mortals may multiplay (59+).",    MULTIPLAY_MIN_LEVEL },
     { "pee",     cmd_pee,     "Leave a puddle on the floor (pee <liquid> for a specific type).", IMMORTAL_LEVEL_MIN },
+    /* Mortal Thief skill (gated internally by being_knows_skill(), same
+     * pattern as settrap/disarmtrap), but placed here rather than
+     * alphabetically near pray/practice/prompt: "peek" starts with "pee",
+     * and cmd_dispatch() resolves a shared abbreviation to whichever entry
+     * comes FIRST -- an immortal (who, unlike a mortal, can reach both)
+     * typing bare "pee" must keep meaning the pee command above, not this
+     * one. Mortals never see "pee" at all, so this costs them nothing;
+     * "peek" itself still works fine typed in full either way. */
+    { "peek",    cmd_peek,    "Attempt to see what someone is carrying, without their knowledge (Thief, peek <target>).", MORTAL_LEVEL_MIN },
     { "poofin",  cmd_poofin,  "Set your custom walking arrival message (poofin [msg]).",   IMMORTAL_LEVEL_MIN },
     { "poofout", cmd_poofout, "Set your custom walking departure message (poofout [msg]).", IMMORTAL_LEVEL_MIN },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },

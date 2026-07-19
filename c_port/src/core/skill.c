@@ -63,6 +63,7 @@ static const skill_def_t SKILLS[] = {
     { "throatslit",       CLASS_THIEF, SKILL_TIER_COMBAT,  1, "A lethal sneak attack targeting the throat." },
     { "poison weapon",    CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Coat your weapon in poison so your hits inflict it." },
     { "steal",            CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Pick a victim's pocket." },
+    { "peek",             CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Attempt to see what someone is carrying, without their knowledge." },
     { "search",           CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Find hidden objects or secret exits." },
     { "detect trap",      CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Spot a trap before it triggers." },
     { "counter steal",    CLASS_THIEF, SKILL_TIER_COMBAT,  1, "A passive chance to catch someone trying to steal from you." },

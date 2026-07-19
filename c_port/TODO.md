@@ -3316,13 +3316,30 @@ already tracked — pointers, not duplicates):
       checks. **Deferred, not part of this item**: the Thief "peek at
       inventory" skill (a separate, real new mechanic -- attempted,
       chance-based, presumably detectable) is still open, tracked below.
-- [ ] **Thief "peek" skill (attempt to see someone's carried inventory)**
-      — user (same message as the look-equipment request above): "a
+- [x] **Thief "peek" skill (attempt to see someone's carried inventory)**
+      — done. User (same message as the look-equipment request above): "a
       thief skill could be added to attempt a peak at the targets
-      inventory." Distinct from the (now-done) worn-equipment display
-      above -- this is a new skill/command that tries to see what
-      someone is CARRYING (not worn), with some chance of success/
-      detection, gated by `being_knows_skill()` same as trap mechanics.
+      inventory." Distinct from the worn-equipment display -- new skill/
+      command that tries to see what someone is CARRYING (loose
+      inventory, not worn), gated by `being_knows_skill()` and rolled
+      the same way trap mechanics are (cmd_trap.c): immortals always
+      succeed, a fumble is detectable (the target gets an on-guard
+      notice), a clean success stays silent. New "peek" entry in
+      skill.c's SKILLS[] roster (Thief, Combat tier, level 1, right
+      after "steal" -- thematically paired). New `cmd_peek.c` +
+      `peek <target>` in cmd_table.c, placed right after `pee` (not
+      alphabetically near pray/practice) so an immortal typing bare
+      "pee" keeps meaning the pee command, not peek -- see the comment
+      there. `help peek` topic added directly to help_topic.sql (not
+      skill_help.sql, since the skill and command share the literal
+      name "peek" and skill_help's generated rows would collide on
+      that key). `tests/smoke_test_peek.py` -- caught a real gate
+      detail while writing it: `being_knows_skill()` requires
+      `combat_disc_pct > 0` for a Combat-tier skill, not just the
+      level threshold, so a fresh level-1 character needs to actually
+      practice once before "peek" (or any Combat skill) is usable
+      (same discipline gate smoke_test_affects.py already had to seed
+      for an Advanced-tier skill).
 - [x] **Make `rent` work (Sneezy port)** — done. User (2026-07-12): "make
       rent work from sneezy." Per Sneezy's own help text: `rent` stores
       your items and cleanly ends your session (regenerating HP while
