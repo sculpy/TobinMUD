@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "cmd.h"
+#include "mob_ai.h"
 #include "room.h"
 #include "room_repo.h"
 #include "thing.h"
@@ -85,6 +86,17 @@ bool cmd_flee(descriptor_t *d, const char *args) {
 
     snprintf(msg, sizeof(msg), "%s arrives, panting and out of breath.\r\n", ch->base.name);
     descriptor_room_echo(to, ch, msg);
+
+    /* Pursuit (Sneezy → Tobin feature audit, "Monster AI & behavior
+     * (pursuit)"): an aggressive mob gets one immediate chance to follow
+     * into `to` and resume the fight before the fleeing player's own
+     * `look` renders -- so if it succeeds, the chasing mob is already
+     * standing there in the room description, not a surprise arrival
+     * after the fact. Only for a mob foe (foe->base.kind == THING_MOB
+     * inside mob_ai_try_pursue()'s own guard) -- a PC opponent from PK
+     * combat never gives chase this way. */
+    if (foe)
+        mob_ai_try_pursue(foe, ch, to);
 
     return cmd_dispatch(d, "look");
 }

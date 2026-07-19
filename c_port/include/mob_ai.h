@@ -5,7 +5,12 @@
 #ifndef TOBIN_MOB_AI_H
 #define TOBIN_MOB_AI_H
 
+#include <stdbool.h>
 #include <stddef.h>
+
+struct being;  /* forward decl only -- avoids a being.h<->mob_ai.h include
+                  cycle, same idiom used throughout this codebase */
+struct room;
 
 /* Mob AI (Session 43 continued, user: "in pulse, make sure that mob
  * actions click and mobs that can wander will do so, look at mob ai from
@@ -34,6 +39,18 @@
  * Pulse-driven (main.c), same ~60s cadence as gametime_tick()/
  * zone_process_run(). */
 void mob_ai_tick(long pulse_num);
+
+/* Pursuit (Sneezy → Tobin feature audit, "Monster AI & behavior
+ * (pursuit)"): called from cmd_flee.c right after a successful flee
+ * breaks off combat. If `m` (the mob just left behind) is
+ * ACT_AGGRESSIVE, has a flat chance to immediately follow `fled_ch` into
+ * `to` and resume the fight -- a single-room, immediate reaction, not a
+ * real multi-room hunt (Tobin has no cross-tick hunting-pointer state
+ * machine). Returns true iff `m` followed and re-engaged, in which case
+ * `to` already reflects the mob's new location and both fighting
+ * pointers are set. See mob_ai.c's own doc comment for the full scope-cut
+ * rationale. */
+bool mob_ai_try_pursue(struct being *m, struct being *fled_ch, struct room *to);
 
 /* Decodes a raw `mob.actions` value into a readable "[ SENTINEL ] [ ... ]"
  * run (user 2026-07-12's `stat` command: "actions should be readable

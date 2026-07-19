@@ -249,6 +249,50 @@ static void mob_try_aggress(being_t *m) {
     descriptor_notify(target->desc, msg);
 }
 
+/* Pursuit (Sneezy → Tobin feature audit, "Monster AI & behavior
+ * (pursuit)"). Checked Sneezy's own 14-monster-ai-behavior.md doc first:
+ * the real system is a whole emotional/opinion model (hate/fear lists,
+ * per-class combat AI dispatch, faction territorial combat, scripted
+ * mobresponses) with a persistence/distance-based multi-room hunt() that
+ * runs its own state machine across pulses -- Tobin has none of that
+ * infrastructure (no per-mob memory, no cross-tick hunting pointer), and
+ * building it is its own separate undertaking. Scoped to the one
+ * concrete, named gap: an ACT_AGGRESSIVE mob a player successfully flees
+ * from (cmd_flee.c) currently just lets them go with zero chance of
+ * giving chase. This is a single-room, immediate reaction, not the
+ * original's real hunt -- a mob either catches up right now or gives up
+ * for good, no lingering hunting state, no following through a second
+ * doorway. Same "placeholder odds" precedent cmd_flee.c's own escape
+ * chance already uses. Returns true iff `m` followed and re-engaged. */
+#define MOB_PURSUE_CHANCE_PCT 50
+
+bool mob_ai_try_pursue(being_t *m, being_t *fled_ch, room_t *to) {
+    if (!m || m->base.kind != THING_MOB || !fled_ch || !to)
+        return false;
+    if (!(m->mob_actions & ACT_AGGRESSIVE))
+        return false;
+    if (rand() % 100 >= MOB_PURSUE_CHANCE_PCT)
+        return false;
+
+    thing_set_room(&m->base, to);
+    m->fighting = fled_ch;
+    fled_ch->fighting = m;
+    being_set_wait(m, COMBAT_ROUND_PULSES);
+
+    char capbuf[128];
+    char msg[192];
+    snprintf(msg, sizeof(msg), "%s chases you down!\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)));
+    if (fled_ch->desc)
+        descriptor_notify(fled_ch->desc, msg);
+
+    snprintf(msg, sizeof(msg), "%s bursts in, hot on %s's trail!\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), fled_ch->base.name);
+    descriptor_room_echo(to, m, msg);
+
+    return true;
+}
+
 /* Ambient, non-combat reaction to a NEUTRAL PC sharing the room with an
  * ALIGNED aggressive mob (user: "people who are neutral should be taunted
  * by evil and supported by good") -- never fires for unaligned mobs

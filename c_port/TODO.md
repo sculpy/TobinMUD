@@ -322,6 +322,37 @@ implementation inspiration before each one, not guessed at.
       itself restores a neutral daytime hour when it finishes, so it
       doesn't leave the shared preview/production clock stuck at night
       for whatever runs next.
+- [x] **Monster AI & behavior (pursuit)** — done 2026-07-19. Checked
+      Sneezy's own `docs/systems/critical/14-monster-ai-behavior.md`
+      first: a huge opinion/emotion model (suspicion/greed/malice/anger
+      0-100 attributes, categorical + individual hate/fear memory lists,
+      faction territorial combat, per-class combat AI dispatch, scripted
+      DB-driven mob dialogue) plus a real multi-room `hunt()` pursuit
+      state machine (persistence/distance counters, `dirTrack()`
+      pathfinding, vision/concealment checks, cleric teleport-pursuit).
+      None of that infrastructure exists in Tobin, and building it is way
+      out of scope for one audit item — scoped the "(pursuit)"
+      parenthetical down to exactly what it names: a single-room,
+      immediate, probabilistic "does an aggressive mob follow a fleeing
+      player into the next room" reaction, no persistence, no cross-tick
+      hunting state, no real hunt. New `mob_ai_try_pursue()` (mob_ai.c/
+      .h) — if the mob left behind by a successful `flee` has
+      `ACT_AGGRESSIVE`, a flat 50% chance to immediately follow into the
+      destination room and re-engage before the fleeing player's own
+      `look` renders (so a successful chase is already standing there in
+      the room description, not a surprise arrival after the fact).
+      Wired into `cmd_flee.c` right after combat breaks off; only fires
+      for a mob foe (a PC opponent from PK combat never gives chase).
+      New `tests/smoke_test_pursuit.py` (2 checks: an ACT_AGGRESSIVE mob
+      eventually chases across repeated flee attempts; a mob without the
+      flag never pursues, deterministically) — retries across up to 30
+      attempts since both flee's own ~2/3 escape chance and pursuit's
+      50% chance are probabilistic, same "N attempts" precedent as
+      `smoke_test_drink.py`. Verified variance is genuine (not always
+      landing on the first attempt) across 5 runs (1, 1, 1, 3, 4 tried)
+      before shipping, ruling out an always-succeeds bug in either roll.
+      Regression-checked against `smoke_test_flee.py`, `smoke_test_mob_ai.py`,
+      `smoke_test_group.py` (also exercise flee/combat/mob AI).
 
 ## Buildable now (no blocked dependencies)
 
