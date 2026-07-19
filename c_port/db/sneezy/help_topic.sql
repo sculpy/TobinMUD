@@ -889,3 +889,11 @@ UPDATE `help_topic` SET `body` = 'Usage: tell <name> <message>\n\nA private mess
   WHERE `name` = 'tell' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Usage: whisper <name> <message>\n\nA private message to someone in your own room -- everyone else there\nsees that a conversation happened, but not what was said. Compare\n`tell`, which reaches anyone anywhere but gives bystanders no hint at\nall. Blocked entirely by `ignore`.\n\nRelated: tell say ignore'
   WHERE `name` = 'whisper' AND `updated_by` = 'seed';
+
+-- `possess`/`return` (Sneezy → Tobin feature audit, "Switch / return
+-- (puppet a mob)"). Named `possess` since `switch` already means
+-- something else in Tobin (swap held items, cmd_object.c).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('possess', 'Usage: possess <mob>\n\nLevel 59+ only: puppet a mob''s body -- your commands drive the mob\ninstead of your own character until you `return`. The mob must be in\nyour room, unpossessed, and not a player. Your own immortal command\naccess stays with you the whole time (so `return` always works, even\nif the mob''s in-game level is low); a disconnect while possessing\nautomatically returns you first, so you never get stranded in the\nmob''s body.\n\nRelated: return', 'seed'),
+('return', 'Usage: return\n\nComes back to your own body after `possess`ing a mob.\n\nRelated: possess', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

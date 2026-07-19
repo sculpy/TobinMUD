@@ -22,6 +22,15 @@
 bool cmd_quit(descriptor_t *d, const char *args) {
     (void)args;
 
+    /* `possess`/`return` (cmd_possess.c): quitting out from inside a
+     * puppeted mob would try to player_save()/drop-items a being that
+     * isn't a real player row at all. Simplest, safest guard -- `return`
+     * to your own body first. */
+    if (d->possess_original) {
+        descriptor_send(d, "You're possessing a mob -- `return` to your own body first.\r\n");
+        return true;
+    }
+
     char msg[128];
     snprintf(msg, sizeof(msg), "You leave %s and return to the character menu.\r\n",
              d->character ? d->character->base.name : "the game");

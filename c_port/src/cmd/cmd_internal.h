@@ -109,6 +109,8 @@ bool cmd_lock(descriptor_t *d, const char *args);
 bool cmd_unlock(descriptor_t *d, const char *args);
 bool cmd_ignore(descriptor_t *d, const char *args);
 bool cmd_unignore(descriptor_t *d, const char *args);
+bool cmd_possess(descriptor_t *d, const char *args);
+bool cmd_return(descriptor_t *d, const char *args);
 bool cmd_get(descriptor_t *d, const char *args);
 bool cmd_put(descriptor_t *d, const char *args);
 bool cmd_drop(descriptor_t *d, const char *args);
@@ -240,6 +242,13 @@ bool look_at_target(descriptor_t *d, const char *args);
 /* `snoop`: 59+, user-specified (2026-07-11). Same-or-higher-level targets
  * are refused inside cmd_snoop.c itself, not by this table gate alone. */
 #define SNOOP_MIN_LEVEL 59
+
+/* `possess` (puppet a mob's body -- Sneezy's admin `switch`, POWER_SWITCH):
+ * same tier as `snoop`, matching precedent for a powerful admin-only
+ * observation/control tool. `return` (come back to your own body) needs
+ * no separate gate -- only reachable after a successful possess, which
+ * already passed this one. */
+#define POSSESS_MIN_LEVEL 59
 
 /* `edplayer`: Administrator (58+), matching `promote`'s tier -- it's an
  * admin superset of promote (TODO.md). */

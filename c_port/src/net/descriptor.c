@@ -314,6 +314,20 @@ void descriptor_destroy(descriptor_t *d) {
     if (!d)
         return;
 
+    /* `possess`/`return` (cmd_possess.c): a disconnect while possessing a
+     * mob must restore the immortal's own PC into `d->character` FIRST,
+     * so the link-drop handling below (room announce, log, linkdead
+     * parking) applies to the real character, not the puppeted mob --
+     * and so the mob goes back to being a normal, un-puppeted, desc==NULL
+     * mob rather than getting stuck wearing a PC's link-drop state. */
+    if (d->possess_original) {
+        being_t *mob = d->character;
+        if (mob)
+            mob->desc = NULL;
+        d->character = d->possess_original;
+        d->possess_original = NULL;
+    }
+
     descriptor_t **cur = &g_descriptors;
     while (*cur && *cur != d)
         cur = &(*cur)->next;

@@ -50,6 +50,39 @@ implementation inspiration before each one, not guessed at.
       Tobin invention. `cmd_table.c` entries verified with
       `tests/tools/cmd_abbrev_check.py` (zero collisions). New
       `tests/smoke_test_ignore.py` (13 checks).
+- [x] **Switch / return (puppet a mob)** — done 2026-07-19. Checked
+      Sneezy's own `23-snoop-switch.md` doc first: admin switch is a raw
+      descriptor-pointer swap (no stat transfer, no transformation
+      message -- that's the SEPARATE spell-driven polymorph flavor, which
+      Tobin doesn't have yet, tracked as its own "Transformation" audit
+      item). Named `possess` rather than Sneezy's own `switch` -- that
+      word is already taken in Tobin (swap held items, cmd_object.c).
+      `possess <mob>` (59+, cmd_possess.c)/`return`: new
+      `descriptor_t.possess_original` holds the immortal's own PC while
+      `character` points at the puppet -- the original goes temporarily
+      `desc == NULL`, the exact same shape a real link-drop already
+      leaves a body in, so no new "state" concept was needed to represent
+      it. Two real bugs caught before shipping, not just guessed at from
+      reading the doc: (1) `cmd_dispatch()`'s min_level gate reads
+      `d->character->progress.level` -- while possessing, that's the
+      MOB's seeded level (often 1), which made `return` itself invisible
+      and would have permanently stranded an immortal inside whatever
+      they possessed. Fixed by gating on `d->possess_original`'s level
+      when set. (2) A disconnect while possessing was about to run the
+      normal link-drop handling (room announce, log, linkdead parking)
+      against the PUPPET instead of the immortal -- fixed by restoring
+      `d->character` to the original FIRST, at the very top of
+      `descriptor_destroy()`. `quit!` while possessing is refused outright
+      (would try to `player_save()`/drop-items a being with no real
+      player row) -- `return` first. Known, accepted gap: internal
+      same-level checks inside OTHER admin commands (e.g. `snoop`'s
+      target-level comparison) weren't individually audited for the
+      "acting immortal's real level, not the puppet's" distinction --
+      only the two paths above (dispatch gate, disconnect) were provably
+      capable of permanently stranding someone, so those got fixed;
+      combining `possess` with a same-level check inside another command
+      is an unexplored edge case. New `tests/smoke_test_possess.py` (9
+      checks, including the disconnect-while-possessing recovery).
 
 ## Buildable now (no blocked dependencies)
 

@@ -322,10 +322,12 @@ static const cmd_entry_t COMMANDS[] = {
     { "peek",    cmd_peek,    "Attempt to see what someone is carrying, without their knowledge (Thief, peek <target>).", MORTAL_LEVEL_MIN },
     { "poofin",  cmd_poofin,  "Set your custom walking arrival message (poofin [msg]).",   IMMORTAL_LEVEL_MIN },
     { "poofout", cmd_poofout, "Set your custom walking departure message (poofout [msg]).", IMMORTAL_LEVEL_MIN },
+    { "possess", cmd_possess, "Puppet a mob's body (possess <mob>; `return` to come back).", POSSESS_MIN_LEVEL },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
     /* Bare `purge` clears the room; `purge linkdead` (58+, checked inside
      * cmd_purge itself) sweeps the whole game. */
     { "purge",   cmd_purge,   "Clear this room's mobs/objects, or purge linkdead (58+).", PURGE_MIN_LEVEL },
+    { "return",  cmd_return,  "Come back to your own body after `possess`ing a mob.", IMMORTAL_LEVEL_MIN },
     /* "set" must stay ahead of "setsev"/"settrap" -- all three start with
      * "set" and the first match wins, so the exact command "set" would
      * otherwise dispatch into one of the others (found via
@@ -472,8 +474,13 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
      * are skipped during matching entirely, so a mortal typing "goto" gets
      * the same "Huh?!" as any nonexistent command (and "g" can never
      * abbreviate to it) -- immortal commands are invisible, not merely
-     * refused, matching the original's commandInfo::minLevel dispatch gate. */
-    int level = d->character ? d->character->progress.level : MORTAL_LEVEL_MIN;
+     * refused, matching the original's commandInfo::minLevel dispatch gate.
+     * While `possess`ing a mob (cmd_possess.c), `d->character` is the
+     * PUPPET, whose seeded level could be anything (often 1) -- gate on
+     * the immortal's own real level instead, or `return` itself (51+)
+     * could become invisible and strand them in the mob permanently. */
+    being_t *level_source = d->possess_original ? d->possess_original : d->character;
+    int level = level_source ? level_source->progress.level : MORTAL_LEVEL_MIN;
     size_t verb_len = strlen(verb);
     for (size_t k = 0; k < NUM_COMMANDS; k++) {
         if (COMMANDS[k].min_level > level)

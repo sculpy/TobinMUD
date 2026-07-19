@@ -317,6 +317,17 @@ typedef struct descriptor {
 
     being_t *character;
 
+    /* `possess`/`return` (60+, cmd_possess.c -- Sneezy → Tobin feature
+     * audit, "Switch / return (puppet a mob)"): while possessing a mob,
+     * `character` points at the mob and this holds the immortal's own PC,
+     * temporarily desc==NULL (same "linkdead" shape a real disconnect
+     * already leaves a body in -- no new state needed to represent it).
+     * NULL when not possessing anything. Sneezy's own admin switch (not
+     * the spell-driven polymorph flavor, which Tobin doesn't have yet)
+     * does no stat transfer and no visual message -- this mirrors that
+     * exactly: a raw descriptor-pointer swap, nothing else. */
+    being_t *possess_original;
+
     /* Time (epoch seconds) of the last input line -- who shows "(idle)" after
      * 5 minutes with no input; any command resets it. */
     long last_active;
