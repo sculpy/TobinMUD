@@ -134,6 +134,8 @@ bool cmd_transfer(descriptor_t *d, const char *args);
 bool cmd_pee(descriptor_t *d, const char *args);
 bool cmd_drink(descriptor_t *d, const char *args);
 bool cmd_eat(descriptor_t *d, const char *args);
+bool cmd_junk(descriptor_t *d, const char *args);
+bool cmd_identify(descriptor_t *d, const char *args);
 bool cmd_bamfin(descriptor_t *d, const char *args);
 bool cmd_bamfout(descriptor_t *d, const char *args);
 bool cmd_poofin(descriptor_t *d, const char *args);

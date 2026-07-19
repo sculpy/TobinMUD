@@ -164,6 +164,10 @@ static const cmd_entry_t COMMANDS[] = {
      * idea needs "id", immort needs "im". */
     { "inventory", cmd_inventory, "List what you're carrying.",                     MORTAL_LEVEL_MIN },
     { "idea",    cmd_idea,    "Suggest a feature (idea <text>); immortals list them.", MORTAL_LEVEL_MIN },
+    /* "ide" is already claimed by idea (shorter, sits first) -- identify
+     * needs "iden" to diverge from it, same spirit as the drop/drink swap
+     * elsewhere in this table. */
+    { "identify", cmd_identify, "Reveal an item's real stats (identify <item>).",     MORTAL_LEVEL_MIN },
     { "ignore",  cmd_ignore,  "Block tells/whispers from someone (ignore [<name>]).", MORTAL_LEVEL_MIN },
     /* Mortality toggle: `immort` reclaims true immortal rank after `mortal`
      * (immortal tier, below) sets it aside. Registered at MORTAL level
@@ -171,6 +175,7 @@ static const cmd_entry_t COMMANDS[] = {
      * matches the entry, but the handler gates on the STORED true level and
      * does nothing useful for them. */
     { "immort",  cmd_immort,  NULL,                                                 MORTAL_LEVEL_MIN },
+    { "junk",    cmd_junk,    "Destroy a carried item for good, no chance of recovery (junk <item>).", MORTAL_LEVEL_MIN },
     { "kill",    cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
     /* SWAP: look before limbs, so "l" looks; limbs needs "li". */
     { "look",    cmd_look,    "Look around the room you're in.",                    MORTAL_LEVEL_MIN },

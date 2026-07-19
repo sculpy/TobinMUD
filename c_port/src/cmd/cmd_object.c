@@ -406,6 +406,48 @@ bool cmd_drop(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `junk <item>` (Sneezy → Tobin feature audit, "Object manipulation
+ * depth"). Checked Sneezy's own `junk` help topic first: "so worthless it
+ * isn't even worth dropping... totally destroy the object with no chance
+ * of recovery" -- a real command there too, not skill/spell-gated, so a
+ * straight port. Same loose-carried-only scope as `drop` (find_obj's
+ * owner filter) -- junking something worn/held requires removing it
+ * first, same as dropping it would. No confirmation prompt (matches the
+ * original's own "be explicit... no reimbursement if the coordination is
+ * off" warning -- the destructiveness is the point, not a bug to guard
+ * against). */
+bool cmd_junk(descriptor_t *d, const char *args) {
+    being_t *ch = d->character;
+    if (!ch || !ch->base.roomp) {
+        descriptor_send(d, "You are nowhere.\r\n");
+        return true;
+    }
+
+    char tok[64];
+    if (sscanf(args, "%63s", tok) != 1) {
+        descriptor_send(d, "Usage: junk <item>\r\n");
+        return true;
+    }
+
+    obj_t *o = find_obj(ch->base.stuff_head, tok, ch);
+    if (!o) {
+        descriptor_send(d, "You aren't carrying that.\r\n");
+        return true;
+    }
+
+    char msg[256];
+    const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+    snprintf(msg, sizeof(msg), "You junk %s. It's gone for good.\r\n", label);
+    descriptor_send(d, msg);
+    snprintf(msg, sizeof(msg), "%s junks %s.\r\n", ch->base.name, label);
+    descriptor_room_echo(ch->base.roomp, ch, msg);
+
+    game_log(LOG_SILENT, "%s junks %s (vnum %d)", ch->base.name, label, o->vnum);
+    obj_destroy(o);
+    player_inventory_save(ch->player_id, ch);
+    return true;
+}
+
 bool cmd_inventory(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;

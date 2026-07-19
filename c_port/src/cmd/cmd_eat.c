@@ -11,6 +11,7 @@
 #include "being.h"
 #include "log.h"
 #include "obj.h"
+#include "obj_repo.h"
 #include "thing.h"
 
 /* Same case-insensitive per-keyword prefix match cmd_drink.c/cmd_sip.c
@@ -101,5 +102,6 @@ bool cmd_eat(descriptor_t *d, const char *args) {
 
     game_log(LOG_SILENT, "%s ate %s (vnum %d)", ch->base.name, label, food->vnum);
     obj_destroy(food);
+    player_inventory_save(ch->player_id, ch);
     return true;
 }

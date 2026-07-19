@@ -205,6 +205,45 @@ implementation inspiration before each one, not guessed at.
       verified clean against `smoke_test_pk_gold.py`,
       `smoke_test_levelup_hp.py`, and `smoke_test_group.py`, all three of
       which also exercise `combat_defeat()`.
+- [x] **Object manipulation depth (sacrifice, junk, identify)** — done
+      2026-07-19. Checked Sneezy's own help topics/source first. `sacrifice`
+      turned out to be entirely a Shaman-class skill tied to a `lifeforce`
+      resource and totems held in the caster's hand -- Tobin has no Shaman
+      class, no lifeforce stat, no totems, so it doesn't map onto anything
+      that exists here. Asked the user (AskUserQuestion) rather than either
+      inventing a whole lifeforce/totem/Shaman system or silently
+      reinterpreting the verb into something the original never meant;
+      answer was to skip it outright. `junk <item>` (`cmd_object.c`, next
+      to `drop`) is a straight port of the original's own command (not
+      skill-gated there either): destroys a carried, loose item for good,
+      same scope as `drop` (worn/held items need removing first).
+      `identify <item>` (new `cmd_identify.c`) is a plain command, not a
+      spell -- same tier as `examine`/`consider`; shows a carried item's
+      real category-specific stats (weapon hit/dam bonus, armor AC,
+      container capacity, drink units, food nutrition), NOT `stat`''s full
+      immortal-only prototype dump. Building it surfaced two real
+      DB/doc-comment mismatches, fixed by showing only what''s
+      mechanically real rather than trusting obj.h''s val[] doc comment
+      blindly: (1) a weapon''s val[0]/val[1] are NOT damage dice despite
+      the doc comment claiming so -- verified against the real seed (e.g.
+      vnum 175 carries val0=4626, val1=2073, nonsense as dice) and against
+      combat.c''s actual formula, which never reads either field, so
+      identify shows the real hitroll/damroll bonus (`obj_load_combat_mods()`)
+      instead; (2) a magic item''s val[0] "charges" is likewise unreliable
+      (a plausible 5 on potions, a nonsense 25650 on one scroll) and unread
+      by any code yet (no `use`/`zap`/`quaff` command exists -- that''s the
+      still-open "Magic items" audit item) -- identify says so honestly
+      instead of printing a number that might be garbage. Also found and
+      fixed a real latent bug while here: `eat` (previous audit item)
+      called `obj_destroy()` on the consumed food but never
+      `player_inventory_save()` afterward, same gap `junk` would have had
+      -- without it, a reconnect before any OTHER inventory-touching
+      action would resurrect the "destroyed" item from its still-persisted
+      DB row (matches `cmd_shop.c`''s own sell path, which already got
+      this right). Both commands now save inventory immediately after
+      destroying. New `tests/smoke_test_objmanip.py` (10 checks, including
+      a regression check for the resurrection bug on both `junk` and
+      `eat`).
 
 ## Buildable now (no blocked dependencies)
 
