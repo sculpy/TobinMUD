@@ -43,11 +43,12 @@ static bool keyword_matches(const char *keywords, const char *tok) {
  * text: "less risk of damage... but does not fill you up as much as if
  * you had drunk fully" -- so this targets the exact same puddles/
  * fountains `drink` (cmd_drink.c) does, just with a much lower poison
- * chance/damage and its own "taste" flavored messaging, and (unlike
- * `drink`) never actually satisfies thirst/nutrition -- Tobin has no
- * hunger/thirst meter yet (task 22, "Vital statistics") for either
- * command to actually move, so this is honest about only being a
- * flavor/risk distinction for now. */
+ * chance/damage and its own "taste" flavored messaging. Now that the
+ * hunger/thirst meter exists (Sneezy → Tobin feature audit, "Vital
+ * statistics"), sip moves it too, just by much less than a full `drink`
+ * -- a real, smaller amount, not the "means nothing yet" flavor-only
+ * behavior this comment used to describe. */
+#define SIP_THIRST_GAIN 8
 bool cmd_sip(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -100,6 +101,12 @@ bool cmd_sip(descriptor_t *d, const char *args) {
         descriptor_send(d, msg);
         snprintf(msg, sizeof(msg), "%s takes a sip from %s.\r\n", ch->base.name, label);
         descriptor_room_echo(ch->base.roomp, ch, msg);
+        if (!being_is_immortal(ch)) {
+            ch->progress.thirst += SIP_THIRST_GAIN;
+            if (ch->progress.thirst > 100)
+                ch->progress.thirst = 100;
+            player_progress_save(ch->player_id, &ch->progress);
+        }
         return true;
     }
 
@@ -109,6 +116,13 @@ bool cmd_sip(descriptor_t *d, const char *args) {
     descriptor_send(d, msg);
     snprintf(msg, sizeof(msg), "%s tastes a bit of %s.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, msg);
+
+    if (!being_is_immortal(ch)) {
+        ch->progress.thirst += SIP_THIRST_GAIN;
+        if (ch->progress.thirst > 100)
+            ch->progress.thirst = 100;
+        player_progress_save(ch->player_id, &ch->progress);
+    }
 
     if (rand() % 100 < SIP_POISON_CHANCE_PCT) {
         int dmg = SIP_POISON_MIN_DMG + rand() % (SIP_POISON_MAX_DMG - SIP_POISON_MIN_DMG + 1);

@@ -28,6 +28,7 @@
 #include "shutdown.h"
 #include "tips_repo.h"
 #include "trigger.h"
+#include "vitals.h"
 #include "wait_tick.h"
 #include "zone.h"
 
@@ -108,6 +109,7 @@ int main(int argc, char **argv) {
     pulse_register(600, mob_ai_tick);            /* ~60s: mob wander/scavenge (mob.actions bits) */
     pulse_register(600, obj_pool_decay_tick);    /* ~60s: ground puddles shrink, then vanish */
     pulse_register(600, obj_light_burn_tick);    /* ~60s: lit lights burn down, then go out */
+    pulse_register(VITALS_PULSES, vitals_tick_run); /* ~60s: hunger/thirst drain + starvation */
     pulse_register(600, trigger_random_tick);    /* ~60s: mob/room "random" scripted triggers */
     pulse_register(10, trigger_pending_tick);    /* ~1s: resume `wait`-paused trigger scripts */
     pulse_register(6000, tips_pulse_tick);       /* ~10min: echo a random tip to newbie-flagged players */

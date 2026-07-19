@@ -10,21 +10,25 @@
 #include "mob_ai.h"
 #include "obj.h"
 #include "trigger.h"
+#include "vitals.h"
 
 /* Immortal-only debug/testing tool (Session 43 continued), same precedent
  * as `hurtlimb` (cmd_hurtlimb.c): mob_ai_tick()'s wander/scavenge chances
  * (20%/25%, also now the lamplighter's light/extinguish check),
  * obj_pool_decay_tick()'s puddle shrinkage, obj_light_burn_tick()'s
- * fuel burn-down, and trigger_random_tick()'s "random" scripted triggers
- * only actually fire on the real ~60s pulse cadence, far too slow to wait
- * on in an automated smoke test. `aitick [count]` forces `count` (default
- * 1, capped at 100) consecutive world ticks synchronously, so a test can
- * force overwhelming odds of a wander/scavenge/random-trigger firing
- * (e.g. `aitick 30` for a ~99.9% chance) or fully decay a pool/burn down
- * a light without waiting on real time at all. Also forces along any
- * `wait`-paused trigger script (trigger_pending_force_all()) -- those
- * otherwise resume on their own ~1s real-time cadence, still too slow for
- * a test that wants to walk through a multi-`wait` script deterministically. */
+ * fuel burn-down, trigger_random_tick()'s "random" scripted triggers, and
+ * (Sneezy → Tobin feature audit, "Vital statistics") vitals_tick_run()'s
+ * hunger/thirst drain + starvation only actually fire on the real ~60s
+ * pulse cadence, far too slow to wait on in an automated smoke test.
+ * `aitick [count]` forces `count` (default 1, capped at 100) consecutive
+ * world ticks synchronously, so a test can force overwhelming odds of a
+ * wander/scavenge/random-trigger firing (e.g. `aitick 30` for a ~99.9%
+ * chance), fully decay a pool/burn down a light, or drain hunger/thirst by
+ * a known amount, all without waiting on real time at all. Also forces
+ * along any `wait`-paused trigger script (trigger_pending_force_all()) --
+ * those otherwise resume on their own ~1s real-time cadence, still too
+ * slow for a test that wants to walk through a multi-`wait` script
+ * deterministically. */
 bool cmd_aitick(descriptor_t *d, const char *args) {
     int count = 1;
     if (*args)
@@ -46,6 +50,7 @@ bool cmd_aitick(descriptor_t *d, const char *args) {
         obj_pool_decay_tick(0);
         obj_light_burn_tick(0);
         trigger_random_tick(0);
+        vitals_tick_run(0);
     }
 
     char msg[64];

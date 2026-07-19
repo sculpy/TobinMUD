@@ -272,3 +272,28 @@ CREATE TABLE IF NOT EXISTS `player_ignore` (
   `ignored_name` varchar(32) NOT NULL,
   PRIMARY KEY (`player_id`, `ignored_name`)
 );
+
+-- Vital statistics (Sneezy → Tobin feature audit, "Vital statistics
+-- (hunger/thirst/age)"). Rescaled to a plain 0-100 (-1 = immortal-immune)
+-- instead of the original's cryptic 0-24 condTypeT units -- see being.h's
+-- progress_t field comment. 100 = the being_create_pc() default for a
+-- genuinely NEW character; existing rows predating this migration also
+-- default to 100 ("not already starving") rather than 0, matching the
+-- "benefit of the doubt" precedent of every other retrofitted stat column
+-- in this file (gold, practice_points, ...).
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `hunger` int(11) NOT NULL DEFAULT 100;
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `thirst` int(11) NOT NULL DEFAULT 100;
+
+-- Age: track + display only, no stat effects (user 2026-07-19,
+-- AskUserQuestion -- see progress_t's doc comment for why the original's
+-- full age-based stat-curve system was cut). Unix timestamp of character
+-- creation, set once and never touched again. Existing rows predating this
+-- migration have no real creation moment to recover, so they're backfilled
+-- to "now" (birth_time=0 is the ALTER's own column default, used here as
+-- the one-time "not yet backfilled" marker) rather than showing an
+-- absurd/impossible epoch-zero age.
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `birth_time` int(11) NOT NULL DEFAULT 0;
+UPDATE `player_progress` SET `birth_time` = UNIX_TIMESTAMP() WHERE `birth_time` = 0;

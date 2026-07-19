@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <time.h>
 
 #include "balance.h"
 #include "descriptor.h"
@@ -46,6 +47,9 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
     b->progress.max_hp = being_calc_max_hp(b);
     b->progress.hp = b->progress.max_hp;
     being_limbs_full_heal(b);
+    b->progress.hunger = 100;
+    b->progress.thirst = 100;
+    b->progress.birth_time = (long)time(NULL);
     b->severity = LOG_SEVERITY_DEFAULT;
 
     /* fighting, last_combat_pulse, wait_pulses are already zeroed by calloc */
@@ -524,6 +528,26 @@ const char *being_health_word(const being_t *b) {
     if (pct >= 20)   return "awful";
     if (pct >= 10)   return "horrid";
     return "near death";
+}
+
+/* Words for progress_t.hunger/thirst (0-100, -1 = immortal-immune), same
+ * bucketing style as being_health_word() above. */
+const char *being_hunger_word(int hunger) {
+    if (hunger < 0)   return "immune";
+    if (hunger >= 80) return "well fed";
+    if (hunger >= 50) return "satisfied";
+    if (hunger >= 25) return "getting hungry";
+    if (hunger >= 1)  return "very hungry";
+    return "starving";
+}
+
+const char *being_thirst_word(int thirst) {
+    if (thirst < 0)   return "immune";
+    if (thirst >= 80) return "quenched";
+    if (thirst >= 50) return "not thirsty";
+    if (thirst >= 25) return "getting thirsty";
+    if (thirst >= 1)  return "very thirsty";
+    return "parched";
 }
 
 /* Good/evil axis word for `score` (Session 43 continued, Mobile_Attitude

@@ -129,6 +129,35 @@ typedef struct {
      * directly on defeat (combat.c's combat_defeat()); shops (cmd_shop.c,
      * shop_repo.h) are the spending sink. */
     int gold;
+    /* Vital statistics (Sneezy → Tobin feature audit, "Vital statistics
+     * (hunger/thirst/age)"). Rescaled from the original's 0-24 condTypeT
+     * range (sneezymud-master/docs/systems/informational/
+     * vital-statistics.md) to a plainer 0-100 "percent full/hydrated" --
+     * easier to reason about for both players (`score`) and content
+     * (FOOD/DRINK val[0], obj.h) than the original's cryptic units.
+     * -1 = immune, same meaning and same reason as the original's own
+     * setCond() auto-immunity above MAX_MORT: an immortal's hunger/thirst
+     * is never drained and never displayed as a real number
+     * (vitals_tick_run(), vitals.c, skips them outright; being_is_immortal()
+     * gate). Starvation/dehydration (hunger or thirst at 0) costs 1 HP per
+     * drain tick, same "never below 1 HP outside real combat" floor
+     * cmd_sip.c's poison already established -- lethal starvation is
+     * explicitly deferred to whenever the still-open "Death processing"
+     * audit item builds a real non-combat death path, not invented here. */
+    int hunger;
+    int thirst;
+    /* Age (same audit item). User 2026-07-19 (AskUserQuestion): track +
+     * display only, NOT the original's full graf()-interpolated age-based
+     * stat-curve system (6 stats, human-equivalent age conversion, opt-in
+     * quest bit, vampire exemption) -- real machinery for a mostly-
+     * cosmetic payoff on a small MUD. Unix timestamp of character
+     * creation, set once in being_create_pc() and never touched again;
+     * `score` (cmd_score.c) shows age as real elapsed time since this
+     * moment. Deliberately real-time, not a fictional MUD calendar --
+     * Tobin has no calendar system to hang a "MUD year" conversion off of
+     * (see gametime.c), and real elapsed play time is honest and needs no
+     * new unit. */
+    long birth_time;
 } progress_t;
 
 /* Prompt customization bits (player.prompt_flags, cmd_prompt.c; rendered
@@ -577,6 +606,11 @@ const char *being_health_word(const being_t *b);
  * scale. Shown in `score`; also what mob_ai.c's ACT_AGGRESSIVE reaction
  * checks. */
 const char *alignment_word(int alignment);
+
+/* Words for progress_t.hunger/thirst (0-100, -1 = immortal-immune) -- same
+ * bucketing style as being_health_word() above. Shown in `score`. */
+const char *being_hunger_word(int hunger);
+const char *being_thirst_word(int thirst);
 
 /* b's limb HP as a 0-100 percentage of that limb's max_hp. Returns 0 for
  * an invalid being/limb. */

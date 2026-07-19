@@ -5,6 +5,25 @@
 #include "cmd_internal.h"
 
 #include <stdio.h>
+#include <time.h>
+
+/* Friendly single-unit elapsed-time phrase for `score`'s Age line (Sneezy →
+ * Tobin feature audit, "Vital statistics" -- age is track+display only, see
+ * being.h's progress_t field comment for why the original's full age-based
+ * stat-curve system was cut). Real elapsed time since birth_time, not a
+ * fictional MUD calendar unit -- Tobin has no calendar to hang one off of. */
+static const char *format_age(long birth_time, char *buf, size_t bufsz) {
+    long elapsed = (long)time(NULL) - birth_time;
+    if (elapsed < 60)
+        snprintf(buf, bufsz, "less than a minute old");
+    else if (elapsed < 3600)
+        snprintf(buf, bufsz, "%ld minute%s old", elapsed / 60, (elapsed / 60 == 1) ? "" : "s");
+    else if (elapsed < 86400)
+        snprintf(buf, bufsz, "%ld hour%s old", elapsed / 3600, (elapsed / 3600 == 1) ? "" : "s");
+    else
+        snprintf(buf, bufsz, "%ld day%s old", elapsed / 86400, (elapsed / 86400 == 1) ? "" : "s");
+    return buf;
+}
 
 bool cmd_score(descriptor_t *d, const char *args) {
     (void)args;
@@ -30,6 +49,12 @@ bool cmd_score(descriptor_t *d, const char *args) {
     const char *col = being_rank_color(p->level);
     const char *reset = col[0] ? "<z>" : "";
 
+    bool immortal = being_is_immortal(d->character);
+    const char *hunger_word = immortal ? "immune" : being_hunger_word(p->hunger);
+    const char *thirst_word = immortal ? "immune" : being_thirst_word(p->thirst);
+    char age_buf[32];
+    format_age(p->birth_time, age_buf, sizeof(age_buf));
+
     char out[1536];
     int n = snprintf(out, sizeof(out),
              "  Name:          %s\t  Level:         %s%s%s\r\n"
@@ -44,7 +69,9 @@ bool cmd_score(descriptor_t *d, const char *args) {
              "  Race:          %s\t  Class:         %s\r\n"
              "  Alignment:     %s\r\n"
              "  Armor Class:   %d\r\n"
-             "  Gold:          %d\r\n",
+             "  Gold:          %d\r\n"
+             "  Hunger:        %s\t  Thirst:        %s\r\n"
+             "  Age:           %s\r\n",
              d->character->base.name,
 			 col, level_field, reset,
              p->experience, p->hp, p->max_hp, being_health_word(d->character), pos,
@@ -52,7 +79,8 @@ bool cmd_score(descriptor_t *d, const char *args) {
              d->character->handed_right ? "right" : "left",
              gender_name(d->character->gender),
              race_name(d->character->race), class_name(d->character->char_class),
-             alignment_word(p->alignment), being_total_ac(d->character), p->gold);
+             alignment_word(p->alignment), being_total_ac(d->character), p->gold,
+             hunger_word, thirst_word, age_buf);
     if (n < 0)
         n = 0;
 

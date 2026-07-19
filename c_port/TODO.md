@@ -132,6 +132,49 @@ implementation inspiration before each one, not guessed at.
       phases: follow-alone-grants-nothing, group-grants-it, non-leader-
       refused, XP-splits-on-a-kill, gold-splits-evenly-via-`split`, `stop`
       breaks it).
+- [x] **Vital statistics (hunger/thirst/age)** — done 2026-07-19. Checked
+      Sneezy's own `vital-statistics.md` doc first, then scoped it down
+      hard (documented inline in being.h's progress_t field comment):
+      rescaled the original's cryptic 0-24 `condTypeT` units (FULL/THIRST)
+      to a plain 0-100 "percent full/hydrated"; dropped PEE/POOP waste
+      products and DRUNK entirely (out of scope for this item); flat drain
+      rate instead of the original's terrain-weighted two-stage-random
+      `foodNDrink()` (terrain factors belong to the still-open "Terrain
+      movement cost" item, not this one). Age: user, AskUserQuestion
+      2026-07-19 -- track + display only, explicitly NOT the original's
+      full `graf()`-interpolated age-based stat-curve system (6 stats,
+      human-equivalent age conversion, opt-in quest bit, vampire
+      exemption) -- real machinery for a mostly-cosmetic payoff on a small
+      MUD. New `progress_t.hunger`/`thirst` (-1 = immortal-immune,
+      `vitals_tick_run()`/`vitals.c` skips immortals outright rather than
+      ever storing -1) and `.birth_time` (unix timestamp, set once in
+      `being_create_pc()`). Drains 1 hunger + 1 thirst per ~60s tick
+      (`VITALS_PULSES`, same "once a minute" cadence as zone aging/
+      gametime/mob AI); starvation (hunger OR thirst at 0) costs 1 HP per
+      tick, floored at 1 -- same "never lethal outside real combat"
+      precedent `cmd_sip.c`'s poison roll already established, since real
+      death-by-starvation is explicitly deferred to whenever the still-open
+      "Death processing" item builds a real non-combat death path. New
+      `eat <food>` (`cmd_eat.c`) restores hunger by the FOOD object's own
+      `val[0]` (already well-populated 1-24 in the real seed) and fully
+      consumes the object in one bite -- sidesteps a real upstream data gap
+      (every seeded FOOD's `val[1]`, "current units", is uniformly 0) rather
+      than migrating it, since a single-bite model needs it not at all.
+      `drink` (`cmd_drink.c`) and `sip` (`cmd_sip.c`) now also raise thirst
+      (a fountain fully refills it, a puddle/sip only partly) -- `sip`'s own
+      comment previously said Tobin had no meter for it to move; now it
+      does. `score` (`cmd_score.c`) shows Hunger/Thirst as descriptive
+      words (`being_hunger_word()`/`being_thirst_word()`, same bucketing
+      style as `being_health_word()`) plus a real-elapsed-time Age line --
+      immortals see "Immune" regardless of their stored value. `aitick`
+      (`cmd_aitick.c`) now also forces `vitals_tick_run()`, same "force the
+      real ~60s cadence deterministically" precedent already used for pool
+      decay/light burn, so a test doesn't need to wait on real time. New
+      `tests/smoke_test_vitals.py` (13 checks: fresh-character defaults,
+      eat/drink restoring the right amounts, starvation costing HP and
+      flooring at 1, immortal immunity) — uses tolerant ranges rather than
+      exact equality on a couple of checks since a real background tick can
+      in principle land mid-test (caught live once while writing this).
 
 ## Buildable now (no blocked dependencies)
 

@@ -65,7 +65,7 @@ bool cmd_possess(descriptor_t *d, const char *args) {
         return true;
     }
 
-    char msg[128];
+    char msg[160]; /* short_descr (128) + fixed text */
     snprintf(msg, sizeof(msg), "You possess %s.\r\n",
              target->base.short_descr[0] ? target->base.short_descr : target->base.name);
     descriptor_send(d, msg);

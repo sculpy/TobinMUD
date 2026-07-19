@@ -80,7 +80,14 @@ static bool keyword_matches(const char *keywords, const char *tok) {
  * drink containers, already-seeded content (user, 2026-07-11 bug report:
  * "i just tried to drink from a fountain ... it failed"). Clean water, no
  * poison roll, never runs dry -- liquid-unit depletion (val[0]/val[1],
- * obj.h) isn't wired up yet and is out of scope for this fix. */
+ * obj.h) isn't wired up yet and is out of scope for this fix.
+ *
+ * Vital statistics (Sneezy → Tobin feature audit): both branches now also
+ * raise thirst (being.h's progress_t, 0-100) -- a clean fountain fully
+ * quenches, a grubby puddle only partly does, matching the existing
+ * "Blech!"/"Refreshing!" quality distinction already in the messaging. */
+#define DRINK_FOUNTAIN_THIRST_GAIN 100
+#define DRINK_PUDDLE_THIRST_GAIN 30
 bool cmd_drink(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -134,6 +141,12 @@ bool cmd_drink(descriptor_t *d, const char *args) {
         descriptor_send(d, msg);
         snprintf(msg, sizeof(msg), "%s drinks from %s.\r\n", ch->base.name, label);
         descriptor_room_echo(ch->base.roomp, ch, msg);
+        if (!being_is_immortal(ch)) {
+            ch->progress.thirst += DRINK_FOUNTAIN_THIRST_GAIN;
+            if (ch->progress.thirst > 100)
+                ch->progress.thirst = 100;
+            player_progress_save(ch->player_id, &ch->progress);
+        }
         return true;
     }
 
@@ -143,6 +156,13 @@ bool cmd_drink(descriptor_t *d, const char *args) {
     descriptor_send(d, msg);
     snprintf(msg, sizeof(msg), "%s scoops up some of %s and drinks it.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, msg);
+
+    if (!being_is_immortal(ch)) {
+        ch->progress.thirst += DRINK_PUDDLE_THIRST_GAIN;
+        if (ch->progress.thirst > 100)
+            ch->progress.thirst = 100;
+        player_progress_save(ch->player_id, &ch->progress);
+    }
 
     if (!being_is_immortal(ch) && rand() % 100 < DRINK_POISON_CHANCE_PCT) {
         being_apply_affect(ch, AFFECT_POISON, DRINK_POISON_DURATION);
