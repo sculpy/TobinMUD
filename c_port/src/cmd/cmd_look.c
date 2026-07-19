@@ -12,6 +12,7 @@
 #include "being.h"
 #include "obj.h"
 #include "room.h"
+#include "room_repo.h"
 #include "thing.h"
 
 /* short_descr/name are stored lowercase-first by convention ("a city
@@ -247,6 +248,19 @@ bool look_at_target(descriptor_t *d, const char *args) {
     if (!o)
         o = find_obj_here(d->character->base.stuff_head, tok, len, ordinal);
     if (!o) {
+        /* Extra descriptions (classic Diku "look <keyword>" reveals a
+         * hidden room detail -- e.g. a wall poster or a bed, never a
+         * real object) -- the room's own `roomextra` rows, checked last
+         * since a real PC/mob/object match should always win over one.
+         * See room_repo_extra_desc()'s own doc comment: 8,861 real
+         * seeded rows existed with no code reading them until this. */
+        char extra[2048];
+        if (room_repo_extra_desc(r->vnum, tok, extra, sizeof(extra))) {
+            char extra_out[2048 + 4];
+            snprintf(extra_out, sizeof(extra_out), "%s\r\n", extra);
+            descriptor_send(d, extra_out);
+            return true;
+        }
         descriptor_send(d, "You don't see that here.\r\n");
         return true;
     }

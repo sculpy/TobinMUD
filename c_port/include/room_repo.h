@@ -6,6 +6,7 @@
 #define TOBIN_ROOM_REPO_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "room.h"
 
@@ -48,5 +49,18 @@ bool room_repo_save_exit(int vnum, int dir, int dest, int door_type, int conditi
 
 /* Deletes one exit row. True even if it didn't exist. */
 bool room_repo_delete_exit(int vnum, int dir);
+
+/* Extra descriptions ("look <keyword>" reveals hidden room detail) --
+ * classic Diku-family mechanic, backed by the upstream `roomextra` table
+ * (vnum, name/keyword, description), which already carries 8,861 real
+ * seeded rows across the live DB but had no Tobin code reading it at all
+ * until this. `roomextra.name` is a space-separated keyword LIST, same
+ * shape as obj/mob names (e.g. "posters poster sports sport" -- verified
+ * against the real seed) -- matches with the same case-insensitive
+ * per-word prefix rule already used everywhere else object/mob keywords
+ * are matched, not a whole-string match. Writes into `buf` (size
+ * `bufsz`); returns false if room `vnum` has no extra description
+ * matching `keyword`. */
+bool room_repo_extra_desc(int vnum, const char *keyword, char *buf, size_t bufsz);
 
 #endif

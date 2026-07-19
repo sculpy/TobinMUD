@@ -4,7 +4,10 @@
  *******************************************************************/
 #include "room_repo.h"
 
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
 #include "db.h"
 
@@ -144,4 +147,47 @@ bool room_repo_delete_exit(int vnum, int dir) {
 
     db_close(db);
     return ok;
+}
+
+/* Case-insensitive per-word prefix match, same convention as
+ * obj_name_matches()/thing_name_matches() -- `tok` matches `keywords` if
+ * it's a prefix of ANY individual space-separated word in it. Local copy
+ * rather than shared, same precedent as every other file in this
+ * codebase that keeps its own small copy of this exact helper. */
+static bool extra_desc_name_matches(const char *keywords, const char *tok) {
+    size_t tok_len = strlen(tok);
+    if (tok_len == 0)
+        return false;
+    const char *p = keywords;
+    while (*p) {
+        while (*p == ' ')
+            p++;
+        const char *start = p;
+        while (*p && *p != ' ')
+            p++;
+        size_t wlen = (size_t)(p - start);
+        if (wlen >= tok_len && strncasecmp(start, tok, tok_len) == 0)
+            return true;
+    }
+    return false;
+}
+
+bool room_repo_extra_desc(int vnum, const char *keyword, char *buf, size_t bufsz) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool found = false;
+    if (db_query(db, "select name, description from roomextra where vnum=%i", vnum)) {
+        while (db_fetch_row(db)) {
+            if (extra_desc_name_matches(db_get(db, "name"), keyword)) {
+                snprintf(buf, bufsz, "%s", db_get(db, "description"));
+                found = true;
+                break;
+            }
+        }
+    }
+
+    db_close(db);
+    return found;
 }

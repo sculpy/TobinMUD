@@ -2592,8 +2592,23 @@ already tracked — pointers, not duplicates):
       ever shown -- house rule) when something's posted since they last
       ran `news`; `news` bumps the bookmark. `tests/smoke_test_news_
       followups.py`.
-- [ ] **redit Extra Descriptions** — keyword extra descs (`roomextra` table
-      exists): list/add/edit/delete + delete-all (Sneezy redit items 6 & 10).
+- [ ] **redit Extra Descriptions** — mortal-facing half done 2026-07-19:
+      `look <keyword>` now reveals a room's extra description
+      (`room_repo_extra_desc()`, `room_repo.c`, wired into
+      `look_at_target()`, `cmd_look.c`) -- the `roomextra` table already
+      carried 8,861 real seeded rows (vnum, space-separated keyword list,
+      description) with zero Tobin code reading it before this; verified
+      live against real seeded content (room 3's "calendar" extra desc).
+      Same case-insensitive per-word prefix matching convention as every
+      other obj/mob keyword match in this codebase, checked only after a
+      real PC/mob/object match misses. New `tests/smoke_test_extra_desc.py`
+      (5 checks: reveal, case-insensitivity, prefix matching, a genuine
+      miss still falls through to "You don't see that here.", room-scoped
+      not global). Still open: the BUILDER-facing half -- `redit`
+      list/add/edit/delete + delete-all for authoring new extra
+      descriptions in-game (Sneezy redit items 6 & 10); for now an
+      immortal wanting to add one has to do it via direct SQL, same "no
+      in-game editor for it yet" precedent as several other content types.
 - [x] **Door mechanics** — done 2026-07-06: `open`/`close <direction>`
       (`cmd_open.c`), movement blocking on a closed door (`cmd_move.c`:
       "The door is closed."), and secret exits hidden from `look`'s
