@@ -129,10 +129,10 @@ already tracked — pointers, not duplicates):
       background pulse and sometimes resolved before the test's own
       "hasn't fired yet" check ran; fixed by using `wait 3600` so only the
       explicit `aitick` force can resolve it.
-- [ ] **Split gold on kill** — new, unblocked now that [[Money system]]
-      exists. Needs groups (who's in the kill's group, split evenly or by
-      level/contribution — design TBD) — pairs with **Meaningful limb
-      damage**'s combat-adjacent work.
+- [x] **Split gold on kill** — SOLO case done 2026-07-19 (see the fuller
+      "Split victim's gold among the group on kill" entry below for the
+      writeup); the group-split half remains blocked on the not-yet-built
+      group/party system, tracked there.
 - Expand `prompt` toggles, Boxed-menu rework for the remaining editors —
   already tracked (their own entries above).
 - Mid-fight persistence (HP only saves at defeat — a real crash-loss risk)
@@ -3248,11 +3248,25 @@ already tracked — pointers, not duplicates):
       only; and a time.time()-second-resolution suffix collided with a
       leftover account from a debug rerun seconds earlier -- switched to
       millisecond resolution.
-- [ ] **Split victim's gold among the group on kill** — "To the victor go
-      the spoils!" User: "also upon death get all gold from the victim and
-      split it between all group members if groupped." Blocked on/pairs
-      naturally with the not-yet-built group/party system (see "Bigger
-      systems" below) for the "if grouped" split; solo case is simple.
+- [~] **Split victim's gold among the group on kill** — SOLO case done
+      2026-07-19; the "if grouped" split remains genuinely blocked. "To
+      the victor go the spoils!" User: "also upon death get all gold from
+      the victim and split it between all group members if groupped."
+      `combat_defeat()` (combat.c): a PC loser's entire `progress.gold`
+      transfers to a non-immortal PC winner, right alongside the existing
+      HP-reset-to-half/limb-heal handling on defeat -- reuses the same
+      `player_progress_save()` calls already made there (loser's via the
+      existing call right after; winner's via the XP block's own save
+      just below, since gold and XP land on the same struct before that
+      save fires -- no second DB write added). Same non-immortal-winner
+      gate as the pre-existing mob-gold-drop path, so an immortal's
+      instakill never triggers this. PK combat already requires both
+      sides to have opted in (`toggle pk`), so there's no non-consensual
+      gold-loss path here -- this only ever fires with mutual consent.
+      Group split remains blocked on the not-yet-built group/party system
+      (see "Bigger systems" below) -- when that lands, this same block is
+      the place to divide `stolen` across the killer's group instead of
+      crediting it all to one winner. New `tests/smoke_test_pk_gold.py`.
 - [ ] **Meaningful limb damage** — a decapitated limb currently still
       shows ~100% in places; individual limb hits should visibly matter.
       User: "make limb damage mean something. if you have a limb

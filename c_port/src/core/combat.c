@@ -460,6 +460,31 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         if (loser->progress.hp < 1)
             loser->progress.hp = 1;
         being_limbs_full_heal(loser);
+
+        /* Split gold on kill (TODO.md, user: "also upon death get all
+         * gold from the victim and split it between all group members if
+         * groupped"). SOLO case only -- no group/party system exists yet
+         * to split across, so the winner simply takes everything; the
+         * "if grouped" split remains a separate, still-blocked item.
+         * PC-vs-PC only (a mob loser's gold-drop-to-killer is the
+         * separate, already-existing path below); same non-immortal-
+         * winner gate as that path. PK combat itself already requires
+         * both sides to have opted in (`toggle pk`), so this can only
+         * ever fire with mutual consent -- there's no non-consensual
+         * gold-loss path here. Winner's `progress.gold` change is picked
+         * up by the XP block's own player_progress_save() below (runs
+         * after this, on the same struct) rather than saving twice. */
+        if (winner->base.kind == THING_PC && !being_is_immortal(winner)
+            && loser->progress.gold > 0) {
+            int stolen = loser->progress.gold;
+            loser->progress.gold = 0;
+            winner->progress.gold += stolen;
+            tell(winner, "You loot %d gold from %s's body.\r\n",
+                 stolen, being_display_name(loser));
+            tell(loser, "%s loots %d gold from your body.\r\n",
+                 being_display_name(winner), stolen);
+        }
+
         player_progress_save(loser->player_id, &loser->progress);
     }
 
