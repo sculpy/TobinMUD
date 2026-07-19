@@ -155,7 +155,7 @@ for vnum, desc in ((ROOM, "Keyroom Origin"), (BEYOND, "Beyond the Locked Door"),
                     (KEYLESS, "Beyond the Keyless Door")):
     sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
         f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-        f"VALUES ({vnum},0,0,0,'{desc}','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+        f"VALUES ({vnum},0,0,0,'{desc}','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 
 # north (dir 0): Door, Closed+Locked (1|2=3), keyed to GOODKEY
 sql(f"INSERT INTO roomexit (vnum,direction,name,description,type,condition_flag,"

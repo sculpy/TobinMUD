@@ -121,7 +121,7 @@ cmd(s, "color off")
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Charges Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Charges Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 check("Charges Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the sandbox room")
 
 # --- 1: a component lasts exactly 10 attempts, then is destroyed ---

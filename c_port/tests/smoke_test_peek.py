@@ -122,7 +122,7 @@ sql(f"UPDATE player_progress SET level=51 WHERE player_id="
 s_imm = reconnect(imm_name, imm_pw)
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Peek Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Peek Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 cmd(s_imm, f"goto {ROOM}")
 
 thief_name, thief_pw = f"Pkthief{_suffix}", "pkthiefpw123"

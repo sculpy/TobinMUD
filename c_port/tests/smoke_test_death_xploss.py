@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke test for death XP loss (Sneezy → Tobin feature audit, "Death
+"""Smoke test for death XP loss (Sneezy â†’ Tobin feature audit, "Death
 processing (XP loss, resurrection)"). User, AskUserQuestion 2026-07-19:
 XP loss only -- Tobin's PC "death" was already NOT permadeath (half-heal +
 eject to menu, combat.c's combat_defeat()), so there's no corpse to build a
@@ -152,7 +152,7 @@ si = relog(imm_name, imm_pw)
 # same spirit as smoke_test_pk_gold.py's "loser at 1 HP" trick.
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Death XP Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Death XP Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 cols = {
     "vnum": MOB_VNUM, "name": "'xpdummy'", "short_desc": "'an xp-loss test dummy'",
     "long_desc": "'An xp-loss test dummy stands here.'", "description": "'desc'",

@@ -150,10 +150,10 @@ cmd(s_imm, "color off")
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM_A},0,0,0,'Trap Sandbox A','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM_A},0,0,0,'Trap Sandbox A','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM_B},0,0,0,'Trap Sandbox B','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM_B},0,0,0,'Trap Sandbox B','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 # A's north exit -> B, with a closed (but not yet trapped) door.
 sql(f"INSERT INTO roomexit (vnum,direction,name,description,type,condition_flag,"
     f"lock_difficulty,weight,key_num,destination) "

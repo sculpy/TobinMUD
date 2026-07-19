@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke test for `follow`/`stop`/`group`/`split` (Sneezy → Tobin feature
+"""Smoke test for `follow`/`stop`/`group`/`split` (Sneezy â†’ Tobin feature
 audit, "Group / party system"). Scoped down from the original's per-
 player configurable money-share factor and leader-succession algorithm --
 see being.h's `master`/`followers`/`grouped` field comment. Covers:
@@ -181,7 +181,7 @@ check("Only the group leader" in cmd(sB, "split 100"), "a follower can't run spl
 # --- bootstrap a sandbox room + tanky mob for the XP/gold checks ---
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Group Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Group Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 cols = {
     "vnum": MOB_VNUM, "name": "'grpdummy'", "short_desc": "'a group test dummy'",
     "long_desc": "'A group test dummy stands here.'", "description": "'desc'",

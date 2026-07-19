@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke test for hunger/thirst/age (Sneezy → Tobin feature audit, "Vital
+"""Smoke test for hunger/thirst/age (Sneezy â†’ Tobin feature audit, "Vital
 statistics"). Scoped down from the original per user AskUserQuestion
 2026-07-19: age is track+display only, no stat-curve effects -- see
 being.h's progress_t field comment. Covers:
@@ -172,7 +172,7 @@ check(re.search(r"Age:\s+(less than a minute old|\d+ (minute|second)s? old)", ou
 # --- bootstrap a sandbox room + real food/drink objects ---
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Vitals Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Vitals Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{mort_name}';")
 cmd(sA, "quit!")

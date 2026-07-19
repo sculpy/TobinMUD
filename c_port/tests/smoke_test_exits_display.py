@@ -106,10 +106,10 @@ def make_char(sock, name, pw):
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM_OPEN},0,0,0,'Exits Display Open','A bare sandbox room.\\n',NULL,0,43,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM_OPEN},0,0,0,'Exits Display Open','A bare sandbox room.\\n',NULL,1,43,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM_DEADEND},0,0,0,'Exits Display Deadend','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM_DEADEND},0,0,0,'Exits Display Deadend','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO roomexit (vnum, direction, name, description, type, "
     f"condition_flag, lock_difficulty, weight, key_num, destination) "
     f"VALUES ({ROOM_OPEN}, 0, '', '', 0, 0, 0, 0, 0, {ROOM_DEADEND});")

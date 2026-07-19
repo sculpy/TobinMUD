@@ -170,10 +170,10 @@ sm.close()
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM_A},0,0,0,'Trigger Room A','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM_A},0,0,0,'Trigger Room A','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM_B},0,0,0,'Trigger Room B','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM_B},0,0,0,'Trigger Room B','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO roomexit (vnum, direction, name, description, type, "
     f"condition_flag, lock_difficulty, weight, key_num, destination) "
     f"VALUES ({ROOM_A}, 1, '', '', 0, 0, 0, 0, 0, {ROOM_B});")

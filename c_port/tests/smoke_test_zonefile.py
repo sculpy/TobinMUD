@@ -155,7 +155,7 @@ sql(f"INSERT INTO zone (zone_nr, zone_name, zone_enabled, bottom, top, lifespan)
     f"VALUES ({ZONE_NR}, 'Zonefile Test', 0, {ROOM}, {ROOM}, 30);")
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Zonefile Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Zonefile Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO mob (vnum,name,short_desc,long_desc,description,actions,affects,"
     f"faction,fact_perc,letter,attacks,class,level,tohit,ac,hpbonus,damage_level,"
     f"damage_precision,gold,race,weight,height,str,bra,con,dex,agi,intel,wis,foc,"

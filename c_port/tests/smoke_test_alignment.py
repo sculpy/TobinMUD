@@ -172,10 +172,10 @@ sv.close()
 # --- Part 3: an aggressive mob attacks a neutral-aligned mortal ---
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM_1},0,0,0,'Align Room 1','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM_1},0,0,0,'Align Room 1','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM_2},0,0,0,'Align Room 2','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM_2},0,0,0,'Align Room 2','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 
 neutral_name = f"Alignneut{_suffix}"
 neutral_pw = "alignneutpw123"

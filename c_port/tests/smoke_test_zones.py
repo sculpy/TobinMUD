@@ -150,10 +150,10 @@ check("gatekeeper" in out.lower(), "a REAL zone's 'M' command actually populated
 # --- bootstrap a sandbox zone + room + fixtures for the rest ---
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Zone Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Zone Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM2},0,0,0,'Zone Sandbox Beyond','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM2},0,0,0,'Zone Sandbox Beyond','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO roomexit (vnum,direction,name,description,type,condition_flag,"
     f"lock_difficulty,weight,key_num,destination) VALUES "
     f"({ROOM},0,'','',1,0,0,0,0,{ROOM2});")  # north: a real door, currently open

@@ -134,7 +134,7 @@ cmd(s, "color off")
 for vnum, desc in ((BASE, "Sandbox Origin"), (BASE + 1, "Beyond the Door"), (BASE + 2, "The Secret Room")):
     sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
         f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-        f"VALUES ({vnum},0,0,0,'{desc}','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+        f"VALUES ({vnum},0,0,0,'{desc}','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 
 # north (dir 0): a real Door (type 1), Closed (condition bit 0 = 1)
 sql(f"INSERT INTO roomexit (vnum,direction,name,description,type,condition_flag,"

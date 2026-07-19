@@ -139,7 +139,7 @@ cmd(s, "color off")   # strip <c>/<z> tags so menu text is clean for matching
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({BASE},0,0,0,'Sandbox Origin','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({BASE},0,0,0,'Sandbox Origin','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 check("Sandbox Origin" in cmd(s, f"goto {BASE}"),
       "goto lands in the SQL-bootstrapped sandbox room")
 

@@ -135,7 +135,7 @@ sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"VALUES ({ZONED_ROOM},0,0,0,'Zoned Sandbox','A bare sandbox room.\\n',{ZONE},0,0,0,0,0,0,0,0,0,0);")
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({UNZONED_ROOM},0,0,0,'Unzoned Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({UNZONED_ROOM},0,0,0,'Unzoned Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 
 s = socket.create_connection((host, port), timeout=5)
 make_char(s, builder_name, builder_pw)

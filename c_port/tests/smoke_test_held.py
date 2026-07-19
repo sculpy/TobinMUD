@@ -112,7 +112,7 @@ def make_immortal(nm):
 # A sandbox room both builders share.
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({BASE},0,0,0,'Held Sandbox','A quiet test room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({BASE},0,0,0,'Held Sandbox','A quiet test room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 
 nameA, nameB = f"Helda{_suffix}", f"Heldb{_suffix}"
 A = make_immortal(nameA)

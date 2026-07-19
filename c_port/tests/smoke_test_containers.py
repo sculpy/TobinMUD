@@ -152,7 +152,7 @@ s = login(imm_name, imm_pw)
 # --- bootstrap: sandbox room + container/item prototypes ---
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Container Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Container Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 obj_insert(CHEST, "chest", "a heavy chest", "A heavy chest sits here.",
            TYPE_CHEST, WEAR_TAKE, val0=100, val1=CONT_CLOSEABLE | CONT_CLOSED, weight=40)
 obj_insert(GEM, "gem", "a shiny gem", "A shiny gem is lying here.",

@@ -166,7 +166,7 @@ cmd(s_imm, "color off")
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Levelup Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Levelup Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 check("Levelup Sandbox" in cmd(s_imm, f"goto {ROOM}"), "goto lands in the sandbox room")
 
 warrior_name = f"Lvlwar{_suffix}"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke test for `possess`/`return` (Sneezy → Tobin feature audit,
+"""Smoke test for `possess`/`return` (Sneezy â†’ Tobin feature audit,
 "Switch / return (puppet a mob)"). Named `possess` since Tobin's own
 `switch` already means something else (swap held items). Covers:
   1. `possess <mob>` puppets a mob's body -- `score`/`look` reflect the
@@ -143,7 +143,7 @@ sm.close()
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Possess Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Possess Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 cols = {
     "vnum": MOB_VNUM, "name": "'puppet'", "short_desc": "'a puppet dummy'",
     "long_desc": "'A puppet dummy stands here.'", "description": "'desc'",

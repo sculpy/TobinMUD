@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke test for `junk`/`identify` (Sneezy → Tobin feature audit, "Object
+"""Smoke test for `junk`/`identify` (Sneezy â†’ Tobin feature audit, "Object
 manipulation depth"). `sacrifice` was deliberately skipped -- user,
 AskUserQuestion 2026-07-19: it's entirely a Shaman-class skill tied to a
 `lifeforce` resource and totems in the original, none of which exist in
@@ -132,7 +132,7 @@ sA.close()
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Objmanip Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Objmanip Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{mort_name}';")
 
 si = relog(imm_name, imm_pw)

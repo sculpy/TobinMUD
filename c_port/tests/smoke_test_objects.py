@@ -167,7 +167,7 @@ s = login(imm_name, imm_pw)
 # --- bootstrap: one sandbox room, five sandbox object prototypes ---
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
-    f"VALUES ({ROOM},0,0,0,'Object Sandbox','A bare sandbox room.\\n',NULL,0,0,0,0,0,0,0,0,0,0);")
+    f"VALUES ({ROOM},0,0,0,'Object Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 obj_insert(WEARABLE, "tunic", "<w>a plain tunic<z>", "A plain tunic is lying here.", 11, WEAR_TAKE | WEAR_BODY)
 obj_insert(FIXED, "statue", "<w>a large statue<z>", "A large statue stands here, far too heavy to lift.", 39, 0)
 obj_insert(WEAPON, "dagger", "<w>a rusty dagger<z>", "A rusty dagger is lying here.", 5, WEAR_TAKE | WEAR_HOLD)
