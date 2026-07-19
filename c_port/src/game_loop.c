@@ -239,6 +239,9 @@ int game_loop_run(int port, const char *copyover_file) {
                     if (p->character->prompt_flags & PROMPT_FLAG_GOLD)
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Gold: %d ",
                                                p->character->progress.gold);
+                    if (p->character->prompt_flags & PROMPT_FLAG_VIT)
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Vit: %d ",
+                                               p->character->progress.vit);
                     pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "> ");
                     descriptor_write(p, pbuf, pn);
                 } else {

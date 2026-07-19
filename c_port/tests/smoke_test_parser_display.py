@@ -129,8 +129,20 @@ check(char_name in out and "Strength" in out, "'sc' abbreviates to score")
 out = step(s, "'sco' should also reach score", "sco")
 check("Strength" in out, "'sco' (longer prefix) also abbreviates to score")
 
-out = step(s, "'qu' must NOT reach quit", "qu")
-check("Command not found" in out, "'qu' does not abbreviate to quit -- quit is excluded from the parser")
+# 'qu' used to fail outright here (an earlier, quest-less build); it now
+# legitimately abbreviates to `quest` (Quest system audit item) instead
+# -- still proves the actual intent of this section, since `quit` is
+# excluded from abbreviation matching entirely (cmd_table.c) and so can
+# never win a shared abbreviation no matter what else occupies it.
+out = step(s, "'qu' now reaches quest, not quit", "qu")
+check("Your current quests" in out, "'qu' abbreviates to quest")
+
+# Even the full, unabbreviated word 'quit' (no '!') must still fail --
+# only the exact literal 'quit!' reaches cmd_quit (cmd_quit.c's own doc
+# comment: deliberately excluded from abbreviation/prefix matching so a
+# typo or accidental prefix can never disconnect a player).
+out = step(s, "'quit' (no '!') must NOT reach quit either", "quit")
+check("Command not found" in out, "'quit' without '!' still doesn't dispatch to quit")
 
 # --- 2. Trailing prompt after every command ---
 out = step(s, "look shows a trailing prompt", "look")
@@ -146,6 +158,18 @@ out = step(s, "toggle hp back off", "prompt hp")
 check("no longer" in out, "prompt hp toggles back off")
 out = step(s, "prompt is plain again", "look")
 check("HP:" not in out.rstrip()[-20:], "the plain prompt returns")
+
+# Vitality stat audit item unblocked "prompt vit" (previously listed as
+# blocked in cmd_prompt.c's own doc comment alongside mana/piety).
+out = step(s, "toggle vit into the prompt", "prompt vit")
+check("now show vitality" in out, "prompt vit confirms the toggle")
+out = step(s, "prompt now shows Vit", "look")
+tail = out.rstrip()
+check(tail.endswith(">") and "Vit:" in tail[-20:], "the prompt line carries Vit: <n>")
+out = step(s, "toggle vit back off", "prompt vit")
+check("no longer" in out, "prompt vit toggles back off")
+out = step(s, "prompt is plain again after vit", "look")
+check("Vit:" not in out.rstrip()[-20:], "the plain prompt returns after vit")
 
 out = step(s, "who shows a trailing prompt", "who")
 check(out.rstrip().endswith(">"), "who's output ends with a prompt")

@@ -11,6 +11,7 @@
 
 #include "being.h"
 #include "cmd.h"
+#include "player_repo.h"
 #include "room.h"
 #include "room_repo.h"
 #include "skill.h"
@@ -113,6 +114,29 @@ static bool do_move(descriptor_t *d, int dir) {
     if (from->exit_door[dir] != 0 && (from->exit_cond[dir] & EXIT_COND_CLOSED)) {
         descriptor_send(d, "The door is closed.\r\n");
         return true;
+    }
+
+    /* Terrain movement cost (Sneezy → Tobin feature audit, "Vitality
+     * stat + Terrain movement cost"): average of the source and
+     * destination sector's cost, same average-of-two-sectors rule the
+     * original's rawMove() uses. A hard gate, not a soft slowdown --
+     * refused outright rather than let vit go negative, same shape as
+     * the door/fighting/position checks above. Immortals are exempt,
+     * same reasoning as hunger/thirst immunity (being.h). */
+    if (!being_is_immortal(ch)) {
+        int cost = (sector_move_cost(from->sector) + sector_move_cost(to->sector) + 1) / 2;
+        if (ch->progress.vit < cost) {
+            descriptor_send(d, "You are too exhausted to go that way.\r\n");
+            return true;
+        }
+        being_spend_vit(ch, cost);
+        /* Persist immediately, not just at quit -- same "don't lose a
+         * real stat change to a disconnect" reasoning as cmd_eat.c/
+         * cmd_drink.c's own player_progress_save() calls. Only a real
+         * PC has a player_progress row; a possessed mob (cmd_possess.c)
+         * reaches do_move() too but must never try to save one. */
+        if (ch->base.kind == THING_PC)
+            player_progress_save(ch->player_id, &ch->progress);
     }
 
     /* Trap mechanics (user 2026-07-11, sequenced after weapon depth): a

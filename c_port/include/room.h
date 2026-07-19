@@ -42,6 +42,21 @@ const char *sector_name(int sector);
  * see cmd_look.c. */
 char sector_color(int sector);
 
+/* Vitality cost (1-6) of moving INTO a sector (Sneezy → Tobin feature
+ * audit, "Vitality stat + Terrain movement cost"). The original's
+ * TerrainInfo[MAX_SECTOR_TYPES] (misc/constants.cc) gives every one of
+ * the 61 sectors its own hand-tuned movement/thickness/hunger/thirst/
+ * drunk/temp/humidity row; Tobin has no per-sector content to justify
+ * that granularity yet, so this reuses sector_color()'s own
+ * substring-grouping precedent to bucket sectors into six cost tiers by
+ * name instead (roads/cities cheapest, lava/solid rock/fire priciest).
+ * No swim/fly/mount modifiers -- those stay blocked on the still-open
+ * "Water, drowning, flight" and "Mount / riding" audit items; water
+ * sectors are just an expensive-but-walkable tier for now. cmd_move.c
+ * charges the average of the source and destination sector's cost,
+ * mirroring the original's own average-of-two-sectors rawMove() rule. */
+int sector_move_cost(int sector);
+
 /* Renders the set ROOM_* flag bits (original misc/room.h, 22 bits) into
  * buf as space-separated names ("always-lit indoors ..."), or "none".
  * Returns buf for convenience. */

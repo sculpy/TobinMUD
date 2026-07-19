@@ -73,6 +73,31 @@ char sector_color(int sector) {
     return 'w';
 }
 
+/* Substring keyword match against the sector's name, tiered 1 (cheapest)
+ * to 6 (priciest), most-specific rule first. See the declaration comment
+ * in room.h for the scope-cut rationale. */
+int sector_move_cost(int sector) {
+    const char *name = sector_name(sector);
+    if (strstr(name, "LAVA") || strstr(name, "SOLID ROCK") || strstr(name, "FIRE"))
+        return 6;
+    if (strstr(name, "MOUNTAIN") || strstr(name, "CLIMBING") || strstr(name, "CAVE")
+        || strstr(name, "WASTE") || strstr(name, "SOLID ICE"))
+        return 5;
+    if (strstr(name, "SWAMP") || strstr(name, "MARSH") || strstr(name, "OCEAN")
+        || strstr(name, "RIVER") || strstr(name, "UNDERWATER"))
+        return 4;
+    if (strstr(name, "FOREST") || strstr(name, "HILLS") || strstr(name, "JUNGLE")
+        || strstr(name, "RAINFOREST") || strstr(name, "DEAD WOODS"))
+        return 3;
+    if (strstr(name, "TUNDRA") || strstr(name, "SAVANNAH") || strstr(name, "VELDT")
+        || strstr(name, "DESERT") || strstr(name, "BEACH") || strstr(name, "ICEFLOW"))
+        return 2;
+    /* CITY/ROAD/BUILDING/PLAINS/GRASSLAND, plus everything not covered
+     * above (ATMOSPHERE, ASTRAL, INSIDE MOB, MAKE FLY -- none of them
+     * physically-walked terrain today): cheapest tier. */
+    return 1;
+}
+
 /* Sector-name substring bucketing, same style as sector_color() above --
  * most-specific rule first. See room.h's declaration comment for the
  * weather-prefix simplification. */

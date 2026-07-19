@@ -49,6 +49,8 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
     b->progress.max_hp = being_calc_max_hp(b);
     b->progress.hp = b->progress.max_hp;
     being_limbs_full_heal(b);
+    b->progress.max_vit = being_calc_max_vit(b);
+    b->progress.vit = b->progress.max_vit;
     b->progress.hunger = 100;
     b->progress.thirst = 100;
     b->progress.birth_time = (long)time(NULL);
@@ -330,6 +332,13 @@ int being_calc_max_hp(const being_t *b) {
         scale *= class_balance_get(b->char_class)->hp_mult;
     }
     return 20 + con_bonus + (int)(b->progress.level * 5 * scale);
+}
+
+int being_calc_max_vit(const being_t *b) {
+    if (!b)
+        return 50;
+    int con_bonus = b->attrs.constitution - ATTR_BASE;
+    return 50 + con_bonus + b->progress.level * 2;
 }
 
 static const char *LIMB_NAMES[LIMB_COUNT] = {
@@ -738,6 +747,22 @@ void being_heal(being_t *b, int amount) {
         if (b->limbs[i].hp > b->limbs[i].max_hp)
             b->limbs[i].hp = b->limbs[i].max_hp;
     }
+}
+
+void being_heal_vit(being_t *b, int amount) {
+    if (!b || amount <= 0)
+        return;
+    b->progress.vit += amount;
+    if (b->progress.vit > b->progress.max_vit)
+        b->progress.vit = b->progress.max_vit;
+}
+
+void being_spend_vit(being_t *b, int amount) {
+    if (!b || amount <= 0)
+        return;
+    b->progress.vit -= amount;
+    if (b->progress.vit < 0)
+        b->progress.vit = 0;
 }
 
 /* Works out how much total experience is needed to REACH a given

@@ -353,6 +353,60 @@ implementation inspiration before each one, not guessed at.
       before shipping, ruling out an always-succeeds bug in either roll.
       Regression-checked against `smoke_test_flee.py`, `smoke_test_mob_ai.py`,
       `smoke_test_group.py` (also exercise flee/combat/mob AI).
+- [x] **Vitality stat + Terrain movement cost** — done 2026-07-19. Neither
+      half exists in the original either -- its "moves" resource (misc/
+      limits.cc's `getMaxMove()`/`moveGain()`) is CON-and-level-derived
+      but otherwise unnamed; Vitality is a Tobin-original name for the
+      same role, per the ground rule set before this session's audit
+      started ("a real Vitality stat gets added to unblock terrain
+      cost"), closing the long-orphaned "Depends on Vitality" TODO.md
+      fragment (see "Terrain movement cost" above, now resolved).
+      New `progress_t.vit`/`max_vit` (being.h) — `being_calc_max_vit()`:
+      50 base + CON bonus + 2/level, same placeholder-formula shape as
+      `being_calc_max_hp()`. Shown in `score`'s new Vitality line and
+      now toggleable into the prompt (`prompt vit`/`PROMPT_FLAG_VIT`,
+      previously blocked alongside mana/piety per cmd_prompt.c's own
+      doc comment). Regenerates on the exact same weight-by-position
+      regen tick as HP (regen.c) — the one concrete behavior the
+      orphaned fragment specified. New `player_progress.vit`/`max_vit`
+      DB columns.
+      Terrain cost: the original's `TerrainInfo[MAX_SECTOR_TYPES]`
+      (misc/constants.cc) hand-tunes a movement cost for every one of
+      61 sectors; Tobin has no per-sector content to justify that
+      granularity, so new `sector_move_cost()` (room.c) buckets all 61
+      into 6 cost tiers by name-substring instead, reusing the exact
+      grouping precedent `sector_color()` already established (roads/
+      cities/plains cheapest, lava/solid rock/fire priciest). `north`/
+      `east`/etc (cmd_move.c) now charge the average of the source and
+      destination sector's cost — same average-of-two-sectors rule the
+      original's `rawMove()` uses — refusing the move outright ("You
+      are too exhausted to go that way") rather than letting vit go
+      negative, same hard-gate shape the door/fighting/position checks
+      already there use. Persisted immediately on every charged move
+      (`player_progress_save()`), same "don't lose it to a disconnect"
+      precedent `cmd_eat.c`/`cmd_drink.c` already established. No swim/
+      fly/mount modifiers -- those stay blocked on the still-open
+      "Water, drowning, flight" and "Mount / riding" audit items; water
+      sectors are just an expensive-but-walkable tier for now.
+      Immortals are exempt, same reasoning as hunger/thirst immunity.
+      New `tests/smoke_test_vitality_terrain.py` (10 checks). Building
+      it surfaced a real timing gotcha: `regen_tick_run()` heals vit
+      roughly every 5 real seconds but ONLY in memory (it never itself
+      calls `player_progress_save()`), so a naive DB-read-based check
+      can flake against a stray regen tick a live `score` read doesn't
+      -- fixed by reading vit live via `score` with a short 0.3s
+      timeout instead of the DB for every timing-sensitive check, and
+      loosening the checks that can tolerate a stray tick (regen only
+      ever adds) from `==` to `>=`. Regression-checked against
+      `smoke_test_exits_display.py`, `smoke_test_look_equipment.py`,
+      `smoke_test_weather.py`, `smoke_test_vitals.py`,
+      `smoke_test_group.py`, `smoke_test_quest.py` (also exercise
+      movement/rooms/player_progress). Also fixed a stale, unrelated
+      assertion found while regression-testing: `smoke_test_parser_display.py`'s
+      "'qu' must NOT reach quit" check predated the `quest` command and
+      needed updating to match "qu" now legitimately reaching quest
+      instead (quit itself remains genuinely unreachable via any
+      abbreviation, verified directly).
 
 ## Buildable now (no blocked dependencies)
 
@@ -2478,17 +2532,15 @@ already tracked — pointers, not duplicates):
       (see `show_class_screen()`, descriptor.c) -- entry pruned 2026-07-17,
       was stale (still marked open after Classes landed in a later
       session).
-<!-- Orphaned fragment, pre-existing (not introduced by this prune) --
-     references a never-finished "Vitality" stat/item whose own bullet
-     marker and title are missing from the file; Terrain movement cost
-     below still says "Depends on Vitality", and no such stat exists in
-     the codebase (confirmed via grep 2026-07-17), so this is real
-     unfinished content, not stale -- left in place rather than guessed
-     at, flagged here for a future pass to either reconstruct or drop. -->
-      the regen tick (weight by position, like HP already does). New
-      `player_progress` column; show in score/prompt. Take from Sneezy.
-- [ ] **Terrain movement cost** — each sector type modifies the vitality cost
-      of moving into it (original `TerrainInfo`). Depends on Vitality.
+- [x] **Vitality stat + Terrain movement cost** — done 2026-07-19, closing
+      the orphaned "Vitality"/"Depends on Vitality" fragment that used to
+      sit here (its own bullet marker and title had gone missing from the
+      file at some point; confirmed via grep 2026-07-17 that no such stat
+      existed yet). See the full writeup under "Sneezy → Tobin feature
+      audit" below for the Vitality stat and terrain-cost details --
+      `player_progress.vit`/`max_vit`, regen tick, score/prompt display,
+      `sector_move_cost()`'s 6-tier bucketing, and `cmd_move.c`'s
+      average-of-two-sectors charge, same shape this fragment described.
 - [x] **Socials/actions** — done 2026-07-05: 15 socials (smile/nod/wave/bow/
       cheer/poke/...) in `socials.c`, checked in dispatch after the command
       table; untargeted + targeted forms; `socials` lists them. Room echoes

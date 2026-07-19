@@ -158,17 +158,34 @@ typedef struct {
      * (see gametime.c), and real elapsed play time is honest and needs no
      * new unit. */
     long birth_time;
+    /* Vitality (Sneezy → Tobin feature audit, "Vitality stat + Terrain
+     * movement cost"). The original has no such stat either -- its
+     * "moves" resource (misc/limits.cc's getMaxMove()/moveGain()) is
+     * CON-derived but otherwise unnamed; Vitality is a Tobin-original
+     * name for the same role, closing the "Depends on Vitality" TODO.md
+     * fragment this item's own audit note pointed at. An HP-parallel
+     * resource -- max computed by being_calc_max_vit(), regenerates on
+     * the same tick and position-weighting as HP (regen.c) -- spent by
+     * `north`/`east`/etc (cmd_move.c) at a cost set by the sector being
+     * entered (see room.h's sector_move_cost()). Movement is refused,
+     * not merely slowed, once vit can't cover the cost -- same "hard
+     * gate, not a soft penalty" shape hunger/thirst-at-0 uses for HP
+     * loss. Immortals are exempt (being_is_immortal()), same reasoning
+     * as hunger/thirst immunity above. */
+    int vit;
+    int max_vit;
 } progress_t;
 
 /* Prompt customization bits (player.prompt_flags, cmd_prompt.c; rendered
- * by the game loop's prompter). Only HP and gold exist -- mana/piety/
- * vitality (user's original "expand prompt toggles" ask) stay blocked on
- * those stats not existing at all yet (no mana pool, no piety, no
- * vitality resource -- prayer/casting is component-consumption-based,
- * see cmd_cast.c/cmd_pray.c); gold unblocked 2026-07-18 once the Money
- * system shipped (progress_t.gold, above). */
+ * by the game loop's prompter). Mana/piety (user's original "expand
+ * prompt toggles" ask) stay blocked on those stats not existing at all
+ * yet -- prayer/casting is component-consumption-based, see
+ * cmd_cast.c/cmd_pray.c. Gold unblocked 2026-07-18 once the Money system
+ * shipped (progress_t.gold, above); vitality unblocked once the
+ * Vitality stat itself shipped (progress_t.vit, above). */
 #define PROMPT_FLAG_HP 1
 #define PROMPT_FLAG_GOLD 2
+#define PROMPT_FLAG_VIT 4
 
 /* Player flag bits (player.pflags). PLR_NEWBIE = on the newbie help channel
  * (default on; toggle off with `toggle newbie`). PLR_NOSHOUT = opted out of
@@ -709,6 +726,14 @@ void being_set_wait(being_t *b, int pulses);
  * classes exist) -- revisit once a real growth curve is designed. */
 int being_calc_max_hp(const being_t *b);
 
+/* Placeholder max-Vitality formula: 50 base + (constitution above
+ * ATTR_BASE) + 2 per level -- same "CON-and-level-driven resource" shape
+ * as the original's getMaxMove() (misc/limits.cc: 100 + 15 + level +
+ * plotStat(CON,...)), scaled down since Tobin's vit only pays for
+ * per-room movement cost, not a whole combat-fatigue economy. Revisit
+ * alongside being_calc_max_hp() if a real growth curve is designed. */
+int being_calc_max_vit(const being_t *b);
+
 /* (Re)sets every limb's max_hp from b->progress.max_hp (split evenly across
  * LIMB_COUNT, placeholder -- the original weights per-slot max via
  * hitLimit()/slotChance(), not replicated here) and heals every limb to
@@ -725,6 +750,16 @@ void being_hurt_limb(being_t *b, limb_t limb, int dmg);
  * own max) -- used by the regen tick (src/core/regen.c). No-op for
  * amount <= 0. */
 void being_heal(being_t *b, int amount);
+
+/* Heals b's Vitality by `amount` (clamped at max_vit). No-op for
+ * amount <= 0. Used by the regen tick (src/core/regen.c), same
+ * position-weighted cadence as being_heal(). */
+void being_heal_vit(being_t *b, int amount);
+
+/* Spends `amount` of b's Vitality (clamped at 0 -- never negative,
+ * unlike progress.hp). Used by cmd_move.c to pay a sector's movement
+ * cost. No-op for amount <= 0. */
+void being_spend_vit(being_t *b, int amount);
 
 /* Placeholder XP curve (level*level*100) -- the original's is a recursive
  * kill-count formula tied to mob levels, which don't exist in Tobin yet.

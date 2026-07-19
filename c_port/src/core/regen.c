@@ -34,5 +34,12 @@ void regen_tick_run(long pulse_num) {
         if (!b || b->fighting)
             continue;
         being_heal(b, regen_amount(b));
+        /* Vitality (Sneezy → Tobin feature audit, "Vitality stat +
+         * Terrain movement cost"): same weight-by-position amount as HP,
+         * per TODO.md's own note this item closed out ("the regen tick
+         * (weight by position, like HP already does)"). Still gated on
+         * not fighting -- resting up after combat is when both HP and
+         * legs recover. */
+        being_heal_vit(b, regen_amount(b));
     }
 }

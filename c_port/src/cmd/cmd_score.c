@@ -60,6 +60,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
              "  Name:          %s\t  Level:         %s%s%s\r\n"
              "  Experience:    %ld\r\n"
              "  HP:            %d/%d (%s)\r\n"
+             "  Vitality:      %d/%d\r\n"
              "  Position:      %s\r\n"
              "  Characteristics:\r\n"
 			 "  Strength:      %d\t  Intelligence:  %d\r\n"
@@ -74,7 +75,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
              "  Age:           %s\r\n",
              d->character->base.name,
 			 col, level_field, reset,
-             p->experience, p->hp, p->max_hp, being_health_word(d->character), pos,
+             p->experience, p->hp, p->max_hp, being_health_word(d->character), p->vit, p->max_vit, pos,
              a->strength, a->intelligence, a->dexterity, a->wisdom, a->constitution, a->charisma,
              d->character->handed_right ? "right" : "left",
              gender_name(d->character->gender),

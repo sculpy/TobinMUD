@@ -24,3 +24,8 @@ CREATE TABLE IF NOT EXISTS `player_progress` (
 -- the CREATE above is a no-op on an already-existing table, so add the
 -- column explicitly for a DB that predates this change.
 ALTER TABLE `player_progress` ADD COLUMN IF NOT EXISTS `alignment` int(11) NOT NULL DEFAULT 0;
+
+-- `vit`/`max_vit` added for the "Vitality stat + Terrain movement cost"
+-- audit item -- same predates-this-change reasoning as `alignment` above.
+ALTER TABLE `player_progress` ADD COLUMN IF NOT EXISTS `vit` int(11) NOT NULL DEFAULT 50;
+ALTER TABLE `player_progress` ADD COLUMN IF NOT EXISTS `max_vit` int(11) NOT NULL DEFAULT 50;

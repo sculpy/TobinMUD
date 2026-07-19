@@ -26,18 +26,19 @@ bool cmd_prompt(descriptor_t *d, const char *args) {
     if (!ch)
         return true;
 
-    char msg[128];
+    char msg[160];
     if (!*args) {
-        snprintf(msg, sizeof(msg), "Prompt: hp %s, gold %s. Usage: prompt hp|gold\r\n",
+        snprintf(msg, sizeof(msg), "Prompt: hp %s, gold %s, vit %s. Usage: prompt hp|gold|vit\r\n",
                  (ch->prompt_flags & PROMPT_FLAG_HP) ? "ON" : "off",
-                 (ch->prompt_flags & PROMPT_FLAG_GOLD) ? "ON" : "off");
+                 (ch->prompt_flags & PROMPT_FLAG_GOLD) ? "ON" : "off",
+                 (ch->prompt_flags & PROMPT_FLAG_VIT) ? "ON" : "off");
         descriptor_send(d, msg);
         return true;
     }
 
     char tok[16];
     if (sscanf(args, "%15s", tok) != 1) {
-        descriptor_send(d, "Usage: prompt hp|gold   (toggles that stat in your prompt)\r\n");
+        descriptor_send(d, "Usage: prompt hp|gold|vit   (toggles that stat in your prompt)\r\n");
         return true;
     }
 
@@ -49,8 +50,11 @@ bool cmd_prompt(descriptor_t *d, const char *args) {
     } else if (strcasecmp(tok, "gold") == 0) {
         flag = PROMPT_FLAG_GOLD;
         label = "gold";
+    } else if (strcasecmp(tok, "vit") == 0) {
+        flag = PROMPT_FLAG_VIT;
+        label = "vitality";
     } else {
-        descriptor_send(d, "Usage: prompt hp|gold   (toggles that stat in your prompt)\r\n");
+        descriptor_send(d, "Usage: prompt hp|gold|vit   (toggles that stat in your prompt)\r\n");
         return true;
     }
 
