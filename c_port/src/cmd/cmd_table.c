@@ -139,6 +139,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "examine", cmd_examine, "Look at something in detail -- a synonym for look <target>.", MORTAL_LEVEL_MIN },
     { "extinguish", cmd_extinguish, "Put out a light source (extinguish <item> [held|room]).", MORTAL_LEVEL_MIN },
     { "flee",    cmd_flee,    "Try to escape a fight through a random exit.",       MORTAL_LEVEL_MIN },
+    { "follow",  cmd_follow,  "Start following someone (follow <name>); `stop` to break it.", MORTAL_LEVEL_MIN },
     /* "g" must reach get, not goto -- alphabetical already delivers that
      * (get < goto), but it is load-bearing, not incidental: goto's landmark
      * forms (guildmaster/rent/surplus) are mortal-visible, so goto would
@@ -147,6 +148,7 @@ static const cmd_entry_t COMMANDS[] = {
      * with "go". */
     { "get",     cmd_get,     "Pick up an item, or take one from a container (get <item> [container]).", MORTAL_LEVEL_MIN },
     { "goto",    cmd_goto,    "Directions to your guildmaster/the inn/the surplus store (goto guildmaster|rent|surplus), or teleport to a room by vnum (immortal).", MORTAL_LEVEL_MIN },
+    { "group",   cmd_group,   "List/manage your group (group [<name>|all]) -- leader only to add.", MORTAL_LEVEL_MIN },
     /* SWAP: hit before help, so "h" stays a combat verb; help needs "he",
      * hold needs "ho". */
     { "hit",     cmd_hit,     "Attack a player or mobile via real combat, even for immortals (never instakill).", MORTAL_LEVEL_MIN },
@@ -224,7 +226,9 @@ static const cmd_entry_t COMMANDS[] = {
     { "sleep",   cmd_sleep,   "Lie down and sleep (heals fastest).",                MORTAL_LEVEL_MIN },
     /* "s"/"so" are south (movement head); socials needs "soc". */
     { "socials", cmd_socials, "List the socials you can use (smile, wave, ...).",   MORTAL_LEVEL_MIN },
+    { "split",   cmd_split,   "Split gold evenly among your grouped members present (split <amount>).", MORTAL_LEVEL_MIN },
     { "stand",   cmd_stand,   "Stand up.",                                          MORTAL_LEVEL_MIN },
+    { "stop",    cmd_stop,    "Stop following whoever you're following.",           MORTAL_LEVEL_MIN },
     /* "sw" is southwest's alias (movement head); switch needs "swi". */
     { "switch",  cmd_switch,  "Swap what's in your primary and secondary hold.",    MORTAL_LEVEL_MIN },
     { "tell",    cmd_tell,    "Send a private message to anyone playing (tell <name> <message>).", MORTAL_LEVEL_MIN },

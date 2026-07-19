@@ -96,6 +96,42 @@ implementation inspiration before each one, not guessed at.
       further channel sprawl unless a specific need shows up") still
       applies; the actual gap was the targeting feature, not a whole new
       channel. New `tests/smoke_test_wiznet.py` (4 checks).
+- [x] **Group / party system** — done 2026-07-19. Checked Sneezy's own
+      `09-group-party.md` doc first, then scoped it down deliberately (all
+      documented inline in being.h's field comment): no leader-succession
+      algorithm (the group simply dissolves if the leader leaves/dies,
+      rather than the original's two-pass `reformGroup()`); no per-player
+      configurable 1-10 `group share` money factor -- gold splits EVENLY
+      instead; XP shares are level-weighted (a simplification of the
+      original's `mob_exp()`-based share); no quest-flag
+      (`PLR_SOLOQUEST`/`PLR_GRPQUEST`) or charm/mount interaction checks;
+      `follow` only refuses a DIRECT circular pair (`target->master ==
+      ch`), not a full chain walk, since the model doesn't support deep
+      nesting anyway. New `being_t` fields `master`/`grouped`/
+      `followers[GROUP_MAX_FOLLOWERS]` (live in-memory only, same rule as
+      `fighting` -- EXCEPT a raw disconnect deliberately does NOT clear
+      them, so a group survives a member briefly dropping link, matching
+      the original; only `being_destroy()` calls `being_leave_group()`).
+      `follow <name>`/`stop`/`group [<name>|all]` (leader-only to add)/
+      `split <amount>` (leader-only, divides evenly among present grouped
+      members, refuses if the per-share would round to 0) --
+      `cmd_group.c`. `combat.c`'s new `group_recipients()` helper feeds
+      three existing blocks (XP award, PK gold-steal, mob-gold-drop) so a
+      grouped, in-room, non-immortal winner's kill benefits the whole
+      party instead of just the striker, while preserving the exact
+      pre-existing solo-winner math/messages when `grouped` is false
+      (regression-verified clean against `smoke_test_pk_gold.py` and
+      `smoke_test_levelup_hp.py`). Two real test-infrastructure lessons
+      hit and documented in `smoke_test_group.py`'s own comments: (1) a
+      direct SQL `UPDATE` on an already-connected character's gold/HP/
+      room isn't seen by their in-memory copy until a relog, AND (2)
+      `quit!` itself calls `player_save()` (`descriptor_leave_to_menu()`),
+      which will silently overwrite a just-applied direct SQL update with
+      stale in-memory data if the SQL update runs BEFORE the `quit!`
+      instead of after. New `tests/smoke_test_group.py` (14 checks, all 6
+      phases: follow-alone-grants-nothing, group-grants-it, non-leader-
+      refused, XP-splits-on-a-kill, gold-splits-evenly-via-`split`, `stop`
+      breaks it).
 
 ## Buildable now (no blocked dependencies)
 

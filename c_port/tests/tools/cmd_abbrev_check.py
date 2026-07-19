@@ -59,6 +59,7 @@ LEVELS = {
     "TIPEDIT_MIN_LEVEL": 53,
     "WIPE_MIN_LEVEL": 59,
     "SHUTDOWN_MIN_LEVEL": 60,
+    "POSSESS_MIN_LEVEL": 59,
 }
 
 # { "name", cmd_fn, "help text" | NULL, LEVEL_MACRO },

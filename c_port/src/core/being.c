@@ -152,8 +152,66 @@ void being_destroy(being_t *b) {
     for (int i = 0; i < 2; i++)
         b->held[i] = NULL;
 
+    being_leave_group(b);
+
     thing_remove_from_parent(&b->base);
     free(b);
+}
+
+bool being_in_group(const being_t *a, const being_t *b) {
+    if (!a || !b)
+        return false;
+    if (a == b)
+        return true;
+    if (!a->grouped || !b->grouped)
+        return false;
+    if (a->master == b || b->master == a)
+        return true;
+    return a->master && a->master == b->master;
+}
+
+int being_group_members(const being_t *self, being_t **out, int max) {
+    if (!self || !self->grouped || max <= 0)
+        return 0;
+
+    being_t *leader = self->master ? self->master : (being_t *)self;
+    int n = 0;
+    if (leader->grouped && n < max)
+        out[n++] = leader;
+    for (int i = 0; i < GROUP_MAX_FOLLOWERS && n < max; i++) {
+        being_t *f = leader->followers[i];
+        if (f && f->grouped)
+            out[n++] = f;
+    }
+    return n;
+}
+
+void being_leave_group(being_t *b) {
+    if (!b)
+        return;
+
+    /* Remove b from its master's followers[] (if any). */
+    if (b->master) {
+        for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
+            if (b->master->followers[i] == b) {
+                b->master->followers[i] = NULL;
+                break;
+            }
+        }
+        b->master = NULL;
+    }
+    b->grouped = false;
+
+    /* b was itself a leader -- the group dissolves (no succession, see
+     * being.h's field comment). */
+    for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
+        being_t *f = b->followers[i];
+        if (!f)
+            continue;
+        f->master = NULL;
+        f->grouped = false;
+        b->followers[i] = NULL;
+    }
 }
 
 bool being_is_immortal(const being_t *b) {

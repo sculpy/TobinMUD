@@ -458,6 +458,30 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
  * A MOB loser (Phase 2D) has no player_id row to save and no menu to
  * return to -- it is destroyed outright (permanent, no respawn without a
  * future zone-reset system) instead of HP-patched-and-ejected. */
+
+/* Group-aware reward split (Sneezy → Tobin feature audit, "Group / party
+ * system"): if `winner` is grouped, a kill's XP/gold is shared among
+ * every grouped, non-immortal PC member physically present in `room`
+ * (same spatial rule the original uses -- only in-room members share a
+ * kill). A solo (non-grouped) winner is unaffected: `out[0] = winner`,
+ * returns 1, so every call site's pre-group-system single-recipient
+ * behavior is preserved exactly unless a real group is active. */
+static int group_recipients(being_t *winner, room_t *room, being_t **out, int max) {
+    if (winner->grouped) {
+        being_t *members[GROUP_MAX_FOLLOWERS + 1];
+        int total = being_group_members(winner, members, GROUP_MAX_FOLLOWERS + 1);
+        int n = 0;
+        for (int i = 0; i < total && n < max; i++) {
+            being_t *m = members[i];
+            if (m->base.kind == THING_PC && !being_is_immortal(m) && m->base.roomp == room)
+                out[n++] = m;
+        }
+        if (n > 0)
+            return n;
+    }
+    out[0] = winner;
+    return 1;
+}
 static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     loser->fighting = NULL;
     winner->fighting = NULL;
@@ -487,9 +511,14 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             && loser->progress.gold > 0) {
             int stolen = loser->progress.gold;
             loser->progress.gold = 0;
-            winner->progress.gold += stolen;
-            tell(winner, "You loot %d gold from %s's body.\r\n",
-                 stolen, being_display_name(loser));
+            being_t *recipients[GROUP_MAX_FOLLOWERS + 1];
+            int n = group_recipients(winner, winner->base.roomp, recipients, GROUP_MAX_FOLLOWERS + 1);
+            int share = stolen / n;
+            for (int i = 0; i < n; i++) {
+                recipients[i]->progress.gold += share;
+                tell(recipients[i], "You loot %d gold from %s's body.\r\n",
+                     share, being_display_name(loser));
+            }
             tell(loser, "%s loots %d gold from your body.\r\n",
                  being_display_name(winner), stolen);
         }
@@ -514,32 +543,52 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
      * winner there is always an immortal). */
     if (winner->base.kind == THING_PC && !being_is_immortal(winner)) {
         long xp_gain = (long)(loser->progress.level > 0 ? loser->progress.level : 1) * 50;
-        int levels_gained = progress_add_xp(&winner->progress, xp_gain);
-        tell(winner, "You gain %ld experience points.\r\n", xp_gain);
-        if (levels_gained > 0) {
-            /* Bug found 2026-07-12 (weapon-depth testing): progress_add_xp()
-             * only bumps `level` -- it works on a bare progress_t, with no
-             * access to attrs/kind, so it can't call being_calc_max_hp()
-             * itself. Without this, a leveled-up character's max_hp (and
-             * every limb's own max_hp, being_limbs_full_heal()) stayed
-             * stuck at their level-1 values forever, leaving even a
-             * high-level character just as fragile -- and just as prone to
-             * a lucky decapitation -- as a brand new one. Recomputed here,
-             * with the full being_t winner is already, and a full heal as
-             * the level-up's reward (same spirit as the "You feel more
-             * experienced!" message). */
-            winner->progress.max_hp = being_calc_max_hp(winner);
-            winner->progress.hp = winner->progress.max_hp;
-            being_limbs_full_heal(winner);
-            tell(winner, "You feel more experienced!\r\n");
-            int pp = 0;
-            for (int i = 0; i < levels_gained; i++)
-                pp += practice_points_for_level(winner);
-            winner->progress.practice_points += pp;
-            tell(winner, "<g>You gain %d practice point%s.<z>\r\n",
-                 pp, pp == 1 ? "" : "s");
+
+        /* Group split (see group_recipients() above): level-weighted, a
+         * simplification of the original's mob_exp()-based share -- a
+         * solo winner gets recipients={winner}, weight math collapses to
+         * the exact same xp_gain as before the group system existed. */
+        being_t *recipients[GROUP_MAX_FOLLOWERS + 1];
+        int n = group_recipients(winner, winner->base.roomp, recipients, GROUP_MAX_FOLLOWERS + 1);
+        long total_weight = 0;
+        for (int i = 0; i < n; i++)
+            total_weight += recipients[i]->progress.level > 0 ? recipients[i]->progress.level : 1;
+
+        for (int i = 0; i < n; i++) {
+            being_t *m = recipients[i];
+            long weight = m->progress.level > 0 ? m->progress.level : 1;
+            long share = (n == 1) ? xp_gain : (xp_gain * weight) / total_weight;
+            if (share < 1)
+                share = 1;
+            int levels_gained = progress_add_xp(&m->progress, share);
+            tell(m, "You gain %ld experience points.\r\n", share);
+            if (levels_gained > 0) {
+                /* Bug found 2026-07-12 (weapon-depth testing): progress_add_xp()
+                 * only bumps `level` -- it works on a bare progress_t, with no
+                 * access to attrs/kind, so it can't call being_calc_max_hp()
+                 * itself. Without this, a leveled-up character's max_hp (and
+                 * every limb's own max_hp, being_limbs_full_heal()) stayed
+                 * stuck at their level-1 values forever, leaving even a
+                 * high-level character just as fragile -- and just as prone to
+                 * a lucky decapitation -- as a brand new one. Recomputed here,
+                 * with the full being_t m already is, and a full heal as the
+                 * level-up's reward (same spirit as the "You feel more
+                 * experienced!" message). Applies per-recipient now, not just
+                 * the winner, so a leveling-up group member gets the same
+                 * treatment the solo winner always did. */
+                m->progress.max_hp = being_calc_max_hp(m);
+                m->progress.hp = m->progress.max_hp;
+                being_limbs_full_heal(m);
+                tell(m, "You feel more experienced!\r\n");
+                int pp = 0;
+                for (int j = 0; j < levels_gained; j++)
+                    pp += practice_points_for_level(m);
+                m->progress.practice_points += pp;
+                tell(m, "<g>You gain %d practice point%s.<z>\r\n",
+                     pp, pp == 1 ? "" : "s");
+            }
+            player_progress_save(m->player_id, &m->progress);
         }
-        player_progress_save(winner->player_id, &winner->progress);
     }
 
     /* Death goes to the log with the loser's IP (user requirement --
@@ -676,9 +725,14 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     if (!loser_is_pc && winner->base.kind == THING_PC && !being_is_immortal(winner)) {
         int mob_level = loser->progress.level > 0 ? loser->progress.level : 1;
         int gold_gain = mob_level * (1 + rand() % 5);
-        winner->progress.gold += gold_gain;
-        tell(winner, "You find %d gold.\r\n", gold_gain);
-        player_progress_save(winner->player_id, &winner->progress);
+        being_t *recipients[GROUP_MAX_FOLLOWERS + 1];
+        int n = group_recipients(winner, winner->base.roomp, recipients, GROUP_MAX_FOLLOWERS + 1);
+        int share = gold_gain / n;
+        for (int i = 0; i < n; i++) {
+            recipients[i]->progress.gold += share;
+            tell(recipients[i], "You find %d gold.\r\n", share);
+            player_progress_save(recipients[i]->player_id, &recipients[i]->progress);
+        }
     }
 
     if (loser_is_pc) {

@@ -40,6 +40,7 @@ struct obj; /* forward decl only -- avoids a being.h<->obj.h include cycle,
 #define ATTR_MAX  250      /* absolute per-attribute ceiling, defense-in-depth beyond the delta cap */
 
 #define BEING_TITLE_LEN 80 /* matches player.title varchar(80) */
+#define GROUP_MAX_FOLLOWERS 6 /* see the `master`/`followers`/`grouped` fields below */
 #define BEING_BAMF_LEN 96  /* matches player.bamfin/bamfout varchar(96) */
 
 typedef struct {
@@ -450,6 +451,29 @@ typedef struct being {
     struct being *fighting;
     long last_combat_pulse;
 
+    /* Group/party (Sneezy → Tobin feature audit, "Group / party system").
+     * Live in-memory only, same "meaningless across a reconnect" rule as
+     * `fighting` -- EXCEPT a disconnect deliberately does NOT clear these
+     * (a linkdead body stays in memory, same as it already does for
+     * everything else), so a group survives a member briefly dropping
+     * link, same as the original. Scoped down from Sneezy's own two-tier
+     * master/followers tree + a per-player configurable 1-10 money-share
+     * factor + quest-flag/charm/mount interactions
+     * (docs/systems/critical/09-group-party.md): XP shares here are
+     * level-weighted (a simplification of the original's mob_exp()) and
+     * gold splits EVENLY across present grouped members, not per-player-
+     * configurable -- the real cooperative-play value without commands a
+     * small-scale MUD doesn't need yet (`group share <player> <1-10>`).
+     * Also, deliberately no leader-succession algorithm: if the leader
+     * leaves/dies, the group simply dissolves (being_leave_group(),
+     * being.c) rather than promoting a new leader -- a real simplification
+     * from the original's two-pass reformGroup(), documented as a
+     * conscious scope cut, not an oversight. */
+    struct being *master;                        /* who I follow; NULL = leader or solo */
+    bool grouped;                                 /* AFF_GROUP equivalent -- only a grouped
+                                                      follower shares in XP/gold */
+    struct being *followers[GROUP_MAX_FOLLOWERS]; /* this being's own followers, if a leader */
+
     /* Most recent `pray`/`cast` heal-type target + spell name (user
      * 2026-07-12: "add a continue command so clerics that heal <target>
      * can continue automatically until the target is fully healed or
@@ -518,6 +542,28 @@ being_t *being_create_pc(const char *name, long account_id, long player_id);
 being_t *being_create_mob(int vnum);
 
 void being_destroy(being_t *b);
+
+/* True iff `a` and `b` are in the same group -- same identity, one is the
+ * other's master, or they share a master (siblings) -- AND both have
+ * `grouped` set. Mirrors Sneezy's own inGroup(): deliberately NOT
+ * transitive (a follower's own follower is not automatically in the
+ * top-level group), see docs/systems/critical/09-group-party.md. */
+bool being_in_group(const being_t *a, const being_t *b);
+
+/* Fills `out` (up to `max`) with every grouped member of `self`'s group --
+ * the leader (self's master, or self if self has no master) plus every
+ * grouped follower of that leader. Returns the count written; 0 if `self`
+ * isn't grouped at all. Used by combat.c to split XP/gold on a kill. */
+int being_group_members(const being_t *self, being_t **out, int max);
+
+/* Cleanly detaches `b` from any group relationship before it goes away
+ * (being_destroy()) or on request (`stop`, cmd_group.c): removes `b` from
+ * its master's followers[] and clears `b`'s own master/grouped. If `b` is
+ * ITSELF a leader with followers, the group DISSOLVES -- every follower's
+ * master/grouped is cleared too (no leader-succession algorithm; see the
+ * being_t field comment for why that's a deliberate scope cut). Safe to
+ * call on a being with no group relationships at all (no-op). */
+void being_leave_group(being_t *b);
 
 /* True iff b->progress.level >= IMMORTAL_LEVEL_MIN. */
 bool being_is_immortal(const being_t *b);
