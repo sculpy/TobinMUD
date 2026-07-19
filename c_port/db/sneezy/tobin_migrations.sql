@@ -255,3 +255,20 @@ UPDATE `obj` SET val0=10, val1=10 WHERE `name` LIKE '%symbol%';
 -- news.sql). int, not bigint: matches news.id's own column type.
 ALTER TABLE `player`
   ADD COLUMN IF NOT EXISTS `news_last_seen_id` int(11) NOT NULL DEFAULT 0;
+
+-- Ignore lists (Sneezy → Tobin feature audit, "Ignore lists" -- player-
+-- maintained block list for unwanted communication). Scoped down from the
+-- original's ignoreList (which also supports blocking by descriptor or
+-- whole account, and reaches say/shout/grouptell/emote/socials -- none of
+-- which apply here, or don't exist yet) to what Tobin actually has: a
+-- flat per-character name list, checked by `tell`/`whisper` only (see
+-- ignore_repo.h). Blocked by NAME, not player_id -- matches how every
+-- other cross-player lookup in this codebase already works (tell/whisper/
+-- goto all resolve by name), and survives the target deleting and
+-- recreating a same-named character the same way a real ignore would be
+-- expected to.
+CREATE TABLE IF NOT EXISTS `player_ignore` (
+  `player_id` bigint(20) unsigned NOT NULL,
+  `ignored_name` varchar(32) NOT NULL,
+  PRIMARY KEY (`player_id`, `ignored_name`)
+);

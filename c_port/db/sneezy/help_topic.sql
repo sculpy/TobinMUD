@@ -877,3 +877,15 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('lock', 'Usage: lock <direction>   |   lock <container>\n\nLocks a closed door or container, if you''re carrying the right key.\nA door or container without a keyhole at all can''t be locked this\nway (nothing to turn). Must already be closed -- `close` it first.\nA locked door/container blocks `open` until `unlock`ed again.\n\nRelated: unlock open close', 'seed'),
 ('unlock', 'Usage: unlock <direction>   |   unlock <container>\n\nUnlocks a locked door or container, if you''re carrying the matching\nkey -- you don''t need to name the key, just have it on you (carried,\nworn, or held). Wrong key, or no key at all, and it refuses. Once\nunlocked, `open` it as normal.\n\nRelated: lock open close', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `ignore`/`unignore` (Sneezy → Tobin feature audit, "Ignore lists").
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('ignore', 'Usage: ignore [<name>]\n\nBlocks `tell`s and `whisper`s from someone -- they still see their\nmessage as sent, but it never reaches you. Bare `ignore` lists\neveryone you''re currently ignoring (up to 30 at once). Doesn''t affect\nany other channel, and you can''t ignore yourself.\n\nRelated: unignore tell whisper', 'seed'),
+('unignore', 'Usage: unignore <name>\n\nStops blocking someone''s `tell`s and `whisper`s (see `ignore`).\n\nRelated: ignore tell whisper', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `ignore` cross-reference on the existing tell/whisper topics.
+UPDATE `help_topic` SET `body` = 'Usage: tell <name> <message>\n\nA private message to anyone playing, anywhere in the game -- no need\nto share a room. Compare `whisper`, which only reaches someone in your\nown room but at least lets bystanders know a conversation is\nhappening. Blocked entirely by `ignore`.\n\nRelated: whisper say ignore'
+  WHERE `name` = 'tell' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: whisper <name> <message>\n\nA private message to someone in your own room -- everyone else there\nsees that a conversation happened, but not what was said. Compare\n`tell`, which reaches anyone anywhere but gives bystanders no hint at\nall. Blocked entirely by `ignore`.\n\nRelated: tell say ignore'
+  WHERE `name` = 'whisper' AND `updated_by` = 'seed';

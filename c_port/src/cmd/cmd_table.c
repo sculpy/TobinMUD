@@ -158,6 +158,7 @@ static const cmd_entry_t COMMANDS[] = {
      * idea needs "id", immort needs "im". */
     { "inventory", cmd_inventory, "List what you're carrying.",                     MORTAL_LEVEL_MIN },
     { "idea",    cmd_idea,    "Suggest a feature (idea <text>); immortals list them.", MORTAL_LEVEL_MIN },
+    { "ignore",  cmd_ignore,  "Block tells/whispers from someone (ignore [<name>]).", MORTAL_LEVEL_MIN },
     /* Mortality toggle: `immort` reclaims true immortal rank after `mortal`
      * (immortal tier, below) sets it aside. Registered at MORTAL level
      * itself (NULL help = unlisted) so a real mortal typing it still
@@ -231,6 +232,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "tips",    cmd_tips,    "Show a random gameplay tip.",                        MORTAL_LEVEL_MIN },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
     { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
+    { "unignore", cmd_unignore, "Stop blocking someone's tells/whispers (unignore <name>).", MORTAL_LEVEL_MIN },
     { "unlock",  cmd_unlock,  "Unlock a locked door or container (unlock <direction|container>).", MORTAL_LEVEL_MIN },
     /* "w"/"we" are west (movement head); wake needs "wa", wear needs "wea",
      * wield needs "wi". */

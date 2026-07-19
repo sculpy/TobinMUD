@@ -107,6 +107,8 @@ bool cmd_open(descriptor_t *d, const char *args);
 bool cmd_close(descriptor_t *d, const char *args);
 bool cmd_lock(descriptor_t *d, const char *args);
 bool cmd_unlock(descriptor_t *d, const char *args);
+bool cmd_ignore(descriptor_t *d, const char *args);
+bool cmd_unignore(descriptor_t *d, const char *args);
 bool cmd_get(descriptor_t *d, const char *args);
 bool cmd_put(descriptor_t *d, const char *args);
 bool cmd_drop(descriptor_t *d, const char *args);

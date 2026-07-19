@@ -10,6 +10,7 @@
 
 #include "being.h"
 #include "descriptor.h"
+#include "ignore_repo.h"
 
 /* `tell <name> <message>` (Sneezy port, user 2026-07-12). Per Sneezy's
  * help text: "send a message strictly to the person referenced,
@@ -55,7 +56,10 @@ bool cmd_tell(descriptor_t *d, const char *args) {
     char out[400];
     snprintf(out, sizeof(out), "<p>You tell %s, \"<z>%s<p>\"<z>\r\n", target->base.name, msg_text);
     descriptor_send(d, out);
-    if (target->desc) {
+    /* Ignore lists (Sneezy → Tobin feature audit): fails SILENTLY -- the
+     * sender already saw "You tell ..." above and never learns the target
+     * blocked them, matching the original's own documented behavior. */
+    if (target->desc && !ignore_repo_is_ignored(target->player_id, d->character->base.name)) {
         snprintf(out, sizeof(out), "<p>%s tells you, \"<z>%s<p>\"<z>\r\n",
                  d->character->base.name, msg_text);
         descriptor_notify(target->desc, out);

@@ -13,6 +13,44 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
+## Sneezy → Tobin feature audit (user 2026-07-19)
+
+User audited the Sneezy → Tobin Feature Audit artifact (published
+2026-07-11, refreshed 2026-07-19) and asked to finish the remaining
+Missing/Partial rows: skill-based combat, offensive spell breadth, magic
+items, object maintenance, group/party, ignore lists, OOC channels, sign
+language, death processing (XP loss/resurrection), vital statistics,
+builder tools OLC (oedit/medit), weather/light, terrain movement cost,
+water/drowning/flight, mount/riding, monster AI pursuit, transformation,
+money system v2, crafting & extraction, material properties, object
+manipulation depth, switch/puppet, pet/charm, quest system, drug
+tracking. Ground rules set via AskUserQuestion before starting: oedit/
+medit designed without a wireframe (following redit/edzone conventions);
+a real Vitality stat gets added to unblock terrain cost; the large
+economy/material systems (banking, crafting, materials) get a Tobin-scale
+slice, not Sneezy's full original depth. Sneezy source (bundled
+`sneezymud-master/`, especially `docs/systems/`) checked for real
+implementation inspiration before each one, not guessed at.
+
+- [x] **Ignore lists** — done 2026-07-19. Checked Sneezy's own
+      `communication-system.md` doc first: the original's `ignoreList`
+      blocks by descriptor/name/whole-account across say/tell/whisper/
+      shout/grouptell/emote/socials, with silent-to-sender failure.
+      Scoped to what Tobin actually has and what "unwanted communication"
+      really means here: a flat per-character name list (new
+      `player_ignore` table, `ignore_repo.h`/`.c`), checked only by
+      `tell`/`whisper` (the two direct-message channels that exist) --
+      broadcast channels (say/socials) would need a per-listener filter
+      loop at every room-echo call site, a much bigger change for less
+      value than blocking the channels people actually get unwanted
+      DMs through. `ignore [<name>]` (bare lists, up to 30 entries)/
+      `unignore <name>` (cmd_ignore.c). A blocked sender's `tell`/
+      `whisper` still reports success on their own screen -- matches the
+      original's own documented "fails silently" behavior exactly, not a
+      Tobin invention. `cmd_table.c` entries verified with
+      `tests/tools/cmd_abbrev_check.py` (zero collisions). New
+      `tests/smoke_test_ignore.py` (13 checks).
+
 ## Buildable now (no blocked dependencies)
 
 Self-contained — no need for the object/mob systems. Keep working through

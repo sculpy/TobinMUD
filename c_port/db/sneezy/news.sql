@@ -218,3 +218,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'To the Victor Go the Spoils',
  'PvP now has real stakes: if you and another consenting player (`toggle pk`) fight it out and you win, their gold is now yours. Splitting the take across a group is still on the way -- for now the whole purse goes to whoever lands the winning blow.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Peace and Quiet, On Demand',
+ 'Tired of someone spamming your tells? `ignore <name>` blocks their tells and whispers from ever reaching you -- they will not even know it happened. `unignore <name>` lets them back in whenever you are ready.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

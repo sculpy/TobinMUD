@@ -9,6 +9,7 @@
 #include <strings.h>
 
 #include "being.h"
+#include "ignore_repo.h"
 #include "room.h"
 #include "thing.h"
 
@@ -59,7 +60,11 @@ bool cmd_whisper(descriptor_t *d, const char *args) {
     snprintf(out, sizeof(out), "<p>You whisper to %s, \"<z>%s<p>\"<z>\r\n",
              target->base.name, msg_text);
     descriptor_send(d, out);
-    if (target->desc) {
+    /* Ignore lists (Sneezy → Tobin feature audit): fails SILENTLY -- ch
+     * already saw "You whisper to ..." above. Bystanders still see the
+     * "whispers something to" line below either way (they're not the
+     * one being blocked). */
+    if (target->desc && !ignore_repo_is_ignored(target->player_id, ch->base.name)) {
         snprintf(out, sizeof(out), "<p>%s whispers to you, \"<z>%s<p>\"<z>\r\n",
                  ch->base.name, msg_text);
         descriptor_notify(target->desc, out);
