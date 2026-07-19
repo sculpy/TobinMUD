@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "news_repo.h"
+#include "player_repo.h"
 
 /* `news [lines-per-page]`: available to everyone -- shows the whole news feed,
  * newest first, a page at a time (the descriptor's pager). An optional number
@@ -32,6 +33,13 @@ bool cmd_news(descriptor_t *d, const char *args) {
      * keeps growing every session forever, so the old 15000/16000 was
      * silently truncating mid-entry -- the pager already chunks display
      * separately, so there's no reason to keep this tight). */
+    /* Reading the feed catches this player up -- clears the login "there's
+     * new news" notice (descriptor.c) until something newer is posted. The
+     * id itself is never shown to the player (house rule: no numbers in
+     * news text), only used internally as a bookmark. */
+    if (d->character)
+        player_set_news_last_seen(d->character->player_id, news_repo_max_id(false));
+
     char body[100000];
     if (!news_repo_recent(false, body, sizeof(body), 40)) {
         descriptor_send(d, "There is no news yet.\r\n");

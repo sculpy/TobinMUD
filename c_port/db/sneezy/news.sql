@@ -198,3 +198,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Spell Components Go Further, Holy Symbols Wear Down',
  'A spell component is no longer gone the instant you use it -- each one has real charges and lasts through a good handful of castings before it is spent. A holy symbol works differently: it genuinely wears down a little with every prayer, and eventually shatters, so keep a spare in your pack.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Never Miss an Announcement Again',
+ 'If something has been posted to the news since you last checked, you will now see a quick reminder the moment you log in. Read it whenever suits you -- the reminder clears itself once you do.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

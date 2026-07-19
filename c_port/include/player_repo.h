@@ -101,6 +101,13 @@ long player_account_id_for_name(const char *name);
 /* Persists the prompt customization bitmask (cmd_prompt.c). */
 bool player_set_prompt_flags(long player_id, int flags);
 
+/* The highest news.id this player has already caught up on (0 if never
+ * checked) -- backs the unseen-news notice shown at login (descriptor.c)
+ * and gets bumped to news_repo_max_id() whenever they actually read `news`
+ * (cmd_news.c). */
+long player_get_news_last_seen(long player_id);
+bool player_set_news_last_seen(long player_id, long news_id);
+
 /* Persists the player-flags bitmask (player.pflags, PLR_*). */
 bool player_set_pflags(long player_id, int flags);
 

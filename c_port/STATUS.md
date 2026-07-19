@@ -1,6 +1,62 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-17 — Session 47 (home): **Practice-system follow-up
+Last updated: 2026-07-19 — Session 48 (home): **Total VM loss and rebuild,
+News follow-ups, three stray-\r\n formatting fixes.** The old VM
+(192.168.254.200) was lost entirely — no DB backup existed, so all live
+player data is gone. Rebuilt from scratch on a fresh Fedora Linux 44 Server
+VM at the same IP: SSH key auth, a GitHub deploy key (turned up the repo had
+been silently un-pushed 93 commits behind `origin/main` this whole time —
+not data loss, just a broken `git push` step nobody had caught), packages,
+upstream + Tobin DB seed, zero-warning build, fresh `TOBIN_DB_PASS`/
+`TOBIN_WIPE_PASSWORD` in `.env.local`, firewalld ports opened, `watchdog.sh`
+back in cron. First player (`Jesus`) promoted to level 60 via direct SQL
+(no self-service bootstrap path exists for the very first immortal). Then,
+while a full `sweep.sh` regression run went in the background (which itself
+caught a real bug: setting a real DB password for `mud` broke every smoke
+test's bare `mariadb sneezy` calls, fixed with `~/.my.cnf`) — shipped "News
+follow-ups" (edit/delete existing news+wiznews in-game, unseen-news login
+notice) and three stray-`\r\n` formatting fixes in `look`/the game prompt
+the user found by hand. Both deployed to a separate preview instance (port
+4003) alongside the untouched production instance (port 4000) specifically
+so the still-running sweep wouldn't be disrupted; production itself gets
+rebuilt+restarted only once the sweep finishes clean.
+
+- **News follow-ups** (user 2026-07-17 batch: "edit/delete existing news
+  in-game (addnews only creates); show unseen news at login (per-player
+  last-seen)") — see TODO.md/wiznews.sql for the full writeup. Short
+  version: `news_repo_add` became `news_repo_upsert` (INSERT ... ON
+  DUPLICATE KEY UPDATE instead of a straight INSERT that failed on the
+  duplicate title), `edit news`/`edit wiznews` preload an existing
+  headline's body the same way `edit help` already does, both gained a
+  `delete <headline>` sub-form, and a new `player.news_last_seen_id`
+  column drives a login notice. New `tests/smoke_test_news_followups.py`
+  — its own first draft had a real bug worth remembering: a pager-drain
+  `while "ENTER for more" in full:` loop with no iteration guard, which
+  hung for 30+ minutes against a real feed with many real items before
+  being caught (diagnosed via `/proc/<pid>/wchan` showing
+  `poll_schedule_timeout` plus zero bytes pending on both ends of the TCP
+  connection — nothing server-side was wrong, the test client was just
+  spinning). Fixed by copying `smoke_test_news.py`'s existing `guard < 60`
+  convention, which that file already used for the exact same pattern.
+- **Three stray `\r\n` fixes** (user, found by hand while testing the
+  rebuilt box): (1) `look`'s room description had a spurious blank line
+  before Exits — root cause was DATA, not the format string: ~95% of
+  seeded `room.description` rows carry their own trailing `\n` (confirmed
+  via `HEX(RIGHT(description,4))` on a real row), stacking with
+  cmd_look.c's own appended `\r\n`. Fixed by trimming a COPY of the
+  description before rendering, not the stored row (redit/stat/etc. still
+  see the raw text). (2) cmd_look.c inserted an extra blank line between
+  the Exits line and the room-contents listing — deleted outright. (3)
+  game_loop.c's per-turn prompt sent `"\r\n\r\n"` before `"HP: ... > "` in
+  both branches (flags-on and flags-off) — double what the adjacent
+  comment says was ever intended ("insert A \r\n before each new
+  prompt"); both now send a single `\r\n`. Verified against the existing
+  `smoke_test_exits_display`/`_look_capitalization`/`_look_equipment`/
+  `_look_fixture_order`/`_room_stacking`/`_parser_display` tests (all
+  still pass) rather than a new dedicated test, since this is pure
+  whitespace with no new behavior to assert.
+
+### Session 47 (home): **Practice-system follow-up
 polish, real per-skill proficiency (Sneezy-style learn-by-doing), and `set`
 command growth.** Direct continuation of Session 46's practice redesign,
 worked live against the running server with the user testing each fix

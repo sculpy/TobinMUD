@@ -247,3 +247,11 @@ ON DUPLICATE KEY UPDATE `shop_nr` = `shop_nr`;
 -- respected the normal way from here on, same as everywhere else.
 UPDATE `obj` SET val0=10, val1=10 WHERE `name` LIKE '%component%';
 UPDATE `obj` SET val0=10, val1=10 WHERE `name` LIKE '%symbol%';
+
+-- Unseen-news bookmark ("News follow-ups", user 2026-07-17 batch): highest
+-- news.id this player has already caught up on. Bumped to news_repo_max_id()
+-- when they run `news`; compared against it at login to show a one-line
+-- "there's new news" notice (no count/id ever shown -- house rule, see
+-- news.sql). int, not bigint: matches news.id's own column type.
+ALTER TABLE `player`
+  ADD COLUMN IF NOT EXISTS `news_last_seen_id` int(11) NOT NULL DEFAULT 0;

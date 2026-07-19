@@ -14,9 +14,26 @@
  * Returns false if there are no items. */
 bool news_repo_recent(bool wiz, char *out, size_t size, int limit);
 
-/* Inserts an item into the news (`wiz` false) or wiznews (`wiz` true) channel.
- * `title` is UNIQUE per channel -- returns false on a duplicate headline (or
- * DB error). Backs the in-game `ednews` / `edwiznews` commands. */
-bool news_repo_add(bool wiz, const char *author, const char *title, const char *body);
+/* Inserts an item into the news (`wiz` false) or wiznews (`wiz` true) channel,
+ * or -- since `title` is UNIQUE per channel -- overwrites the body/author of
+ * an existing item with that exact title in place (an in-game re-edit, NOT
+ * the same no-op upsert news.sql/wiznews.sql use for idempotent reseeding).
+ * Backs the in-game `edit news` / `edit wiznews` commands. Returns false only
+ * on a DB error. */
+bool news_repo_upsert(bool wiz, const char *author, const char *title, const char *body);
+
+/* Loads the body of an existing item by exact title match, for preloading
+ * into the editor when re-editing (mirrors help_topic_load_exact). Returns
+ * false if no such title exists in that channel. */
+bool news_repo_load(bool wiz, const char *title, char *out_body, size_t size);
+
+/* Deletes an item by exact title match. Returns false if no such title
+ * exists (or on DB error). */
+bool news_repo_delete(bool wiz, const char *title);
+
+/* Highest `id` currently in the channel (0 if it's empty). Used to mark a
+ * player as caught-up (player_repo.h's news_last_seen_id) without ever
+ * showing them a raw id or count (house rule: no numbers in news text). */
+long news_repo_max_id(bool wiz);
 
 #endif

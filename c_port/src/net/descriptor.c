@@ -1011,6 +1011,16 @@ static void enter_world(descriptor_t *d, being_t *b) {
         snprintf(welcome, sizeof(welcome), "Welcome, %s!\r\n", b->base.name);
     descriptor_send(d, welcome);
 
+    /* Unseen-news notice ("News follow-ups", user 2026-07-17 batch: "show
+     * unseen news at login (per-player last-seen)"). Never shows a count or
+     * id (house rule: no numbers in news text, news.sql) -- just whether
+     * anything posted since this player last ran `news`. Cleared by
+     * cmd_news.c the next time they actually read the feed, not here, so a
+     * login that doesn't check `news` gets reminded again next time. */
+    long newest_news_id = news_repo_max_id(false);
+    if (newest_news_id > 0 && player_get_news_last_seen(b->player_id) < newest_news_id)
+        descriptor_send(d, "<y>There is new news! Type 'news' to catch up.<z>\r\n");
+
     /* Connect is a typed player-io event, symmetric to the link-loss line
      * in descriptor_destroy(): logged to the file and echoed to online
      * immortals with a colored [PIO] tag, carrying the IP. */
@@ -3275,12 +3285,11 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     const char *who = d->character ? d->character->base.name : "";
                     if (d->edit_kind == EDIT_NEWS || d->edit_kind == EDIT_WIZNEWS) {
                         bool wiz = (d->edit_kind == EDIT_WIZNEWS);
-                        if (news_repo_add(wiz, who, d->news_title, d->edit_buf))
+                        if (news_repo_upsert(wiz, who, d->news_title, d->edit_buf))
                             descriptor_send(d, wiz ? "Immortal news posted.\r\n"
                                                    : "News posted.\r\n");
                         else
-                            descriptor_send(d,
-                                "Posting failed (that headline may already exist).\r\n");
+                            descriptor_send(d, "Posting failed.\r\n");
                     } else if (d->edit_kind == EDIT_RULES) {
                         if (rules_repo_upsert(d->rule_num, d->news_title, d->edit_buf, who)) {
                             char msg[64];

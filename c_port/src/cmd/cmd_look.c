@@ -308,6 +308,18 @@ bool cmd_look(descriptor_t *d, const char *args) {
     char dim = sector_color(r->sector);
     char bright = (char)toupper((unsigned char)dim);
 
+    /* Most seeded room descriptions carry their own trailing "\n" (upstream
+     * SneezyMUD convention -- ~95% of rows do), which stacked with the \r\n
+     * this function already appends produced a blank line between the
+     * description and Exits that shouldn't be there (user: "one too many
+     * \r\n" there). Trimmed on a copy, not r->description itself -- other
+     * consumers (redit's preload, etc.) still see the raw stored text. */
+    char desc[ROOM_DESCRIPTION_MAX];
+    snprintf(desc, sizeof(desc), "%s", r->description);
+    size_t dlen = strlen(desc);
+    while (dlen > 0 && (desc[dlen - 1] == '\n' || desc[dlen - 1] == '\r'))
+        desc[--dlen] = '\0';
+
     char out[ROOM_DESCRIPTION_MAX + 512];
     int n;
     /* Immortals get the builder's header -- vnum, sector, flags around the
@@ -318,10 +330,10 @@ bool cmd_look(descriptor_t *d, const char *args) {
         n = snprintf(out, sizeof(out), "\r\n[%d] <%c>%s<z> <c>[ %s ]<z> <p>%s<z>\r\n<%c>%s<z>\r\n",
                      r->vnum, bright, r->base.name, sector_name(r->sector),
                      room_flag_names(r->room_flag, flagbuf, sizeof(flagbuf)),
-                     dim, r->description);
+                     dim, desc);
     } else {
         n = snprintf(out, sizeof(out), "\r\n<%c>%s<z>\r\n<%c>%s<z>\r\n",
-                     bright, r->base.name, dim, r->description);
+                     bright, r->base.name, dim, desc);
     }
     if (n < 0)
         n = 0;
@@ -364,7 +376,6 @@ bool cmd_look(descriptor_t *d, const char *args) {
      * each pass, identical entries are stacked into one line with a
      * "(xN)" suffix (user 2026-07-11: "object stacking and mob stacking.
      * for 2 gremlins you would see A gremlin is standing here. (x2)"). */
-    int any = 0;
     for (int pass = 0; pass < 2; pass++) {
         char lines[64][ROOM_ITEM_LINE_LEN];
         int counts[64];
@@ -372,10 +383,6 @@ bool cmd_look(descriptor_t *d, const char *args) {
         for (int i = 0; i < groups; i++) {
             if ((size_t)n >= sizeof(out))
                 break;
-            if (!any) {
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "\r\n");
-                any = 1;
-            }
             if (counts[i] > 1)
                 n += snprintf(out + n, sizeof(out) - (size_t)n, "%s (x%d)\r\n", lines[i], counts[i]);
             else

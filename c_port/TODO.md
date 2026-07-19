@@ -2160,8 +2160,21 @@ already tracked — pointers, not duplicates):
       message to, so its own tick/expiry is echoed to the room in third
       person instead ("The rat's Cold flares up."/"...wears off."). Not
       DB-persisted (like all affects) -- lost on reconnect.
-- [ ] **News follow-ups** — edit/delete existing news in-game (addnews only
-      creates); show unseen news at login (per-player last-seen).
+- [x] **News follow-ups** — done: edit/delete existing news in-game (addnews
+      only creates); show unseen news at login (per-player last-seen).
+      `edit news <existing headline>` now preloads the current body
+      ("existing text below", same convention as `edit help`) and
+      overwrites it in place on save (`news_repo_upsert`, was a straight
+      INSERT that failed on the duplicate title); `edit news delete
+      <headline>` removes an item outright. `edit wiznews` got the
+      identical treatment (same underlying gap, same shared
+      EDIT_NEWS/EDIT_WIZNEWS save path in descriptor.c). New
+      `player.news_last_seen_id` column (tobin_migrations.sql) tracks the
+      highest news.id each player has read; login shows a one-line
+      "There is new news! Type 'news' to catch up." notice (no count/id
+      ever shown -- house rule) when something's posted since they last
+      ran `news`; `news` bumps the bookmark. `tests/smoke_test_news_
+      followups.py`.
 - [ ] **redit Extra Descriptions** — keyword extra descs (`roomextra` table
       exists): list/add/edit/delete + delete-all (Sneezy redit items 6 & 10).
 - [x] **Door mechanics** — done 2026-07-06: `open`/`close <direction>`

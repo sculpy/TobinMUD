@@ -225,11 +225,14 @@ int game_loop_run(int port, const char *copyover_file) {
                  * chosen stats ahead of the "> ", each toggled
                  * independently so any combination renders together
                  * (e.g. "HP: 25 Gold: 40 > "). */
-                /* A blank line separates the previous output from the prompt
-                 * (user request: insert a \r\n before each new prompt). */
+                /* A single \r\n separates the previous output from the prompt
+                 * (user request: insert a \r\n before each new prompt -- was
+                 * doubled to "\r\n\r\n" here, an extra stray blank line the
+                 * user later asked removed "in front and in back" of the
+                 * prompt, i.e. both branches below). */
                 if (p->character && p->character->prompt_flags) {
                     char pbuf[96];
-                    size_t pn = (size_t)snprintf(pbuf, sizeof(pbuf), "\r\n\r\n");
+                    size_t pn = (size_t)snprintf(pbuf, sizeof(pbuf), "\r\n");
                     if (p->character->prompt_flags & PROMPT_FLAG_HP)
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "HP: %d ",
                                                p->character->progress.hp);
@@ -239,7 +242,7 @@ int game_loop_run(int port, const char *copyover_file) {
                     pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "> ");
                     descriptor_write(p, pbuf, pn);
                 } else {
-                    descriptor_write(p, "\r\n\r\n> ", 6);
+                    descriptor_write(p, "\r\n> ", 4);
                 }
                 p->needs_prompt = false;
             }

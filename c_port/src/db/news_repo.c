@@ -5,6 +5,7 @@
 #include "news_repo.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "db.h"
 
@@ -45,21 +46,83 @@ bool news_repo_recent(bool wiz, char *out, size_t size, int limit) {
     return any;
 }
 
-bool news_repo_add(bool wiz, const char *author, const char *title, const char *body) {
+bool news_repo_upsert(bool wiz, const char *author, const char *title, const char *body) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return false;
 
-    /* title is UNIQUE, so a duplicate headline fails cleanly (reported by
-     * the caller). %s params are escaped by db_query. */
+    /* title is UNIQUE, so re-saving under an existing headline edits that
+     * item in place rather than failing -- %s params are escaped by
+     * db_query. created_at deliberately isn't touched, so an edit doesn't
+     * jump the item back to the top of the newest-first feed. */
     const char *a = author ? author : "", *t = title ? title : "",
                *b = body ? body : "";
     bool ok = wiz
         ? db_query(db, "insert into wiznews (author, title, body) "
-                       "values ('%s', '%s', '%s')", a, t, b)
+                       "values ('%s', '%s', '%s') "
+                       "on duplicate key update author=values(author), body=values(body)",
+                       a, t, b)
         : db_query(db, "insert into news (author, title, body) "
-                       "values ('%s', '%s', '%s')", a, t, b);
+                       "values ('%s', '%s', '%s') "
+                       "on duplicate key update author=values(author), body=values(body)",
+                       a, t, b);
 
     db_close(db);
     return ok;
+}
+
+bool news_repo_load(bool wiz, const char *title, char *out_body, size_t size) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    out_body[0] = '\0';
+    bool found = false;
+    bool got = wiz
+        ? db_query(db, "select body from wiznews where title='%s'", title ? title : "")
+        : db_query(db, "select body from news where title='%s'", title ? title : "");
+    if (got && db_fetch_row(db)) {
+        const char *body = db_get(db, "body");
+        snprintf(out_body, size, "%s", body ? body : "");
+        found = true;
+    }
+
+    db_close(db);
+    return found;
+}
+
+bool news_repo_delete(bool wiz, const char *title) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    const char *t = title ? title : "";
+    bool found = wiz
+        ? (db_query(db, "select 1 from wiznews where title='%s'", t) && db_fetch_row(db))
+        : (db_query(db, "select 1 from news where title='%s'", t) && db_fetch_row(db));
+    bool ok = found && (wiz
+        ? db_query(db, "delete from wiznews where title='%s'", t)
+        : db_query(db, "delete from news where title='%s'", t));
+
+    db_close(db);
+    return ok;
+}
+
+long news_repo_max_id(bool wiz) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return 0;
+
+    long max_id = 0;
+    bool got = wiz
+        ? db_query(db, "select max(id) as m from wiznews")
+        : db_query(db, "select max(id) as m from news");
+    if (got && db_fetch_row(db)) {
+        const char *m = db_get(db, "m");
+        if (m)
+            max_id = atol(m);
+    }
+
+    db_close(db);
+    return max_id;
 }

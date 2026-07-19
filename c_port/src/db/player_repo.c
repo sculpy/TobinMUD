@@ -582,6 +582,33 @@ bool player_set_prompt_flags(long player_id, int flags) {
     return ok;
 }
 
+long player_get_news_last_seen(long player_id) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return 0;
+
+    long last_seen = 0;
+    if (db_query(db, "select news_last_seen_id from player where id=%i", (int)player_id)
+        && db_fetch_row(db)) {
+        const char *v = db_get(db, "news_last_seen_id");
+        if (v)
+            last_seen = atol(v);
+    }
+
+    db_close(db);
+    return last_seen;
+}
+
+bool player_set_news_last_seen(long player_id, long news_id) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "update player set news_last_seen_id=%i where id=%i",
+                       (int)news_id, (int)player_id);
+    db_close(db);
+    return ok;
+}
+
 bool player_set_pflags(long player_id, int flags) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
