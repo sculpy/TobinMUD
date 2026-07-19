@@ -2458,18 +2458,17 @@ already tracked — pointers, not duplicates):
       with no live `desc`, same "not a real target" treatment as combat.
       Extended `tests/smoke_test_scan.py` with a 6th check (abrupt
       disconnect -> still-present-but-unscannable).
-- [ ] **Make `smoke_test_limbs.py`/`smoke_test_limbs_cmd.py`
-      deterministic** — found while chasing an unexpected sweep failure
-      (Session 43 continued): both rely on real combat RNG to eventually
-      cross a limb status tier within a fixed number of rounds, but with
-      `LIMB_MIN_MAX_HP` (15) and damage landing on a random one of 13
-      limbs each hit, reliably crossing a tier in the test's round
-      budget is statistically marginal -- confirmed via `hurtlimb` that
-      the underlying mechanism itself is fine, this is a test-design
-      gap. `hurtlimb <target> <limb> <hp>` (cmd_hurtlimb.c, added
-      Session 42 for exactly this) already lets a test set a limb's HP
-      directly instead of waiting on the dice -- migrate both tests to
-      use it instead of a real fight.
+- [x] **Make `smoke_test_limbs.py`/`smoke_test_limbs_cmd.py`
+      deterministic** — already done in an earlier session (both fully
+      migrated to `hurtlimb <target> <limb> <hp>` for every injury-tier
+      assertion; `smoke_test_limbs.py`'s Part 2 still uses real combat,
+      but only to check that a landed hit names a limb at all, which the
+      file's own header comment explains is reliable within a few rounds
+      and was never the flaky part) -- just never checked off. Confirmed
+      2026-07-19 by running both live. Found and fixed one real, unrelated
+      staleness while doing so: `smoke_test_limbs.py`'s Part 2 PvP setup
+      predated the PK opt-in feature, same `toggle pk` fix already applied
+      to `smoke_test_combat.py`.
 - [x] **Get/drop item logging for dispute research** — done (Session 43
       continued, user: "anytime a char gets an item or drops an item i
       want those logged into the game log so we can research disputes

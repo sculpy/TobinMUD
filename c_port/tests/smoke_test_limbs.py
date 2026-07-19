@@ -162,6 +162,13 @@ check(not any(phrase in out for phrase in INJURY_PHRASES),
 # --- Part 2: combat messages name a limb (real combat -- reliable within a
 # few rounds, doesn't depend on crossing an injury tier) ---
 sB, nameB = make_player("B")
+# PK opt-in (a later feature than this file's original PvP scenario, user:
+# "BOTH players must have opted in for attack/kill between players") --
+# without this, `attack` treats an unopted-in player as "not a valid
+# target, same as if they weren't in the room" (cmd_attack.c).
+cmd(sA, "toggle pk")
+cmd(sB, "toggle pk")
+
 send_line(sA, f"attack {nameB}")
 out = recv_all(sA, timeout=1.0)
 check("You attack" in out, "attack initiated")
