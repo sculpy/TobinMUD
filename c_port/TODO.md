@@ -72,6 +72,30 @@ already tracked — pointers, not duplicates):
       `smoke_test_zones.py`'s one failure (room 200 expected "Farm
       House", is actually "Inside the City Gates") is confirmed
       pre-existing/stale, unrelated to this change.
+- [x] **Zone reset: world-wide `max_exist` gate (urgent follow-up to the
+      `A` opcode fix above)** — done. User: "i used scan and got 50-60
+      mobs listed." Real regression the `A` fix exposed, same day: a
+      ZONE_ROOM_RANDOM (-99) mob lands in a DIFFERENT room on every
+      reset, so `zone_cmd_load_mob()`'s existing per-room cap
+      (`zone_count_in_room()` -- "is this ROOM already full of this
+      vnum") was trivially satisfied every single time, since the mob
+      is (almost) never in the same room twice. Confirmed live in the
+      log: zone 100's periodic reset alone added ~190 fresh mob
+      instances on top of whatever already existed, on EVERY firing --
+      unbounded growth, not a one-time bump. The original engine gates
+      this with a world-wide `mob_index[vnum].getNumber() >=
+      max_exist` check (`sys/db.cc`); ported as `zone_world_count()` +
+      a check in `zone_cmd_load_mob()`/`zone_cmd_load_obj_ground()`
+      before creating anything (not after, unlike `load`'s existing
+      warn-only version, cmd_load.c -- a zone reset REFUSES over cap,
+      it doesn't just nag). Verified live: forced zone 100 to reset 3
+      times in a row after the fix landed, then did a full room-by-room
+      scan of its own 101-244 random range -- mob 149 (max_exist=8)
+      sat at exactly 8 live instances, not climbing. A production
+      restart was needed alongside the code fix, not instead of it --
+      nothing persists live mob/object state, so a fresh boot is what
+      actually clears the bloat the running process had already
+      accumulated; the code fix is what stops it from recurring.
 - [x] **Trigger `wait`/`say` actions** — done. User (2026-07-19, pasted a
       Monty-Python-esque market-vendor script -- "wait 1 / say Larks'
       tongues. / wait 1 / say Wrens' livers. / ..."): "i want to put this

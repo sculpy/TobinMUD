@@ -10,7 +10,9 @@
 
 #include "being.h"
 #include "log.h"
+#include "mob_repo.h"
 #include "obj.h"
+#include "obj_repo.h"
 #include "room.h"
 #include "room_repo.h"
 #include "thing.h"
@@ -60,11 +62,49 @@ static room_t *zone_get_room(int vnum) {
     return r;
 }
 
+/* World-wide instance count for a mob/obj vnum -- backs the max_exist gate
+ * below. Same "counting visitor" idiom cmd_load.c's own (separate, static)
+ * copy already uses for its post-load warning; duplicated here rather than
+ * shared, matching this codebase's per-file small-helper convention.
+ *
+ * Needed as of 2026-07-19 (the 'A' random-room opcode fix above): before
+ * that, EVERY M/O row using ZONE_ROOM_RANDOM (-99) always failed outright,
+ * so zone_count_in_room()'s per-room-only cap was never actually tested
+ * against a mob that could land in a DIFFERENT room on every reset. Once
+ * -99 started resolving to a real (freshly re-rolled) room each pass, the
+ * per-room cap stopped meaning anything for these rows -- confirmed live:
+ * zone 100's own periodic reset added ~190 fresh mob instances on top of
+ * whatever was already there, EVERY single time it fired, since a per-room
+ * cap of "1 of this vnum in THIS room" is trivially satisfied by a mob
+ * that's never in the same room twice. The original engine gates this with
+ * a world-wide `mob_index[vnum].getNumber() >= max_exist` check
+ * (sys/db.cc); this is that check, ported. */
+static int g_zone_count_target_vnum;
+static int g_zone_count_result;
+
+static void zone_count_mob_visit(being_t *m) {
+    if (m->base.id == g_zone_count_target_vnum)
+        g_zone_count_result++;
+}
+
+static void zone_count_obj_visit(obj_t *o) {
+    if (o->vnum == g_zone_count_target_vnum)
+        g_zone_count_result++;
+}
+
+static int zone_world_count(int vnum, bool is_mob) {
+    g_zone_count_target_vnum = vnum;
+    g_zone_count_result = 0;
+    if (is_mob)
+        world_for_each_mob(zone_count_mob_visit);
+    else
+        world_for_each_obj(zone_count_obj_visit);
+    return g_zone_count_result;
+}
+
 /* Counts how many THING_MOB/THING_OBJ children of `room` already have
- * vnum `vnum` -- backs M/O's per-room load cap (arg2). Deliberately does
- * NOT track a world-wide max_exist cap like the original (that needs a
- * live count of every instance anywhere in the world) -- a documented
- * simplification, see zone.h. */
+ * vnum `vnum` -- backs M/O's per-room load cap (arg2). See
+ * zone_world_count() above for the separate world-wide max_exist gate. */
 static int zone_count_in_room(const room_t *room, thing_kind_t kind, int vnum) {
     int n = 0;
     for (thing_t *t = room->base.stuff_head; t; t = t->stuff_next) {
@@ -119,6 +159,11 @@ static bool zone_cmd_load_mob(const zone_reset_cmd_t *cmd, int random_room, bein
     if (zone_count_in_room(room, THING_MOB, cmd->arg1) >= cmd->arg2)
         return false;
 
+    mob_proto_t proto;
+    if (mob_proto_load(cmd->arg1, &proto) && proto.max_exist > 0
+        && zone_world_count(cmd->arg1, true) >= proto.max_exist)
+        return false;
+
     being_t *mob = being_create_mob(cmd->arg1);
     if (!mob)
         return false;
@@ -145,6 +190,11 @@ static bool zone_cmd_load_obj_ground(const zone_reset_cmd_t *cmd, bool boot_time
         return false;
 
     if (zone_count_in_room(room, THING_OBJ, cmd->arg1) >= cmd->arg2)
+        return false;
+
+    obj_proto_t oproto;
+    if (obj_proto_load(cmd->arg1, &oproto) && oproto.max_exist > 0
+        && zone_world_count(cmd->arg1, false) >= oproto.max_exist)
         return false;
 
     obj_t *o = obj_create_from_proto(cmd->arg1);
