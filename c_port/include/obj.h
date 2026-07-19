@@ -111,6 +111,18 @@ typedef struct obj {
      *             "board bulletin wizard immortal". Every OTHER WRITTEN
      *             sub-type (book/note/audio/card deck) leaves val[]
      *             unused, same as any other unlisted category below.
+     *   Spell components / holy symbols (identified by keyword "component"
+     *             /"symbol", not a dedicated category -- both collapse
+     *             into OTHER): val[0]=current charges/strength
+     *             val[1]=max charges/strength, same MAGIC_DEVICE spirit
+     *             as above. A component spends exactly 1 charge per cast
+     *             attempt (cmd_cast.c's consume_component()); a symbol
+     *             loses a random 1-2 strength per prayer attempt
+     *             (cmd_pray.c/cmd_continue.c's consume_symbol()) --
+     *             genuine decay, not a clean counter, matching the
+     *             original's TSymbol. Either is destroyed once it hits 0.
+     *             tobin_migrations.sql seeds every existing component/
+     *             symbol row to 10/10.
      * Categories not listed leave val[] unused/decorative for now. */
     int val[4];
     double weight;

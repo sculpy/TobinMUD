@@ -188,3 +188,13 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Help Now Covers Every Skill and Spell',
  'Type help followed by any skill or spell name and you will get a real writeup instead of nothing at all -- what it does, which classes have it, and what you need on hand to use it. And engage now works as another word for hit.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Smoother Path to Every Skill',
+ 'The levels at which skills and spells unlock have been rebalanced across the board. Basic and Combat training now both wrap up well before the halfway mark of a mortal lifetime, and everything in the Advanced tier is reachable somewhere in the second half. Nothing was hidden behind an unreachable level anymore.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Spell Components Go Further, Holy Symbols Wear Down',
+ 'A spell component is no longer gone the instant you use it -- each one has real charges and lasts through a good handful of castings before it is spent. A holy symbol works differently: it genuinely wears down a little with every prayer, and eventually shatters, so keep a spare in your pack.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

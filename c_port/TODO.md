@@ -391,6 +391,99 @@ already tracked — pointers, not duplicates):
       the pinned movement head, east). `help engage`/`help hit` each
       point at the other as an alias. Covered by
       `tests/smoke_test_help_topics.py`.
+- [x] **Skill/spell level curve rescaled to 1-25-50** — done 2026-07-18.
+      User, reacting to a help topic showing "Mage (Class, level 68)":
+      "im not sure what that means. they should have all skills/spells
+      by level 50 splitting the discs in a scaled manner. by the time
+      they complete basic and gained 100% proficiency they should be
+      level 25, same for combat disc, advanced should go from 25 to 50."
+      A real, previously-unnoticed problem: `IMMORTAL_LEVEL_MIN` is 51,
+      so ANY `min_level` above 50 in `skill.c`'s roster (dozens did --
+      up to 99) was permanently unreachable by a mortal, immortal-bypass
+      only. Rescaled every entry's `min_level` with a one-shot Python
+      script (parsed skill.c's `SKILLS[]` directly, same script family
+      as the help-topic generator): grouped by (class, tier), computed
+      each group's own current min/max, linearly remapped into the
+      target envelope per tier (`SKILL_TIER_COMBAT`/`SKILL_TIER_CLASS`
+      -> [1,25], `SKILL_TIER_ADVANCED` -> [25,50]) independently per
+      class (so a narrow-spread class doesn't get artificially
+      stretched by a wide one), rounding to the nearest integer and
+      preserving relative order/ties. 233 of 305 entries changed value;
+      re-verified per-group min/max landed exactly on the target
+      envelope for every one of the 18 (class, tier) groups.
+      `skill_help.sql` (271 generated help topics, see the entry above)
+      necessarily regenerated afterward to match -- caught and fixed a
+      latent bug in that file's own apply pattern while doing so: its
+      `ON DUPLICATE KEY UPDATE name=name` is a deliberate no-op (by
+      design, to protect in-game `hedit` edits from a reseed), which
+      meant simply re-running the file after regenerating its content
+      silently did NOTHING to already-existing rows -- fixed for this
+      one-time need with an explicit `DELETE ... WHERE updated_by='seed'
+      AND name IN (...)` before re-applying (help_topic.sql's normal
+      convention is per-topic `UPDATE ... WHERE name=X` instead, which
+      doesn't have this problem; skill_help.sql's machine-generated bulk
+      nature made that impractical here). Fixed two pre-existing, unrelated
+      test assumptions this rescale exposed rather than caused: (1)
+      `smoke_test_immortal_castpray.py`'s single un-paged `skills` read
+      never actually covered Mage's now-105-entry roster (the real pager
+      caps at 20 lines; this test happened to work before only because
+      nothing had pushed Mage's listing past that boundary yet) -- fixed
+      by paging through with blank-line continuations; (2)
+      `smoke_test_affects.py`'s Cleric fixture set
+      `basic_disc_pct`/`advanced_disc_pct` but never `combat_disc_pct`,
+      which `sanctuary`'s Advanced-tier gate has required all along
+      (live-confirmed via direct DB query, unrelated to today's level
+      change) -- fixed by setting all three, plus bumped its `set_hp` up
+      (2000 -> 8000) after live-observing an occasional death by limb
+      severance during its long combat-sampling window (Tobin's death
+      check is per-limb, not the aggregate HP pool, so a big total-HP
+      cushion is a probabilistic safety margin, not a guarantee).
+- [x] **Spell components have real charges; holy symbols genuinely
+      decay** — done 2026-07-18. User: "how long does each component
+      last? should be getting 10 casts out of each component and the
+      symbols should decay as in sneezy." Previously every component/
+      symbol was single-use regardless (destroyed on every `cast`/`pray`
+      attempt, success or fail). Researched the original source directly
+      (misc/obj_component.h/.cc, misc/discipline.cc's
+      `requireHolySym()`) rather than guessing: SneezyMUD's `TComponent`
+      genuinely has a `charges` counter ("use up one charge... else
+      discard it as worthless"), and `TSymbol` genuinely has a
+      `strength`/`max_strength` pool that decays a variable amount per
+      prayer (scaled by the caster's effective spell level SQUARED in
+      the original, further multiplied if badly overpowering the
+      symbol's own rated level) and can outright shatter mid-prayer if
+      overstressed.
+      Ported the real SHAPE of both mechanics, not the exact formulas
+      (Tobin has no per-symbol "level" rating to make the original's
+      overpower multiplier meaningful, and inheriting its raw numbers
+      wholesale would flatly contradict "10 casts" above -- see below):
+      `obj.h`'s val[]/val[1] (previously unused/decorative for these two
+      keyword-identified item types) now hold current/max charges
+      (component) or current/max strength (symbol). A component spends
+      exactly 1 charge per `cast` ATTEMPT, destroyed only once the last
+      charge is spent (`cmd_cast.c`'s new `consume_component()`); a
+      symbol loses a random 1-2 strength per `pray`/`continue` attempt,
+      shattering only once strength runs out (`cmd_pray.c`/
+      `cmd_continue.c`'s new, duplicated `consume_symbol()` -- same
+      "small helper duplicated per command file" convention this
+      codebase already uses throughout). `tobin_migrations.sql` seeds
+      every real component/symbol row to 10/10 -- UNCONDITIONALLY, not
+      guarded on val0=0/val1=0 like a normal idempotent migration,
+      because many holy symbol rows turned out to already carry huge
+      leftover val0/val1 from the upstream import (up to 1.8 MILLION,
+      val2 uniformly -1, val3 uniformly 0 -- plausibly the real
+      upstream TSymbol strength values under the level-squared formula,
+      but meaningless at Tobin's much smaller scale and directly
+      contradicting the user's explicit "10 casts" spec, so reset
+      rather than inherited). New `tests/smoke_test_component_charges.py`
+      confirms live: a component survives EXACTLY 10 casts then reports
+      "is used up" and is gone; an 11th attempt correctly finds nothing;
+      a symbol survives more than one prayer (unlike the old single-use
+      behavior) and eventually reports "shatters from the stress of the
+      prayer." Regression-verified against `smoke_test_castpray.py`
+      (single-cast consumption still works when val0/val1 default to 0,
+      via a "treat an uncharged/legacy item as 1 fallback charge"
+      clause in both new helpers, rather than refusing outright).
 - [x] **Trap mechanics (door traps)** — done (self-assigned backlog
       item, sequenced right after weapon depth per user 2026-07-11:
       "...then weapon depth, trap mechanics"). Wired the Thief's

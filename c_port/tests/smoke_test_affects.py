@@ -207,7 +207,9 @@ check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "the holy symbol is loa
 
 # --- Cleric MORTAL (a real defender now that immortals take zero damage)
 #     -- basic_disc_pct/advanced_disc_pct set directly via SQL to satisfy
-#     sanctuary's Advanced-tier discipline gate without immortal status. ---
+#     sanctuary's Advanced-tier discipline gate without immortal status;
+#     level bumped to 25 too (2026-07-18 level-curve rescale: Advanced-
+#     tier min_level now spans 25-50 per class, not universally 1). ---
 cleric_name = f"Affcle{_suffix}"
 cleric_pw = "affclepw123"
 s_cle = socket.create_connection((host, port), timeout=5)
@@ -225,9 +227,14 @@ send_line(s_cle, "2"); recv_all(s_cle)
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{cleric_name}';")
 cmd(s_cle, "quit!")
 s_cle.close()
-sql(f"UPDATE player_progress SET basic_disc_pct=100, advanced_disc_pct=50 "
+sql(f"UPDATE player_progress SET basic_disc_pct=100, combat_disc_pct=100, advanced_disc_pct=50 "
     f"WHERE player_id=(SELECT id FROM player WHERE name='{cleric_name}');")
-set_hp(cleric_name, 2000)  # survive ~40-60 rounds of mutual combat unscathed
+set_level(cleric_name, 25)
+set_hp(cleric_name, 8000)  # survive a long mutual-combat sampling window even
+                            # if a few unlucky retaliation hits concentrate on
+                            # one limb (Tobin's death check is per-limb, not
+                            # the aggregate pool -- 2000 occasionally wasn't
+                            # enough headroom, live-observed 2026-07-18)
 s_cle = socket.create_connection((host, port), timeout=5)
 recv_all(s_cle)
 send_line(s_cle, cleric_name); recv_all(s_cle)

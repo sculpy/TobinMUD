@@ -25,9 +25,14 @@
  * covers all three uniformly, same as `get`/`wear`) whose keyword list
  * contains the word "component" -- a deliberately generic convention so
  * a builder can create any reagent/component-pouch item ("a pouch of
- * spell components") without a new object category. Consumed (destroyed)
- * on a SUCCESSFUL cast only -- a failed level/class/component check
- * costs nothing.
+ * spell components") without a new object category. A component now has
+ * real CHARGES (user 2026-07-18: "should be getting 10 casts out of each
+ * component"), not single-use -- val[0]/val[1] hold current/max charges
+ * (obj.h's val[] doc, same MAGIC_DEVICE precedent), decremented on every
+ * cast ATTEMPT (success or fail, same timing the original always used --
+ * see the original's TComponent::charges/useComponent(),
+ * misc/obj_component.cc, "use up one charge... else discard it as
+ * worthless"), only actually destroyed once the last charge is spent.
  *
  * v1 scope: no mana cost (Tobin has no mana/resource pool yet -- see
  * TODO.md's spell-framework backlog) and no bespoke per-spell mechanic
@@ -59,6 +64,37 @@ static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
             return (obj_t *)t;
     }
     return NULL;
+}
+
+/* Skips a leading inline color tag ("<o>a torch<1>") before capitalizing
+ * -- same duplication precedent as cmd_light.c/cmd_object.c's own
+ * cap_first(), needed here for a component-consumed message that opens
+ * a sentence with the item's own short_descr. */
+static const char *cap_first(const char *label, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%s", label);
+    size_t i = 0;
+    while (buf[i] == '<' && buf[i + 1] != '\0' && buf[i + 2] == '>')
+        i += 3;
+    if (buf[i])
+        buf[i] = (char)toupper((unsigned char)buf[i]);
+    return buf;
+}
+
+/* Spends one charge from `component` -- destroys it only once that was
+ * the last one. A pre-existing/never-charged item (val[0]==0, e.g.
+ * something loaded before this system existed) is treated as a single
+ * fallback charge so it still works once instead of refusing outright. */
+static void consume_component(descriptor_t *d, obj_t *component) {
+    int charges = component->val[0] > 0 ? component->val[0] : 1;
+    if (charges > 1) {
+        component->val[0] = charges - 1;
+        return;
+    }
+    char capbuf[128], msg[192];
+    const char *label = component->base.short_descr[0] ? component->base.short_descr : component->base.name;
+    snprintf(msg, sizeof(msg), "%s is used up.\r\n", cap_first(label, capbuf, sizeof(capbuf)));
+    descriptor_send(d, msg);
+    obj_destroy(component);
 }
 
 /* Looks up `name` (a prefix is fine, e.g. "cast heal" reaches "heal
@@ -243,6 +279,6 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         snprintf(msg, sizeof(msg), "You fumble the casting of %s -- nothing happens.\r\n", sk->name);
         descriptor_send(d, msg);
     }
-    obj_destroy(component);
+    consume_component(d, component);
     return true;
 }

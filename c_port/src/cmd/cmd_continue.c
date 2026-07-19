@@ -4,7 +4,9 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
+#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "obj.h"
@@ -15,17 +17,23 @@
  * healed or thier holy symbol breaks"). Repeats the caster's most
  * recent successful heal-type `pray` (being_t.last_heal_target/
  * last_heal_spell, set by cmd_pray.c) -- on the SAME target, self or
- * otherwise -- once per holy symbol on hand, all within this single
- * command call ("continue automatically", not requiring the player to
- * re-type it each tick), stopping the moment any of:
+ * otherwise -- once per point of symbol strength on hand (2026-07-18:
+ * symbols now genuinely decay, see cmd_pray.c's consume_symbol(), a
+ * duplicated copy of the same helper -- so ONE symbol can power several
+ * rounds here before it actually shatters, not strictly "one per
+ * symbol" anymore), all within this single command call ("continue
+ * automatically", not requiring the player to re-type it each tick),
+ * stopping the moment any of:
  *
  *   1. the target has left the caster's room,
  *   2. the target is fully healed (hp >= max_hp),
- *   3. the caster is out of holy symbols ("their holy symbol breaks").
+ *   3. the caster is out of symbols entirely (no item left to decay),
+ *   4. the last symbol on hand shatters this round ("their holy symbol
+ *      breaks").
  *
  * CONTINUE_MAX_ROUNDS is a hard safety cap, not a gameplay limit -- in
- * practice a caster only carries a handful of holy symbols, so #3
- * almost always ends the loop first; the cap just prevents a runaway
+ * practice a caster only carries a handful of holy symbols, so #3/#4
+ * almost always end the loop first; the cap just prevents a runaway
  * loop/output flood if someone stockpiles a huge pile of symbols.
  *
  * Deliberately does NOT re-validate class/level/discipline-percentage
@@ -51,6 +59,39 @@ static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
             return (obj_t *)t;
     }
     return NULL;
+}
+
+/* Skips a leading inline color tag before capitalizing -- same
+ * duplication precedent as cmd_pray.c/cmd_cast.c's own cap_first(). */
+static const char *cap_first(const char *label, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%s", label);
+    size_t i = 0;
+    while (buf[i] == '<' && buf[i + 1] != '\0' && buf[i + 2] == '>')
+        i += 3;
+    if (buf[i])
+        buf[i] = (char)toupper((unsigned char)buf[i]);
+    return buf;
+}
+
+/* Spends 1-2 strength from `symbol` (real decay, not a clean counter --
+ * see this file's header comment and cmd_pray.c's matching helper) --
+ * shatters it only once that was the last of it, appending its own
+ * message into the round's accumulated output buffer (this file sends
+ * everything once at the end, not per round) instead of sending
+ * immediately. Returns true if it shattered. */
+static bool consume_symbol(obj_t *symbol, char *out, size_t outsz, size_t *n) {
+    int strength = symbol->val[0] > 0 ? symbol->val[0] : 1;
+    int decay = 1 + rand() % 2;
+    if (strength > decay) {
+        symbol->val[0] = strength - decay;
+        return false;
+    }
+    char capbuf[128];
+    const char *label = symbol->base.short_descr[0] ? symbol->base.short_descr : symbol->base.name;
+    *n += (size_t)snprintf(out + *n, outsz - *n, "%s shatters from the stress of the prayer!\r\n",
+                           cap_first(label, capbuf, sizeof(capbuf)));
+    obj_destroy(symbol);
+    return true;
 }
 
 /* Runs the `continue` command: keeps re-praying the caster's last
@@ -94,14 +135,13 @@ bool cmd_continue(descriptor_t *d, const char *args) {
 
         obj_t *symbol = find_keyword_item(ch, "symbol");
         if (!symbol) {
-            n += (size_t)snprintf(out + n, sizeof(out) - n, "Your holy symbol breaks! You cannot continue.\r\n");
+            n += (size_t)snprintf(out + n, sizeof(out) - n, "You have no holy symbol left. You cannot continue.\r\n");
             ch->last_heal_target = NULL;
             break;
         }
 
         int amount = 8 + ch->progress.level / 2;
         being_heal(target, amount);
-        obj_destroy(symbol);
 
         if (target == ch) {
             n += (size_t)snprintf(out + n, sizeof(out) - n,
@@ -118,6 +158,11 @@ bool cmd_continue(descriptor_t *d, const char *args) {
             }
         }
         rounds++;
+
+        if (consume_symbol(symbol, out, sizeof(out), &n)) {
+            ch->last_heal_target = NULL;
+            break;
+        }
     }
 
     if (rounds >= CONTINUE_MAX_ROUNDS)

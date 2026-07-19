@@ -173,6 +173,14 @@ out = cmd(s_imm, "pray heal light")
 check("You pray for heal light" in out, "immortal Warrior prays the Cleric spell 'heal light' despite being a Warrior")
 
 out = cmd(s_imm, "skills")
+# Immortal `skills` shows all six classes' full rosters -- long enough
+# to hit the real pager (20 lines/page, descriptor.c), so page through
+# ("ENTER for more") until the last class section (Warrior, per
+# CLASS_COUNT's enum order in being.h) has arrived, or a safety cap.
+pages = 0
+while "ENTER" in out and "=== Warrior ===" not in out and pages < 30:
+    out += cmd(s_imm, "", 0.5)
+    pages += 1
 check("=== Mage ===" in out, "immortal 'skills' shows the Mage section")
 check("=== Cleric ===" in out, "immortal 'skills' shows the Cleric section")
 check("=== Warrior ===" in out, "immortal 'skills' shows their own Warrior section too")

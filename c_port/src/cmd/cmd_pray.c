@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,10 +26,18 @@
  * chain (carried, worn, or held) whose keyword list contains the word
  * "symbol" -- a generic convention, same spirit as `cast`'s "component"
  * keyword, so a builder can create any symbol item ("a holy symbol",
- * "a tarnished silver symbol") without a new object category. CONSUMED
- * on every successful pray (user 2026-07-12: "holy symbols should use
- * the same logic as components for mages and druids") -- no longer a
- * permanent keepsake as originally shipped.
+ * "a tarnished silver symbol") without a new object category. A symbol
+ * now genuinely DECAYS (user 2026-07-18: "the symbols should decay as
+ * in sneezy") rather than breaking after one use -- val[0]/val[1] hold
+ * current/max strength (obj.h's val[] doc), losing a small random
+ * amount on every prayer ATTEMPT (success or fail, same timing
+ * components use), only actually shattering once strength runs out.
+ * The original's real mechanic (misc/discipline.cc's requireHolySym())
+ * costs strength equal to the caster's effective spell level SQUARED,
+ * multiplied further if the caster badly overpowers the symbol's own
+ * rated level -- that needs a per-symbol "level" rating this port's
+ * holy symbol items don't carry, so this keeps the real SHAPE (variable
+ * decay, eventual shatter) without that specific formula.
  *
  * Healing prayers ("heal light" etc) may now target someone else in the
  * room ("pray heal light <target>") instead of only the caster -- see
@@ -64,6 +73,40 @@ static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
             return (obj_t *)t;
     }
     return NULL;
+}
+
+/* Skips a leading inline color tag ("<o>a torch<1>") before capitalizing
+ * -- same duplication precedent as cmd_cast.c/cmd_light.c's own
+ * cap_first(), needed here for a symbol-shatter message that opens a
+ * sentence with the item's own short_descr. */
+static const char *cap_first(const char *label, char *buf, size_t bufsz) {
+    snprintf(buf, bufsz, "%s", label);
+    size_t i = 0;
+    while (buf[i] == '<' && buf[i + 1] != '\0' && buf[i + 2] == '>')
+        i += 3;
+    if (buf[i])
+        buf[i] = (char)toupper((unsigned char)buf[i]);
+    return buf;
+}
+
+/* Spends 1-2 strength from `symbol` (real decay, not a clean counter --
+ * see this file's header comment) -- shatters it only once that was the
+ * last of it. A pre-existing/never-charged item (val[0]==0) is treated
+ * as a single fallback point so it still works once instead of refusing
+ * outright. */
+static void consume_symbol(descriptor_t *d, obj_t *symbol) {
+    int strength = symbol->val[0] > 0 ? symbol->val[0] : 1;
+    int decay = 1 + rand() % 2;
+    if (strength > decay) {
+        symbol->val[0] = strength - decay;
+        return;
+    }
+    char capbuf[128], msg[192];
+    const char *label = symbol->base.short_descr[0] ? symbol->base.short_descr : symbol->base.name;
+    snprintf(msg, sizeof(msg), "%s shatters from the stress of the prayer!\r\n",
+             cap_first(label, capbuf, sizeof(capbuf)));
+    descriptor_send(d, msg);
+    obj_destroy(symbol);
 }
 
 /* `any_class` (immortals -- user 2026-07-12: "immortals can use any
@@ -373,6 +416,6 @@ bool cmd_pray(descriptor_t *d, const char *args) {
         snprintf(msg, sizeof(msg), "You fumble the prayer for %s -- nothing happens.\r\n", sk->name);
         descriptor_send(d, msg);
     }
-    obj_destroy(symbol);
+    consume_symbol(d, symbol);
     return true;
 }

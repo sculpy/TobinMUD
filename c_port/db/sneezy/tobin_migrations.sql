@@ -221,3 +221,29 @@ INSERT INTO `shopproducing` (`shop_nr`, `producing`) VALUES
   -- ITEM_RAW_ORGANIC (type 50) animal hides.
   (105, 2400), (105, 2402), (105, 2403), (105, 2405), (105, 2406), (105, 2408), (105, 2420)
 ON DUPLICATE KEY UPDATE `shop_nr` = `shop_nr`;
+
+-- Component charges / symbol strength (user 2026-07-18: "how long does
+-- each component last? should be getting 10 casts out of each component
+-- and the symbols should decay as in sneezy") -- a follow-up to the
+-- "Components + commodities" migration above, which explicitly left the
+-- upstream charges/decay system out of scope. Seeds every already-real
+-- component/symbol row (obj.name LIKE keyword match, same convention
+-- cmd_cast.c/cmd_pray.c's find_keyword_item() already uses) to 10/10 --
+-- see obj.h's val[] doc comment for what val0/val1 mean here and
+-- cmd_cast.c/cmd_pray.c/cmd_continue.c for how they're spent.
+--
+-- UNCONDITIONAL, not guarded on val0=0 AND val1=0: many holy symbol rows
+-- turned out to already carry huge leftover val0/val1 from the upstream
+-- import (up to 1.8 MILLION, val2 uniformly -1, val3 uniformly 0) --
+-- some other original field entirely (upstream symbols' real
+-- strength/max_strength ARE this large under the original's level-
+-- squared `sym_stress` cost, misc/discipline.cc, but Tobin has no
+-- per-symbol "level" rating to make that formula meaningful, and
+-- inheriting it as-is would flatly contradict "10 casts" above). No
+-- meaningful Tobin state exists yet for this category to protect --
+-- component/symbol val0/val1 were unused/decorative before this session
+-- (obj.h's val[] doc) -- so this is a one-time reset, not an ongoing
+-- guard; a LATER manual edit (via `redit`/a builder) is expected to be
+-- respected the normal way from here on, same as everywhere else.
+UPDATE `obj` SET val0=10, val1=10 WHERE `name` LIKE '%component%';
+UPDATE `obj` SET val0=10, val1=10 WHERE `name` LIKE '%symbol%';
