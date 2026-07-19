@@ -703,8 +703,27 @@ void combat_process_run(long pulse_num) {
         }
 
         bool a_decapitated = combat_strike(b, a);
-        if (a->progress.hp <= 0 || a_decapitated)
+        if (a->progress.hp <= 0 || a_decapitated) {
             combat_defeat(a, b, a_decapitated);
+            continue;
+        }
+
+        /* Mid-fight persistence (TODO.md): HP was previously only saved at
+         * defeat/quit (see descriptor_leave_to_menu()), so a disconnect
+         * (crash, or a losing player quietly pulling the plug) mid-fight
+         * reloaded at whatever HP was last saved before the fight even
+         * started -- a real crash-loss risk, and a soft exploit (disconnect
+         * to undo damage taken). Save both PCs' current HP after every
+         * round the fight is still ongoing; cheap (local DB, one round per
+         * ~1.2s per active fight) and reuses the same player_progress_save()
+         * the defeat/gold-drop paths above already call, not a new
+         * mechanism. Limb HP is NOT included -- it isn't persisted at all
+         * yet, by ANY path, defeat included (see player_repo.c); that's the
+         * separate, still-open "Meaningful limb damage" TODO item. */
+        if (a->base.kind == THING_PC)
+            player_progress_save(a->player_id, &a->progress);
+        if (b->base.kind == THING_PC)
+            player_progress_save(b->player_id, &b->progress);
     }
 }
 

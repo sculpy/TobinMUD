@@ -148,6 +148,14 @@ def make_player(suffix_tag):
 sA, nameA = make_player("A")
 sB, nameB = make_player("B")
 
+# PK opt-in (a later feature than this file's original PvP scenario, user:
+# "BOTH players must have opted in for attack/kill between players") --
+# without this, `attack` treats an unopted-in player as "not a valid
+# target, same as if they weren't in the room" (cmd_attack.c), which is
+# exactly what stale versions of this test hit.
+step(sA, "A opts into PK", "toggle pk")
+step(sB, "B opts into PK", "toggle pk")
+
 send_line(sA, f"attack {nameB}")
 send_line(sA, "score")  # sent immediately after, minimal gap
 out = recv_all(sA, timeout=0.5)

@@ -2127,8 +2127,11 @@ already tracked — pointers, not duplicates):
 - [ ] **`fill`** — fill a container from a liquid pool. Needs liquids+objects.
 - [x] **`switch`** — already shipped alongside `hold`/`wield`
       (cmd_object.c) -- entry pruned 2026-07-17, was a stale duplicate.
-- [ ] **`examine`** — look closer at things (extra descriptions). Needs room/
-      object extra descriptions (partly objects, partly redit extra-desc item).
+- [x] **`examine`** — already shipped as a synonym for `look <target>`
+      (cmd_examine.c, `look_at_target()` shared with cmd_look.c) -- entry
+      pruned 2026-07-19, was stale. Keyword extra-descriptions (redit's own
+      side of this) remain a separate, still-open item -- see "redit Extra
+      Descriptions" below.
 
 - [x] **Druid class** — already shipped as one of the 6 selectable classes
       (see `show_class_screen()`, descriptor.c) -- entry pruned 2026-07-17,
@@ -2277,8 +2280,8 @@ already tracked — pointers, not duplicates):
       in `room.h`. Door/condition state is per-exit, NOT mirrored to the
       reverse exit -- matches how `edroom`'s own auto-created reverse
       exits already work (independent door state per direction), not an
-      oversight. `open` refuses a Locked door; unlock/lock commands are
-      still deferred (need a key, which needs objects). `smoke_test_
+      oversight. `open` refuses a Locked door; `unlock`/`lock` shipped
+      later (2026-07-19, see "Keys unlocking doors" below). `smoke_test_
       doors.py` + 3 new help topics (`open`, `close`, updated `exits`).
 - [x] **Positions polish** — done (Session 43): a defender who isn't
       standing (sitting/resting/sleeping/any lower rung) takes a flat
@@ -2595,20 +2598,17 @@ already tracked — pointers, not duplicates):
       `LOG_SEVERITY_DEFAULT`'s derived bit width adjusts automatically)
       added to `cmd_setsev.c`'s toggle list. New
       `tests/smoke_test_idea.py` (9 checks, mirrors smoke_test_bug.py).
-- [ ] **Drink/sip commands** — user: "add a drink/sip code from
-      sneezymud and implement here". From-scratch, not a small addition:
-      checked `obj.h` -- `OBJ_CAT_DRINK` exists as a category bucket but
-      there's no liquid-type/capacity/current-amount modeling on obj
-      instances at all yet, and `being_t` (being.h, checked) has no
-      thirst/hunger stat either (the `nutrition` DB column referenced in
-      player_repo.c's INSERT is vestigial -- never read or decremented
-      anywhere). Needs, roughly: liquid type + capacity + fill-amount
-      fields on drink-category objects (obj.h/obj_repo.h), a thirst (and
-      maybe hunger, since Sneezy ties both together) stat on being_t,
-      `drink`/`sip``/`fill``/`pour` commands (sip = small amount + no
-      "full" message, matching the original's distinction), and messages
-      for empty-container and over-full-from-drinking-too fast cases.
-      Reasonable to scope drink/sip alone first and defer fill/pour.
+- [x] **Drink/sip commands** — already shipped (cmd_drink.c/cmd_sip.c) --
+      entry pruned 2026-07-19, was stale. Landed via a different angle than
+      this entry originally scoped: not container liquid-type/capacity
+      modeling, but drinking/sipping directly from a ground puddle (`pee`'s
+      puddles, `combat.c`'s blood pools), with real poison (30% chance,
+      `sip` lower-risk than `drink`) and a 26-disease infection roll (15%
+      chance) -- see `help disease`. No thirst/hunger stat exists or is
+      consumed by either command; `nutrition` remains vestigial. Drinking
+      from a proper container (fill/pour, `OBJ_CAT_DRINK` capacity
+      modeling) remains unbuilt -- see **Liquids**/**`fill`** below, which
+      are still genuinely open, not superseded by this.
 - [x] **`purge` command (51+, with a 58+ `purge linkdead`)** — done --
       deployed and verified via standalone smoke test and a clean full
       sweep. User: "add a purge command that is
@@ -4079,8 +4079,24 @@ already tracked — pointers, not duplicates):
       -- covers a normal defeat and a decapitation, but not an immortal's
       `cmd_kill` instakill (that winner is always an immortal, who doesn't
       need XP).
-- [ ] **Mid-fight persistence** — HP and limb HP are only saved at defeat; a
-      mid-fight disconnect reloads at last-saved values.
+- [x] **Mid-fight persistence** — done 2026-07-19. HP was only saved at
+      defeat/quit (`descriptor_leave_to_menu()`); a mid-fight disconnect
+      (crash, or a losing player quietly pulling the plug) reloaded at
+      whatever HP was last saved BEFORE the fight even started, silently
+      undoing all damage taken -- a real crash-loss risk, and a soft
+      exploit. `combat_process_run()` (combat.c) now calls the existing
+      `player_progress_save()` for both PC participants after every round
+      the fight is still ongoing (not just at defeat) -- reuses the exact
+      same call the defeat/gold-drop paths already made, not a new
+      mechanism. Limb HP is explicitly OUT of scope here -- it isn't
+      persisted at all yet, by ANY path, defeat included (see
+      player_repo.c's own note under "`player_save()` + a `save` command"
+      above); that's the separate, still-open "Meaningful limb damage" item.
+      New `tests/smoke_test_mid_fight_persist.py`: fights a deliberately
+      tanky sandbox mob, waits for real damage, then hard-closes the
+      socket (no `quit!`, simulating a crash) and reconnects -- HP landed
+      exactly where it was the instant before the disconnect, not reset to
+      the pre-fight max.
 - [x] **`player_save()` + a `save` command** (user request, 2026-07-07) —
       done. A single `player_save(player_id, being_t*)` (`player_repo.c`/
       `.h`) persists attrs, progress (level/xp/hp/etc), and inventory in
