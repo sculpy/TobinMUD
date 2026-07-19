@@ -17,6 +17,46 @@ static int cmp_name(const void *a, const void *b) {
     return strcasecmp(*(const char *const *)a, *(const char *const *)b);
 }
 
+/* Strips a trailing "<label> <value>" directive line off the END of
+ * `desc[0..*dlen)` (in place, by shrinking *dlen), same convention as the
+ * original "Related:" line below -- an author just types it as the last
+ * line of the topic in the shared line editor. Returns true and fills
+ * `out` if the topic's current last line starts with `label`; leaves
+ * everything untouched otherwise. Called once per directive, working
+ * backward from the end, so directives stack in the order authored
+ * (bottommost line stripped first). */
+static bool extract_trailing_directive(const char *desc, size_t *dlen, const char *label,
+                                       char *out, size_t outsz) {
+    size_t last_nl = *dlen;
+    for (size_t i = *dlen; i > 0; i--) {
+        if (desc[i - 1] == '\n') {
+            last_nl = i;
+            break;
+        }
+        if (i == 1)
+            last_nl = 0;
+    }
+    const char *last_line = desc + last_nl;
+    size_t last_line_len = *dlen - last_nl;
+    size_t label_len = strlen(label);
+    if (last_line_len <= label_len || strncasecmp(last_line, label, label_len) != 0)
+        return false;
+
+    const char *v = last_line + label_len;
+    while (*v == ' ')
+        v++;
+    size_t vlen = (size_t)(last_line + last_line_len - v);
+    if (vlen >= outsz)
+        vlen = outsz - 1;
+    memcpy(out, v, vlen);
+    out[vlen] = '\0';
+
+    *dlen = last_nl;
+    while (*dlen > 0 && (desc[*dlen - 1] == '\n' || desc[*dlen - 1] == '\r'))
+        (*dlen)--;
+    return true;
+}
+
 /* Sends `names` (count `cnt`) sorted alphabetically in three columns, under
  * `header` and followed by `footer`. Shared by help and wizhelp. */
 static void send_columns(descriptor_t *d, const char **names, int cnt,
@@ -108,7 +148,40 @@ bool cmd_help(descriptor_t *d, const char *args) {
 
             char resolved[HELP_TOPIC_NAME_LEN];
             char body[HELP_BODY_MAX];
-            if (help_topic_find(topic, resolved, sizeof(resolved), body, sizeof(body))) {
+
+            /* Multi-word topic names (user 2026-07-18: skill/spell help
+             * topics like "cure poison", "dual wield", "set trap (door)")
+             * -- try the FULL raw argument as an exact topic name first,
+             * lowercased/trimmed/truncated. Without this, `help` only ever
+             * looked up the single FIRST token (see the sscanf above), so
+             * "help cure poison" would look up just "cure" -- and since
+             * several topics now share that prefix (cure blindness/
+             * disease/poison/serious/...), help_topic_find()'s `LIKE
+             * 'cure%' ORDER BY name LIMIT 1` prefix fallback would
+             * silently resolve to the alphabetically-first one instead of
+             * the one actually asked for. Skipped when the edit-noun
+             * folding above already built a multi-word `topic` itself
+             * (starts with "edit "), to avoid a redundant duplicate
+             * lookup of that exact same string. */
+            bool topic_found = false;
+            if (strchr(args, ' ') && strncmp(topic, "edit ", 5) != 0) {
+                char full[HELP_TOPIC_NAME_LEN];
+                size_t flen = 0;
+                for (const char *p = args; *p && flen < sizeof(full) - 1; p++)
+                    full[flen++] = (char)tolower((unsigned char)*p);
+                while (flen > 0 && full[flen - 1] == ' ')
+                    flen--;
+                full[flen] = '\0';
+                if (flen > 0) {
+                    topic_found = help_topic_find(full, resolved, sizeof(resolved), body, sizeof(body));
+                    if (topic_found)
+                        snprintf(topic, sizeof(topic), "%s", full);
+                }
+            }
+            if (!topic_found)
+                topic_found = help_topic_find(topic, resolved, sizeof(resolved), body, sizeof(body));
+
+            if (topic_found) {
                 /* Don't let a topic leak a command that's hidden from this
                  * caller (cmd_dispatch() hides over-level commands). */
                 bool hidden = false;
@@ -177,59 +250,57 @@ bool cmd_help(descriptor_t *d, const char *args) {
 
                     /* Trailing "Related: topic topic ..." line (user
                      * 2026-07-11: "for help topics both wizhelp and help add
-                     * a line at the end for related topics"). Same
-                     * strip-a-directive-line convention as the leading
-                     * "Usage:" line above, but at the END of the body
-                     * instead of the start -- an author just types it as the
-                     * last line in the same shared line editor. Only shown
-                     * when present; most topics have none. */
+                     * a line at the end for related topics"). Only shown
+                     * when present; most topics have none. "Requires: ..."
+                     * (user 2026-07-18: "spell components should be listed
+                     * in the footer before related") is the same
+                     * trailing-directive convention, authored one line
+                     * further up (right above Related) -- so Related, the
+                     * true last line, is peeled off first, exposing
+                     * Requires as the new last line for the second peel.
+                     * Used by skill/spell topics to name what `cast`/`pray`
+                     * needs on hand (a component, a holy symbol, or
+                     * nothing/not yet a real command, for the many
+                     * still-placeholder physical skills). */
                     char related[128];
                     related[0] = '\0';
-                    {
-                        size_t last_nl = dlen;
-                        for (size_t i = dlen; i > 0; i--) {
-                            if (desc[i - 1] == '\n') {
-                                last_nl = i;
-                                break;
-                            }
-                            if (i == 1)
-                                last_nl = 0;
-                        }
-                        const char *last_line = desc + last_nl;
-                        size_t last_line_len = dlen - last_nl;
-                        if (last_line_len > 8 && strncasecmp(last_line, "Related:", 8) == 0) {
-                            const char *r = last_line + 8;
-                            while (*r == ' ')
-                                r++;
-                            size_t rlen = (size_t)(last_line + last_line_len - r);
-                            if (rlen >= sizeof(related))
-                                rlen = sizeof(related) - 1;
-                            memcpy(related, r, rlen);
-                            related[rlen] = '\0';
-                            dlen = last_nl;
-                            while (dlen > 0 && (desc[dlen - 1] == '\n' || desc[dlen - 1] == '\r'))
-                                dlen--;
-                        }
-                    }
+                    char requires[128];
+                    requires[0] = '\0';
+                    (void)extract_trailing_directive(desc, &dlen, "Related:", related, sizeof(related));
+                    (void)extract_trailing_directive(desc, &dlen, "Requires:", requires, sizeof(requires));
 
                     char shown[HELP_BODY_MAX + 32];
                     snprintf(shown, sizeof(shown), "<W>%.*s<z>\r\n", (int)dlen, desc);
                     descriptor_send(d, shown);
 
-                    /* Cyan-labelled Syntax / Minimum Level footer -- commands
-                     * only (prose topics have no table entry, so no footer).
-                     * Labels right-aligned to 14 chars (user-specified). */
+                    /* Cyan-labelled Syntax / Minimum Level / Requires /
+                     * Related footer -- Syntax/Level are commands only
+                     * (prose topics have no table entry, so no footer);
+                     * Requires/Related show on any topic that authored one.
+                     * Labels right-aligned to 14 chars (user-specified). A
+                     * leading blank line separates the footer from the
+                     * description body, added once, before whichever piece
+                     * ends up first. */
+                    bool footer_started = false;
                     if (match) {
                         char footer[192];
                         snprintf(footer, sizeof(footer),
                                  "\r\n<c>       Syntax:<z> %s\r\n<c>Minimum Level:<z> %d\r\n",
                                  syntax, match->min_level);
                         descriptor_send(d, footer);
+                        footer_started = true;
+                    }
+                    if (requires[0]) {
+                        char reqfooter[192];
+                        snprintf(reqfooter, sizeof(reqfooter), "%s<c>     Requires:<z> %s\r\n",
+                                 footer_started ? "" : "\r\n", requires);
+                        descriptor_send(d, reqfooter);
+                        footer_started = true;
                     }
                     if (related[0]) {
                         char relfooter[192];
                         snprintf(relfooter, sizeof(relfooter), "%s<c>      Related:<z> %s\r\n",
-                                 match ? "" : "\r\n", related);
+                                 footer_started ? "" : "\r\n", related);
                         descriptor_send(d, relfooter);
                     }
                     return true;

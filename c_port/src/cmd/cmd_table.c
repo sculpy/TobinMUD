@@ -126,6 +126,12 @@ static const cmd_entry_t COMMANDS[] = {
      * drink needs "dri". */
     { "drop",    cmd_drop,    "Put down a carried item (drop <item>).",             MORTAL_LEVEL_MIN },
     { "drink",   cmd_drink,   "Drink from a puddle on the ground (drink <puddle>).", MORTAL_LEVEL_MIN },
+    /* Full alias of hit (user 2026-07-18: "add an engage command that
+     * alias for hit"), same one-handler-two-table-rows pattern as
+     * attack/kill above. No abbreviation conflict: nothing else in the
+     * table starts with "en", and single-letter "e" is already claimed
+     * by the pinned movement head (east). */
+    { "engage",  cmd_hit,     "Attack a player or mobile via real combat, even for immortals (never instakill).", MORTAL_LEVEL_MIN },
     { "equipment", cmd_equipment, "List what you're wearing and holding.",          MORTAL_LEVEL_MIN },
     /* SWAP: exits before examine, so "ex" lists exits; examine needs "exa".
      * ("e" is east -- movement head.) */

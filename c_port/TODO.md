@@ -330,22 +330,67 @@ already tracked — pointers, not duplicates):
       (teleport/summon/portal/polymorph/invisibility-flavored spells) —
       those still fall through to the honest "nothing happens yet"
       placeholder. The "help files for each spell" half of the request:
-      judged writing ~300 individual `help_topic` rows (one per spell)
-      inconsistent with how this codebase's help system is used
-      elsewhere (reserved for commands, not individual spell/prayer
-      entries) — instead, `skills`/`practice <discipline>` now open
-      every Mage/Druid/Cleric section with a line naming exactly what
-      `cast`/`pray` consumes for everything in it (a component or a
-      holy symbol), and `help cast`/`help pray`/`help skills`/`help
-      affects` were all rewritten to describe what's actually
-      implemented now instead of the old "isn't implemented yet for
-      most of the roster" framing. Live-testing note: an IMMORTAL
+      FIRST attempt judged writing ~300 individual `help_topic` rows
+      (one per spell) inconsistent with how this codebase's help system
+      is used elsewhere, and substituted an inline note in
+      `skills`/`practice` instead — user corrected this 2026-07-18:
+      "also no spell helpfiles? that was my instruction. help files for
+      all skills/spells along with required components spell
+      components should be listed in the footer before related" — that
+      was the actual ask, not a suggestion to reinterpret. Redone
+      properly: a one-shot Python script parsed skill.c's `SKILLS[]`
+      array directly (name/class/tier/level/description, so it can't
+      hand-transcription-drift from the real roster) and generated
+      **271 real `help_topic` rows**, one per unique skill/spell name
+      (`db/sneezy/skill_help.sql`; 25 names are shared across more than
+      one class — mostly identical weapon-proficiency rows, plus a
+      handful of same-named Cleric/Druid entries like "cure poison" —
+      merged into one topic listing every class/tier/level that has it,
+      rather than colliding on `help_topic`'s name primary key). Each
+      topic names what `cast`/`pray` actually needs (a spell component,
+      a holy symbol, the real command it already routes through instead
+      for Thief's door-trap skills, or an honest "not yet wired to a
+      command" for the many still-placeholder Warrior/Thief/Monk
+      physical skills). New `Requires:` trailing-directive convention
+      added to `cmd_help.c` (`extract_trailing_directive()`, generalized
+      from the existing `Related:` line) renders this as its own
+      cyan-labelled footer line, positioned before `Related:` as asked.
+      "disease" deliberately excluded from the generated set — it
+      collided with a pre-existing general-mechanic topic (drink a
+      puddle → catch a disease), hand-merged into a rewrite of that
+      topic instead (also fixed its stale "4 diseases" claim while at
+      it, and noted the Cleric prayer CAN land on an immortal opponent
+      unlike the puddle roll). Found and fixed a real, previously-latent
+      bug while wiring this up: `help <topic>` only ever looked up the
+      FIRST whitespace token of its argument, so multi-word topics
+      resolved via a `LIKE 'firstword%' ORDER BY name LIMIT 1` fallback
+      — harmless while few topics shared a first word, but "cure poison"
+      silently landed on "cure blindness" once several generated
+      "cure ___" topics existed. Fixed by trying the full trimmed
+      argument as an exact (or prefix) topic name FIRST, falling back to
+      the original first-token behavior only when that fails — verified
+      not to regress the pre-existing two-word `edit <noun>` special
+      case, alias resolution (ne/nw/se/sw/'), or ordinary single-word
+      abbreviations. `skills`/`practice <discipline>`'s inline per-class
+      reagent note stays too (a real convenience, just not a substitute
+      for the actual help files). `tests/smoke_test_help_topics.py`
+      extended with checks for exact multi-word resolution, the
+      `Requires:` footer's content on a couple of representative topics,
+      and a regression check on `edit room`. Live-testing note: an IMMORTAL
       attacker's `kill`/`attack` always instakills any target in one
       command regardless of stats (`cmd_kill.c`'s `combat_instakill()`,
       by design, confirmed by reading the source after two dead-end
       live-test attempts against a rat AND a level-127 mob) — `hit`
       (real multi-round combat, "never instakill" even for immortals)
       is the correct command whenever a test needs a target to survive.
+- [x] **`engage` command** — done 2026-07-18. User: "add an engage
+      command that alias for hit." Full alias, same one-handler-two-
+      table-rows pattern `attack`/`kill` already use (`cmd_table.c`):
+      `{ "engage", cmd_hit, ... }`. No abbreviation conflict (nothing
+      else starts with "en"; single-letter "e" is already claimed by
+      the pinned movement head, east). `help engage`/`help hit` each
+      point at the other as an alias. Covered by
+      `tests/smoke_test_help_topics.py`.
 - [x] **Trap mechanics (door traps)** — done (self-assigned backlog
       item, sequenced right after weapon depth per user 2026-07-11:
       "...then weapon depth, trap mechanics"). Wired the Thief's

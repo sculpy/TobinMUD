@@ -183,3 +183,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Spells and Prayers Do More Now',
  'Cure poison and cure disease now genuinely cure you (or, for a prayer, someone you name). A family of armor, shield, and resistance spells and prayers now really do protect you, not just say so. And a Cleric locked in a fight can call down poison or disease on their foe for real. The skills list now tells you right up front, for every spell or prayer, whether you will need a component or a holy symbol to cast it.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Help Now Covers Every Skill and Spell',
+ 'Type help followed by any skill or spell name and you will get a real writeup instead of nothing at all -- what it does, which classes have it, and what you need on hand to use it. And engage now works as another word for hit.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

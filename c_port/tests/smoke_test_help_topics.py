@@ -152,6 +152,39 @@ out = recv_all(s)
 check("No help available" in out,
       "a mortal asking about an immortal-only command's topic gets no leak")
 
+# --- Part 1b: multi-word topic resolution (user 2026-07-18 fix -- `help`
+# used to only ever look up the FIRST token, so "help cure poison" landed
+# on "cure blindness" instead, once skill_help.sql's generated topics gave
+# "cure" more than one same-prefixed match). Also covers the new `engage`
+# alias (full alias of `hit`, same one-handler-two-table-rows pattern as
+# attack/kill) and a couple of the generated skill/spell topics'
+# `Requires:` footer (new trailing-directive convention, cmd_help.c). ---
+send_line(s, "help cure poison")
+out = recv_all(s)
+check("-- Help: Cure poison --" in out,
+      "help <multi-word skill name> resolves exactly, not to another same-prefixed topic")
+check("Requires:" in out and "spell component" in out and "holy symbol" in out,
+      "the cure poison topic's Requires footer lists both cast's component and pray's symbol")
+
+send_line(s, "help gust")
+out = recv_all(s)
+check("-- Help: Gust --" in out and "Requires:" in out and "a spell component (`cast`)" in out,
+      "a Mage-only spell topic's Requires footer names just the component")
+
+send_line(s, "help edit room")
+out = recv_all(s)
+check("-- Help: Edit room --" in out,
+      "the pre-existing two-word 'edit <noun>' special case still resolves correctly (regression check)")
+
+send_line(s, "help engage")
+out = recv_all(s)
+check("-- Help: Engage --" in out and "alias: hit" in out,
+      "help engage shows the alias topic with a real Syntax/Level footer (a genuine command, not a skill)")
+
+send_line(s, "engage")
+out = recv_all(s)
+check("Attack whom?" in out, "bare `engage` dispatches through the same handler as `hit`")
+
 # --- Part 2: edit help gating ---
 send_line(s, "edit help whatever")
 out = recv_all(s)
