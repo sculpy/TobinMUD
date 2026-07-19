@@ -244,6 +244,39 @@ implementation inspiration before each one, not guessed at.
       destroying. New `tests/smoke_test_objmanip.py` (10 checks, including
       a regression check for the resurrection bug on both `junk` and
       `eat`).
+- [x] **Quest system** — done 2026-07-19. Checked Sneezy's own
+      `quest-system.md` doc first: the real system is a fixed 454-bit
+      array (`toggles[]`) tied entirely to hand-authored content that
+      doesn't exist in Tobin (specific quests like "Avenger"/"Silverclaw"/
+      "Holy Devastator", named NPCs, spec-procedure dialogue trees) --
+      porting the bit array itself would just be 454 meaningless numbers
+      with nothing behind them. Asked the user (AskUserQuestion) rather
+      than either inventing bespoke Tobin quest content or a whole
+      conditional-branching layer for Tobin's trigger-script language
+      (wait/echo/echoroom/emote/say/teleport/give/damage/log, which has no
+      "if" at all yet) just to drive it -- answer: infrastructure only.
+      Ported the SHAPE of the original instead of its bit numbers: a
+      player's progress through a named quest, tracked as a small integer
+      stage, visible only where an immortal has written a description for
+      that exact (quest, stage) pair -- same "only bits with a help file
+      are visible" rule, DB rows instead of files (matches help_topic/
+      news/wiznews convention). New `player_quest` (player's current
+      stage per quest touched) / `quest_def` (immortal-authored
+      description per stage) tables, `quest_repo.h`/`.c`. `quest
+      [<name>]` (mortal, `cmd_quest.c`): bare form lists quest names with
+      a written description for the player's current stage; `quest <name>`
+      pages the full description. `questdef <name> <stage> <text>`
+      (builder tier, `cmd_questdef.c`, no menu editor -- same "no in-game
+      editor for it yet" precedent as several other content types) writes/
+      replaces a stage's description. Advancing a player's stage is a new
+      `quest` field on the existing `set <name> <field> <value>` (`set
+      <player> quest <name> <stage>`, cmd_set.c) -- manual, since there's
+      no scripting hook yet to automate it; stage 0 clears the quest
+      entirely. New `tests/smoke_test_quest.py` (9 checks: invisible
+      without a description, visible once one exists, hidden again when
+      advancing to an undescribed stage, cleared at stage 0) --
+      regression-verified against `smoke_test_set.py`/
+      `smoke_test_alignment.py`, which also exercise `cmd_set.c`.
 
 ## Buildable now (no blocked dependencies)
 

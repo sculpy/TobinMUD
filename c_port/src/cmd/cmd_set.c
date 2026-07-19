@@ -11,6 +11,7 @@
 
 #include "being.h"
 #include "player_repo.h"
+#include "quest_repo.h"
 
 /* `set <name> <field> <value>`: Administrator (58+) only -- a one-shot,
  * scriptable sibling of `edplayer` for quick single-field edits (user
@@ -97,6 +98,29 @@ static const char *apply_field(being_t *w, int load_room, int *out_load_room,
         if (!player_progress_save(w->player_id, &w->progress))
             return "Save failed -- the DB rejected it.\r\n";
         snprintf(msg, sizeof(msg), "%s's %s discipline is now %ld%%.\r\n", w->base.name, field, v);
+        return msg;
+    }
+
+    /* Quest system (Sneezy → Tobin feature audit, "Quest system"): the
+     * manual immortal stage-advancement path -- see quest_repo.h's own
+     * doc comment for why this is manual (no conditional trigger
+     * scripting exists yet to automate it). `rest` here is "<name>
+     * <stage>", a compound value this field parses itself (unlike every
+     * other field above/below, which take one bare value) -- same
+     * pattern `hp` (just below) already uses for its own two-part
+     * "<hp> <max_hp>" value. Stage 0 clears the quest entirely
+     * (quest_repo_set_stage()'s own documented behavior). */
+    if (strcasecmp(field, "quest") == 0) {
+        char qname[QUEST_NAME_LEN];
+        int stage = -1;
+        if (sscanf(rest, "%63s %d", qname, &stage) != 2 || stage < 0)
+            return "Usage: set <name> quest <quest_name> <stage>\r\n";
+        if (!quest_repo_set_stage(w->player_id, qname, stage))
+            return "Save failed -- the DB rejected it.\r\n";
+        if (stage == 0)
+            snprintf(msg, sizeof(msg), "%s's \"%s\" quest has been cleared.\r\n", w->base.name, qname);
+        else
+            snprintf(msg, sizeof(msg), "%s's \"%s\" quest is now at stage %d.\r\n", w->base.name, qname, stage);
         return msg;
     }
 

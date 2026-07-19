@@ -297,3 +297,27 @@ ALTER TABLE `player_progress`
 ALTER TABLE `player_progress`
   ADD COLUMN IF NOT EXISTS `birth_time` int(11) NOT NULL DEFAULT 0;
 UPDATE `player_progress` SET `birth_time` = UNIX_TIMESTAMP() WHERE `birth_time` = 0;
+
+-- Quest system (Sneezy → Tobin feature audit, "Quest system"). User,
+-- AskUserQuestion 2026-07-19: infrastructure only, no actual quest content
+-- and no conditional trigger scripting to drive it -- see quest_repo.h's
+-- own doc comment for why. Named quest + integer stage instead of the
+-- original's fixed 454-bit array (`toggles[]`, meaningless without
+-- Sneezy's own hand-authored content to number bits against) --
+-- `player_quest` is a player's current stage per quest they've touched;
+-- `quest_def` is the immortal-authored description shown for a given
+-- (quest, stage) pair, same "only bits with a help file are visible"
+-- precedent as the original's help-file-per-bit system, just DB rows
+-- instead of files (same convention as help_topic/news/wiznews).
+CREATE TABLE IF NOT EXISTS `player_quest` (
+  `player_id` bigint(20) unsigned NOT NULL,
+  `quest_name` varchar(64) NOT NULL,
+  `stage` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`player_id`, `quest_name`)
+);
+CREATE TABLE IF NOT EXISTS `quest_def` (
+  `quest_name` varchar(64) NOT NULL,
+  `stage` int(11) NOT NULL,
+  `description` text NOT NULL,
+  PRIMARY KEY (`quest_name`, `stage`)
+);

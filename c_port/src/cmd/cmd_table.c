@@ -198,6 +198,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "practice", cmd_practice, "Train your Basic/Advanced discipline with a guildmaster (practice basic|advanced).", MORTAL_LEVEL_MIN },
     { "prompt",  cmd_prompt,  "Customize your prompt (prompt hp|gold).",            MORTAL_LEVEL_MIN },
     { "put",     cmd_put,     "Put a carried item into a container (put <item> <container>).", MORTAL_LEVEL_MIN },
+    { "quest",   cmd_quest,   "See your current quests (quest [<name>]).",          MORTAL_LEVEL_MIN },
     /* SWAP: rest before remove/rent, so "r"/"re" still rest; remove needs
      * "rem", rent needs "ren", rules needs "ru". */
     { "rest",    cmd_rest,    "Sit down and rest (heals faster).",                  MORTAL_LEVEL_MIN },
@@ -337,6 +338,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "poofout", cmd_poofout, "Set your custom walking departure message (poofout [msg]).", IMMORTAL_LEVEL_MIN },
     { "possess", cmd_possess, "Puppet a mob's body (possess <mob>; `return` to come back).", POSSESS_MIN_LEVEL },
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
+    { "questdef", cmd_questdef, "Write/replace a quest stage's description (questdef <name> <stage> <text>).", BUILD_MIN_LEVEL },
     /* Bare `purge` clears the room; `purge linkdead` (58+, checked inside
      * cmd_purge itself) sweeps the whole game. */
     { "purge",   cmd_purge,   "Clear this room's mobs/objects, or purge linkdead (58+).", PURGE_MIN_LEVEL },
