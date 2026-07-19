@@ -28,6 +28,9 @@ import time
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
+# COMBAT_ROUND_PULSES(12) * OPT_USEC(100ms) -- include/pulse.h, src/game_loop.c.
+COMBAT_ROUND_SECS = 1.2
+
 
 def announce(test_name, host=host, port=port):
     try:
@@ -59,20 +62,54 @@ announce("smoke_test_affects")
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 ROOM = 900000 + (int(time.time() * 1000) % 60000)
 SYMBOL = ROOM + 1
-SAMPLES = 20
+# Individual hits are small integers (~1-6 damage), so a small-sample
+# average has enough variance that the baseline-vs-with-Sanctuary
+# comparison could occasionally land the wrong way by pure chance
+# (live-observed 2026-07-18: 3.00 -> 3.35, backwards, with 20 samples
+# each side). Two separate constants, not one shared SAMPLES, because
+# they have very different constraints: the BASELINE phase has no time
+# limit, so it can use a large sample for a tight estimate now that
+# recv_all()'s idle-gap fix (2026-07-18) makes each sample cheap to
+# collect; the WITH-SANCTUARY phase is capped by the buff's own 12-round
+# duration (~14.4s) -- asking for more samples than that window can
+# realistically produce would either run long waiting for hits that
+# never come at the buffed rate, or silently mix in post-expiry
+# (unbuffed) hits and corrupt the comparison. Kept well under 12 to
+# leave slack for round-boundary timing slop.
+BASELINE_SAMPLES = 60
+SANCTUARY_SAMPLES = 8
 
 
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
+def recv_all(sock, timeout=1.0, idle_gap=0.3):
+    # `timeout` is a hard deadline (never wait longer than this in total);
+    # `idle_gap` is how long a genuine quiet moment has to last before
+    # treating the response as complete. Live-diagnosed 2026-07-18: the
+    # old version used `timeout` as a PER-RECV idle-gap, which meant every
+    # call burned the FULL timeout even for an instant reply (the first
+    # recv() gets the data right away, but the loop always tries a SECOND
+    # recv() that then has nothing left to read and just sits out the
+    # whole window) -- confirmed by direct instrumentation showing every
+    # step taking ~1.5s flat regardless of actual response size. Shrinking
+    # the per-recv wait to a short idle_gap (comfortably larger than
+    # realistic same-response multi-packet TCP jitter on localhost, ~tens
+    # of ms) while keeping `timeout` as an outer safety cap fixes both the
+    # constant-tax problem AND, as a side effect, keeps this responsive
+    # during ONGOING combat: round messages arrive every ~1.2s
+    # (COMBAT_ROUND_PULSES), which is now LARGER than idle_gap, so a
+    # single call naturally returns after one round's output instead of
+    # (in the worst case, if packet timing ever lined up just right)
+    # never seeing a gap wide enough to stop.
+    sock.settimeout(idle_gap)
     chunks = []
-    try:
-        while True:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
             data = sock.recv(4096)
             if not data:
                 break
             chunks.append(data)
-    except socket.timeout:
-        pass
+        except socket.timeout:
+            break
     return b"".join(chunks).decode(errors="replace")
 
 
@@ -148,12 +185,19 @@ def average_incoming(attacker_sock, target_sock, target_name, n):
     dmgs = []
     seen = ""
     polls = 0
-    while len(dmgs) < n and polls < n * 3:
+    # Time-based budget, not a poll-count cap: recv_all()'s idle_gap fix
+    # (2026-07-18) means an empty poll now returns in ~0.3s instead of
+    # always burning a full 1.5s, so a fixed poll-count cap calibrated for
+    # the old per-poll cost would give up on real combat rounds (~1.2s
+    # apart) well before the equivalent wall-clock budget actually runs
+    # out. A generous multiple of the real round interval instead.
+    deadline = time.time() + n * COMBAT_ROUND_SECS * 1.5
+    while len(dmgs) < n and time.time() < deadline:
         polls += 1
         attacker_out = recv_all(attacker_sock, 1.5)
         seen += recv_all(target_sock, 0.1)
         dmgs.extend(damages_from(attacker_out))
-    check(len(dmgs) >= n, f"collected at least {n} incoming hits on {target_name} ({len(dmgs)} got)")
+    check(len(dmgs) >= n, f"collected at least {n} incoming hits on {target_name} ({len(dmgs)} got, {polls} polls)")
     return sum(dmgs) / len(dmgs), seen
 
 
@@ -230,6 +274,17 @@ s_cle.close()
 sql(f"UPDATE player_progress SET basic_disc_pct=100, combat_disc_pct=100, advanced_disc_pct=50 "
     f"WHERE player_id=(SELECT id FROM player WHERE name='{cleric_name}');")
 set_level(cleric_name, 25)
+# The discipline-percentage gate above is separate from "sanctuary"'s OWN
+# per-skill proficiency (learn-by-doing, added 2026-07-17 -- postdates
+# this test): a fresh character starts at the 1% floor, so `pray
+# sanctuary` would fumble ~99% of the time without this. Seeded straight
+# to 100%, same "bypass via direct SQL" spirit as the discipline_pct
+# lines above -- this test is about the AFFECT mechanic, not proficiency
+# gain. Live-diagnosed 2026-07-18 after a real fumble consumed the
+# caster's only holy symbol without ever attempting the prayer's effect.
+sql(f"INSERT INTO player_skill (player_id, skill_name, pct, last_gain_at) "
+    f"SELECT id, 'sanctuary', 100, 0 FROM player WHERE name='{cleric_name}' "
+    f"ON DUPLICATE KEY UPDATE pct=100;")
 set_hp(cleric_name, 8000)  # survive a long mutual-combat sampling window even
                             # if a few unlucky retaliation hits concentrate on
                             # one limb (Tobin's death check is per-limb, not
@@ -251,7 +306,7 @@ out = cmd(s_cle, "affects")
 check("(none)" in out, "affects shows (none) before casting anything")
 
 # --- 3a: baseline incoming damage average, no Sanctuary yet ---
-baseline_avg, _ = average_incoming(s_imm, s_cle, cleric_name, SAMPLES)
+baseline_avg, _ = average_incoming(s_imm, s_cle, cleric_name, BASELINE_SAMPLES)
 
 # --- 2: pray sanctuary applies the affect ---
 out = cmd(s_cle, "pray sanctuary")
@@ -262,7 +317,7 @@ m = re.search(r"Sanctuary\s+(\d+) round", out)
 check(m is not None and int(m.group(1)) > 0, "affects shows a positive round count for Sanctuary")
 
 # --- 3b: incoming damage average drops noticeably with Sanctuary active ---
-sanctuary_avg, seen_during_sampling = average_incoming(s_imm, s_cle, cleric_name, SAMPLES)
+sanctuary_avg, seen_during_sampling = average_incoming(s_imm, s_cle, cleric_name, SANCTUARY_SAMPLES)
 check(sanctuary_avg < baseline_avg - 0.4,
       f"Sanctuary's damage reduction is clearly visible ({baseline_avg:.2f} -> {sanctuary_avg:.2f})")
 
