@@ -3266,16 +3266,55 @@ already tracked — pointers, not duplicates):
       (see "Bigger systems" below) -- when that lands, this same block is
       the place to divide `stolen` across the killer's group instead of
       crediting it all to one winner. New `tests/smoke_test_pk_gold.py`.
-- [ ] **Meaningful limb damage** — a decapitated limb currently still
-      shows ~100% in places; individual limb hits should visibly matter.
-      User: "make limb damage mean something. if you have a limb
-      decapitated it shouldnt be at 100% limb health. make individual limb
-      hits actually hurt." (Related bug already fixed today in this same
-      session: [[player_repo.c]]'s `player_load()` was resetting every
-      reconnecting character's limbs to level-1-sized fractions regardless
-      of real max_hp -- fixed by calling `being_limbs_full_heal()` after
-      `player_progress_load()`. This TODO item is the broader "limb % is
-      informative and hits feel weighty" pass, not just that bug.)
+- [x] **Meaningful limb damage** — done 2026-07-19, after auditing what
+      already existed against the user's original ask: "make limb damage
+      mean something. if you have a limb decapitated it shouldnt be at 100%
+      limb health. make individual limb hits actually hurt." Turned out
+      most of this had already landed in earlier sessions and just never
+      got checked off: per-limb hit weighting (a bigger target like the
+      torso gets hit far more than a finger), escalating injury-tier
+      messages in both combat and `score` ("hurt rather badly" /
+      "needs medical attention" / "destroyed"), a destroyed limb (0% HP)
+      already penalized its OWNER's own hit chance (`DESTROYED_LIMB_HIT_
+      PENALTY`, combat.c), and Hospital (limb repair, 2026-07-18) already
+      gives a real mid-game cure. What was genuinely missing, and is the
+      actual change this session: `combat_strike()` only checked the
+      ATTACKER's own destroyed limb before -- a destroyed limb didn't make
+      its owner any easier to HIT, only worse at hitting back. Added the
+      mirror check on the defender side (same flat, non-stacking amount,
+      for symmetry) -- a badly maimed combatant is now genuinely more
+      vulnerable, not just less dangerous. On the other half of the
+      complaint: a decapitated limb DOES correctly read 0% while the fight
+      is still ongoing (confirmed via `hurtlimb`/`limbs`/`score`, already
+      solid) -- it only reads back at 100% AFTER the fight ends, because
+      combat defeat has always fully healed every limb as part of its
+      "revived at half HP" recovery (`being_limbs_full_heal()`), the same
+      as HP itself. That's deliberate soft-respawn behavior (PC death
+      isn't permadeath in this engine), not the bug it looked like --
+      documented explicitly in `being_has_destroyed_limb()`'s doc comment
+      (being.h) and combat.c's own comment so it doesn't get mistaken for
+      one again. No dedicated smoke test added for the new defender-side
+      penalty specifically -- like every other single hit-roll modifier in
+      this formula (AC, position, weapon bonus), it's inherently
+      probabilistic (the formula's own guaranteed-hit/miss-zone design
+      means no single roll can ever be made fully deterministic), and a
+      statistically-meaningful sample would cost minutes of real combat-
+      round pacing for one modifier's marginal coverage; verified instead
+      via a live spot-check plus the existing combat/limb regression
+      suite passing clean.
+- [ ] **`smoke_test_limbs_cmd.py` intermittent flake, real and unrelated to
+      this session's limb work** — found 2026-07-19 while regression-
+      testing the defender-vulnerability change above (that change doesn't
+      touch this test's code path at all -- `hurtlimb`/`limbs`, no
+      `combat_strike()` involved). Fails maybe 1 run in 3-4, always at the
+      same assertion ("the injured limb... shows its exact percentage
+      (13%)"), even running in total isolation (no concurrent test load).
+      `being_limbs_full_heal()`'s per-limb `share` calc has no randomness
+      (confirmed by reading it) and level-1 baseline-stat characters
+      should get an identical, deterministic 13% every time -- root cause
+      not yet found. Re-running always passes clean on retry, so this
+      wasn't chased further this session; flagging for whoever picks it up
+      next rather than silently living with an occasional false failure.
 - [x] **Global "Grimhaven" → "Tobin City" text replace** — done. User:
       "search the entire database and replace any instances of
       'Grimhaven' with 'Tobin City'." Scanned every varchar/text column

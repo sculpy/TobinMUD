@@ -37,10 +37,12 @@ static void tell(being_t *b, const char *fmt, ...) {
     descriptor_notify(b->desc, buf); /* held if the recipient is editing */
 }
 
-/* A destroyed limb (0% HP) penalizes its owner's own offense -- flat,
- * non-stacking (doesn't get worse with more than one destroyed limb),
- * placeholder amount. There's no hospital system yet to repair it mid-game
- * -- see being_has_destroyed_limb()'s doc comment in being.h. */
+/* A destroyed limb (0% HP) penalizes its owner's own offense (and, as of
+ * this session, their defense too -- see the mirrored check in
+ * combat_strike() below) -- flat, non-stacking (doesn't get worse with
+ * more than one destroyed limb), placeholder amount. A destroyed limb can
+ * be repaired mid-game at a Hospital (see being_has_destroyed_limb()'s doc
+ * comment in being.h) -- it's not a permanent penalty. */
 #define DESTROYED_LIMB_HIT_PENALTY 15
 
 /* Positions polish (TODO backlog) -- see combat_strike(). Same magnitude as
@@ -238,6 +240,13 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     modifier += weapon_hitroll;
     if (being_has_destroyed_limb(attacker))
         modifier -= DESTROYED_LIMB_HIT_PENALTY;
+    /* Meaningful limb damage (TODO.md, user: "make individual limb hits
+     * actually hurt"): the mirror image of the attacker-side penalty just
+     * above -- a destroyed limb doesn't just throw off YOUR swing, it
+     * also makes you an easier target (same flat, non-stacking amount, no
+     * particular reason but consistency with the offense-side number). */
+    if (being_has_destroyed_limb(defender))
+        modifier += DESTROYED_LIMB_HIT_PENALTY;
     /* Positions polish (TODO backlog): a defender who isn't standing --
      * sitting, resting, sleeping, or any of the lower reserved-for-future
      * rungs (see position_t, being.h) -- is an easier target, mirroring

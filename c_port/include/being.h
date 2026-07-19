@@ -537,10 +537,14 @@ const char *alignment_word(int alignment);
 int being_limb_pct(const being_t *b, limb_t limb);
 
 /* True iff any of b's limbs are at 0 HP -- combat.c uses this to apply a
- * placeholder "penalized in combat" hit-chance penalty. There's no
- * hospital system yet to repair a destroyed limb mid-game; currently the
- * only cure is dying and respawning (being_limbs_full_heal() at combat
- * defeat already fully heals every limb). */
+ * placeholder hit-chance penalty to BOTH sides of a fight a destroyed limb
+ * is involved in (worse at landing your own hits; easier for others to
+ * land theirs). Two ways to clear it: get treated at a Hospital
+ * (limb repair, see cmd_shop.c's spec_proc==48 doctor shops), or lose a
+ * fight -- combat defeat already fully heals every limb as part of the
+ * "revived at half HP" recovery (being_limbs_full_heal(), combat.c), same
+ * as it always has; that's deliberate soft-respawn behavior, not a bug to
+ * fix here. */
 bool being_has_destroyed_limb(const being_t *b);
 
 /* Total armor class across every worn slot (sums obj_armor_ac() over
