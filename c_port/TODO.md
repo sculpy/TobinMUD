@@ -83,6 +83,19 @@ implementation inspiration before each one, not guessed at.
       combining `possess` with a same-level check inside another command
       is an unexplored edge case. New `tests/smoke_test_possess.py` (9
       checks, including the disconnect-while-possessing recovery).
+- [x] **OOC channels (commune, etc.)** — done 2026-07-19. Checked Sneezy's
+      own `communication-system.md` doc first: `wiznet` (`;<message>`
+      shorthand) already covers the original's "immortal broadcast" half
+      of `doCommune()` exactly -- every online immortal, sender included.
+      The one real documented gap was the `@<level>` prefix, which
+      narrows delivery to gods at or above that level (`commune @60
+      <message>`); added the equivalent to `wiznet` (`wiznet @<level>
+      <message>`, composes with the `;` shorthand). Newbie channel
+      already existed too. Deliberately did NOT add a separate redundant
+      "commune" command -- the 2026-07-11 audit's own note ("leave
+      further channel sprawl unless a specific need shows up") still
+      applies; the actual gap was the targeting feature, not a whole new
+      channel. New `tests/smoke_test_wiznet.py` (4 checks).
 
 ## Buildable now (no blocked dependencies)
 

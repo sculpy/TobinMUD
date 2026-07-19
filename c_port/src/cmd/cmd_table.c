@@ -363,7 +363,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* Hidden from mortals entirely (Tier 3): players only ever see help for
      * what they can use. */
     { "wizhelp", cmd_wizhelp, "List immortal-only commands.",                       IMMORTAL_LEVEL_MIN },
-    { "wiznet",  cmd_wiznet,  "Broadcast a message to all online immortals.",       IMMORTAL_LEVEL_MIN },
+    { "wiznet",  cmd_wiznet,  "Broadcast to online immortals (wiznet [@<level>] <msg>).", IMMORTAL_LEVEL_MIN },
     /* "zone" is a full prefix of "zonefile", so it MUST stay ahead of it --
      * a bare "zone" abbreviation must match the shorter entry first.
      * Alphabetical delivers this for free, but it is load-bearing. */

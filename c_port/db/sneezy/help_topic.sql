@@ -897,3 +897,8 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('possess', 'Usage: possess <mob>\n\nLevel 59+ only: puppet a mob''s body -- your commands drive the mob\ninstead of your own character until you `return`. The mob must be in\nyour room, unpossessed, and not a player. Your own immortal command\naccess stays with you the whole time (so `return` always works, even\nif the mob''s in-game level is low); a disconnect while possessing\nautomatically returns you first, so you never get stranded in the\nmob''s body.\n\nRelated: return', 'seed'),
 ('return', 'Usage: return\n\nComes back to your own body after `possess`ing a mob.\n\nRelated: possess', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `wiznet @<level>` targeting (Sneezy → Tobin feature audit, "OOC
+-- channels" -- ported from the real `commune @<level>` behavior).
+UPDATE `help_topic` SET `body` = 'Usage: wiznet <message>   |   wiznet @<level> <message>   (shorthand: ;<message>)\n\nImmortals only: a private broadcast channel among the immortals. Your\nmessage reaches every online immortal (and yourself), out of sight of\nmortals. The `;` shorthand needs no space: `;hi` broadcasts "hi".\nAdd `@<level>` to narrow delivery to only immortals at or above that\nlevel -- `wiznet @59 <msg>` reaches Administrator+ only.'
+  WHERE `name` = 'wiznet' AND `updated_by` = 'seed';
