@@ -578,14 +578,23 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-19 (later evening) — logged, not yet started
 
-- [ ] **Immortals see inventory when looking at a mob/player** — user:
-      "immortals can see inventory when looking at a mob or player and
-      can also see the contents of any container they carry." Extend
-      `look <target>` (cmd_look.c) so an immortal viewer additionally
-      sees the target's carried items (and recursively, what's inside
-      any container among them), same "immortals see more" precedent as
-      other admin-only detail elsewhere (e.g. `stat`). Mortals looking
-      at another PC/mob keep today's behavior (no inventory leak).
+- [x] **Immortals see inventory when looking at a mob/player** — done
+      2026-07-19. User: "immortals can see inventory when looking at a
+      mob or player and can also see the contents of any container they
+      carry." `look <target>` (cmd_look.c) now appends a carried-
+      inventory listing after the equipment listing, immortal viewers
+      only — worn/held items are excluded (already shown by the
+      equipment section above it; reuses the same `is_loose()` check
+      cmd_object.c's own `inventory` command uses, duplicated locally
+      per this file's existing `cap_first()` duplication precedent), and
+      an open container among the loose items gets one extra level
+      shown inline ("It contains:"-equivalent), matching `look
+      <container>`'s own single-level convention rather than a full
+      recursive dump. A closed carried container shows "(closed)"
+      instead. Looking at yourself reads "You are carrying:"; looking
+      at someone else reads "<Name> is carrying:". Mortals see no
+      change at all. New `tests/smoke_test_look_inventory.py` (10
+      checks). Regression-checked against `smoke_test_look_equipment.py`.
 - [x] **Wiznews pager freezes the MUD** — done 2026-07-19, fixed same-day
       as reported given "freezes the mud" severity. Root cause:
       `descriptor_page_start()` (descriptor.c) copies its whole source

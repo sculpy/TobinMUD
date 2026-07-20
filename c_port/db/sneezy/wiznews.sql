@@ -695,3 +695,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Prompt: exp, expneed, and prompt all', 'User request: expand the customizable prompt beyond hp/gold/vit. `prompt exp` shows your current experience, `prompt expneed` shows how much more you need to reach the next level (same math as the `level` command). New `prompt all` turns on every available stat at once instead of toggling them one at a time. Mana and piety are still not available -- those resources do not exist in the game yet.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Looking at Someone Now Shows Their Inventory (Immortals Only)', 'User request: "immortals can see inventory when looking at a mob or player and can also see the contents of any container they carry." `look <target>` now appends a carried-inventory section for immortal viewers, right after the equipment listing -- items already shown as worn are not duplicated. An open container among their carried items shows what is inside it too, one level deep; a closed one just shows "(closed)". Mortals looking at someone else see no change at all.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
