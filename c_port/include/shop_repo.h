@@ -70,4 +70,21 @@ void shop_repo_producing(int shop_nr, int *out, int max, int *count);
  * ailments in its place. */
 bool shop_repo_is_hospital(int shop_nr);
 
+/* True if shop `shop_nr` is a stable (Mount/riding system, TODO.md).
+ * Unlike SPEC_PROC_DOCTOR, there's no real Sneezy-seeded spec_proc to
+ * mine here -- the original's own SPEC_PROC_STABLE_MAN
+ * (spec/spec_mobs.h) was verified dead/vestigial, never actually
+ * assigned to any real mob. Backed by a genuinely new, Tobin-original
+ * `shop.is_stable` column instead of overloading `spec_proc` with a
+ * fabricated value that could collide with real (currently-unread)
+ * seeded data -- same "new column when there's nothing real to reuse"
+ * precedent as mob.align. Seeded true for shop_nr 164 (Petir's
+ * "Carnivorous Companions", user-selected 2026-07-19) -- previously a
+ * non-functional real shop (empty `shopproducing`, framed in its own
+ * room description as "buy a trained familiar," which fits a horse
+ * closely enough for now and doubles as the future Pet/charm shop). A
+ * stable's own `shopproducing` stays empty -- `list`/`buy` special-case
+ * this instead, same shape as shop_repo_is_hospital(). */
+bool shop_repo_is_stable(int shop_nr);
+
 #endif

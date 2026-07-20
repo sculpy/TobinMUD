@@ -49,6 +49,14 @@ static void tell(being_t *b, const char *fmt, ...) {
  * DESTROYED_LIMB_HIT_PENALTY, no particular reason but consistency. */
 #define NON_STANDING_HIT_BONUS 15
 
+/* Mounted attack bonus (Mount / riding system, Sneezy → Tobin feature
+ * audit) -- loosely mirrors the original's real mounted to-hit bonus
+ * (roughly level/4+1, misc/combat.cc), simplified to one flat number
+ * since Tobin has no Deikhan "mounted knight" class to scale it further
+ * for. About half of NON_STANDING_HIT_BONUS's magnitude -- a real but
+ * modest edge, not a dominant one. */
+#define MOUNTED_ATTACK_BONUS 8
+
 /* Per-limb hit likelihood (user 2026-07-12: "some limbs are harder to
  * decapitate... this should be based on the likelihood that a limb
  * could be damaged"), lifted straight from Sneezy's own humanoid
@@ -253,8 +261,15 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * the original. Attacking never auto-stands the DEFENDER (only the
      * attacker, cmd_attack.c), so this stays in effect for as long as they
      * choose to stay down. */
-    if (defender->position != POSITION_STANDING)
+    /* POSITION_MOUNTED excluded -- being on horseback isn't the same
+     * "harder to defend yourself" situation as sitting/resting/sleeping
+     * (Mount / riding system, Sneezy → Tobin feature audit). */
+    if (defender->position != POSITION_STANDING && defender->position != POSITION_MOUNTED)
         modifier += NON_STANDING_HIT_BONUS;
+    /* Mounted ATTACKER bonus -- the height/mobility edge of fighting from
+     * horseback (Mount / riding system, Sneezy → Tobin feature audit). */
+    if (attacker->position == POSITION_MOUNTED)
+        modifier += MOUNTED_ATTACK_BONUS;
     /* Armor class (user 2026-07-11: "Armor & protection... complete the
      * to-hit/defense formula depth"): a defender's total worn AC
      * (being_total_ac(), obj.h) makes them harder to hit. Scaled by half

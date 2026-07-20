@@ -321,3 +321,18 @@ CREATE TABLE IF NOT EXISTS `quest_def` (
   `description` text NOT NULL,
   PRIMARY KEY (`quest_name`, `stage`)
 );
+
+-- Mount / riding system (Sneezy → Tobin feature audit, "Mount / riding
+-- system"). User, AskUserQuestion 2026-07-19: a simple immortal-stocked
+-- stable, using the existing shop system. `is_stable` is a genuinely
+-- new Tobin-original column (not reused/overloaded spec_proc data --
+-- see shop_repo.h's shop_repo_is_stable() comment for why) marking a
+-- shop as a horse stable; `list`/`buy` special-case it, same shape as
+-- the hospital special-case. Seeded true for shop_nr 164 (Petir's
+-- "Carnivorous Companions", user-selected room 564) -- a real seeded
+-- shop, previously non-functional (empty shopproducing), whose own
+-- room description already reads "buy a trained familiar" -- doubles as
+-- the future Pet/charm shop later.
+ALTER TABLE `shop`
+  ADD COLUMN IF NOT EXISTS `is_stable` tinyint(1) NOT NULL DEFAULT 0;
+UPDATE `shop` SET `is_stable` = 1 WHERE `shop_nr` = 164;

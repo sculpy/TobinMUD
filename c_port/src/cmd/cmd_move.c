@@ -91,8 +91,10 @@ static bool do_move(descriptor_t *d, int dir) {
         descriptor_send(d, "No way! You are fighting for your life!\r\n");
         return true;
     }
-    if (ch->position != POSITION_STANDING) {
-        /* Must be on your feet to travel (original doMove position gate). */
+    if (ch->position != POSITION_STANDING && ch->position != POSITION_MOUNTED) {
+        /* Must be on your feet (or in the saddle) to travel (original
+         * doMove position gate; POSITION_MOUNTED exempted, Mount/riding
+         * system, Sneezy → Tobin feature audit). */
         descriptor_send(d, "You are in no position to move -- try standing up first.\r\n");
         return true;
     }
@@ -132,6 +134,17 @@ static bool do_move(descriptor_t *d, int dir) {
          * never free (min 1). */
         if (being_has_affect(ch, AFFECT_FLYING)) {
             cost = (cost + 3) / 4;
+            if (cost < 1)
+                cost = 1;
+        } else if (ch->position == POSITION_MOUNTED) {
+            /* Mounted discount (Mount / riding system, Sneezy → Tobin
+             * feature audit) -- half cost, rounded up so it's never
+             * free, same shape as the flying discount just above. Drawn
+             * from the RIDER's own vit pool (Tobin mobs don't track vit
+             * at all -- being_create_mob() never calls
+             * being_calc_max_vit() -- so there's no mount-side pool to
+             * draw from instead, unlike Sneezy's real system). */
+            cost = (cost + 1) / 2;
             if (cost < 1)
                 cost = 1;
         }
@@ -200,6 +213,29 @@ static bool do_move(descriptor_t *d, int dir) {
     descriptor_room_echo(from, ch, msg);
 
     thing_set_room(&ch->base, to);
+
+    /* A mounted rider's mount comes along for the ride -- otherwise the
+     * horse gets left behind the moment its rider walks anywhere (Mount
+     * / riding system, Sneezy → Tobin feature audit). EXCEPT into an
+     * indoor room -- same real precedent Sneezy's own goDirection() uses,
+     * a horse doesn't fit through a doorway -- where the rider dismounts
+     * instead and the mount simply stays behind in `from`, never moved.
+     * No separate room echo for the mount tagging along; the rider's own
+     * arrival/departure messages already cover the normal case. */
+    if (ch->mount && (to->room_flag & ROOM_FLAG_INDOORS)) {
+        being_t *mount = ch->mount;
+        ch->mount = NULL;
+        mount->rider = NULL;
+        ch->position = POSITION_STANDING;
+        mount->position = POSITION_STANDING;
+        char dismount_msg[128];
+        snprintf(dismount_msg, sizeof(dismount_msg),
+                 "You duck through the doorway and have to dismount, leaving %s behind.\r\n",
+                 being_display_name(mount));
+        descriptor_send(d, dismount_msg);
+    } else if (ch->mount) {
+        thing_set_room(&ch->mount->base, to);
+    }
 
     if (ch->poofin[0]) {
         apply_poof_tokens(ch->poofin, DIR_NAMES[REV_DIR[dir]], ch->gender, body, sizeof(body));

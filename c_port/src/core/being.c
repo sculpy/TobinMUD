@@ -140,6 +140,25 @@ void being_destroy(being_t *b) {
             d->character->fighting = NULL;
         if (d->character && d->character->last_heal_target == b)
             d->character->last_heal_target = NULL;
+        /* b was a mount some connected rider was on (b is being destroyed
+         * out from under them, e.g. a ridden horse dying in combat) --
+         * dismount them so the game loop never dereferences b again. */
+        if (d->character && d->character->mount == b) {
+            d->character->mount = NULL;
+            if (d->character->position == POSITION_MOUNTED)
+                d->character->position = POSITION_STANDING;
+        }
+    }
+    /* b itself was riding something when it was destroyed (a PC quitting
+     * or dying while mounted) -- the mount survives, so clear ITS side of
+     * the relationship directly (it's not a connected descriptor's
+     * character, so the loop above never reaches it) and let it resume
+     * normal standing/AI. */
+    if (b->mount) {
+        if (b->mount->rider == b)
+            b->mount->rider = NULL;
+        if (b->mount->position == POSITION_MOUNTED)
+            b->mount->position = POSITION_STANDING;
     }
 
     /* Free every object this being has (carried, worn, or held -- all live
@@ -523,6 +542,10 @@ const char *mob_race_name(int idx) {
  * about ANIMAL races specifically, not "things too dumb to carry a coin
  * purse" generally. AskUserQuestion-confirmed scope with the user
  * before implementing. */
+bool mob_race_is_rideable(int idx) {
+    return idx == 47; /* HORSE */
+}
+
 bool mob_race_is_animal(int idx) {
     switch (idx) {
         case 12:  /* INSECT */
@@ -745,6 +768,12 @@ int being_total_ac(const being_t *b) {
     } else if (b->mob_class_known) {
         total += class_balance_get(b->char_class)->ac_mod;
     }
+    /* Mounted AC bonus (Mount / riding system, Sneezy → Tobin feature
+     * audit) -- lower is better, same scale as MOUNTED_ATTACK_BONUS
+     * (combat.c). A mobility/positioning edge, not armor -- doesn't
+     * stack with anything, just a flat improvement while in the saddle. */
+    if (b->position == POSITION_MOUNTED)
+        total -= 5;
     return total;
 }
 

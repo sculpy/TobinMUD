@@ -37,7 +37,10 @@ bool cmd_attack(descriptor_t *d, const char *args) {
         return true;
     }
 
-    if (d->character->position != POSITION_STANDING) {
+    /* POSITION_MOUNTED is exempt -- fighting from horseback doesn't
+     * silently dismount you (Mount / riding system, Sneezy → Tobin
+     * feature audit; Sneezy's own combat allows fighting mounted too). */
+    if (d->character->position != POSITION_STANDING && d->character->position != POSITION_MOUNTED) {
         d->character->position = POSITION_STANDING;
         descriptor_send(d, "You scramble to your feet.\r\n");
     }

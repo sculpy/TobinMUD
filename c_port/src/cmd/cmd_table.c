@@ -329,6 +329,16 @@ static const cmd_entry_t COMMANDS[] = {
      * cmd_mortal.c. */
     { "mortal",  cmd_mortal,  "Walk the world as a mortal (immort to return).",     IMMORTAL_LEVEL_MIN },
     { "multiplay", cmd_multiplay, "Toggle whether mortals may multiplay (59+).",    MULTIPLAY_MIN_LEVEL },
+    /* Mount/riding system (Sneezy → Tobin feature audit). Listed AFTER
+     * "mortal" above on purpose -- "mortal" already owns the "mo"
+     * abbreviation for immortals (both are reachable to them, and
+     * "mortal" is the established muscle-memory one); "mount" still
+     * works fully spelled, or via "mou". "ride" is the primary name
+     * (no prefix conflict, nothing else starts "ri"); "mount" is a full
+     * alias of it, same alias-row precedent as "engage"/hit above. */
+    { "ride",    cmd_ride,    "Mount a rideable creature (ride <target>).",         MORTAL_LEVEL_MIN },
+    { "mount",   cmd_ride,    "Mount a rideable creature -- alias of ride.",        MORTAL_LEVEL_MIN },
+    { "dismount", cmd_dismount, "Get off your mount.",                             MORTAL_LEVEL_MIN },
     { "pee",     cmd_pee,     "Leave a puddle on the floor (pee <liquid> for a specific type).", IMMORTAL_LEVEL_MIN },
     /* Mortal Thief skill (gated internally by being_knows_skill(), same
      * pattern as settrap/disarmtrap), but placed here rather than

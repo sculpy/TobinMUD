@@ -74,6 +74,19 @@ bool shop_repo_is_hospital(int shop_nr) {
     return keeper >= 0 && mob_repo_get_spec_proc(keeper) == SPEC_PROC_DOCTOR;
 }
 
+bool shop_repo_is_stable(int shop_nr) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool is_stable = false;
+    if (db_query(db, "select is_stable from shop where shop_nr=%i", shop_nr) && db_fetch_row(db))
+        is_stable = atoi(db_get(db, "is_stable")) != 0;
+
+    db_close(db);
+    return is_stable;
+}
+
 void shop_repo_producing(int shop_nr, int *out, int max, int *count) {
     *count = 0;
 

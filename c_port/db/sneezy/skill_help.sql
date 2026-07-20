@@ -300,3 +300,15 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('word of recall', 'Teleports yourself or an ally to the recall point.\n\nClasses: Cleric (Class, level 21), Druid (Advanced, level 50)\n\nUse it with `cast word of recall` (Druid) or `pray word of recall`, optionally with a target (Cleric).\nRequires: a spell component (`cast`) or a holy symbol (`pray`)\nRelated: skills practice cast pray affects', 'seed'),
 ('yoginsa', 'Meditate to recover HP, movement, and mana.\n\nClasses: Monk (Class, level 1)\n\nNot yet wired to its own command -- shown in `skills`/`practice` with its proficiency, but has no real mechanic to invoke yet.\nRequires: nothing yet -- not implemented as a command\nRelated: skills practice cast pray affects', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- "riding" (Mount / riding system, Sneezy → Tobin feature audit)
+-- postdates the one-shot generator run above -- hand-added in the same
+-- format so it doesn't stand out as a placeholder (the exact class of
+-- bug fixed earlier this session, "wiznews/spell help placeholder
+-- text"). Deviates from the fixed "Related: skills practice cast pray
+-- affects" footer every generated row above shares -- riding has its
+-- own real dedicated command pair, not a cast/pray route, so the
+-- Related line names those instead.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('riding', 'Mount and control a rideable creature.\n\nClasses: Warrior (Combat, level 1), Thief (Combat, level 1), Monk (Combat, level 1), Cleric (Combat, level 1), Mage (Combat, level 1), Druid (Combat, level 1)\n\nUse it with `ride <target>` (or the alias `mount <target>`) on a rideable creature -- a horse can often be bought from a stable. `dismount` to get off.\nRequires: nothing -- available to every class\nRelated: skills practice ride dismount', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

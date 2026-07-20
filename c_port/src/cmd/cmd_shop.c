@@ -194,6 +194,70 @@ static void buy_hospital_cure(descriptor_t *d, being_t *ch, being_t *keeper, con
     player_progress_save(ch->player_id, &ch->progress);
 }
 
+/* Stable (Mount / riding system, Sneezy → Tobin feature audit -- user,
+ * AskUserQuestion 2026-07-19: "a simple immortal-stocked stable, using
+ * the existing shop system"). Same "own `shopproducing` is empty,
+ * `list`/`buy` special-case it" shape as the hospital above -- a stable
+ * has nothing physical to sell either. v1 sells exactly one thing (a
+ * tame plow-horse, mob vnum 558, real seeded data -- race=47/HORSE,
+ * level 6) at a flat price; more variety can join this list later
+ * without touching cmd_list()/cmd_buy() at all. */
+#define STABLE_HORSE_VNUM 558
+#define STABLE_HORSE_PRICE 100
+
+static void list_stable(descriptor_t *d, being_t *ch, being_t *keeper) {
+    (void)ch;
+    char keeper_name[128];
+    being_display_name_cap(keeper, keeper_name, sizeof(keeper_name));
+
+    char out[512];
+    snprintf(out, sizeof(out),
+             "\r\n%s waves you over to the stalls:\r\n"
+             " 1) A sturdy plow-horse                    %d gold\r\n"
+             "\r\n(buy <#> or buy horse)\r\n",
+             keeper_name, STABLE_HORSE_PRICE);
+    descriptor_page_start(d, out, 0);
+}
+
+static void buy_stable_horse(descriptor_t *d, being_t *ch, being_t *keeper, const shop_t *shop, const char *args) {
+    char tok[16] = "";
+    sscanf(args, "%15s", tok);
+    if (strcasecmp(tok, "1") != 0 && !keyword_matches("horse plowhorse plow-horse", tok)) {
+        char msg[SHOP_MSG_LEN + 4];
+        snprintf(msg, sizeof(msg), "%s\r\n", shop->no_such_item1);
+        descriptor_send(d, msg);
+        return;
+    }
+    if (ch->progress.gold < STABLE_HORSE_PRICE) {
+        char msg[SHOP_MSG_LEN + 4];
+        snprintf(msg, sizeof(msg), "%s\r\n", shop->missing_cash1);
+        descriptor_send(d, msg);
+        return;
+    }
+
+    being_t *horse = being_create_mob(STABLE_HORSE_VNUM);
+    if (!horse) {
+        descriptor_send(d, "Something went wrong -- no horse could be found for you.\r\n");
+        return;
+    }
+    thing_set_room(&horse->base, ch->base.roomp);
+
+    char keeper_name[128];
+    being_display_name_cap(keeper, keeper_name, sizeof(keeper_name));
+    char confirm[256];
+    snprintf(confirm, sizeof(confirm), "%s leads a horse out of the stalls for you. Try `ride plow-horse`.\r\n",
+             keeper_name);
+    descriptor_send(d, confirm);
+
+    char paid[SHOP_MSG_LEN + 16];
+    snprintf(paid, sizeof(paid), shop->message_buy, STABLE_HORSE_PRICE);
+    strncat(paid, "\r\n", sizeof(paid) - strlen(paid) - 1);
+    descriptor_send(d, paid);
+
+    ch->progress.gold -= STABLE_HORSE_PRICE;
+    player_progress_save(ch->player_id, &ch->progress);
+}
+
 /* `list` (user 2026-07-17: "implement money and shops"): shows the active
  * shop's wares from its `shopproducing` catalog (see shop_repo.h -- NOT
  * the keeper mob's own carried items; the seeded zone-reset data never
@@ -223,6 +287,10 @@ bool cmd_list(descriptor_t *d, const char *args) {
     }
     if (shop_repo_is_hospital(shop.shop_nr)) {
         list_hospital(d, ch, keeper);
+        return true;
+    }
+    if (shop_repo_is_stable(shop.shop_nr)) {
+        list_stable(d, ch, keeper);
         return true;
     }
 
@@ -282,6 +350,10 @@ bool cmd_buy(descriptor_t *d, const char *args) {
     }
     if (shop_repo_is_hospital(shop.shop_nr)) {
         buy_hospital_cure(d, ch, keeper, &shop, args);
+        return true;
+    }
+    if (shop_repo_is_stable(shop.shop_nr)) {
+        buy_stable_horse(d, ch, keeper, &shop, args);
         return true;
     }
 

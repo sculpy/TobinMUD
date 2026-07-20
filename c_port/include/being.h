@@ -392,6 +392,17 @@ const char *mob_race_name(int idx);
  * does. */
 bool mob_race_is_animal(int idx);
 
+/* True iff `idx` (a raw mob.race value, MOB_RACE_NAMES[] index) is a
+ * rideable-mount race for the Mount/riding system (cmd_ride.c). HORSE
+ * only for v1 -- Sneezy's own real riding-skill categories (domestic/
+ * nondomestic/winged/exotic, misc/riding.cc) cover far more ground
+ * (camels, griffons, dragons, ...), but Tobin's seeded mob data only
+ * has real HORSE-race mobs to draw on right now (verified against the
+ * live `mob` table: several "horse"/"warhorse"/"plow-horse" entries,
+ * all race=47/HORSE); other races can join this list later without
+ * touching any caller. */
+bool mob_race_is_rideable(int idx);
+
 /* Applies `c`'s fixed stat bonus/penalty to `*a` IN PLACE (added on top of
  * whatever the player already point-bought) -- called once, at character
  * creation. Every class's bonuses and penalties net to zero. Loosely
@@ -570,6 +581,22 @@ typedef struct being {
      * cmd_continue.c. */
     struct being *last_heal_target;
     char last_heal_spell[64];
+
+    /* Mount/riding (Sneezy → Tobin feature audit, "Mount / riding
+     * system"). Single pointer each way, same bidirectional-single-
+     * pointer shape as `fighting` (not `master`/`followers[]`'s array
+     * shape -- one rider per mount, one mount per rider, no multi-rider
+     * chains). Live in-memory only, same reconnect rule as `fighting` --
+     * survives a disconnect (a linkdead rider stays mounted, matching
+     * `master`/`followers` not being cleared on disconnect either), but
+     * is torn down bidirectionally by being_destroy() (cmd_ride.c/
+     * being.c) whenever either side is actually destroyed (quit!,
+     * death). See cmd_ride.c for mount/dismount, cmd_move.c for the
+     * movement-cost discount + auto-dismount-indoors, combat.c for the
+     * mounted attack bonus, and being_total_ac() for the mounted AC
+     * bonus. */
+    struct being *mount;
+    struct being *rider;
 
     /* Active timed buffs/debuffs (user 2026-07-11's "Affects system
      * (buffs/debuffs/status)" backlog item) -- see affect.h. Live

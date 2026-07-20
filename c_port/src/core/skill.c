@@ -22,6 +22,7 @@
  * `START_n` threshold. */
 static const skill_def_t SKILLS[] = {
     /* ---------------- WARRIOR ---------------- */
+    { "riding",                  CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Mount and control a rideable creature." },
     { "bash",                    CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Knock your target down, stunning them briefly." },
     { "berserk",                 CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Forgo defense for a burst of offense -- but you're much harder to rescue or parry while raging." },
     { "rally",                   CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "A battlecry that boosts nearby allies' combat prowess." },
@@ -55,6 +56,7 @@ static const skill_def_t SKILLS[] = {
     { "close quarters fighting", CLASS_WARRIOR, SKILL_TIER_ADVANCED, 50, "A combat bonus while grappled or fighting at point-blank range." },
 
     /* ---------------- THIEF ---------------- */
+    { "riding",           CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
     { "kick",             CLASS_THIEF, SKILL_TIER_COMBAT,  1, "An unarmed kick attack." },
     { "retreat",          CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Disengage from your current opponent." },
     { "backstab",         CLASS_THIEF, SKILL_TIER_COMBAT,  1, "A devastating sneak attack against an unaware or from-behind target." },
@@ -90,6 +92,7 @@ static const skill_def_t SKILLS[] = {
     { "set trap (grenade)", CLASS_THIEF, SKILL_TIER_ADVANCED, 50, "Rig a grenade-type trap." },
 
     /* ---------------- MONK ---------------- */
+    { "riding",          CLASS_MONK, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
     { "disarm",          CLASS_MONK, SKILL_TIER_COMBAT,  1, "Knock the weapon out of an opponent's hand." },
     { "kick",            CLASS_MONK, SKILL_TIER_COMBAT,  3, "An unarmed kick attack." },
     { "groundfighting",  CLASS_MONK, SKILL_TIER_COMBAT, 5, "Reduces the penalty for fighting while knocked down." },
@@ -130,6 +133,7 @@ static const skill_def_t SKILLS[] = {
     { "bonebreak",           CLASS_MONK, SKILL_TIER_ADVANCED, 50, "A high-damage grapple attack that breaks a limb." },
 
     /* ---------------- CLERIC ---------------- */
+    { "riding",               CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
     { "slash proficiency",    CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
     { "blunt proficiency",    CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
     { "pierce proficiency",   CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },
@@ -195,6 +199,7 @@ static const skill_def_t SKILLS[] = {
     { "heal full spray",  CLASS_CLERIC, SKILL_TIER_ADVANCED, 50, "The strongest area heal, for everyone in the room." },
 
     /* ---------------- MAGE ---------------- */
+    { "riding",               CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
     { "slash proficiency",    CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
     { "blunt proficiency",    CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
     { "pierce proficiency",   CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },
@@ -311,6 +316,7 @@ static const skill_def_t SKILLS[] = {
      * their original voodoo/loa styling. Shaman's totem/golem/undead-
      * thrall/possession lines were deliberately left out -- thematically
      * a poor fit regardless of renaming. */
+    { "riding",               CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
     { "slash proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
     { "blunt proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
     { "pierce proficiency",   CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },
