@@ -190,10 +190,17 @@ si = relog(imm_name, imm_pw)
 cmd(si, f"goto {ROOM_OUT}")
 
 # --- mortal A: 100% riding proficiency -- deterministic success ---
+# combat_disc_pct is the proficiency CEILING for any SKILL_TIER_COMBAT
+# skill (skill.c's skill_ceiling()) -- a fresh, never-practiced character
+# has it at 0, which caps skill_learn_from_doing() at 0 regardless of
+# whatever raw pct seed_proficiency() wrote, same discipline-gate rule
+# cmd_cast.c enforces for spells. Must set both.
 nameA, pwA = f"Mnta{_suffix}", "mntapw12345"
 sA = make_char(nameA, pwA)
 cmd(sA, "quit!"); sA.close()
 sql(f"UPDATE player SET load_room={ROOM_OUT} WHERE name='{nameA}';")
+sql(f"UPDATE player_progress SET combat_disc_pct=100 WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{nameA}');")
 seed_proficiency(nameA, "riding", 100)
 sA = relog(nameA, pwA)
 
@@ -209,6 +216,8 @@ nameB, pwB = f"Mntb{_suffix}", "mntbpw12345"
 sB = make_char(nameB, pwB)
 cmd(sB, "quit!"); sB.close()
 sql(f"UPDATE player SET load_room={ROOM_OUT} WHERE name='{nameB}';")
+sql(f"UPDATE player_progress SET combat_disc_pct=100 WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{nameB}');")
 seed_proficiency(nameB, "riding", 0)
 sB = relog(nameB, pwB)
 
