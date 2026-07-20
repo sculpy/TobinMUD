@@ -146,6 +146,16 @@ def make_char(name, pw):
     return s
 
 
+def attack_and_settle(sock, target_name):
+    """`attack` itself sets COMBAT_ROUND_PULSES (1.2s) of wait on the
+    ATTACKER at initiation (cmd_attack.c) -- attempting a skill command
+    immediately afterward collides with that same lag and gets rejected
+    ("You are still recovering!") before the skill roll even happens.
+    Sleep it off first."""
+    cmd(sock, f"attack {target_name}")
+    time.sleep(1.3)
+
+
 def relog(name, pw):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
@@ -184,7 +194,7 @@ def make_pair(prefix, cls, room=None):
 # =================== 1. bash (Warrior) ===================
 (nameA, sA), (nameB, sB) = make_pair("Bshw", CLASS_WARRIOR)
 seed_proficiency(nameA, "bash", 100)
-cmd(sA, f"attack {nameB}")
+attack_and_settle(sA, nameB)
 out = strip(cmd(sA, f"bash {nameB}"))
 check("knocking" in out.lower(), "100%-proficiency bash succeeds and lands")
 
@@ -204,7 +214,7 @@ sA.close(); sB.close()
 
 (nameC, sC), (nameD, sD) = make_pair("Bshw0", CLASS_WARRIOR)
 seed_proficiency(nameC, "bash", 0)
-cmd(sC, f"attack {nameD}")
+attack_and_settle(sC, nameD)
 out = strip(cmd(sC, f"bash {nameD}"))
 check("twist out of the way" in out.lower(), "0%-proficiency bash always fails")
 out_d = strip(cmd(sD, "look"))
@@ -215,7 +225,7 @@ sC.close(); sD.close()
 # =================== 2. kick (Thief) ===================
 (nameE, sE), (nameF, sF) = make_pair("Kckt", CLASS_THIEF)
 seed_proficiency(nameE, "kick", 100)
-cmd(sE, f"attack {nameF}")
+attack_and_settle(sE, nameF)
 out = strip(cmd(sE, f"kick {nameF}"))
 check("solid kick" in out.lower(), "100%-proficiency kick succeeds and lands")
 out_e = strip(cmd(sE, "look"))
@@ -224,7 +234,7 @@ sE.close(); sF.close()
 
 (nameG, sG), (nameH, sH) = make_pair("Kckt0", CLASS_THIEF)
 seed_proficiency(nameG, "kick", 0)
-cmd(sG, f"attack {nameH}")
+attack_and_settle(sG, nameH)
 out = strip(cmd(sG, f"kick {nameH}"))
 check("dodge out of the way" in out.lower(), "0%-proficiency kick always fails")
 sG.close(); sH.close()
@@ -258,7 +268,7 @@ cmd(si, f"load obj {WEAPON_VNUM}")
 cmd(sJ, "get sword")
 cmd(sJ, "wield sword")
 
-cmd(sI, f"attack {nameJ}")
+attack_and_settle(sI, nameJ)
 out = strip(cmd(sI, f"disarm {nameJ}"))
 check("knock" in out.lower() and "grip" in out.lower(), "100%-proficiency disarm succeeds")
 
@@ -277,7 +287,7 @@ cmd(si, f"load obj {WEAPON_VNUM2}")
 cmd(sL, "get dagger")
 cmd(sL, "wield dagger")
 
-cmd(sK, f"attack {nameL}")
+attack_and_settle(sK, nameL)
 out = strip(cmd(sK, f"disarm {nameL}"))
 check("can't get a grip" in out.lower(), "0%-proficiency disarm always fails")
 si.close()
