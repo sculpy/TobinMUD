@@ -679,3 +679,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Fixed: Weather Was Leaking Indoors', 'User report: "weather should not affect rooms that are flagged indoors." Real bug -- the weather-change announcement ("Clouds begin to gather overhead", "It begins to rain", ...) was broadcast to every connected character regardless of what room they were standing in, so someone tucked away inside a building would still hear about clouds gathering overhead. Fixed with the exact same INDOORS-flag check the darkness half of the weather system already uses for `look`/`exits` -- a room flagged indoors simply does not receive the announcement anymore. A torchlit indoor room still gets the exemption (it just is not dark, that is a separate question from being indoors), matching how ALWAYS-LIT and INDOORS have always meant two different things everywhere else in the game.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Tips Channel Now Has Its Own Toggle', 'User request: "tips channel should be a toggle to shut it off or turn it on again." Previously the only way to stop the periodic "Tip:" echoes was `toggle newbie`, which also dropped you off the newbie help channel entirely -- a much bigger side effect than just wanting quieter tips. Added a standalone `toggle tips` switch (on by default) that only silences the tip echoes, leaving the newbie channel itself untouched.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

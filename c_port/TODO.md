@@ -478,12 +478,21 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       character receives the announcement on the SAME tick an indoor
       one does not. Regression-checked against `smoke_test_weather.py`
       (also exercises weather ticks).
-- [ ] **`toggle tips` (mute the tips channel)** — user: "tips channel
-      should be a toggle to shut it off or turn it on again." Same
-      pflags-bitmask pattern `toggle noshout`/`toggle newbie` already use
-      (cmd_toggle.c) — add a `PLR_NOTIPS`-equivalent flag, gate wherever
-      the tips broadcast currently sends (cmd_tips.c / whatever
-      pulse-driven tip-broadcast exists) on it being unset.
+- [x] **`toggle tips` (mute the tips channel)** — done 2026-07-19. User:
+      "tips channel should be a toggle to shut it off or turn it on
+      again." Before this, the only way to silence the periodic
+      pulse-driven tip echo (`tips_repo.c`'s `tips_pulse_tick()`) was
+      `toggle newbie`, which also drops the player off the newbie help
+      channel entirely (`cmd_newbie.c`) — a much bigger side effect than
+      "stop showing me tips." Added a dedicated `PLR_NOTIPS` pflags bit
+      (being.h, deliberately its own bit rather than reusing `PLR_NEWBIE`)
+      and a `toggle tips` switch (cmd_toggle.c, "Communication" category,
+      default on). `tips_pulse_tick()` now requires `PLR_NEWBIE` set AND
+      `PLR_NOTIPS` clear, so tips still only ever reach newbie-flagged
+      connections. New `tests/smoke_test_toggle_tips.py` (8 checks) —
+      confirms the switch lists/flips/persists correctly and is genuinely
+      independent of `toggle newbie`. Regression-checked against
+      `smoke_test_toggle.py`.
 - [ ] **`level` command** — shows how close a player is to leveling: "You
       have X experience and need X experience to level." Check Sneezy for
       how it computes XP-to-next-level (likely already has the formula
