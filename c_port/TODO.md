@@ -575,6 +575,17 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       checks) passes clean against production. No code change needed
       -- closing this out as confirmed-already-fixed rather than
       redoing completed work.
+
+### User batch 2026-07-19 (later evening) — logged, not yet started
+
+- [ ] **Immortals see inventory when looking at a mob/player** — user:
+      "immortals can see inventory when looking at a mob or player and
+      can also see the contents of any container they carry." Extend
+      `look <target>` (cmd_look.c) so an immortal viewer additionally
+      sees the target's carried items (and recursively, what's inside
+      any container among them), same "immortals see more" precedent as
+      other admin-only detail elsewhere (e.g. `stat`). Mortals looking
+      at another PC/mob keep today's behavior (no inventory leak).
 - [x] **Wiznews pager freezes the MUD** — done 2026-07-19, fixed same-day
       as reported given "freezes the mud" severity. Root cause:
       `descriptor_page_start()` (descriptor.c) copies its whole source
