@@ -116,6 +116,11 @@ def set_gold(name, amount):
         f"(SELECT id FROM player WHERE name='{name}');")
 
 
+def set_hp(name, hp, max_hp):
+    sql(f"UPDATE player_progress SET hp={hp}, max_hp={max_hp} WHERE player_id="
+        f"(SELECT id FROM player WHERE name='{name}');")
+
+
 def make_char(name, pw):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
@@ -148,9 +153,11 @@ sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
 
 
 def mob_row(vnum, name_tag, race):
-    """A weak, harmless, low-HP mob (0 tohit/damage, no aggression) that
-    dies to a couple of hits and can never land one back -- keeps the
-    fight deterministic. Only `race` differs between the two rows."""
+    """A weak, low-HP mob (mob.tohit/damage_level aren't wired into
+    combat.c yet -- being_create_mob() derives everything from level
+    instead -- so the PC's own HP is padded way up separately to
+    guarantee it survives the fight regardless of what the mob lands).
+    Only `race` differs between the two rows."""
     cols = {
         "vnum": vnum, "name": f"'{name_tag}'", "short_desc": f"'a {name_tag}'",
         "long_desc": f"'A {name_tag} is here.'", "description": "'desc'",
@@ -197,6 +204,7 @@ sA = make_char(nameA, pwA)
 cmd(sA, "quit!"); sA.close()
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{nameA}';")
 set_gold(nameA, 0)
+set_hp(nameA, 500, 500)
 sA = relog(nameA, pwA)
 
 before_gold, before_xp = gold_of(nameA), xp_of(nameA)
@@ -210,6 +218,7 @@ sB = make_char(nameB, pwB)
 cmd(sB, "quit!"); sB.close()
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{nameB}';")
 set_gold(nameB, 0)
+set_hp(nameB, 500, 500)
 sB = relog(nameB, pwB)
 
 before_gold2, before_xp2 = gold_of(nameB), xp_of(nameB)
