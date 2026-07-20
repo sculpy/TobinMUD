@@ -540,11 +540,25 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       NORACE mob still awards gold as before. Regression-checked against
       `smoke_test_pk_gold.py` and `smoke_test_death_xploss.py` (both
       also exercise combat_defeat()'s reward paths).
-- [ ] **Fix placeholder spell help files** — user found `help haste` still
-      showing the literal generator placeholder text ("Description of what
-      the spell is intended to do.") instead of a real description. Audit
-      ALL spell/skill help topics (not just Haste) for the same unfilled
-      placeholder and write real descriptions.
+- [x] **Fix placeholder spell help files** — already resolved, confirmed
+      2026-07-19. User found `help haste` still showing the literal
+      generator placeholder text ("Description of what the spell is
+      intended to do.") instead of a real description. Turned out this
+      was already fixed the DAY BEFORE the report, by commit `ca55246`
+      ("Add engage alias and real per-skill/spell help topics",
+      2026-07-18) — that commit generated real, distinct
+      `help_topic` rows for all 271 unique skill/spell names straight
+      out of `skill.c`'s own roster (see that commit's own TODO.md
+      entry for the full story). The user's report was most likely
+      based on a stale client view from before that fix landed.
+      Re-verified live 2026-07-19: `select body from help_topic where
+      name='haste'` (and `fireball`, `cure poison`, `bless`) all show
+      real per-spell descriptions, a broad DB search for the literal
+      placeholder phrase ("intended to do") across all 424 help_topic
+      rows returns zero matches, and `smoke_test_help_topics.py` (20
+      checks) passes clean against production. No code change needed
+      -- closing this out as confirmed-already-fixed rather than
+      redoing completed work.
 - [x] **Wiznews pager freezes the MUD** — done 2026-07-19, fixed same-day
       as reported given "freezes the mud" severity. Root cause:
       `descriptor_page_start()` (descriptor.c) copies its whole source
