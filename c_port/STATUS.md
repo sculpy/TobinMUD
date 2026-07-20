@@ -1,6 +1,101 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-19 — Session 48 (home): **Total VM loss and rebuild,
+Last updated: 2026-07-19 — Session 49 (home): **User batch (tips toggle,
+`level` command, prompt expansion, animal-race gold) + Mount/riding
+system.** Worked a batch of 5 user-reported items logged earlier this
+session (a wiznews/news pager truncation bug and a weather-leaking-
+indoors bug were already fixed and deployed before this entry — see the
+TODO.md "User batch 2026-07-19 (evening)" section for both writeups),
+then continued down the numbered audit backlog into task 13.
+
+- **`toggle tips`** — dedicated `PLR_NOTIPS` pflags bit (being.h),
+  independent of `toggle newbie` (previously the only way to silence the
+  periodic tip echo was leaving the whole newbie channel). New
+  `tests/smoke_test_toggle_tips.py` (8 checks).
+- **`level` command** — new `cmd_level.c`, "You have X experience and
+  need Y more experience to level," reusing `progress_xp_for_level()`
+  (the same curve `progress_add_xp()` levels a player up against) so it
+  can't drift out of sync with a real level-up. New
+  `tests/smoke_test_level.py` (8 checks).
+- **Animal-race mobs no longer drop gold** — AskUserQuestion-confirmed
+  scope: Tobin's 6 PLAYER races have nothing literally "animal" among
+  them, so this gates the existing mob gold-drop-on-kill by the mob's
+  upstream `mob.race` column (previously wholly deferred/display-only)
+  being a mundane real-world creature race. `mob.race` now loads into
+  `mob_proto_t` and copies onto a new `being_t.mob_race` at spawn time;
+  new `mob_race_is_animal()` (being.c, 46-case lookup, verified index-
+  by-index against the name table via a live Python check on the VM)
+  excludes fantastical/sapient races and plants/oozes/elementals. XP
+  unaffected. New `tests/smoke_test_animal_no_gold.py` (6 checks).
+- **Prompt expansion** — `prompt exp`/`prompt expneed` (experience,
+  experience-needed-to-level) join hp/gold/vit; new `prompt all` sets
+  every available one at once. Mana/piety remain blocked (still don't
+  exist as resources). Checks folded into the existing
+  `smoke_test_parser_display.py` prompt section (15 checks) rather than
+  a new file.
+- **Spell-help-placeholder report — confirmed already fixed, no code
+  change.** The user re-reported `help haste` showing generator
+  placeholder text; turned out commit `ca55246` (2026-07-18, the day
+  BEFORE the report) already generated real per-spell help topics for
+  all 271 skills/spells. Verified live (zero placeholder matches across
+  424 help_topic rows, `smoke_test_help_topics.py` clean) and closed
+  the TODO item as confirmed-resolved rather than redoing finished work.
+- **Mount / riding system** (Sneezy → Tobin feature audit, task 13) —
+  scoped way down from Sneezy's real system (misc/riding.cc: no Deikhan
+  class, no height/weight-ratio gauntlet). AskUserQuestion-confirmed
+  scope with the user: a "fuller" tier (mounted combat bonus +
+  skill-gated mount success) plus a simple immortal-stocked stable using
+  the existing shop system. Any class can `ride`/`mount <target>` a
+  HORSE-race mob (`mob_race_is_rideable()`, being.c — reuses the same
+  `mob.race` plumbing the animal-gold item just wired up) via a new
+  universal "riding" skill (one entry per class, same learn-by-doing
+  shape as cast/pray/peek) gated by `ch->progress.combat_disc_pct` same
+  as every other Combat-tier skill. Success links `being_t.mount`/
+  `.rider` bidirectionally (mirrors `fighting`'s single-pointer shape)
+  and sets `POSITION_MOUNTED` (already existed in the enum, unused until
+  now) on both sides — the mount stops wandering/aggroing while ridden
+  since mob_ai.c's own gates already key off `position ==
+  POSITION_STANDING`. `cmd_move.c`: mounted movement costs half vit
+  (rounded up), the mount follows the rider room-to-room, and entering
+  an INDOORS room forces a dismount (mount stays behind, doesn't move
+  into the building). `combat.c`/`being_total_ac()`: a small mounted
+  attack bonus and AC bonus, and mounted defenders are excluded from the
+  existing non-standing-defender "easier target" bonus. `being_destroy()`
+  gained bidirectional mount/rider teardown (same treatment as
+  `fighting`/`last_heal_target`). Stable: a genuinely new
+  `shop.is_stable` column (not a reused/fabricated `spec_proc` value —
+  Sneezy's own `SPEC_PROC_STABLE_MAN` was verified dead code, never
+  really assigned to a mob) seeded true for shop_nr 164 — user-selected
+  Petir's "Carnivorous Companions" (room 564), a real seeded shop that
+  was completely non-functional before this (empty `shopproducing`,
+  framed in its own room description as "buy a trained familiar" — also
+  earmarked as the future Pet/charm shop). New
+  `tests/smoke_test_mount.py` (17 checks: mount/dismount success and
+  failure, movement discount, indoor auto-dismount, purge-teardown,
+  stable purchase). Verified live on both preview and production;
+  regression-checked against `smoke_test_positions.py`/
+  `smoke_test_combat.py`/`smoke_test_vitality_terrain.py` (still running
+  as of this write-up — check their result before treating task 13 as
+  fully closed if picking this up cold).
+- **Also logged, not yet started**: a new user request — "immortals can
+  see inventory when looking at a mob or player and can also see the
+  contents of any container they carry" (extend `look <target>` for
+  immortal viewers) — see TODO.md's newest "User batch (later evening)"
+  section.
+- **Known gap found and partially repaired**: this session's player-
+  facing work had NOT been getting `news.sql` entries (CLAUDE.md house
+  rule: every command/behavior change affecting players gets one, in
+  ADDITION to wiznews.sql) — only wiznews.sql was kept current in the
+  moment. Backfilled at the end of this session for the 5 items above
+  (tips/level/prompt/animal-gold/mounts); the two EARLIER same-session
+  fixes (wiznews pager truncation, weather-indoors) were treated as
+  under-the-hood bugfixes and deliberately left wiznews-only, matching
+  how Session 48's own bugfixes (the three stray-`\r\n` fixes) also
+  didn't get news.sql entries. Worth double-checking this rule is being
+  followed going forward — it's easy to drop when working fast down a
+  backlog.
+
+### Session 48 (home): **Total VM loss and rebuild,
 News follow-ups, three stray-\r\n formatting fixes.** The old VM
 (192.168.254.200) was lost entirely — no DB backup existed, so all live
 player data is gone. Rebuilt from scratch on a fresh Fedora Linux 44 Server

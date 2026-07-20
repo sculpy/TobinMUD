@@ -223,3 +223,28 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Peace and Quiet, On Demand',
  'Tired of someone spamming your tells? `ignore <name>` blocks their tells and whispers from ever reaching you -- they will not even know it happened. `unignore <name>` lets them back in whenever you are ready.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Tips Have Their Own Off Switch',
+ 'The periodic tip messages used to be tied to the newbie help channel -- turning them off meant leaving that channel entirely. Now `toggle tips` mutes just the tips, leaving everything else alone.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Wondering How Close You Are to Leveling?',
+ 'The new `level` command tells you exactly that: how much experience you have, and how much more you need before your next level.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Fuller Prompt',
+ '`prompt` now offers two more stats to show alongside HP, gold, and vitality: your current experience, and how much more you need to level. `prompt all` turns every available one on at once.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Ordinary Animals Do Not Carry Coin Purses',
+ 'Killing a mundane creature -- a rat, a bear, a bird, and the like -- no longer hands you gold; that never made much sense for an animal to be carrying. Dragons, orcs, and other fantastical foes are unaffected. Experience is unaffected either way.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Saddle Up',
+ 'Mounts have arrived. Find a loose horse and `ride` it, or buy one from the stable at Carnivorous Companions. A mount lets you cover ground faster and fights with you at your side -- `dismount` when you are done, though stepping indoors will do that for you automatically.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

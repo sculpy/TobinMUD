@@ -120,17 +120,59 @@ currently have it (never needed it yet).
 
 ## Deploy sequence (on a build box, after pulling)
 
+As of Home's rebuilt VM (Session 48+), the box runs **two live instances
+side by side**: a **preview** on port 4003 and **production** on port 4000,
+sharing the one `sneezy` DB. New work gets built + deployed to preview
+first, smoke-tested there, THEN the same binary is restarted on production
+— this lets iteration happen without disrupting whoever/whatever is
+relying on production mid-session (including a long-running `sweep.sh`).
+Both use the plain `Makefile` (`make -j4`) day-to-day, not the `cmake`
+path below — `CMakeLists.txt` still exists and still works, but everything
+this session actually ran was `make`.
+
 ```bash
 cd ~/NewMUD/c_port
-rm -rf build && cmake -S . -B build && cmake --build build   # expect ZERO warnings
-bash db/apply-tobin-schema.sh                                 # Tobin schema + migrations (idempotent)
-mariadb sneezy -e "SELECT COUNT(*) FROM player;"              # sanity: must not drop
-# restart the server the usual way (copyover if players are connected, else cold start)
-bash tests/sweep.sh                                           # full smoke suite
+git pull origin main                                          # (or the scp-then-commit-later flow, Home specifics above)
+make -j4                                                       # expect ZERO warnings; incremental is fine day-to-day,
+                                                                 #   but rm -rf build/obj first after any header change
+mariadb sneezy < db/sneezy/tobin_migrations.sql                # + any other changed db/sneezy/*.sql (idempotent)
+mariadb sneezy < db/sneezy/wiznews.sql                         # apply the new wiznews/news changelog entries
+mariadb sneezy < db/sneezy/news.sql
 ```
-- `rm -rf build` matters after any header change: stale object files → a
-  silently inconsistent binary.
-- Launch line (no DB password — `mud` has local socket access):
+
+Restart preview and production **separately** (each is its own
+`kill <pid>` + relaunch — find current PIDs with `pgrep -af 'build/tobin_c'`
+first, since they change every restart):
+
+```bash
+# preview (port 4003)
+kill <preview_pid>; sleep 1
+. ./.env.local && TOBIN_PORT=4003 setsid nohup ./build/tobin_c >> preview.log 2>&1 < /dev/null &
+
+# production (port 4000) — only after preview smoke-tests clean
+kill <production_pid>; sleep 1
+. ./.env.local && setsid nohup ./build/tobin_c >> tobin_c.log 2>&1 < /dev/null &
+```
+
+Then test each in turn (always both — a change deployed to preview isn't
+"done" until it's also verified on production):
+
+```bash
+python3 tests/smoke_test_<new_or_touched>.py 127.0.0.1 4003    # preview first
+python3 tests/smoke_test_<new_or_touched>.py 127.0.0.1 4000    # then production
+bash tests/sweep.sh                                             # full suite, only right before a repo push (~85 min)
+```
+- **Clean up sandbox test data after every run**: smoke tests create
+  throwaway rooms/mobs/characters directly via SQL (e.g. `WHERE name LIKE
+  'Xyz Sandbox%'`) and don't always self-clean — leftover rows can collide
+  with a LATER test's time-based vnum range (hit this live: a stale
+  `Extra Desc Sandbox%` room from an old, uncleaned run collided with a
+  fresh `Mount Sandbox%` room's computed vnum and broke the insert).
+  `DELETE FROM room/roomexit/mob/player/player_progress WHERE name LIKE
+  '<TestPrefix>%'` after each test, and periodically sweep for orphaned
+  `%Sandbox%` rows left by past sessions.
+- Launch line (no DB password — `mud` has local socket access), if not
+  using `.env.local`:
   ```bash
   TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=sneezy \
     setsid nohup ./build/tobin_c > ~/NewMUD/tobin_c.log 2>&1 < /dev/null &
@@ -139,7 +181,11 @@ bash tests/sweep.sh                                           # full smoke suite
   `set`, `mortal_toggle`, occasionally `notify`/`news`. The failing set rotates
   run-to-run because the tests share one live server — re-run any failure
   standalone (`python3 tests/smoke_test_X.py 127.0.0.1 4000`) before treating
-  it as a real regression.
+  it as a real regression. `parser_display` in particular has a genuine,
+  unrelated intermittent flake: a telnet keepalive IAC NOP occasionally
+  races the test's strict `.endswith(">")` check on an ordinary `look`/
+  `score`/unknown-command line — reproduces on DIFFERENT lines each run: if
+  2 full re-runs pass clean, it's the known flake, not a regression.
 
 ## Toolchain parity (Home and Work must match — stricter wins)
 

@@ -151,6 +151,13 @@ sC = relogin(nameC)
 sD = relogin(nameD)                     # both land in Center Square (100)
 recv_all(sC); recv_all(sD)
 
+# PK opt-in (TODO.md's "PK opt-in flag") postdates this test's original
+# PC-vs-PC setup -- both sides must toggle it on before attack/kill/hit
+# can even find each other (combat.c's combat_find_room_target()), same
+# stale-test class Session 48 already fixed in smoke_test_combat.py.
+cmd(sC, "toggle pk")
+cmd(sD, "toggle pk")
+
 out = cmd(sC, f"attack {nameD}")
 check("You attack" in out, "attack lands (a fight starts)")
 
