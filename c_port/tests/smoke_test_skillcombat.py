@@ -166,12 +166,15 @@ def relog(name, pw):
     return s
 
 
-def make_pair(prefix, cls, room=None):
+def make_pair(prefix, cls, room=None, level=None):
     """Two same-class characters, both PK-opted-in, both padded HP so
     neither dies from ordinary combat while a skill-combat check runs.
-    Optionally teleported to a specific sandbox `room` (quit!-then-SQL-
-    then-relog, never SQL-then-quit! -- quit!'s own player_save() would
-    otherwise clobber the SQL change with stale pre-SQL in-memory state)."""
+    Optionally teleported to a specific sandbox `room`, and optionally
+    bumped to a given `level` (needed for class-tier skills like disarm's
+    Warrior-17/Thief-25 gate -- being_knows_skill() checks level, not just
+    proficiency pct) (quit!-then-SQL-then-relog, never SQL-then-quit! --
+    quit!'s own player_save() would otherwise clobber the SQL change with
+    stale pre-SQL in-memory state)."""
     nameA, pwA = f"{prefix}a{_suffix}", f"{prefix}apw12345"
     nameB, pwB = f"{prefix}b{_suffix}", f"{prefix}bpw12345"
     sA0 = make_char(nameA, pwA)
@@ -184,6 +187,9 @@ def make_pair(prefix, cls, room=None):
         set_combat_disc(nm, 100)
         if room is not None:
             sql(f"UPDATE player SET load_room={room} WHERE name='{nm}';")
+        if level is not None:
+            sql(f"UPDATE player_progress SET level={level} WHERE player_id="
+                f"(SELECT id FROM player WHERE name='{nm}');")
     sA = relog(nameA, pwA)
     sB = relog(nameB, pwB)
     cmd(sA, "toggle pk")
@@ -261,7 +267,7 @@ sql(f"UPDATE player_progress SET level=51 WHERE player_id=(SELECT id FROM player
 si = relog(imm_name, imm_pw)
 cmd(si, f"goto {ROOM_DISARM}")
 
-(nameI, sI), (nameJ, sJ) = make_pair("Dsmw", CLASS_WARRIOR, ROOM_DISARM)
+(nameI, sI), (nameJ, sJ) = make_pair("Dsmw", CLASS_WARRIOR, ROOM_DISARM, level=20)
 seed_proficiency(nameI, "disarm", 100)
 
 WEAPON_VNUM = ROOM_DISARM + 1
@@ -280,7 +286,7 @@ out_room = strip(cmd(si, "look"))
 check("steel sword" in out_room.lower(), "the disarmed weapon lands on the room floor")
 sI.close(); sJ.close()
 
-(nameK, sK), (nameL, sL) = make_pair("Dsmwz", CLASS_WARRIOR, ROOM_DISARM)
+(nameK, sK), (nameL, sL) = make_pair("Dsmwz", CLASS_WARRIOR, ROOM_DISARM, level=20)
 seed_proficiency(nameK, "disarm", 0)
 
 WEAPON_VNUM2 = WEAPON_VNUM + 1
