@@ -188,9 +188,16 @@ cmd(sA, f"attack {nameB}")
 out = strip(cmd(sA, f"bash {nameB}"))
 check("knocking" in out.lower(), "100%-proficiency bash succeeds and lands")
 
-out_a = strip(cmd(sA, "look"))
+# Check both sides' wait-state with SHORT-timeout reads, sent back to
+# back with no other round-trip in between -- cmd()'s own ~1s default
+# timeout would otherwise eat most of bash's 1.2s (COMBAT_ROUND_PULSES)
+# wait window before the check even runs (same "live read" lesson
+# smoke_test_vitality_terrain.py's live_vit() helper already documents).
+send_line(sA, "look")
+send_line(sB, "look")
+out_a = strip(recv_all(sA, 0.4))
+out_b = strip(recv_all(sB, 0.4))
 check("still recovering" in out_a.lower(), "the attacker is laggy after a successful bash")
-out_b = strip(cmd(sB, "look"))
 check("still recovering" in out_b.lower(),
       "a successful bash also costs the DEFENDER a round (Sneezy's own 'prevent skill-use' effect)")
 sA.close(); sB.close()
