@@ -141,6 +141,24 @@ static void tg_pk_set(descriptor_t *d, bool v) {
     player_set_pflags(d->character->player_id, d->character->pflags);
 }
 
+/* --- tips: opt out of the periodic pulse-driven tip echo (player.pflags
+ * bit) -- separate from `newbie` on purpose so silencing tips doesn't
+ * also drop you off the newbie help channel. Sense is inverted (PLR_NOTIPS
+ * means tips are OFF) so the toggle itself still reads naturally: "tips is
+ * now on/off". */
+static bool tg_tips_get(descriptor_t *d) {
+    return d->character && !(d->character->pflags & PLR_NOTIPS);
+}
+static void tg_tips_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->pflags &= ~PLR_NOTIPS;
+    else
+        d->character->pflags |= PLR_NOTIPS;
+    player_set_pflags(d->character->player_id, d->character->pflags);
+}
+
 /* --- multiplay: global game toggle (55+) --- */
 static bool tg_multiplay_get(descriptor_t *d) { (void)d; return multiplay_allowed(); }
 static void tg_multiplay_set(descriptor_t *d, bool v) { (void)d; multiplay_set(v); }
@@ -152,6 +170,7 @@ static const toggle_t TOGGLES[] = {
     { "hp",        "hit points shown in prompt",    false, "Prompt",        tg_hp_get,        tg_hp_set },
     { "newbie",    "on the newbie help channel",    false, "Communication", tg_newbie_get,    tg_newbie_set },
     { "noshout",   "opted out of hearing shouts",   false, "Communication", tg_noshout_get,   tg_noshout_set },
+    { "tips",      "periodic newbie tip echoes",    false, "Communication", tg_tips_get,      tg_tips_set },
     { "pk",        "willing to fight other players", false, "Preferences",  tg_pk_get,        tg_pk_set },
     { "multiplay", "one account, many characters",  true,  NULL,            tg_multiplay_get, tg_multiplay_set },
 };

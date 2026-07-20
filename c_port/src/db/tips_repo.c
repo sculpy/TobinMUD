@@ -82,6 +82,8 @@ void tips_pulse_tick(long pulse_num) {
     for (descriptor_t *d = g_descriptors; d; d = d->next) {
         if (!d->character || !(d->character->pflags & PLR_NEWBIE))
             continue;
+        if (d->character->pflags & PLR_NOTIPS)
+            continue;
         char msg[560];
         snprintf(msg, sizeof(msg), "\r\n<c>Tip:<z> %s\r\n", tip);
         descriptor_notify(d, msg);

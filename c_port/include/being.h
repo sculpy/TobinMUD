@@ -213,6 +213,16 @@ typedef struct {
  * so every attack-style command gets the gate for free. Mob targeting is
  * completely unaffected -- this only gates PC-vs-PC. */
 #define PLR_PK_OPTIN 16
+/* PLR_NOTIPS = opted out of the periodic pulse-driven tip echo
+ * (tips_repo.c's tips_pulse_tick(), default off; toggle on with `toggle
+ * tips`) -- deliberately its OWN bit rather than reusing PLR_NEWBIE, user
+ * 2026-07-19: "tips channel should be a toggle to shut it off or turn it
+ * on again". Before this, the only way to silence tips was `toggle
+ * newbie`, which also drops you off the newbie help channel entirely
+ * (cmd_newbie.c) -- a much bigger side effect than "stop showing me
+ * tips". tips_pulse_tick() now requires PLR_NEWBIE set AND PLR_NOTIPS
+ * clear, so tips still only ever reach newbie-flagged connections. */
+#define PLR_NOTIPS 32
 
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in

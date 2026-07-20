@@ -15,9 +15,11 @@
  * (news/help's own editors are for long-form, titled content; a tip is
  * one short sentence) -- `tipedit` is a single command with add/list/
  * delete sub-forms, same dispatch shape as `bug`/`delbug`. "Per-player
- * newbie toggle" reuses the existing PLR_NEWBIE flag (being.h) rather
- * than adding a second one -- the periodic echo only reaches players
- * currently on the newbie channel. */
+ * newbie toggle" originally reused the existing PLR_NEWBIE flag
+ * (being.h) -- the periodic echo only reaches players currently on the
+ * newbie channel. A dedicated PLR_NOTIPS bit (user 2026-07-19) now lets
+ * a newbie-channel player silence just the tip echoes with `toggle tips`
+ * without leaving the newbie channel entirely. */
 
 /* Files a new tip (`added_by` = the immortal's name). Returns false on
  * DB error. Backs `tipedit <text>`. */
@@ -38,8 +40,9 @@ bool tips_repo_delete(int id);
 
 /* Pulse callback (registered in main.c): echoes one random tip, prefixed
  * "Tip:", to every connected being currently on the newbie channel
- * (PLR_NEWBIE, being.h) -- silently does nothing if there are no tips
- * or no newbie-flagged connections right now. */
+ * (PLR_NEWBIE, being.h) that hasn't opted out with `toggle tips`
+ * (PLR_NOTIPS, being.h) -- silently does nothing if there are no tips or
+ * no eligible connections right now. */
 void tips_pulse_tick(long pulse_num);
 
 #endif
