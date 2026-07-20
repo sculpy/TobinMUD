@@ -493,12 +493,22 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       confirms the switch lists/flips/persists correctly and is genuinely
       independent of `toggle newbie`. Regression-checked against
       `smoke_test_toggle.py`.
-- [ ] **`level` command** — shows how close a player is to leveling: "You
-      have X experience and need X experience to level." Check Sneezy for
-      how it computes XP-to-next-level (likely already has the formula
-      Tobin's own `progress_xp_for_level()`-equivalent needs, if one
-      doesn't already exist — check XP-loss-on-death work, task 6, for
-      whatever level-threshold helper that used).
+- [x] **`level` command** — done 2026-07-19. User: "a level command that
+      will display when your due for a gain in level, You have X
+      experience and need X experience to level." Turned out the exact
+      helper this needed already existed: `progress_xp_for_level()`
+      (being.c), the same total-XP-to-reach-a-level curve
+      `progress_add_xp()` levels a player up against, so `level` can
+      never drift out of sync with a real level-up. New `cmd_level.c`:
+      "You have X experience and need Y more experience to level." A
+      mortal already at `MORTAL_LEVEL_MAX` (50) gets a distinct
+      "already at the maximum mortal level" message instead of a
+      nonsensical/negative need number; an immortal gets "don't gain
+      levels through experience" (leveling past 50 is `promote`, not
+      XP). New `tests/smoke_test_level.py` (8 checks) covers a fresh
+      level-1 character, a partial-XP grant shrinking the need number
+      by exactly the granted amount, the level-50 case, and the
+      immortal case.
 - [ ] **Prompt: experience/mana/piety/vitality toggles + `prompt all`** —
       expand `cmd_prompt.c`'s toggle set beyond hp/gold/vit (vit just
       shipped) to also cover experience, experience-needed-to-level, and

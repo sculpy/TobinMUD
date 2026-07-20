@@ -683,3 +683,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Tips Channel Now Has Its Own Toggle', 'User request: "tips channel should be a toggle to shut it off or turn it on again." Previously the only way to stop the periodic "Tip:" echoes was `toggle newbie`, which also dropped you off the newbie help channel entirely -- a much bigger side effect than just wanting quieter tips. Added a standalone `toggle tips` switch (on by default) that only silences the tip echoes, leaving the newbie channel itself untouched.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New: The `level` Command', 'User request: "a level command that will display when your due for a gain in level, You have X experience and need X experience to level." `level` now tells you exactly that -- current experience, and how much more you need to reach the next level. At the mortal cap (level 50) or as an immortal, it tells you why there is nothing more to grind toward instead of showing a nonsensical number.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
