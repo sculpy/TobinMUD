@@ -1238,7 +1238,7 @@ static void show_redit_menu(descriptor_t *d) {
              "   1) Name              2) Description\r\n"
              "   3) Flags             4) Sector Type\r\n"
              "   5) Exits             6) Max Capacity: %d\r\n"
-             "   7) Room Height: %d\r\n\r\n"
+             "   7) Room Height: %d    8) Extra Descriptions\r\n\r\n"
              "Description:\r\n%s%s"
              "Exits: %s\r\n\r\n"
              "   C) Clear room out    S) Save    Q) Quit\r\n%s[edit room] ",
@@ -1373,6 +1373,63 @@ static void show_redit_conditions(descriptor_t *d) {
     descriptor_send(d, out);
     descriptor_send(d, "cond> ");
     d->state = CONN_REDIT_EXIT_CONDITIONS;
+}
+
+/* Extra Descriptions list (redit menu 8) -- freshly queried from the DB
+ * every time, not cached in the working copy (see room_repo.h's comment on
+ * why extras commit immediately). The case handler for a typed digit
+ * re-queries the same way and indexes by the same position; the only race
+ * this leaves is a genuinely concurrent edit by a second builder in the
+ * split second between display and keystroke, same class of race the
+ * account editor already accepts (see edaccount_id's comment). */
+static void show_redit_extra_menu(descriptor_t *d) {
+    int vnum = d->redit_work.vnum;
+    char names[ROOM_EXTRA_MAX_LIST][ROOM_EXTRA_NAME_LEN];
+    int n = room_repo_extra_list(vnum, names, ROOM_EXTRA_MAX_LIST);
+
+    char out[4096];
+    size_t len = (size_t)snprintf(out, sizeof(out),
+        "\r\nExtra Descriptions for %d -- choose a number to edit, blank to return:\r\n",
+        vnum);
+    if (n == 0) {
+        len += (size_t)snprintf(out + len, sizeof(out) > len ? sizeof(out) - len : 0,
+            "  (none yet)\r\n");
+    } else {
+        for (int i = 0; i < n && len < sizeof(out); i++) {
+            len += (size_t)snprintf(out + len, sizeof(out) > len ? sizeof(out) - len : 0,
+                "  %2d) %s\r\n", i + 1, names[i]);
+        }
+    }
+    if (len < sizeof(out)) {
+        len += (size_t)snprintf(out + len, sizeof(out) - len, "\r\n  A) Add new\r\n");
+        if (n > 0 && len < sizeof(out))
+            len += (size_t)snprintf(out + len, sizeof(out) - len, "  Z) Delete ALL\r\n");
+        if (len < sizeof(out))
+            snprintf(out + len, sizeof(out) - len, "extra> ");
+    }
+    descriptor_send(d, out);
+    d->state = CONN_REDIT_EXTRA_MENU;
+}
+
+/* One extra description's detail submenu (mirrors show_redit_exit_menu()'s
+ * target/door/conditions/remove shape). d->redit_extra_name names which
+ * roomextra row this operates on. */
+static void show_redit_extra_item(descriptor_t *d) {
+    char desc[4096];
+    if (!room_repo_extra_get(d->redit_work.vnum, d->redit_extra_name, desc, sizeof(desc)))
+        desc[0] = '\0'; /* shouldn't happen (just listed/created), degrade gracefully */
+
+    const char *descnl = (desc[0] && desc[strlen(desc) - 1] != '\n') ? "\r\n" : "";
+    char out[sizeof(desc) + 512];
+    snprintf(out, sizeof(out),
+        "\r\n<c>Extra Description: %s<z>\r\n\r\n"
+        "Description:\r\n%s%s\r\n"
+        "  1) Keywords         2) Description\r\n"
+        "  3) Delete\r\n"
+        "  blank) back\r\nextra-desc> ",
+        d->redit_extra_name, desc, descnl);
+    descriptor_send(d, out);
+    d->state = CONN_REDIT_EXTRA_ITEM;
 }
 
 /* Loads a room into the world if absent; returns NULL if it doesn't exist. */
@@ -2408,8 +2465,11 @@ static bool handle_line(descriptor_t *d, const char *line) {
                         descriptor_send(d, "\r\nEnter room height (blank to cancel): ");
                         d->state = CONN_REDIT_HEIGHT;
                         break;
+                    case 8:
+                        show_redit_extra_menu(d);
+                        break;
                     default:
-                        descriptor_send(d, "Pick a menu number (1-7), or C/S/Q.\r\n");
+                        descriptor_send(d, "Pick a menu number (1-8), or C/S/Q.\r\n");
                         show_redit_menu(d);
                         break;
                 }
@@ -2436,7 +2496,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     }
                     break;
                 default:
-                    descriptor_send(d, "Pick a menu number (1-7), or C/S/Q.\r\n");
+                    descriptor_send(d, "Pick a menu number (1-8), or C/S/Q.\r\n");
                     show_redit_menu(d);
                     break;
             }
@@ -2639,6 +2699,165 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 descriptor_send(d, "Description unchanged.\r\n");
                 show_redit_menu(d);
             }
+            return true;
+        }
+
+        case CONN_REDIT_EXTRA_MENU: {
+            if (!line[0]) {
+                show_redit_menu(d);
+                return true;
+            }
+            if (line[1] == '\0' && (char)toupper((unsigned char)line[0]) == 'A') {
+                d->redit_extra_name[0] = '\0';
+                descriptor_send(d, "\r\nEnter keywords (space-separated, blank to cancel): ");
+                d->state = CONN_REDIT_EXTRA_KEYWORDS;
+                return true;
+            }
+            if (line[1] == '\0' && (char)toupper((unsigned char)line[0]) == 'Z') {
+                descriptor_send(d,
+                    "\r\nReally delete ALL extra descriptions for this room? (yes/no): ");
+                d->state = CONN_REDIT_EXTRA_DELETE_ALL_CONFIRM;
+                return true;
+            }
+            if (isdigit((unsigned char)line[0])) {
+                char names[ROOM_EXTRA_MAX_LIST][ROOM_EXTRA_NAME_LEN];
+                int n = room_repo_extra_list(d->redit_work.vnum, names, ROOM_EXTRA_MAX_LIST);
+                int idx = atoi(line) - 1;
+                if (idx >= 0 && idx < n) {
+                    snprintf(d->redit_extra_name, sizeof(d->redit_extra_name), "%s", names[idx]);
+                    show_redit_extra_item(d);
+                    return true;
+                }
+            }
+            descriptor_send(d, "Pick a number from the list, A to add, or blank to return.\r\n");
+            show_redit_extra_menu(d);
+            return true;
+        }
+
+        case CONN_REDIT_EXTRA_ITEM: {
+            if (!line[0]) {
+                show_redit_extra_menu(d);
+                return true;
+            }
+            switch (line[0]) {
+                case '1': {
+                    char msg[ROOM_EXTRA_NAME_LEN + 96];
+                    snprintf(msg, sizeof(msg),
+                        "\r\nCurrent keywords: %s\r\nEnter new keywords (blank to cancel): ",
+                        d->redit_extra_name);
+                    descriptor_send(d, msg);
+                    d->state = CONN_REDIT_EXTRA_KEYWORDS;
+                    break;
+                }
+                case '2': {
+                    char desc[4096];
+                    if (!room_repo_extra_get(d->redit_work.vnum, d->redit_extra_name, desc, sizeof(desc)))
+                        desc[0] = '\0';
+                    snprintf(d->edit_buf, sizeof(d->edit_buf), "%s", desc);
+                    d->edit_len = (int)strlen(d->edit_buf);
+                    descriptor_send(d,
+                        "\r\n-- Editing extra description. /s saves, /a aborts, "
+                        "/b blanks, /f reflows to width. --\r\n");
+                    if (d->edit_buf[0]) {
+                        descriptor_send(d, d->edit_buf);
+                        if (d->edit_buf[strlen(d->edit_buf) - 1] != '\n')
+                            descriptor_send(d, "\r\n");
+                    }
+                    descriptor_send(d, "] ");
+                    d->redit_extra_is_new = false;
+                    d->state = CONN_REDIT_EXTRA_DESC;
+                    break;
+                }
+                case '3': {
+                    char msg[ROOM_EXTRA_NAME_LEN + 64];
+                    snprintf(msg, sizeof(msg),
+                        "\r\nReally delete the extra description \"%s\"? (yes/no): ",
+                        d->redit_extra_name);
+                    descriptor_send(d, msg);
+                    d->state = CONN_REDIT_EXTRA_DELETE_CONFIRM;
+                    break;
+                }
+                default:
+                    descriptor_send(d, "Pick 1-3, or blank to return.\r\n");
+                    show_redit_extra_item(d);
+                    break;
+            }
+            return true;
+        }
+
+        case CONN_REDIT_EXTRA_KEYWORDS: {
+            bool adding_new = d->redit_extra_name[0] == '\0';
+            if (!line[0]) {
+                descriptor_send(d, "Cancelled.\r\n");
+                if (adding_new)
+                    show_redit_extra_menu(d);
+                else
+                    show_redit_extra_item(d);
+                return true;
+            }
+            if (adding_new) {
+                snprintf(d->redit_extra_name, sizeof(d->redit_extra_name), "%s", line);
+                d->edit_buf[0] = '\0';
+                d->edit_len = 0;
+                descriptor_send(d,
+                    "\r\n-- Now enter the description. /s saves, /a aborts, "
+                    "/b blanks, /f reflows to width. --\r\n] ");
+                d->redit_extra_is_new = true;
+                d->state = CONN_REDIT_EXTRA_DESC;
+            } else {
+                char old_name[ROOM_EXTRA_NAME_LEN];
+                snprintf(old_name, sizeof(old_name), "%s", d->redit_extra_name);
+                if (room_repo_extra_rename(d->redit_work.vnum, old_name, line)) {
+                    snprintf(d->redit_extra_name, sizeof(d->redit_extra_name), "%s", line);
+                    descriptor_send(d, "Keywords updated.\r\n");
+                } else {
+                    descriptor_send(d,
+                        "Rename failed -- that exact keyword set may already be used here.\r\n");
+                }
+                show_redit_extra_item(d);
+            }
+            return true;
+        }
+
+        case CONN_REDIT_EXTRA_DESC: {
+            editor_action_t act = editor_feed(d, line);
+            if (act == EDITOR_SAVE) {
+                if (room_repo_extra_save(d->redit_work.vnum, d->redit_extra_name, d->edit_buf))
+                    descriptor_send(d, "Extra description saved.\r\n");
+                else
+                    descriptor_send(d, "Save failed.\r\n");
+                show_redit_extra_item(d);
+            } else if (act == EDITOR_ABORT) {
+                descriptor_send(d, "Extra description unchanged.\r\n");
+                /* A brand-new entry that was never saved doesn't exist yet --
+                 * go back to the list, not a nonexistent item's detail view. */
+                if (d->redit_extra_is_new)
+                    show_redit_extra_menu(d);
+                else
+                    show_redit_extra_item(d);
+            }
+            return true;
+        }
+
+        case CONN_REDIT_EXTRA_DELETE_CONFIRM: {
+            if (strcasecmp(line, "yes") == 0) {
+                room_repo_extra_delete(d->redit_work.vnum, d->redit_extra_name);
+                descriptor_send(d, "Extra description deleted.\r\n");
+            } else {
+                descriptor_send(d, "Delete cancelled.\r\n");
+            }
+            show_redit_extra_menu(d);
+            return true;
+        }
+
+        case CONN_REDIT_EXTRA_DELETE_ALL_CONFIRM: {
+            if (strcasecmp(line, "yes") == 0) {
+                room_repo_extra_delete_all(d->redit_work.vnum);
+                descriptor_send(d, "All extra descriptions deleted.\r\n");
+            } else {
+                descriptor_send(d, "Delete cancelled.\r\n");
+            }
+            show_redit_extra_menu(d);
             return true;
         }
 

@@ -13,6 +13,7 @@
 #include "help_repo.h"
 #include "player_repo.h"
 #include "room.h"
+#include "room_repo.h"
 #include "trigger_repo.h"
 #include "zone_repo.h"
 
@@ -58,6 +59,16 @@ typedef enum {
     CONN_REDIT_EXIT_DOORTYPE,
     CONN_REDIT_EXIT_CONDITIONS,
     CONN_REDIT_DESC,
+    /* Extra Descriptions ("look <keyword>" hidden detail, the roomextra
+     * table) -- UNLIKE the rest of redit above, these commit to the DB
+     * immediately rather than deferring to (S)ave; see room_repo.h's
+     * comment on room_repo_extra_save() et al. for why. */
+    CONN_REDIT_EXTRA_MENU,
+    CONN_REDIT_EXTRA_ITEM,
+    CONN_REDIT_EXTRA_KEYWORDS,
+    CONN_REDIT_EXTRA_DESC,
+    CONN_REDIT_EXTRA_DELETE_CONFIRM,
+    CONN_REDIT_EXTRA_DELETE_ALL_CONFIRM,
     CONN_REDIT_CLEAR_CONFIRM,
     CONN_REDIT_QUIT_CONFIRM,
     /* Menu-driven player editor (edplayer) -- same working-copy shape as
@@ -294,6 +305,20 @@ typedef struct descriptor {
     room_t redit_work;
     bool redit_dirty;    /* unsaved field changes since entry / last save */
     int redit_exit_dir;  /* CONN_REDIT_EXIT_TARGET: direction being set */
+
+    /* Extra Descriptions submenu scratch state (CONN_REDIT_EXTRA_*). Commits
+     * immediately, not part of the working-copy/dirty model above -- see
+     * room_repo.h's room_repo_extra_save() comment. redit_extra_name holds
+     * the roomextra.name (primary key) of the item CONN_REDIT_EXTRA_ITEM/
+     * _DESC/_DELETE_CONFIRM are currently acting on; empty means "adding a
+     * new one" while in CONN_REDIT_EXTRA_KEYWORDS. */
+    char redit_extra_name[ROOM_EXTRA_NAME_LEN];
+    bool redit_extra_is_new; /* CONN_REDIT_EXTRA_DESC: true if this description
+                                 editor was entered via "Add new" (aborting
+                                 should return to the list -- the row was never
+                                 saved) rather than "edit description" on an
+                                 already-existing item (aborting should return
+                                 to that item's detail view instead). */
 
     /* Menu-driven player editor working copy (CONN_EDPLAYER_*). Unlike
      * redit_work this is a DB snapshot (player_load_admin()), not a live

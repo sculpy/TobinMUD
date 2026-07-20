@@ -1,5 +1,71 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-20 — Session 50 (work): **redit Extra Descriptions,
+builder half.**
+- **`edit room` menu 8: Extra Descriptions submenu.** The mortal-facing
+  half (`look <keyword>` reveals a room's hidden detail) shipped Session
+  49; this closes out the item with an in-game authoring UI so builders
+  no longer need direct SQL. New `CONN_REDIT_EXTRA_MENU` / `_ITEM` /
+  `_KEYWORDS` / `_DESC` / `_DELETE_CONFIRM` / `_DELETE_ALL_CONFIRM`
+  states in `descriptor.c`, entered via a new "8) Extra Descriptions"
+  line on the existing numbered room menu. List (queried fresh from
+  `roomextra` every time, not cached), Add (keywords, then straight into
+  the shared line editor for the description text), a per-item detail
+  view (mirrors the Exits submenu's target/door/conditions/remove
+  shape) offering Keywords/Description/Delete, and Z) Delete ALL (the
+  original's `DeleteExtraDesc()` bulk action, `misc/create_rooms.cc` --
+  Sneezy redit items 6 & 10, both now covered).
+- **Deliberate deviation from the rest of `edit room` (documented per
+  house rule):** every other field here (name/description/flags/sector/
+  capacity/height/exits) edits a `d->redit_work` WORKING COPY, only
+  written to the DB on (S)ave. Extra descriptions instead commit
+  IMMEDIATELY, on every add/rename/edit/delete. Reason: extras were
+  never modeled in `room_t` at all -- `room_repo_extra_desc()` (the
+  mortal-facing lookup) already hits the `roomextra` table fresh on
+  every `look <keyword>`, no in-memory cache exists to keep in sync --
+  so buffering them in a NEW parallel in-memory structure just to fit
+  the working-copy pattern would be one more source of truth for no
+  real benefit. Same "commits immediately, no working copy" precedent
+  the account editor already established (`edaccount_id`'s comment,
+  `descriptor.h`). This also means extras are the one part of `edit
+  room` that ignores (Q)uit-without-saving/(D)iscard -- there is nothing
+  to discard, since nothing was ever staged.
+- New `room_repo.h`/`.c` functions: `room_repo_extra_list()` (array-out,
+  same convention as `ignore_repo_list()`), `room_repo_extra_get()`
+  (exact-name lookup, vs. the existing keyword-prefix-search
+  `room_repo_extra_desc()`), `room_repo_extra_save()` (upsert --
+  INSERT...ON DUPLICATE KEY UPDATE, so "add new" and "edit description"
+  share one code path), `room_repo_extra_rename()`, `room_repo_extra_
+  delete()`, `room_repo_extra_delete_all()`. A rename that collides with
+  a DIFFERENT entry's exact keyword string (the `roomextra` primary key
+  is literally `(vnum, name)`) fails cleanly at the DB layer (duplicate-
+  key error -> `db_query()` returns false) -- no separate existence
+  pre-check needed, and the failed rename leaves both entries fully
+  untouched (single-statement UPDATE, no partial write).
+- **Testing**: new `tests/smoke_test_redit_extradesc.py` -- add (keywords
+  -> description), the new entry appearing numbered in the list, rename,
+  a colliding rename refused cleanly, description edit, single delete,
+  delete ALL, cancelling Add (blank at the keywords prompt) leaves no
+  row, aborting the description editor on a BRAND-NEW add leaves no row
+  and returns to the LIST (there's no item yet to show a detail view
+  for) vs. aborting on an EXISTING entry's description leaves it
+  unchanged and returns to THAT item's detail view instead (tracked via
+  a new `redit_extra_is_new` scratch flag, `descriptor.h`), and an
+  end-to-end check that `look <keyword>` immediately reveals what redit
+  just authored. Wiznews entry added (builder/immortal-only change, no
+  news entry per house rule -- no mortal command changed).
+- **Housekeeping found + fixed while resuming this session**: the work
+  box's own git checkout had drifted behind origin (stale by ~100
+  commits, including two format-truncation warnings from a much earlier
+  session that had only been fixed via an ad-hoc tar-sync, never
+  actually committed on this box) -- reconciled via `git stash` + a
+  clean fast-forward pull before any of the above landed. Also added a
+  per-test wall-clock timeout to `tests/sweep.sh` (a single hung test --
+  `smoke_test_weapon_depth.py`'s old poll-vs-combat-round-interval bug,
+  independently already fixed by home the same way -- had stalled a full
+  sweep on this box for 2h+ before this) since 100 upstream commits had
+  landed, and this box's own copy of the sweep script had none.
+
 Last updated: 2026-07-19 — Session 49 (home): **User batch (tips toggle,
 `level` command, prompt expansion, animal-race gold) + Mount/riding
 system.** Worked a batch of 5 user-reported items logged earlier this

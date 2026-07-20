@@ -63,4 +63,51 @@ bool room_repo_delete_exit(int vnum, int dir);
  * matching `keyword`. */
 bool room_repo_extra_desc(int vnum, const char *keyword, char *buf, size_t bufsz);
 
+/* Builder-facing counterpart to room_repo_extra_desc() above (redit's Extra
+ * Descriptions submenu, descriptor.c's CONN_REDIT_EXTRA_* states). Unlike
+ * the rest of redit, these commit to the DB immediately rather than
+ * deferring to the working-copy's (S)ave -- extras aren't modeled in room_t
+ * at all (room_repo_extra_desc() already hits the DB fresh on every
+ * `look <keyword>`, no in-memory cache to keep in sync), so buffering them
+ * in a new parallel in-memory structure would be one more source of truth
+ * for no real benefit. Same "commits immediately, no working copy"
+ * precedent as the account editor (see edaccount_id's comment,
+ * descriptor.h). */
+
+#define ROOM_EXTRA_NAME_LEN 256  /* matches roomextra.name varchar(255) + NUL */
+#define ROOM_EXTRA_MAX_LIST 64   /* generous cap for redit's extras list menu */
+
+/* Fills `out` (each ROOM_EXTRA_NAME_LEN bytes) with up to `max` extra-
+ * description keyword-list names (the roomextra.name primary-key values)
+ * for room `vnum`, alphabetically. Returns the count written. */
+int room_repo_extra_list(int vnum, char out[][ROOM_EXTRA_NAME_LEN], int max);
+
+/* Loads the description for room `vnum`'s extra description whose keyword-
+ * list is EXACTLY `name` (the roomextra.name primary-key string -- an exact
+ * match, not the keyword/prefix search room_repo_extra_desc() does).
+ * Returns false if no such row. */
+bool room_repo_extra_get(int vnum, const char *name, char *buf, size_t bufsz);
+
+/* Upserts one extra description: creates it (if `name` doesn't already
+ * exist for room `vnum`) or updates its description (if it does). */
+bool room_repo_extra_save(int vnum, const char *name, const char *description);
+
+/* Renames an extra description's keyword-list (its primary key) from
+ * `old_name` to `new_name`, keeping its description untouched. False on a
+ * genuine SQL error -- including `new_name` colliding with a DIFFERENT
+ * already-existing row for this vnum (duplicate-key violation) -- but
+ * still true (0 rows affected, not an error) if `old_name` didn't exist;
+ * callers that care can check db_row_count() themselves. */
+bool room_repo_extra_rename(int vnum, const char *old_name, const char *new_name);
+
+/* Deletes one extra description. True even if it didn't exist (see
+ * room_repo_delete_exit()'s identical precedent above). */
+bool room_repo_extra_delete(int vnum, const char *name);
+
+/* Deletes EVERY extra description for room `vnum` -- the original's
+ * DeleteExtraDesc() bulk action (misc/create_rooms.cc), a separate menu
+ * item from single-item delete above (Sneezy redit items 6 & 10, per
+ * TODO.md). True even if there were none. */
+bool room_repo_extra_delete_all(int vnum);
+
 #endif

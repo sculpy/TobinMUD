@@ -191,3 +191,83 @@ bool room_repo_extra_desc(int vnum, const char *keyword, char *buf, size_t bufsz
     db_close(db);
     return found;
 }
+
+int room_repo_extra_list(int vnum, char out[][ROOM_EXTRA_NAME_LEN], int max) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return 0;
+
+    int n = 0;
+    if (db_query(db, "select name from roomextra where vnum=%i order by name", vnum)) {
+        while (n < max && db_fetch_row(db))
+            snprintf(out[n++], ROOM_EXTRA_NAME_LEN, "%s", db_get(db, "name"));
+    }
+
+    db_close(db);
+    return n;
+}
+
+bool room_repo_extra_get(int vnum, const char *name, char *buf, size_t bufsz) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool found = false;
+    if (db_query(db, "select description from roomextra where vnum=%i and name='%s'", vnum, name)) {
+        if (db_fetch_row(db)) {
+            snprintf(buf, bufsz, "%s", db_get(db, "description"));
+            found = true;
+        }
+    }
+
+    db_close(db);
+    return found;
+}
+
+bool room_repo_extra_save(int vnum, const char *name, const char *description) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db,
+        "insert into roomextra (vnum, name, description) values (%i, '%s', '%s') "
+        "on duplicate key update description='%s'",
+        vnum, name, description, description);
+
+    db_close(db);
+    return ok;
+}
+
+bool room_repo_extra_rename(int vnum, const char *old_name, const char *new_name) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db, "update roomextra set name='%s' where vnum=%i and name='%s'",
+                        new_name, vnum, old_name);
+
+    db_close(db);
+    return ok;
+}
+
+bool room_repo_extra_delete(int vnum, const char *name) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db, "delete from roomextra where vnum=%i and name='%s'", vnum, name);
+
+    db_close(db);
+    return ok;
+}
+
+bool room_repo_extra_delete_all(int vnum) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db, "delete from roomextra where vnum=%i", vnum);
+
+    db_close(db);
+    return ok;
+}
