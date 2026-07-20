@@ -459,6 +459,25 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-19 (evening) — logged, not yet started
 
+- [x] **Weather shouldn't affect INDOORS rooms** — done 2026-07-19. Root
+      cause: `weather_announce()` (weather.c) notified EVERY connected
+      character on a sky-state change regardless of room — someone
+      standing inside a building would still see "Clouds begin to
+      gather overhead"/"It begins to rain" despite being unable to see
+      the sky at all. Fixed with the exact same `ROOM_FLAG_INDOORS`
+      check `room_is_dark_for()` (being.c) already uses for the
+      darkness half of this same "Weather & light levels" audit item —
+      a weather-change announcement is exactly the kind of sky-
+      visibility-dependent content that check exists for. Deliberately
+      NO `ALWAYS_LIT` exemption here (unlike darkness) — a torchlit
+      indoor room is still indoors, it just isn't dark; the two flags
+      answer different questions. New
+      `tests/smoke_test_weather_indoors.py` (3 checks) — forces real
+      weather-state changes (probabilistic, same "force + poll" shape
+      `smoke_test_weather.py` already uses) and confirms an outdoor
+      character receives the announcement on the SAME tick an indoor
+      one does not. Regression-checked against `smoke_test_weather.py`
+      (also exercises weather ticks).
 - [ ] **`toggle tips` (mute the tips channel)** — user: "tips channel
       should be a toggle to shut it off or turn it on again." Same
       pflags-bitmask pattern `toggle noshout`/`toggle newbie` already use

@@ -8,6 +8,7 @@
 
 #include "db.h"
 #include "descriptor.h"
+#include "room.h"
 
 static weather_t g_weather = WEATHER_CLEAR;
 
@@ -62,10 +63,25 @@ static void weather_save(void) {
  * convention as gametime.c's own gametime_announce() -- duplicated
  * locally rather than shared, matching this codebase's established
  * precedent for small single-purpose helpers (e.g. the several local
- * copies of keyword_matches() across cmd_*.c). */
+ * copies of keyword_matches() across cmd_*.c).
+ *
+ * User bug report (2026-07-19): "weather should not affect rooms that
+ * are flagged indoors" -- this used to notify EVERY connected
+ * character regardless of room, so someone standing inside a building
+ * would still see "Clouds begin to gather overhead"/"It begins to
+ * rain" despite being unable to see the sky at all. Same
+ * ROOM_FLAG_INDOORS check `room_is_dark_for()` (being.c) already uses
+ * for the darkness half of this same audit item -- a weather-change
+ * announcement is exactly the kind of sky-visibility-dependent content
+ * that check exists for. No ALWAYS_LIT exemption here (unlike
+ * darkness) -- a torchlit indoor room is still indoors, it just isn't
+ * DARK; the two flags answer different questions. */
 static void weather_announce(const char *msg) {
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
         if (!it->character)
+            continue;
+        room_t *r = it->character->base.roomp;
+        if (r && (r->room_flag & ROOM_FLAG_INDOORS))
             continue;
         descriptor_notify(it, msg);
     }
