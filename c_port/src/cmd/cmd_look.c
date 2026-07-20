@@ -115,6 +115,77 @@ static int group_room_items(const room_t *r, const being_t *viewer, bool want_fi
     return groups;
 }
 
+/* Same "is this OBJECT loose (not worn/held)" check as cmd_object.c's own
+ * static is_loose() -- same duplication precedent as this file's own
+ * cap_first(). Used by the immortal-only carried-inventory listing below
+ * (user 2026-07-19: "immortals can see inventory when looking at a mob
+ * or player") so worn/held items (already shown by the equipment
+ * listing just above) aren't duplicated into the inventory section. */
+static bool is_loose(const being_t *ch, const obj_t *o) {
+    if (ch->held[0] == o || ch->held[1] == o)
+        return false;
+    for (int i = 0; i < LIMB_COUNT; i++)
+        if (ch->equipment[i] == o)
+            return false;
+    return true;
+}
+
+/* Immortal-only: renders `tgt`'s loose carried inventory into `out`
+ * (starting at *n, advancing it), one level deep into any container
+ * among them -- user 2026-07-19: "immortals can see inventory when
+ * looking at a mob or player and can also see the contents of any
+ * container they carry." Mortals never see this (gated by the caller).
+ * Deliberately only one level of container nesting (a bag inside a bag
+ * shows the outer bag's contents but not the inner bag's own contents
+ * listed a third level down) -- matches `look <container>`'s own
+ * single-level "It contains:" convention, not a full recursive dump. */
+static void render_immortal_inventory(const being_t *tgt, const char *display,
+                                      being_t *viewer, char *out, size_t outsz, size_t *n) {
+    if (tgt == viewer)
+        *n += (size_t)snprintf(out + *n, outsz - *n, "You are carrying:\r\n");
+    else {
+        char capbuf[128];
+        *n += (size_t)snprintf(out + *n, outsz - *n, "%s is carrying:\r\n",
+                               cap_first(display, capbuf, sizeof(capbuf)));
+    }
+
+    bool any = false;
+    for (thing_t *t = tgt->base.stuff_head; t && *n < outsz; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        obj_t *o = (obj_t *)t;
+        if (!is_loose(tgt, o))
+            continue;
+        any = true;
+
+        char capbuf[128];
+        const char *label = cap_first(o->base.short_descr[0] ? o->base.short_descr : o->base.name,
+                                      capbuf, sizeof(capbuf));
+        *n += (size_t)snprintf(out + *n, outsz - *n, "  %s\r\n", label);
+
+        if (!obj_is_container(o) || *n >= outsz)
+            continue;
+        if (obj_container_closed(o)) {
+            *n += (size_t)snprintf(out + *n, outsz - *n, "    (closed)\r\n");
+            continue;
+        }
+        bool any_inner = false;
+        for (thing_t *ct = o->base.stuff_head; ct && *n < outsz; ct = ct->stuff_next) {
+            if (ct->kind != THING_OBJ)
+                continue;
+            any_inner = true;
+            char capbuf2[128];
+            const char *ilabel = cap_first(ct->short_descr[0] ? ct->short_descr : ct->name,
+                                           capbuf2, sizeof(capbuf2));
+            *n += (size_t)snprintf(out + *n, outsz - *n, "    %s\r\n", ilabel);
+        }
+        if (!any_inner && *n < outsz)
+            *n += (size_t)snprintf(out + *n, outsz - *n, "    (nothing)\r\n");
+    }
+    if (!any && *n < outsz)
+        *n += (size_t)snprintf(out + *n, outsz - *n, "  Nothing.\r\n");
+}
+
 /* Finds an object by keyword in a thing_t chain (room floor, or a being's
  * own carried/worn/held things) -- shared by look_at_target() below.
  * `ordinal` (see thing_parse_ordinal()) picks the Nth match instead of
@@ -210,8 +281,12 @@ bool look_at_target(descriptor_t *d, const char *args) {
         /* Headroom beyond BEING_APPEARANCE_LEN + display-name + a full
          * equipment listing so gcc's -Wformat-truncation worst-case
          * estimate (sums every %s field's own declared bound) can prove
-         * this always fits. */
-        char out[BEING_APPEARANCE_LEN + 2048];
+         * this always fits. Widened for the immortal-only carried-
+         * inventory + one-level container-contents listing below (user
+         * 2026-07-19) -- every append into it is already bounds-checked
+         * against sizeof(out), so this is purely "give it more room to
+         * show," not a correctness requirement. */
+        char out[BEING_APPEARANCE_LEN + 4096];
         size_t n;
         if (tgt->appearance[0])
             n = (size_t)snprintf(out, sizeof(out), "You look at %s.\r\n%s\r\n",
@@ -238,6 +313,13 @@ bool look_at_target(descriptor_t *d, const char *args) {
         }
         if (n < sizeof(out))
             being_render_equipment(tgt, out, sizeof(out), &n);
+        /* Immortal-only carried inventory + one-level container contents
+         * (user 2026-07-19: "immortals can see inventory when looking
+         * at a mob or player and can also see the contents of any
+         * container they carry"). Mortals looking at another PC/mob see
+         * nothing beyond the equipment listing above, same as before. */
+        if (n < sizeof(out) && being_is_immortal(d->character))
+            render_immortal_inventory(tgt, display, d->character, out, sizeof(out), &n);
         descriptor_send(d, out);
         return true;
     }
