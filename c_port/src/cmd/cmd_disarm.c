@@ -10,7 +10,7 @@
 #include "being.h"
 #include "combat.h"
 #include "obj.h"
-#include "player_repo.h"
+#include "obj_repo.h"
 #include "pulse.h"
 #include "skill.h"
 #include "thing.h"
