@@ -4,11 +4,40 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "being.h"
 #include "skill.h"
+
+/* Appends a formatted chunk to `out`/`*n`, the way every list-builder in
+ * this file needs to. NOT the same as the raw `*n += snprintf(out + *n,
+ * outsz - *n, ...)` pattern used elsewhere in the codebase: snprintf's
+ * return value is how much WOULD have been written if the buffer were
+ * big enough, not how much actually was, so once one call truncates, `*n`
+ * ends up larger than `outsz` -- and the next call's `outsz - *n` then
+ * underflows (both unsigned) into a huge bogus size, handing snprintf
+ * free rein to write past the real buffer end. Guarding entry (`*n >=
+ * outsz` bails before computing outsz - *n) and clamping `*n` to `outsz`
+ * afterward closes both ends of that hole; a full buffer just silently
+ * stops accumulating instead of corrupting memory. Found the hard way:
+ * an immortal typing `skills` (the "every class, everything unlocked"
+ * branch below) reliably segfaulted the live server, because the ~300+
+ * skill catalog doesn't fit in one screen's buffer and several call
+ * sites here had no guard at all. */
+static void append_fmt(char *out, size_t outsz, size_t *n, const char *fmt, ...) {
+    if (*n >= outsz)
+        return;
+    va_list ap;
+    va_start(ap, fmt);
+    int wrote = vsnprintf(out + *n, outsz - *n, fmt, ap);
+    va_end(ap);
+    if (wrote > 0)
+        *n += (size_t)wrote;
+    if (*n > outsz)
+        *n = outsz;
+}
 
 /* What `cast`/`pray` (cmd_cast.c/cmd_pray.c) consume to invoke a class's
  * non-combat spells -- shown inline here (user 2026-07-18: "write help
@@ -45,16 +74,14 @@ static void print_tier(descriptor_t *d, const being_t *ch, player_class_t cls, s
     char label[48];
     skill_tier_label(cls, tier, label, sizeof(label));
 
-    char header[64];
-    snprintf(header, sizeof(header), "\r\n<c>-- %s --<z>\r\n", label);
-    *n += (size_t)snprintf(out + *n, outsz - *n, "%s", header);
+    append_fmt(out, outsz, n, "\r\n<c>-- %s --<z>\r\n", label);
     const char *reagent = spell_reagent_note(cls, tier);
     if (reagent)
-        *n += (size_t)snprintf(out + *n, outsz - *n, "  <y>(%s to invoke any of these)<z>\r\n", reagent);
+        append_fmt(out, outsz, n, "  <y>(%s to invoke any of these)<z>\r\n", reagent);
 
     int shown = 0;
     int count = skill_count();
-    for (int i = 0; i < count && *n < outsz - 128; i++) {
+    for (int i = 0; i < count && *n < outsz; i++) {
         const skill_def_t *sk = skill_at(i);
         if (sk->cls != cls || sk->tier != tier)
             continue;
@@ -79,20 +106,20 @@ static void print_tier(descriptor_t *d, const being_t *ch, player_class_t cls, s
 
         if (force_known || (level_ok && disc_ok)) {
             int prof = skill_proficiency(ch, sk);
-            *n += (size_t)snprintf(out + *n, outsz - *n, "  %-26s %s <y>[%d%%]<z>\r\n",
-                                   sk->name, sk->desc, prof);
+            append_fmt(out, outsz, n, "  %-26s %s <y>[%d%%]<z>\r\n",
+                       sk->name, sk->desc, prof);
         } else if (!level_ok) {
-            *n += (size_t)snprintf(out + *n, outsz - *n,
-                                   "  <k>%-26s %s (level %d)<z>\r\n",
-                                   sk->name, sk->desc, sk->min_level);
+            append_fmt(out, outsz, n,
+                       "  <k>%-26s %s (level %d)<z>\r\n",
+                       sk->name, sk->desc, sk->min_level);
         } else {
-            *n += (size_t)snprintf(out + *n, outsz - *n,
-                                   "  <k>%-26s %s (%s)<z>\r\n",
-                                   sk->name, sk->desc, disc_reason);
+            append_fmt(out, outsz, n,
+                       "  <k>%-26s %s (%s)<z>\r\n",
+                       sk->name, sk->desc, disc_reason);
         }
     }
     if (shown == 0)
-        *n += (size_t)snprintf(out + *n, outsz - *n, "  (none)\r\n");
+        append_fmt(out, outsz, n, "  (none)\r\n");
     (void)d;
 }
 
@@ -111,14 +138,16 @@ bool cmd_skills(descriptor_t *d, const char *args) {
 
     /* Immortals see every class's full roster, all shown as known --
      * accumulated into one buffer and paged, same as the mortal path
-     * below (six classes' worth of skills is well beyond one screen). */
+     * below (six classes' worth of skills is well beyond one screen).
+     * 65536 bytes -- the full ~300-skill catalog across every class,
+     * fully spelled out at 100%, runs well past the previous 16000-byte
+     * size (the actual cause of a real crash, see append_fmt's comment
+     * above); comfortably under the pager's own 128KB buffer. */
     if (being_is_immortal(d->character)) {
-        char out[16000];
+        char out[65536];
         size_t n = 0;
         for (player_class_t cls = 0; cls < CLASS_COUNT; cls++) {
-            char header[64];
-            snprintf(header, sizeof(header), "\r\n<y>=== %s ===<z>\r\n", class_name(cls));
-            n += (size_t)snprintf(out + n, sizeof(out) - n, "%s", header);
+            append_fmt(out, sizeof(out), &n, "\r\n<y>=== %s ===<z>\r\n", class_name(cls));
             print_tier(d, d->character, cls, SKILL_TIER_COMBAT, 999, 100, 100, 100, true, out, sizeof(out), &n);
             print_tier(d, d->character, cls, SKILL_TIER_CLASS, 999, 100, 100, 100, true, out, sizeof(out), &n);
             print_tier(d, d->character, cls, SKILL_TIER_ADVANCED, 999, 100, 100, 100, true, out, sizeof(out), &n);

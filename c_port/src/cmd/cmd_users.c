@@ -20,6 +20,8 @@ static const char *state_name(const descriptor_t *d) {
         return "playing (in edplayer)";
     if (d->state >= CONN_EDZONE_MENU && d->state <= CONN_EDZONE_QUIT_CONFIRM)
         return "playing (in edzone)";
+    if (d->state >= CONN_EDSOCIAL_LIST && d->state <= CONN_EDSOCIAL_DELETE_CONFIRM)
+        return "playing (in edsocial)";
     switch (d->state) {
         case CONN_GET_ACCOUNT_NAME:   return "at login (account name)";
         case CONN_GET_PASSWORD:       return "at login (password)";

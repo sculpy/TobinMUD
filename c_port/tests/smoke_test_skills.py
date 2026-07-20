@@ -152,7 +152,9 @@ check("-- Warrior Skills --" in out, "warrior sees the Warrior Skills tier heade
 check("-- Advanced Warrior Skills --" in out, "warrior sees the Advanced Warrior Skills tier header")
 check("bash" in out and "(level" not in out.split("bash")[1].split("\n")[0],
       "a level-1 skill (bash) shows known, not locked")
-check("(level 45)" in out, "a higher-level skill shows its required level while locked")
+check("(level 50)" in out,
+      "a higher-level skill shows its required level while locked "
+      "('close quarters fighting', the warrior roster's highest min_level)")
 
 # --- 2: level up unlocks a previously-locked skill ---
 set_level(warrior_name, 45)
@@ -182,6 +184,34 @@ for class_choice, cls_label, signature in (
     check(f"-- Advanced {cls_label} Skills --" in out, f"{cls_label} sees the 'Advanced {cls_label} Skills' tier header")
     check(signature in out, f"{cls_label} sees its signature skill/spell ({signature})")
     s.close()
+
+# --- 4: an immortal's `skills` shows every class's full roster in one go
+# (2026-07-20 crash fix). This branch previously segfaulted the live
+# server: the ~300-skill catalog across every class, all shown as known
+# at once, ran well past its old 16000-byte buffer, and several of the
+# buffer-accumulating writes had no overflow guard at all. Real
+# reproduction, not a hypothetical -- caught live via gdb during a full
+# regression sweep. The whole point of this check is that the connection
+# survives to `=== ALL CHECKS PASSED ===`, not just that these strings
+# appear. ---
+imm_name = f"Skimm{_suffix}"
+si = make_char(imm_name, pw, "3")
+set_level(imm_name, 60)
+si.close()
+si = socket.create_connection((host, port), timeout=5)
+recv_all(si)
+send_line(si, imm_name); recv_all(si)
+send_line(si, pw); recv_all(si)
+send_line(si, "1"); recv_all(si)
+cmd(si, "color off")
+out = cmd_paged(si, "skills", timeout=0.3, max_pages=60)
+check("=== Warrior ===" in out and "=== Mage ===" in out and "=== Thief ===" in out,
+      "an immortal's `skills` shows every class's own section")
+check("-- Advanced Mage Skills --" in out,
+      "the full catalog (every class, every tier) renders without truncating early")
+check("Exits:" in cmd(si, "look"),
+      "the connection is still alive and responsive after the full listing (server didn't crash)")
+si.close()
 
 sw.close()
 announce_done("smoke_test_skills")

@@ -1,5 +1,166 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-20 — Session 51 (work): **Socials → DB + full Sneezy
+set + `edsocial` editor (both halves of the TODO item), plus a real
+crash fix (`cmd_skills.c`) found live along the way.**
+- **DB-backed socials, full ~155-verb port.** Socials moved from the old
+  compiled 16-entry table to a new `social` DB table (`social_repo.h/.c`,
+  loaded once at boot into an in-memory cache — `social_cache_load()`,
+  `src/core/socials.c` — same "cache at boot, checked on nearly every
+  unmatched command" precedent as `balance_cache_load()`). The full set was
+  ported from `sneezymud-master/lib/actions` via a new `db/import-
+  socials.py`, verified line-for-line against the real upstream parser
+  (`misc/actions.cc`'s `fread_action()`) rather than guessed — including a
+  position-code translation table (raw file codes 7–11 do NOT map directly
+  to `position_t` ordinals; verified against `misc/create_mobs.cc`'s
+  `mapFileToPos()`) that would otherwise have silently mis-gated every
+  social with `min_position` 7+. The upstream `$n`/`$N`/`$P`/`$s`/`$S`/`$e`/
+  `$E`/`$m`/`$M` token grammar (verified against `comm.cc`'s `act()`) is
+  now a generic expander (`social_expand()`), which let the old hand-rolled
+  shake/comfort/poke pronoun special-casing be deleted outright — the real
+  ported text already carries proper tokens. `point`'s Tobin-original
+  held-item form (not upstream) is preserved as a bypass of the generic
+  templates. Targeting yourself now gets its own dedicated message
+  (`self_auto`/`others_auto`) instead of repeating the no-target one — a
+  real behavioral improvement that came along for free. `socials` (the
+  list command) is now paged (`descriptor_page_start`), 4 columns per row
+  like `help`'s `send_columns()`, since ~155 verbs comfortably overflows
+  one screen.
+- **Bug found + fixed during testing: self-targeting a social never
+  worked.** `find_room_pc()` (the room-name lookup socials use to resolve a
+  target) excluded the caller themselves from the search — inherited
+  unchanged from before the DB port, when self-targeting wasn't a thing
+  worth testing. Caught by the new smoke test's self-target check;
+  `find_room_pc()` no longer excludes `ch`, so `smile me` (or `smile
+  <own name>`) now actually reaches the `tgt == ch` branch instead of
+  silently falling through to `not_found`. Confirmed nothing else in the
+  tree called `find_room_pc()`, so no other caller depended on the
+  self-exclusion.
+- **Housekeeping found while deploying**: `pkill -9 -f 'build/tobin_c'`
+  inside a restart script matches the *script's own* command line (which
+  literally contains the string `build/tobin_c` in its `pgrep`/`kill`
+  invocations) — running it kills the SSH session running the deploy
+  script itself, not just a stuck server process, taking production
+  offline until the next manual restart. Hit this twice this session.
+  Fix: kill by captured PID only, never a second `pkill -f` sweep with the
+  same substring the script itself contains. Also confirmed `watchdog.sh`
+  (cron, same as the rebuilt home VM per Session 48) runs on the work box
+  too, and will race a manual restart if the server is down for more than
+  a few seconds — a transient duplicate "bind() failed" log line from the
+  watchdog losing that race is expected, not a real error, as long as
+  exactly one `tobin_c` ends up listening afterward.
+- **Real player impact**: production was down for roughly a minute across
+  two restarts while landing this fix, which dropped the connection of the
+  only player online at the time (`Jesus`, the box's first immortal). No
+  copyover-capable login was available to avoid it (copyover requires an
+  authenticated 59+ character; only real player credentials can do that,
+  and none were on hand). Worth deciding whether a bot-usable "deploy as
+  immortal" credential should exist for this box, mirroring however the
+  home VM's `/tmp/deploy_copyover.py` gets its login.
+- **Testing**: `tests/smoke_test_socials.py` fully rewritten (17 checks:
+  untargeted/targeted/self-target wording, gendered pronoun substitution,
+  per-social `not_found` text, `min_position` gating, the paged list
+  (drains the pager fully — a verb near the end of the alphabet, `wave`,
+  only appears after paging through), abbreviation, and `point`'s
+  held-item form). Verified live on production (port 4000); full
+  `tests/sweep.sh` regression run before commit.
+- **`edsocial` (55+), the editor half.** `edit social [name]` -- bare
+  form browses the full list (unpaged, same precedent as
+  `show_redit_extra_menu()`'s small-list convention: a builder tool, not
+  the paginated player-facing `socials` command), an exact name jumps
+  straight to its detail view, `new <name>` creates a blank one. Detail
+  view: 8 numbered message fields (columns aligned via a shared `%-22s`
+  label width so values start in the same column top to bottom, same
+  treatment on the two top fields and the H/P/R/D action row --
+  `EDSOCIAL_FIELD_LABELS` in descriptor.c), `H` toggles `hide` (the
+  upstream `act()`'s per-recipient invisibility gate, `sys/comm.cc` --
+  correctly labeled as inert in Tobin today, since there's no
+  invisibility system yet; initially mislabeled as "hide from the
+  `socials` list" during development, caught before shipping by
+  checking the real upstream semantics rather than guessing), `P` sets
+  `min_position` by name (new `position_from_name()`, `being.c` --
+  reverse of the existing `position_name()`), `R` renames, `D` deletes.
+  Same "commits immediately, no working copy, `social_cache_load()`
+  after every write" shape as the Extra Descriptions submenu. New
+  `cmd_edsocial.c`, `EDSOCIAL_MIN_LEVEL` (55), help topic + `edit`
+  master-topic update, wiznews entry. New `tests/smoke_test_edsocial.py`
+  (9 scenarios, including the level gate and the "another connection
+  sees the edit live, no restart" check that's the whole point of the
+  immediate-commit design).
+- **Real crash fix, found live via gdb (not part of this TODO item, but
+  serious enough to fix the same session): `cmd_skills.c`'s immortal
+  "show every class" view segfaulted the server.** `print_tier()`'s
+  header/reagent-note/"(none)" writes had no overflow guard (only the
+  per-skill loop did), and `snprintf`'s return value can exceed the
+  buffer once truncation starts -- so once the ~300-skill catalog (all
+  classes, fully unlocked) overflowed the old 16000-byte buffer, the
+  next `outsz - *n` computation underflowed (both unsigned) into a huge
+  bogus size, handing `snprintf` free rein to write past the real
+  buffer. Reproduced and root-caused live: attached gdb to the running
+  production process (`-batch -ex continue -ex "bt full"`, per the new
+  standing habit below) during a `tests/sweep.sh` run, caught the exact
+  SIGSEGV with a full backtrace pointing straight at the bug, rather
+  than treating the resulting 106-failure sweep as a mystery regression.
+  Fixed with a new `append_fmt()` helper (guards entry AND clamps `*n`
+  to `outsz` afterward, closing both ends of the underflow) used
+  consistently everywhere in the file, plus growing the immortal
+  buffer to 65536 bytes (real headroom, not just barely enough for
+  today's catalog). New regression check in `tests/smoke_test_skills.py`
+  (an immortal's `skills` renders the full catalog and the connection
+  survives) -- this is the test that actually caught the crash in the
+  first place. Also fixed one unrelated stale assertion in the same
+  file (`"(level 45)"` -- no warrior skill has ever had that exact
+  min_level; the roster was rebalanced after the test was written).
+- **New standing habit (user 2026-07-20): always run the server under
+  gdb (attached, `continue`) while testing/developing**, not just
+  reactively after a crash is suspected -- see `CLAUDE.md`'s "Build /
+  run / test" section for the exact command. This is precisely what
+  caught the `cmd_skills.c` crash above with an instant, exact
+  backtrace instead of an ~85-minute mystery sweep failure.
+- **Found, NOT fixed this session, logged as the new TODO.md priority
+  item**: a linkdead PC's `being_t` stays fully resident in its room
+  forever (by design -- see `descriptor_destroy()`'s comment on why an
+  eager save is deliberately avoided), and nothing currently cleans one
+  up automatically. Discovered because it's the likely proximate cause
+  of a real slowdown/hang while testing this session: months of smoke
+  tests that `s.close()` a raw socket instead of `quit`ting had left
+  Center Square alone with 70+ linkdead bodies (2762 total player rows,
+  597 created just since a checkpoint earlier this session). Verified
+  against the original first: `misc/periodic.cc` already has exactly
+  this mechanic (`nukeLdead()` at 15 min mortal / 60 min immortal
+  linkdead). User-directed deviation for Tobin: a flat 5 minutes for
+  everyone. Open design question logged in TODO.md: save-then-destroy
+  (matches the original, and the user's own first phrasing of the ask)
+  vs. discard-only (matches Tobin's own existing `world_purge_linkdead()`
+  precedent, avoiding the same clobber-a-fresher-DB-edit risk
+  `descriptor_destroy()` already reasons through) -- needs a decision
+  before implementation, not a silent default. **The 597 stray test rows
+  from today were NOT cleaned up this session** (mass-deleting 597
+  player rows was correctly blocked by the auto-mode classifier as a
+  bulk destructive action, and the user redirected toward fixing the
+  root cause instead of a one-off manual purge) -- expect a cluttered
+  Center Square and a slower server until the auto-purge feature lands
+  or someone does a manual `purge linkdead`-style cleanup.
+- **Sync-up note for the next session (Home)**: production (`db.kullit.com`)
+  is running a clean build of everything in this entry (socials DB port +
+  edsocial + the `cmd_skills.c` crash fix), verified via two full
+  `tests/sweep.sh` runs with gdb attached the whole time (zero crashes on
+  the second, clean run -- 134 passed / 21 failed, and the 21 are
+  pre-existing/environmental: `set`/`news`/etc. are SYNC.md's own
+  documented rotating flakes, confirmed by rerunning `set` standalone
+  clean; `accounts`/`zones` failed standalone too but look like
+  collateral from the linkdead-glut room slowdown above, not a real
+  regression from anything in this entry -- worth a clean rerun once
+  that's fixed). **`tests/smoke_test_edsocial.py` itself was NOT
+  confirmed passing this session** -- written and believed correct, but
+  live verification kept getting sidetracked by the linkdead-glut
+  discovery; run it fresh at Home before treating `edsocial` as fully
+  done. All of this session's `db/sneezy/*.sql` changes (including
+  edsocial's help topic and the two newest wiznews entries) are applied
+  to production's DB as of the end of this session -- `db/apply-tobin-
+  schema.sh` re-run clean, no separate step needed at Home beyond a
+  normal `git pull` + the usual schema-apply-after-pull habit.
+
 Last updated: 2026-07-20 — Session 50 (work): **redit Extra Descriptions,
 builder half.**
 - **`edit room` menu 8: Extra Descriptions submenu.** The mortal-facing

@@ -108,6 +108,7 @@ bool cmd_multiplay(descriptor_t *d, const char *args);
 bool cmd_setsev(descriptor_t *d, const char *args);
 bool cmd_edplayer(descriptor_t *d, const char *args);
 bool cmd_edaccount(descriptor_t *d, const char *args);
+bool cmd_edsocial(descriptor_t *d, const char *args);
 bool cmd_set(descriptor_t *d, const char *args);
 bool cmd_open(descriptor_t *d, const char *args);
 bool cmd_close(descriptor_t *d, const char *args);
@@ -254,6 +255,12 @@ bool look_at_target(descriptor_t *d, const char *args);
 /* `stat` (see everything about an obj/mob/room prototype by vnum): 55+,
  * user-specified (2026-07-12). */
 #define STAT_MIN_LEVEL 55
+
+/* `edsocial` (menu-driven social/emote editor): 55+, per the TODO.md item
+ * that spawned it ("edsocial (55+)"). Same tier as `stat` -- both are
+ * content-authoring tools a level below the Administrator-only ones
+ * (edplayer/edaccount, 58+). */
+#define EDSOCIAL_MIN_LEVEL 55
 
 /* `snoop`: 59+, user-specified (2026-07-11). Same-or-higher-level targets
  * are refused inside cmd_snoop.c itself, not by this table gate alone. */

@@ -39,6 +39,26 @@ TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=sneezy \
 for f in tests/smoke_test*.py; do python3 "$f"; done   # full suite
 ```
 
+**Always run the server under gdb while testing/developing** (user
+2026-07-20): after every restart, attach immediately —
+```
+setsid nohup gdb -p <pid> -batch -ex "set pagination off" \
+  -ex "handle SIGPIPE nostop noprint pass" -ex "continue" \
+  -ex "echo \n=== CRASH CAUGHT ===\n" -ex "bt full" -ex "info threads" \
+  -ex "thread apply all bt" > ~/NewMUD/gdb_crash.log 2>&1 < /dev/null &
+disown
+```
+No `sudo` needed (`ptrace_scope=0` on these boxes; `mud` owns the process
+either way). A crash mid-sweep otherwise just looks like the watchdog
+cron quietly restarting the server, and every test after that point fails
+for a completely unrelated reason (garbled cross-test state on the
+respawned server) — burning a full ~85-minute sweep before you even find
+out something crashed, let alone where. Caught a real segfault in
+`cmd_skills.c` this way (2026-07-20): a full 85-minute sweep produced 106
+failures across totally unrelated tests, all traced back to one
+overflow-and-underflow bug in the immortal `skills` view. Re-attach after
+every rebuild+restart, not just once per session.
+
 First-time DB seed (or to re-seed) is two steps — upstream world first,
 then Tobin's schema on top:
 

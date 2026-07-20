@@ -25,6 +25,7 @@
 #include "news_repo.h"
 #include "room_repo.h"
 #include "rules_repo.h"
+#include "socials.h"
 #include "world.h"
 #include "zone.h"
 
@@ -184,6 +185,7 @@ bool descriptor_in_editor(const descriptor_t *d) {
         || (d->state >= CONN_EDZONE_MENU && d->state <= CONN_EDZONE_QUIT_CONFIRM)
         || (d->state >= CONN_BALANCE_MENU && d->state <= CONN_BALANCE_QUIT_CONFIRM)
         || (d->state >= CONN_EDACCOUNT_MENU && d->state <= CONN_EDACCOUNT_PASSWORD)
+        || (d->state >= CONN_EDSOCIAL_LIST && d->state <= CONN_EDSOCIAL_DELETE_CONFIRM)
         || d->page_len > 0; /* mid-pager -- same "no interruptions" treatment */
 }
 
@@ -1784,6 +1786,115 @@ bool descriptor_edaccount_begin(descriptor_t *d, const char *name) {
     d->edaccount_id = acct.account_id;
     show_edaccount_menu(d);
     return true;
+}
+
+/* The 8 upstream message fields (social_repo.h), in display/menu order.
+ * Longest label is "Others (target found)" (22 chars) -- every %-22s below
+ * lines up against that, so the message text starts in the same column on
+ * every row regardless of which field it is. */
+#define EDSOCIAL_FIELD_COUNT 8
+static const char *const EDSOCIAL_FIELD_LABELS[EDSOCIAL_FIELD_COUNT] = {
+    "Self (no target)", "Others (no target)",
+    "Self (target found)", "Others (target found)", "Target (found)",
+    "Not found",
+    "Self (self-target)", "Others (self-target)",
+};
+
+static char *edsocial_field_ptr(social_t *s, int field) {
+    switch (field) {
+        case 1: return s->self_no_arg;
+        case 2: return s->others_no_arg;
+        case 3: return s->self_found;
+        case 4: return s->others_found;
+        case 5: return s->vict_found;
+        case 6: return s->not_found;
+        case 7: return s->self_auto;
+        case 8: return s->others_auto;
+        default: return NULL;
+    }
+}
+
+/* Full social list -- unpaged, same precedent as show_redit_extra_menu()'s
+ * small list (a builder tool, not the paginated player-facing `socials`
+ * command, cmd_socials.c). Same 4-column %-14s layout cmd_socials.c uses,
+ * so names line up into even columns. */
+static void show_edsocial_list(descriptor_t *d) {
+    social_cache_load(); /* fresh, in case another builder just edited concurrently */
+    int cnt = social_cache_count();
+
+    char out[8192];
+    size_t n = (size_t)snprintf(out, sizeof(out), "\r\n<c>=== Socials (%d) ===<z>\r\n", cnt);
+    for (int i = 0; i < cnt && n < sizeof(out); i++) {
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-14s", social_cache_at(i)->name);
+        if (i % 4 == 3)
+            n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0, "\r\n");
+    }
+    if (cnt % 4 != 0 && n < sizeof(out))
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "\r\n");
+    if (n < sizeof(out))
+        snprintf(out + n, sizeof(out) - n,
+            "\r\nType a name to edit it, <y>new<z> to add one, or blank to quit.\r\nedsocial> ");
+    descriptor_send(d, out);
+    d->state = CONN_EDSOCIAL_LIST;
+}
+
+/* One social's detail view. No working copy -- re-reads fresh every time
+ * (every edit commits immediately, see the CONN_EDSOCIAL_* enum comment),
+ * so a concurrent edit by a second builder is always reflected, same
+ * tradeoff show_edaccount_menu()/show_redit_extra_item() already accept.
+ * The top two lines share one label width (19, "Minimum position:" is the
+ * longer), and the 8 numbered fields share another (22) -- see
+ * EDSOCIAL_FIELD_LABELS' comment -- so values consistently start in the
+ * same column top to bottom. */
+static void show_edsocial_item(descriptor_t *d) {
+    social_t s;
+    if (!social_repo_get(d->edsocial_name, &s)) {
+        descriptor_send(d, "That social no longer exists.\r\n");
+        show_edsocial_list(d);
+        return;
+    }
+
+    char out[4096];
+    size_t n = (size_t)snprintf(out, sizeof(out),
+        "\r\n<c>Editing social: %s<z>\r\n\r\n"
+        "  %-19s%s\r\n"
+        "  %-19s%s\r\n\r\n",
+        s.name,
+        "Hide unseen actor:", s.hide ? "yes" : "no",
+        "Minimum position:", position_name((position_t)s.min_position));
+
+    for (int i = 0; i < EDSOCIAL_FIELD_COUNT && n < sizeof(out); i++) {
+        const char *val = edsocial_field_ptr(&s, i + 1);
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %d) %-22s %s\r\n",
+                              i + 1, EDSOCIAL_FIELD_LABELS[i], val[0] ? val : "(empty)");
+    }
+
+    if (n < sizeof(out))
+        n += (size_t)snprintf(out + n, sizeof(out) - n,
+            "\r\n  %-22s%-22s\r\n  %-22s%-22s\r\n",
+            "H) Toggle hide-unseen", "P) Set minimum position",
+            "R) Rename", "D) Delete this social");
+    if (n < sizeof(out))
+        snprintf(out + n, sizeof(out) - n,
+            "\r\n  blank) back to list\r\nedsocial-%s> ", s.name);
+    descriptor_send(d, out);
+    d->state = CONN_EDSOCIAL_ITEM;
+}
+
+static void edsocial_leave(descriptor_t *d) {
+    d->state = CONN_PLAYING;
+    descriptor_send(d, "Leaving the social editor.\r\n");
+    descriptor_editor_exit_notice(d);
+}
+
+void descriptor_edsocial_begin(descriptor_t *d, const char *name) {
+    social_t s;
+    if (name && name[0] && social_repo_get(name, &s)) {
+        snprintf(d->edsocial_name, sizeof(d->edsocial_name), "%s", s.name);
+        show_edsocial_item(d);
+    } else {
+        show_edsocial_list(d);
+    }
 }
 
 static bool handle_line(descriptor_t *d, const char *line) {
@@ -3491,6 +3602,202 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 }
             }
             show_edaccount_menu(d);
+            return true;
+        }
+
+        case CONN_EDSOCIAL_LIST: {
+            if (!line[0]) {
+                edsocial_leave(d);
+                return true;
+            }
+            if (strcasecmp(line, "new") == 0) {
+                descriptor_send(d, "\r\nEnter the new social's name (blank to cancel): ");
+                d->state = CONN_EDSOCIAL_NEW_NAME;
+                return true;
+            }
+            social_t s;
+            if (social_repo_get(line, &s)) {
+                snprintf(d->edsocial_name, sizeof(d->edsocial_name), "%s", s.name);
+                show_edsocial_item(d);
+            } else {
+                char msg[80];
+                snprintf(msg, sizeof(msg), "No social named '%.32s'.\r\n", line);
+                descriptor_send(d, msg);
+                show_edsocial_list(d);
+            }
+            return true;
+        }
+
+        case CONN_EDSOCIAL_NEW_NAME: {
+            if (!line[0]) {
+                descriptor_send(d, "Cancelled.\r\n");
+                show_edsocial_list(d);
+                return true;
+            }
+            if (strlen(line) >= SOCIAL_NAME_LEN) {
+                descriptor_send(d, "That name is too long.\r\n");
+                show_edsocial_list(d);
+                return true;
+            }
+            social_t existing;
+            if (social_repo_get(line, &existing)) {
+                descriptor_send(d, "A social by that name already exists.\r\n");
+                show_edsocial_list(d);
+                return true;
+            }
+            social_t s;
+            memset(&s, 0, sizeof(s));
+            snprintf(s.name, sizeof(s.name), "%s", line);
+            if (social_repo_save(&s)) {
+                social_cache_load();
+                snprintf(d->edsocial_name, sizeof(d->edsocial_name), "%s", s.name);
+                descriptor_send(d, "Social created -- fill in its fields below.\r\n");
+                show_edsocial_item(d);
+            } else {
+                descriptor_send(d, "Create failed.\r\n");
+                show_edsocial_list(d);
+            }
+            return true;
+        }
+
+        case CONN_EDSOCIAL_ITEM: {
+            if (!line[0]) {
+                show_edsocial_list(d);
+                return true;
+            }
+            if (line[1] == '\0' && isdigit((unsigned char)line[0])) {
+                int field = line[0] - '0';
+                if (field >= 1 && field <= EDSOCIAL_FIELD_COUNT) {
+                    social_t s;
+                    if (!social_repo_get(d->edsocial_name, &s)) {
+                        descriptor_send(d, "That social no longer exists.\r\n");
+                        show_edsocial_list(d);
+                        return true;
+                    }
+                    char msg[SOCIAL_TEXT_LEN + 96];
+                    snprintf(msg, sizeof(msg),
+                        "\r\nCurrent (%s): %s\r\nEnter new text (blank to cancel):\r\n> ",
+                        EDSOCIAL_FIELD_LABELS[field - 1], edsocial_field_ptr(&s, field));
+                    descriptor_send(d, msg);
+                    d->edsocial_field = field;
+                    d->state = CONN_EDSOCIAL_FIELD;
+                    return true;
+                }
+            }
+            char c = (char)toupper((unsigned char)line[0]);
+            if (line[1] == '\0' && c == 'H') {
+                social_t s;
+                if (social_repo_get(d->edsocial_name, &s)) {
+                    s.hide = !s.hide;
+                    social_repo_save(&s);
+                    social_cache_load();
+                }
+                show_edsocial_item(d);
+                return true;
+            }
+            if (line[1] == '\0' && c == 'P') {
+                social_t s;
+                if (social_repo_get(d->edsocial_name, &s)) {
+                    char msg[112];
+                    snprintf(msg, sizeof(msg),
+                        "\r\nCurrent minimum position: %s\r\nEnter a new one (e.g. standing, "
+                        "sleeping), blank to cancel:\r\n> ",
+                        position_name((position_t)s.min_position));
+                    descriptor_send(d, msg);
+                    d->edsocial_field = 0;
+                    d->state = CONN_EDSOCIAL_FIELD;
+                } else {
+                    descriptor_send(d, "That social no longer exists.\r\n");
+                    show_edsocial_list(d);
+                }
+                return true;
+            }
+            if (line[1] == '\0' && c == 'R') {
+                char msg[SOCIAL_NAME_LEN + 64];
+                snprintf(msg, sizeof(msg),
+                    "\r\nCurrent name: %s\r\nEnter new name (blank to cancel): ", d->edsocial_name);
+                descriptor_send(d, msg);
+                d->state = CONN_EDSOCIAL_RENAME;
+                return true;
+            }
+            if (line[1] == '\0' && c == 'D') {
+                char msg[SOCIAL_NAME_LEN + 64];
+                snprintf(msg, sizeof(msg),
+                    "\r\nReally delete the social \"%s\"? (yes/no): ", d->edsocial_name);
+                descriptor_send(d, msg);
+                d->state = CONN_EDSOCIAL_DELETE_CONFIRM;
+                return true;
+            }
+            descriptor_send(d, "Pick 1-8, H, P, R, D, or blank to return.\r\n");
+            show_edsocial_item(d);
+            return true;
+        }
+
+        case CONN_EDSOCIAL_FIELD: {
+            if (!line[0]) {
+                descriptor_send(d, "Cancelled.\r\n");
+                show_edsocial_item(d);
+                return true;
+            }
+            social_t s;
+            if (!social_repo_get(d->edsocial_name, &s)) {
+                descriptor_send(d, "That social no longer exists.\r\n");
+                show_edsocial_list(d);
+                return true;
+            }
+            if (d->edsocial_field == 0) {
+                position_t pos;
+                if (!position_from_name(line, &pos)) {
+                    descriptor_send(d, "Not a recognized (or ambiguous) position name.\r\n");
+                    show_edsocial_item(d);
+                    return true;
+                }
+                s.min_position = (int)pos;
+            } else {
+                char *field = edsocial_field_ptr(&s, d->edsocial_field);
+                snprintf(field, SOCIAL_TEXT_LEN, "%s", line);
+            }
+            if (social_repo_save(&s)) {
+                social_cache_load();
+                descriptor_send(d, "Saved.\r\n");
+            } else {
+                descriptor_send(d, "Save failed.\r\n");
+            }
+            show_edsocial_item(d);
+            return true;
+        }
+
+        case CONN_EDSOCIAL_RENAME: {
+            if (!line[0]) {
+                descriptor_send(d, "Cancelled.\r\n");
+                show_edsocial_item(d);
+                return true;
+            }
+            if (strlen(line) >= SOCIAL_NAME_LEN) {
+                descriptor_send(d, "That name is too long.\r\n");
+                show_edsocial_item(d);
+                return true;
+            }
+            if (social_repo_rename(d->edsocial_name, line)) {
+                snprintf(d->edsocial_name, sizeof(d->edsocial_name), "%s", line);
+                social_cache_load();
+                descriptor_send(d, "Renamed.\r\n");
+            } else {
+                descriptor_send(d, "Rename failed -- that name may already be used.\r\n");
+            }
+            show_edsocial_item(d);
+            return true;
+        }
+
+        case CONN_EDSOCIAL_DELETE_CONFIRM: {
+            if (strcasecmp(line, "yes") == 0) {
+                social_repo_delete(d->edsocial_name);
+                social_cache_load();
+                descriptor_send(d, "Social deleted.\r\n");
+            } else {
+                descriptor_send(d, "Delete cancelled.\r\n");
+            }
+            show_edsocial_list(d);
             return true;
         }
 

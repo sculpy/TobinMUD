@@ -306,6 +306,13 @@ typedef enum {
 /* Display name ("Standing", "Sleeping", ...) for a position. */
 const char *position_name(position_t p);
 
+/* Reverse of position_name() -- case-insensitive prefix match (e.g. "stand"
+ * -> POSITION_STANDING). Used by `edsocial`'s min-position field, where a
+ * builder types a name rather than memorizing the raw enum ordinal. False
+ * (leaves *out untouched) if no position name starts with `name`, or if
+ * the prefix is ambiguous between two different positions. */
+bool position_from_name(const char *name, position_t *out);
+
 /* Gender (original sexTypeT, misc/being.h -- SEX_NEUTER/SEX_MALE/SEX_FEMALE).
  * Chosen at character creation; drives pronoun selection. Persisted in
  * player.gender as 0/1/2 so the enum values must stay stable. */

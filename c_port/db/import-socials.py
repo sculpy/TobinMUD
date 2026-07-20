@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""Convert the upstream DikuMUD-style social-action file
+(`sneezymud-master/lib/actions`) into a SQL seed for Tobin's `social` table,
+so socials move off the small hand-rolled C table and become fully
+DB-driven/editable (in-memory cache still backs the hot dispatch path --
+see social_repo.h).
+
+File format, one entry per block (verified against the real loader,
+misc/actions.cc's bootSocialMessages()/fread_action() -- NOT guessed from
+the data alone):
+    <verb> <hide 0|1> <min_position 0-12>
+    <self, no target>
+    <others, no target>
+    <self, WITH target>          -- present only if a targeted form exists
+    <others, WITH target>        -- (all 6 of these are always present
+    <target sees>                --  together, or all 6 are absent -- the
+    <no such target found>       --  loader reads char_found and treats a
+    <self, targeting self>       --  lone "#" there as "no targeted form",
+    <others, actor targets self> --  never partway through the other 5)
+    #                            -- ONLY needed to end a <8-line entry early;
+                                 --    a full 8-line entry has no trailing #
+(blank line separates entries)
+
+`min_position`'s raw file code is NOT the same as the position_t enum's
+ordinal for codes 7-11 (misc/create_mobs.cc's mapFileToPos() -- a legacy
+enum-reordering artifact) -- translated below via FILE_POS_TO_ENUM,
+verified against that exact function rather than assumed.
+
+    python3 import-socials.py [actions-file]  > social.sql
+"""
+import sys
+
+path = sys.argv[1] if len(sys.argv) > 1 else "sneezymud-master/lib/actions"
+
+# File code -> Tobin position_t ordinal (misc/create_mobs.cc's mapFileToPos(),
+# verified against the real source -- codes 0-6 and 12 happen to already
+# match their ordinal, codes 7-11 do NOT).
+FILE_POS_TO_ENUM = {
+    0: 0,   # DEAD
+    1: 1,   # MORTALLYW
+    2: 2,   # INCAP
+    3: 3,   # STUNNED
+    4: 4,   # SLEEPING
+    5: 5,   # RESTING
+    6: 6,   # SITTING
+    7: 8,   # FIGHTING
+    8: 9,   # CRAWLING
+    9: 10,  # STANDING
+    10: 11, # MOUNTED
+    11: 7,  # ENGAGED
+    12: 12, # FLYING
+}
+
+FIELDS = ["self_no_arg", "others_no_arg", "self_found", "others_found",
+          "vict_found", "not_found", "self_auto", "others_auto"]
+
+
+def sql_escape(s):
+    return s.replace("\\", "\\\\").replace("'", "''")
+
+
+# Tobin-original socials with no upstream equivalent -- merged in after the
+# real file is parsed, so regenerating this script's output never drops
+# them. "point" (user spec, pre-dates the DB port): no target points around
+# randomly; a held item earns its own wording, handled as a runtime
+# override in socials.c (point_item_label()), same as this file's other
+# hand-rolled pronoun overrides -- these DB rows are the plain fallback.
+TOBIN_EXTRAS = {
+    "point": {
+        "hide": 0, "min_position": 0,
+        "self_no_arg": "You point around randomly.",
+        "others_no_arg": "$n points around randomly.",
+        "self_found": "You point at $N.",
+        "others_found": "$n points at $N.",
+        "vict_found": "$n points at you.",
+        "not_found": "They aren't here.",
+        "self_auto": "You point at yourself. How odd.",
+        "others_auto": "$n points at $mself.",
+    },
+}
+
+
+def read_line(lines, i):
+    """One logical line (CRLF-stripped). Returns (text_or_None, next_i);
+    None means the line was a lone '#' (end-of-targeted-form marker)."""
+    if i >= len(lines):
+        return None, i
+    line = lines[i].rstrip("\r\n")
+    if line == "#":
+        return None, i + 1
+    return line, i + 1
+
+
+with open(path, encoding="utf-8", errors="replace") as f:
+    lines = f.readlines()
+
+socials = {}  # name -> dict(hide, min_position, fields...), later wins on dup
+dupes = []
+i = 0
+n = len(lines)
+while i < n:
+    raw = lines[i].rstrip("\r\n")
+    if not raw.strip():
+        i += 1
+        continue
+    parts = raw.split()
+    if len(parts) != 3 or not parts[1].lstrip("-").isdigit() or not parts[2].lstrip("-").isdigit():
+        sys.stderr.write(f"skipping unrecognized header line {i+1}: {raw!r}\n")
+        i += 1
+        continue
+    name, hide_s, minpos_s = parts
+    hide = int(hide_s)
+    minpos_file = int(minpos_s)
+    minpos = FILE_POS_TO_ENUM.get(minpos_file, 0)
+    i += 1
+
+    row = {"hide": hide, "min_position": minpos}
+    # Fields 1-2 (self_no_arg, others_no_arg): always present.
+    for key in FIELDS[:2]:
+        val, i = read_line(lines, i)
+        row[key] = val or ""
+
+    # Field 3 (self_found): if this is the '#' marker, no targeted form at
+    # all -- fields 3-8 all stay empty and we're done with this entry.
+    val, i = read_line(lines, i)
+    if val is None:
+        for key in FIELDS[2:]:
+            row[key] = ""
+    else:
+        row[FIELDS[2]] = val
+        for key in FIELDS[3:]:
+            val, i = read_line(lines, i)
+            row[key] = val or ""
+
+    if name in socials:
+        dupes.append(name)
+    socials[name] = row
+
+out = sys.stdout.write
+out("-- GENERATED by db/import-socials.py from sneezymud-master/lib/actions.\n")
+out("-- Do not edit by hand -- regenerate if the upstream actions file changes.\n")
+out("-- Tobin's DB-driven social (emote) definitions.\n\n")
+out("CREATE TABLE IF NOT EXISTS `social` (\n"
+    "  `name` varchar(32) NOT NULL,\n"
+    "  `hide` tinyint(1) NOT NULL DEFAULT 0,\n"
+    "  `min_position` int NOT NULL DEFAULT 0,\n"
+    "  `self_no_arg` text NOT NULL,\n"
+    "  `others_no_arg` text NOT NULL,\n"
+    "  `self_found` text NOT NULL,\n"
+    "  `others_found` text NOT NULL,\n"
+    "  `vict_found` text NOT NULL,\n"
+    "  `not_found` text NOT NULL,\n"
+    "  `self_auto` text NOT NULL,\n"
+    "  `others_auto` text NOT NULL,\n"
+    "  PRIMARY KEY (`name`)\n"
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;\n\n")
+out("DELETE FROM `social`;\n")
+
+socials.update(TOBIN_EXTRAS)
+names = sorted(socials.keys())
+BATCH = 20
+for i in range(0, len(names), BATCH):
+    chunk = names[i:i + BATCH]
+    out("INSERT INTO `social` (`name`,`hide`,`min_position`,`self_no_arg`,"
+        "`others_no_arg`,`self_found`,`others_found`,`vict_found`,`not_found`,"
+        "`self_auto`,`others_auto`) VALUES\n")
+    vals = []
+    for name in chunk:
+        r = socials[name]
+        fieldvals = ",".join(f"'{sql_escape(r[k])}'" for k in FIELDS)
+        vals.append(f"('{sql_escape(name)}',{r['hide']},{r['min_position']},{fieldvals})")
+    out(",\n".join(vals) + ";\n")
+
+sys.stderr.write(f"social: {len(socials)} socials ported from {path}.\n")
+if dupes:
+    sys.stderr.write("duplicate verb names in source (later entry won): "
+                     + ", ".join(dupes) + "\n")

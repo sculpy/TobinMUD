@@ -13,6 +13,56 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
+## PRIORITY — pick this up next (user 2026-07-20)
+
+- [ ] **Linkdead auto-purge (5 minutes, discard-only)** — found live,
+      2026-07-20: a linkdead PC's `being_t` stays fully resident in its
+      room forever (`desc == NULL`, never destroyed except on that same
+      account's reconnect or a `purge linkdead`/process restart) --
+      after months of smoke-test runs (every test that `s.close()`s a
+      raw socket instead of `quit`ing leaves one behind), Center Square
+      alone had 70+ linkdead bodies, which looks like the proximate
+      cause of a real slowdown/hang hit while testing this session (see
+      STATUS.md's Session 51 write-up). Verified against the original:
+      `misc/periodic.cc` already has exactly this mechanic -- a per-tick
+      linkdead timer, `nukeLdead()` once it crosses 15 minutes (mortals)
+      or 60 (immortals) -- force-saves, THEN strips/frees their
+      equipment and destroys the being. **User-directed deviation**: flat
+      5 minutes for everyone (not the original's 15/60 split) --
+      document this as a deliberate deviation in STATUS.md's decisions
+      table when it lands.
+      **Open design question, needs a decision before/while
+      implementing**: save-then-destroy (user's original phrasing,
+      matches the original's `nukeLdead()`) vs discard-only (matches
+      Tobin's OWN existing precedent -- `descriptor_destroy()`'s comment
+      and `world_purge_linkdead()`, both deliberately avoid an eager
+      save because it could clobber a fresher DB-side edit made while
+      linkdead, e.g. an admin `set`/`promote`). Leaning discard-only for
+      consistency with the existing precedent, but this is a real
+      data-integrity tradeoff worth re-confirming with the user before
+      picking, not just defaulting silently.
+      **Implementation sketch**: a new pulse (`main.c`, alongside
+      `descriptor_idle_timeout`/`zone_process_run` etc.) that walks
+      every linkdead PC (`world_for_each_room()`-style iteration,
+      `base.kind == THING_PC && desc == NULL`) via a new `world.h`
+      primitive (parallel to `world_purge_linkdead()`/
+      `world_count_linkdead()`), tracks a per-being elapsed-linkdead
+      timer (new `being_t` field, incremented each pulse the same way
+      `progress.rented_at`-style timestamps already work elsewhere --
+      or simpler, just stamp `being_t` with the wall-clock time
+      `desc` was cleared in `descriptor_destroy()` and compare against
+      `time(NULL)` each pulse, no counter needed), and once past the
+      5-minute mark, force-destroys it (`being_destroy()`, already
+      exists) -- optionally save first per the design question above.
+      Needs a smoke test (spin up a character, close the raw socket
+      without `quit`, wait past the threshold or fast-forward the
+      pulse counter the way other pulse-driven tests already do,
+      confirm the being is gone from the room) and a wiznews entry
+      (immortal-facing world-management change) -- likely a `news`
+      entry too, since it changes what a player finds on reconnecting
+      after a long disconnect (resumes fresh from their last real save/
+      rent instead of picking the old body back up).
+
 ## Sneezy → Tobin feature audit (user 2026-07-19)
 
 User audited the Sneezy → Tobin Feature Audit artifact (published
@@ -2535,10 +2585,16 @@ already tracked — pointers, not duplicates):
       immortals (`cmd_wiznet.c`). `smoke_test_wizcomm.py`.
 - [x] **`system`** — done 2026-07-05: immortal-only global echo -- sender sees
       `system <msg>`, everyone else the bare `<msg>` (`cmd_system.c`).
-- [ ] **Socials → DB + full Sneezy set + `edsocial` (55+)** — move socials
-      from the compiled table to a DB table; port the full social set from
-      `sneezymud-master/lib/actions`; add `edsocial` (55+, menu-driven ed*
-      editor) to edit them in game.
+- [~] **Socials → DB + full Sneezy set + `edsocial` (55+)** — DB-port half
+      done 2026-07-20: socials moved from the compiled table to a `social`
+      DB table (`social_repo.h/.c`), full ~155-verb set ported from
+      `sneezymud-master/lib/actions` via `db/import-socials.py` (position-code
+      translation verified against the original's `mapFileToPos()`, `$`-token
+      grammar verified against `comm.cc`'s `act()`), targeting yourself now
+      gets its own dedicated message instead of repeating the no-target one,
+      `socials` list is paged (4-column). `smoke_test_socials.py`. **Still
+      open:** `edsocial` (55+, menu-driven editor) to edit socials in game —
+      not started.
 
 ### User batch 2026-07-05 (late) — working these next
 

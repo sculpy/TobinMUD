@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <time.h>
 
@@ -377,6 +378,25 @@ const char *position_name(position_t p) {
     if (p < 0 || (size_t)p >= sizeof(POSITION_NAMES) / sizeof(POSITION_NAMES[0]))
         return "Standing";
     return POSITION_NAMES[p];
+}
+
+bool position_from_name(const char *name, position_t *out) {
+    size_t len = strlen(name);
+    if (len == 0)
+        return false;
+    int match = -1;
+    size_t count = sizeof(POSITION_NAMES) / sizeof(POSITION_NAMES[0]);
+    for (size_t i = 0; i < count; i++) {
+        if (strncasecmp(POSITION_NAMES[i], name, len) == 0) {
+            if (match >= 0)
+                return false; /* ambiguous prefix */
+            match = (int)i;
+        }
+    }
+    if (match < 0)
+        return false;
+    *out = (position_t)match;
+    return true;
 }
 
 const char *gender_name(gender_t g) {

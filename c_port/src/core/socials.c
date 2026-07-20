@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "socials.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
@@ -14,89 +15,58 @@
 #include "room.h"
 #include "thing.h"
 
-/* One social's messages. The %s slots are filled, in order:
- *   self          -- (none)
- *   others        -- actor name
- *   self_targ     -- target name
- *   targ          -- actor name
- *   others_targ   -- actor name, then target name
- * A NULL targeted-form set means the social can't be aimed at anyone. */
-typedef struct {
-    const char *name;
-    const char *self;
-    const char *others;
-    const char *self_targ;
-    const char *targ;
-    const char *others_targ;
-} social_t;
+/* In-memory cache -- see socials.h's header comment for why social_try()
+ * can't hit the DB per call. Headroom above the ~155 real rows so a
+ * builder growing the set in-game (edsocial) doesn't need a code change. */
+#define SOCIAL_CACHE_MAX 256
+static social_t g_cache[SOCIAL_CACHE_MAX];
+static int g_cache_count = 0;
 
-static const social_t SOCIALS[] = {
-    {"smile", "You smile.\r\n", "%s smiles.\r\n",
-     "You smile at %s.\r\n", "%s smiles at you.\r\n", "%s smiles at %s.\r\n"},
-    {"grin", "You grin evilly.\r\n", "%s grins evilly.\r\n",
-     "You grin at %s.\r\n", "%s grins at you.\r\n", "%s grins at %s.\r\n"},
-    {"laugh", "You laugh out loud.\r\n", "%s laughs out loud.\r\n",
-     "You laugh at %s.\r\n", "%s laughs at you.\r\n", "%s laughs at %s.\r\n"},
-    {"nod", "You nod.\r\n", "%s nods.\r\n",
-     "You nod at %s.\r\n", "%s nods at you.\r\n", "%s nods at %s.\r\n"},
-    /* "shake"/"poke"/"comfort" (Session 43, standing gender-pronoun habit):
-     * the bare "their"/"they"/"themselves" text below (here and at "poke"
-     * and "comfort" further down) is a fallback for `social_try()`'s shared
-     * %s-name-only formatting -- each is overridden with a real gendered
-     * pronoun there before display, same convention as descriptor.c's
-     * link-loss line and cmd_position.c's `stand`. Left here (rather than
-     * deleted) so social_names()/this table stay the single source of
-     * truth for every social's text shape. */
-    {"shake", "You shake your head.\r\n", "%s shakes their head.\r\n",
-     "You shake your head at %s.\r\n", "%s shakes their head at you.\r\n",
-     "%s shakes their head at %s.\r\n"},
-    {"wave", "You wave.\r\n", "%s waves.\r\n",
-     "You wave at %s.\r\n", "%s waves at you.\r\n", "%s waves at %s.\r\n"},
-    {"bow", "You bow deeply.\r\n", "%s bows deeply.\r\n",
-     "You bow before %s.\r\n", "%s bows before you.\r\n", "%s bows before %s.\r\n"},
-    {"wink", "You wink.\r\n", "%s winks.\r\n",
-     "You wink at %s.\r\n", "%s winks at you.\r\n", "%s winks at %s.\r\n"},
-    {"grovel", "You grovel in the dirt.\r\n", "%s grovels in the dirt.\r\n",
-     "You grovel before %s.\r\n", "%s grovels before you.\r\n",
-     "%s grovels before %s.\r\n"},
-    {"shrug", "You shrug.\r\n", "%s shrugs.\r\n",
-     "You shrug at %s.\r\n", "%s shrugs at you.\r\n", "%s shrugs at %s.\r\n"},
-    {"cheer", "You cheer wildly!\r\n", "%s cheers wildly!\r\n",
-     "You cheer for %s!\r\n", "%s cheers for you!\r\n", "%s cheers for %s!\r\n"},
-    {"cackle", "You cackle gleefully.\r\n", "%s cackles gleefully.\r\n",
-     "You cackle at %s.\r\n", "%s cackles at you.\r\n", "%s cackles at %s.\r\n"},
-    {"poke", "You poke yourself. Ow.\r\n", "%s pokes themselves.\r\n", /* "others" overridden, see "shake" comment above */
-     "You poke %s in the ribs.\r\n", "%s pokes you in the ribs.\r\n",
-     "%s pokes %s in the ribs.\r\n"},
-    {"comfort", "You need some comforting yourself.\r\n", "%s looks like they need comforting.\r\n",
-     "You comfort %s.\r\n", "%s comforts you.\r\n", "%s comforts %s.\r\n"}, /* "others" overridden, see "shake" comment above */
-    {"thank", "You thank everyone.\r\n", "%s thanks everyone.\r\n",
-     "You thank %s heartily.\r\n", "%s thanks you heartily.\r\n",
-     "%s thanks %s heartily.\r\n"},
-    /* With no target, point around randomly (user spec). The held-item form
-     * ("...points at you with his <item>") lands with the object system. */
-    {"point", "You point around randomly.\r\n", "%s points around randomly.\r\n",
-     "You point at %s.\r\n", "%s points at you.\r\n", "%s points at %s.\r\n"},
-};
-#define NUM_SOCIALS (sizeof(SOCIALS) / sizeof(SOCIALS[0]))
+void social_cache_load(void) {
+    g_cache_count = social_repo_load_all(g_cache, SOCIAL_CACHE_MAX);
+}
+
+int social_cache_count(void) {
+    return g_cache_count;
+}
+
+const social_t *social_cache_at(int index) {
+    if (index < 0 || index >= g_cache_count)
+        return NULL;
+    return &g_cache[index];
+}
+
+/* Case-insensitive prefix match against the cache, same abbreviation rule
+ * as the command table -- first (alphabetical) match wins. */
+static const social_t *social_find(const char *verb) {
+    size_t vlen = strlen(verb);
+    if (vlen == 0)
+        return NULL;
+    for (int i = 0; i < g_cache_count; i++)
+        if (strncasecmp(g_cache[i].name, verb, vlen) == 0)
+            return &g_cache[i];
+    return NULL;
+}
 
 void social_names(char *out, size_t size) {
     size_t n = 0;
     out[0] = '\0';
-    for (size_t i = 0; i < NUM_SOCIALS; i++)
+    for (int i = 0; i < g_cache_count; i++)
         n += (size_t)snprintf(out + n, size > n ? size - n : 0, "%s%s",
-                              i ? ", " : "", SOCIALS[i].name);
+                              i ? ", " : "", g_cache[i].name);
 }
 
 /* Finds a PLAYING character in `ch`'s room whose name matches `arg` by
- * case-insensitive prefix (excludes `ch`). */
+ * case-insensitive prefix -- INCLUDES `ch` itself, since social_try()'s
+ * self-target branch (tgt == ch) depends on self-targeting resolving to a
+ * hit here rather than falling through to not_found. */
 static being_t *find_room_pc(being_t *ch, const char *arg) {
     room_t *r = ch->base.roomp;
     if (!r)
         return NULL;
     size_t len = strlen(arg);
     for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
-        if (t->kind != THING_PC || t == &ch->base)
+        if (t->kind != THING_PC)
             continue;
         being_t *other = (being_t *)t;
         if (other->desc && strncasecmp(other->base.name, arg, len) == 0)
@@ -105,12 +75,12 @@ static being_t *find_room_pc(being_t *ch, const char *arg) {
     return NULL;
 }
 
-/* `point`'s held-item form (TODO.md: "the original's item-referencing
- * form -- 'X points at you with his/her/its <primary-hand item>' --
- * doesn't [exist]"). NULL if empty-handed, in which case `point` falls
- * back to its plain random-point wording exactly as before. Strips a
+/* `point`'s held-item form (Tobin-original, TOBIN_EXTRAS in
+ * db/import-socials.py) -- "X points at you with his/her/its <primary-hand
+ * item>". NULL if empty-handed, in which case `point` falls back to its
+ * plain DB-templated wording exactly like every other social. Strips a
  * leading "a "/"an "/"the " -- short_descr already carries its own
- * article ("a torch"), and the message templates below supply their own
+ * article, and the message templates below supply their own
  * "your"/"his"/"her"/"its", so leaving both in would read "with your a
  * torch" (just advances past the article in-place, no copy needed). */
 static const char *point_item_label(const being_t *ch) {
@@ -133,19 +103,93 @@ static const char *point_item_label(const being_t *ch) {
     return label;
 }
 
-bool social_try(descriptor_t *d, const char *verb, const char *args) {
-    /* Abbreviation matching, same rule as the command table (cmd_table.c):
-     * any non-empty prefix resolves to the FIRST social it matches, so
-     * "poi"/"poin" reach "point". Commands are tried before socials in
-     * cmd_dispatch, so a real command still always wins. */
-    const social_t *soc = NULL;
-    size_t vlen = strlen(verb);
-    for (size_t i = 0; i < NUM_SOCIALS; i++) {
-        if (vlen > 0 && strncasecmp(SOCIALS[i].name, verb, vlen) == 0) {
-            soc = &SOCIALS[i];
-            break;
+/* Expands the upstream $-token grammar ($n/$N/$P/$s/$S/$e/$E/$m/$M --
+ * verified against the real loader/act(), see db/import-socials.py's
+ * header comment) in `tmpl` for `actor` (and `target`, NULL for a
+ * no-target form) into `out`. $n/$N/$P are capitalized only when they're
+ * the very first character of the template (matches the original's
+ * position-1 rule, sys/comm.cc's act() -- every ported message starts
+ * with either "You " or "$n ", so this only ever fires there). Tobin has
+ * no invisibility system yet, so unlike the original there's no "someone"/
+ * "it" fallback for an unseen actor/target -- always the real name/
+ * pronoun (documented gap, revisit if invisibility lands). A target-
+ * pronoun/name token with no `target` (shouldn't happen in well-formed
+ * templates, since no-target forms don't reference $N/$M/etc, but real
+ * upstream data occasionally does something unexpected) falls back to a
+ * neutral "them"/"their"/"they" rather than crashing. */
+static void social_expand(const char *tmpl, const being_t *actor, const being_t *target,
+                          char *out, size_t outsz) {
+    size_t o = 0;
+    bool first = true;
+    for (const char *p = tmpl; *p && o + 1 < outsz;) {
+        if (*p == '$' && p[1] != '\0') {
+            const char *sub = NULL;
+            bool nameish = false;
+            switch (p[1]) {
+                case 'n': sub = actor->base.name; nameish = true; break;
+                case 'N': case 'P': sub = target ? target->base.name : "them"; nameish = true; break;
+                case 's': sub = gender_possess(actor->gender); break;
+                case 'S': sub = target ? gender_possess(target->gender) : "their"; break;
+                case 'e': sub = gender_subject(actor->gender); break;
+                case 'E': sub = target ? gender_subject(target->gender) : "they"; break;
+                case 'm': sub = gender_object(actor->gender); break;
+                case 'M': sub = target ? gender_object(target->gender) : "them"; break;
+                default: break;
+            }
+            if (sub) {
+                bool cap = first && nameish;
+                for (const char *s = sub; *s && o + 1 < outsz; s++)
+                    out[o++] = (cap && s == sub) ? (char)toupper((unsigned char)*s) : *s;
+                p += 2;
+                first = false;
+                continue;
+            }
         }
+        out[o++] = *p++;
+        first = false;
     }
+    out[o < outsz ? o : outsz - 1] = '\0';
+}
+
+/* Expands `tmpl` and sends it to `d`'s own screen, appending \r\n. A blank
+ * `tmpl` (a handful of real upstream entries have gaps -- e.g. comfort's
+ * others_no_arg -- see the importer's header comment) sends nothing,
+ * rather than replaying what's likely an accidental empty line upstream. */
+static void social_send(descriptor_t *d, const char *tmpl, const being_t *actor, const being_t *target) {
+    if (!tmpl[0])
+        return;
+    char buf[384];
+    social_expand(tmpl, actor, target, buf, sizeof(buf) - 2);
+    size_t len = strlen(buf);
+    buf[len] = '\r'; buf[len + 1] = '\n'; buf[len + 2] = '\0';
+    descriptor_send(d, buf);
+}
+
+/* Same, but via descriptor_notify (held if the recipient is mid-editor) --
+ * for anyone who isn't the acting player themselves. */
+static void social_notify(descriptor_t *d, const char *tmpl, const being_t *actor, const being_t *target) {
+    if (!tmpl[0])
+        return;
+    char buf[384];
+    social_expand(tmpl, actor, target, buf, sizeof(buf) - 2);
+    size_t len = strlen(buf);
+    buf[len] = '\r'; buf[len + 1] = '\n'; buf[len + 2] = '\0';
+    descriptor_notify(d, buf);
+}
+
+static void social_room_echo(room_t *r, being_t *exclude, const char *tmpl,
+                             const being_t *actor, const being_t *target) {
+    if (!tmpl[0])
+        return;
+    char buf[384];
+    social_expand(tmpl, actor, target, buf, sizeof(buf) - 2);
+    size_t len = strlen(buf);
+    buf[len] = '\r'; buf[len + 1] = '\n'; buf[len + 2] = '\0';
+    descriptor_room_echo(r, exclude, buf);
+}
+
+bool social_try(descriptor_t *d, const char *verb, const char *args) {
+    const social_t *soc = social_find(verb);
     if (!soc)
         return false;
 
@@ -154,30 +198,34 @@ bool social_try(descriptor_t *d, const char *verb, const char *args) {
         descriptor_send(d, "You can't do that here.\r\n");
         return true;
     }
+    if ((int)ch->position < soc->min_position) {
+        /* Generic wording -- unlike cmd_move.c's movement-specific gate, a
+         * social's min_position can be almost any threshold (RESTING,
+         * FIGHTING, STANDING, ...), so no single "try standing up" phrase
+         * fits them all. */
+        descriptor_send(d, "You can't do that right now.\r\n");
+        return true;
+    }
 
-    char buf[256];
-    const char *point_item = strcmp(soc->name, "point") == 0 ? point_item_label(ch) : NULL;
+    /* "point"'s held-item form is Tobin-original (not upstream) and
+     * involves a THIRD entity -- the item -- outside the actor/target
+     * $-token grammar, so it's handled as a full bypass of the generic
+     * templates, same architecture the pre-DB-port code already used. */
+    bool is_point = strcmp(soc->name, "point") == 0;
+    const char *point_item = is_point ? point_item_label(ch) : NULL;
+    char buf[384];
 
     if (!args || !args[0]) {
         if (point_item) {
             snprintf(buf, sizeof(buf), "You point around with your %s.\r\n", point_item);
             descriptor_send(d, buf);
-        } else {
-            descriptor_send(d, soc->self);
-        }
-        if (strcmp(soc->name, "shake") == 0)
-            snprintf(buf, sizeof(buf), "%s shakes %s head.\r\n", ch->base.name, gender_possess(ch->gender));
-        else if (strcmp(soc->name, "comfort") == 0)
-            snprintf(buf, sizeof(buf), "%s looks like %s could use some comforting.\r\n",
-                     ch->base.name, gender_subject(ch->gender));
-        else if (strcmp(soc->name, "poke") == 0)
-            snprintf(buf, sizeof(buf), "%s pokes %s.\r\n", ch->base.name, gender_reflexive(ch->gender));
-        else if (point_item)
             snprintf(buf, sizeof(buf), "%s points around with %s %s.\r\n",
                      ch->base.name, gender_possess(ch->gender), point_item);
-        else
-            snprintf(buf, sizeof(buf), soc->others, ch->base.name);
-        descriptor_room_echo(ch->base.roomp, ch, buf);
+            descriptor_room_echo(ch->base.roomp, ch, buf);
+            return true;
+        }
+        social_send(d, soc->self_no_arg, ch, NULL);
+        social_room_echo(ch->base.roomp, ch, soc->others_no_arg, ch, NULL);
         return true;
     }
 
@@ -186,46 +234,47 @@ bool social_try(descriptor_t *d, const char *verb, const char *args) {
     sscanf(args, "%63s", tok);
     being_t *tgt = find_room_pc(ch, tok);
     if (!tgt) {
-        descriptor_send(d, "They aren't here.\r\n");
+        social_send(d, soc->not_found, ch, NULL);
         return true;
     }
     if (tgt == ch) {
-        descriptor_send(d, soc->self);
+        social_send(d, soc->self_auto, ch, ch);
+        social_room_echo(ch->base.roomp, ch, soc->others_auto, ch, ch);
         return true;
     }
 
-    if (point_item)
+    if (point_item) {
         snprintf(buf, sizeof(buf), "You point at %s with your %s.\r\n", tgt->base.name, point_item);
-    else
-        snprintf(buf, sizeof(buf), soc->self_targ, tgt->base.name);
-    descriptor_send(d, buf);
-    if (tgt->desc) {
-        if (strcmp(soc->name, "shake") == 0)
-            snprintf(buf, sizeof(buf), "%s shakes %s head at you.\r\n", ch->base.name, gender_possess(ch->gender));
-        else if (point_item)
+        descriptor_send(d, buf);
+        if (tgt->desc) {
             snprintf(buf, sizeof(buf), "%s points at you with %s %s.\r\n",
                      ch->base.name, gender_possess(ch->gender), point_item);
-        else
-            snprintf(buf, sizeof(buf), soc->targ, ch->base.name);
-        descriptor_notify(tgt->desc, buf); /* held if the target is editing */
+            descriptor_notify(tgt->desc, buf);
+        }
+        room_t *r = ch->base.roomp;
+        for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC || t == &ch->base || t == &tgt->base)
+                continue;
+            being_t *o = (being_t *)t;
+            if (o->desc) {
+                snprintf(buf, sizeof(buf), "%s points at %s with %s %s.\r\n",
+                         ch->base.name, tgt->base.name, gender_possess(ch->gender), point_item);
+                descriptor_notify(o->desc, buf);
+            }
+        }
+        return true;
     }
-    /* Everyone else in the room. */
+
+    social_send(d, soc->self_found, ch, tgt);
+    if (tgt->desc)
+        social_notify(tgt->desc, soc->vict_found, ch, tgt);
     room_t *r = ch->base.roomp;
     for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
         if (t->kind != THING_PC || t == &ch->base || t == &tgt->base)
             continue;
         being_t *o = (being_t *)t;
-        if (o->desc) {
-            if (strcmp(soc->name, "shake") == 0)
-                snprintf(buf, sizeof(buf), "%s shakes %s head at %s.\r\n",
-                         ch->base.name, gender_possess(ch->gender), tgt->base.name);
-            else if (point_item)
-                snprintf(buf, sizeof(buf), "%s points at %s with %s %s.\r\n",
-                         ch->base.name, tgt->base.name, gender_possess(ch->gender), point_item);
-            else
-                snprintf(buf, sizeof(buf), soc->others_targ, ch->base.name, tgt->base.name);
-            descriptor_notify(o->desc, buf);
-        }
+        if (o->desc)
+            social_notify(o->desc, soc->others_found, ch, tgt);
     }
     return true;
 }

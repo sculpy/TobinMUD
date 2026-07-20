@@ -14,6 +14,7 @@
 #include "player_repo.h"
 #include "room.h"
 #include "room_repo.h"
+#include "social_repo.h"
 #include "trigger_repo.h"
 #include "zone_repo.h"
 
@@ -135,6 +136,31 @@ typedef enum {
     CONN_EDACCOUNT_MENU,
     CONN_EDACCOUNT_RENAME,
     CONN_EDACCOUNT_PASSWORD,
+    /* Menu-driven social editor (edsocial, 55+, TODO.md's "Socials -> DB +
+     * full Sneezy set + edsocial" item). Same "commits immediately, no
+     * working copy" shape as the Extra Descriptions submenu (CONN_REDIT_
+     * EXTRA_*) and edaccount above -- a social is a small, fully-
+     * independent DB row (social_repo.h), so there's nothing worth
+     * buffering; every edit calls social_cache_load() right after so the
+     * change is live for the NEXT `smile`/whatever without a restart.
+     * CONN_EDSOCIAL_LIST shows every social name (unpaged, same precedent
+     * as show_redit_extra_menu()'s small list -- see descriptor.c) and
+     * accepts a name (jump to its detail view), "new" (create one), or
+     * blank (quit back to CONN_PLAYING). CONN_EDSOCIAL_ITEM is one
+     * social's detail view: 8 numbered message fields plus H/P/R/D --
+     * picking a message number or P enters CONN_EDSOCIAL_FIELD, a single
+     * generic "current value, type new one-line value" prompt
+     * (d->edsocial_field says which). H toggles `hide` (the upstream
+     * act()'s per-recipient invisibility gate, sys/comm.cc -- "don't show
+     * this message to someone who can't currently see the actor"; inert
+     * in Tobin today since there's no invisibility system yet, but a real
+     * upstream field worth exposing for editing). */
+    CONN_EDSOCIAL_LIST,
+    CONN_EDSOCIAL_ITEM,
+    CONN_EDSOCIAL_FIELD,
+    CONN_EDSOCIAL_NEW_NAME,
+    CONN_EDSOCIAL_RENAME,
+    CONN_EDSOCIAL_DELETE_CONFIRM,
     CONN_PLAYING,
     CONN_CLOSED
 } conn_state_t;
@@ -356,6 +382,18 @@ typedef struct descriptor {
      * stale the moment a rename lands. */
     long edaccount_id;
 
+    /* Menu-driven social editor (CONN_EDSOCIAL_*, see the enum comment
+     * above). Just the name, not a working-copy struct -- every action
+     * commits immediately, so the item menu re-reads the row fresh
+     * (social_repo_get()) rather than caching a copy that could go stale
+     * the moment a field edit lands. edsocial_field is which of the 8
+     * message fields (1-8) CONN_EDSOCIAL_FIELD is currently editing;
+     * 0 means "editing the minimum position instead" (a name, not a
+     * message, so it shares the same generic single-line prompt state
+     * without needing its own separate one). */
+    char edsocial_name[SOCIAL_NAME_LEN];
+    int edsocial_field;
+
     being_t *character;
 
     /* `possess`/`return` (60+, cmd_possess.c -- Sneezy → Tobin feature
@@ -481,6 +519,16 @@ bool descriptor_balance_begin(descriptor_t *d, bool is_class, int index);
  * CONN_EDACCOUNT_MENU. Returns false if no such account exists. Caller
  * (cmd_edaccount.c) owns the level gate. */
 bool descriptor_edaccount_begin(descriptor_t *d, const char *name);
+
+/* Opens the menu-driven social editor. If `name` is non-empty and matches
+ * an existing social exactly (case-insensitive), jumps straight to that
+ * social's detail view (CONN_EDSOCIAL_ITEM); otherwise (empty, or no
+ * match) shows the full list (CONN_EDSOCIAL_LIST) where a name can be
+ * typed to edit it or "new" to create one. Always succeeds (there's
+ * always at least the list to show) -- unlike the other _begin()
+ * functions, no bool return; nothing here is a "no such X" failure case
+ * the caller (cmd_edit.c) needs to report. */
+void descriptor_edsocial_begin(descriptor_t *d, const char *name);
 
 /* Sends `msg` to every connected player in room `r` except `except` (may
  * be NULL to include everyone). Shared by movement, quit/link-drop, and

@@ -248,3 +248,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Saddle Up',
  'Mounts have arrived. Find a loose horse and `ride` it, or buy one from the stable at Carnivorous Companions. A mount lets you cover ground faster and fights with you at your side -- `dismount` when you are done, though stepping indoors will do that for you automatically.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Whole Lot More Ways to Express Yourself',
+ 'The `socials` list just grew enormously -- smile, wave, and the old familiar faces are joined by a huge cast of new emotes pulled straight from the game''s roots. Aim any of them at someone (`grin Bob`) or use them on their own; a few, like `point`, even notice what you are holding. Try targeting yourself for a couple of them -- some now have a special reaction just for that. The list is long enough to page through now, so `socials` will prompt you to keep reading.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
