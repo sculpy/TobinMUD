@@ -212,7 +212,7 @@ check("still recovering" in out_b.lower(),
       "a successful bash also costs the DEFENDER a round (Sneezy's own 'prevent skill-use' effect)")
 sA.close(); sB.close()
 
-(nameC, sC), (nameD, sD) = make_pair("Bshw0", CLASS_WARRIOR)
+(nameC, sC), (nameD, sD) = make_pair("Bshwz", CLASS_WARRIOR)
 seed_proficiency(nameC, "bash", 0)
 attack_and_settle(sC, nameD)
 out = strip(cmd(sC, f"bash {nameD}"))
@@ -232,7 +232,7 @@ out_e = strip(cmd(sE, "look"))
 check("still recovering" in out_e.lower(), "the attacker is laggy after a kick attempt")
 sE.close(); sF.close()
 
-(nameG, sG), (nameH, sH) = make_pair("Kckt0", CLASS_THIEF)
+(nameG, sG), (nameH, sH) = make_pair("Kcktz", CLASS_THIEF)
 seed_proficiency(nameG, "kick", 0)
 attack_and_settle(sG, nameH)
 out = strip(cmd(sG, f"kick {nameH}"))
@@ -276,7 +276,7 @@ out_room = strip(cmd(si, "look"))
 check("steel sword" in out_room.lower(), "the disarmed weapon lands on the room floor")
 sI.close(); sJ.close()
 
-(nameK, sK), (nameL, sL) = make_pair("Dsmw0", CLASS_WARRIOR, ROOM_DISARM)
+(nameK, sK), (nameL, sL) = make_pair("Dsmwz", CLASS_WARRIOR, ROOM_DISARM)
 seed_proficiency(nameK, "disarm", 0)
 
 WEAPON_VNUM2 = WEAPON_VNUM + 1
