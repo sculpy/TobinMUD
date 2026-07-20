@@ -218,6 +218,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* SWAP: score before scan, so "sc"/"sco" still reach score; scan needs
      * "sca". */
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },
+    { "level",   cmd_level,   "Show your experience and how much more you need to level.", MORTAL_LEVEL_MIN },
     { "scan",    cmd_scan,    "Peer several rooms down each exit (scan [dir|name]).", MORTAL_LEVEL_MIN },
     { "sell",    cmd_sell,    "Sell a carried item to a shopkeeper (sell <item>).", MORTAL_LEVEL_MIN },
     /* shout before show is already alphabetical, but it is load-bearing:

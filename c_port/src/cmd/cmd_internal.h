@@ -17,6 +17,7 @@
 bool cmd_look(descriptor_t *d, const char *args);
 bool cmd_who(descriptor_t *d, const char *args);
 bool cmd_score(descriptor_t *d, const char *args);
+bool cmd_level(descriptor_t *d, const char *args);
 bool cmd_skills(descriptor_t *d, const char *args);
 bool cmd_practice(descriptor_t *d, const char *args);
 bool cmd_continue(descriptor_t *d, const char *args);
