@@ -195,14 +195,18 @@ def make_pair(prefix, cls, room=None):
 (nameA, sA), (nameB, sB) = make_pair("Bshw", CLASS_WARRIOR)
 seed_proficiency(nameA, "bash", 100)
 attack_and_settle(sA, nameB)
-out = strip(cmd(sA, f"bash {nameB}"))
+# Use a SHORT-timeout live read for the bash command itself, not cmd()'s
+# default ~1s -- cmd()'s blocking wait alone eats most of the DEFENDER's
+# 1x COMBAT_ROUND_PULSES (1.2s) wait window (which starts the instant bash
+# resolves server-side, not when this call returns) before the follow-up
+# checks below even run. Same "live read" lesson smoke_test_vitality_
+# terrain.py's live_vit() helper documents.
+send_line(sA, f"bash {nameB}")
+out = strip(recv_all(sA, 0.4))
 check("knocking" in out.lower(), "100%-proficiency bash succeeds and lands")
 
 # Check both sides' wait-state with SHORT-timeout reads, sent back to
-# back with no other round-trip in between -- cmd()'s own ~1s default
-# timeout would otherwise eat most of bash's 1.2s (COMBAT_ROUND_PULSES)
-# wait window before the check even runs (same "live read" lesson
-# smoke_test_vitality_terrain.py's live_vit() helper already documents).
+# back with no other round-trip in between.
 send_line(sA, "look")
 send_line(sB, "look")
 out_a = strip(recv_all(sA, 0.4))
