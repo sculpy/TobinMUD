@@ -489,15 +489,41 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       the spell is intended to do.") instead of a real description. Audit
       ALL spell/skill help topics (not just Haste) for the same unfilled
       placeholder and write real descriptions.
-- [ ] **Wiznews pager freezes the MUD** — real, actively-broken bug (not a
-      cosmetic gap): user reports the pager/long-output path for `wiznews`
-      hangs the whole server. Investigate the pager code (`descriptor.c`'s
-      `page_len` handling, used by `wiznews`/`news`/`help`/`who` etc for
-      long output) for whatever's different about wiznews specifically —
-      likely something in `cmd_wiznews.c`'s own paging call, or a genuinely
-      long wiznews body overflowing a fixed buffer. High priority given
-      "freezes the mud" — treat as a live production bug, not a backlog
-      nice-to-have.
+- [x] **Wiznews pager freezes the MUD** — done 2026-07-19, fixed same-day
+      as reported given "freezes the mud" severity. Root cause:
+      `descriptor_page_start()` (descriptor.c) copies its whole source
+      string into a FIXED `page_buf[16384]` via a bounded snprintf --
+      silently TRUNCATING anything longer, no matter how big the
+      caller's own source buffer was. `cmd_news.c`/`cmd_wiznews.c`
+      already build up to a 101000-byte `full` string (a *previous*, real
+      fix -- their own comment documents an earlier overflow at
+      15000/16000 bytes) -- but that fix never reached `page_buf`, so
+      once either feed grew past ~16KB (both have, after this session's
+      own many wiznews posts) it silently cut off MID-SENTENCE with no
+      indication anything was missing. Confirmed via live reproduction
+      (not just static reading) that this is a severe multi-second-per-
+      page STALL misread as an "elapsed time" artifact of the test
+      harness's own timeouts on first pass -- the real, confirmed bug is
+      the silent truncation itself: content just vanishes mid-word, the
+      pager thinks it reached the end, and the reader is left staring at
+      a broken, seemingly-stuck page that reads exactly like "the mud
+      froze" even though the connection itself is fine underneath.
+      Fixed by sizing `page_buf` to 131072 bytes, comfortably clearing
+      both callers' 101000-byte ceiling with real margin. New
+      `tests/smoke_test_wiznews_pager.py` (11 checks) -- deliberately
+      does NOT reuse `smoke_test_news.py`'s existing (but currently
+      broken for an unrelated, pre-existing reason -- old real headlines
+      scrolling out of the 40-item recent-news window as the feed grows
+      over many sessions, confirmed identical on the untouched
+      production binary) "whole feed is shown" check; instead seeds its
+      own large, uniquely-marked synthetic wiznews entries sized to
+      cumulatively exceed the old cap, confirms every one -- including
+      each entry's own LAST character -- survives paging intact, and
+      confirms the fix actually matters by verifying this exact test
+      genuinely fails against the old page_buf size (reproduced live on
+      production before deploying the fix there). Regression-checked
+      against `smoke_test_wiznews.py`, `smoke_test_news_followups.py`,
+      `smoke_test_skills.py` (also exercise the shared pager).
 
 ### User batch 2026-07-17 — queued after Money/Shops, working these next
 

@@ -264,8 +264,24 @@ typedef struct descriptor {
     /* Output pager (the `news` command): long output is buffered here and
      * released one page (page_size lines) at a time. While page_len > 0 the
      * CONN_PLAYING input handler consumes each line to advance (ENTER) or
-     * stop (Q) instead of running a command. */
-    char page_buf[16384];
+     * stop (Q) instead of running a command.
+     *
+     * Bug found 2026-07-19 (user: "wiznews bug with the pager/long output
+     * that freezes the mud"): descriptor_page_start() copies its whole
+     * source string into this buffer via a bounded snprintf -- silently
+     * TRUNCATING anything longer, no matter how big the caller's own
+     * source buffer was. cmd_news.c/cmd_wiznews.c already size their own
+     * `full` buffer at 101000 bytes (a previous, real fix for a growing
+     * feed that used to overflow at 15000/16000) -- but that fix never
+     * reached here, so a feed long enough to fill this 16384-byte cap
+     * still got cut off mid-sentence, silently, with no indication to the
+     * reader that anything was missing (not a true infinite hang, but a
+     * broken, seemingly-stuck-mid-page experience easily read as "the mud
+     * froze"). Sized to comfortably clear cmd_news.c/cmd_wiznews.c's own
+     * 101000-byte ceiling with real margin for future growth, same
+     * "size for the feed's own growth, not just today's content"
+     * reasoning that produced 101000 in the first place. */
+    char page_buf[131072];
     size_t page_len;
     size_t page_pos;
     int page_size;
