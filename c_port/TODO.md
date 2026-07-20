@@ -509,13 +509,29 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       level-1 character, a partial-XP grant shrinking the need number
       by exactly the granted amount, the level-50 case, and the
       immortal case.
-- [ ] **Prompt: experience/mana/piety/vitality toggles + `prompt all`** —
-      expand `cmd_prompt.c`'s toggle set beyond hp/gold/vit (vit just
-      shipped) to also cover experience, experience-needed-to-level, and
-      mana/piety (still blocked on those resources not existing at all —
-      note in being.h's PROMPT_FLAG_* comment). Add a `prompt all` that
-      turns on every currently-available toggle at once, not just the
-      resources that happen to exist yet.
+- [x] **Prompt: experience/mana/piety/vitality toggles + `prompt all`** —
+      done 2026-07-19 (partial: mana/piety remain blocked, see below).
+      `cmd_prompt.c`'s toggle set expanded beyond hp/gold/vit (vit
+      shipped earlier) to also cover `exp` (current experience) and
+      `expneed` (experience still needed to reach the next level, reusing
+      `progress_xp_for_level()` -- the same curve `level`, cmd_level.c,
+      shows -- clamped at 0 rather than negative for an immortal or a
+      mortal already at `MORTAL_LEVEL_MAX`). New `prompt all` turns ON
+      every currently-available toggle at once (always sets, never a
+      toggle itself -- "give me everything" has one obvious meaning,
+      unlike per-stat off which already has its own command). Mana/piety
+      STILL blocked -- those resources genuinely don't exist anywhere in
+      Tobin yet, unrelated to this item's scope. New checks added to the
+      existing `tests/smoke_test_parser_display.py` prompt section (15
+      checks covering exp/expneed/all) rather than a new file, matching
+      where the hp/vit toggle tests already lived. Verified live on both
+      preview and production, 2 clean full runs each -- one earlier run
+      hit a pre-existing, unrelated flake (a telnet keepalive IAC NOP
+      occasionally racing the test's strict `.endswith(">")` check on
+      totally different lines each time, e.g. plain `look`/`score`/an
+      unknown command -- none of which this change touched); confirmed
+      not a regression by reproducing it on both untouched command paths
+      across multiple runs.
 - [x] **Animal races shouldn't carry wealth** — done 2026-07-19. User:
       "animal races should not have wealth, that doesnt make sense."
       Tobin's own 6 PLAYER races (Human/Elf/Ogre/Dwarf/Hobbit/Gnome)
