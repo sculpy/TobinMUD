@@ -177,10 +177,11 @@ def fight_and_check(imm_sock, pc_sock, pc_name, vnum, mob_tag):
     cmd(imm_sock, f"load mob {vnum}")
     out = cmd(pc_sock, f"attack {mob_tag}")
     for _ in range(10):
-        if "You have slain" in out:
+        if "You have slain" in out or "You have defeated" in out:
             break
         out += recv_all(pc_sock, 1.5)
-    check("You have slain" in out, f"the fight against {mob_tag} resolved with a kill")
+    check("You have slain" in out or "You have defeated" in out,
+          f"the fight against {mob_tag} resolved with a kill")
     return out
 
 
