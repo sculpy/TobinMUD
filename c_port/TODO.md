@@ -516,12 +516,30 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       note in being.h's PROMPT_FLAG_* comment). Add a `prompt all` that
       turns on every currently-available toggle at once, not just the
       resources that happen to exist yet.
-- [ ] **Animal races shouldn't carry wealth** — user: "animal races should
-      not have wealth, that doesnt make sense." Find Tobin's animal race(s)
-      (race.c / race_name() roster) and gate `progress.gold` for them —
-      likely: never award gold on mob kill/PK for an animal-race PC, and/or
-      block `buy`/`sell`/wallet display entirely. Check exactly which of
-      the 6 curated races count as "animal" before deciding scope.
+- [x] **Animal races shouldn't carry wealth** — done 2026-07-19. User:
+      "animal races should not have wealth, that doesnt make sense."
+      Tobin's own 6 PLAYER races (Human/Elf/Ogre/Dwarf/Hobbit/Gnome)
+      turned out to have nothing literally "animal" among them, so this
+      wasn't a `progress.gold` gate on a PC race at all.
+      AskUserQuestion-confirmed with the user: gate the existing mob
+      gold-drop-on-kill (combat.c's combat_defeat()) by the mob's
+      upstream `mob.race` column being a mundane real-world creature
+      (RODENT, FELINE, BEAR, DEER, BIRD, FISH, SNAKE, INSECT, ...)
+      instead — previously wholly deferred/display-only (only read
+      directly from the DB for `stat`). `mob.race` is now loaded into
+      `mob_proto_t` (mob_repo.c/h) and copied onto a new
+      `being_t.mob_race` at spawn time (being_create_mob()); new
+      `mob_race_is_animal()` (being.c, a 46-case lookup against the
+      existing 127-entry MOB_RACE_NAMES[] table) deliberately excludes
+      fantastical/sapient races (DRAGON, ORC, GOBLIN, UNDEAD, DEMON,
+      ...) and plants/oozes/elementals (TREE, VEGGIE, MOSS, SLIME,
+      ELEMENT) — the user asked about ANIMAL races specifically. XP is
+      unaffected; only the wallet-stat gold drop is gated. New
+      `tests/smoke_test_animal_no_gold.py` (6 checks) — a RODENT-race
+      mob awards 0 gold (but still awards XP), an otherwise-identical
+      NORACE mob still awards gold as before. Regression-checked against
+      `smoke_test_pk_gold.py` and `smoke_test_death_xploss.py` (both
+      also exercise combat_defeat()'s reward paths).
 - [ ] **Fix placeholder spell help files** — user found `help haste` still
       showing the literal generator placeholder text ("Description of what
       the spell is intended to do.") instead of a real description. Audit

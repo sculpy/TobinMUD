@@ -687,3 +687,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New: The `level` Command', 'User request: "a level command that will display when your due for a gain in level, You have X experience and need X experience to level." `level` now tells you exactly that -- current experience, and how much more you need to reach the next level. At the mortal cap (level 50) or as an immortal, it tells you why there is nothing more to grind toward instead of showing a nonsensical number.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fixed: Animals No Longer Carry Gold', 'User: "animal races should not have wealth, that doesnt make sense." Killing a mundane real-world creature -- a rat, a bear, a bird, a snake, and everything else in that vein -- no longer hands you a purse of coins on the kill; that never made much sense for an ordinary animal to be carrying. Fantastical or sapient monsters (dragons, orcs, goblins, undead, demons, and so on) are unaffected -- still exactly as lootable as before. Experience earned from the kill is unaffected either way.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
