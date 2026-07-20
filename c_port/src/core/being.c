@@ -100,6 +100,7 @@ being_t *being_create_mob(int vnum) {
     b->mob_actions = proto.actions;
     b->mob_align = proto.align;
     b->mob_spec_proc = proto.spec_proc;
+    b->mob_race = proto.race;
     b->mob_class_known = mob_class_mask_to_tobin(proto.class_mask, &b->char_class);
 
     /* Placeholder attrs/HP formulas (see STATUS.md's Mobiles decision row):
@@ -510,6 +511,70 @@ const char *mob_race_name(int idx) {
     if (idx < 0 || (size_t)idx >= MOB_RACE_COUNT)
         return "unknown";
     return MOB_RACE_NAMES[idx];
+}
+
+/* Mundane real-world creature races (user 2026-07-19: "animal races
+ * should not have wealth, that doesnt make sense") -- deliberately
+ * excludes anything fantastical/sapient (DRAGON, ORC, GOBLIN, UNDEAD,
+ * DEMON, ...), even where an argument could be made either way
+ * (VAMPIREBAT stays with its VAMPIRE cousin, not here; GIANT/PRIMATE-
+ * adjacent humanoids stay out too), and excludes plants/oozes/
+ * elementals (TREE, VEGGIE, MOSS, SLIME, ELEMENT) since the user asked
+ * about ANIMAL races specifically, not "things too dumb to carry a coin
+ * purse" generally. AskUserQuestion-confirmed scope with the user
+ * before implementing. */
+bool mob_race_is_animal(int idx) {
+    switch (idx) {
+        case 12:  /* INSECT */
+        case 13:  /* ARACHNID */
+        case 14:  /* DINOSAUR */
+        case 15:  /* FISH */
+        case 16:  /* BIRD */
+        case 22:  /* SNAKE */
+        case 23:  /* HIPPOPOTAMUS */
+        case 27:  /* ANT */
+        case 34:  /* PRIMATE */
+        case 41:  /* RODENT */
+        case 45:  /* FELINE */
+        case 46:  /* CANINE */
+        case 47:  /* HORSE */
+        case 48:  /* AMPHIB */
+        case 50:  /* REPTILE */
+        case 53:  /* OCTOPUS */
+        case 54:  /* CRUSTACEAN */
+        case 56:  /* BOVINE */
+        case 57:  /* GOAT */
+        case 58:  /* SHEEP */
+        case 59:  /* DEER */
+        case 60:  /* BEAR */
+        case 61:  /* WEASEL */
+        case 62:  /* SQUIRREL */
+        case 63:  /* RABBIT */
+        case 64:  /* BADGER */
+        case 65:  /* OTTER */
+        case 66:  /* BEAVER */
+        case 67:  /* PIG */
+        case 68:  /* BOAR */
+        case 69:  /* TURTLE */
+        case 70:  /* GIRAFFE */
+        case 71:  /* CENTIPEDE */
+        case 85:  /* LION */
+        case 86:  /* TIGER */
+        case 87:  /* LEOPARD */
+        case 88:  /* COUGAR */
+        case 89:  /* FROG */
+        case 90:  /* ELEPHANT */
+        case 91:  /* RHINO */
+        case 94:  /* OX */
+        case 107: /* GOPHER */
+        case 110: /* BAT */
+        case 119: /* PENGUIN */
+        case 120: /* OSTRICH */
+        case 125: /* FLYINSECT */
+            return true;
+        default:
+            return false;
+    }
 }
 
 /* Human is the deliberate baseline (no modifier) -- every other race's

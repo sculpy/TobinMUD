@@ -373,6 +373,16 @@ const char *mob_class_label(int mask, char *buf, size_t bufsz);
  * genuinely informative monster-race data worth decoding for `stat`. */
 const char *mob_race_name(int idx);
 
+/* True iff `idx` (a raw mob.race value, MOB_RACE_NAMES[] index) is a
+ * mundane real-world creature race (RODENT, FELINE, CANINE, BEAR, DEER,
+ * BIRD, FISH, SNAKE, INSECT, ...) rather than a fantastical/sapient one
+ * (DRAGON, ORC, GOBLIN, UNDEAD, DEMON, ...). User 2026-07-19: "animal
+ * races should not have wealth, that doesnt make sense" -- gates the
+ * mob gold-drop-on-kill in combat.c's combat_defeat(). An ordinary
+ * animal plausibly carries no coin purse; a dragon or goblin plausibly
+ * does. */
+bool mob_race_is_animal(int idx);
+
 /* Applies `c`'s fixed stat bonus/penalty to `*a` IN PLACE (added on top of
  * whatever the player already point-bought) -- called once, at character
  * creation. Every class's bonuses and penalties net to zero. Loosely
@@ -434,6 +444,14 @@ typedef struct being {
      * since this one runs every mob every AI tick rather than only when
      * a player interacts with a shop). */
     int mob_spec_proc;
+    /* THING_MOB only, 0 (NORACE) for a PC: mob.race, copied at spawn
+     * time same as mob_actions/mob_align/mob_spec_proc (mob_repo.h) --
+     * the raw index into MOB_RACE_NAMES[]/mob_race_name() (being.c),
+     * previously only read directly from the DB for `stat`. Now also
+     * mechanically relevant: mob_race_is_animal() (being.c) gates the
+     * gold-drop-on-kill in combat.c's combat_defeat() (user 2026-07-19:
+     * "animal races should not have wealth, that doesnt make sense"). */
+    int mob_race;
     attrs_t attrs;
     progress_t progress;
     limb_state_t limbs[LIMB_COUNT];

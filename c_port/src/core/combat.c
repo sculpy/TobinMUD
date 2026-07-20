@@ -755,8 +755,13 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
      * object, so there's no coin object to place in the corpse. Same PC-
      * winner-only, non-immortal gate as the XP award above; PCs never
      * drop gold on death (no real PK economy to protect yet, see the
-     * still-open "PK opt-in flag" TODO entry). */
-    if (!loser_is_pc && winner->base.kind == THING_PC && !being_is_immortal(winner)) {
+     * still-open "PK opt-in flag" TODO entry). A mundane animal-race mob
+     * (RODENT, FELINE, BEAR, DEER, BIRD, ...) never drops gold at all --
+     * user 2026-07-19: "animal races should not have wealth, that
+     * doesnt make sense" -- see mob_race_is_animal() (being.c). XP is
+     * unaffected; only the wallet-stat drop is gated. */
+    if (!loser_is_pc && winner->base.kind == THING_PC && !being_is_immortal(winner)
+        && !mob_race_is_animal(loser->mob_race)) {
         int mob_level = loser->progress.level > 0 ? loser->progress.level : 1;
         int gold_gain = mob_level * (1 + rand() % 5);
         being_t *recipients[GROUP_MAX_FOLLOWERS + 1];

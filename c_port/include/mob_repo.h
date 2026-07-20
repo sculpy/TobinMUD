@@ -67,6 +67,14 @@ typedef struct {
                      * time (being_create_mob()) so a live mob's own AI
                      * (mob_ai.c's lamplighter behavior) can check it every
                      * tick without a DB round trip per mob per tick. */
+    int race;      /* upstream `mob.race` -- raw index into
+                     * MOB_RACE_NAMES[]/mob_race_name() (being.c). No
+                     * longer wholly deferred as of user 2026-07-19's
+                     * "animal races should not have wealth" --
+                     * being_create_mob() copies this onto being_t.mob_race
+                     * so mob_race_is_animal() can gate the gold-drop-on-
+                     * kill in combat.c. tohit/ac/damage_level/actions(non-
+                     * AI-relevant bits) remain deferred. */
 } mob_proto_t;
 
 /* Loads the prototype row for `vnum` from the `mob` table into *out.
