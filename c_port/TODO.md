@@ -5129,10 +5129,19 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
 - [ ] **Systems documentation** — a doc/systems README for the TobinMUD base.
 - [ ] **Function comment headers sweep** — a header comment per function (what
       it's for + cross-refs to what it affects / depends on), then a habit.
-- [ ] **STATUS.md's "Module port status" table is stale** — the `cmd/`
-      row still says "11/66 ported" (list: look/who/score/quit!/color/
-      attack/kill/say/limbs/help/wizhelp); there are 40+ `cmd_*.c` files
-      now. Needs a dedicated audit pass, not a quick fix mid-feature.
+- [x] **STATUS.md's "Module port status" table is stale** — audited and
+      fixed 2026-07-19. Real count: 109 `cmd_*.c` handler files / 152
+      registered verbs (was 11 at the old count). Retired the "N/66
+      ported" framing entirely -- a straight filename cross-check against
+      the original's 66-file `cmd/` dir found only 17 direct matches
+      (reimplemented/simplified, not 1:1 ports); the other ~92 Tobin
+      command files are new-to-Tobin *relative to `cmd/` specifically*,
+      including several (`cmd_attack.c`/`cmd_kill.c`/`cmd_hit.c`/
+      `cmd_flee.c`/`cmd_move.c`) that port functionality the original
+      kept outside `cmd/` entirely (`fight.cc`, `act.movement.cc`). Full
+      breakdown, including the 42 original files still unmatched by name
+      (mostly combat maneuvers + the `low`/shop subsystem), now lives in
+      STATUS.md's Module port status table.
 - [x] **`stat obj|mob|room <name>` silently statted vnum 0** — fixed
       2026-07-18 (user: `stat o phos` dumped a blank "Object 0" instead of
       finding the vial of red phosphorus). `stat` only ever atoi()'d its
