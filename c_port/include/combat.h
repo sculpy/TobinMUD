@@ -47,4 +47,18 @@ bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int 
  * PC (mobs don't drown -- they have no vitals tick at all yet). */
 void combat_drown_pc(being_t *victim);
 
+/* Shared "deal skill-combat damage, then handle defeat" pipeline for
+ * bash/kick (cmd_bash.c/cmd_kick.c, Skill-based combat, Sneezy → Tobin
+ * feature audit) -- these are EXTRA player-triggered actions layered on
+ * top of the automatic per-round exchange (combat_process_run()), not a
+ * replacement for it, so they need the same "damage might finish the
+ * fight" handling combat_process_run() already does for a normal swing,
+ * just without the full weapon/crit/decapitation machinery
+ * combat_strike() runs (scoped down on purpose -- see cmd_bash.c's own
+ * header comment). Zeroes damage against an immortal defender, same
+ * immunity rule combat_strike() enforces. Returns true iff this defeated
+ * (and for a mob, DESTROYED -- being_destroy() frees it) `defender` --
+ * the caller MUST NOT touch `defender` again if so. */
+bool combat_apply_skill_damage(being_t *attacker, being_t *defender, int dmg, limb_t limb);
+
 #endif

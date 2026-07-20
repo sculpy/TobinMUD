@@ -105,6 +105,10 @@ static const cmd_entry_t COMMANDS[] = {
     { "attack",  cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
     { "affects", cmd_affects, "List your currently active buffs/debuffs.",          MORTAL_LEVEL_MIN },
     { "alias",   cmd_alias,   "Manage your command aliases (alias [<name> [<expansion>]] | alias remove <name>).", MORTAL_LEVEL_MIN },
+    /* Skill-based combat (Sneezy → Tobin feature audit, Warrior). Extra
+     * action layered on the automatic per-round exchange -- see
+     * cmd_bash.c's own header comment. */
+    { "bash",    cmd_bash,    "Bash your opponent, knocking them down (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
     { "buy",     cmd_buy,     "Buy an item from a shopkeeper (buy <item>|<#> -- see list).", MORTAL_LEVEL_MIN },
     /* SWAP: close before cast/catchup/color, so "c" still closes doors.
@@ -176,6 +180,8 @@ static const cmd_entry_t COMMANDS[] = {
      * does nothing useful for them. */
     { "immort",  cmd_immort,  NULL,                                                 MORTAL_LEVEL_MIN },
     { "junk",    cmd_junk,    "Destroy a carried item for good, no chance of recovery (junk <item>).", MORTAL_LEVEL_MIN },
+    /* Skill-based combat (Sneezy → Tobin feature audit, Thief/Monk). */
+    { "kick",    cmd_kick,    "Kick your opponent for bonus damage (Thief/Monk, must be fighting them).", MORTAL_LEVEL_MIN },
     { "kill",    cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
     /* SWAP: look before limbs, so "l" looks; limbs needs "li". */
     { "look",    cmd_look,    "Look around the room you're in.",                    MORTAL_LEVEL_MIN },
@@ -292,12 +298,19 @@ static const cmd_entry_t COMMANDS[] = {
     { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected.", COPYOVER_MIN_LEVEL },
     { "delbug",  cmd_delbug,  "Delete a handled bug report by id.",                 DELBUG_MIN_LEVEL },
     { "delidea", cmd_delidea, "Delete a handled idea by id.",                       DELIDEA_MIN_LEVEL },
-    /* Mortal Thief skill (see settrap's note); "di" reaches it. */
+    /* Skill-based combat (Sneezy → Tobin feature audit) -- listed BEFORE
+     * disarmtrap on purpose, taking over the shared "di"/"dis" short
+     * abbreviation from it: a mid-fight command benefits far more from a
+     * quick-typed abbreviation than a deliberate, planned trap-disarming
+     * utility action does. Exact "disarm" (6 chars) matches THIS entry,
+     * not disarmtrap -- strncmp() prefix matching means "disarmtrap"
+     * would also match a 6-char "disarm" query, so table ORDER is what
+     * decides the tie; disarmtrap now needs "disarmt"+ (or its full
+     * name) to reach specifically. */
+    { "disarm",  cmd_disarm,  "Attempt to knock the weapon from your opponent's grip (must be fighting them).", MORTAL_LEVEL_MIN },
+    /* Mortal Thief skill (see settrap's note); needs "disarmt"+ now that
+     * combat `disarm` (above) owns the shared "di"/"dis" abbreviation. */
     { "disarmtrap", cmd_disarmtrap, "Safely remove a trap from a door (Thief, disarmtrap <direction>).", MORTAL_LEVEL_MIN },
-    /* disarmtrap (above) already owns "di"/"dis" -- listed first, so it
-     * keeps winning that shared abbreviation for mortals. "dig" itself is
-     * still unambiguous (disarmtrap doesn't start with "dig"), just not
-     * reachable via a bare "di". */
     { "dig",     cmd_dig,     "Dig a new room in the current direction, if none exists yet (dig <direction>).", BUILD_MIN_LEVEL },
     { "edbug",   cmd_edbug,   "Resolve a bug report in place (edbug <id> [note]).", EDBUG_MIN_LEVEL },
     /* Unified editor dispatcher (user 2026-07-11: "unify all ed* commands

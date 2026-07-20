@@ -299,6 +299,34 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         modifier = -44;
 
     int hit_roll = base_roll + modifier;
+
+    /* Passive parry (Sneezy → Tobin feature audit, "Skill-based
+     * combat"). Checked Sneezy's own disc/disc_warrior_dueling.cc
+     * first: real `parry` is NOT a player command at all -- the
+     * original's own parser stub, `doParry()`, just prints "Parry is
+     * not yet supported in this fashion." The actual mechanic
+     * (`parryWarrior()`) is entirely passive, checked once per
+     * incoming melee hit with no cooldown (LAG_0, never routed through
+     * the lag system) -- ported faithfully as a passive check here
+     * too, deliberately with no `cmd_parry.c`. Sneezy's real chance is
+     * a flat ~4% base gate before a separate learnedness roll;
+     * simplified to one proficiency-scaled roll, quartered so even
+     * 100% proficiency caps near 25% rather than making a maxed
+     * Warrior unhittable. Checked BEFORE the normal hit/miss roll,
+     * same "defensive reaction resolves first" ordering Sneezy uses --
+     * a parry negates the attack outright regardless of what the to-
+     * hit roll below would have been. */
+    if (!being_is_immortal(defender) && being_knows_skill(defender, "parry")) {
+        const skill_def_t *parry_sk = skill_find(defender->char_class, "parry", false);
+        if (parry_sk && skill_roll_success(skill_learn_from_doing(defender, parry_sk) / 4)) {
+            if (!(attacker->pflags & PLR_NOSPAM))
+                tell(attacker, "%s parries your attack!\r\n", being_display_name(defender));
+            if (!(defender->pflags & PLR_NOSPAM))
+                tell(defender, "You parry %s's attack!\r\n", being_display_name(attacker));
+            return false;
+        }
+    }
+
     if (hit_roll < 50) {
         /* nospam (user 2026-07-11, ported from Sneezy's AUTO_NOSPAM): each
          * viewer's own toggle decides whether THEY see a miss -- the
@@ -824,6 +852,17 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
          * room forever, since only this PC branch ever removed anything. */
         being_destroy(loser);
     }
+}
+
+bool combat_apply_skill_damage(being_t *attacker, being_t *defender, int dmg, limb_t limb) {
+    if (being_is_immortal(defender))
+        dmg = 0;
+    being_hurt_limb(defender, limb, dmg);
+    if (defender->progress.hp <= 0) {
+        combat_defeat(defender, attacker, false);
+        return true;
+    }
+    return false;
 }
 
 /* Drowning (Sneezy → Tobin feature audit, "Water, drowning, flight").
