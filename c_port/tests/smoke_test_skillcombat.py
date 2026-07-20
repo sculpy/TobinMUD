@@ -124,6 +124,11 @@ def set_combat_disc(name, pct):
         f"(SELECT id FROM player WHERE name='{name}');")
 
 
+def set_basic_disc(name, pct):
+    sql(f"UPDATE player_progress SET basic_disc_pct={pct} WHERE player_id="
+        f"(SELECT id FROM player WHERE name='{name}');")
+
+
 def seed_proficiency(name, skill_name, pct):
     sql(f"INSERT INTO player_skill (player_id, skill_name, pct, last_gain_at) "
         f"VALUES ((SELECT id FROM player WHERE name='{name}'), '{skill_name}', {pct}, {int(time.time())}) "
@@ -174,7 +179,11 @@ def make_pair(prefix, cls, room=None, level=None):
     Warrior-17/Thief-25 gate -- being_knows_skill() checks level, not just
     proficiency pct) (quit!-then-SQL-then-relog, never SQL-then-quit! --
     quit!'s own player_save() would otherwise clobber the SQL change with
-    stale pre-SQL in-memory state)."""
+    stale pre-SQL in-memory state). Both disc pcts are seeded to 100 --
+    being_knows_skill() gates SKILL_TIER_COMBAT skills (bash/kick/parry)
+    on combat_disc_pct but SKILL_TIER_CLASS skills (disarm, for Warrior)
+    on basic_disc_pct, so both need to be nonzero regardless of which
+    skill a given pair is being used to test."""
     nameA, pwA = f"{prefix}a{_suffix}", f"{prefix}apw12345"
     nameB, pwB = f"{prefix}b{_suffix}", f"{prefix}bpw12345"
     sA0 = make_char(nameA, pwA)
@@ -185,6 +194,7 @@ def make_pair(prefix, cls, room=None, level=None):
         set_class(nm, cls)
         set_hp(nm, 5000, 5000)
         set_combat_disc(nm, 100)
+        set_basic_disc(nm, 100)
         if room is not None:
             sql(f"UPDATE player SET load_room={room} WHERE name='{nm}';")
         if level is not None:
