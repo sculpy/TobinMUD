@@ -98,6 +98,10 @@ int sector_move_cost(int sector) {
     return 1;
 }
 
+bool sector_is_underwater(int sector) {
+    return strstr(sector_name(sector), "UNDERWATER") != NULL;
+}
+
 /* Sector-name substring bucketing, same style as sector_color() above --
  * most-specific rule first. See room.h's declaration comment for the
  * weather-prefix simplification. */

@@ -9,6 +9,7 @@
 
 #include <stdlib.h>
 
+#include "affect.h"
 #include "being.h"
 #include "cmd.h"
 #include "player_repo.h"
@@ -125,6 +126,15 @@ static bool do_move(descriptor_t *d, int dir) {
      * same reasoning as hunger/thirst immunity (being.h). */
     if (!being_is_immortal(ch)) {
         int cost = (sector_move_cost(from->sector) + sector_move_cost(to->sector) + 1) / 2;
+        /* Flying quarters the charge (Sneezy → Tobin feature audit,
+         * "Water, drowning, flight") -- same discount the original's
+         * canFly()-gated movement math applies, rounded up so it's
+         * never free (min 1). */
+        if (being_has_affect(ch, AFFECT_FLYING)) {
+            cost = (cost + 3) / 4;
+            if (cost < 1)
+                cost = 1;
+        }
         if (ch->progress.vit < cost) {
             descriptor_send(d, "You are too exhausted to go that way.\r\n");
             return true;

@@ -38,4 +38,13 @@ void combat_instakill(being_t *attacker, being_t *target);
  * iff this decapitated (and thus killed via combat_defeat()) `target`. */
 bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int hp);
 
+/* Drowning death (Sneezy → Tobin feature audit, "Water, drowning,
+ * flight"): called from vitals_tick_run() (vitals.c) when its own
+ * underwater-without-water-breathing damage roll drops `victim` to 0
+ * HP or below. An environmental death, not a kill -- no `winner`, so
+ * this is NOT a thin wrapper around combat_defeat(); see its own doc
+ * comment in combat.c for the full rationale. No-op for anything but a
+ * PC (mobs don't drown -- they have no vitals tick at all yet). */
+void combat_drown_pc(being_t *victim);
+
 #endif

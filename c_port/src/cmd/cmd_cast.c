@@ -168,6 +168,19 @@ static void task_cast(descriptor_t *d, being_t *ch, const skill_def_t *sk) {
         being_apply_affect(ch, AFFECT_SANCTUARY, 12);
         snprintf(msg, sizeof(msg), "You cast %s -- a protective ward settles over you!\r\n", sk->name);
         descriptor_send(d, msg);
+    } else if (ci_contains(sk->desc, "breathe underwater")) {
+        /* "gills of flesh" (Sneezy → Tobin feature audit, "Water,
+         * drowning, flight") -- a real, longer-than-combat duration
+         * (100 rounds, ~2 real minutes) since this is a travel-utility
+         * buff meant to outlast a swim across several rooms, not a
+         * combat-round ward like Sanctuary's 12. */
+        being_apply_affect(ch, AFFECT_WATERBREATH, 100);
+        snprintf(msg, sizeof(msg), "You cast %s -- gills split open along your neck!\r\n", sk->name);
+        descriptor_send(d, msg);
+    } else if (ci_contains(sk->desc, "float above the ground")) {
+        being_apply_affect(ch, AFFECT_FLYING, 100);
+        snprintf(msg, sizeof(msg), "You cast %s -- you rise gently off the ground!\r\n", sk->name);
+        descriptor_send(d, msg);
     } else if (ch->fighting && (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "bolt")
                                  || ci_contains(sk->desc, "beam") || ci_contains(sk->desc, "blast")
                                  || ci_contains(sk->desc, "strike") || ci_contains(sk->desc, "burst")

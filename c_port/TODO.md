@@ -407,11 +407,97 @@ implementation inspiration before each one, not guessed at.
       needed updating to match "qu" now legitimately reaching quest
       instead (quit itself remains genuinely unreachable via any
       abbreviation, verified directly).
+- [x] **Water, drowning, flight** — done 2026-07-19. Checked Sneezy's own
+      movement-terrain-navigation doc first: AFF_SWIM halves/quarters
+      water-sector movement cost, a procCharDrowning scheduler deals
+      1d10 every 3.6 real seconds to anyone underwater without
+      AFF_WATERBREATH (genuinely lethal via reconcileDamage()), and
+      AFF_FLYING quarters movement cost and bypasses the whole drowning
+      chain. Ported as two new spells that were already listed
+      unimplemented in `skill.c` before this session: `cast gills of
+      flesh` (Mage, level 9) grants a new AFFECT_WATERBREATH,
+      `cast levitate` (Mage, level 11) grants a new AFFECT_FLYING (both
+      plain timed buffs, same shape as the existing AFFECT_SANCTUARY --
+      `affect.h`/`affect.c`). New `sector_is_underwater()` (room.c)
+      distinguishes true UNDERWATER sectors from merely-wet surface
+      water (OCEAN/RIVER SURFACE/ICEFLOW, still just an expensive-but-
+      walkable tier, no drowning risk). `vitals_tick_run()` (vitals.c)
+      now rolls the SAME 1d10 against anyone underwater without
+      AFFECT_WATERBREATH/AFFECT_FLYING, just on Tobin's own slower ~60s
+      cadence instead of the original's 3.6s one -- already far gentler
+      in practice without softening the roll itself. `cmd_move.c`
+      quarters `sector_move_cost()`'s charge while AFFECT_FLYING is
+      active, same discount the original's flight math uses.
+      Per AskUserQuestion, drowning is genuinely LETHAL, unlike
+      hunger/thirst/poison's non-lethal floor-at-1 convention -- new
+      `combat_drown_pc()` (combat.c) handles the death (half-heal reset,
+      limb heal, full-rate XP loss since there's no PvP consent to halve
+      it for, a corpse with the victim's belongings, eject to the
+      account menu) since there's no `winner` to reuse `combat_defeat()`
+      as-is for an environmental death. New
+      `tests/smoke_test_water_drowning_flight.py` (13 checks) -- a
+      spell's proficiency starts at a 1% floor and climbs with a 30s
+      cooldown per gain-check (skill.c), far too slow to reliably self-
+      cast live in a test, so mortal test characters have their
+      `player_skill` row seeded directly to 100% first, same "seed DB
+      state instead of grinding it live" precedent
+      `smoke_test_vitals.py`'s `set_hp()`/`set_level()` already use.
+      Also hit (and documented) a real gotcha: `quit!`/relog wipes an
+      in-memory affect entirely (affects aren't DB-persisted) -- tests
+      that need to both cast a buff AND relocate move by real walking
+      instead of relogging, so the just-granted affect survives the
+      trip. Regression-checked against `smoke_test_vitals.py`,
+      `smoke_test_castpray.py`, `smoke_test_immortal_castpray.py`,
+      `smoke_test_death_xploss.py`, `smoke_test_pk_gold.py`,
+      `smoke_test_group.py`, `smoke_test_vitality_terrain.py` (also
+      exercise vitals ticks, casting, and non-combat/combat death).
 
 ## Buildable now (no blocked dependencies)
 
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.
+
+### User batch 2026-07-19 (evening) — logged, not yet started
+
+- [ ] **`toggle tips` (mute the tips channel)** — user: "tips channel
+      should be a toggle to shut it off or turn it on again." Same
+      pflags-bitmask pattern `toggle noshout`/`toggle newbie` already use
+      (cmd_toggle.c) — add a `PLR_NOTIPS`-equivalent flag, gate wherever
+      the tips broadcast currently sends (cmd_tips.c / whatever
+      pulse-driven tip-broadcast exists) on it being unset.
+- [ ] **`level` command** — shows how close a player is to leveling: "You
+      have X experience and need X experience to level." Check Sneezy for
+      how it computes XP-to-next-level (likely already has the formula
+      Tobin's own `progress_xp_for_level()`-equivalent needs, if one
+      doesn't already exist — check XP-loss-on-death work, task 6, for
+      whatever level-threshold helper that used).
+- [ ] **Prompt: experience/mana/piety/vitality toggles + `prompt all`** —
+      expand `cmd_prompt.c`'s toggle set beyond hp/gold/vit (vit just
+      shipped) to also cover experience, experience-needed-to-level, and
+      mana/piety (still blocked on those resources not existing at all —
+      note in being.h's PROMPT_FLAG_* comment). Add a `prompt all` that
+      turns on every currently-available toggle at once, not just the
+      resources that happen to exist yet.
+- [ ] **Animal races shouldn't carry wealth** — user: "animal races should
+      not have wealth, that doesnt make sense." Find Tobin's animal race(s)
+      (race.c / race_name() roster) and gate `progress.gold` for them —
+      likely: never award gold on mob kill/PK for an animal-race PC, and/or
+      block `buy`/`sell`/wallet display entirely. Check exactly which of
+      the 6 curated races count as "animal" before deciding scope.
+- [ ] **Fix placeholder spell help files** — user found `help haste` still
+      showing the literal generator placeholder text ("Description of what
+      the spell is intended to do.") instead of a real description. Audit
+      ALL spell/skill help topics (not just Haste) for the same unfilled
+      placeholder and write real descriptions.
+- [ ] **Wiznews pager freezes the MUD** — real, actively-broken bug (not a
+      cosmetic gap): user reports the pager/long-output path for `wiznews`
+      hangs the whole server. Investigate the pager code (`descriptor.c`'s
+      `page_len` handling, used by `wiznews`/`news`/`help`/`who` etc for
+      long output) for whatever's different about wiznews specifically —
+      likely something in `cmd_wiznews.c`'s own paging call, or a genuinely
+      long wiznews body overflowing a fixed buffer. High priority given
+      "freezes the mud" — treat as a live production bug, not a backlog
+      nice-to-have.
 
 ### User batch 2026-07-17 — queued after Money/Shops, working these next
 

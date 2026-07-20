@@ -96,6 +96,19 @@ typedef enum {
     AFFECT_DISEASE_PNEUMONIA,
     AFFECT_DISEASE_GANGRENE,
     AFFECT_DISEASE_EXTREME_PAIN,
+    /* Water, drowning, flight (Sneezy → Tobin feature audit). Plain
+     * timed buffs, same shape as AFFECT_SANCTUARY -- not diseases, kept
+     * outside the contiguous AFFECT_DISEASE_* range on purpose so
+     * affect_is_disease()'s range check stays a cheap bounds test.
+     * AFFECT_WATERBREATH ("gills of flesh", Mage spell) lets a PC
+     * survive an UNDERWATER sector without drowning (see
+     * vitals_tick_run(), vitals.c). AFFECT_FLYING ("levitate", Mage
+     * spell) quarters sector_move_cost()'s charge (cmd_move.c, same
+     * quartering the original's own flight/levitate movement discount
+     * uses) and, like the original's canFly(), bypasses drowning
+     * entirely while airborne over water. */
+    AFFECT_WATERBREATH,
+    AFFECT_FLYING,
     AFFECT_COUNT,
 } affect_type_t;
 

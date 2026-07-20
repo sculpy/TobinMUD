@@ -5,6 +5,7 @@
 #ifndef TOBIN_ROOM_H
 #define TOBIN_ROOM_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include "thing.h"
@@ -56,6 +57,14 @@ char sector_color(int sector);
  * charges the average of the source and destination sector's cost,
  * mirroring the original's own average-of-two-sectors rawMove() rule. */
 int sector_move_cost(int sector);
+
+/* True for a genuinely UNDERWATER sector (e.g. "TEMPERATE UNDERWATER"),
+ * false for surface water (OCEAN/RIVER SURFACE/ICEFLOW -- swimmable,
+ * not a drowning risk) or anything dry. Sneezy → Tobin feature audit,
+ * "Water, drowning, flight": gates vitals_tick_run()'s (vitals.c)
+ * drowning check the same way the original's checkDrowning() only
+ * fires for a true underwater sector, not merely a wet one. */
+bool sector_is_underwater(int sector);
 
 /* Renders the set ROOM_* flag bits (original misc/room.h, 22 bits) into
  * buf as space-separated names ("always-lit indoors ..."), or "none".
