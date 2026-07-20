@@ -171,6 +171,38 @@ check("no longer" in out, "prompt vit toggles back off")
 out = step(s, "prompt is plain again after vit", "look")
 check("Vit:" not in out.rstrip()[-20:], "the plain prompt returns after vit")
 
+# Prompt expansion (user 2026-07-19: add exp/experience-needed-to-level
+# toggles, plus a `prompt all`).
+out = step(s, "toggle exp into the prompt", "prompt exp")
+check("now show experience" in out, "prompt exp confirms the toggle")
+out = step(s, "prompt now shows Exp", "look")
+tail = out.rstrip()
+check(tail.endswith(">") and "Exp:" in tail[-30:], "the prompt line carries Exp: <n>")
+out = step(s, "toggle exp back off", "prompt exp")
+check("no longer" in out, "prompt exp toggles back off")
+
+out = step(s, "toggle expneed into the prompt", "prompt expneed")
+check("now show experience needed to level" in out, "prompt expneed confirms the toggle")
+out = step(s, "prompt now shows ExpNeed", "look")
+tail = out.rstrip()
+check(tail.endswith(">") and "ExpNeed:" in tail[-40:], "the prompt line carries ExpNeed: <n>")
+out = step(s, "toggle expneed back off", "prompt expneed")
+check("no longer" in out, "prompt expneed toggles back off")
+
+out = step(s, "prompt all turns on every stat at once", "prompt all")
+check("show every available stat" in out, "prompt all confirms the bulk toggle")
+out = step(s, "bare prompt shows all 5 as ON", "prompt")
+check(all(f"{name} ON" in out for name in ("hp", "gold", "vit", "exp", "expneed")),
+      "bare prompt shows hp/gold/vit/exp/expneed all reading ON after prompt all")
+out = step(s, "prompt after 'all' shows every stat on one line", "look")
+tail = out.rstrip()
+check(tail.endswith(">") and "HP:" in tail and "Gold:" in tail and "Vit:" in tail
+      and "Exp:" in tail and "ExpNeed:" in tail,
+      "the prompt line carries every stat together after prompt all")
+# Reset back to plain for the rest of this file's checks.
+for stat in ("hp", "gold", "vit", "exp", "expneed"):
+    step(s, f"reset {stat} back off", f"prompt {stat}")
+
 out = step(s, "who shows a trailing prompt", "who")
 check(out.rstrip().endswith(">"), "who's output ends with a prompt")
 

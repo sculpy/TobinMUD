@@ -186,6 +186,15 @@ typedef struct {
 #define PROMPT_FLAG_HP 1
 #define PROMPT_FLAG_GOLD 2
 #define PROMPT_FLAG_VIT 4
+/* PROMPT_FLAG_EXP/EXPNEED (user 2026-07-19: expand prompt toggles to
+ * cover experience/experience-needed-to-level) -- mana/piety stay
+ * blocked, those resources still don't exist at all. ExpNeed reuses
+ * progress_xp_for_level() (being.c), the same curve `level` (cmd_level.c)
+ * shows -- clamped at 0 rather than negative once a mortal is already at
+ * MORTAL_LEVEL_MAX or is an immortal, same "nothing more to grind
+ * toward" convention. */
+#define PROMPT_FLAG_EXP 8
+#define PROMPT_FLAG_EXPNEED 16
 
 /* Player flag bits (player.pflags). PLR_NEWBIE = on the newbie help channel
  * (default on; toggle off with `toggle newbie`). PLR_NOSHOUT = opted out of

@@ -231,7 +231,7 @@ int game_loop_run(int port, const char *copyover_file) {
                  * user later asked removed "in front and in back" of the
                  * prompt, i.e. both branches below). */
                 if (p->character && p->character->prompt_flags) {
-                    char pbuf[96];
+                    char pbuf[192];
                     size_t pn = (size_t)snprintf(pbuf, sizeof(pbuf), "\r\n");
                     if (p->character->prompt_flags & PROMPT_FLAG_HP)
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "HP: %d ",
@@ -242,6 +242,18 @@ int game_loop_run(int port, const char *copyover_file) {
                     if (p->character->prompt_flags & PROMPT_FLAG_VIT)
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Vit: %d ",
                                                p->character->progress.vit);
+                    if (p->character->prompt_flags & PROMPT_FLAG_EXP)
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Exp: %ld ",
+                                               p->character->progress.experience);
+                    if (p->character->prompt_flags & PROMPT_FLAG_EXPNEED) {
+                        long need = 0;
+                        if (p->character->progress.level < MORTAL_LEVEL_MAX)
+                            need = progress_xp_for_level(p->character->progress.level + 1)
+                                   - p->character->progress.experience;
+                        if (need < 0)
+                            need = 0;
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "ExpNeed: %ld ", need);
+                    }
                     pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "> ");
                     descriptor_write(p, pbuf, pn);
                 } else {
