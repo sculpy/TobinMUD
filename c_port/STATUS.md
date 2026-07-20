@@ -65,6 +65,31 @@ builder half.**
   independently already fixed by home the same way -- had stalled a full
   sweep on this box for 2h+ before this) since 100 upstream commits had
   landed, and this box's own copy of the sweep script had none.
+- **Two more bugs found + fixed while verifying this deploy** (deploying
+  to production surfaced both -- neither is a regression from the work
+  above, both pre-date this session):
+  - `tests/smoke_test_redit.py`'s own final DB-verification check
+    expected `room_flag == 8` (INDOORS alone), but the room it bootstraps
+    already sets ALWAYS-LIT (bit 0 = 1) -- a default added in a LATER
+    commit (the darkness-mechanic cross-test-hazard fix) that never
+    updated this one assertion. `1 | 8 = 9` is what actually persists,
+    and always has since that default landed; the test itself was stale,
+    not the save path. Root-caused via a one-off instrumented copy of
+    the test (`/tmp/debug_redit.py`, not committed) rather than guessing
+    from a bare traceback -- printed the exact `BASE`/raw query output
+    to confirm precisely which field diverged before touching anything.
+    Fixed the one hardcoded `"8"` -> `"9"`, with a comment explaining why.
+  - `tests/smoke_test_redit_extradesc.py` (new this session) had its own
+    bug: the `mariadb -N` CLI escapes an embedded real newline inside a
+    field's own VALUE as the literal two characters backslash+n, not an
+    actual newline byte -- descriptions saved via the line editor always
+    end in a real `\n`, so the test's naive `.strip()` never found it
+    (comparing "text.\n" against "text." failed even though the exact
+    right value was sitting in the DB the whole time). Fixed by
+    unescaping `\\n` -> real `\n` in `extras_for()` before comparing.
+  - Both surfaced only because production was actually exercised after
+    deploy, not assumed clean from a passing build -- the standing "test
+    the golden path for real" habit paying for itself.
 
 Last updated: 2026-07-19 — Session 49 (home): **User batch (tips toggle,
 `level` command, prompt expansion, animal-race gold) + Mount/riding

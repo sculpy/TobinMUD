@@ -207,11 +207,16 @@ check(f"north->{BASE + 1}/Door" in out, "the menu summarizes the exit with its d
 out = cmd(s, "S")
 check("Room saved" in out, "S) Save persists the working copy")
 
-# DB verification
+# DB verification. room_flag is 9 (not just 8), not a typo: the sandbox
+# bootstrap above sets ALWAYS-LIT (bit 0 = 1) to keep this room out of the
+# darkness mechanic's way (same reasoning as every other sandbox room that
+# does this), and menu 3 above only toggled INDOORS (bit 3 = 8) ON TOP of
+# that, so 1 | 8 = 9 is the correct combined value -- this assertion had
+# gone stale after the ALWAYS-LIT default was added to the bootstrap.
 row = query(f"SELECT name, sector, room_flag, capacity, height FROM room WHERE vnum={BASE};").split("\t")
-check(row[0] == "The Menu Workshop" and row[1] == "3" and row[2] == "8"
+check(row[0] == "The Menu Workshop" and row[1] == "3" and row[2] == "9"
       and row[3] == "25" and row[4].strip() == "12",
-      "name/sector/flags(8)/capacity(25)/height(12) persisted")
+      "name/sector/flags(ALWAYS-LIT+INDOORS=9)/capacity(25)/height(12) persisted")
 ex = query(f"SELECT destination, type, condition_flag FROM roomexit WHERE vnum={BASE} AND direction=0;").split("\t")
 check(ex[0] == str(BASE + 1) and ex[1] == "1" and ex[2].strip() == "1",
       "north exit persisted with door type 1 (Door) and condition 1 (Closed)")

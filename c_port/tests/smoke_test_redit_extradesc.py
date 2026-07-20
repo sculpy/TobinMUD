@@ -125,10 +125,15 @@ def set_level(name, level):
 
 
 def extras_for(vnum):
-    """Every (name, description) row in roomextra for `vnum`, alphabetical."""
+    """Every (name, description) row in roomextra for `vnum`, alphabetical.
+    The mariadb CLI's -N batch mode escapes an embedded real newline in a
+    field's own value as the literal two characters backslash+n (not a row
+    separator) -- descriptions saved via the line editor always end in a
+    real newline, so undo that escaping here or a naive .strip() never
+    finds the trailing whitespace it's looking for."""
     out = query(f"SELECT name, description FROM roomextra WHERE vnum={vnum} ORDER BY name;")
     rows = [line.split("\t") for line in out.splitlines() if line]
-    return rows
+    return [[name, desc.replace("\\n", "\n")] for name, desc in rows]
 
 
 imm_name = f"Xdesc{_suffix}"
