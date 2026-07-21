@@ -1,5 +1,70 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-20 — Session 52 (home): **Skill-based combat closed
+out (bash/kick/disarm/parry, task 14) + synced Session 50/51's work-box
+work in.**
+- **Skill-based combat (bash/kick/disarm/parry), fully closed out.** Code
+  landed the previous home session (commit `791d02c`); this session
+  finished debugging `tests/smoke_test_skillcombat.py` (12 checks) through
+  four real bugs, all in the TEST, not the underlying mechanic:
+  1. `cmd()`'s ~1s blocking default timeout was eating most of the
+     DEFENDER's 1.2s (`COMBAT_ROUND_PULSES`) post-bash wait window before
+     the follow-up check even ran (the window starts when bash resolves
+     server-side, not when the blocking call returns) -- fixed by using a
+     short-timeout live read for the `bash` command itself, same "live
+     read" pattern `smoke_test_vitality_terrain.py`'s `live_vit()` already
+     established.
+  2. `attack`'s own `cmd_attack.c`-side `being_set_wait()` on the ATTACKER
+     at fight-initiation collides with an immediately-following skill
+     command attempt ("You are still recovering!" before the skill roll
+     even happens) -- fixed with a new `attack_and_settle()` helper
+     (sleeps off the 1.2s lag before trying a skill command).
+  3. Character names can't contain digits ("Names may only contain
+     letters") -- the 0%-proficiency sub-test fixtures (`Bshw0`/`Kckt0`/
+     `Dsmw0`) were silently failing character creation, leaving no player
+     row at all (root-caused via a literal NULL-subquery SQL error).
+     Fixed by renaming to letters-only (`Bshwz`/`Kcktz`/`Dsmwz`).
+  4. `being_knows_skill()` gates `SKILL_TIER_CLASS` skills (disarm, for
+     Warrior -- level 17) on BOTH `level` and `basic_disc_pct`, not
+     `combat_disc_pct` like `SKILL_TIER_COMBAT` skills (bash/kick/parry)
+     use -- the test's `make_pair()` helper only seeded level and
+     `combat_disc_pct`, so disarm's characters hit "You don't know how to
+     disarm an opponent." regardless of seeded proficiency. Fixed by
+     adding an optional `level=` param to `make_pair()` and seeding
+     `basic_disc_pct` alongside `combat_disc_pct` unconditionally (harmless
+     for tiers that don't check it).
+  All 12 checks now pass clean on both preview (4003) and production
+  (4000). Regression-checked against `smoke_test_combat.py`/
+  `smoke_test_positions.py`/`smoke_test_weapon_depth.py` (also exercise
+  `combat_strike()`, which the passive parry hook modifies) -- the first
+  `weapon_depth` run came up short (25/30 samples collected) and looked
+  like a regression at first, but root-caused live (not guessed) to 16
+  linkdead zombie characters left over from this session's own earlier
+  crashed debug runs bogging down the combat pulse loop (`who` showed
+  `Linkdead: [16]`) -- a clean preview restart cleared it and the rerun
+  passed clean. This is the SAME underlying issue Session 51 (work)
+  independently found and logged as the new TODO.md priority item below,
+  from a completely different cause (months of tests that `s.close()`
+  instead of `quit`). TODO.md's audit checklist also had a gap -- Session
+  49's Mount/riding (13) and this session's Skill-based combat (14) had
+  STATUS.md write-ups but were never checked off in the "Sneezy → Tobin
+  feature audit" list -- both added retroactively. wiznews.sql + news.sql
+  entries added (player-facing new commands).
+- **Synced in Session 50/51's work-box work** (socials DB port + full
+  Sneezy set + `edsocial` editor, redit Extra Descriptions builder half,
+  the real `cmd_skills.c` crash fix, `sweep.sh`'s new per-test timeout) --
+  see those sessions' own write-ups below for full detail. Home VM had
+  also rebooted independently during this session (unrelated to the work
+  above); rebuilt clean and restarted both preview/production on the
+  synced code. Confirmed `smoke_test_edsocial.py` fresh at Home per
+  Session 51's own sync-up note (it hadn't been verified there) --
+  passes clean, along with `smoke_test_socials.py`/
+  `smoke_test_redit_extradesc.py`/`smoke_test_skills.py`/
+  `smoke_test_redit.py`. **`gdb` is not installed on the Home VM** (the
+  new "always run under gdb" habit from Session 51 needs `sudo dnf
+  install gdb` there first -- couldn't do it remotely, no interactive
+  sudo password available; flagged for the user to run manually).
+
 Last updated: 2026-07-20 — Session 51 (work): **Socials → DB + full Sneezy
 set + `edsocial` editor (both halves of the TODO item), plus a real
 crash fix (`cmd_skills.c`) found live along the way.**

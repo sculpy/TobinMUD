@@ -253,3 +253,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Whole Lot More Ways to Express Yourself',
  'The `socials` list just grew enormously -- smile, wave, and the old familiar faces are joined by a huge cast of new emotes pulled straight from the game''s roots. Aim any of them at someone (`grin Bob`) or use them on their own; a few, like `point`, even notice what you are holding. Try targeting yourself for a couple of them -- some now have a special reaction just for that. The list is long enough to page through now, so `socials` will prompt you to keep reading.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New Fight Moves: bash, kick, and disarm',
+ 'Mid-fight, try `bash <target>` (Warriors), `kick <target>` (Thieves and Monks), or `disarm <target>` (Warriors, Thieves, and Monks) for a little extra edge on top of your normal swings. A solid bash knocks your target down and costs them a beat to recover; a good kick lands extra damage; a clean disarm knocks the weapon right out of their hand. All three cost you a moment to recover too, whether they land or not, so use them wisely. Warriors also now parry incoming blows automatically -- no command needed, just a passive chance to block a hit outright that grows as you fight.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

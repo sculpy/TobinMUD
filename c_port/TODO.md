@@ -501,6 +501,62 @@ implementation inspiration before each one, not guessed at.
       `smoke_test_death_xploss.py`, `smoke_test_pk_gold.py`,
       `smoke_test_group.py`, `smoke_test_vitality_terrain.py` (also
       exercise vitals ticks, casting, and non-combat/combat death).
+- [x] **Mount / riding** — done 2026-07-19. `being_t` gained bidirectional
+      `mount`/`rider` pointers (mirrors `fighting`'s shape); HORSE (mob
+      race 47) is the only rideable race for v1
+      (`mob_race_is_rideable()`). `cmd_ride.c` (`ride`/`dismount`), a new
+      "riding" skill (level 1, all 6 classes). Mounted riders skip the
+      normal vit terrain cost (charged at half via `cmd_move.c`), the
+      mount follows room-to-room automatically, and entering an INDOORS
+      room auto-dismounts (mount left behind, not moved). Combat gets a
+      flat `MOUNTED_ATTACK_BONUS` (+8 attacker modifier) and a `-5` AC
+      bonus while mounted (`being_total_ac()`); mounted riders are
+      excluded from the normal non-standing defender-bonus penalty.
+      Stables: genuinely new `shop.is_stable` column/`shop_repo_is_stable()`
+      (Sneezy's own `SPEC_PROC_STABLE_MAN` was confirmed dead code, not
+      reused) — Petir's shop (room 564, shop_nr 164, "Carnivorous
+      Companions") sells a plow-horse for 100 gold via `list`/`buy`.
+      New `tests/smoke_test_mount.py` (17 checks). Regression-checked
+      against `smoke_test_positions.py`/`smoke_test_combat.py`/
+      `smoke_test_vitality_terrain.py` (also fixed a real stale-test bug
+      found along the way: `smoke_test_positions.py`'s PC-vs-PC attack
+      was missing `toggle pk`).
+- [x] **Skill-based combat (bash, kick, disarm, parry)** — done
+      2026-07-20. Checked Sneezy's own `cmd_bash.cc`/`cmd_kick.cc`/
+      `cmd_disarm.cc` first: all three are real multi-stage gauntlets
+      (weight-ratio checks, body-type exclusions, crit-gated final
+      effects); `parry` itself is a disabled player-facing stub in
+      Sneezy (`doParry()`) — the real mechanic (`parryWarrior()`) is
+      passive, unconditional, checked once per incoming melee hit with
+      no cooldown. Scoped down to Tobin's existing "one
+      `skill_roll_success()` roll, not a multi-stage gauntlet"
+      convention for every other ported skill this session.
+      `cmd_bash.c`/`cmd_kick.c`/`cmd_disarm.c` (new files, wired into the
+      already-existing `bash`/`kick`/`disarm` entries in skill.c's
+      roster — no skill.c changes needed). All three impose unconditional
+      attacker lag via `being_set_wait()` (bash 2x `COMBAT_ROUND_PULSES`,
+      kick/disarm 1x), matching Sneezy's `addSkillLag()` always firing
+      win or lose. bash knocks the target down (`POSITION_SITTING`) and
+      costs them a round too on success — a deliberate, disclosed
+      deviation (Sneezy's real bash does no direct damage) since a
+      no-op success reads as broken. New shared `combat_apply_skill_damage()`
+      (combat.c) handles the shared "deal damage, check for defeat,
+      caller must not touch a possibly-`being_destroy()`'d defender
+      again" shape bash/kick both need. Passive `parry` hooked directly
+      into `combat_strike()`, right before the hit-roll miss check —
+      Warrior only, proficiency quartered so 100% proficiency caps near
+      a 25% block chance. New `tests/smoke_test_skillcombat.py` (12
+      checks: bash/kick/disarm each at 100%- and 0%-proficiency, bash's
+      defender-wait side effect, disarm's weapon-on-floor effect, parry
+      over up to 20 forced rounds). Regression-checked against
+      `smoke_test_combat.py`/`smoke_test_positions.py`/
+      `smoke_test_weapon_depth.py` (also exercise `combat_strike()`).
+      Debugging notes for posterity: character names can't contain
+      digits (a fixture-prefix trap for 0%-proficiency sub-tests);
+      `being_knows_skill()`'s `SKILL_TIER_CLASS` skills (disarm, for
+      Warrior) gate on `basic_disc_pct`, not `combat_disc_pct` like
+      `SKILL_TIER_COMBAT` skills (bash/kick/parry) do — both need seeding
+      regardless of which skill a given test pair exercises.
 
 ## Buildable now (no blocked dependencies)
 
