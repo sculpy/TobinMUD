@@ -135,17 +135,28 @@ void player_inventory_load(long player_id, being_t *b) {
     if (!db)
         return;
 
-    if (db_query(db, "select vnum, slot from player_inventory where player_id=%i order by id",
+    if (db_query(db, "select vnum, slot, cur_struct, depreciation, monogram "
+                      "from player_inventory where player_id=%i order by id",
                  (int)player_id)) {
         /* Collect rows first -- obj_create_from_proto() below opens its own
          * connection via obj_proto_load(), and this connection must stay
          * open across db_fetch_row() calls. */
-        typedef struct { int vnum; int slot; } row_t;
+        typedef struct {
+            int vnum, slot;
+            bool has_cur_struct;
+            int cur_struct, depreciation;
+            char monogram[64];
+        } row_t;
         row_t rows[256];
         int n = 0;
         while (n < 256 && db_fetch_row(db)) {
             rows[n].vnum = atoi(db_get(db, "vnum"));
             rows[n].slot = atoi(db_get(db, "slot"));
+            const char *cs = db_get(db, "cur_struct");
+            rows[n].has_cur_struct = cs && *cs;
+            rows[n].cur_struct = rows[n].has_cur_struct ? atoi(cs) : 0;
+            rows[n].depreciation = atoi(db_get(db, "depreciation"));
+            snprintf(rows[n].monogram, sizeof(rows[n].monogram), "%s", db_get(db, "monogram"));
             n++;
         }
         db_close(db);
@@ -157,6 +168,15 @@ void player_inventory_load(long player_id, being_t *b) {
                           player_id, rows[i].vnum);
                 continue;
             }
+            /* Object maintenance (Session 55/56) -- per-instance state a
+             * fresh prototype spawn doesn't have. cur_struct is NULL
+             * (has_cur_struct false) for every row saved before this
+             * column existed, or an item that was never damaged -- leave
+             * the prototype's own full cur_struct alone in that case. */
+            if (rows[i].has_cur_struct)
+                o->cur_struct = rows[i].cur_struct;
+            o->depreciation = rows[i].depreciation;
+            snprintf(o->monogram, sizeof(o->monogram), "%s", rows[i].monogram);
             thing_move_to(&o->base, &b->base);
             if (rows[i].slot == INV_SLOT_HELD_PRIMARY)
                 b->held[0] = o;
@@ -188,8 +208,9 @@ static bool inv_save_tree(db_conn_t *db, long player_id, const being_t *b,
             continue;
         const obj_t *o = (const obj_t *)t;
         int slot = top ? slot_for_obj(b, o) : INV_SLOT_CARRIED;
-        ok = db_query(db, "insert into player_inventory (player_id, vnum, slot) values (%i, %i, %i)",
-                      (int)player_id, o->vnum, slot);
+        ok = db_query(db, "insert into player_inventory (player_id, vnum, slot, cur_struct, "
+                          "depreciation, monogram) values (%i, %i, %i, %i, %i, '%s')",
+                      (int)player_id, o->vnum, slot, o->cur_struct, o->depreciation, o->monogram);
         if (ok && obj_is_container(o))
             ok = inv_save_tree(db, player_id, b, &o->base, false);
     }

@@ -36,6 +36,7 @@ static const skill_def_t SKILLS[] = {
     { "two-handed specialization", CLASS_WARRIOR, SKILL_TIER_COMBAT, 1, "Bonus damage while wielding a two-handed weapon." },
     { "fortify",                 CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "A defensive shield-wall stance -- requires a shield." },
     { "rescue",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Swap places with an ally in combat, pulling their attacker onto yourself." },
+    { "repair",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   5, "Mend damaged equipment yourself -- each repair wears an item down a little for good." },
     { "focus attack",            CLASS_WARRIOR, SKILL_TIER_CLASS,   5, "A single concentrated strike for extra damage." },
     { "shove",                   CLASS_WARRIOR, SKILL_TIER_CLASS,   6, "Push an opponent, knocking them off balance." },
     { "bodyslam",                CLASS_WARRIOR, SKILL_TIER_CLASS,   10, "A grappling throw that slams your opponent down for damage." },

@@ -87,6 +87,19 @@ bool shop_repo_is_stable(int shop_nr) {
     return is_stable;
 }
 
+bool shop_repo_is_repair(int shop_nr) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool is_repair = false;
+    if (db_query(db, "select is_repair from shop where shop_nr=%i", shop_nr) && db_fetch_row(db))
+        is_repair = atoi(db_get(db, "is_repair")) != 0;
+
+    db_close(db);
+    return is_repair;
+}
+
 void shop_repo_producing(int shop_nr, int *out, int max, int *count) {
     *count = 0;
 

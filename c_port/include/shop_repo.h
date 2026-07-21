@@ -87,4 +87,15 @@ bool shop_repo_is_hospital(int shop_nr);
  * this instead, same shape as shop_repo_is_hospital(). */
 bool shop_repo_is_stable(int shop_nr);
 
+/* True if shop `shop_nr` is a repair shop (Object maintenance tasks 3-4,
+ * Sneezy → Tobin feature audit). Same genuinely-new-column precedent as
+ * `is_stable` above. Seeded true for shop_nr 134 ("Blacksmith's Forge",
+ * room 7110) -- a real seeded shop, thematically exact. Unlike the
+ * stable/hospital special-cases, a repair shop's own `shopproducing`
+ * doesn't need special-casing at all -- it keeps buying/selling weapons
+ * and armor normally via `list`/`buy`/`sell`; repair adds two BRAND NEW
+ * commands instead (`submit`/`retrieve`, cmd_repair.c) that check this
+ * flag themselves rather than hooking into the existing shop commands. */
+bool shop_repo_is_repair(int shop_nr);
+
 #endif

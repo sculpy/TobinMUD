@@ -159,6 +159,26 @@ typedef struct obj {
      * broadly similar real-world range either way. */
     int decay_time;
 
+    /* Object maintenance tasks 3-4 (repair-shop economy + self-repair
+     * skill, cmd_repair.c) -- per-INSTANCE state, never reset by a fresh
+     * `obj_create_from_proto()` spawn of the same vnum (0/empty by
+     * default, matching a never-repaired item). `depreciation` climbs by
+     * 1 on every successful repair (self or shop) and caps how high
+     * `cur_struct` can ever be restored to again (`max_struct -
+     * depreciation`, floored -- see cmd_repair.c), the same "repeated
+     * repairs wear an item down for good" idea the real upstream's own
+     * `TObj::maxFix()`/`getDepreciation()` (misc/repair.cc) uses.
+     * `monogram` is the repairer's own name, stamped on by a successful
+     * SELF-repair only (not a shop repair) -- purely cosmetic/flavor
+     * (shown in `look`), not a discount like the upstream's
+     * `isMonogrammed()` halves-material-cost rule (Tobin's repair
+     * pricing has no material-purchase step to discount). Both persist
+     * across a reconnect via `player_inventory` (obj_repo.c), NOT the
+     * `obj` prototype table -- see tobin_migrations.sql's comment on
+     * why. */
+    int depreciation;
+    char monogram[65]; /* matches repair_repo.h's REPAIR_TICKET_MONOGRAM_LEN+1 exactly */
+
     /* Raw upstream itemTypeT (DB `obj.type`, verbatim) -- unlike `category`
      * above (which collapses many raw types into one bucket, e.g. scroll/
      * wand/staff/potion all become OBJ_CAT_MAGIC_DEVICE), `use` (cmd_use.c,

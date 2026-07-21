@@ -678,31 +678,64 @@ implementation inspiration before each one, not guessed at.
       session (verified attacker DEX/hit-rate/round-timing all correct
       first) and reproduces on a from-scratch restart. Flagged via
       `spawn_task` as a separate follow-up rather than fixed here.
-- [~] **Object maintenance** — HALF done 2026-07-21 (work): tasks 1-2 of
+- [x] **Object maintenance** — DONE 2026-07-21 (home). All four tasks of
       the user's "full system" `AskUserQuestion` pick (decay timers +
       combat structure damage + repair-shop economy + per-class repair
-      skills). **Done**: real decay timers (`obj.decay_time`, ticked
-      ~60s/pulse by `obj_decay_tick()`) for corpses/severed limbs/room-
-      floor objects, including a schema-default fix (`decay` column's
-      real DEFAULT of 0 was backwards for any INSERT that omits it, and
-      would have made ~514 real upstream-seeded, persistent zone objects
-      vanish within a minute of every zone reset — fixed via migration +
-      explicit `zone.c` overrides at all 4 object-creation call sites);
-      and combat-driven equipment structure damage
-      (`combat_maybe_damage_equipment()`, 30% chance per landed melee hit
-      on a geared limb, destroys the item with affects reversed/slot
-      cleared/a "scraps of X" object left behind). See STATUS.md for the
-      full write-up, including a test-harness quirk found along the way
-      (a socket left idle-but-polling for 30+s drops when driven by a
-      foreground SSH-invoked test script, but not when the same script
-      runs fully detached — worked around, not a game bug) and the
-      `smoke_test_weapon_depth.py` level-1→50 fix carried over from
-      Session 54's root-cause (still needs one more clean live-verified
-      pass next session). New `tests/smoke_test_object_maintenance.py`.
-      **Still open**: task 3 (repair-shop economy — submit/retrieve
-      tickets, pricing) and task 4 (per-class repair skills —
-      blacksmithing etc., tool/material requirements) — carried to a
-      follow-up session rather than rushed.
+      skills). **Tasks 1-2** (2026-07-21, work): real decay timers
+      (`obj.decay_time`, ticked ~60s/pulse by `obj_decay_tick()`) for
+      corpses/severed limbs/room-floor objects, including a schema-default
+      fix (`decay` column's real DEFAULT of 0 was backwards for any
+      INSERT that omits it, and would have made ~514 real upstream-seeded,
+      persistent zone objects vanish within a minute of every zone reset —
+      fixed via migration + explicit `zone.c` overrides at all 4
+      object-creation call sites); and combat-driven equipment structure
+      damage (`combat_maybe_damage_equipment()`, 30% chance per landed
+      melee hit on a geared limb, destroys the item with affects
+      reversed/slot cleared/a "scraps of X" object left behind). See
+      STATUS.md for the full write-up, including a test-harness quirk
+      found along the way (a socket left idle-but-polling for 30+s drops
+      when driven by a foreground SSH-invoked test script, but not when
+      the same script runs fully detached — worked around, not a game
+      bug) and the `smoke_test_weapon_depth.py` level-1→50 fix carried
+      over from Session 54's root-cause. New
+      `tests/smoke_test_object_maintenance.py`.
+      **Tasks 3-4** (2026-07-21, home): the repair-shop economy. Checked
+      the real upstream `misc/repair.cc`/
+      `disc/disc_warrior_blacksmithing.cc` first — a mature, file-backed
+      ticket system with a real-time repair delay and per-MATERIAL repair
+      skills (`SKILL_BLACKSMITHING` for metal, `SKILL_REPAIR_MONK` for
+      organic/wood/hide/rock, etc.). Tobin has no material-property
+      system yet to gate per-material skills on (separate, still-open
+      audit item below), so this shipped Tobin-scale: ONE `repair` skill
+      (Warrior, CLASS tier, level 5) for self-repair (gold-cost,
+      `SELF_REPAIR_GOLD_PER_POINT=2`, materials spent whether the roll
+      succeeds or not, same "cost regardless of outcome" shape as
+      bash/kick/disarm), and a DB-backed claim-ticket table (`repair_ticket`)
+      for the shop economy instead of a physical note object — no
+      real-time repair delay, ready immediately, a deliberate
+      simplification (see `tobin_migrations.sql`'s comment). New
+      `depreciation`/`monogram`/`cur_struct` columns on `player_inventory`
+      (per-INSTANCE, not the `obj` prototype) — closes a latent gap from
+      Session 55 where structure damage on a carried item was silently
+      lost on reconnect, since `player_inventory` previously stored only
+      `vnum`+`slot`. Every repair (self or shop) permanently lowers the
+      item's repair ceiling (`max_struct - depreciation`, floored at 1,
+      same idea as the real upstream's `TObj::maxFix()`); a successful
+      self-repair also monograms the item with the repairer's name
+      (cosmetic only — not yet surfaced in `look`/`examine`, a known small
+      gap). Four new commands: `repair <item>` (self), `submit <item>`
+      (hand a damaged item to a repair shop for a ticket), `tickets`
+      (list pending claims at the current shop), `retrieve <#>` (pay and
+      collect). Seeded live at the real shop_nr 134, "Blacksmith's Forge"
+      (room 7110) via new `shop.is_repair` column. Deployed to production
+      via a clean copyover (Jesus's live connection restored, 0 dropped).
+      New `tests/smoke_test_repair.py` (15 checks, run against the real
+      seeded shop) — found and fixed a real gap in the test itself along
+      the way: `being_knows_skill()` gates any CLASS-tier skill on
+      `player_progress.basic_disc_pct` alone, NOT on a `player_skill` row
+      existing (that row only drives the proficiency roll), so "hasn't
+      learned repair" has to mean "hasn't unlocked the Warrior discipline
+      tier yet", not just "no player_skill row".
 
 ## Buildable now (no blocked dependencies)
 

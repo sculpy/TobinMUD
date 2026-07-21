@@ -210,6 +210,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "rest",    cmd_rest,    "Sit down and rest (heals faster).",                  MORTAL_LEVEL_MIN },
     { "remove",  cmd_remove,  "Take off a worn or held item (remove <item>).",      MORTAL_LEVEL_MIN },
     { "rent",    cmd_rent,    "Store your belongings and leave the game safely.",   MORTAL_LEVEL_MIN },
+    { "repair",  cmd_repair,  "Mend a damaged item yourself (Warrior, repair <item>).", MORTAL_LEVEL_MIN },
     { "rules",   cmd_rules,   "Read the game rules (rules, or rules <number>).",    MORTAL_LEVEL_MIN },
     /* Bulletin boards (user 2026-07-18). Placed after the whole r-block
      * above (not in strict alpha order, which would put it before "rest")
@@ -246,9 +247,11 @@ static const cmd_entry_t COMMANDS[] = {
     { "split",   cmd_split,   "Split gold evenly among your grouped members present (split <amount>).", MORTAL_LEVEL_MIN },
     { "stand",   cmd_stand,   "Stand up.",                                          MORTAL_LEVEL_MIN },
     { "stop",    cmd_stop,    "Stop following whoever you're following.",           MORTAL_LEVEL_MIN },
+    { "submit",  cmd_submit,  "Hand a damaged item to a repair shop for a claim ticket (submit <item>).", MORTAL_LEVEL_MIN },
     /* "sw" is southwest's alias (movement head); switch needs "swi". */
     { "switch",  cmd_switch,  "Swap what's in your primary and secondary hold.",    MORTAL_LEVEL_MIN },
     { "tell",    cmd_tell,    "Send a private message to anyone playing (tell <name> <message>).", MORTAL_LEVEL_MIN },
+    { "tickets", cmd_tickets, "List your pending claim tickets at a repair shop.",  MORTAL_LEVEL_MIN },
     { "time",    cmd_time,    "Show the current mud clock, weekday, and date.",     MORTAL_LEVEL_MIN },
     { "tips",    cmd_tips,    "Show a random gameplay tip.",                        MORTAL_LEVEL_MIN },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
@@ -376,6 +379,11 @@ static const cmd_entry_t COMMANDS[] = {
      * cmd_purge itself) sweeps the whole game. */
     { "purge",   cmd_purge,   "Clear this room's mobs/objects, or purge linkdead (58+).", PURGE_MIN_LEVEL },
     { "return",  cmd_return,  "Come back to your own body after `possess`ing a mob.", IMMORTAL_LEVEL_MIN },
+    /* Placed right after "return" (not in strict alpha order among the
+     * mortal r-block above) so "ret"/"retu" keep reaching the far more
+     * frequently-typed immortal `return` -- `retrieve` (a deliberate,
+     * ticket-number-driven action) is meant to be typed in full anyway. */
+    { "retrieve", cmd_retrieve, "Pay for and collect a repaired item (retrieve <ticket #>).", MORTAL_LEVEL_MIN },
     /* "set" must stay ahead of "setsev"/"settrap" -- all three start with
      * "set" and the first match wins, so the exact command "set" would
      * otherwise dispatch into one of the others (found via

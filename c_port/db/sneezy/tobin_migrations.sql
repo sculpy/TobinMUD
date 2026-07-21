@@ -353,3 +353,69 @@ UPDATE `shop` SET `is_stable` = 1 WHERE `shop_nr` = 164;
 -- insert that omits the column benefits from the new default.
 ALTER TABLE `obj`
   MODIFY COLUMN `decay` int(11) NOT NULL DEFAULT -1;
+
+-- Object maintenance tasks 3-4 (Sneezy → Tobin feature audit, "full
+-- system" scope, user 2026-07-21): the repair-shop economy + per-class
+-- repair skill closing out what Session 55 started. Checked the real
+-- upstream `misc/repair.cc`/`disc/disc_warrior_blacksmithing.cc` first --
+-- a mature, file-backed ticket system with per-material repair skills
+-- (SKILL_BLACKSMITHING for metal, SKILL_REPAIR_MONK for organic/wood/
+-- hide/rock, etc.), a real-time repair delay, and a depreciation/
+-- monogram discount system. Ported at Tobin scale: ONE `repair` skill
+-- (Warrior, matching the "blacksmithing" flavor most closely -- Tobin
+-- has no material-property system yet to gate per-material skills on,
+-- that's the separate still-open "Material properties" audit item) for
+-- self-repair, plus a DB-backed ticket (not a physical note object) for
+-- the shop economy. No real-time repair delay -- ready immediately,
+-- a deliberate Tobin-scale simplification (the original's own delay
+-- exists mainly to space out a file-based background job, which Tobin's
+-- DB-backed ticket has no equivalent need for).
+--
+-- `depreciation`/`monogram` are per-INSTANCE state (every fresh spawn of
+-- the same vnum starts clean), so they live on `player_inventory` (the
+-- only place Tobin already persists per-carried-instance identity), NOT
+-- on the `obj` prototype table. `cur_struct` is added to the same table
+-- for the same reason, closing a latent gap Session 55's structure-
+-- damage system left open: a damaged-but-not-yet-destroyed item's
+-- cur_struct was never persisted at all before this, so a disconnect/
+-- reconnect silently un-damaged it back to full. All three are nullable/
+-- zero-defaulted so every already-seeded `player_inventory` row (no
+-- column at all before this) reads back as "undamaged, no depreciation,
+-- no monogram" -- exactly correct for gear that was never touched by
+-- either system.
+ALTER TABLE `player_inventory`
+  ADD COLUMN IF NOT EXISTS `cur_struct` int(11) DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS `depreciation` int(11) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS `monogram` varchar(64) DEFAULT NULL;
+
+-- Repair-shop flag, same genuinely-new-column precedent as `is_stable`
+-- above (not overloading spec_proc). Seeded true for shop_nr 134
+-- ("Blacksmith's Forge", room 7110) -- a real seeded shop, thematically
+-- exact, previously just an ordinary weapon/armor-buying shop.
+ALTER TABLE `shop`
+  ADD COLUMN IF NOT EXISTS `is_repair` tinyint(1) NOT NULL DEFAULT 0;
+UPDATE `shop` SET `is_repair` = 1 WHERE `shop_nr` = 134;
+
+-- `submit <item>` hands a damaged item to a repair shop in exchange for
+-- a numbered ticket; `retrieve <#>` pays and gets it back once "ready"
+-- (immediately, see the note above). The item itself is destroyed on
+-- submit (obj_destroy()) -- this table is its only record while "at the
+-- shop," reconstructed fresh via obj_create_from_proto() on retrieval,
+-- same precedent player_inventory itself already uses (a vnum + saved
+-- state, not a serialized object blob).
+CREATE TABLE IF NOT EXISTS `repair_ticket` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `player_id` bigint(20) unsigned NOT NULL,
+  `shop_nr` int(11) NOT NULL,
+  `obj_vnum` int(11) NOT NULL,
+  `item_label` varchar(255) NOT NULL,
+  `orig_max_struct` int(11) NOT NULL,
+  `depreciation_before` int(11) NOT NULL DEFAULT 0,
+  `monogram` varchar(64) DEFAULT NULL,
+  `price` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `player_id` (`player_id`),
+  CONSTRAINT `fk_repair_ticket_player_id` FOREIGN KEY (`player_id`)
+    REFERENCES `player` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

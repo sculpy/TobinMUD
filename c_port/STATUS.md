@@ -1,5 +1,160 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-21 — Session 57 (home): **Object maintenance tasks
+3-4 — the repair-shop economy (Sneezy → Tobin feature audit), closing out
+the item Session 55 left half-done. Deployed to production, not just
+preview, per a new standing preference.**
+- **Scope**: Session 55 already had the user's "Full system" pick on
+  record (decay timers + combat structure damage + a full repair-shop
+  economy + per-class repair skills) and shipped tasks 1-2; this session
+  picked up tasks 3-4. Checked the real upstream `misc/repair.cc`/
+  `disc/disc_warrior_blacksmithing.cc` first, same "check Sneezy before
+  building" habit as every other audit item: a mature, file-backed ticket
+  system (`mutable/repairs/<repairman_vnum>/<ticket_number>`) with a
+  real-time repair delay and genuinely per-MATERIAL repair skills
+  (`SKILL_BLACKSMITHING` for metal, `SKILL_REPAIR_MONK` for
+  organic/wood/hide/rock, `SKILL_REPAIR_CLERIC`/`DEIKHAN` for holy items,
+  `SKILL_REPAIR_MAGE`/`THIEF`/`SHAMAN` for the rest, `SKILL_MEND` as a
+  generic fallback). Tobin has no material-property system yet to gate
+  those on (that's its own still-open audit item, deliberately not
+  pulled forward just to unblock this one), so this shipped Tobin-scale:
+  **one** `repair` skill (Warrior, CLASS tier, level 5, matching
+  "blacksmithing" flavor most closely), **no real-time repair delay**
+  (a DB-backed ticket has no equivalent need for a file-based background
+  job's pacing — ready immediately), **self-repair costs flat gold**
+  ("makeshift materials", `SELF_REPAIR_GOLD_PER_POINT=2`) rather than a
+  seeded consumable item (avoided allocating new persistent-content
+  vnums), and **monogram is cosmetic-only** (not yet surfaced in
+  `look`/`examine` — a known, disclosed gap, not an oversight).
+  Depreciation permanently lowers the repair ceiling
+  (`effective_max_struct() = max(1, max_struct - depreciation)`), same
+  idea as the real upstream's `TObj::maxFix()`.
+- **Schema**: `player_inventory` gained `cur_struct`/`depreciation`/
+  `monogram` columns — all nullable/zero-defaulted so existing rows read
+  back correctly. This closes a real, latent gap from Session 55: that
+  table previously stored only `vnum`+`slot` per carried item, so a
+  damaged-but-not-destroyed item's structure damage was silently lost on
+  every reconnect. New `repair_ticket` table (player_id, shop_nr,
+  obj_vnum, item_label, orig_max_struct, depreciation_before, monogram,
+  price), FK'd to `player.id` ON DELETE CASCADE. `shop.is_repair` column,
+  seeded true for shop_nr 134 ("Blacksmith's Forge", room 7110) — a real
+  seeded shop, thematically exact, same "new column when nothing real
+  exists to reuse" precedent as `shop.is_stable`.
+- **Code**: `include/repair_repo.h` + `src/db/repair_repo.c` (new) —
+  `repair_ticket_create/find/delete/list_for_player()`. `src/cmd/cmd_repair.c`
+  (new) — four commands: `repair <item>` (self, gold-cost, materials
+  spent whether the proficiency roll succeeds or not, same "cost
+  regardless of outcome" shape bash/kick/disarm already established),
+  `submit <item>` (hand a damaged item to a repair-shop keeper for a
+  ticket, destroys the carried item), `tickets` (list pending claims at
+  the current shop), `retrieve <#>` (pay and collect — reconstructs the
+  item via `obj_create_from_proto()`, carries depreciation+1 and the
+  monogram forward, deletes the ticket). `shop_repo_is_repair()` mirrors
+  `shop_repo_is_stable()`. Command-table placement: `repair`/`submit`/
+  `tickets` land alphabetically; `retrieve` is deliberately placed AFTER
+  `return` (not strict alphabetical order, with an inline comment) so the
+  far-more-frequently-typed immortal `return` command keeps ownership of
+  the "ret"/"retu" abbreviation.
+- **Bugs found and fixed while building**: `db_query()` only supports
+  `%s`/`%i`/`%f` — `repair_repo.c`'s first draft used `%li` for the
+  `long player_id` parameter in three queries (server log: `bad format
+  specifier 'l'`), fixed by casting to `(int)` throughout, matching every
+  other call site's existing convention. Missing `#include <stdio.h>` in
+  `repair_repo.c` (implicit `snprintf` declaration). Two
+  `-Wformat-truncation` warnings, fixed by widening `obj_t.monogram` from
+  `char[64]` to `char[65]` (exact match to `repair_ticket_t.monogram`)
+  and the retrieve-message buffer. In `cmd_retrieve()`'s hand-back
+  message, `ticket.item_label` already carries its own leading article
+  ("a dented shield") — the first draft's "hands back your %s" read as
+  "hands back your a dented shield"; fixed to "hands you %s, good as
+  new."
+- **Own test-script mistakes, repeated from earlier in the broader
+  session**: hit the quit!-before-SQL ordering bug again in the first
+  manual verification script (SQL row edits must land AFTER `quit!`, or
+  `quit!`'s own `player_save()` clobbers them with stale pre-SQL
+  in-memory state) — fixed by reordering. Also briefly misdiagnosed
+  `quit!` dropping a test character's held item as a missing `SAVE
+  ROOMS` room-flag bug before reading `cmd_quit.c` directly: `quit!`
+  unconditionally drops everything by design, always — it's Tobin's
+  deliberate "risky logout" (`rent` is the safe one that preserves
+  inventory). Not a repair-shop bug at all; switched to the
+  non-destructive `save` command to verify persistence instead, which
+  worked correctly the first time.
+- **New automated test-authoring bug, found and fixed**: the new
+  `tests/smoke_test_repair.py`'s first two drafts asserted "repair
+  refuses a character who hasn't learned the skill" by simply not
+  inserting a `player_skill` row — but `being_knows_skill()` (skill.c)
+  gates any `SKILL_TIER_CLASS` skill on `player_progress.basic_disc_pct
+  > 0` alone; it never actually checks whether a `player_skill` row
+  exists for that specific skill at all (that row only feeds
+  `skill_roll_success()`'s proficiency roll once a skill is already
+  "known" via the discipline-tier gate). Fixed by granting
+  `basic_disc_pct` and the `player_skill` row together, in the SAME step
+  as the "how do I unlock this" case, rather than treating the skill row
+  as the gate.
+- **New `tests/smoke_test_repair.py`** (15 checks) — run against the
+  REAL seeded shop_nr 134/room 7110 rather than fabricating a shop row
+  (the `shop` table's full schema — profit multipliers, four message
+  templates — makes a synthetic INSERT more fragile than just using the
+  live content the `is_repair` flag was seeded onto). Covers: refusal
+  without the skill, refusal without enough gold (both self-repair and
+  shop retrieve), a successful 100%-proficiency self-repair,
+  cur_struct/depreciation/monogram round-tripping through `save`, and
+  the full submit → tickets → retrieve shop flow including the ticket's
+  DB row actually being deleted (not just hidden) on retrieval.
+- **Deployed to production directly, not preview** — user: "i dont like
+  running a preview copy, can we just use production?" Going forward,
+  preview is pre-deploy verification only, not a standing parallel
+  environment. Ran the targeted regression pass (skillcombat, objects,
+  object_maintenance — the systems adjacent to this session's
+  `obj_repo.c`/`skill.c`/`cmd_table.c` changes, not a full `sweep.sh` per
+  the user's standing "no sweep" preference) against preview first, all
+  three clean (the `smoke_test_object_maintenance.py` "scraps of" check
+  flaked once mid-run — same known test-harness timing quirk documented
+  in Session 56, reconfirmed as a flake, not a regression, by an
+  immediate clean rerun). Deployed via a clean `copyover` the user ran
+  themselves from their own live `Jesus` session (not a disposable test
+  immortal, since `Jesus` was already level 60) — 1 connection restored,
+  0 dropped, no repeat of Session 56's duplicate-connection incident.
+  gdb re-attach wasn't actually needed: ptrace attachment survives
+  `exec()` across a copyover, so the gdb session already watching
+  production's PID kept tracing it seamlessly through the restart with
+  no gap.
+- Updated the "Sneezy → Tobin Feature Audit" artifact (Object maintenance
+  flipped Partial → Done, 30/7/12/6).
+
+Last updated: 2026-07-21 — Session 56 (home): **Synced Sessions 53-55's
+work-box work in (Offensive spells, Magic items, Object maintenance
+tasks 1-2); ran the follow-up testing pass Session 55 flagged.**
+- Pulled/applied schema/rebuilt/deployed all three sessions' work to both
+  Home preview (4003) and production (4000) -- production via a clean
+  `copyover` (no player dropped; a real connected immortal, `Jesus`, was
+  online at the time).
+- **`tests/smoke_test_object_maintenance.py` run for the first time**
+  (flagged as not-yet-run in Session 55). First attempt hit the exact
+  test-harness quirk Session 55's own write-up already documented: the
+  final "scrap object left in the room" check read from a socket still
+  mid-combat (constant interleaved combat spam), so it missed the text
+  even though the mechanic itself works correctly. Fixed the same way
+  Session 55's own manual verification did -- a fresh spectator
+  connection (a second immortal-level login, exempt from the multiplay
+  gate) that never sees combat traffic at all, confirmed via a focused
+  debug trace showing the scrap text present in both the target's own
+  `look` AND the spectator's. All 7 checks now pass clean, repeatedly.
+- **Real, unrelated issue found and fixed along the way**: the production
+  `copyover` above produced a genuine duplicate-connection artifact --
+  the real player's client apparently auto-reconnected in the ~second-
+  long gap of the copyover's `exec()`, landing a SECOND fresh login for
+  the same character moments after the ORIGINAL connection was already
+  restored via the copyover recovery file. Diagnosed live (not guessed):
+  `ss -tni` showed the surviving "active" connection was actually a dead
+  half-open TCP socket (zero bytes received in ~21 minutes, stuck
+  retransmitting), not a real live client -- confirmed with the user
+  before acting, then a hard restart of production cleared it (no admin
+  "disconnect a stuck connection" command exists yet in the codebase;
+  worth adding as a future TODO item). No code change from this --
+  purely an operational hazard of running copyover un-observed.
+
 Last updated: 2026-07-21 — Session 55 (work): **Object maintenance (Sneezy
 → Tobin feature audit), decay timers + combat structure damage — HALF of
 a 4-task "full system" scope, tasks 3-4 (repair-shop economy, per-class

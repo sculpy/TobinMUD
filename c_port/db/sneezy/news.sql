@@ -278,3 +278,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Wear and Tear Is Real Now',
  'Nothing lasts forever anymore. A corpse left lying around will eventually decay away on its own instead of sitting there forever, and the same goes for a severed limb. Gear takes a beating too -- a hard enough fight can actually break something you are wearing, leaving nothing but ruined scraps behind, so keep an eye on how your equipment is holding up and do not get too attached to anything fragile.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Broken Gear Can Be Repaired Now',
+ 'Warriors can learn a `repair` skill (level 5) to mend their own damaged equipment on the spot for a bit of gold in makeshift materials -- just type `repair <item>`. If you would rather have it done properly, take it to the Blacksmith''s Forge: `submit <item>` hands it over for a claim ticket quoting the price, `tickets` lists what you have waiting there, and `retrieve <ticket number>` pays up and hands the fixed item back, good as new. One thing to know: every repair, whether you do it yourself or pay a smith, wears an item down a little for good -- patch the same piece enough times and it will not be repairable to quite as good a condition as it started. Anyone can submit/retrieve at a repair shop; only Warriors can repair their own gear in the field.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
