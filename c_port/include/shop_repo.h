@@ -98,4 +98,12 @@ bool shop_repo_is_stable(int shop_nr);
  * flag themselves rather than hooking into the existing shop commands. */
 bool shop_repo_is_repair(int shop_nr);
 
+/* True if shop `shop_nr` is a bank (Money system v2, Sneezy → Tobin
+ * feature audit). Same genuinely-new-column precedent as `is_stable`/
+ * `is_repair` above. Seeded true for shop_nr 4 ("Grimhaven First Kingdom
+ * Bank", room 31750) -- the real seeded shop this bank picked as Tobin's
+ * single global bank. `deposit`/`withdraw`/`bank balance` (cmd_bank.c)
+ * check this flag rather than special-casing inside `buy`/`sell`. */
+bool shop_repo_is_bank(int shop_nr);
+
 #endif

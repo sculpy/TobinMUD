@@ -109,6 +109,11 @@ static const cmd_entry_t COMMANDS[] = {
      * action layered on the automatic per-round exchange -- see
      * cmd_bash.c's own header comment. */
     { "bash",    cmd_bash,    "Bash your opponent, knocking them down (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
+    /* Money system v2. Placed AFTER "bash" (not strict alphabetical
+     * order, same "ret"/"retu" precedent as retrieve/return) so the
+     * far-more-frequently-typed combat skill keeps ownership of the "ba"
+     * abbreviation -- "bank" only needs "ban" to disambiguate. */
+    { "bank",    cmd_bank,    "Deposit/withdraw at a bank, or check your balance (bank [deposit|withdraw <amt>]).", MORTAL_LEVEL_MIN },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
     { "buy",     cmd_buy,     "Buy an item from a shopkeeper (buy <item>|<#> -- see list).", MORTAL_LEVEL_MIN },
     /* SWAP: close before cast/catchup/color, so "c" still closes doors.
@@ -408,6 +413,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "test",    cmd_test,    "Show the currently-running smoke test, if any.",     TEST_MIN_LEVEL },
     { "tipedit", cmd_tipedit, "Add/list/delete tips (tipedit <text>|list|delete <id>).", TIPEDIT_MIN_LEVEL },
     { "transfer", cmd_transfer, "Teleport someone to you, or to a room (transfer <name> [vnum]).", IMMORTAL_LEVEL_MIN },
+    { "treasury", cmd_treasury, "See how much gold the crown has collected in sales tax.", IMMORTAL_LEVEL_MIN },
     { "users",   cmd_users,   "List all connections with IPs and states.",          USERS_MIN_LEVEL },
     { "vnum",    cmd_vnum,    "List vnums of rooms/objs/mobs by name (vnum <room|obj|mob> <pat>).", BUILD_MIN_LEVEL },
     /* SWAP: wiznews before wizhelp/wiznet -- the immortal tier's only

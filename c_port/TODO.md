@@ -736,6 +736,46 @@ implementation inspiration before each one, not guessed at.
       existing (that row only drives the proficiency roll), so "hasn't
       learned repair" has to mean "hasn't unlocked the Warrior discipline
       tier yet", not just "no player_skill row".
+- [x] **Money system v2 (banking/taxes)** — done 2026-07-21 (home).
+      Checked the real upstream first
+      (`spec/spec_mobs_banker.cc`, `misc/shopowned.cc`/
+      `shopaccounting.cc`, `docs/systems/critical/17-economy-system.md`):
+      per-shop bank accounts, a fractional-reserve central bank, sales
+      tax on player-OWNED shop transactions routed through a full
+      double-entry ledger (a real chart of accounts, journalized
+      debit/credit pairs). All of that is entangled with a player-owned-
+      shop/corporation economy Tobin doesn't have. Confirmed scope with
+      the user via `AskUserQuestion` before building: ONE global bank
+      (`player_progress.bank_gold`, not per-shop accounts) and tax
+      revenue collects into a single visible treasury (not a sink, and
+      not full double-entry). `bank [balance | deposit <amt> | withdraw
+      <amt>]` works only at the real seeded "Grimhaven First Kingdom
+      Bank" (shop_nr 4, keeper "banker Grimhaven", room 31750) -- picked
+      over 5 other bank-named rooms in the seeded data because it's one
+      of only two with a real keeper mob distinct from its own room
+      vnum (the rest look like broken import data, `keeper == in_room`).
+      Earns interest once per in-game day (0.5%, `bank_interest_tick()`,
+      new `bank.c`) -- a single SQL `UPDATE ... WHERE bank_gold > 0`
+      across every player row, not a per-online-character loop, so
+      offline balances grow too. A flat 5% sales tax now applies to
+      ordinary `buy` purchases (hospital/stable/repair purchases branch
+      out earlier in `cmd_buy()` and stay untaxed) charged on top of the
+      sticker price, collecting into a new singleton `world_treasury`
+      row -- visible to immortals via the new `treasury` command. `bank`
+      placed deliberately AFTER `bash` in `cmd_table.c` (not strict
+      alphabetical order, same precedent as `retrieve`/`return`) so the
+      more-frequently-typed combat skill keeps the "ba" abbreviation.
+      New `tests/smoke_test_bank.py` (17 checks) -- caught its own bug
+      while writing it: the test's first `buy` target was a 3-gold torch,
+      whose 5% tax rounds down to 0 and so triggers no tax message at
+      all (`cmd_buy()`'s own `if (tax > 0)` guard) -- switched to a
+      pricier item so the tax path is actually exercised. Daily interest
+      itself isn't covered by the automated test (a real in-game day is
+      ~96 real minutes at Tobin's default clock speed, the same "not
+      practical to keep automated" call already made for
+      `smoke_test_heartbeat.py`'s own real-time boundary) -- sanity-
+      checked the UPDATE query's syntax and FLOOR() math manually
+      instead.
 
 ## Buildable now (no blocked dependencies)
 

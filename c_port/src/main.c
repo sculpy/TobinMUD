@@ -16,6 +16,7 @@
 #include "db.h"
 #include "descriptor.h"
 #include "game_loop.h"
+#include "bank.h"
 #include "gametime.h"
 #include "heartbeat.h"
 #include "mob_ai.h"
@@ -111,6 +112,7 @@ int main(int argc, char **argv) {
     pulse_register(600, descriptor_idle_timeout);/* ~60s: idle-out mortals (immortals immune) */
     pulse_register(600, zone_process_run);       /* ~60s: age zones by 1 minute, top up any that hit their lifespan */
     pulse_register(600, gametime_tick);          /* ~60s: advance the game clock 15 mud-minutes */
+    pulse_register(600, bank_interest_tick);     /* ~60s: apply bank interest once per in-game day */
     pulse_register(600, heartbeat_tick);         /* ~60s: real-time half-hour blank-line tick */
     pulse_register(600, mob_ai_tick);            /* ~60s: mob wander/scavenge (mob.actions bits) */
     pulse_register(600, obj_pool_decay_tick);    /* ~60s: ground puddles shrink, then vanish */

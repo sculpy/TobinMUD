@@ -419,3 +419,41 @@ CREATE TABLE IF NOT EXISTS `repair_ticket` (
   CONSTRAINT `fk_repair_ticket_player_id` FOREIGN KEY (`player_id`)
     REFERENCES `player` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Money system v2 (Sneezy → Tobin feature audit, "Money system v2
+-- (banking/taxes)"). Checked the real upstream first
+-- (spec/spec_mobs_banker.cc, misc/shopowned.cc, misc/shopaccounting.cc,
+-- docs/systems/critical/17-economy-system.md): a mature system with
+-- per-shop bank accounts, a fractional-reserve central bank, transaction
+-- sales tax on player-OWNED shops, and full double-entry bookkeeping
+-- (a real chart of accounts, journalized debit/credit pairs). All of
+-- that is entangled with player-owned shops/corporations, which Tobin
+-- doesn't have -- scoped Tobin-scale instead, confirmed with the user
+-- via AskUserQuestion 2026-07-21: ONE global bank (not per-shop
+-- accounts) and tax revenue collects into a single visible treasury
+-- (not a sink, and not full double-entry).
+--
+-- `bank_gold` on player_progress: a second wallet, separate from `gold`.
+-- Deposit/withdraw only at the real seeded "Grimhaven First Kingdom
+-- Bank" (shop_nr 4, keeper mob 31765 "banker Grimhaven", room 31750) --
+-- picked over 5 other bank-named rooms in the seeded data because it's
+-- the only other one besides shop_nr 123 with a keeper mob distinct
+-- from its own room vnum (the rest look like broken import data, keeper
+-- == in_room). Earns interest once per in-game day -- see bank.c.
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `bank_gold` int(11) NOT NULL DEFAULT 0;
+
+ALTER TABLE `shop`
+  ADD COLUMN IF NOT EXISTS `is_bank` tinyint(1) NOT NULL DEFAULT 0;
+UPDATE `shop` SET `is_bank` = 1 WHERE `shop_nr` = 4;
+
+-- Singleton row (id always 1) tracking accumulated sales-tax revenue --
+-- visible to immortals via the new `treasury` command. No corresponding
+-- spend mechanic yet (a future hook, not built this round).
+CREATE TABLE IF NOT EXISTS `world_treasury` (
+  `id` tinyint(1) NOT NULL DEFAULT 1,
+  `gold` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO `world_treasury` (`id`, `gold`) VALUES (1, 0)
+  ON DUPLICATE KEY UPDATE `id` = `id`;

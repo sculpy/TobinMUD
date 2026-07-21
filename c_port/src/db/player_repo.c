@@ -404,7 +404,7 @@ bool player_progress_load(long player_id, progress_t *out) {
     bool found = false;
     if (db_query(db, "select level, experience, hp, max_hp, true_level, alignment, "
                       "basic_disc_pct, advanced_disc_pct, combat_disc_pct, practice_points, "
-                      "rented_at, gold, hunger, thirst, birth_time, vit, max_vit "
+                      "rented_at, gold, bank_gold, hunger, thirst, birth_time, vit, max_vit "
                       "from player_progress where player_id=%i",
                  (int)player_id)
         && db_fetch_row(db)) {
@@ -420,6 +420,7 @@ bool player_progress_load(long player_id, progress_t *out) {
         out->practice_points = atoi(db_get(db, "practice_points"));
         out->rented_at = atol(db_get(db, "rented_at"));
         out->gold = atoi(db_get(db, "gold"));
+        out->bank_gold = atoi(db_get(db, "bank_gold"));
         out->hunger = atoi(db_get(db, "hunger"));
         out->thirst = atoi(db_get(db, "thirst"));
         out->birth_time = atol(db_get(db, "birth_time"));
@@ -439,17 +440,17 @@ bool player_progress_save(long player_id, const progress_t *progress) {
 
     bool ok = db_query(db,
         "insert into player_progress (player_id, level, experience, hp, max_hp, true_level, alignment, "
-        "basic_disc_pct, advanced_disc_pct, combat_disc_pct, practice_points, rented_at, gold, "
+        "basic_disc_pct, advanced_disc_pct, combat_disc_pct, practice_points, rented_at, gold, bank_gold, "
         "hunger, thirst, birth_time, vit, max_vit) "
-        "values (%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i) "
+        "values (%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i) "
         "on duplicate key update level=%i, experience=%i, hp=%i, max_hp=%i, true_level=%i, alignment=%i, "
-        "basic_disc_pct=%i, advanced_disc_pct=%i, combat_disc_pct=%i, practice_points=%i, rented_at=%i, gold=%i, "
+        "basic_disc_pct=%i, advanced_disc_pct=%i, combat_disc_pct=%i, practice_points=%i, rented_at=%i, gold=%i, bank_gold=%i, "
         "hunger=%i, thirst=%i, birth_time=%i, vit=%i, max_vit=%i",
         (int)player_id, progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment,
-        progress->basic_disc_pct, progress->advanced_disc_pct, progress->combat_disc_pct, progress->practice_points, (int)progress->rented_at, progress->gold,
+        progress->basic_disc_pct, progress->advanced_disc_pct, progress->combat_disc_pct, progress->practice_points, (int)progress->rented_at, progress->gold, progress->bank_gold,
         progress->hunger, progress->thirst, (int)progress->birth_time, progress->vit, progress->max_vit,
         progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment,
-        progress->basic_disc_pct, progress->advanced_disc_pct, progress->combat_disc_pct, progress->practice_points, (int)progress->rented_at, progress->gold,
+        progress->basic_disc_pct, progress->advanced_disc_pct, progress->combat_disc_pct, progress->practice_points, (int)progress->rented_at, progress->gold, progress->bank_gold,
         progress->hunger, progress->thirst, (int)progress->birth_time, progress->vit, progress->max_vit);
 
     db_close(db);

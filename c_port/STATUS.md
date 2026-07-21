@@ -1,5 +1,91 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-21 — Session 58 (home): **Money system v2
+(banking/taxes), Sneezy → Tobin feature audit — same session as #57,
+picked next per the user's stated order (22 then 24).**
+- **Scope confirmed via `AskUserQuestion` before building** (this
+  session's habit, same as the repair-shop's "full system" pick):
+  checked the real upstream first (`spec/spec_mobs_banker.cc`,
+  `misc/shopowned.cc`/`shopaccounting.cc`,
+  `docs/systems/critical/17-economy-system.md`) -- per-shop bank
+  accounts, a fractional-reserve central bank (regular banks must hold
+  `total_deposits * centralbank.profit_buy` in reserve, withdrawals
+  that would violate it are rejected), and sales tax that's actually
+  scoped to player-OWNED shop transactions only, routed to a per-shop
+  tax office and journalized through a genuine chart-of-accounts
+  double-entry ledger (`shoplogjournal`, debit/credit pairs, COGS
+  tracking, year-end book-closing). All of it entangled with a
+  player-owned-shop/corporation economy Tobin doesn't have and has no
+  plans for at its current population. Asked two questions rather than
+  guessing: tax destination (sink vs. a global treasury vs. skip tax
+  entirely) and bank scope (one global bank vs. per-shop accounts).
+  User picked **global treasury** and **single global bank**.
+- **Banking**: new `player_progress.bank_gold` (a second wallet,
+  alongside `gold`) — `bank` / `bank balance` / `bank deposit <amt>` /
+  `bank withdraw <amt>` (new `cmd_bank.c`), usable only at a real shop
+  flagged `is_bank` (same genuinely-new-column precedent as
+  `is_stable`/`is_repair`). Picked shop_nr 4, "Grimhaven First Kingdom
+  Bank" (room 31750, keeper "banker Grimhaven") over 5 other
+  bank-themed seeded rooms found in the data (Brightmoon Bank, The
+  Logrus Bank, Second Bank of Amber, Banking Window, A Marshy Bank) —
+  most of those have `keeper == in_room` in the seeded data, which
+  looks like broken/unset import data rather than a real mob reference;
+  only shop_nr 4 and 123 have a keeper vnum genuinely distinct from
+  their room, and 4's name fits "the single central bank" framing best.
+  Interest: 0.5% once per real in-game day (`bank_interest_tick()`, new
+  `bank.c`), tracked via a composite `year*12*28 + month*28 + day` key
+  against `gametime.h`'s existing calendar (`gametime_day()` alone is
+  only 0-27, not unique across month/year rollover) rather than adding
+  any new day-rollover hook to the calendar system itself. Applied as a
+  single SQL `UPDATE player_progress SET bank_gold = bank_gold +
+  FLOOR(bank_gold * 0.005) WHERE bank_gold > 0` — deliberately NOT a
+  per-online-character loop, so offline balances accrue interest too,
+  matching the real upstream's own daily interest job semantics without
+  needing to load every player into memory to do it.
+- **Tax**: flat 5% surcharge on ordinary `buy` purchases only (hospital/
+  stable/repair purchases branch out of `cmd_buy()` before reaching the
+  tax code and stay untaxed — they're not "shop economy" transactions
+  in the same sense). Collects into a new singleton `world_treasury`
+  row (id always 1), visible to immortals via the new `treasury`
+  command. No spend mechanic yet — a disclosed, deliberate gap, a hook
+  for something later rather than dead weight now.
+- **Command-table placement**: `bank` deliberately placed AFTER `bash`
+  (not strict alphabetical order) so the far-more-frequently-typed
+  Warrior combat skill keeps ownership of the "ba" abbreviation, same
+  precedent as `retrieve` placed after `return` in Session 57. Confirmed
+  no other collision by checking the full mortal `b`-block before
+  inserting. `treasury` is a plain alphabetical insert into the
+  immortal block, right after `transfer`.
+- **New `tests/smoke_test_bank.py`** (17 checks) — found a real bug in
+  the TEST itself while writing it, not the feature: the first draft
+  bought item #1 at the real shop (a 3-gold torch), whose 5% tax rounds
+  down to 0 gold and so never triggers `cmd_buy()`'s tax message at all
+  (`if (tax > 0)` guards it) — the test would have silently passed for
+  the wrong reason (no tax message ever appearing, mistaken for "no
+  bug" rather than "rounds to zero"). Switched to a pricier item (#6,
+  30-gold fuel brick) so the tax path is actually exercised. Daily
+  interest itself isn't covered by the automated test — a real in-game
+  day is ~96 real minutes at Tobin's default clock speed, the same
+  "not practical to keep automated" call already made for
+  `smoke_test_heartbeat.py`'s own real-time boundary — sanity-checked
+  the UPDATE query's syntax and FLOOR() rounding behavior manually
+  against a throwaway row instead (confirmed sub-200-gold balances
+  correctly don't grow that day, by design, rather than rounding up to
+  a free coin).
+- Built clean (zero compiler warnings) on the first attempt this
+  session — no db_query format-specifier or missing-include bugs this
+  time, likely because `%f` (needed for the interest rate constant) had
+  already been proven out by Session 57's `%i`-casting bug, so it got
+  checked directly in `db.c` before writing `bank.c` rather than
+  assumed.
+- Verified live end-to-end on preview (all 17 checks passing, plus the
+  existing banking/deposit/withdraw/tax flow manually re-confirmed).
+  Production's on-disk binary already has this build (same situation as
+  Session 57 — rebuilt once, serves both instances); deploy to
+  production deferred to the user's own copyover, per their stated
+  preference from Session 57 ("i'll copyover") rather than spinning up
+  a disposable test immortal to trigger it automatically.
+
 Last updated: 2026-07-21 — Session 57 (home): **Object maintenance tasks
 3-4 — the repair-shop economy (Sneezy → Tobin feature audit), closing out
 the item Session 55 left half-done. Deployed to production, not just

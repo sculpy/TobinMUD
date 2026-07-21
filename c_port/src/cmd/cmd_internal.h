@@ -27,6 +27,8 @@ bool cmd_repair(descriptor_t *d, const char *args);
 bool cmd_submit(descriptor_t *d, const char *args);
 bool cmd_retrieve(descriptor_t *d, const char *args);
 bool cmd_tickets(descriptor_t *d, const char *args);
+bool cmd_bank(descriptor_t *d, const char *args);
+bool cmd_treasury(descriptor_t *d, const char *args);
 bool cmd_skills(descriptor_t *d, const char *args);
 bool cmd_practice(descriptor_t *d, const char *args);
 bool cmd_continue(descriptor_t *d, const char *args);

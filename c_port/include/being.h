@@ -130,6 +130,18 @@ typedef struct {
      * directly on defeat (combat.c's combat_defeat()); shops (cmd_shop.c,
      * shop_repo.h) are the spending sink. */
     int gold;
+    /* Bank balance (Money system v2, Sneezy → Tobin feature audit,
+     * "Money system v2 (banking/taxes)"). Separate from `gold` (the
+     * carried wallet, which mobs hand over and shops spend) -- a single
+     * global bank rather than the original's per-shop accounts +
+     * fractional-reserve central bank (Tobin's population doesn't
+     * justify that scaffolding). Deposit/withdraw at the real seeded
+     * "Grimhaven First Kingdom Bank" (shop_nr 4, room 31750) via
+     * cmd_bank.c. Earns interest once per in-game day
+     * (bank_interest_tick(), bank.c) -- a single SQL UPDATE across every
+     * player row, not a per-online-character loop, so offline balances
+     * grow too, same as the original's daily interest job. */
+    int bank_gold;
     /* Vital statistics (Sneezy → Tobin feature audit, "Vital statistics
      * (hunger/thirst/age)"). Rescaled from the original's 0-24 condTypeT
      * range (sneezymud-master/docs/systems/informational/

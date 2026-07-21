@@ -16,6 +16,11 @@
 #include "obj_repo.h"
 #include "shop_repo.h"
 #include "thing.h"
+#include "treasury_repo.h"
+
+/* Flat sales tax on ordinary `buy` purchases (Money system v2, Sneezy →
+ * Tobin feature audit) -- see cmd_buy()'s own comment. */
+#define SALES_TAX_RATE 0.05
 
 /* Same keyword-abbreviation matching spirit as cmd_object.c's
  * obj_name_matches() -- duplicated locally rather than shared, same
@@ -393,7 +398,17 @@ bool cmd_buy(descriptor_t *d, const char *args) {
     }
 
     int price = (int)(proto.price * shop.profit_buy);
-    if (ch->progress.gold < price) {
+    /* Sales tax (Money system v2, Sneezy → Tobin feature audit). The real
+     * upstream's chargeTax() only taxes player-OWNED shop transactions,
+     * routed to a per-shop tax office and journalized in double-entry --
+     * Tobin has no player-shop economy, so this is a flat surcharge on
+     * every ordinary `buy` instead, collected into the single global
+     * treasury (see tobin_migrations.sql and cmd_bank.c's `treasury`
+     * command). Hospital/stable purchases branch out above this point
+     * and are deliberately untaxed. */
+    int tax = (int)(price * SALES_TAX_RATE);
+    int total = price + tax;
+    if (ch->progress.gold < total) {
         char msg[SHOP_MSG_LEN + 4];
         snprintf(msg, sizeof(msg), "%s\r\n", shop.missing_cash1);
         descriptor_send(d, msg);
@@ -419,7 +434,14 @@ bool cmd_buy(descriptor_t *d, const char *args) {
     strncat(paid, "\r\n", sizeof(paid) - strlen(paid) - 1);
     descriptor_send(d, paid);
 
-    ch->progress.gold -= price;
+    if (tax > 0) {
+        char taxmsg[96];
+        snprintf(taxmsg, sizeof(taxmsg), "A sales tax of %d gold is added to the crown's coffers.\r\n", tax);
+        descriptor_send(d, taxmsg);
+        treasury_repo_add_gold(tax);
+    }
+
+    ch->progress.gold -= total;
     player_progress_save(ch->player_id, &ch->progress);
     player_inventory_save(ch->player_id, ch);
     return true;

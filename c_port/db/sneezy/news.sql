@@ -283,3 +283,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Broken Gear Can Be Repaired Now',
  'Warriors can learn a `repair` skill (level 5) to mend their own damaged equipment on the spot for a bit of gold in makeshift materials -- just type `repair <item>`. If you would rather have it done properly, take it to the Blacksmith''s Forge: `submit <item>` hands it over for a claim ticket quoting the price, `tickets` lists what you have waiting there, and `retrieve <ticket number>` pays up and hands the fixed item back, good as new. One thing to know: every repair, whether you do it yourself or pay a smith, wears an item down a little for good -- patch the same piece enough times and it will not be repairable to quite as good a condition as it started. Anyone can submit/retrieve at a repair shop; only Warriors can repair their own gear in the field.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Banking Has Arrived, and Shops Now Charge Tax',
+ 'The Grimhaven First Kingdom Bank will now hold your gold for you. Visit and use `bank` to check your balance, `bank deposit <amount>` to put gold away safely, and `bank withdraw <amount>` to take it back out. Gold left in the bank earns a little interest every day, even while you are offline, so it is worth parking some there rather than carrying everything around. One catch: ordinary shop purchases now come with a small sales tax on top of the sticker price, which goes straight into the crown''s coffers -- something to budget for next time you go shopping.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

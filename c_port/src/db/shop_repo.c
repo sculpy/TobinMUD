@@ -100,6 +100,19 @@ bool shop_repo_is_repair(int shop_nr) {
     return is_repair;
 }
 
+bool shop_repo_is_bank(int shop_nr) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool is_bank = false;
+    if (db_query(db, "select is_bank from shop where shop_nr=%i", shop_nr) && db_fetch_row(db))
+        is_bank = atoi(db_get(db, "is_bank")) != 0;
+
+    db_close(db);
+    return is_bank;
+}
+
 void shop_repo_producing(int shop_nr, int *out, int max, int *count) {
     *count = 0;
 
