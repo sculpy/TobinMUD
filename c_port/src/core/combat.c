@@ -57,6 +57,26 @@ static void tell(being_t *b, const char *fmt, ...) {
  * modest edge, not a dominant one. */
 #define MOUNTED_ATTACK_BONUS 8
 
+/* Object maintenance (Sneezy -> Tobin feature audit) -- corpses and
+ * severed limbs used to sit in their room forever, since obj.h's new
+ * decay_time field didn't exist until now. ~15/~20 real minutes at
+ * obj_decay_tick()'s ~60s cadence -- a deliberate, documented value (the
+ * original's exact real-world corpse lifespan isn't in this bundled
+ * source), long enough to loot but not indefinite. A limb outlasts the
+ * corpse it came from a little, being the rarer "proof of a decapitation"
+ * trophy. */
+#define CORPSE_DECAY_TICKS 15
+#define LIMB_DECAY_TICKS 20
+#define SCRAP_DECAY_TICKS 10 /* the least significant of the three -- scrap
+                              * left from a destroyed item is pure flavor,
+                              * not lootable gear, so it clears fastest. */
+
+/* Combat structure damage (Object maintenance, Sneezy -> Tobin feature
+ * audit) -- 30% base chance, matching the original's own documented
+ * genericDamCheck() rate, that any given hit wears down whatever the
+ * defender has equipped on the LIMB that got hit, if anything. */
+#define EQUIP_DAMAGE_CHANCE_PCT 30
+
 /* Per-limb hit likelihood (user 2026-07-12: "some limbs are harder to
  * decapitate... this should be based on the likelihood that a limb
  * could be damaged"), lifted straight from Sneezy's own humanoid
@@ -130,8 +150,13 @@ static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb)
              being_display_name_cap(defender, sever_capbuf, sizeof(sever_capbuf)), ln);
 
     obj_t *part = obj_create_ephemeral(ln, short_descr, long_descr, OBJ_CAT_TRASH);
-    if (part)
+    if (part) {
+        /* Object maintenance (Sneezy -> Tobin feature audit): same "used
+         * to sit forever" gap as corpses -- see CORPSE_DECAY_TICKS'
+         * comment above. */
+        part->decay_time = LIMB_DECAY_TICKS;
         thing_move_to(&part->base, &defender->base.roomp->base);
+    }
 
     tell(attacker, "%s's %s is severed clean off!\r\n",
          being_display_name_cap(defender, sever_capbuf, sizeof(sever_capbuf)), ln);
@@ -213,6 +238,70 @@ static const char *weapon_verb(const obj_t *weapon) {
         || ci_contains(n, "flail") || ci_contains(s, "flail"))
         return "lash";
     return "hit";
+}
+
+/* Object maintenance (Sneezy -> Tobin feature audit) -- a Tobin-scale
+ * slice of the original's dentItem()/tearItem()/pierceItem(): models the
+ * DEFENDER'S WORN GEAR absorbing wear from being hit, not a weapon
+ * degrading from being swung (matches the original's own framing -- those
+ * three functions are called on the STRUCK being's equipment). No
+ * material-susceptibility matrix (that's the separate, still-open
+ * Material properties audit item) -- a flat 1-2 point structure loss per
+ * triggered hit, same for every material, and no weapon-hardness scaling
+ * either, an honest, documented scope-down rather than a silent gap.
+ * Skips items with no real max_struct data at all (0 -- most sandbox/
+ * test fixtures and some real content, same precedent as cmd_look.c's
+ * condition display) and an immortal defender (dmg is already forced to
+ * 0 by the caller, so there's nothing to wear down from). Only worn
+ * `equipment[]` slots are checked, never `held[]` -- matches Magic
+ * items' own equipment-vs-held distinction (stat/AC/HP/Vitality affects
+ * only apply to worn gear too). At 0 structure the item is "scrapped":
+ * whatever stat/AC/HP/Vitality bonus it was granting reverses first
+ * (obj_apply_equip_affects(), same call `remove` makes), then it's
+ * replaced with a small ephemeral "scraps of X" trash object on the
+ * floor (the original's makeScraps() concept) that itself decays after a
+ * while (Task 1's fresh decay-timer infra) rather than piling up
+ * forever. */
+static void combat_maybe_damage_equipment(being_t *defender, limb_t limb, int dmg) {
+    if (dmg <= 0)
+        return;
+    obj_t *item = defender->equipment[limb];
+    if (!item || item->max_struct <= 0)
+        return;
+    if (rand() % 100 >= EQUIP_DAMAGE_CHANCE_PCT)
+        return;
+
+    item->cur_struct -= 1 + rand() % 2;
+    if (item->cur_struct > 0)
+        return;
+
+    const char *label = item->base.short_descr[0] ? item->base.short_descr : item->base.name;
+    tell(defender, "Your %s is destroyed!\r\n", label);
+    if (defender->base.roomp) {
+        char capbuf[128];
+        char room_msg[224];
+        snprintf(room_msg, sizeof(room_msg), "%s's %s is destroyed!\r\n",
+                 being_display_name_cap(defender, capbuf, sizeof(capbuf)), label);
+        descriptor_room_echo(defender->base.roomp, defender, room_msg);
+    }
+
+    defender->equipment[limb] = NULL;
+    obj_apply_equip_affects(defender, item, -1);
+    if (defender->base.kind == THING_PC)
+        player_inventory_save(defender->player_id, defender);
+
+    if (defender->base.roomp) {
+        char scrap_short[192];
+        char scrap_long[256];
+        snprintf(scrap_short, sizeof(scrap_short), "scraps of %s", label);
+        snprintf(scrap_long, sizeof(scrap_long), "Scraps of %s lie here, ruined.", label);
+        obj_t *scrap = obj_create_ephemeral("scraps", scrap_short, scrap_long, OBJ_CAT_TRASH);
+        if (scrap) {
+            scrap->decay_time = SCRAP_DECAY_TICKS;
+            thing_move_to(&scrap->base, &defender->base.roomp->base);
+        }
+    }
+    obj_destroy(item);
 }
 
 /* Placeholder damage formula, built from the existing 6-attribute set --
@@ -426,6 +515,7 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     int pct_before = being_limb_pct(defender, limb);
     being_hurt_limb(defender, limb, dmg);
     int pct_after = being_limb_pct(defender, limb);
+    combat_maybe_damage_equipment(defender, limb, dmg);
 
     const char *ln = limb_name(limb);
     char verb_3rd[16];
@@ -751,6 +841,15 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             corpse->val[1] = 0;      /* not closed, not locked -- loot immediately */
             corpse->val[2] = 0;
             corpse->weight = 50;     /* placeholder body weight */
+            /* Object maintenance (Sneezy -> Tobin feature audit): corpses
+             * used to sit in their room forever -- no decay mechanism
+             * existed at all. CORPSE_DECAY_TICKS gives a real window to
+             * loot (~15 real minutes at obj_decay_tick()'s ~60s cadence)
+             * before it crumbles; a still-populated corpse relocates its
+             * remaining contents to the room floor first (decay_visit(),
+             * obj.c), so unlooted gear is never actually lost, just no
+             * longer neatly bagged. */
+            corpse->decay_time = CORPSE_DECAY_TICKS;
             thing_move_to(&corpse->base, &loser->base.roomp->base);
         }
 

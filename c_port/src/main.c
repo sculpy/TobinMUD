@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
     pulse_register(600, mob_ai_tick);            /* ~60s: mob wander/scavenge (mob.actions bits) */
     pulse_register(600, obj_pool_decay_tick);    /* ~60s: ground puddles shrink, then vanish */
     pulse_register(600, obj_light_burn_tick);    /* ~60s: lit lights burn down, then go out */
+    pulse_register(600, obj_decay_tick);         /* ~60s: room-floor decay timers (corpses, ...) */
     pulse_register(VITALS_PULSES, vitals_tick_run); /* ~60s: hunger/thirst drain + starvation */
     pulse_register(WEATHER_PULSES, weather_tick_run); /* ~60s: world weather transitions */
     pulse_register(600, trigger_random_tick);    /* ~60s: mob/room "random" scripted triggers */

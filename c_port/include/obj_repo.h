@@ -38,6 +38,8 @@ typedef struct {
     int max_exist; /* upstream world-wide instance cap, 0 = uncapped -- see
                      * cmd_load.c's `load` command for the one place Tobin
                      * reads this (a warning, not an enforced cap). */
+    int decay_time; /* upstream `decay` column, verbatim -- see obj_t's own
+                      * decay_time doc comment (obj.h) for the convention. */
 } obj_proto_t;
 
 /* Loads the prototype row for `vnum` from the `obj` table into *out. Returns

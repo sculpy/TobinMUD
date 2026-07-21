@@ -201,6 +201,22 @@ static bool zone_cmd_load_obj_ground(const zone_reset_cmd_t *cmd, bool boot_time
     if (!o)
         return false;
 
+    /* Object maintenance (Sneezy -> Tobin feature audit): zone-placed
+     * instances are PERSISTENT world content, expected to still be here
+     * next time someone walks through -- deliberately exempted from
+     * whatever real decay_time the prototype row carries (~500 real
+     * upstream rows are seeded with decay=0, "decays this tick," and
+     * honoring that verbatim here would make those items vanish from
+     * the live world within about a minute of every zone reset, an
+     * unverified regression this bundled source can't confirm was ever
+     * the original's actual behavior for ZONE-loaded instances
+     * specifically, as opposed to on-the-fly-created ones). Real decay
+     * still applies normally to an admin's `load obj <vnum>` (cmd_load.c
+     * doesn't reset it) and to Tobin's own ephemeral objects (corpses,
+     * severed limbs, scrap -- combat.c sets a real countdown deliberately
+     * there). Same override at every other zone_cmd_* creation site in
+     * this file. */
+    o->decay_time = -1;
     thing_set_room(&o->base, room);
     *last_obj = o;
     return true;
@@ -221,6 +237,7 @@ static bool zone_cmd_equip(const zone_reset_cmd_t *cmd, being_t *mob) {
     obj_t *o = obj_create_from_proto(cmd->arg1);
     if (!o)
         return false;
+    o->decay_time = -1; /* persistent zone content -- see zone_cmd_load_obj_ground()'s doc comment */
 
     int slot = wear_slot_for_flag(o->wear_flag, mob);
     if (slot == WEAR_SLOT_HELD) {
@@ -253,6 +270,7 @@ static bool zone_cmd_give(const zone_reset_cmd_t *cmd, being_t *mob, obj_t **las
     obj_t *o = obj_create_from_proto(cmd->arg1);
     if (!o)
         return false;
+    o->decay_time = -1; /* persistent zone content -- see zone_cmd_load_obj_ground()'s doc comment */
 
     thing_move_to(&o->base, &mob->base);
     *last_obj = o;
@@ -269,6 +287,7 @@ static bool zone_cmd_place(const zone_reset_cmd_t *cmd, obj_t *container) {
     obj_t *o = obj_create_from_proto(cmd->arg1);
     if (!o)
         return false;
+    o->decay_time = -1; /* persistent zone content -- see zone_cmd_load_obj_ground()'s doc comment */
 
     thing_move_to(&o->base, &container->base);
     return true;

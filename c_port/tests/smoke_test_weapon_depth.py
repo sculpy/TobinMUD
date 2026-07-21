@@ -162,9 +162,20 @@ def make_char(name, pw, class_choice):
 
 def make_dummy(vnum, keyword):
     # Explicit name=value pairs (not a raw positional list) so every
-    # column's intent is unambiguous: level 1, tohit/ac 0 (never
-    # affects the attacker's to-hit roll), a huge hpbonus so it
-    # survives dozens of real hits, standing so it's a normal target.
+    # column's intent is unambiguous: tohit/ac 0 (never affects the
+    # attacker's to-hit roll), a huge hpbonus so it survives dozens of
+    # real hits, standing so it's a normal target. Level 50, NOT 1 (a
+    # real bug caught live, 2026-07-21): a level-1 mob's PER-LIMB HP caps
+    # stay at the tiny level-1 baseline regardless of hpbonus (hpbonus
+    # only inflates OVERALL HP), so purely by chance, enough hits landing
+    # on the same major limb (head/neck/waist/body) crosses combat.c's
+    # separate limb-destroyed-instant-death threshold and kills the dummy
+    # well before this test's needed 30-hit sample -- reliably reproduced
+    # on a from-scratch server restart with zero other players connected,
+    # confirmed unrelated to hit rate or combat-round timing (both
+    # measured correct first). Level 50 scales limb HP caps up
+    # proportionally alongside hpbonus, so the dummy actually survives as
+    # long as its huge overall HP pool implies.
     cols = {
         "vnum": vnum,
         "name": f"'{keyword}'",
@@ -173,7 +184,7 @@ def make_dummy(vnum, keyword):
         "description": "'desc'",
         "actions": 0, "affects": 0, "faction": 0, "fact_perc": 0,
         "letter": "'A'", "attacks": 1.0,
-        "class": 0, "level": 1, "tohit": 0, "ac": 0, "hpbonus": 5000,
+        "class": 0, "level": 50, "tohit": 0, "ac": 0, "hpbonus": 5000,
         "damage_level": 0, "damage_precision": 0, "gold": 0, "race": 0,
         "weight": 0, "height": 0, "str": 0, "bra": 0, "con": 0, "dex": 0,
         "agi": 0, "intel": 0, "wis": 0, "foc": 0, "per": 0, "cha": 0,

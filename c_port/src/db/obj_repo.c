@@ -20,7 +20,7 @@ bool obj_proto_load(int vnum, obj_proto_t *out) {
     if (db_query(db,
             "select name, short_desc, long_desc, type, wear_flag, val0, val1, "
             "val2, val3, weight, price, can_be_seen, max_struct, cur_struct, "
-            "volume, material, max_exist from obj where vnum=%i",
+            "volume, material, max_exist, decay from obj where vnum=%i",
             vnum)
         && db_fetch_row(db)) {
         snprintf(out->name, sizeof(out->name), "%s", db_get(db, "name"));
@@ -40,6 +40,7 @@ bool obj_proto_load(int vnum, obj_proto_t *out) {
         out->volume = atoi(db_get(db, "volume"));
         out->material = atoi(db_get(db, "material"));
         out->max_exist = atoi(db_get(db, "max_exist"));
+        out->decay_time = atoi(db_get(db, "decay"));
         found = true;
     }
 

@@ -678,6 +678,31 @@ implementation inspiration before each one, not guessed at.
       session (verified attacker DEX/hit-rate/round-timing all correct
       first) and reproduces on a from-scratch restart. Flagged via
       `spawn_task` as a separate follow-up rather than fixed here.
+- [~] **Object maintenance** — HALF done 2026-07-21 (work): tasks 1-2 of
+      the user's "full system" `AskUserQuestion` pick (decay timers +
+      combat structure damage + repair-shop economy + per-class repair
+      skills). **Done**: real decay timers (`obj.decay_time`, ticked
+      ~60s/pulse by `obj_decay_tick()`) for corpses/severed limbs/room-
+      floor objects, including a schema-default fix (`decay` column's
+      real DEFAULT of 0 was backwards for any INSERT that omits it, and
+      would have made ~514 real upstream-seeded, persistent zone objects
+      vanish within a minute of every zone reset — fixed via migration +
+      explicit `zone.c` overrides at all 4 object-creation call sites);
+      and combat-driven equipment structure damage
+      (`combat_maybe_damage_equipment()`, 30% chance per landed melee hit
+      on a geared limb, destroys the item with affects reversed/slot
+      cleared/a "scraps of X" object left behind). See STATUS.md for the
+      full write-up, including a test-harness quirk found along the way
+      (a socket left idle-but-polling for 30+s drops when driven by a
+      foreground SSH-invoked test script, but not when the same script
+      runs fully detached — worked around, not a game bug) and the
+      `smoke_test_weapon_depth.py` level-1→50 fix carried over from
+      Session 54's root-cause (still needs one more clean live-verified
+      pass next session). New `tests/smoke_test_object_maintenance.py`.
+      **Still open**: task 3 (repair-shop economy — submit/retrieve
+      tickets, pricing) and task 4 (per-class repair skills —
+      blacksmithing etc., tool/material requirements) — carried to a
+      follow-up session rather than rushed.
 
 ## Buildable now (no blocked dependencies)
 

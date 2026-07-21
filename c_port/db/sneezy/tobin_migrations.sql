@@ -336,3 +336,20 @@ CREATE TABLE IF NOT EXISTS `quest_def` (
 ALTER TABLE `shop`
   ADD COLUMN IF NOT EXISTS `is_stable` tinyint(1) NOT NULL DEFAULT 0;
 UPDATE `shop` SET `is_stable` = 1 WHERE `shop_nr` = 164;
+
+-- Object maintenance (Sneezy → Tobin feature audit): the upstream `obj`
+-- table's own `decay` column (obj.h's decay_time field, obj.c's newly-
+-- real obj_decay_tick()) had a schema DEFAULT of 0 -- "decays THIS tick"
+-- per the original's own real convention, verified against real seed
+-- data (0 is a genuinely deliberate value on ~500 real rows, not junk).
+-- That default is exactly backwards for anything that DOESN'T explicitly
+-- set it: 30+ existing smoke-test fixtures (and any future hand-authored
+-- INSERT) create ad-hoc `obj` rows without ever mentioning `decay` at
+-- all, so every one of them would silently inherit "vanish within about
+-- a minute" the moment decay actually started being enforced -- caught
+-- live building this feature (a throwaway test fixture decayed out from
+-- under its own test before combat could even land a hit on it).
+-- Already-seeded rows keep whatever real value they have; only a FUTURE
+-- insert that omits the column benefits from the new default.
+ALTER TABLE `obj`
+  MODIFY COLUMN `decay` int(11) NOT NULL DEFAULT -1;

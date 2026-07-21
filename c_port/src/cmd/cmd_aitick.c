@@ -18,7 +18,9 @@
  * as `hurtlimb` (cmd_hurtlimb.c): mob_ai_tick()'s wander/scavenge chances
  * (20%/25%, also now the lamplighter's light/extinguish check),
  * obj_pool_decay_tick()'s puddle shrinkage, obj_light_burn_tick()'s
- * fuel burn-down, trigger_random_tick()'s "random" scripted triggers,
+ * fuel burn-down, (Sneezy → Tobin feature audit, "Object maintenance")
+ * obj_decay_tick()'s room-floor decay countdowns (corpses, severed
+ * limbs, ...), trigger_random_tick()'s "random" scripted triggers,
  * (Sneezy → Tobin feature audit, "Vital statistics") vitals_tick_run()'s
  * hunger/thirst drain + starvation, and (same audit, "Weather & light
  * levels") gametime_tick()'s clock advance + weather_tick_run()'s sky
@@ -53,6 +55,7 @@ bool cmd_aitick(descriptor_t *d, const char *args) {
         mob_ai_tick(0);
         obj_pool_decay_tick(0);
         obj_light_burn_tick(0);
+        obj_decay_tick(0);
         trigger_random_tick(0);
         vitals_tick_run(0);
         gametime_tick(0);

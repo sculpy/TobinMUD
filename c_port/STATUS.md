@@ -1,6 +1,127 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-21 — Session 54 (work): **Magic items (Sneezy →
+Last updated: 2026-07-21 — Session 55 (work): **Object maintenance (Sneezy
+→ Tobin feature audit), decay timers + combat structure damage — HALF of
+a 4-task "full system" scope, tasks 3-4 (repair-shop economy, per-class
+repair skills) still open.**
+- **Scope**: user picked "Full system" via `AskUserQuestion` (decay
+  timers + combat structure/durability damage + a full repair-shop
+  economy with tickets/skills/materials/monogram/depreciation), same
+  full-system precedent as Magic items. Only the first two of four
+  sub-tasks landed this session; the repair economy and repair skills
+  are carried forward as open TODO items rather than rushed.
+- **Decay timers (task 1)**: the upstream `obj` table's own real `decay`
+  column (`-1`=never/`0`=this tick/`>0`=ticks remaining, matches the
+  original's `OBJ_NOTIMER` convention, confirmed against real seed data:
+  8757 rows at -1, 514 at 0, plus a real positive-tick distribution) was
+  loaded but completely unused before this session. Now: `obj_t.decay_
+  time` (obj.h), read verbatim in `obj_proto_load()`/`obj_create_from_
+  proto()` (obj_repo.c/obj.c), ticked once per real ~60s pulse by new
+  `obj_decay_tick()` (`world_for_each_obj()`-driven, room-floor objects
+  only) — decrements, relocates a decaying container's contents to the
+  room first (`obj_destroy()` doesn't touch children), announces "X
+  decays into nothing." to the room, then destroys it. Corpses
+  (`CORPSE_DECAY_TICKS=15`) and severed limbs (`LIMB_DECAY_TICKS=20`,
+  combat.c) now get a real countdown instead of sitting forever.
+  **Schema-default bug caught and fixed, not shipped as a hazard**: the
+  `decay` column's real schema default was `0` ("decays this tick") —
+  backwards for any INSERT that omits it, which 30+ existing smoke-test
+  fixtures (and any future hand-authored content) do. Worse, `zone.c`'s
+  4 persistent-object-creation call sites (`zone_cmd_load_obj_ground`/
+  `_equip`/`_give`/`_place`) route through the same `obj_create_from_
+  proto()` — honoring real `decay=0` data there verbatim would make
+  ~514 real, persistent WORLD objects vanish within about a minute of
+  every zone reset. Fixed two ways: a Tobin migration changes the
+  column's schema DEFAULT to `-1` (protects future inserts, doesn't
+  touch already-seeded rows), and all 4 `zone.c` call sites explicitly
+  reset `decay_time = -1` right after creation (persistent content stays
+  exempt; an admin's `load obj <vnum>` and Tobin's own ephemeral objects
+  are deliberately NOT touched by that override, so real decay data and
+  countdown-timers still apply there).
+- **Combat structure damage (task 2)**: `obj_t.max_struct`/`cur_struct`
+  already existed (real DB columns) but were read-only, feeding just a
+  one-word condition summary in `look`. New `combat_maybe_damage_
+  equipment()` (combat.c, hooked into `combat_strike()` only — normal
+  melee, deliberately NOT the shared bash/kick/spell/wand/staff damage
+  pipeline, an honest scope cut): flat 30% chance per landed hit
+  (matches the original's documented base rate) that whatever the
+  DEFENDER has equipped on the LIMB that got hit takes 1-2 structure
+  damage; at 0 the item is destroyed — affects reversed (`obj_apply_
+  equip_affects(..., -1)`), slot cleared, inventory saved if a PC, a
+  "scraps of X" ephemeral object dropped in the room (`SCRAP_DECAY_
+  TICKS=10`), original object freed. Held/wielded items are never
+  touched (only `equipment[]`, matching Magic items' own worn-vs-held
+  split); no material-susceptibility matrix (deferred to the separate,
+  still-open "Material properties" audit item).
+  **Verification took two wrong turns before landing**: (1) first
+  attempt wore the test item on the IMMORTAL attacker — `combat_strike()`
+  forces `dmg=0` against an immortal DEFENDER, so an immortal's own gear
+  can never trigger this at all; fixed by wearing it on a mortal TARGET
+  instead. (2) Confirming the destroy actually fired required a fresh
+  spectator connection (`goto <target>`/`look <target>`) rather than
+  trusting the original test sockets' own captured output — a real,
+  reproducible test-harness quirk (see below) was truncating/dropping
+  output on any socket left open and merely polling (no further writes)
+  for 30+ seconds while driven from a live foreground SSH command.
+  Confirmed working end-to-end this way: equipment slot cleared (`body:
+  nothing`), "Scraps of a fragile test shirt lie here, ruined." on the
+  room floor, target's inventory empty (destroyed item doesn't go to
+  inventory).
+- **Test-harness quirk found and worked around, not a product bug**: a
+  descriptor that sits idle (server sends data/keepalive NOPs, client
+  only polls via `recv()`, never writes again) for 30+ seconds
+  reproducibly gets disconnected (`"X has lost its/her/his link."`,
+  `descriptor_process_input()` reading EOF) ONLY when the driving test
+  script is a direct foreground `ssh ... python3 ...` invocation; the
+  IDENTICAL socket-idle-then-poll pattern run instead as a fully
+  detached background process (`setsid nohup ... & disown`, polled via
+  separate short-lived `ssh` calls against a result file) does not
+  reproduce it at all, confirmed on two different tests
+  (`check_struct.py` this session, `smoke_test_weapon_depth.py` re-
+  verification). No corresponding server-side error (`descriptor
+  flush_output`'s own "backlog full" log line never appears; immortals
+  are already coded immune to the *policy* idle-out in `descriptor_
+  idle_timeout()`, and the disconnected character in both cases WAS the
+  immortal) — points at this dev sandbox's own foreground-SSH-channel
+  process handling, not game code. Flagged here rather than chased
+  further; if it recurs, prefer the detached-background-process pattern
+  for any test that leaves a socket idle-but-open for a long poll.
+- **`smoke_test_weapon_depth.py` fix (carried over from Session 54's
+  root-cause, not re-litigated)**: `make_dummy()`'s mob is now seeded at
+  `level: 50` instead of `level: 1` (its huge `hpbonus` inflated overall
+  HP only, not the separate per-limb HP cap that Session 54 root-caused
+  as the actual cause of dummies dying outright to major-limb
+  destruction well before the test's 30-hit sample). The fix itself
+  reads as correct against `being_limbs_full_heal()`'s own real formula,
+  but a clean, fully-passing live run wasn't obtained this session — the
+  two live attempts both ran into the test-harness quirk above instead
+  (lost real hits mid-collection after the connection dropped, not a
+  combat/limb bug: no defeat/slain log line for the dummy in either
+  run). Re-verify with the detached-process pattern next session before
+  trusting it fully.
+- **Testing**: new `tests/smoke_test_object_maintenance.py` (corpse
+  decay via `aitick`, equipment destruction via real combat against a
+  fragile two-slot test item set) — written this session but not yet
+  run start-to-finish as a file (its individual pieces were verified
+  live via the manual `check_decay.py`/`check_struct.py` scripts
+  instead). **Not done this session, flagged as a follow-up**: running
+  `smoke_test_object_maintenance.py` itself plus the broader regression
+  pass against `smoke_test_combat.py`, `smoke_test_objects.py`,
+  `smoke_test_objmanip.py`, `smoke_test_skillcombat.py`, `smoke_test_
+  weapon_messaging.py`, and any zone-reset test (all touch `obj.h`/
+  `combat.c`/`zone.c`, which all gained new fields/logic this session) —
+  session ended before a testing pass to get changes committed; do this
+  first thing next session, before building tasks 3-4 on top.
+- No new player command landed (decay/structure damage are both passive
+  systems) — no help-topic changes needed this round. `news.sql`/
+  `wiznews.sql` entries added (player-visible: corpses/scraps
+  disappearing and gear breaking in a fight are both directly
+  observable).
+- **Not started yet** (carried to a follow-up session): task 3 (repair-
+  shop economy — submit/retrieve tickets, pricing) and task 4 (per-class
+  repair skills — blacksmithing etc., tool/material requirements).
+
+Previous update: 2026-07-21 — Session 54 (work): **Magic items (Sneezy →
 Tobin feature audit), full system — equipment stat/AC/HP/Vitality
 affects, plus a new `use` command for wands/staves/scrolls.**
 - **Scope**: the user picked "Full system (equipment + wands + scrolls +

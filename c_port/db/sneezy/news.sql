@@ -273,3 +273,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Some Gear Is Actually Magical Now, and Scrolls/Wands/Staves Work',
  'Some rings, jewelry, and other wearable gear carry a real magical bonus -- a boost to one of your stats, your Armor Class, your health, or your stamina -- the moment you put it on, and it goes away the moment you take it off. Check `identify` before wearing something new to see what it actually does. Scrolls, wands, and staves are also usable now with the new `use` command: a scroll works once and crumbles away, a wand can be aimed at a target and has a limited number of charges before it goes quiet, and a staff unleashes its effect on everyone around you at once. Anyone can use one of these, whatever your class.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Wear and Tear Is Real Now',
+ 'Nothing lasts forever anymore. A corpse left lying around will eventually decay away on its own instead of sitting there forever, and the same goes for a severed limb. Gear takes a beating too -- a hard enough fight can actually break something you are wearing, leaving nothing but ruined scraps behind, so keep an eye on how your equipment is holding up and do not get too attached to anything fragile.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

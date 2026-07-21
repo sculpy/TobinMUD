@@ -317,6 +317,7 @@ obj_t *obj_create_from_proto(int vnum) {
     o->cur_struct = proto.cur_struct;
     o->material = proto.material;
     o->can_be_seen = proto.can_be_seen;
+    o->decay_time = proto.decay_time;
 
     /* Magic items (Sneezy -> Tobin feature audit): cache this instance's
      * real objaffect-sourced stat/AC/HP/Vitality bonuses once, here, at
@@ -361,6 +362,11 @@ obj_t *obj_create_ephemeral(const char *name, const char *short_descr,
     o->wear_flag = WEAR_TAKE;
     o->weight = 2.0;
     o->can_be_seen = true;
+    o->decay_time = -1; /* never decays by default -- callers that want a
+                          * temporary object (corpses, severed limbs --
+                          * combat.c) set a real countdown explicitly right
+                          * after creation, same post-creation-field-set
+                          * precedent as wear_flag/val[] above. */
 
     return o;
 }
@@ -528,6 +534,45 @@ void obj_light_burn_tick(long pulse_num) {
         if (d->character)
             light_burn_being(d->character); /* connected players' carried lights */
     world_for_each_mob(light_burn_mob_visit); /* mob-carried lights */
+}
+
+/* `world_for_each_obj()` only ever visits objects sitting DIRECTLY in a
+ * room's own stuff_head (see its own doc comment), so `o->base.parent`
+ * here is guaranteed to be that room's `&r->base` -- same first-member
+ * pointer-cast idiom this codebase already uses throughout (e.g. `(being_t
+ * *)t`), not a new assumption. */
+static void decay_visit(obj_t *o) {
+    if (o->decay_time < 0)
+        return;
+    if (o->decay_time > 0)
+        o->decay_time--;
+    if (o->decay_time != 0)
+        return;
+
+    room_t *r = (room_t *)o->base.parent;
+
+    /* Relocate contents to the room FIRST -- obj_destroy() doesn't touch
+     * children at all (see its own doc comment), so a decaying
+     * container's contents would otherwise dangle off a freed parent.
+     * Matches the original's "relocate container contents before
+     * deletion" rule verbatim. */
+    while (o->base.stuff_head)
+        thing_move_to(o->base.stuff_head, &r->base);
+
+    const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+    char cap[128];
+    snprintf(cap, sizeof(cap), "%s", label);
+    cap[0] = (char)toupper((unsigned char)cap[0]);
+    char msg[192];
+    snprintf(msg, sizeof(msg), "%s decays into nothing.\r\n", cap);
+    descriptor_room_echo(r, NULL, msg);
+
+    obj_destroy(o);
+}
+
+void obj_decay_tick(long pulse_num) {
+    (void)pulse_num;
+    world_for_each_obj(decay_visit);
 }
 
 void obj_destroy(obj_t *o) {

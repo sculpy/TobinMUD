@@ -137,6 +137,28 @@ typedef struct obj {
     int material;
     bool can_be_seen;
 
+    /* Object maintenance (Sneezy -> Tobin feature audit) -- the upstream
+     * seed's own `decay` column (obj.c's decay_time doc precedent: -1 =
+     * never decays/OBJ_NOTIMER, 0 = decays THIS tick, >0 = ticks
+     * remaining), loaded verbatim at creation for real prototype rows.
+     * Ephemeral objects (corpses, severed limbs -- obj_create_ephemeral(),
+     * vnum 0, no prototype row to read from) default to -1 here and have
+     * it set explicitly by their creator (combat.c) right after creation,
+     * same post-creation-field-set precedent as wear_flag/val[] elsewhere
+     * in this file. Only decrements while the object sits DIRECTLY in a
+     * room (obj_decay_tick(), world_for_each_obj() -- carried/equipped/
+     * nested-in-a-container objects are exempt, matching the original's
+     * "decay only ticks in rooms" rule verbatim) -- a corpse looted into
+     * someone's inventory stops decaying until dropped again. One Tobin
+     * decay tick == one obj_decay_tick() pulse-registered call (~60s,
+     * same cadence as obj_pool_decay_tick()/mob_ai_tick()), a deliberate
+     * mapping of the upstream unit onto Tobin's own slow-tick cadence --
+     * the original's own periodic.cc tick rate isn't part of this bundled
+     * source, so real seeded `decay` values (a corpse-adjacent few dozen
+     * up to several thousand for long-lived world props) land in a
+     * broadly similar real-world range either way. */
+    int decay_time;
+
     /* Raw upstream itemTypeT (DB `obj.type`, verbatim) -- unlike `category`
      * above (which collapses many raw types into one bucket, e.g. scroll/
      * wand/staff/potion all become OBJ_CAT_MAGIC_DEVICE), `use` (cmd_use.c,
@@ -272,6 +294,18 @@ void obj_pool_decay_tick(long pulse_num);
  * ambient world tick, not tied to any one connected player) -- pulse-
  * registered in main.c at the same ~60s cadence. */
 void obj_light_burn_tick(long pulse_num);
+
+/* Decrements `decay_time` for every object sitting DIRECTLY in a room
+ * (world_for_each_obj() -- carried/held/worn/nested objects are exempt,
+ * see obj_t's own decay_time doc comment), destroying any that reach 0:
+ * a container's contents are relocated to the room FIRST (thing_move_to()
+ * for each child) so nothing gets silently orphaned, then a room-wide
+ * message announces it (unlike obj_pool_decay_tick()/obj_light_burn_
+ * tick()'s deliberate silence -- a corpse or item actually vanishing is
+ * a real, player-visible event worth announcing, not ambient scenery
+ * upkeep). Pulse-registered in main.c at the same ~60s cadence; also
+ * forced by `aitick` for deterministic testing. */
+void obj_decay_tick(long pulse_num);
 
 /* Detaches (thing_remove_from_parent) and frees an obj_t. Safe to call on a
  * worn/held item too (the caller is responsible for first clearing whatever
