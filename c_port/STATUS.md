@@ -1,5 +1,37 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-21 — Session 56 (home): **Synced Sessions 53-55's
+work-box work in (Offensive spells, Magic items, Object maintenance
+tasks 1-2); ran the follow-up testing pass Session 55 flagged.**
+- Pulled/applied schema/rebuilt/deployed all three sessions' work to both
+  Home preview (4003) and production (4000) -- production via a clean
+  `copyover` (no player dropped; a real connected immortal, `Jesus`, was
+  online at the time).
+- **`tests/smoke_test_object_maintenance.py` run for the first time**
+  (flagged as not-yet-run in Session 55). First attempt hit the exact
+  test-harness quirk Session 55's own write-up already documented: the
+  final "scrap object left in the room" check read from a socket still
+  mid-combat (constant interleaved combat spam), so it missed the text
+  even though the mechanic itself works correctly. Fixed the same way
+  Session 55's own manual verification did -- a fresh spectator
+  connection (a second immortal-level login, exempt from the multiplay
+  gate) that never sees combat traffic at all, confirmed via a focused
+  debug trace showing the scrap text present in both the target's own
+  `look` AND the spectator's. All 7 checks now pass clean, repeatedly.
+- **Real, unrelated issue found and fixed along the way**: the production
+  `copyover` above produced a genuine duplicate-connection artifact --
+  the real player's client apparently auto-reconnected in the ~second-
+  long gap of the copyover's `exec()`, landing a SECOND fresh login for
+  the same character moments after the ORIGINAL connection was already
+  restored via the copyover recovery file. Diagnosed live (not guessed):
+  `ss -tni` showed the surviving "active" connection was actually a dead
+  half-open TCP socket (zero bytes received in ~21 minutes, stuck
+  retransmitting), not a real live client -- confirmed with the user
+  before acting, then a hard restart of production cleared it (no admin
+  "disconnect a stuck connection" command exists yet in the codebase;
+  worth adding as a future TODO item). No code change from this --
+  purely an operational hazard of running copyover un-observed.
+
 Last updated: 2026-07-21 — Session 55 (work): **Object maintenance (Sneezy
 → Tobin feature audit), decay timers + combat structure damage — HALF of
 a 4-task "full system" scope, tasks 3-4 (repair-shop economy, per-class
