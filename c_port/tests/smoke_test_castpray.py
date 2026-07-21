@@ -194,9 +194,16 @@ out = cmd(sm, "get pouch")
 check("you get" in out.lower(), "the mage picks up the component pouch")
 
 out = cmd(sm, "cast gust")
-check("You cast gust" in out, "casting with a component succeeds")
+# "gust" is a real offensive spell now (offensive spell breadth,
+# Sneezy -> Tobin feature audit) -- it requires a target, and this mage
+# isn't fighting anyone, so the actual (correct) response is "Cast that
+# at whom?", not a spell effect. That message only appears once the
+# component gate has already passed, which is what this test is really
+# checking -- not what "gust" specifically does (see this test's own
+# note above about spell effects being out of scope here).
+check("Cast that at whom?" in out, "casting with a component succeeds (past the gate; gust itself needs a target)")
 out = cmd(sm, "inventory")
-check("pouch" not in out.lower(), "the component is consumed after a successful cast")
+check("pouch" not in out.lower(), "the component is consumed after a successful cast (even though gust itself refused for lack of a target)")
 
 # --- 3: Cleric pray requires a holy symbol, consumed on success ---
 cleric_name = f"Cpcle{_suffix}"

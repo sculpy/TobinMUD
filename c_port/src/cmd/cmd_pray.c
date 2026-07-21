@@ -13,6 +13,7 @@
 #include "affect.h"
 #include "combat.h"
 #include "obj.h"
+#include "pulse.h"
 #include "skill.h"
 #include "thing.h"
 
@@ -49,9 +50,10 @@
  * automatically until the target is fully healed or the caster's holy
  * symbols run out ("their holy symbol breaks").
  *
- * v1 scope: same honest placeholder-effect approach as cmd_cast.c's
- * task_cast() -- see that file's header comment for why a full
- * per-spell mechanic isn't implemented for the whole roster yet. */
+ * v1 scope: same real-generic-effect-per-category approach as cmd_cast.c's
+ * task_cast() (see that file's header comment for the full breakdown) --
+ * an honest "nothing happens yet" placeholder only for mechanics Tobin
+ * has no subsystem for at all yet. */
 
 /* Case-insensitive "does haystack contain needle" -- used to spot
  * keywords like "heal" or "damage" inside a spell's description text. */
@@ -162,6 +164,68 @@ static const skill_def_t *find_spell_and_target(player_class_t cls, const char *
     return sk;
 }
 
+/* Damage scales with the SPELL's own min_level, not the caster's current
+ * level -- see cmd_cast.c's identical helper (duplicated per this
+ * codebase's small-static-helper convention) for the full rationale and
+ * calibration notes. Part of "offensive spell breadth" (Sneezy -> Tobin
+ * feature audit). */
+static int spell_damage_for_level(int min_level) {
+    return 4 + min_level + (rand() % (min_level / 3 + 4));
+}
+
+/* Real area-effect for prayers whose own description says so verbatim
+ * ("area-effect" -- e.g. "plague of locusts", "earthquake") -- see
+ * cmd_cast.c's identical function for the full rationale. Duplicated
+ * rather than shared, same convention as this file's other helpers. */
+static void pray_area_damage(descriptor_t *d, being_t *ch, const skill_def_t *sk) {
+    if (!ch->base.roomp) {
+        descriptor_send(d, "You aren't anywhere.\r\n");
+        return;
+    }
+    int dmg = spell_damage_for_level(sk->min_level);
+    int hit_count = 0;
+    room_t *r = ch->base.roomp;
+    for (thing_t *t = r->base.stuff_head; t; ) {
+        thing_t *next = t->stuff_next;
+        if (t == &ch->base || (t->kind != THING_PC && t->kind != THING_MOB)) {
+            t = next;
+            continue;
+        }
+        being_t *victim = (being_t *)t;
+        if (t->kind == THING_PC && !victim->desc) {
+            t = next;
+            continue;
+        }
+        if (being_in_group(ch, victim)) {
+            t = next;
+            continue;
+        }
+        hit_count++;
+        limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+        bool defeated = combat_apply_skill_damage(ch, victim, dmg, limb);
+        if (!defeated && victim->desc) {
+            char msg[128];
+            if (being_is_immortal(victim))
+                snprintf(msg, sizeof(msg), "The %s catches you for %d damage!\r\n", sk->name, dmg);
+            else
+                snprintf(msg, sizeof(msg), "The %s catches you!\r\n", sk->name);
+            descriptor_notify(victim->desc, msg);
+        }
+        t = next;
+    }
+    char msg[160];
+    if (hit_count > 0)
+        snprintf(msg, sizeof(msg), "You unleash %s, catching everyone nearby!\r\n", sk->name);
+    else
+        snprintf(msg, sizeof(msg), "You unleash %s, but there's no one else here to catch in it.\r\n", sk->name);
+    descriptor_send(d, msg);
+    if (hit_count > 0) {
+        snprintf(msg, sizeof(msg), "%s unleashes %s, catching everyone nearby!\r\n",
+                 being_display_name(ch), sk->name);
+        descriptor_room_echo(r, ch, msg);
+    }
+}
+
 /* Applies a heal-type prayer's effect to `target` (may be `ch` itself)
  * and reports it to both. cmd_continue.c duplicates this same formula/
  * messaging rather than depending on this file, matching this
@@ -200,6 +264,15 @@ static void pray_apply_heal(descriptor_t *d, being_t *ch, being_t *target, const
  * prayers so `continue` (cmd_continue.c) can keep repeating them. */
 static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill_def_t *sk) {
     char msg[192];
+    /* Resolved target for the OFFENSIVE branches only (poison/disease/
+     * damage/area, below): an explicit target (target != ch) is used as-
+     * is; with none given, falls back to whoever ch is already fighting,
+     * same as before this breadth pass -- "pray harm light" with no
+     * target still hits your current opponent. NULL (no explicit target
+     * AND not fighting anyone) is handled per-branch with a "who?"
+     * message rather than silently doing nothing. Heal/buff branches
+     * keep using `target` directly (self by default), unaffected. */
+    being_t *atk_target = (target != ch) ? target : ch->fighting;
     if (strcasecmp(sk->name, "cure poison") == 0) {
         ch->last_heal_target = NULL;
         bool had = being_has_affect(target, AFFECT_POISON);
@@ -242,31 +315,51 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc && cured)
                 descriptor_notify(target->desc, "Your sickness lifts!\r\n");
         }
-    } else if (ch->fighting && strcasecmp(sk->name, "poison") == 0) {
+    } else if (strcasecmp(sk->name, "poison") == 0) {
+        /* No longer gated on ch->fighting (offensive spell breadth,
+         * Sneezy -> Tobin feature audit) -- opens combat against
+         * atk_target the same way an offensive damage prayer now can,
+         * see the damage branch below. */
         ch->last_heal_target = NULL;
-        being_t *foe = ch->fighting;
-        being_apply_affect(foe, AFFECT_POISON, 20);
-        snprintf(msg, sizeof(msg), "You pray for %s, poisoning %s!\r\n", sk->name, being_display_name(foe));
+        if (!atk_target) {
+            descriptor_send(d, "Pray for that over whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        being_apply_affect(atk_target, AFFECT_POISON, 20);
+        snprintf(msg, sizeof(msg), "You pray for %s, poisoning %s!\r\n", sk->name, being_display_name(atk_target));
         descriptor_send(d, msg);
-        if (foe->desc) {
+        if (atk_target->desc) {
             char tcapbuf[128];
             snprintf(msg, sizeof(msg), "%s prays for %s, poisoning you!\r\n",
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
-            descriptor_notify(foe->desc, msg);
+            descriptor_notify(atk_target->desc, msg);
         }
-    } else if (ch->fighting && (ci_contains(sk->name, "disease") || ci_contains(sk->name, "infect"))) {
+    } else if (ci_contains(sk->name, "disease") || ci_contains(sk->name, "infect")) {
         ch->last_heal_target = NULL;
-        being_t *foe = ch->fighting;
+        if (!atk_target) {
+            descriptor_send(d, "Pray for that over whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
         affect_type_t dis = affect_random_disease();
-        being_apply_affect(foe, dis, 40);
+        being_apply_affect(atk_target, dis, 40);
         snprintf(msg, sizeof(msg), "You pray for %s, afflicting %s with %s!\r\n",
-                 sk->name, being_display_name(foe), affect_name(dis));
+                 sk->name, being_display_name(atk_target), affect_name(dis));
         descriptor_send(d, msg);
-        if (foe->desc) {
+        if (atk_target->desc) {
             char tcapbuf[128];
             snprintf(msg, sizeof(msg), "%s prays for %s, afflicting you with %s!\r\n",
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, affect_name(dis));
-            descriptor_notify(foe->desc, msg);
+            descriptor_notify(atk_target->desc, msg);
         }
     } else if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")) {
         pray_apply_heal(d, ch, target, sk->name);
@@ -295,32 +388,54 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc)
                 descriptor_notify(target->desc, "A shimmering aura surrounds you!\r\n");
         }
-    } else if (ch->fighting && (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "bolt")
-                                 || ci_contains(sk->desc, "strike"))) {
+    } else if (ci_contains(sk->desc, "area-effect")) {
+        /* Real room-wide effect (offensive spell breadth) -- previously
+         * fell into the single-target branch below like everything
+         * else. Cleric's roster doesn't currently have any spell
+         * matching both "area-effect" and "damage"/"bolt"/"strike", but
+         * checked first for the same reason cmd_cast.c's mirror does:
+         * so one never accidentally silently degrades to single-target. */
         ch->last_heal_target = NULL;
-        int dmg = 4 + ch->progress.level / 3;
-        being_t *foe = ch->fighting;
+        pray_area_damage(d, ch, sk);
+    } else if (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "bolt")
+               || ci_contains(sk->desc, "strike")) {
+        /* No longer gated on ch->fighting (offensive spell breadth) --
+         * can now open combat against atk_target, same as `attack`/
+         * `kill`. If ch is already fighting someone else, this is just
+         * a one-off supplemental hit -- the existing fight isn't
+         * disturbed (Tobin's `fighting` is strictly 1v1). */
+        ch->last_heal_target = NULL;
+        if (!atk_target) {
+            descriptor_send(d, "Pray for that over whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
         limb_t limb = (limb_t)(rand() % LIMB_COUNT);
-        being_hurt_limb(foe, limb, dmg);
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
         /* Damage numbers (user 2026-07-12): hidden from a plain mortal,
          * kept for an immortal (balancing/testing), same rule as
          * combat.c's melee messages. */
         if (being_is_immortal(ch))
             snprintf(msg, sizeof(msg), "You pray for %s, striking %s for %d damage!\r\n",
-                     sk->name, being_display_name(foe), dmg);
+                     sk->name, being_display_name(atk_target), dmg);
         else
             snprintf(msg, sizeof(msg), "You pray for %s, striking %s.\r\n",
-                     sk->name, being_display_name(foe));
+                     sk->name, being_display_name(atk_target));
         descriptor_send(d, msg);
-        if (foe->desc) {
+        if (!defeated && atk_target->desc) {
             char tcapbuf[128];
-            if (being_is_immortal(foe))
+            if (being_is_immortal(atk_target))
                 snprintf(msg, sizeof(msg), "%s prays for %s, striking you for %d damage!\r\n",
                          being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, dmg);
             else
                 snprintf(msg, sizeof(msg), "%s prays for %s, striking you.\r\n",
                          being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
-            descriptor_notify(foe->desc, msg);
+            descriptor_notify(atk_target->desc, msg);
         }
     } else {
         ch->last_heal_target = NULL;
@@ -389,6 +504,11 @@ bool cmd_pray(descriptor_t *d, const char *args) {
         }
     }
 
+    /* Defaults to self, same as always (heal/buff prayers with no
+     * target mean self) -- the offensive branches below separately fall
+     * back to ch->fighting when target is still `ch` at that point, so
+     * "pray harm light" with no target keeps hitting whoever you're
+     * already fighting, unchanged from before the breadth pass. */
     being_t *target = ch;
     if (target_name) {
         target = combat_find_room_target(ch, target_name);

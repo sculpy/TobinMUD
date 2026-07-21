@@ -1,5 +1,84 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-20 — Session 53 (work): **Offensive spell breadth
+(Sneezy → Tobin feature audit), closing the "real per-spell mechanics
+remain a follow-up" note left on the original `cast`/`pray` v1.**
+- **Three real gaps fixed in the offensive-damage path of both `cast` and
+  `pray`.** (1) A single FLAT damage formula regardless of which spell was
+  cast — a level-1 "gust" and a level-50 "atomize" hit identically hard.
+  Now scales with the SPELL's own `min_level` (`spell_damage_for_level()`,
+  duplicated per-file same as this codebase's other small helpers — rough
+  calibration against `combat.c`'s melee formula). (2) Only ever usable on
+  whoever `ch->fighting` already was — no way to open combat with a spell
+  at all, and `cast` had no target syntax whatsoever (unlike `pray`, which
+  already supported one). Ported `pray`'s `find_spell_and_target()` into
+  `cmd_cast.c`; either command can now open a brand-new fight against a
+  target in the room (same both-directions-engage logic `cmd_attack.c`
+  uses), falling back to `ch->fighting` when no target is given so old
+  no-target usage is unchanged. (3) A raw `being_hurt_limb()` with no
+  defeat handling — a kill via spell damage skipped XP/corpse/cleanup
+  entirely. Both the single-target and new area-effect paths now go
+  through `combat_apply_skill_damage()` (bash/kick's shared pipeline,
+  Session 52) instead.
+- **Real area-effect, finally.** Several spells' own descriptions have
+  said "area-effect burst of X damage" since the roster was first
+  written (fireball, tsunami, hellfire, pebble spray, plague of locusts,
+  earthquake, ...) but silently behaved single-target the whole time.
+  New `cast_area_damage()`/`pray_area_damage()` hit every other being in
+  the room except the caster and their own group (`being_in_group()`,
+  same friendly-fire exclusion the original's area spells use) — PCs and
+  mobs alike.
+- **Deliberately not attempted** (an honest Tobin-scale slice, matching
+  this session's established pattern): mana costs (no mana pool exists
+  yet), and elemental damage TYPES as a real mechanic — no immunity
+  system exists to back it, so messaging stays generic, same precedent
+  as protective spells all sharing one `AFFECT_SANCTUARY` buff instead of
+  ~30 bespoke elemental resistances.
+- **A bug caught and fixed mid-development, never shipped**: an early
+  draft resolved the default (no-target) offensive target as
+  `ch->fighting` at the CALLER level in both `cmd_cast()`/`cmd_pray()`.
+  That would have made a plain "pray heal light" (self-heal, no target)
+  target the CURRENT OPPONENT instead of self whenever already in
+  combat — caught by re-deriving the design before syncing, not by a
+  failing test. Fixed by only falling back to `ch->fighting` INSIDE the
+  offensive branches (a separate `atk_target` local computed once at the
+  top of `task_cast()`/`task_pray()`); the heal/buff branches keep using
+  `target` directly (self by default), fully unaffected.
+- **Testing**: new `tests/smoke_test_offensive_spells.py` (12 checks:
+  tiered damage scaling, `cast <spell> <target>` genuinely opening combat
+  — proven by a follow-up no-target cast still landing on the same
+  opponent, not just a one-off hit — the self-heal-while-fighting
+  regression check above, and area-effect catching multiple separate,
+  uninvolved bystanders). All four test characters promoted to immortal
+  so the area-effect check could run in an isolated throwaway sandbox
+  room instead of a real, populated production room where a live-fire
+  spell could catch actual bystanders. Regression-checked against
+  `smoke_test_castpray.py`/`smoke_test_immortal_castpray.py` (two stale
+  assertions fixed — both checked for `"You cast gust"` as a substring of
+  the OLD "nothing happens yet" placeholder text, which no longer
+  appears now that gust has a real effect; updated to expect the new,
+  correct "Cast that at whom?" response, which still only appears once
+  the component/class gate has passed — what those tests actually
+  check), `smoke_test_affects.py`, `smoke_test_component_charges.py`,
+  `smoke_test_cure_and_inflict.py` (exercises the poison/disease
+  offensive-prayer paths directly), `smoke_test_practice.py`,
+  `smoke_test_water_drowning_flight.py` — all pass clean.
+  `smoke_test_continue.py` fails on this box, but confirmed pre-existing
+  and unrelated: it was already in the failed list from a full
+  `tests/sweep.sh` run that predates any of these changes (root cause
+  not chased down further — out of scope for this item).
+- **Debugging note for posterity**: while writing the new smoke test,
+  hit the exact same "character names can't contain digits" trap Session
+  52's `smoke_test_skillcombat.py` write-up already documented (`Offbys1`/
+  `Offbys2`/`Offimm2` silently failed character creation, leaving an
+  empty account that then looked like a total login failure two ply
+  deep) — worth internalizing as a standing habit, not just a one-off
+  fix, since this is now the second time it's cost real debugging time
+  in as many sessions.
+- Help topics (`cast`/`pray`) updated to document the new target syntax
+  and combat-opening behavior. wiznews.sql + news.sql entries added
+  (changes what every spellcasting class experiences).
+
 Last updated: 2026-07-20 — Session 52 (home): **Skill-based combat closed
 out (bash/kick/disarm/parry, task 14) + synced Session 50/51's work-box
 work in.**

@@ -566,6 +566,66 @@ implementation inspiration before each one, not guessed at.
       Warrior) gate on `basic_disc_pct`, not `combat_disc_pct` like
       `SKILL_TIER_COMBAT` skills (bash/kick/parry) do — both need seeding
       regardless of which skill a given test pair exercises.
+- [x] **Offensive spell breadth** — done 2026-07-20 (work). Closes the
+      "Real per-spell mechanics remain a follow-up" note left on the
+      original `cast`/`pray` v1 above. That v1's offensive-damage path
+      had three real gaps: a single FLAT damage formula regardless of
+      which spell was cast (a level-1 "gust" and a level-50 "atomize"
+      hit identically hard), only usable on whoever `ch->fighting`
+      already was (no way to open combat with a spell at all -- `cast`
+      had no target syntax whatsoever, unlike `pray`), and a raw
+      `being_hurt_limb()` with no defeat handling (a kill via spell
+      damage wouldn't get XP/corpse/cleanup). Fixed all three: damage
+      now scales with the SPELL's own `min_level` (`spell_damage_for_
+      level()`, duplicated per-file same as this codebase's other small
+      helpers); `cast <spell> <target>` now works at all
+      (`find_spell_and_target()`, cmd_cast.c -- ported from `pray`'s
+      already-existing version), and either command can now OPEN combat
+      against a target not already fighting (same engage-both-ways
+      logic `cmd_attack.c` uses), falling back to `ch->fighting` when no
+      target is given so old no-target usage is unchanged; a real
+      area-effect now exists for every spell whose own description says
+      "area-effect" verbatim (`cast_area_damage()`/`pray_area_damage()`)
+      -- previously these (fireball, tsunami, hellfire, plague of
+      locusts, earthquake, ...) silently behaved single-target,
+      contradicting their own text. Hits every other being in the room
+      except the caster and their own group (`being_in_group()`), same
+      friendly-fire exclusion the original's area spells use. Both the
+      single-target and area paths now go through `combat_apply_skill_
+      damage()` (bash/kick's shared pipeline) instead of a raw
+      `being_hurt_limb()`, so a kill is handled correctly. **Not
+      attempted** (an honest Tobin-scale slice, matching this session's
+      established pattern): mana costs (no mana pool exists), and
+      elemental damage TYPES as a real mechanic (no immunity system
+      exists to back it -- messaging stays generic, matching the
+      existing precedent for protective spells sharing one AFFECT_
+      SANCTUARY buff instead of ~30 bespoke elemental resistances).
+      **Bug caught and fixed mid-development, not shipped**: an early
+      draft resolved the default (no-target) offensive target as
+      `ch->fighting` at the CALLER level, which would have made a
+      plain "pray heal light" (self-heal) target the enemy instead of
+      self whenever already in combat -- caught before syncing by
+      re-deriving the design, not by a failing test; fixed by only
+      falling back to `ch->fighting` INSIDE the offensive branches
+      (a separate `atk_target` local), leaving the heal/buff branches'
+      default (self) untouched. New `tests/smoke_test_offensive_
+      spells.py` (12 checks: tiered damage, `cast <spell> <target>`
+      genuinely opening combat, the heal-still-targets-self regression
+      check, and area-effect catching multiple separate bystanders).
+      Regression-checked against `smoke_test_castpray.py`/
+      `smoke_test_immortal_castpray.py` (two stale assertions fixed --
+      both checked for `"You cast gust"` as a substring of the OLD
+      "nothing happens yet" placeholder text, which no longer appears
+      now that gust has a real effect; updated to expect the new,
+      correct "Cast that at whom?" response instead, which still only
+      appears once the component/class gate has passed, which is what
+      those tests actually check), `smoke_test_affects.py`,
+      `smoke_test_component_charges.py`, `smoke_test_cure_and_inflict.py`
+      (exercises the poison/disease offensive-prayer paths directly),
+      `smoke_test_practice.py`, `smoke_test_water_drowning_flight.py` --
+      all pass clean. `smoke_test_continue.py` fails, but confirmed
+      pre-existing/unrelated: it was already in the failed list from a
+      full `sweep.sh` run that predates any of these changes.
 
 ## Buildable now (no blocked dependencies)
 

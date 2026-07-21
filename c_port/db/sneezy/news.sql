@@ -263,3 +263,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Long Disconnect Now Cleans Up After Itself',
  'If your connection drops and you do not make it back within about 5 minutes, your character now saves and steps off stage on its own, rather than sitting frozen in the world indefinitely. Reconnecting after that window picks up fresh from your last save, same as normal -- nothing is lost, it just will not still be standing exactly where you left it.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Spellcasters Hit Harder, and Smarter',
+ 'Attack spells and prayers now scale with how powerful the spell itself is, not a single flat amount no matter what you cast. You can also aim `cast` at a specific target the same way `pray` always let you, and either one can now open a fight with someone on its own instead of only ever working on whoever you happened to already be fighting. And several spells that always described themselves as striking everyone nearby -- fireball and the like -- finally do exactly that.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

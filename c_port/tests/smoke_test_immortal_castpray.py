@@ -157,8 +157,13 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
 check("You conjure" in cmd(s_imm, f"load obj {COMPONENT}"), "the component pouch is loaded")
 out = cmd(s_imm, "get pouch")
 check("you get" in out.lower(), "the immortal Warrior picks up the component pouch")
+# "gust" is a real offensive spell now (offensive spell breadth,
+# Sneezy -> Tobin feature audit) -- it requires a target, and s_imm isn't
+# fighting anyone, so the actual (correct) response is "Cast that at
+# whom?", which still only appears once the class gate has been bypassed
+# (what this test is actually checking), not once gust deals damage.
 out = cmd(s_imm, "cast gust")
-check("You cast gust" in out, "immortal Warrior casts the Mage spell 'gust' despite being a Warrior")
+check("Cast that at whom?" in out, "immortal Warrior casts the Mage spell 'gust' despite being a Warrior (gust itself needs a target)")
 
 out = cmd(s_imm, "pray heal light")
 check("need a holy symbol" in out, "immortal Warrior still needs a holy symbol item to pray (item gate, not a class gate)")

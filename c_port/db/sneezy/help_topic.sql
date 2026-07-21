@@ -909,3 +909,13 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 -- channels" -- ported from the real `commune @<level>` behavior).
 UPDATE `help_topic` SET `body` = 'Usage: wiznet <message>   |   wiznet @<level> <message>   (shorthand: ;<message>)\n\nImmortals only: a private broadcast channel among the immortals. Your\nmessage reaches every online immortal (and yourself), out of sight of\nmortals. The `;` shorthand needs no space: `;hi` broadcasts "hi".\nAdd `@<level>` to narrow delivery to only immortals at or above that\nlevel -- `wiznet @59 <msg>` reaches Administrator+ only.'
   WHERE `name` = 'wiznet' AND `updated_by` = 'seed';
+
+-- `cast`/`pray` grew real offensive-spell breadth (2026-07-20): `cast`
+-- now takes an optional target like `pray` always could, and an
+-- offensive spell can open combat on its own instead of only ever
+-- hitting whoever you already happened to be fighting -- the INSERTs
+-- above are a no-op on the already-seeded rows, so update them explicitly.
+UPDATE `help_topic` SET `body` = 'Usage: cast <spell> [target]\n\nMages and Druids only: casts a spell from your class''s roster (see\n`skills`). You need a spell component -- any carried item keyworded\n"component" -- on hand; it is consumed on a successful cast. Also\nneeds enough practiced discipline in that spell''s tier -- see `help\npractice`. An offensive spell can target someone else in the room\n(`cast gust <name>`) and will draw you into a fight with them if you\naren''t already fighting anyone; left blank, it keeps hitting whoever\nyou''re already fighting. Clerics use `pray` instead.\n\nRelated: pray practice skills affects'
+  WHERE `name` = 'cast' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: pray <spell> [target]\n\nClerics only: the Cleric equivalent of `cast` -- draws on your class''s\nroster of prayers instead of spells. You need a holy symbol -- any\ncarried item keyworded "symbol" -- on hand, consumed on every\nsuccessful prayer. A healing prayer can target someone else in the\nroom (`pray heal light <name>`), or, left blank, yourself. An\noffensive prayer works the same way (`pray harm light <name>`) and\nwill draw you into a fight with them if you aren''t already fighting\nanyone; left blank, it keeps hitting whoever you''re already fighting.\nSee `help continue` to repeat a heal automatically until it is no\nlonger needed.\n\nRelated: cast continue practice skills affects'
+  WHERE `name` = 'pray' AND `updated_by` = 'seed';
