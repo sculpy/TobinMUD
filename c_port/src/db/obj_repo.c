@@ -84,6 +84,38 @@ void obj_load_combat_mods(int vnum, int *hitroll, int *damroll) {
     db_close(db);
 }
 
+void obj_load_stat_affects(int vnum, int *str, int *dex, int *con, int *intel,
+                           int *wis, int *cha, int *hit, int *move, int *ac) {
+    *str = *dex = *con = *intel = *wis = *cha = *hit = *move = *ac = 0;
+
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return;
+
+    if (db_query(db, "select type, mod1 from objaffect where vnum=%i "
+                     "and type in (1, 2, 3, 4, 5, 31, 11, 12, 14)", vnum)) {
+        while (db_fetch_row(db)) {
+            int type = atoi(db_get(db, "type"));
+            int mod1 = atoi(db_get(db, "mod1"));
+            switch (type) {
+                case 1:  *str += mod1; break;  /* APPLY_STR */
+                case 2:  *intel += mod1; break; /* APPLY_INT */
+                case 3:  *wis += mod1; break;   /* APPLY_WIS */
+                case 4:  *dex += mod1; break;   /* APPLY_DEX */
+                case 5:  *con += mod1; break;   /* APPLY_CON */
+                case 31: *cha += mod1; break;   /* APPLY_CHA */
+                case 12: *hit += mod1; break;   /* APPLY_HIT (max_hp) */
+                case 14: *move += mod1; break;  /* APPLY_MOVE (max_vit) */
+                case 11: *ac += -mod1; break;   /* APPLY_ARMOR -- sign-
+                                                  * flipped, see obj_t's
+                                                  * own doc comment */
+            }
+        }
+    }
+
+    db_close(db);
+}
+
 /* Which player_inventory `slot` a currently-attached instance `o` occupies
  * on `b` -- the inverse of player_inventory_load()'s placement below. */
 static int slot_for_obj(const being_t *b, const obj_t *o) {
@@ -129,8 +161,10 @@ void player_inventory_load(long player_id, being_t *b) {
                 b->held[0] = o;
             else if (rows[i].slot == INV_SLOT_HELD_OFFHAND)
                 b->held[1] = o;
-            else if (rows[i].slot >= 0 && rows[i].slot < LIMB_COUNT)
+            else if (rows[i].slot >= 0 && rows[i].slot < LIMB_COUNT) {
                 b->equipment[rows[i].slot] = o;
+                obj_apply_equip_load_affects(b, o);
+            }
             /* else INV_SLOT_CARRIED (or garbage) -- carried loose, already
              * attached above. */
         }

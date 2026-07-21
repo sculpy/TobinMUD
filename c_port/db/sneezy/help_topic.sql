@@ -919,3 +919,15 @@ UPDATE `help_topic` SET `body` = 'Usage: cast <spell> [target]\n\nMages and Drui
   WHERE `name` = 'cast' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Usage: pray <spell> [target]\n\nClerics only: the Cleric equivalent of `cast` -- draws on your class''s\nroster of prayers instead of spells. You need a holy symbol -- any\ncarried item keyworded "symbol" -- on hand, consumed on every\nsuccessful prayer. A healing prayer can target someone else in the\nroom (`pray heal light <name>`), or, left blank, yourself. An\noffensive prayer works the same way (`pray harm light <name>`) and\nwill draw you into a fight with them if you aren''t already fighting\nanyone; left blank, it keeps hitting whoever you''re already fighting.\nSee `help continue` to repeat a heal automatically until it is no\nlonger needed.\n\nRelated: cast continue practice skills affects'
   WHERE `name` = 'pray' AND `updated_by` = 'seed';
+
+-- Magic items (Sneezy -> Tobin feature audit, full system): new `use`
+-- command, plus wear/remove now mention that some worn gear carries
+-- real stat/AC/HP/Vitality bonuses.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('use', 'Usage: use <scroll|wand|staff> [target]\n\nInvokes a magic item''s stored spell. A scroll is single-use --\nit crumbles to dust the moment you use it. A wand and a staff are\nrechargeable but have a limited number of charges each; once spent,\nthey just sit inert (no way to recharge one yet). A wand targets one\nperson -- someone else in the room (`use wand <name>`), or left blank,\nwhoever you''re already fighting for an offensive one, yourself for a\nhealing/protective one. A staff always hits every OTHER being in the\nroom at once, no targeting needed.\n\nAny character can use one of these regardless of class or level --\nthe stored magic doesn''t care who''s holding it.\n\nRelated: wear identify', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+UPDATE `help_topic` SET `body` = 'Usage: wear <item>\n\nPuts on a carried item into its body slot (head, body, legs, and so\non). Refuses if you''re already wearing something there, or if the\nitem isn''t wearable there at all -- a holdable item (weapon or\notherwise) isn''t worn this way; see `hold`/`wield` instead. Some gear\ncarries a real bonus (a stat, Armor Class, max HP, or max Vitality) --\nsee `identify` to check before you put something on -- which applies\nthe moment you wear it and goes away the moment you take it off.\n\nRelated: remove identify'
+  WHERE `name` = 'wear' AND `updated_by` = 'seed';
+UPDATE `help_topic` SET `body` = 'Usage: remove <item>\n\nTakes off a worn item or lays down a held one, returning it to your\ncarried inventory. Any stat/Armor Class/HP/Vitality bonus that item was\ngiving you (see `identify`) goes away the moment you take it off.\n\nRelated: wear identify'
+  WHERE `name` = 'remove' AND `updated_by` = 'seed';

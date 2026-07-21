@@ -626,6 +626,58 @@ implementation inspiration before each one, not guessed at.
       all pass clean. `smoke_test_continue.py` fails, but confirmed
       pre-existing/unrelated: it was already in the failed list from a
       full `sweep.sh` run that predates any of these changes.
+- [x] **Magic items** — done 2026-07-21 (work). Full system, per the
+      user's explicit `AskUserQuestion` pick ("Full system: equipment +
+      wands + scrolls + staves") over two smaller options offered --
+      closer to a full port than most audit items. Equipment stat/AC/HP/
+      Vitality affects: the real, upstream-seeded `objaffect` table
+      (already partially used for weapon hit/damroll) also carries real
+      per-item STR/DEX/CON/INT/WIS/CHA/AC/HP/Vitality rows, now read by
+      `obj_load_stat_affects()` and cached on the `obj_t` at creation.
+      Two real bugs caught by checking real data rather than assuming:
+      (1) every real AC row is negative while Tobin's own AC convention
+      is the opposite (higher is better) -- import negates it; (2) AC
+      affects initially only applied to `OBJ_CAT_ARMOR` items, silently
+      dropping the bonus for a real seeded ring (JEWELRY category, real
+      AC row) -- caught during live manual verification, fixed so real
+      `aff_ac` data applies regardless of category. Stat/HP/Vitality
+      bonuses are mutate-on-wear/reverse-on-remove (`apply_equip_
+      affects()`, hooked into `cmd_wear()`/`cmd_remove()` only -- not
+      `cmd_wield()`/`cmd_hold()`, since only real worn `equipment[]`
+      slots carry these upstream). New `use <item> [target]`
+      (`cmd_use.c`) for scrolls/wands/staves: any character can use one
+      regardless of class/level (matches the original), reusing the SAME
+      heal/protective-ward/single-target-damage dispatch `cast`/`pray`
+      already have rather than a third copy. Raw upstream magic-item
+      `val[]` fields ruled out as unreliable import noise (an EXISTING
+      comment on `cmd_identify.c` from an earlier audit item already
+      flagged this) -- charges/spell-name live in a fresh Tobin-owned
+      `obj_magic` table instead. A scroll applies its effect once and is
+      destroyed; a wand/staff decrements a charge and refuses use once
+      exhausted (no recharge mechanic yet). Three real seed items:
+      wand of gusts (5 charges), staff of fireball (3 charges, room-
+      wide), scroll of minor healing (single-use). **Not attempted**:
+      potions (fits `drink`/`quaff` better, a separate command), a
+      recharge command, mana costs (no mana pool exists), and the
+      original's extended stats Tobin doesn't model at all (bravery,
+      agility, focus, speed, perception, karma) plus several other
+      unmapped `objaffect` types. **Known, accepted limitation, not
+      new**: `player_inventory` only persists vnum+slot, so a wand/
+      staff's spent charges reset to max on reconnect -- same as the
+      existing component-pouch/holy-symbol behavior. New `tests/
+      smoke_test_magic_items.py` (13 checks). Regression-checked against
+      `smoke_test_combat.py`, `smoke_test_objects.py`, `smoke_test_
+      objmanip.py`, `smoke_test_skillcombat.py`, `smoke_test_weapon_
+      messaging.py` -- all pass clean. `smoke_test_weapon_depth.py`
+      reliably fails, but root-caused live as a pre-existing, unrelated
+      bug (see STATUS.md): its training dummy is seeded at level 1 with
+      an inflated `hpbonus` for overall HP, but its per-limb HP stays at
+      the tiny level-1 baseline, so it can die outright to the existing
+      major-limb-destroyed-is-instant-death mechanic well before the
+      test collects its 30-hit sample. Confirmed unrelated to this
+      session (verified attacker DEX/hit-rate/round-timing all correct
+      first) and reproduces on a from-scratch restart. Flagged via
+      `spawn_task` as a separate follow-up rather than fixed here.
 
 ## Buildable now (no blocked dependencies)
 

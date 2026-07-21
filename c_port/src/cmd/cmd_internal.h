@@ -134,6 +134,7 @@ bool cmd_list(descriptor_t *d, const char *args);
 bool cmd_buy(descriptor_t *d, const char *args);
 bool cmd_sell(descriptor_t *d, const char *args);
 bool cmd_remove(descriptor_t *d, const char *args);
+bool cmd_use(descriptor_t *d, const char *args);
 bool cmd_equipment(descriptor_t *d, const char *args);
 bool cmd_load(descriptor_t *d, const char *args);
 bool cmd_purge(descriptor_t *d, const char *args);

@@ -534,6 +534,7 @@ bool cmd_wear(descriptor_t *d, const char *args) {
     }
 
     ch->equipment[slot] = o;
+    obj_apply_equip_affects(ch, o, 1);
     snprintf(msg, sizeof(msg), "You wear %s on your %s.\r\n", label, limb_name((limb_t)slot));
     descriptor_send(d, msg);
     snprintf(msg, sizeof(msg), "%s wears %s.\r\n", ch->base.name, label);
@@ -664,12 +665,21 @@ bool cmd_remove(descriptor_t *d, const char *args) {
         return true;
     }
 
+    bool was_worn = false;
     for (int i = 0; i < LIMB_COUNT; i++)
-        if (ch->equipment[i] == o)
+        if (ch->equipment[i] == o) {
             ch->equipment[i] = NULL;
+            was_worn = true;
+        }
     for (int i = 0; i < 2; i++)
         if (ch->held[i] == o)
             ch->held[i] = NULL;
+    /* Only equipment[] slots (WORN gear -- rings, armor, cloaks) carry
+     * stat/HP/Vitality affects, not held[]/wielded weapons (those get
+     * hit/damroll bonuses instead, applied live at attack time via
+     * obj_load_combat_mods() -- no wear/remove hook needed for those). */
+    if (was_worn)
+        obj_apply_equip_affects(ch, o, -1);
 
     player_inventory_save(ch->player_id, ch);
 

@@ -255,6 +255,11 @@ static const cmd_entry_t COMMANDS[] = {
     { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
     { "unignore", cmd_unignore, "Stop blocking someone's tells/whispers (unignore <name>).", MORTAL_LEVEL_MIN },
     { "unlock",  cmd_unlock,  "Unlock a locked door or container (unlock <direction|container>).", MORTAL_LEVEL_MIN },
+    /* Must precede "users" (below, immortal tier) in table order -- both
+     * start with "use", and dispatch's strncmp scan takes the first match,
+     * so typing "use" exactly has to hit this entry, not fall through to
+     * "users" for an immortal typing it in full. */
+    { "use",     cmd_use,     "Use a scroll, wand, or staff (use <item> [target]).", MORTAL_LEVEL_MIN },
     /* "w"/"we" are west (movement head); wake needs "wa", wear needs "wea",
      * wield needs "wi". */
     { "wake",    cmd_wake,    "Wake up from sleep.",                                MORTAL_LEVEL_MIN },

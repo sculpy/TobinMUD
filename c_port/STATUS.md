@@ -1,6 +1,116 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-20 — Session 53 (work): **Offensive spell breadth
+Last updated: 2026-07-21 — Session 54 (work): **Magic items (Sneezy →
+Tobin feature audit), full system — equipment stat/AC/HP/Vitality
+affects, plus a new `use` command for wands/staves/scrolls.**
+- **Scope**: the user picked "Full system (equipment + wands + scrolls +
+  staves)" via `AskUserQuestion` over two smaller options offered — this
+  is a substantially larger slice than most audit items, closer to a full
+  port of the original's magic-item system than the usual Tobin-scale cut.
+- **Equipment stat/AC/HP/Vitality affects**: the real, upstream-seeded
+  `objaffect` table (already partially used by `obj_load_combat_mods()`
+  for weapon hitroll/damroll) also carries real per-item bonus rows for
+  STR/DEX/CON/INT/WIS/CHA, Armor Class, max HP, and max Vitality. New
+  `obj_load_stat_affects()` (obj_repo.c) reads these; cached on the
+  `obj_t` at creation (`aff_str`/`aff_dex`/.../`aff_ac`/`aff_hit`/
+  `aff_move`, obj.h) rather than re-queried live, matching how combat
+  mods already work. Two real discoveries, both caught by checking real
+  data rather than assuming (house rule): (1) **AC sign-flip** — every
+  real `objaffect` AC row (`type=11`) is negative, confirmed by querying
+  the live table, while Tobin's own `being_total_ac()`/`obj_armor_ac()`
+  convention is the opposite (higher is better, per `combat.c`'s
+  `modifier -= being_total_ac(defender) / 2` and the mounted-bonus
+  comment) — import negates the raw value. (2) **AC-affects-only-armor
+  bug, caught live**: an initial version only applied `aff_ac` for
+  `OBJ_CAT_ARMOR`-category items; manual verification with a real seeded
+  ring (vnum 179, `objaffect` AC row, category JEWELRY not ARMOR) showed
+  Armor Class not moving at all on wear. Fixed by having `obj_armor_ac()`
+  apply real `aff_ac` data regardless of category — a ring/shield/other
+  worn-slot item can carry a real AC row too — while the placeholder
+  weight-based guess formula stays reserved for true armor-category items
+  with no real data (guessing an AC for a ring with none would be
+  nonsense). STR/DEX/CON/INT/WIS/CHA/max-HP/max-Vitality are STORED
+  values (unlike AC, recomputed live every call) so these are applied via
+  mutate-on-wear / reverse-on-remove (`apply_equip_affects()`,
+  `cmd_object.c`), hooked into `cmd_wear()`/`cmd_remove()` — deliberately
+  NOT `cmd_wield()`/`cmd_hold()`, since only true worn `equipment[]` slots
+  carry these upstream (wielded weapons get their existing hit/damroll
+  treatment instead, no change there).
+- **New `use <item> [target]` command** (`cmd_use.c`) for scrolls/wands/
+  staves. Checked the original's own doc first (scrolls single-use up to
+  three spells; wands rechargeable/targeted; staves rechargeable/room-
+  wide) and scoped to Tobin's real infrastructure: ONE spell per item, any
+  character can use one regardless of class/level (matches the original),
+  the effect reuses the SAME generic heal/protective-ward/single-target-
+  damage dispatch `cast`/`pray` already have (keyed off the stored
+  spell's own description) rather than a third full copy of
+  `task_cast()`/`task_pray()`. **Raw magic-item `val[]` data ruled out**:
+  an existing comment on `cmd_identify.c` (from an earlier audit item)
+  already documented this data as unreliable import noise (a nonsense
+  25650 "charges" value on a real scroll) — rather than reinterpreting
+  it, a fresh Tobin-owned table (`obj_magic`, `db/sneezy/obj_magic.sql`)
+  maps a vnum to the spell name and starting charge count it invokes;
+  `obj_magic_repo_get()` (new `obj_magic_repo.h`/`.c`) reads it. A scroll
+  applies its effect once and is destroyed (`obj_destroy()`); a wand/
+  staff decrements a charge (`o->val[0]`, seeded from `obj_magic.max_
+  charges` at creation) and refuses use once exhausted, with no recharge
+  mechanic yet (an empty one just sits inert until a future `edobject`-
+  style tool exists). Three seed items ship as real, usable examples:
+  wand of gusts (90000, "gust", 5 charges), staff of fireball (90001,
+  "fireball", 3 charges), scroll of minor healing (90002, "heal light",
+  single-use).
+- **Deliberately not attempted** (an honest Tobin-scale slice within an
+  otherwise large scope): potions (a stretch for `use` — `drink`/`quaff`
+  would fit better, a separate command entirely); a recharge command for
+  empty wands/staves; mana costs (nothing in Tobin has a mana pool yet);
+  the extended stats the original's `objaffect` enum covers that Tobin
+  doesn't model at all (BRA/AGI/FOC/SPE/PER/KAR) and other unmapped
+  types (MANA/SPELL/SPELL_EFFECT/LIGHT/NOISE/CAN_BE_SEEN/VISION/
+  PROTECTION/DISCIPLINE/SPELL_HITROLL/CURRENT_HIT/CRIT_FREQUENCY/GARBLE)
+  — left unapplied, same as before this work.
+- **Known, accepted limitation, not a new gap**: `player_inventory` only
+  persists `vnum` + `slot`, not per-instance `val[]` state (confirmed by
+  reading `player_inventory_load()`, which calls `obj_create_from_proto()`
+  fresh every time) — a wand/staff's spent charges reset to max on
+  reconnect, matching the existing, already-accepted behavior for
+  component pouches and holy symbols.
+- **Testing**: new `tests/smoke_test_magic_items.py` (13 checks — real
+  ring/token wear-then-remove round-tripping AC/max-HP cleanly, wand
+  charges depleting and refusing further use once exhausted, staff room-
+  wide effect reaching a bystander, scroll single-use destruction and
+  actual removal from inventory, not just a cosmetic message).
+  Regression-checked against `smoke_test_combat.py`, `smoke_test_
+  objects.py`, `smoke_test_objmanip.py`, `smoke_test_skillcombat.py`,
+  `smoke_test_weapon_messaging.py` (all touch `obj.h`/`cmd_object.c`/
+  `combat.c`, which all gained new fields/logic this session) -- all
+  pass clean. `smoke_test_weapon_depth.py` reliably fails, but root-
+  caused live (not guessed, and confirmed unrelated to this session's
+  changes) rather than dismissed: its `make_dummy()` helper seeds the
+  training dummy at `level: 1` and relies on a huge `hpbonus` (5000) for
+  it to "survive dozens of real hits," but never accounts for the
+  SEPARATE major-limb-destroyed-is-instant-death mechanic
+  (`combat.c`'s `is_major_limb()`/`combat_sever_limb()`, Session 42) --
+  a level-1 mob's per-limb HP caps stay at the tiny level-1 baseline
+  regardless of `hpbonus`, so purely by chance, enough hits landing on
+  the same major limb (head/neck/waist/body) kills the dummy outright
+  well before the needed 30-hit sample, no matter how large its overall
+  HP pool is. Confirmed via direct live diagnosis, not assumption: the
+  attacker's `set_dex(900)` boost was verified actually persisting
+  (`score` and a direct DB query both showed it), and combat rounds were
+  independently measured firing at the correct 1.2s cadence
+  (`COMBAT_ROUND_PULSES`) with a ~95%+ hit rate -- ruling out both
+  timing and to-hit as the cause before landing on the real one. This
+  bug predates Magic items entirely (my changes this session don't
+  touch `combat.c`, limb HP, or mob creation at all) and reproduces
+  identically on a from-scratch server restart with zero other players
+  connected, so it isn't the linkdead-pulse-slowdown class of flake
+  Session 51/53 found either. Flagged as a separate follow-up
+  (`spawn_task`) rather than fixed here, to keep this change scoped.
+- Help topics: new `use` topic; `wear`/`remove` updated to mention real
+  stat/AC/HP/Vitality bonuses. `news.sql`/`wiznews.sql` entries (player-
+  visible: wearing gear and using items are both player-facing).
+
+Previous update: 2026-07-20 — Session 53 (work): **Offensive spell breadth
 (Sneezy → Tobin feature audit), closing the "real per-spell mechanics
 remain a follow-up" note left on the original `cast`/`pray` v1.**
 - **Three real gaps fixed in the offensive-damage path of both `cast` and

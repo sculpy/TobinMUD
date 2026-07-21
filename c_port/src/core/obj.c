@@ -12,6 +12,7 @@
 
 #include "being.h"
 #include "descriptor.h"
+#include "obj_magic_repo.h"
 #include "obj_repo.h"
 #include "room.h"
 #include "thing.h"
@@ -305,6 +306,7 @@ obj_t *obj_create_from_proto(int vnum) {
 
     o->vnum = vnum;
     o->category = category_for_item_type(proto.type);
+    o->raw_type = proto.type;
     o->wear_flag = proto.wear_flag;
     for (int i = 0; i < 4; i++)
         o->val[i] = proto.val[i];
@@ -315,6 +317,29 @@ obj_t *obj_create_from_proto(int vnum) {
     o->cur_struct = proto.cur_struct;
     o->material = proto.material;
     o->can_be_seen = proto.can_be_seen;
+
+    /* Magic items (Sneezy -> Tobin feature audit): cache this instance's
+     * real objaffect-sourced stat/AC/HP/Vitality bonuses once, here, at
+     * creation -- see obj_repo.h's obj_load_stat_affects() and obj_t's
+     * own doc comment for why this is cached rather than re-queried. */
+    obj_load_stat_affects(vnum, &o->aff_str, &o->aff_dex, &o->aff_con,
+                          &o->aff_intel, &o->aff_wis, &o->aff_cha,
+                          &o->aff_hit, &o->aff_move, &o->aff_ac);
+
+    /* A scroll/wand/staff's charges (obj_magic.sql) start fresh every
+     * time an instance is created -- same "resets on every relog/reload,
+     * no per-instance persistence yet" limitation spell components/holy
+     * symbols already have (player_inventory's flat vnum+slot schema has
+     * no per-instance val[] column). val[0]=current, val[1]=max, same
+     * convention those items use. Overrides whatever the raw obj.val0/1
+     * columns held (0 for the seeded examples; unreliable import noise
+     * on any other magic-device row -- see obj_magic.sql's own comment). */
+    char spell_name[OBJ_MAGIC_SPELL_NAME_LEN];
+    int max_charges;
+    if (obj_magic_repo_get(vnum, spell_name, sizeof(spell_name), &max_charges)) {
+        o->val[1] = max_charges;
+        o->val[0] = max_charges;
+    }
 
     return o;
 }
@@ -542,12 +567,87 @@ const char *obj_apply_ground_token(const char *text, const struct room *room,
 #define ARMOR_AC_MAX 30         /* caps one absurdly heavy piece from dominating */
 
 int obj_armor_ac(const obj_t *o) {
-    if (!o || o->category != OBJ_CAT_ARMOR)
+    if (!o)
+        return 0;
+    /* Real, hand-authored objaffect data applies no matter what category
+     * this item collapsed into -- rings/shields/other worn jewelry carry
+     * real AC rows too, not just OBJ_CAT_ARMOR (Magic items, Sneezy ->
+     * Tobin feature audit; see obj_t's own doc comment on aff_ac for the
+     * sign-flip, and this function's header comment for how a real vnum
+     * caught the category-gated version of this dropping the bonus). The
+     * guessed weight formula stays armor-only -- guessing an AC for a
+     * ring with no real data would be nonsense. */
+    if (o->aff_ac != 0)
+        return o->aff_ac > ARMOR_AC_MAX ? ARMOR_AC_MAX : o->aff_ac;
+    if (o->category != OBJ_CAT_ARMOR)
         return 0;
     int ac = (int)(o->weight * ARMOR_AC_PER_WEIGHT);
     if (ac > ARMOR_AC_MAX)
         ac = ARMOR_AC_MAX;
     return ac;
+}
+
+static void apply_equip_stat_affects(being_t *ch, const obj_t *o, int sign) {
+    if (!o->aff_str && !o->aff_dex && !o->aff_con && !o->aff_intel
+        && !o->aff_wis && !o->aff_cha)
+        return;
+
+    ch->attrs.strength     += sign * o->aff_str;
+    ch->attrs.dexterity    += sign * o->aff_dex;
+    ch->attrs.constitution += sign * o->aff_con;
+    ch->attrs.intelligence += sign * o->aff_intel;
+    ch->attrs.wisdom       += sign * o->aff_wis;
+    ch->attrs.charisma     += sign * o->aff_cha;
+
+    int *attrs[] = {&ch->attrs.strength, &ch->attrs.dexterity, &ch->attrs.constitution,
+                    &ch->attrs.intelligence, &ch->attrs.wisdom, &ch->attrs.charisma};
+    for (size_t i = 0; i < sizeof(attrs) / sizeof(attrs[0]); i++) {
+        if (*attrs[i] < 1) *attrs[i] = 1;
+        if (*attrs[i] > ATTR_MAX) *attrs[i] = ATTR_MAX;
+    }
+}
+
+void obj_apply_equip_affects(being_t *ch, const obj_t *o, int sign) {
+    apply_equip_stat_affects(ch, o, sign);
+
+    if (o->aff_hit) {
+        ch->progress.max_hp += sign * o->aff_hit;
+        if (ch->progress.max_hp < 1) ch->progress.max_hp = 1;
+        ch->progress.hp += sign * o->aff_hit;
+        if (ch->progress.hp > ch->progress.max_hp) ch->progress.hp = ch->progress.max_hp;
+        if (ch->progress.hp < 0) ch->progress.hp = 0;
+    }
+    if (o->aff_move) {
+        ch->progress.max_vit += sign * o->aff_move;
+        if (ch->progress.max_vit < 1) ch->progress.max_vit = 1;
+        ch->progress.vit += sign * o->aff_move;
+        if (ch->progress.vit > ch->progress.max_vit) ch->progress.vit = ch->progress.max_vit;
+        if (ch->progress.vit < 0) ch->progress.vit = 0;
+    }
+}
+
+/* On RECONNECT only (player_inventory_load(), obj_repo.c) -- re-lands an
+ * already-equipped item's STAT bonus, but deliberately NOT its HIT/MOVE
+ * one. `attrs_t` (STR/DEX/CON/INT/WIS/CHA) is only ever persisted at
+ * character creation or via the immortal edplayer editor -- normal play
+ * never saves it -- so a stat bonus applied by cmd_wear() lives ONLY in
+ * memory and would silently vanish across a reconnect if load didn't
+ * reapply it here (found live: a combat smoke test's raw-SQL DEX bump
+ * wasn't surviving a reconnect during Magic items testing). `progress`
+ * (max_hp/max_vit and current hp/vit) is the opposite story: vitals_tick_
+ * run() (and several other commands) save it every ~60s for any
+ * connected MORTAL regardless of what changed, so by the time a real
+ * session disconnects, a HIT/MOVE bonus from a still-worn item is
+ * already baked into the saved value -- reapplying it here on top would
+ * double it, compounding further on every subsequent relog. Immortals
+ * are the one narrow gap this leaves: vitals_tick_run() skips them
+ * entirely, so an immortal who wears a HIT/MOVE item and disconnects
+ * before any OTHER action happens to save progress loses that bonus on
+ * reconnect until they re-wear it -- accepted as a minor, immortal-only,
+ * testing-adjacent edge case rather than reintroducing the compounding
+ * bug for real mortal players. */
+void obj_apply_equip_load_affects(being_t *ch, const obj_t *o) {
+    apply_equip_stat_affects(ch, o, 1);
 }
 
 double obj_contained_weight(const obj_t *container) {

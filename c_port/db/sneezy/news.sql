@@ -268,3 +268,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Spellcasters Hit Harder, and Smarter',
  'Attack spells and prayers now scale with how powerful the spell itself is, not a single flat amount no matter what you cast. You can also aim `cast` at a specific target the same way `pray` always let you, and either one can now open a fight with someone on its own instead of only ever working on whoever you happened to already be fighting. And several spells that always described themselves as striking everyone nearby -- fireball and the like -- finally do exactly that.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Some Gear Is Actually Magical Now, and Scrolls/Wands/Staves Work',
+ 'Some rings, jewelry, and other wearable gear carry a real magical bonus -- a boost to one of your stats, your Armor Class, your health, or your stamina -- the moment you put it on, and it goes away the moment you take it off. Check `identify` before wearing something new to see what it actually does. Scrolls, wands, and staves are also usable now with the new `use` command: a scroll works once and crumbles away, a wand can be aimed at a target and has a limited number of charges before it goes quiet, and a staff unleashes its effect on everyone around you at once. Anyone can use one of these, whatever your class.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -61,6 +61,18 @@ int obj_find_vnum_by_name(const char *name);
  * doesn't exist) -- never left uninitialized. */
 void obj_load_combat_mods(int vnum, int *hitroll, int *damroll);
 
+/* Sums `vnum`'s stat/HP/Vitality/AC affects out of the same real, upstream-
+ * seeded `objaffect` table -- the subset of applyTypeT this port's
+ * simplified 6-stat model has a home for (see obj_t's own doc comment in
+ * obj.h for the full type-number breakdown and the AC sign-flip). Called
+ * ONCE per instance, at creation (obj_create_from_proto(), obj.c), which
+ * caches the results on the obj_t itself (aff_str/aff_dex/.../aff_ac) --
+ * not re-queried on every wear/remove or (AC specifically, a combat hot
+ * path) every hit-roll. All eight out-params are ALWAYS set (0 if the
+ * vnum has no matching rows or doesn't exist), never left uninitialized. */
+void obj_load_stat_affects(int vnum, int *str, int *dex, int *con, int *intel,
+                           int *wis, int *cha, int *hit, int *move, int *ac);
+
 /* player_inventory.slot encoding (db/sneezy/player_inventory.sql): -1 is
  * carried loose, 0..LIMB_COUNT-1 is a worn limb_t index, and these two
  * sentinels are the held[] pair. Kept out of obj.h's WEAR_SLOT_* sentinels

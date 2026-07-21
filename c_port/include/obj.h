@@ -136,6 +136,40 @@ typedef struct obj {
     int cur_struct;
     int material;
     bool can_be_seen;
+
+    /* Raw upstream itemTypeT (DB `obj.type`, verbatim) -- unlike `category`
+     * above (which collapses many raw types into one bucket, e.g. scroll/
+     * wand/staff/potion all become OBJ_CAT_MAGIC_DEVICE), `use` (cmd_use.c,
+     * Magic items, Sneezy -> Tobin feature audit) needs to tell those FOUR
+     * apart to know whether an item is single-use, targeted, or room-wide.
+     * 0 for an ephemeral (non-prototype) object. */
+    int raw_type;
+
+    /* Real per-item stat/AC/HP/Vitality bonuses (Magic items, Sneezy ->
+     * Tobin feature audit) -- sourced from the upstream-seeded `objaffect`
+     * table (vnum, type, mod1, mod2 -- same real, untouched data
+     * obj_load_combat_mods() already reads for weapon hit/damroll), loaded
+     * ONCE at creation (obj_create_from_proto(), obj.c) and cached here
+     * rather than re-queried on every wear/remove or (for AC, a combat hot
+     * path) every hit-roll. Only the subset of applyTypeT this port's
+     * simplified 6-stat model actually has a home for: APPLY_STR/INT/WIS/
+     * DEX/CON/CHA (1/2/3/4/5/31), APPLY_HIT/MOVE (12/14 -- max_hp/
+     * max_vit), and APPLY_ARMOR (11, AC -- NOTE the sign flip: upstream's
+     * convention is "negative is better" (verified against real seed data,
+     * every real row is <= 0), Tobin's own being_total_ac()/obj_armor_ac()
+     * convention is "higher is better" (verified against combat.c's hit-
+     * roll formula and the mounted-bonus comment) -- aff_ac below is
+     * already negated at load time, so callers just add it directly.
+     * Every OTHER applyTypeT (BRA/AGI/FOC/PER/KAR/SPE -- extended stats
+     * this port's 6-stat model doesn't have; MANA -- no mana pool exists;
+     * SPELL/SPELL_EFFECT/LIGHT/NOISE/CAN_BE_SEEN/VISION/PROTECTION/
+     * DISCIPLINE/SPELL_HITROLL/CURRENT_HIT/CRIT_FREQUENCY/GARBLE) is
+     * real seeded data too, but left un-applied -- an honest Tobin-scale
+     * slice, not a silent invention, same as every other "not every
+     * upstream field has a Tobin home yet" gap in this file. */
+    int aff_str, aff_dex, aff_con, aff_intel, aff_wis, aff_cha;
+    int aff_hit, aff_move;
+    int aff_ac;
 } obj_t;
 
 /* CONTAINER flag bits, stored VERBATIM in val[1] in the original's bit layout
@@ -152,14 +186,23 @@ typedef struct obj {
  * upstream seed's `val0` field ("armor class") is uniformly 0 across
  * every real armor row (val0/val1 IS populated for weapons -- dice count/
  * sides -- this is specifically an armor data gap, confirmed by querying
- * the live DB before writing this), so there's no real AC value to read.
- * Placeholder formula in the same spirit as the damage formula's
- * STR-ATTR_BASE term: heavier armor protects more, scaled so a fully
- * plate-armored character's total across all worn slots lands in a
- * similar range to the hit-roll's other +/-15ish modifiers (see
- * combat.c's being_total_ac() usage). Revisit if armor ever gets real
- * per-item AC data (e.g. a companion table, same precedent as
- * `objaffect` for weapon hit/dam bonuses). */
+ * the live DB before writing this), so there's no real AC value to read
+ * from `obj` itself. UPDATE (Magic items, Sneezy -> Tobin feature audit):
+ * `objaffect` -- the same real, already-partially-used table
+ * obj_load_combat_mods() reads for weapon hit/damroll -- DOES carry real
+ * per-item AC data (`o->aff_ac`, cached at creation, sign already
+ * flipped to Tobin's convention -- see obj_t's own doc comment). Real data
+ * applies regardless of `category` -- a real vnum-179 test item proved
+ * this the hard way: rings/shields/other jewelry-category worn items
+ * carry real objaffect AC rows too, not just OBJ_CAT_ARMOR ones, so
+ * gating on category silently dropped their bonus. The placeholder
+ * weight formula below is the fallback ONLY for true armor-category
+ * items with no real objaffect entry (guessing an AC for a ring with no
+ * data would be nonsense): heavier armor protects more, scaled so a
+ * fully plate-armored character's total across all worn slots lands in
+ * a similar range to the hit-roll's other +/-15ish modifiers (see
+ * combat.c's being_total_ac() usage). Either way capped at
+ * ARMOR_AC_MAX so one absurd item (real or placeholder) can't dominate. */
 int obj_armor_ac(const obj_t *o);
 
 /* True iff the object is a container (OBJ_CAT_CONTAINER). */
@@ -263,6 +306,31 @@ bool obj_takeable(int wear_flag);
  * pair, preferring right. HOLD maps to WEAR_SLOT_HELD; being.c's wear
  * command picks fitter->held[0] or [1] based on handed_right/occupancy. */
 int wear_slot_for_flag(int wear_flag, const struct being *fitter);
+
+/* Applies (sign=+1) or reverses (sign=-1) `o`'s cached equipment affects
+ * (stat/HP/Vitality -- Magic items, Sneezy -> Tobin feature audit; see
+ * obj_t's own doc comment above for where these come from). Used by
+ * cmd_wear()/cmd_remove() (cmd_object.c) on the actual wear/remove
+ * moment. AC isn't handled here -- being_total_ac()/obj_armor_ac() read
+ * o->aff_ac live off whichever items are CURRENTLY equipped, so it never
+ * needs an explicit apply/reverse step. See obj_apply_equip_load_affects()
+ * below for why RECONNECT deliberately does NOT just call this again. */
+void obj_apply_equip_affects(struct being *ch, const obj_t *o, int sign);
+
+/* On reconnect ONLY (player_inventory_load(), obj_repo.c) -- reapplies
+ * just the STAT half (STR/DEX/CON/INT/WIS/CHA) of an already-equipped
+ * item's affects, deliberately excluding HIT/MOVE. `attrs_t` is only
+ * ever persisted at character creation or via the immortal edplayer
+ * editor, so a wear-time stat bonus lives purely in memory and vanishes
+ * on reconnect unless reapplied here; `progress` (max_hp/max_vit),
+ * though, gets saved to DB every ~60s for any connected mortal
+ * regardless of what changed (vitals_tick_run(), several commands), so
+ * by the time a real session disconnects a HIT/MOVE bonus from a still-
+ * worn item is already baked into the saved value -- reapplying it here
+ * too would double it, compounding further on every subsequent relog.
+ * See obj.c's definition for the one accepted gap this leaves
+ * (immortals, who vitals_tick_run() skips entirely). */
+void obj_apply_equip_load_affects(struct being *ch, const obj_t *o);
 
 /* Decodes `wear_flag`'s bits into a readable "[ TAKE ] [ BODY ] ..." run
  * (user 2026-07-12: "in stat action flags and wear flags should be
