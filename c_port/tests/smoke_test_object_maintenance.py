@@ -212,9 +212,23 @@ try:
     eq_after = cmd(tgt, "equipment")
     check("a fragile test shirt" not in eq_after or "a fragile test cap" not in eq_after,
           "the destroyed item's equipment slot is actually cleared, not just cosmetically broken")
-    look_after2 = cmd(tgt, "look")
+
+    # Both `imm` and `tgt` are still mid-fight when this runs (the automatic
+    # per-round exchange keeps going in the background), so their own
+    # sockets are constantly interleaving fresh combat spam with whatever
+    # `look` response we're trying to read -- the exact test-harness quirk
+    # STATUS.md's Session 55 write-up already found and worked around
+    # ("Confirming the destroy actually fired required a fresh spectator
+    # connection... rather than trusting the original test sockets' own
+    # captured output"). A second immortal-level connection (immortals are
+    # exempt from the one-character-at-a-time multiplay gate) sidesteps it
+    # entirely -- it never sees any combat traffic in the first place.
+    spectator = login(imm_name, pw)
+    cmd(spectator, f"goto {ROOM}")
+    look_after2 = cmd(spectator, "look")
     check("scraps of" in look_after2.lower(),
           "a scrap object is left behind in the room after destruction")
+    spectator.close()
 
     imm.close()
     tgt.close()
