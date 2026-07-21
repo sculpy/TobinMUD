@@ -60,10 +60,11 @@ work in.**
   Session 51's own sync-up note (it hadn't been verified there) --
   passes clean, along with `smoke_test_socials.py`/
   `smoke_test_redit_extradesc.py`/`smoke_test_skills.py`/
-  `smoke_test_redit.py`. **`gdb` is not installed on the Home VM** (the
-  new "always run under gdb" habit from Session 51 needs `sudo dnf
-  install gdb` there first -- couldn't do it remotely, no interactive
-  sudo password available; flagged for the user to run manually).
+  `smoke_test_redit.py`. `gdb` was not installed on the Home VM (couldn't
+  install it remotely, no interactive sudo password available) -- user
+  installed it directly; both preview (4003) and production (4000) now
+  have gdb attached per the Session 51 habit
+  (`gdb_crash_preview.log`/`gdb_crash_prod.log`).
 - **Linkdead auto-purge**, TODO.md's new PRIORITY item from Session 51,
   picked up and shipped same session. Asked the user the flagged open
   design question directly rather than defaulting silently: **save-then-
