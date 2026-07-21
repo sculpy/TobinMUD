@@ -5,6 +5,10 @@
 #include "world.h"
 
 #include <stdlib.h>
+#include <time.h>
+
+#include "config.h"
+#include "player_repo.h"
 
 typedef struct room_entry {
     room_t *room;
@@ -85,6 +89,32 @@ int world_count_linkdead(void) {
         }
     }
     return count;
+}
+
+int world_purge_stale_linkdead(int max_age_seconds) {
+    int count = 0;
+    time_t now = time(NULL);
+    for (room_entry_t *e = g_rooms; e; e = e->next) {
+        thing_t *t = e->room->base.stuff_head;
+        while (t) {
+            thing_t *next = t->stuff_next; /* being_destroy() frees t -- save next first */
+            if (t->kind == THING_PC) {
+                being_t *b = (being_t *)t;
+                if (!b->desc && now - b->linkdead_since >= max_age_seconds) {
+                    player_save(b->player_id, b);
+                    being_destroy(b);
+                    count++;
+                }
+            }
+            t = next;
+        }
+    }
+    return count;
+}
+
+void linkdead_purge_tick(long pulse_num) {
+    (void)pulse_num;
+    world_purge_stale_linkdead(config_get()->linkdead_purge_seconds);
 }
 
 void world_for_each_mob(void (*visit)(being_t *m)) {

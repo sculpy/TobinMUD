@@ -44,6 +44,27 @@ int world_purge_linkdead(void);
  * and bodies left behind by a lost connection. */
 int world_count_linkdead(void);
 
+/* Auto-purge (TODO.md priority item, user 2026-07-20): force-removes every
+ * linkdead PC that has been linkdead at least `max_age_seconds` (compares
+ * against `being_t.linkdead_since`, stamped by descriptor_destroy() the
+ * moment `desc` was cleared). UNLIKE world_purge_linkdead() above, this
+ * DOES save first (player_save()) -- user-directed deviation from that
+ * function's own discard-only precedent, matching the real Sneezy's
+ * nukeLdead() (misc/periodic.cc), which force-saves before stripping/
+ * freeing. Called from a pulse (linkdead_purge_tick(), registered in
+ * main.c), not on demand. Returns how many were removed. */
+int world_purge_stale_linkdead(int max_age_seconds);
+
+/* Pulse callback (main.c: `pulse_register(600, linkdead_purge_tick)`,
+ * ~60s -- plenty granular against a 5-minute threshold) -- calls
+ * world_purge_stale_linkdead() with `config_get()->linkdead_purge_seconds`
+ * (config.h -- TOBIN_LINKDEAD_PURGE_SECONDS env var, default 300/5min),
+ * a flat threshold for everyone the user chose, a deliberate
+ * simplification of the original's 15min-mortal/60min-immortal split.
+ * Runtime-configurable specifically so a smoke test can run it short
+ * instead of waiting out the real 5 minutes. */
+void linkdead_purge_tick(long pulse_num);
+
 /* Calls `visit(m)` for every mob (base.kind == THING_MOB) in every
  * registered room -- the iteration primitive mob_ai.c's pulse-driven
  * wander/scavenge logic runs on each tick. Saves each room's mob list

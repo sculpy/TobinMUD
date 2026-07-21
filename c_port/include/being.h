@@ -6,6 +6,7 @@
 #define TOBIN_BEING_H
 
 #include <stdbool.h>
+#include <time.h>
 
 #include "affect.h"
 #include "thing.h"
@@ -643,6 +644,7 @@ typedef struct being {
     struct obj *held[2];
 
     struct descriptor *desc; /* back-pointer to the owning connection, NULL for mobs */
+    time_t linkdead_since;   /* wall-clock time `desc` was cleared; 0 if never linkdead (see world.h's linkdead_purge_tick()) */
 } being_t;
 
 /* Creates an in-memory being_t for a PC. Does not touch the DB -- pair with

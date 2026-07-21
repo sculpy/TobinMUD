@@ -375,8 +375,17 @@ void descriptor_destroy(descriptor_t *d) {
          * tests already rely on. The being stays alive in memory, so
          * nothing is at risk under normal operation; only an ungraceful
          * crash before reconnect could lose progress since the last real
-         * save, an accepted, narrow trade-off. */
+         * save, an accepted, narrow trade-off. NOTE this trade-off is
+         * knowingly reintroduced 5 minutes later by world.c's auto-purge
+         * (linkdead_purge_tick()) -- the user chose save-then-destroy
+         * there (matching real Sneezy's nukeLdead()) over this function's
+         * own discard-only precedent, so an admin DB edit made to a
+         * character that's been linkdead 5+ minutes CAN still be
+         * clobbered by the stale pre-disconnect snapshot. A real,
+         * disclosed trade-off, not an oversight -- see world.h's
+         * world_purge_stale_linkdead() doc comment. */
         d->character->desc = NULL;
+        d->character->linkdead_since = time(NULL);
     }
 
     /* Unhook any live `snoop` relationship in either direction so neither

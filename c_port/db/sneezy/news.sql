@@ -258,3 +258,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New Fight Moves: bash, kick, and disarm',
  'Mid-fight, try `bash <target>` (Warriors), `kick <target>` (Thieves and Monks), or `disarm <target>` (Warriors, Thieves, and Monks) for a little extra edge on top of your normal swings. A solid bash knocks your target down and costs them a beat to recover; a good kick lands extra damage; a clean disarm knocks the weapon right out of their hand. All three cost you a moment to recover too, whether they land or not, so use them wisely. Warriors also now parry incoming blows automatically -- no command needed, just a passive chance to block a hit outright that grows as you fight.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Long Disconnect Now Cleans Up After Itself',
+ 'If your connection drops and you do not make it back within about 5 minutes, your character now saves and steps off stage on its own, rather than sitting frozen in the world indefinitely. Reconnecting after that window picks up fresh from your last save, same as normal -- nothing is lost, it just will not still be standing exactly where you left it.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

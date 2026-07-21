@@ -13,55 +13,64 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
-## PRIORITY — pick this up next (user 2026-07-20)
+## Recently closed (2026-07-20, home)
 
-- [ ] **Linkdead auto-purge (5 minutes, discard-only)** — found live,
-      2026-07-20: a linkdead PC's `being_t` stays fully resident in its
-      room forever (`desc == NULL`, never destroyed except on that same
-      account's reconnect or a `purge linkdead`/process restart) --
-      after months of smoke-test runs (every test that `s.close()`s a
-      raw socket instead of `quit`ing leaves one behind), Center Square
-      alone had 70+ linkdead bodies, which looks like the proximate
-      cause of a real slowdown/hang hit while testing this session (see
-      STATUS.md's Session 51 write-up). Verified against the original:
-      `misc/periodic.cc` already has exactly this mechanic -- a per-tick
-      linkdead timer, `nukeLdead()` once it crosses 15 minutes (mortals)
-      or 60 (immortals) -- force-saves, THEN strips/frees their
-      equipment and destroys the being. **User-directed deviation**: flat
-      5 minutes for everyone (not the original's 15/60 split) --
-      document this as a deliberate deviation in STATUS.md's decisions
-      table when it lands.
-      **Open design question, needs a decision before/while
-      implementing**: save-then-destroy (user's original phrasing,
-      matches the original's `nukeLdead()`) vs discard-only (matches
-      Tobin's OWN existing precedent -- `descriptor_destroy()`'s comment
-      and `world_purge_linkdead()`, both deliberately avoid an eager
-      save because it could clobber a fresher DB-side edit made while
-      linkdead, e.g. an admin `set`/`promote`). Leaning discard-only for
-      consistency with the existing precedent, but this is a real
-      data-integrity tradeoff worth re-confirming with the user before
-      picking, not just defaulting silently.
-      **Implementation sketch**: a new pulse (`main.c`, alongside
-      `descriptor_idle_timeout`/`zone_process_run` etc.) that walks
-      every linkdead PC (`world_for_each_room()`-style iteration,
-      `base.kind == THING_PC && desc == NULL`) via a new `world.h`
-      primitive (parallel to `world_purge_linkdead()`/
-      `world_count_linkdead()`), tracks a per-being elapsed-linkdead
-      timer (new `being_t` field, incremented each pulse the same way
-      `progress.rented_at`-style timestamps already work elsewhere --
-      or simpler, just stamp `being_t` with the wall-clock time
-      `desc` was cleared in `descriptor_destroy()` and compare against
-      `time(NULL)` each pulse, no counter needed), and once past the
-      5-minute mark, force-destroys it (`being_destroy()`, already
-      exists) -- optionally save first per the design question above.
-      Needs a smoke test (spin up a character, close the raw socket
-      without `quit`, wait past the threshold or fast-forward the
-      pulse counter the way other pulse-driven tests already do,
-      confirm the being is gone from the room) and a wiznews entry
-      (immortal-facing world-management change) -- likely a `news`
-      entry too, since it changes what a player finds on reconnecting
-      after a long disconnect (resumes fresh from their last real save/
-      rent instead of picking the old body back up).
+- [x] **Linkdead auto-purge** — done 2026-07-20. Found live at Work: a
+      linkdead PC's `being_t` stays fully resident in its room forever
+      (`desc == NULL`, never destroyed except on that same account's
+      reconnect or a `purge linkdead`/process restart) -- after months of
+      smoke-test runs (every test that `s.close()`s a raw socket instead
+      of `quit`ing leaves one behind), Center Square alone had 70+
+      linkdead bodies, the proximate cause of a real slowdown/hang hit
+      while testing (see STATUS.md's Session 51 write-up) -- and
+      independently reproduced at Home the same day (16 zombie characters
+      from this session's own crashed debug runs measurably slowing the
+      combat pulse loop). Verified against the original first:
+      `misc/periodic.cc`'s `nukeLdead()` force-saves, THEN strips/frees
+      equipment and destroys the being, once linkdead crosses 15 minutes
+      (mortals) or 60 (immortals).
+      **Design decision (asked, not defaulted)**: save-then-destroy --
+      user chose this explicitly over TODO's own discard-only leaning,
+      matching the original's `nukeLdead()` and the user's original
+      phrasing of the ask. Known, disclosed trade-off: an admin DB edit
+      made to a character that's been linkdead 5+ minutes CAN still be
+      clobbered by the stale pre-disconnect snapshot at purge time --
+      the same risk `descriptor_destroy()`'s own comment already reasons
+      through for its OWN (discard-only, unaffected) code path, now
+      knowingly reintroduced 5 minutes later by this feature.
+      **Deviation from the original**: a flat 5 minutes for everyone
+      (`TOBIN_LINKDEAD_PURGE_SECONDS` env var, default 300), not the
+      original's 15/60 mortal/immortal split.
+      New `being_t.linkdead_since` (being.h, stamped by
+      `descriptor_destroy()` the moment `desc` is cleared),
+      `world_purge_stale_linkdead()`/`linkdead_purge_tick()` (world.c/h,
+      sibling to the existing discard-only `world_purge_linkdead()` --
+      full doc-comment cross-references explaining which is which and
+      why), registered `pulse_register(600, linkdead_purge_tick)`
+      (~60s cadence, plenty granular against a 5-minute threshold).
+      **Verified live** (not just built and assumed): temporarily
+      restarted preview under `TOBIN_LINKDEAD_PURGE_SECONDS=5` and
+      confirmed BOTH halves for real -- (1) a raw-socket-closed character
+      is force-removed once past the threshold + one check cycle (`who`'s
+      Linkdead count returns to 0, `goto <name>` no longer finds them),
+      and (2) the save is genuine, not a discard or a stale snapshot:
+      dropped a character's Vitality via charged moves (saved
+      immediately), waited ~16s for `regen_tick_run()` to heal Vitality
+      further IN MEMORY ONLY (regen never itself calls
+      `player_progress_save()`), confirmed the DB value was still the
+      lower pre-regen number, disconnected, and the DB value after the
+      purge fired exactly matched the higher live-regenerated number.
+      New `tests/smoke_test_linkdead_purge.py` (4 checks) -- the full
+      threshold-crossing behavior isn't practical to keep as an
+      automated smoke test against the standing preview/production
+      instances (up to ~6 real minutes with the real default), same
+      "not practical to keep automated" call `smoke_test_heartbeat.py`
+      already makes for its own real-time boundary; the automated test
+      instead verifies what's fast and reliable (a raw disconnect
+      produces exactly one linkdead body, reconnecting resumes it rather
+      than erroring/duplicating). wiznews.sql + news.sql entries added
+      (changes what a player finds on reconnecting after 5+ minutes
+      away).
 
 ## Sneezy → Tobin feature audit (user 2026-07-19)
 

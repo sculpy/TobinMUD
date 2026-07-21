@@ -32,6 +32,7 @@
 #include "vitals.h"
 #include "wait_tick.h"
 #include "weather.h"
+#include "world.h"
 #include "zone.h"
 
 static char g_binary_path[PATH_MAX];
@@ -119,6 +120,7 @@ int main(int argc, char **argv) {
     pulse_register(600, trigger_random_tick);    /* ~60s: mob/room "random" scripted triggers */
     pulse_register(10, trigger_pending_tick);    /* ~1s: resume `wait`-paused trigger scripts */
     pulse_register(6000, tips_pulse_tick);       /* ~10min: echo a random tip to newbie-flagged players */
+    pulse_register(600, linkdead_purge_tick);    /* ~60s: force-save + destroy any PC linkdead 5+ minutes */
 
     int rc = game_loop_run(cfg->telnet_port, copyover_file);
 

@@ -29,6 +29,11 @@ const config_t *config_get(void) {
 
         g_config.wipe_password = getenv("TOBIN_WIPE_PASSWORD");
 
+        const char *linkdead_str = getenv("TOBIN_LINKDEAD_PURGE_SECONDS");
+        g_config.linkdead_purge_seconds = linkdead_str ? atoi(linkdead_str) : 300;
+        if (g_config.linkdead_purge_seconds <= 0)
+            g_config.linkdead_purge_seconds = 300;
+
         g_loaded = 1;
     }
     return &g_config;

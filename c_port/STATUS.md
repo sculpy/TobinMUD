@@ -64,6 +64,52 @@ work in.**
   new "always run under gdb" habit from Session 51 needs `sudo dnf
   install gdb` there first -- couldn't do it remotely, no interactive
   sudo password available; flagged for the user to run manually).
+- **Linkdead auto-purge**, TODO.md's new PRIORITY item from Session 51,
+  picked up and shipped same session. Asked the user the flagged open
+  design question directly rather than defaulting silently: **save-then-
+  destroy** (matches the real Sneezy's `nukeLdead()` and the user's
+  original phrasing), not TODO's own discard-only leaning -- a known,
+  disclosed trade-off (an admin DB edit to a character linkdead 5+
+  minutes can still be clobbered by the stale pre-disconnect snapshot,
+  same risk class `descriptor_destroy()`'s own comment already reasons
+  through for its unaffected discard-only path). New
+  `being_t.linkdead_since` (being.h), `world_purge_stale_linkdead()`/
+  `linkdead_purge_tick()` (world.c/h, sibling to the existing discard-
+  only `world_purge_linkdead()`), `pulse_register(600,
+  linkdead_purge_tick)` (~60s cadence). Flat 5-minute threshold for
+  everyone (not the original's 15/60 split), runtime-configurable via a
+  new `TOBIN_LINKDEAD_PURGE_SECONDS` env var (config.h/.c, same pattern
+  as `TOBIN_PORT` etc.) specifically so it could be verified live without
+  waiting out the real 5 minutes. **Verified live, both halves, not just
+  built and assumed**: restarted preview under
+  `TOBIN_LINKDEAD_PURGE_SECONDS=5` and confirmed (1) a raw-socket-closed
+  character is force-removed once past the threshold + one ~60s check
+  cycle (`who`'s Linkdead count returns to 0, `goto <name>` no longer
+  finds them), and (2) the save is genuine, not a discard: dropped a
+  character's Vitality via charged moves (saved immediately), waited
+  ~16s for `regen_tick_run()` to heal Vitality further IN MEMORY ONLY
+  (regen never itself calls `player_progress_save()` -- see the
+  Vitality/Terrain write-up above), confirmed the DB value was still the
+  lower pre-regen number, disconnected, and the DB value after the purge
+  fired exactly matched the higher live-regenerated number (20 -> 24).
+  New `tests/smoke_test_linkdead_purge.py` (4 checks) -- the full
+  threshold-crossing cycle isn't practical to keep automated against the
+  standing preview/production instances (up to ~6 real minutes with the
+  real 300s default), same call `smoke_test_heartbeat.py` already makes
+  for its own real-time boundary; the automated test verifies what's
+  fast and reliable instead (a raw disconnect produces exactly one
+  linkdead body; reconnecting resumes it, not a duplicate or an error).
+  Regression-checked against `smoke_test_accounts.py`/
+  `smoke_test_multiplay.py`/`smoke_test_combat.py`/
+  `smoke_test_positions.py`/`smoke_test_mid_fight_persist.py` (also
+  touch descriptor lifecycle/reconnect) -- the first two failed
+  identically on the OLD (pre-change) binary too, confirmed pre-existing
+  and unrelated; `mid_fight_persist`'s one failure (292 != 295, a 3-HP
+  mismatch) didn't reproduce on a clean rerun, a genuine timing flake
+  (an extra combat round landing during the disconnect window that one
+  run), not a regression -- nothing in this change touches combat.
+  wiznews.sql + news.sql entries added (changes what a player finds on
+  reconnecting after 5+ minutes away).
 
 Last updated: 2026-07-20 — Session 51 (work): **Socials → DB + full Sneezy
 set + `edsocial` editor (both halves of the TODO item), plus a real
