@@ -224,12 +224,21 @@ try:
     check(str(treasury_after) in out,
           "the immortal-only treasury command reports the same running total")
 
-    imm.close()
-    pc.close()
-
     announce_done("smoke_test_bank")
     print("=== ALL CHECKS PASSED ===")
 finally:
+    # Close sockets unconditionally, not just on the happy path -- an
+    # assertion failure partway through used to leave these connections
+    # open while the DB cleanup below deletes their `player` row out
+    # from under them, orphaning a still-"connected" being that the
+    # server then retries (and fails) autosaving forever after.
+    for _sock_name in ("imm", "pc"):
+        _sock = locals().get(_sock_name)
+        if _sock is not None:
+            try:
+                _sock.close()
+            except OSError:
+                pass
     sql(f"DELETE FROM player_inventory WHERE player_id IN "
         f"(SELECT id FROM player WHERE name IN ('{imm_name}', '{pc_name}'));")
     sql(f"DELETE FROM player_progress WHERE player_id IN "

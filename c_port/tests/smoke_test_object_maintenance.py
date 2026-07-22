@@ -233,14 +233,21 @@ try:
     look_after2 = cmd(spectator, "look")
     check("scraps of" in look_after2.lower(),
           "a scrap object is left behind in the room after destruction")
-    spectator.close()
-
-    imm.close()
-    tgt.close()
-
     announce_done("smoke_test_object_maintenance")
     print("=== ALL CHECKS PASSED ===")
 finally:
+    # Close sockets unconditionally, not just on the happy path -- an
+    # assertion failure partway through used to leave these connections
+    # open while the DB cleanup below deletes their `player` row out
+    # from under them, orphaning a still-"connected" being that the
+    # server then retries (and fails) autosaving forever after.
+    for _sock_name in ("imm", "tgt", "spectator"):
+        _sock = locals().get(_sock_name)
+        if _sock is not None:
+            try:
+                _sock.close()
+            except OSError:
+                pass
     sql(f"DELETE FROM player_progress WHERE player_id IN "
         f"(SELECT id FROM player WHERE name IN ('{imm_name}', '{tgt_name}'));")
     sql(f"DELETE FROM player_attrs WHERE player_id IN "

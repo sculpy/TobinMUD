@@ -320,12 +320,21 @@ try:
     check(rare_price == int(30 * 1.1 * 6.0),
           "bumping a real shop item's material to Rare (6x) scales its buy price by exactly 6x")
 
-    imm.close()
-    tgt.close()
-
     announce_done("smoke_test_material")
     print("=== ALL CHECKS PASSED ===")
 finally:
+    # Close sockets unconditionally, not just on the happy path -- an
+    # assertion failure partway through used to leave these connections
+    # open while the DB cleanup below deletes their `player` row out
+    # from under them, orphaning a still-"connected" being that the
+    # server then retries (and fails) autosaving forever after.
+    for _sock_name in ("imm", "tgt"):
+        _sock = locals().get(_sock_name)
+        if _sock is not None:
+            try:
+                _sock.close()
+            except OSError:
+                pass
     sql(f"UPDATE obj SET material={orig_shop_material} WHERE vnum={shop_item_vnum};")
     sql(f"DELETE FROM player_inventory WHERE player_id IN "
         f"(SELECT id FROM player WHERE name IN ('{imm_name}', '{tgt_name}'));")

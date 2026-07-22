@@ -245,12 +245,21 @@ try:
     left = sql_out(f"SELECT COUNT(*) FROM repair_ticket WHERE player_id={pid};").strip().splitlines()[-1]
     check(left == "0", "the retrieved ticket's DB row was actually deleted, not just hidden")
 
-    imm.close()
-    pc.close()
-
     announce_done("smoke_test_repair")
     print("=== ALL CHECKS PASSED ===")
 finally:
+    # Close sockets unconditionally, not just on the happy path -- an
+    # assertion failure partway through used to leave these connections
+    # open while the DB cleanup below deletes their `player` row out
+    # from under them, orphaning a still-"connected" being that the
+    # server then retries (and fails) autosaving forever after.
+    for _sock_name in ("imm", "pc"):
+        _sock = locals().get(_sock_name)
+        if _sock is not None:
+            try:
+                _sock.close()
+            except OSError:
+                pass
     sql(f"DELETE FROM repair_ticket WHERE player_id IN "
         f"(SELECT id FROM player WHERE name IN ('{imm_name}', '{pc_name}'));")
     sql(f"DELETE FROM player_inventory WHERE player_id IN "
