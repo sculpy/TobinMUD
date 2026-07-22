@@ -163,6 +163,7 @@ bool cmd_scan(descriptor_t *d, const char *args);
 bool cmd_vnum(descriptor_t *d, const char *args);
 bool cmd_zone(descriptor_t *d, const char *args);
 bool cmd_edzone(descriptor_t *d, const char *args);
+bool cmd_edobject(descriptor_t *d, const char *args);
 bool cmd_zonefile(descriptor_t *d, const char *args);
 bool cmd_edtrigger(descriptor_t *d, const char *args);
 bool cmd_consider(descriptor_t *d, const char *args);

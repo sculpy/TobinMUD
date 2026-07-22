@@ -18,6 +18,7 @@
 #include "cmd.h"
 #include "colorstring.h"
 #include "log.h"
+#include "material.h"
 #include "net.h"
 #include "obj_repo.h"
 #include "player_repo.h"
@@ -183,6 +184,7 @@ bool descriptor_in_editor(const descriptor_t *d) {
         || (d->state >= CONN_REDIT_MENU && d->state <= CONN_REDIT_QUIT_CONFIRM)
         || (d->state >= CONN_EDPLAYER_MENU && d->state <= CONN_EDPLAYER_QUIT_CONFIRM)
         || (d->state >= CONN_EDZONE_MENU && d->state <= CONN_EDZONE_QUIT_CONFIRM)
+        || (d->state >= CONN_OEDIT_MENU && d->state <= CONN_OEDIT_QUIT_CONFIRM)
         || (d->state >= CONN_BALANCE_MENU && d->state <= CONN_BALANCE_QUIT_CONFIRM)
         || (d->state >= CONN_EDACCOUNT_MENU && d->state <= CONN_EDACCOUNT_PASSWORD)
         || (d->state >= CONN_EDSOCIAL_LIST && d->state <= CONN_EDSOCIAL_DELETE_CONFIRM)
@@ -1692,6 +1694,108 @@ bool descriptor_edzone_begin(descriptor_t *d, int zone_nr) {
     d->edzone_work = loaded;
     d->edzone_dirty = false;
     show_edzone_menu(d);
+    return true;
+}
+
+static void show_oedit_menu(descriptor_t *d) {
+    obj_proto_t *w = &d->oedit_work;
+    char wearbuf[256], actionbuf[512];
+    obj_wear_flag_names(w->wear_flag, wearbuf, sizeof(wearbuf));
+    obj_action_flag_names(w->action_flag, actionbuf, sizeof(actionbuf));
+    char out[2048];
+    snprintf(out, sizeof(out),
+             "\r\n<c>Editing object:<z> %s (#%d)\r\n\r\n"
+             "   1) Name: %s\r\n"
+             "   2) Short description: %s\r\n"
+             "   3) Item type: %s (#%d)\r\n"
+             "   4) Long description: %s\r\n"
+             "   5) Weight: %.1f                     6) Volume: %d\r\n"
+             "   7) Extra flags: %s\r\n"
+             "   8) Take flags: %s\r\n"
+             "   9) Cost/value: %d\r\n"
+             "  10) Four values: %d %d %d %d\r\n"
+             "  11) Decay time: %d                  12) Max struct points: %d\r\n"
+             "  13) Struct points: %d                14) Material: %d (%s)\r\n"
+             "  15) Can be seen: %s                  16) Special proc: %d\r\n"
+             "  17) Max exist: %d\r\n\r\n"
+             "   S) Save    Q) Quit%s\r\n[oedit] ",
+             w->name, w->vnum,
+             w->name, w->short_descr, obj_type_name(w->type), w->type,
+             w->long_descr, w->weight, w->volume,
+             actionbuf, wearbuf, w->price,
+             w->val[0], w->val[1], w->val[2], w->val[3],
+             w->decay_time, w->max_struct,
+             w->cur_struct, w->material, material_tier_name(material_tier_for_id(w->material)),
+             w->can_be_seen ? "yes" : "no", w->spec_proc,
+             w->max_exist,
+             d->oedit_dirty ? "\r\n   <c>* unsaved changes *<z>" : "");
+    descriptor_send(d, out);
+    d->state = CONN_OEDIT_MENU;
+}
+
+static void show_oedit_action_flags(descriptor_t *d) {
+    char out[2048];
+    size_t n = (size_t)snprintf(out, sizeof(out),
+        "\r\nExtra flags for %d -- toggle by number, blank to return:\r\n",
+        d->oedit_work.vnum);
+    for (int b = 0; b < obj_action_flag_count(); b++) {
+        n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
+            "  %2d [%c] %-14s%s", b,
+            (d->oedit_work.action_flag & (1 << b)) ? 'x' : ' ',
+            obj_action_flag_name(b), (b % 2 == 1) ? "\r\n" : "");
+        if (n >= sizeof(out))
+            break;
+    }
+    if (obj_action_flag_count() % 2 != 0 && n < sizeof(out))
+        snprintf(out + n, sizeof(out) - n, "\r\n");
+    descriptor_send(d, out);
+    descriptor_send(d, "flag> ");
+    d->state = CONN_OEDIT_ACTION_FLAGS;
+}
+
+static void show_oedit_wear_flags(descriptor_t *d) {
+    char out[1024];
+    size_t n = (size_t)snprintf(out, sizeof(out),
+        "\r\nTake flags for %d -- toggle by number, blank to return:\r\n",
+        d->oedit_work.vnum);
+    for (int b = 0; b < obj_wear_flag_count(); b++) {
+        n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
+            "  %2d [%c] %-14s%s", b,
+            (d->oedit_work.wear_flag & (1 << b)) ? 'x' : ' ',
+            obj_wear_flag_name(b), (b % 2 == 1) ? "\r\n" : "");
+        if (n >= sizeof(out))
+            break;
+    }
+    if (obj_wear_flag_count() % 2 != 0 && n < sizeof(out))
+        snprintf(out + n, sizeof(out) - n, "\r\n");
+    descriptor_send(d, out);
+    descriptor_send(d, "flag> ");
+    d->state = CONN_OEDIT_WEAR_FLAGS;
+}
+
+static void oedit_save(descriptor_t *d) {
+    if (!obj_proto_save(&d->oedit_work)) {
+        descriptor_send(d, "Save failed -- the DB rejected part of it.\r\n");
+        return;
+    }
+    d->oedit_dirty = false;
+    descriptor_send(d, "Object saved.\r\n");
+}
+
+static void oedit_leave(descriptor_t *d) {
+    d->state = CONN_PLAYING;
+    d->oedit_dirty = false;
+    descriptor_send(d, "Leaving the object editor.\r\n");
+    descriptor_editor_exit_notice(d);
+}
+
+bool descriptor_oedit_begin(descriptor_t *d, int vnum) {
+    obj_proto_t loaded;
+    if (!obj_proto_load(vnum, &loaded))
+        return false;
+    d->oedit_work = loaded;
+    d->oedit_dirty = false;
+    show_oedit_menu(d);
     return true;
 }
 
@@ -3437,6 +3541,363 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 edzone_leave(d);
             } else {
                 show_edzone_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_OEDIT_MENU: {
+            if (isdigit((unsigned char)line[0])) {
+                switch (atoi(line)) {
+                    case 1:
+                        descriptor_send(d, "\r\nEnter new name (blank to cancel): ");
+                        d->state = CONN_OEDIT_NAME;
+                        break;
+                    case 2:
+                        descriptor_send(d, "\r\nEnter new short description (blank to cancel): ");
+                        d->state = CONN_OEDIT_SHORT_DESC;
+                        break;
+                    case 3:
+                        descriptor_send(d, "\r\nEnter new item type number (blank to cancel): ");
+                        d->state = CONN_OEDIT_TYPE;
+                        break;
+                    case 4:
+                        descriptor_send(d, "\r\nEnter new long description (blank to cancel): ");
+                        d->state = CONN_OEDIT_LONG_DESC;
+                        break;
+                    case 5:
+                        descriptor_send(d, "\r\nEnter new weight (blank to cancel): ");
+                        d->state = CONN_OEDIT_WEIGHT;
+                        break;
+                    case 6:
+                        descriptor_send(d, "\r\nEnter new volume (blank to cancel): ");
+                        d->state = CONN_OEDIT_VOLUME;
+                        break;
+                    case 7:
+                        show_oedit_action_flags(d);
+                        break;
+                    case 8:
+                        show_oedit_wear_flags(d);
+                        break;
+                    case 9:
+                        descriptor_send(d, "\r\nEnter new cost/value (blank to cancel): ");
+                        d->state = CONN_OEDIT_PRICE;
+                        break;
+                    case 10:
+                        descriptor_send(d, "\r\nEnter four values, e.g. \"0 0 0 0\" (blank to cancel): ");
+                        d->state = CONN_OEDIT_VALUES;
+                        break;
+                    case 11:
+                        descriptor_send(d, "\r\nEnter new decay time, -1 for never (blank to cancel): ");
+                        d->state = CONN_OEDIT_DECAY;
+                        break;
+                    case 12:
+                        descriptor_send(d, "\r\nEnter new max struct points (blank to cancel): ");
+                        d->state = CONN_OEDIT_MAX_STRUCT;
+                        break;
+                    case 13:
+                        descriptor_send(d, "\r\nEnter new struct points (blank to cancel): ");
+                        d->state = CONN_OEDIT_CUR_STRUCT;
+                        break;
+                    case 14:
+                        descriptor_send(d, "\r\nEnter new material number (blank to cancel): ");
+                        d->state = CONN_OEDIT_MATERIAL;
+                        break;
+                    case 15:
+                        descriptor_send(d, "\r\nCan be seen? yes or no (blank to cancel): ");
+                        d->state = CONN_OEDIT_CAN_BE_SEEN;
+                        break;
+                    case 16:
+                        descriptor_send(d, "\r\nEnter new special proc number (blank to cancel): ");
+                        d->state = CONN_OEDIT_SPEC_PROC;
+                        break;
+                    case 17:
+                        descriptor_send(d, "\r\nEnter new max exist, 0 for uncapped (blank to cancel): ");
+                        d->state = CONN_OEDIT_MAX_EXIST;
+                        break;
+                    default:
+                        descriptor_send(d, "Pick a menu number (1-17), or S/Q.\r\n");
+                        show_oedit_menu(d);
+                        break;
+                }
+                return true;
+            }
+            switch ((char)toupper((unsigned char)line[0])) {
+                case 'S':
+                    oedit_save(d);
+                    show_oedit_menu(d);
+                    break;
+                case 'Q':
+                    if (d->oedit_dirty) {
+                        descriptor_send(d,
+                            "\r\nYou have unsaved changes. (S)ave, (D)iscard, (C)ancel: ");
+                        d->state = CONN_OEDIT_QUIT_CONFIRM;
+                    } else {
+                        oedit_leave(d);
+                    }
+                    break;
+                default:
+                    descriptor_send(d, "Pick a menu number (1-17), or S/Q.\r\n");
+                    show_oedit_menu(d);
+                    break;
+            }
+            return true;
+        }
+
+        case CONN_OEDIT_NAME: {
+            if (line[0]) {
+                snprintf(d->oedit_work.name, sizeof(d->oedit_work.name), "%s", line);
+                d->oedit_dirty = true;
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_SHORT_DESC: {
+            if (line[0]) {
+                snprintf(d->oedit_work.short_descr, sizeof(d->oedit_work.short_descr), "%s", line);
+                d->oedit_dirty = true;
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_LONG_DESC: {
+            if (line[0]) {
+                snprintf(d->oedit_work.long_descr, sizeof(d->oedit_work.long_descr), "%s", line);
+                d->oedit_dirty = true;
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_TYPE: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0 && strcmp(obj_type_name((int)v), "?") != 0) {
+                    d->oedit_work.type = (int)v;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Not a recognized item type number -- "
+                        "check `stat`/`vnum` on a similar real object first.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_WEIGHT: {
+            if (line[0]) {
+                char *end;
+                double v = strtod(line, &end);
+                if (end != line && v >= 0) {
+                    d->oedit_work.weight = v;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Weight must be a non-negative number.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_VOLUME: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->oedit_work.volume = (int)v;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Volume must be a non-negative number.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_ACTION_FLAGS: {
+            if (line[0]) {
+                char *end;
+                long bit = strtol(line, &end, 10);
+                if (end != line && bit >= 0 && bit < obj_action_flag_count()) {
+                    d->oedit_work.action_flag ^= (1 << bit);
+                    d->oedit_dirty = true;
+                    show_oedit_action_flags(d);
+                } else {
+                    descriptor_send(d, "Pick a flag number, or blank to return.\r\n");
+                    show_oedit_action_flags(d);
+                }
+            } else {
+                show_oedit_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_OEDIT_WEAR_FLAGS: {
+            if (line[0]) {
+                char *end;
+                long bit = strtol(line, &end, 10);
+                if (end != line && bit >= 0 && bit < obj_wear_flag_count()) {
+                    d->oedit_work.wear_flag ^= (1 << bit);
+                    d->oedit_dirty = true;
+                    show_oedit_wear_flags(d);
+                } else {
+                    descriptor_send(d, "Pick a flag number, or blank to return.\r\n");
+                    show_oedit_wear_flags(d);
+                }
+            } else {
+                show_oedit_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_OEDIT_PRICE: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->oedit_work.price = (int)v;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Cost must be a non-negative number.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_VALUES: {
+            if (line[0]) {
+                int v0, v1, v2, v3;
+                if (sscanf(line, "%d %d %d %d", &v0, &v1, &v2, &v3) == 4) {
+                    d->oedit_work.val[0] = v0;
+                    d->oedit_work.val[1] = v1;
+                    d->oedit_work.val[2] = v2;
+                    d->oedit_work.val[3] = v3;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Enter four numbers, e.g. \"0 0 0 0\".\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_DECAY: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= -1) {
+                    d->oedit_work.decay_time = (int)v;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Decay time must be -1 (never) or a non-negative tick count.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_MAX_STRUCT: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->oedit_work.max_struct = (int)v;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Max struct points must be a non-negative number.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_CUR_STRUCT: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->oedit_work.cur_struct = (int)v;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Struct points must be a non-negative number.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_MATERIAL: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->oedit_work.material = (int)v;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Material must be a non-negative number.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_CAN_BE_SEEN: {
+            if (line[0]) {
+                bool is_no = strcasecmp(line, "n") == 0 || strcasecmp(line, "no") == 0;
+                bool is_yes = strcasecmp(line, "y") == 0 || strcasecmp(line, "yes") == 0;
+                if (is_yes || is_no) {
+                    d->oedit_work.can_be_seen = is_yes;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Please answer yes or no.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_SPEC_PROC: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->oedit_work.spec_proc = (int)v;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Special proc must be a non-negative number.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_MAX_EXIST: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->oedit_work.max_exist = (int)v;
+                    d->oedit_dirty = true;
+                } else {
+                    descriptor_send(d, "Max exist must be 0 (uncapped) or a positive number.\r\n");
+                }
+            }
+            show_oedit_menu(d);
+            return true;
+        }
+
+        case CONN_OEDIT_QUIT_CONFIRM: {
+            char c = (char)toupper((unsigned char)line[0]);
+            if (c == 'S') {
+                oedit_save(d);
+                oedit_leave(d);
+            } else if (c == 'D') {
+                oedit_leave(d);
+            } else {
+                show_oedit_menu(d);
             }
             return true;
         }

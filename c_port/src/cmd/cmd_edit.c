@@ -20,13 +20,14 @@
  * needing a HIGHER level than that (player 58+, help/news/wiznews 56+,
  * rules 59+) checks it here and refuses with the same "Huh?!" wording the
  * command table itself would have given, so nothing was quietly
- * loosened. `trigger` (added 2026-07-11, cmd_edtrigger.c) and `account`
- * (added 2026-07-18, cmd_edaccount.c) are the two nouns that ISN'T a
- * folded-in old command -- new editors added straight into this
- * dispatcher rather than getting their own standalone verb first.
- * `object`/`mob` (as in "edit an object/mob prototype", not the trigger
- * target types of the same name) are reserved in the usage line for the
- * day those editors exist (see TODO.md) -- not wired to anything yet. */
+ * loosened. `trigger` (added 2026-07-11, cmd_edtrigger.c), `account`
+ * (added 2026-07-18, cmd_edaccount.c), and `object` (added 2026-07-22,
+ * cmd_edobject.c -- the object-prototype editor, not the trigger target
+ * type of the same name) are nouns that ISN'T a folded-in old command --
+ * new editors added straight into this dispatcher rather than getting
+ * their own standalone verb first. `mob` is still reserved in the usage
+ * line for the day `edmobile` exists (see TODO.md) -- not wired to
+ * anything yet. */
 bool cmd_edit(descriptor_t *d, const char *args) {
     while (*args == ' ')
         args++;
@@ -35,7 +36,7 @@ bool cmd_edit(descriptor_t *d, const char *args) {
     int n = sscanf(args, "%31s", noun);
     if (n != 1) {
         descriptor_send(d,
-            "Usage: edit <room|zone|player|account|help|news|wiznews|rules|social|trigger> [args]\r\n");
+            "Usage: edit <room|zone|object|player|account|help|news|wiznews|rules|social|trigger> [args]\r\n");
         return true;
     }
 
@@ -49,6 +50,8 @@ bool cmd_edit(descriptor_t *d, const char *args) {
         return cmd_edroom(d, rest);
     if (strcasecmp(noun, "zone") == 0)
         return cmd_edzone(d, rest);
+    if (strcasecmp(noun, "object") == 0)
+        return cmd_edobject(d, rest);
     if (strcasecmp(noun, "trigger") == 0)
         return cmd_edtrigger(d, rest);
 
@@ -103,6 +106,6 @@ bool cmd_edit(descriptor_t *d, const char *args) {
     }
 
     descriptor_send(d,
-        "Usage: edit <room|zone|player|account|help|news|wiznews|rules|social> [args]\r\n");
+        "Usage: edit <room|zone|object|player|account|help|news|wiznews|rules|social> [args]\r\n");
     return true;
 }

@@ -11,6 +11,7 @@
 #include "balance_repo.h"
 #include "being.h"
 #include "help_repo.h"
+#include "obj_repo.h"
 #include "player_repo.h"
 #include "room.h"
 #include "room_repo.h"
@@ -161,6 +162,51 @@ typedef enum {
     CONN_EDSOCIAL_NEW_NAME,
     CONN_EDSOCIAL_RENAME,
     CONN_EDSOCIAL_DELETE_CONFIRM,
+    /* Menu-driven object-prototype editor (`edit object <vnum>`/oedit,
+     * TODO.md's "NEXT UP" item -- Sneezy -> Tobin feature audit's builder-
+     * tools-OLC gap). Same snapshot-working-copy shape as edzone/edplayer
+     * (a prototype row isn't kept resident like a room): loaded via
+     * obj_proto_load() on entry, field edits mutate d->oedit_work only,
+     * (S)ave writes the whole row back via obj_proto_save(). EDIT-ONLY,
+     * same scope boundary `edroom` draws around rooms -- there is no
+     * "create a new object vnum" path here (a separate concern, like
+     * `dig` is separate from `edit room`). Field numbering/order/labels
+     * follow the real upstream's own `update_obj_menu()`
+     * (misc/create_objs.cc) for familiarity, EXCEPT it renumbers
+     * sequentially (1..17) rather than preserving the original's 1-8,
+     * 10-21 gaps -- Tobin's other editors (edzone, edplayer) don't
+     * preserve upstream slot numbers either. Three of the original's 21
+     * fields are a disclosed, deliberate scope gap, not an oversight: an
+     * item's `action_desc` (real upstream menu slot 9, labeled "Unused"
+     * with NO case in the original's own dispatcher either -- genuinely
+     * not exposed there, not merely a Tobin omission), "Extra
+     * Description" (slot 15/19, needs an objextra-style per-object extra-
+     * desc table Tobin doesn't have yet, unlike rooms' roomextra), and
+     * "Applys" (slot 17, the objaffect stat/AC bonus rows -- its own
+     * related-table submenu, like Extra Description; also real-upstream
+     * wizpower-gated at 53+, a granular permission system Tobin doesn't
+     * have, so not replicated here as a separate gate either). See
+     * descriptor_oedit_begin() and the CONN_OEDIT_* cases in
+     * descriptor.c. */
+    CONN_OEDIT_MENU,
+    CONN_OEDIT_NAME,
+    CONN_OEDIT_SHORT_DESC,
+    CONN_OEDIT_TYPE,
+    CONN_OEDIT_LONG_DESC,
+    CONN_OEDIT_WEIGHT,
+    CONN_OEDIT_VOLUME,
+    CONN_OEDIT_ACTION_FLAGS,
+    CONN_OEDIT_WEAR_FLAGS,
+    CONN_OEDIT_PRICE,
+    CONN_OEDIT_VALUES,
+    CONN_OEDIT_DECAY,
+    CONN_OEDIT_MAX_STRUCT,
+    CONN_OEDIT_CUR_STRUCT,
+    CONN_OEDIT_MATERIAL,
+    CONN_OEDIT_CAN_BE_SEEN,
+    CONN_OEDIT_SPEC_PROC,
+    CONN_OEDIT_MAX_EXIST,
+    CONN_OEDIT_QUIT_CONFIRM,
     CONN_PLAYING,
     CONN_CLOSED
 } conn_state_t;
@@ -365,6 +411,12 @@ typedef struct descriptor {
     zone_t edzone_work;
     bool edzone_dirty;
 
+    /* Menu-driven object-prototype editor working copy (CONN_OEDIT_*).
+     * DB snapshot (obj_proto_load()), same shape as edzone_work -- a
+     * prototype row isn't kept resident like a room is. */
+    obj_proto_t oedit_work;
+    bool oedit_dirty;
+
     /* Menu-driven balance editor working copy (CONN_BALANCE_*, user
      * 2026-07-12). balance_is_class picks which table (true =
      * class_balance, false = race_balance); balance_index is the
@@ -505,6 +557,12 @@ bool descriptor_edplayer_begin(descriptor_t *d, const char *name);
  * CONN_EDZONE_MENU). Returns false if no such zone exists. Caller
  * (cmd_edzone.c) owns the level gate + zone_can_edit() ownership check. */
 bool descriptor_edzone_begin(descriptor_t *d, int zone_nr);
+
+/* Opens the menu-driven object-prototype editor on `vnum`, copies its DB
+ * row into the descriptor's working copy, and shows the oedit menu
+ * (entering CONN_OEDIT_MENU). Returns false if no such prototype exists.
+ * Caller (cmd_edobject.c) owns the level gate. */
+bool descriptor_oedit_begin(descriptor_t *d, int vnum);
 
 /* Opens the menu-driven balance editor on class `cls` (if `is_class`) or
  * race `race_val` (if not), copies its current class_balance/race_balance

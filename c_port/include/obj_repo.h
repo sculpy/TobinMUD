@@ -22,10 +22,19 @@
 #define OBJ_SHORT_DESCR_LEN 128 /* matches thing_t.short_descr */
 
 typedef struct {
+    int vnum;           /* the row identity -- obj_proto_save() writes back
+                          * by this vnum, unset (0) by obj_proto_load() itself
+                          * (the caller already knows it) but filled in by
+                          * `oedit` (cmd_edobject.c) before Save is possible. */
     char name[OBJ_NAME_LEN];
     char short_descr[OBJ_SHORT_DESCR_LEN];
     char long_descr[OBJ_LONG_DESCR_LEN];
     int type;          /* raw upstream itemTypeT value -- category_for_item_type() */
+    int action_flag;   /* the original's extraFlags bitmask -- see obj.h's
+                          * obj_action_flag_names()/obj_action_flag_name().
+                          * Loaded/edited (`oedit`) but not yet read by any
+                          * gameplay code, same "real seeded column, no
+                          * Tobin behavior yet" status as spec_proc below. */
     int wear_flag;
     int val[4];
     double weight;
@@ -40,11 +49,26 @@ typedef struct {
                      * reads this (a warning, not an enforced cap). */
     int decay_time; /* upstream `decay` column, verbatim -- see obj_t's own
                       * decay_time doc comment (obj.h) for the convention. */
+    int spec_proc;  /* upstream objSpecials index (e.g. 48 = hospital doctor,
+                      * shop_repo_is_hospital()) -- read by name-keyed lookups
+                      * elsewhere, exposed here as a raw int for `oedit` same
+                      * as every other column. */
 } obj_proto_t;
 
 /* Loads the prototype row for `vnum` from the `obj` table into *out. Returns
- * false if no such vnum exists. */
+ * false if no such vnum exists. out->vnum is set to `vnum` on success. */
 bool obj_proto_load(int vnum, obj_proto_t *out);
+
+/* Writes every editable field of `p` back to the existing `obj` row
+ * p->vnum (an UPDATE, not an INSERT -- `oedit`/cmd_edobject.c only edits
+ * prototypes that already exist, same "no new-vnum allocation" scope
+ * `edroom` draws around rooms, where a separate `dig` command handles
+ * creation instead). Returns false if the DB rejected it (p->vnum has no
+ * matching row, or a query error). action_desc is deliberately NOT part
+ * of obj_proto_t/this save -- confirmed against the real upstream's own
+ * oedit (create_objs.cc's update_obj_menu numbers it "9) Unused" with no
+ * case in the dispatcher at all, not merely an omission on Tobin's side. */
+bool obj_proto_save(const obj_proto_t *p);
 
 /* Finds the lowest vnum whose `name` column contains `name` (case-
  * insensitive substring, e.g. "sword" matches "a rusty sword"), or -1 if

@@ -5386,18 +5386,14 @@ already tracked — pointers, not duplicates):
 
 ## Blocked on Objects / Mobs (Phase 2C/2D/2E)
 
-### >>> NEXT UP (work session): `edobject` and/or `edmobile` <<<
+### >>> NEXT UP (work session): `edmobile` <<<
 
 Objects (2C) and Mobiles (2D) are BOTH done as of 2026-07-07 (Sessions 34
-and 35) -- see STATUS.md's decision rows. Both editors were deliberately
-deferred to their own session(s) each (designing a system and its editor
-at once serves neither well); the user already said they want wireframes
-drafted (not provided) for both, from Sneezy's real menus:
-- `edobject`: `create_objs.cc`'s `update_obj_menu` (21 fields), covering
-  the real fields now in `obj_t`/the `obj` table: name/short/long/action
-  desc, category (was `type`), wear_flag, action_flag, val0-3, weight,
-  volume, price, can_be_seen, max_struct/cur_struct, material, decay,
-  max_exist.
+and 35) -- see STATUS.md's decision rows. `edobject` shipped 2026-07-22
+(Session 61, see below); `edmobile` is the one remaining editor, still
+deliberately deferred to its own session (designing a system and its
+editor at once serves neither well); the user already said they want a
+wireframe drafted (not provided), from Sneezy's real menu:
 - `edmobile`: `create_mobs.cc`'s `send_mob_menu` (30 fields), covering the
   `mob` table's real columns -- note Tobin's `being_create_mob()` only
   uses 6 of ~40 columns today (name/short_desc/description/level/hpbonus/
@@ -5405,7 +5401,7 @@ drafted (not provided) for both, from Sneezy's real menus:
   edit the full row and leave most fields inert until AI/combat-stats work
   lands) is itself worth raising with the user before drafting the
   wireframe.
-Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
+Same menu-driven working-copy pattern as `edplayer`/`edroom`/`edobject`
 (see [[editors-menu-driven]]).
 
 - [x] **Objects (2C)** — done 2026-07-07: `obj_t` (16-category collapse,
@@ -5417,9 +5413,21 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom` either way
       on-death (`combat.c`), equipment wired to the existing 13-limb enum
       (no second enum, per this item's own original constraint).
       `smoke_test_objects.py` + 7 new help topics + a news entry.
-- [ ] **`edobject` (oedit)** — object editor (menu-driven, DB prototype
-      rows in the existing `obj` table). See NEXT UP note above. Sneezy's
-      `update_obj_menu` has 21 fields (STATUS / create_objs.cc).
+- [x] **`edobject` (oedit)** — done 2026-07-22 (Session 61, work):
+      menu-driven object-prototype editor, same working-copy pattern as
+      `edzone`/`edplayer` (`obj_proto_load()`/`obj_proto_save()`, new
+      CONN_OEDIT_* state machine). 17 fields (renumbered sequentially,
+      not preserving the real upstream's 1-8/10-21 gaps), ported from
+      `update_obj_menu()` (create_objs.cc). EDIT-ONLY, same scope
+      boundary `edroom` draws -- no new-vnum allocation. Take/Extra Flags
+      open a toggle-by-number submenu like edroom's room-flags one. Three
+      real upstream fields disclosed as out of scope: `action_desc` (the
+      original's own menu also has no case for it), Extra Description
+      (needs an objextra-style table Tobin doesn't have), Applys (its own
+      related-table submenu + wizpower gate in the original, not
+      replicated). No zone_can_edit() check -- `obj` has no zone column.
+      `tests/smoke_test_edobject.py` (17 checks) + help topic + wiznews
+      entry (builder-only, no player-facing news).
 - [x] **Mobs (2D)** — done 2026-07-07: a mob is just a `being_t` with
       `kind=THING_MOB` (no new struct -- matches the original's own
       `TMonster : TBeing`), DB load (`mob_repo.c` reads the existing

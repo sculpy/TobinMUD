@@ -168,8 +168,11 @@ check("Requires:" in out and "component" in out and "holy symbol" in out,
 
 send_line(s, "help gust")
 out = recv_all(s)
-check("-- Help: Gust --" in out and "Requires:" in out and 'keyworded "component"' in out and "(`cast`)" in out,
-      "a Mage-only spell topic's Requires footer names just the component")
+check("-- Help: Gust --" in out and "Requires:" in out and "a rabbit's foot on a silver chain" in out,
+      "a Mage-only spell topic's Requires footer names gust's real specific component "
+      "(post-follow-up wording -- the generic 'keyworded component' phrasing this "
+      "assertion used to check for was superseded by the same-session real-component-"
+      "mapping follow-up, STATUS.md's Session 60 write-up; this assertion was stale)")
 
 send_line(s, "help edit room")
 out = recv_all(s)

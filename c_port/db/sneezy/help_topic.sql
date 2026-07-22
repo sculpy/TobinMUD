@@ -941,3 +941,8 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('smoke', 'Usage: smoke <item>\n\nConsumes a dose from a carried drug item (pipeweed, opium, pot, or\nfrogslime) for a real, temporary effect on your stats -- some good,\nmost not. A second dose before the first wears off just refreshes it,\nrather than stacking. Smoke the same drug too often without a break\nand you will start to feel real withdrawal pangs when you go too long\nwithout another dose. Each item holds a limited number of doses before\nit is spent.\n\nRelated: score affects', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `edit object` (oedit, TODO.md's "NEXT UP" item -- builder-tools-OLC gap).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('edit object', 'Usage: edit object <vnum>   (level 51+ builders)\n\nMenu-driven editor for an existing object prototype (the `obj` table).\nEdits are held in a working copy -- nothing touches the DB until you\nSave. EDIT-ONLY: there is no way to create a brand-new vnum here.\n\n   1) Name                  2) Short description\n   3) Item type              4) Long description\n   5) Weight                 6) Volume\n   7) Extra flags            8) Take flags\n   9) Cost/value            10) Four values\n  11) Decay time            12) Max struct points\n  13) Struct points         14) Material\n  15) Can be seen           16) Special proc\n  17) Max exist\n\nExtra/Take flags (7/8) open a toggle-by-number submenu; blank returns\nto the main menu. Four values (10) takes all four numbers at once,\ne.g. \"0 0 0 0\".\n\n  S) Save    Q) Quit (warns on unsaved changes)\n\nRelated: room zone stat load', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

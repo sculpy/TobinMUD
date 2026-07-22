@@ -234,6 +234,26 @@ const char *obj_action_flag_names(int flags, char *buf, size_t size) {
     return buf;
 }
 
+int obj_wear_flag_count(void) {
+    return 16;
+}
+
+const char *obj_wear_flag_name(int bit) {
+    if (bit < 0 || bit >= 16)
+        return "?";
+    return WEAR_FLAG_NAMES[bit];
+}
+
+int obj_action_flag_count(void) {
+    return 32;
+}
+
+const char *obj_action_flag_name(int bit) {
+    if (bit < 0 || bit >= 32)
+        return "?";
+    return OBJ_ACTION_FLAG_NAMES[bit];
+}
+
 int wear_slot_for_flag(int wear_flag, const struct being *fitter) {
     if (!fitter)
         return WEAR_SLOT_NOT_WEARABLE;

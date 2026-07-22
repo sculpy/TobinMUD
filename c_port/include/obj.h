@@ -432,4 +432,14 @@ const char *obj_type_name(int raw_type);
  * but `stat` should still show a seeded value honestly. */
 const char *obj_action_flag_names(int flags, char *buf, size_t size);
 
+/* Per-bit accessors for `oedit`'s Take Flags / Extra Flags toggle
+ * submenus (cmd_edobject.c) -- same "count + name(index)" shape as
+ * room.h's room_flag_count()/room_flag_name(), iterating the same
+ * WEAR_FLAG_NAMES/OBJ_ACTION_FLAG_NAMES tables obj_wear_flag_names()/
+ * obj_action_flag_names() already use for read-only display. */
+int obj_wear_flag_count(void);
+const char *obj_wear_flag_name(int bit);
+int obj_action_flag_count(void);
+const char *obj_action_flag_name(int bit);
+
 #endif

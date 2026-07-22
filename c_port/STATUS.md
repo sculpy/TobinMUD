@@ -4,7 +4,55 @@ Last updated: 2026-07-22 — Session 61 (work): **Repo hygiene (Work box's
 git bookkeeping reconciled with origin/main -- no real work was at risk,
 just a stale local HEAD) + root-caused and fixed
 `smoke_test_object_maintenance.py`'s real, reproducible hang (flagged by
-Session 60 as "hasn't gotten a single clean confirmed pass").**
+Session 60 as "hasn't gotten a single clean confirmed pass") + `edit
+object` (oedit), TODO.md's "NEXT UP" item and the last piece of the
+builder-tools-OLC audit gap + a stale test assertion found and fixed
+along the way.**
+- **`edit object` (oedit)**: menu-driven object-prototype editor over the
+  existing upstream-seeded `obj` table -- same snapshot-working-copy
+  pattern as `edzone`/`edplayer` (obj_proto_load()/obj_proto_save(), new
+  CONN_OEDIT_* state machine in descriptor.c). Field numbering/labels
+  ported from the real upstream's own `update_obj_menu()`
+  (misc/create_objs.cc), renumbered sequentially (1-17) rather than
+  preserving its 1-8/10-21 gaps -- Tobin's other editors don't preserve
+  upstream slot numbers either. EDIT-ONLY, same scope boundary `edroom`
+  draws around rooms -- no way to allocate a brand-new vnum here (a
+  separate concern, like `dig` is separate from `edit room`). Take
+  Flags/Extra Flags (wear_flag/action_flag) open a toggle-by-number
+  submenu, same shape as edroom's room-flags submenu -- new
+  `obj_wear_flag_count()`/`_name()` and `obj_action_flag_count()`/`_name()`
+  accessor pairs (obj.c) over the existing display-only name tables.
+  `obj_proto_t` gained `vnum`/`action_flag`/`spec_proc` (previously
+  load-only, now also editable/round-tripped). Three real upstream fields
+  disclosed as OUT of scope, not silently dropped: `action_desc` (the
+  real menu labels this slot "9) Unused" with NO case in its own
+  dispatcher either -- genuinely not exposed there, not a Tobin
+  omission), Extra Description (needs an objextra-style per-object table
+  Tobin doesn't have, unlike rooms' roomextra), and Applys (the objaffect
+  stat/AC bonus rows -- its own related-table submenu in the original,
+  also wizpower-gated at 53+, a granular permission system Tobin doesn't
+  have and isn't replicating as a separate gate). No `zone_can_edit()`
+  check, unlike edroom/edzone -- the `obj` table has no zone column at
+  all, so there's no ownership boundary to enforce; gated at
+  BUILD_MIN_LEVEL only. New `tests/smoke_test_edobject.py` (17 checks,
+  verified live against a real sandbox prototype row): menu display
+  (including the real seeded wear_flag/weight rendering correctly),
+  dirty-before-save, flag toggling round-tripping through the submenu,
+  four-values editing, Save persisting everything in one write, a
+  nonexistent-vnum rejection, and Discard genuinely discarding. New `edit
+  object` help topic; wiznews entry (builder-only feature, no player-
+  facing news entry). Regression swept clean: edzone/redit/edplayer/
+  balance/stat/objects/object_maintenance all still pass after the shared
+  `descriptor_in_editor()`/`handle_line()` changes.
+- **Stale test assertion found and fixed along the way (unrelated to
+  oedit)**: `smoke_test_help_topics.py`'s own `gust` check still expected
+  the OLD generic "keyworded component" Requires wording from before
+  Session 60's later same-session follow-up (real per-spell component
+  mapping) shipped -- confirmed the committed `skill_help.sql` already
+  has the real wording ("a rabbit's foot on a silver chain"), so this
+  wasn't a regression from anything in this session, just a test
+  assertion nobody updated after that follow-up landed. Fixed to check
+  for the real, already-shipped wording instead.
 - **Repo hygiene**: `git status` on db.kullit.com showed ~200 modified +
   30 untracked files against its own stale local HEAD (`a7a00c8`, several
   commits behind `origin/main`). Investigated before touching anything --

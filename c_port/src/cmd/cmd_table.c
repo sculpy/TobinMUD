@@ -338,7 +338,7 @@ static const cmd_entry_t COMMANDS[] = {
      * ed* verbs. Gated at BUILD_MIN_LEVEL (the lowest of any sub-editor);
      * nouns needing more (player 58+, help/news/wiznews 56+, rules 59+)
      * check that internally, in cmd_edit.c. */
-    { "edit",    cmd_edit,    "Edit a room/zone/player/account/help/news/wiznews/rules/trigger (edit <noun> ...).", BUILD_MIN_LEVEL },
+    { "edit",    cmd_edit,    "Edit a room/zone/object/player/account/help/news/wiznews/rules/trigger (edit <noun> ...).", BUILD_MIN_LEVEL },
     { "egotrip", cmd_egotrip, "Immortal toy-box -- only 'blast <target>' is implemented.", EGOTRIP_MIN_LEVEL },
     { "exec",    cmd_exec,    "Run a shell command on the host box (Implementor).", EXEC_MIN_LEVEL },
     { "gametog", cmd_gametog, "View or flip global game-wide switches (58+).",      GAMETOG_MIN_LEVEL },
