@@ -434,8 +434,8 @@ CREATE TABLE IF NOT EXISTS `repair_ticket` (
 -- (not a sink, and not full double-entry).
 --
 -- `bank_gold` on player_progress: a second wallet, separate from `gold`.
--- Deposit/withdraw only at the real seeded "Grimhaven First Kingdom
--- Bank" (shop_nr 4, keeper mob 31765 "banker Grimhaven", room 31750) --
+-- Deposit/withdraw only at the real seeded "Tobin City First Kingdom
+-- Bank" (shop_nr 4, keeper mob 31765 "banker Tobin City", room 31750) --
 -- picked over 5 other bank-named rooms in the seeded data because it's
 -- the only other one besides shop_nr 123 with a keeper mob distinct
 -- from its own room vnum (the rest look like broken import data, keeper

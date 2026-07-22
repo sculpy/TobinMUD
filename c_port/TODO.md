@@ -13,6 +13,17 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
+## Flagged, not yet actioned
+
+- [ ] **Verify the Work box's `sneezy` DB has the Grimhaven → Tobin City
+      rename too** — 2026-07-21 (home): found live that Home's database
+      never actually received the "done" global rename fix below (639
+      rooms still said "grimhaven") despite Home/Work sharing the same
+      git-synced code -- each box runs its own independent database, so
+      a live-DB-only fix on one box doesn't reach the other. Re-applied
+      on Home. Work's own DB state is unconfirmed -- this session has no
+      active connection to it.
+
 ## Recently closed (2026-07-20, home)
 
 - [x] **Linkdead auto-purge** — done 2026-07-20. Found live at Work: a
@@ -749,8 +760,8 @@ implementation inspiration before each one, not guessed at.
       (`player_progress.bank_gold`, not per-shop accounts) and tax
       revenue collects into a single visible treasury (not a sink, and
       not full double-entry). `bank [balance | deposit <amt> | withdraw
-      <amt>]` works only at the real seeded "Grimhaven First Kingdom
-      Bank" (shop_nr 4, keeper "banker Grimhaven", room 31750) -- picked
+      <amt>]` works only at the real seeded "Tobin City First Kingdom
+      Bank" (shop_nr 4, keeper "banker Tobin City", room 31750) -- picked
       over 5 other bank-named rooms in the seeded data because it's one
       of only two with a real keeper mob distinct from its own room
       vnum (the rest look like broken import data, `keeper == in_room`).

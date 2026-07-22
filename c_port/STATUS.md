@@ -24,8 +24,8 @@ picked next per the user's stated order (22 then 24).**
   alongside `gold`) — `bank` / `bank balance` / `bank deposit <amt>` /
   `bank withdraw <amt>` (new `cmd_bank.c`), usable only at a real shop
   flagged `is_bank` (same genuinely-new-column precedent as
-  `is_stable`/`is_repair`). Picked shop_nr 4, "Grimhaven First Kingdom
-  Bank" (room 31750, keeper "banker Grimhaven") over 5 other
+  `is_stable`/`is_repair`). Picked shop_nr 4, "Tobin City First Kingdom
+  Bank" (room 31750, keeper "banker Tobin City") over 5 other
   bank-themed seeded rooms found in the data (Brightmoon Bank, The
   Logrus Bank, Second Bank of Amber, Banking Window, A Marshy Bank) —
   most of those have `keeper == in_room` in the seeded data, which
@@ -85,6 +85,27 @@ picked next per the user's stated order (22 then 24).**
   production deferred to the user's own copyover, per their stated
   preference from Session 57 ("i'll copyover") rather than spinning up
   a disposable test immortal to trigger it automatically.
+- **Real, unrelated regression found and fixed the same session**: while
+  picking the bank's real seeded room, found the room still named
+  "Grimhaven First Kingdom Bank" -- but TODO.md already has a "done"
+  entry for a global "Grimhaven" → "Tobin City" text replace across 18
+  columns (`room`, `mob`, `obj`, `zone`, etc.). Re-checked live: 639
+  rooms on this box (Home, 192.168.254.200) still contained "grimhaven"
+  text, across the exact same 18 columns the original fix covered --
+  the local seed files (`zone_reset.sql` etc.) were already clean, so
+  this wasn't a seed-file regression, just this box's live database
+  never actually receiving the original fix (most likely a live-DB-only
+  mutation that was run once, on one box, and never applied to the
+  other -- Home and Work each run their own independent `sneezy`
+  database, only the code is git-synced). Re-ran the same
+  `REGEXP_REPLACE(col, 'grimhaven', 'Tobin City')` approach against all
+  18 columns on Home. Two pre-existing wiznews entries (a lamp-lighting
+  mob flavor note, and the original rename announcement itself, which
+  legitimately needs to keep saying "Grimhaven" to make sense) were left
+  alone -- only this session's own new wiznews/news/tobin_migrations.sql
+  text got corrected to match. **Not yet verified**: whether the Work
+  box's database has the same gap -- flagged in TODO.md rather than
+  guessed at, since this session has no active connection to it.
 
 Last updated: 2026-07-21 — Session 57 (home): **Object maintenance tasks
 3-4 — the repair-shop economy (Sneezy → Tobin feature audit), closing out

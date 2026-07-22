@@ -286,5 +286,5 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Banking Has Arrived, and Shops Now Charge Tax',
- 'The Grimhaven First Kingdom Bank will now hold your gold for you. Visit and use `bank` to check your balance, `bank deposit <amount>` to put gold away safely, and `bank withdraw <amount>` to take it back out. Gold left in the bank earns a little interest every day, even while you are offline, so it is worth parking some there rather than carrying everything around. One catch: ordinary shop purchases now come with a small sales tax on top of the sticker price, which goes straight into the crown''s coffers -- something to budget for next time you go shopping.')
+ 'The Tobin City First Kingdom Bank will now hold your gold for you. Visit and use `bank` to check your balance, `bank deposit <amount>` to put gold away safely, and `bank withdraw <amount>` to take it back out. Gold left in the bank earns a little interest every day, even while you are offline, so it is worth parking some there rather than carrying everything around. One catch: ordinary shop purchases now come with a small sales tax on top of the sticker price, which goes straight into the crown''s coffers -- something to budget for next time you go shopping.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
