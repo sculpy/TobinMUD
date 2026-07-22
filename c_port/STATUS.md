@@ -1,6 +1,53 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-22 — Session 60 (work): **Skill/spell help topics
+Last updated: 2026-07-22 — Session 61 (work): **Repo hygiene (Work box's
+git bookkeeping reconciled with origin/main -- no real work was at risk,
+just a stale local HEAD) + root-caused and fixed
+`smoke_test_object_maintenance.py`'s real, reproducible hang (flagged by
+Session 60 as "hasn't gotten a single clean confirmed pass").**
+- **Repo hygiene**: `git status` on db.kullit.com showed ~200 modified +
+  30 untracked files against its own stale local HEAD (`a7a00c8`, several
+  commits behind `origin/main`). Investigated before touching anything --
+  confirmed via a full tree diff against the already-current Windows dev
+  tree that content matched origin/main almost exactly (only this
+  session's own in-progress TODO.md edit differed); the box's checked-out
+  HEAD was simply never advanced after `origin/main` moved on (drug
+  tracking, skill-help redesign, etc. already landed there from
+  elsewhere). No commits existed on the box that weren't already on
+  origin (`git log origin/main..HEAD` empty) -- safe to reconcile.
+  `git reset --hard origin/main && git clean -fd` on the box brought its
+  bookkeeping back in line with zero content loss. Lesson: a big
+  `git status` diff on a build box doesn't necessarily mean real
+  unsynced work -- check against origin, not just assume.
+- **`smoke_test_object_maintenance.py` hang, root-caused**: reproduced
+  live (server stays at 0% CPU, still accepts new connections, and its
+  own `pulse_count` keeps advancing normally under `gdb` the whole
+  time -- ruled out a server-side deadlock/spin entirely). The test's own
+  `recv_all(imm, 1.5)` (its combat-wait poll loop, right next to a
+  correctly-tuned `recv_all(tgt, 0.3)`) uses a timeout LONGER than
+  `COMBAT_ROUND_PULSES`'s real cadence (12 pulses @ 100ms = ~1.2s,
+  pulse.h): since the test deliberately sets the attacker's dexterity to
+  900 against a dex=1/999999-HP target specifically so combat lands
+  (almost) every round, the fight generates a fresh message on `imm`'s
+  socket roughly every 1.2s -- faster than the 1.5s window `recv_all()`'s
+  internal "drain until a quiet gap" loop needs to ever see a native
+  `socket.timeout`. The single initial `cmd(imm, f"hit {tgt_name}")` call
+  (and, if it had ever gotten that far, the while-loop's own
+  `recv_all(imm, 1.5)`) would drain forever, since the fight never
+  naturally ends (999999 HP). Confirmed with `gdb -p <pid> bt full` (had
+  to `kill` the existing passive crash-watcher gdb first --
+  `ptrace`  only allows one tracer -- then reattached it afterward, same
+  recipe as CLAUDE.md's standing instruction). Fixed by lowering `imm`'s
+  poll timeout to 0.3s (matching `tgt`'s already-correct value) and the
+  initial `hit` send's own timeout to 0.3s too -- both now safely below
+  the round cadence. Verified live end-to-end: full test now passes
+  clean in ~72s (`ALL CHECKS PASSED`). Cleaned up leftover `Obj%`
+  sandbox rows left behind by the hung runs. This was a genuine
+  pre-existing test-script bug (present since whenever this test was
+  written), not a regression from any recent session's server-side
+  changes.
+
+Previous update: 2026-07-22 — Session 60 (work): **Skill/spell help topics
 redesigned (user wireframe, "gust" worked example) + Sign language
 (Sneezy → Tobin feature audit) + Drug tracking (Sneezy → Tobin feature
 audit) + a same-session regression sweep of the

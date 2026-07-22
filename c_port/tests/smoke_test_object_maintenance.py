@@ -200,12 +200,22 @@ try:
     check("a fragile test shirt" in eq_before and "a fragile test cap" in eq_before,
           "both fragile test items are worn before combat starts")
 
-    cmd(imm, f"hit {tgt_name}")
+    # Poll timeouts here MUST stay below COMBAT_ROUND_PULSES's real cadence
+    # (12 pulses @ 100ms = ~1.2s, pulse.h) -- recv_all()'s "drain until a
+    # quiet gap" loop never returns while messages keep arriving faster than
+    # its own timeout, and dex=900-vs-dex=1 guarantees a landed hit (and a
+    # message) almost every single round. A previous `recv_all(imm, 1.5)`
+    # here (1.5s > 1.2s round cadence) hung indefinitely once combat started
+    # -- the ordinary per-round exchange kept feeding it fresh data before
+    # each 1.5s window ever elapsed, so the drain loop's own internal
+    # `while True: recv()` never saw a native socket.timeout. `tgt`'s 0.3s
+    # value right below it was already safe; matched here.
+    cmd(imm, f"hit {tgt_name}", timeout=0.3)
     start = time.time()
     destroyed = False
     out_all = ""
     while time.time() - start < 90 and not destroyed:
-        out_all += recv_all(imm, 1.5)
+        out_all += recv_all(imm, 0.3)
         out_all += recv_all(tgt, 0.3)
         if "is destroyed" in out_all:
             destroyed = True
