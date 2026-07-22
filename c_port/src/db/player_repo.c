@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "db.h"
+#include "drug_repo.h"
 #include "log.h"
 #include "obj_repo.h"
 
@@ -75,6 +76,7 @@ being_t *player_load(const char *name, long account_id) {
     if (b) {
         player_attrs_load(b->player_id, &b->attrs); /* falls back to ATTR_BASE defaults if missing */
         player_progress_load(b->player_id, &b->progress); /* falls back to being_create_pc()'s defaults if missing */
+        drug_repo_load_all(b->player_id, b->drugs); /* rows with no history leave the calloc'd all-zero defaults alone */
         /* Returning from `rent` (cmd_rent.c): heal for the real time spent
          * rented out, then clear the marker so this only fires once. */
         if (b->progress.rented_at > 0) {

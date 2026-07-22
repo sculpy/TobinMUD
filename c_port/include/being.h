@@ -9,6 +9,7 @@
 #include <time.h>
 
 #include "affect.h"
+#include "drug.h"
 #include "thing.h"
 
 struct obj; /* forward decl only -- avoids a being.h<->obj.h include cycle,
@@ -624,6 +625,13 @@ typedef struct being {
      * `fighting` (a disconnect ends any active buff, same as a real
      * MUD's session-scoped affects). */
     active_affect_t affects[MAX_ACTIVE_AFFECTS];
+
+    /* Drug tracking (Sneezy -> Tobin feature audit) -- see drug.h.
+     * first_use/last_use/total_consumed persist (player_drug_repo.h);
+     * effect_ticks_left/applied[]/withdrawal_applied[] are in-memory
+     * only, same "meaningless across a reconnect" precedent as
+     * `affects[]` above. */
+    drug_state_t drugs[DRUG_COUNT];
 
     /* Pulses remaining before this character can act again (see pulse.h).
      * Mortals accumulate this from `being_set_wait()`; immortals always

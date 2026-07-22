@@ -99,6 +99,7 @@ bool cmd_stand(descriptor_t *d, const char *args);
 bool cmd_sit(descriptor_t *d, const char *args);
 bool cmd_rest(descriptor_t *d, const char *args);
 bool cmd_sleep(descriptor_t *d, const char *args);
+bool cmd_smoke(descriptor_t *d, const char *args);
 bool cmd_wake(descriptor_t *d, const char *args);
 bool cmd_catchup(descriptor_t *d, const char *args);
 bool cmd_cast(descriptor_t *d, const char *args);

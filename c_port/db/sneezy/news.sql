@@ -298,3 +298,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Quiet Way to Talk: Sign Language',
  'Everyone can now `sign` a message to the room instead of speaking it out loud -- handy when you would rather not be overheard. It takes both hands free and takes a moment to pick up, so a brand-new adventurer will need a little seasoning before it clicks. Only someone else who also knows how to sign actually understands you; everyone else just sees you gesturing. Word on the street is thieves have their own hand-talk that anyone can read, trained or not.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Some Habits Are Hard to Shake',
+ 'Pipeweed, opium, pot, and frogslime are all real, usable substances now -- `smoke` a dose from any of them for a genuine, temporary effect on how you feel. Hobbits in particular find pipeweed clears the mind wonderfully; everyone else finds it leaves them a little worse for wear. Whatever you choose, dose too often and you will start to feel it when you go too long without another one.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

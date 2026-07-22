@@ -127,6 +127,13 @@ typedef struct obj {
      *             original's TSymbol. Either is destroyed once it hits 0.
      *             tobin_migrations.sql seeds every existing component/
      *             symbol row to 10/10.
+     *   Drug items (identified by keyword "drug", same generic-by-
+     *             keyword precedent as components/symbols above, not a
+     *             dedicated category): val[0]=drug_type_t (drug.h),
+     *             val[1]=current charges, val[2]=max charges -- a
+     *             different val[] layout than components/symbols
+     *             (those have no type to encode) but the same "spend a
+     *             charge, destroy at 0" lifecycle, see cmd_smoke.c.
      * Categories not listed leave val[] unused/decorative for now. */
     int val[4];
     double weight;

@@ -15,6 +15,7 @@
 #include "crash_handler.h"
 #include "db.h"
 #include "descriptor.h"
+#include "drug.h"
 #include "game_loop.h"
 #include "bank.h"
 #include "gametime.h"
@@ -119,6 +120,7 @@ int main(int argc, char **argv) {
     pulse_register(600, obj_light_burn_tick);    /* ~60s: lit lights burn down, then go out */
     pulse_register(600, obj_decay_tick);         /* ~60s: room-floor decay timers (corpses, ...) */
     pulse_register(VITALS_PULSES, vitals_tick_run); /* ~60s: hunger/thirst drain + starvation */
+    pulse_register(600, drug_tick_run);          /* ~60s: expire active doses, apply/refresh withdrawal */
     pulse_register(WEATHER_PULSES, weather_tick_run); /* ~60s: world weather transitions */
     pulse_register(600, trigger_random_tick);    /* ~60s: mob/room "random" scripted triggers */
     pulse_register(10, trigger_pending_tick);    /* ~1s: resume `wait`-paused trigger scripts */

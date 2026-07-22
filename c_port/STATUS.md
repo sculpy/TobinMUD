@@ -2,7 +2,8 @@
 
 Last updated: 2026-07-22 — Session 60 (work): **Skill/spell help topics
 redesigned (user wireframe, "gust" worked example) + Sign language
-(Sneezy → Tobin feature audit) + a same-session regression sweep of the
+(Sneezy → Tobin feature audit) + Drug tracking (Sneezy → Tobin feature
+audit) + a same-session regression sweep of the
 `load obj` → inventory change (Session 59, home) that had gone un-audited across the
 rest of the suite.**
 - **Skill/spell help redesign**: user handed a wireframe using the live
@@ -193,6 +194,63 @@ rest of the suite.**
   too, and all four gating refusals -- fighting, hands full, a hurt arm,
   asleep). New `sign` help topic; `news.sql`/`wiznews.sql` entries
   (player-visible: a new command anyone can use).
+- **Drug tracking** (Sneezy → Tobin feature audit): scoped via
+  AskUserQuestion -- user picked "full system, remapped stats" over a
+  smaller consumption-only slice. Checked the real upstream first
+  (`docs/systems/informational/drug-tracking.md`, `obj/obj_component.h`'s
+  `TDrug`/`TDrugContainer` split): consumption applies a real temporary
+  stat effect, tracked for addiction (lifetime average consumption rate)
+  and withdrawal (a real penalty once overdue past a per-drug onset).
+  The original's own drug effects lean on BRA/AGI/FOC/SPE/PER/KAR -- six
+  attributes Tobin's simplified STR/DEX/CON/INT/WIS/CHA system doesn't
+  have at all (the same already-documented gap as the Magic Items
+  session) -- so every effect is a deliberate remap (SPE→DEX, FOC→INT,
+  KAR→WIS; STR/CON/CHA exist verbatim), not a literal port. Two
+  deliberate non-ports, disclosed in `drug.c`'s own comments: (1) Opium's
+  real upstream effect is documented as outright buggy (checks one stat,
+  sets another) -- a clean, internally-consistent penalty used instead;
+  (2) Frogslime's real GARBLE (speech-scrambling) effect isn't ported --
+  Tobin has no drunk/garble-speech mechanic anywhere yet (a separate,
+  bigger lift) -- kept as flavor + a real chance of `POSITION_SLEEPING`
+  instead. New `being_t.drugs[DRUG_COUNT]` array (a dedicated
+  `drug_state_t`, not reusing `active_affect_t` -- that struct is only
+  `{type, rounds}`, no generic per-instance stat-delta storage). Two
+  different time representations, deliberately: `first_use`/`last_use`
+  are real wall-clock `time(NULL)` (same convention `player.birth_time`
+  uses) so withdrawal is testable by SQL-seeding a fake `last_use` far in
+  the past and forcing one `aitick`; an active dose's own effect window
+  is instead a tick countdown (`effect_ticks_left`, same convention
+  `CORPSE_DECAY_TICKS` uses) so dose-expiry is ALSO `aitick`-forceable --
+  a wall-clock expiry was the first design attempt, refactored away once
+  it became clear it couldn't be tested without a real ~2-minute wait,
+  unlike every other Tobin decay system (`pulse_current()` was found not
+  to exist anywhere in `pulse.h`, which is what prompted the tick-count
+  redesign in the first place). New `smoke <item>` command
+  (`cmd_smoke.c`) -- drug items identified purely by the keyword "drug"
+  (same generic-by-keyword convention spell components/holy symbols
+  already use), `val0`=`drug_type_t`, `val1`/`val2`=current/max charges,
+  spending a charge and destroying the item at 0 (same lifecycle
+  `consume_component()`/`consume_symbol()` already use). Real
+  `ITEM_TYPE_NAMES[]` index 56 ("DRUG") used for the four new seeded
+  items (vnums 90010-90013) after an initial mistaken attempt at type=9,
+  caught by checking `obj.c`'s real table before shipping. New
+  `player_drug` table (Tobin-specific, `player_id`+`drug_type` key),
+  loaded on login alongside `player_attrs`/`player_progress`, saved on
+  each `smoke`. New `tests/smoke_test_drugs.py` (10 checks: non-Hobbit
+  penalty, dose consolidation not stacking, `aitick`-forced dose expiry,
+  Hobbit bonus, low-charge item destruction, and a SQL-seeded overdue-
+  and-addicted withdrawal case) -- one real bug in the test itself, not
+  the mechanic: the first seeded `total_consumed=60` produced a
+  withdrawal rate of ~1.94/hour, just under pipeweed's own 2.0/hour
+  addiction threshold, so the check never fired; bumped to 100
+  (~3.23/hour) for a comfortable margin, verified against a live run.
+  Regression pass (`drugs`, `objects`, `skillcombat`, all four `help*`
+  suites) all pass clean -- `skillcombat`'s own run looked hung past a
+  300s timeout on first attempt, but a longer run showed it's just
+  genuinely slow end-to-end (~5m50s for the full file, this box, this
+  session), not a real hang; not a regression from this change. New
+  `smoke` help topic; `news.sql`/`wiznews.sql` entries (player-visible: a
+  new command).
 
 Previous update: 2026-07-22 — Session 59 (home): **Material property system
 (Sneezy → Tobin feature audit, task #24) + a cluster of player-facing

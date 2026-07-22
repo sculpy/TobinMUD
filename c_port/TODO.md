@@ -945,6 +945,26 @@ implementation inspiration before each one, not guessed at.
       the full write-up, including a real live production issue (FK-
       error autosave spam from orphaned test connections) found and
       resolved along the way.
+- [x] **Drug tracking** — done 2026-07-22 (work). Scoped via
+      AskUserQuestion (full system, remapped stats, over a smaller
+      consumption-only slice). Checked the real upstream first
+      (`docs/systems/informational/drug-tracking.md`): consumption
+      applies a real temporary stat effect, tracked for addiction
+      (lifetime average rate) and withdrawal (a real penalty once
+      overdue). The original's own drug effects use BRA/AGI/FOC/SPE/PER/
+      KAR -- six attributes Tobin's simplified 6-stat system doesn't have
+      (the same already-documented gap as Magic Items) -- remapped onto
+      STR/DEX/CON/INT/WIS/CHA rather than literally ported. Two
+      deliberate non-ports, disclosed in `drug.c`: Opium's real upstream
+      effect is documented as outright buggy (not reproduced); Frogslime's
+      real GARBLE speech-scrambling effect isn't ported (Tobin has no
+      drunk/garble-speech mechanic yet) -- kept as flavor + a real sleep
+      chance instead. New `smoke <item>` command, new `being_t.drugs[]`
+      array, new `player_drug` table, four new seeded drug items (vnums
+      90010-90013). See STATUS.md for the full write-up (time-
+      representation design, the withdrawal-threshold test bug found and
+      fixed, the regression pass). New `tests/smoke_test_drugs.py` (10
+      checks). New `smoke` help topic; `news.sql`/`wiznews.sql` entries.
 
 ## Buildable now (no blocked dependencies)
 

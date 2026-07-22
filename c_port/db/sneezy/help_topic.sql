@@ -936,3 +936,8 @@ UPDATE `help_topic` SET `body` = 'Usage: remove <item>\n\nTakes off a worn item 
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('sign', 'Usage: sign <message>\n\nCommunicates silently to everyone in your room using hand signals --\nlike `say`, but no sound at all. Needs both hands free and neither arm\nbadly hurt; you can''t sign while fighting or asleep, and everyone\nlearns it (see `skills`). Only someone else who also knows sign\nlanguage actually reads your message -- everyone else just sees you\n"make funny motions with your hands," except a Thief, whose signs are\ncommon enough that anyone recognizes them.\n\nRelated: say skills', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Drug tracking (Sneezy -> Tobin feature audit): new `smoke` command.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('smoke', 'Usage: smoke <item>\n\nConsumes a dose from a carried drug item (pipeweed, opium, pot, or\nfrogslime) for a real, temporary effect on your stats -- some good,\nmost not. A second dose before the first wears off just refreshes it,\nrather than stacking. Smoke the same drug too often without a break\nand you will start to feel real withdrawal pangs when you go too long\nwithout another dose. Each item holds a limited number of doses before\nit is spent.\n\nRelated: score affects', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
