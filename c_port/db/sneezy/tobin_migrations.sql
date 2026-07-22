@@ -457,3 +457,58 @@ CREATE TABLE IF NOT EXISTS `world_treasury` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 INSERT INTO `world_treasury` (`id`, `gold`) VALUES (1, 0)
   ON DUPLICATE KEY UPDATE `id` = `id`;
+
+-- Content-text fixes (2026-07-22), captured here because all three were
+-- previously "applied live only" against a single running instance and
+-- never made it into a migration file -- discovered when Home's own
+-- database (192.168.254.200) turned out to still have every one of
+-- these regressed, despite Home/Work sharing git-synced code: each box
+-- runs its own independent `sneezy` database, so a plain live SQL fix
+-- on one box silently never reaches the other (or a fresh install).
+-- Idempotent (REGEXP_REPLACE/REPLACE are no-ops once the text no longer
+-- matches), safe to re-run on a box that already has the fix.
+
+-- "Global Grimhaven -> Tobin City text replace" (originally done, see
+-- STATUS.md/TODO.md) -- case-insensitive REGEXP_REPLACE across every
+-- column a live survey found containing it.
+UPDATE `corporation` SET `name` = REGEXP_REPLACE(`name`, 'grimhaven', 'Tobin City') WHERE `name` REGEXP 'grimhaven';
+UPDATE `mobresponses` SET `response` = REGEXP_REPLACE(`response`, 'grimhaven', 'Tobin City') WHERE `response` REGEXP 'grimhaven';
+UPDATE `mob` SET `name` = REGEXP_REPLACE(`name`, 'grimhaven', 'Tobin City') WHERE `name` REGEXP 'grimhaven';
+UPDATE `mob` SET `short_desc` = REGEXP_REPLACE(`short_desc`, 'grimhaven', 'Tobin City') WHERE `short_desc` REGEXP 'grimhaven';
+UPDATE `mob` SET `long_desc` = REGEXP_REPLACE(`long_desc`, 'grimhaven', 'Tobin City') WHERE `long_desc` REGEXP 'grimhaven';
+UPDATE `mob` SET `description` = REGEXP_REPLACE(`description`, 'grimhaven', 'Tobin City') WHERE `description` REGEXP 'grimhaven';
+UPDATE `mob` SET `local_sound` = REGEXP_REPLACE(`local_sound`, 'grimhaven', 'Tobin City') WHERE `local_sound` REGEXP 'grimhaven';
+UPDATE `objextra` SET `name` = REGEXP_REPLACE(`name`, 'grimhaven', 'Tobin City') WHERE `name` REGEXP 'grimhaven';
+UPDATE `objextra` SET `description` = REGEXP_REPLACE(`description`, 'grimhaven', 'Tobin City') WHERE `description` REGEXP 'grimhaven';
+UPDATE `obj` SET `name` = REGEXP_REPLACE(`name`, 'grimhaven', 'Tobin City') WHERE `name` REGEXP 'grimhaven';
+UPDATE `obj` SET `short_desc` = REGEXP_REPLACE(`short_desc`, 'grimhaven', 'Tobin City') WHERE `short_desc` REGEXP 'grimhaven';
+UPDATE `obj` SET `long_desc` = REGEXP_REPLACE(`long_desc`, 'grimhaven', 'Tobin City') WHERE `long_desc` REGEXP 'grimhaven';
+UPDATE `roomextra` SET `name` = REGEXP_REPLACE(`name`, 'grimhaven', 'Tobin City') WHERE `name` REGEXP 'grimhaven';
+UPDATE `roomextra` SET `description` = REGEXP_REPLACE(`description`, 'grimhaven', 'Tobin City') WHERE `description` REGEXP 'grimhaven';
+UPDATE `room` SET `name` = REGEXP_REPLACE(`name`, 'grimhaven', 'Tobin City') WHERE `name` REGEXP 'grimhaven';
+UPDATE `room` SET `description` = REGEXP_REPLACE(`description`, 'grimhaven', 'Tobin City') WHERE `description` REGEXP 'grimhaven';
+UPDATE `ship_destinations` SET `name` = REGEXP_REPLACE(`name`, 'grimhaven', 'Tobin City') WHERE `name` REGEXP 'grimhaven';
+UPDATE `zone` SET `zone_name` = REGEXP_REPLACE(`zone_name`, 'grimhaven', 'Tobin City') WHERE `zone_name` REGEXP 'grimhaven';
+
+-- "<h>/<H> tag + SneezyMUD branding cleanup" (originally done, see
+-- TODO.md) -- only the 4 rows the original survey judged unambiguous
+-- branding artifacts (a book's name/short_desc/long_desc, 2 room
+-- descriptions, 1 objextra description). Deliberately NOT touched:
+-- `wiznews` dev-changelog entries and `mobresponses`/`globaltoggles`
+-- rows that correctly name SneezyMUD as the real originating codebase
+-- or a real compatible client, not a branding artifact.
+UPDATE `obj` SET `name` = REGEXP_REPLACE(`name`, 'sneezymud', 'TobinMUD'),
+                 `short_desc` = REGEXP_REPLACE(`short_desc`, 'sneezymud', 'TobinMUD'),
+                 `long_desc` = REGEXP_REPLACE(`long_desc`, 'sneezymud', 'TobinMUD')
+  WHERE `vnum` = 1455;
+UPDATE `room` SET `description` = REGEXP_REPLACE(`description`, 'sneezymud', 'TobinMUD')
+  WHERE `vnum` IN (2, 223);
+UPDATE `objextra` SET `description` = REGEXP_REPLACE(`description`, 'sneezymud', 'TobinMUD')
+  WHERE `vnum` = 3982;
+
+-- "talens -> gold" (originally done, see TODO.md/STATUS.md) --
+-- GOLD-COIN-ONLY is Tobin's whole money-system convention (Money
+-- system, 2026-07-17); every shop's own message_buy/message_sell
+-- flavor text still said "talens" (263 rows each) until this.
+UPDATE `shop` SET `message_buy` = REPLACE(`message_buy`, 'talens', 'gold') WHERE `message_buy` LIKE '%talens%';
+UPDATE `shop` SET `message_sell` = REPLACE(`message_sell`, 'talens', 'gold') WHERE `message_sell` LIKE '%talens%';

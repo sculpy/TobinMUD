@@ -6,7 +6,7 @@ per-shop accounts) and tax revenue collects into a visible treasury (not
 a sink, not full double-entry). Covers:
 
   1. `bank` away from a bank shop refuses.
-  2. `bank`/`bank balance` at the real seeded Grimhaven First Kingdom
+  2. `bank`/`bank balance` at the real seeded Tobin City First Kingdom
      Bank (shop_nr 4, room 31750) shows wallet + bank balances.
   3. deposit more than the wallet holds refuses; a valid deposit moves
      gold from wallet to bank_gold.
@@ -144,8 +144,8 @@ try:
           "bank refuses when there's no bank in the room")
 
     # --- 2: balance at the real bank ---
-    check("Grimhaven" in cmd(imm, f"goto {BANK_ROOM}"),
-          "goto lands the immortal at the real Grimhaven First Kingdom Bank")
+    check("Tobin City" in cmd(imm, f"goto {BANK_ROOM}"),
+          "goto lands the immortal at the real Tobin City First Kingdom Bank")
     cmd(imm, f"transfer {pc_name} {BANK_ROOM}")
     recv_all(pc); recv_all(imm)
 
