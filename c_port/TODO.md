@@ -13,18 +13,15 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
-## Flagged, not yet actioned
-
-- [ ] **Verify the Work box's `sneezy` DB has the Grimhaven → Tobin City
-      rename too** — 2026-07-21 (home): found live that Home's database
-      never actually received the "done" global rename fix below (639
-      rooms still said "grimhaven") despite Home/Work sharing the same
-      git-synced code -- each box runs its own independent database, so
-      a live-DB-only fix on one box doesn't reach the other. Re-applied
-      on Home. Work's own DB state is unconfirmed -- this session has no
-      active connection to it.
-
 ## Recently closed (2026-07-20, home)
+
+- [x] **Verify the Work box's `sneezy` DB has the Grimhaven → Tobin City
+      rename too** — flagged 2026-07-21 (home); already confirmed done
+      2026-07-22 (work, Session 60) via `apply-tobin-schema.sh`, and
+      re-confirmed live 2026-07-22: all 18 columns (`room`, `mob`, `obj`,
+      `zone`, etc.) return 0 rows matching "grimhaven" (case-insensitive)
+      on db.kullit.com's live `sneezy` DB. This entry was just stale at
+      the top of the file -- no further action needed.
 
 - [x] **Linkdead auto-purge** — done 2026-07-20. Found live at Work: a
       linkdead PC's `being_t` stays fully resident in its room forever
