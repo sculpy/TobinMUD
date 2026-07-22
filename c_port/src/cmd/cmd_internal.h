@@ -49,6 +49,7 @@ bool cmd_aitick(descriptor_t *d, const char *args);
 bool cmd_flee(descriptor_t *d, const char *args);
 bool cmd_say(descriptor_t *d, const char *args);
 bool cmd_shout(descriptor_t *d, const char *args);
+bool cmd_sign(descriptor_t *d, const char *args);
 bool cmd_limbs(descriptor_t *d, const char *args);
 bool cmd_help(descriptor_t *d, const char *args);
 bool cmd_wizhelp(descriptor_t *d, const char *args);

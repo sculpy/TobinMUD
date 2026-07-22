@@ -193,9 +193,16 @@ check("Command not found" in cmd(s2, f"load obj {WEARABLE}"), "load obj is invis
 s2.close()
 
 # --- 2: load obj spawns each prototype; look lists them ---
+# `load obj` lands in the loading immortal's own inventory, not the room
+# floor (2026-07-22) -- `drop` each one explicitly so the room-floor
+# `look` checks below still see them, same fix already applied to
+# smoke_test_repair.py/smoke_test_object_maintenance.py.
 check("You conjure" in cmd(s, f"load obj {WEARABLE}"), "load obj confirms (wearable)")
+cmd(s, "drop tunic")
 check("You conjure" in cmd(s, f"load obj {FIXED}"), "load obj confirms (fixed scenery)")
+cmd(s, "drop statue")
 check("You conjure" in cmd(s, f"load obj {WEAPON}"), "load obj confirms (weapon)")
+cmd(s, "drop dagger")
 out = cmd(s, "look")
 check("A plain tunic is lying here." in out, "look lists the wearable object's long_desc")
 check("too heavy to lift" in out, "look lists the fixed object's long_desc")
@@ -203,6 +210,7 @@ check("A rusty dagger is lying here." in out, "look lists the weapon's long_desc
 
 # --- 2b: load obj also accepts a name/keyword, not just a vnum ---
 check("You conjure" in cmd(s, f"load obj {namesearch_word}"), "load obj accepts a name in place of a vnum")
+cmd(s, f"drop {namesearch_word}")
 check(f"A {namesearch_word} is lying here." in cmd(s, "look"), "the name-looked-up object actually spawned")
 
 # --- 2c: look <item> shows an object's description (and condition, if it has one) ---
@@ -294,6 +302,7 @@ sv = login(victim_name, victim_pw)
 check("Object Sandbox" in cmd(sv, "look"), "the victim lands directly in the sandbox room")
 check("Object Sandbox" in cmd(s, f"goto {ROOM}"), "the immortal returns to the sandbox room (a reconnect lands at the default room, not where they last stood)")
 check("You conjure" in cmd(s, f"load obj {WEARABLE3}"), "load obj confirms (the victim's gear)")
+cmd(s, "drop cloak")   # loads into the IMMORTAL's own inventory now -- drop so the victim (a different character) can get it
 check("You get" in cmd(sv, "get cloak"), "the victim picks up their gear")
 check("wear" in cmd(sv, "wear cloak"), "the victim wears their gear")
 

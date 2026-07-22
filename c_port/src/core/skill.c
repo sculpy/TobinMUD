@@ -23,6 +23,7 @@
 static const skill_def_t SKILLS[] = {
     /* ---------------- WARRIOR ---------------- */
     { "riding",                  CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Mount and control a rideable creature." },
+    { "sign",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "bash",                    CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Knock your target down, stunning them briefly." },
     { "berserk",                 CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Forgo defense for a burst of offense -- but you're much harder to rescue or parry while raging." },
     { "rally",                   CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "A battlecry that boosts nearby allies' combat prowess." },
@@ -58,6 +59,7 @@ static const skill_def_t SKILLS[] = {
 
     /* ---------------- THIEF ---------------- */
     { "riding",           CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
+    { "sign",             CLASS_THIEF, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "kick",             CLASS_THIEF, SKILL_TIER_COMBAT,  1, "An unarmed kick attack." },
     { "retreat",          CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Disengage from your current opponent." },
     { "backstab",         CLASS_THIEF, SKILL_TIER_COMBAT,  1, "A devastating sneak attack against an unaware or from-behind target." },
@@ -94,6 +96,7 @@ static const skill_def_t SKILLS[] = {
 
     /* ---------------- MONK ---------------- */
     { "riding",          CLASS_MONK, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
+    { "sign",            CLASS_MONK, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "disarm",          CLASS_MONK, SKILL_TIER_COMBAT,  1, "Knock the weapon out of an opponent's hand." },
     { "kick",            CLASS_MONK, SKILL_TIER_COMBAT,  3, "An unarmed kick attack." },
     { "groundfighting",  CLASS_MONK, SKILL_TIER_COMBAT, 5, "Reduces the penalty for fighting while knocked down." },
@@ -135,6 +138,7 @@ static const skill_def_t SKILLS[] = {
 
     /* ---------------- CLERIC ---------------- */
     { "riding",               CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
+    { "sign",                 CLASS_CLERIC, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "slash proficiency",    CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
     { "blunt proficiency",    CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
     { "pierce proficiency",   CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },
@@ -201,6 +205,7 @@ static const skill_def_t SKILLS[] = {
 
     /* ---------------- MAGE ---------------- */
     { "riding",               CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
+    { "sign",                 CLASS_MAGE, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "slash proficiency",    CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
     { "blunt proficiency",    CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
     { "pierce proficiency",   CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },
@@ -318,6 +323,7 @@ static const skill_def_t SKILLS[] = {
      * thrall/possession lines were deliberately left out -- thematically
      * a poor fit regardless of renaming. */
     { "riding",               CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
+    { "sign",                 CLASS_DRUID, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "slash proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
     { "blunt proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
     { "pierce proficiency",   CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },

@@ -931,3 +931,8 @@ UPDATE `help_topic` SET `body` = 'Usage: wear <item>\n\nPuts on a carried item i
   WHERE `name` = 'wear' AND `updated_by` = 'seed';
 UPDATE `help_topic` SET `body` = 'Usage: remove <item>\n\nTakes off a worn item or lays down a held one, returning it to your\ncarried inventory. Any stat/Armor Class/HP/Vitality bonus that item was\ngiving you (see `identify`) goes away the moment you take it off.\n\nRelated: wear identify'
   WHERE `name` = 'remove' AND `updated_by` = 'seed';
+
+-- Sign language (Sneezy -> Tobin feature audit): new `sign` command.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('sign', 'Usage: sign <message>\n\nCommunicates silently to everyone in your room using hand signals --\nlike `say`, but no sound at all. Needs both hands free and neither arm\nbadly hurt; you can''t sign while fighting or asleep, and everyone\nlearns it (see `skills`). Only someone else who also knows sign\nlanguage actually reads your message -- everyone else just sees you\n"make funny motions with your hands," except a Thief, whose signs are\ncommon enough that anyone recognizes them.\n\nRelated: say skills', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

@@ -1,6 +1,142 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-22 — Session 59 (home): **Material property system
+Last updated: 2026-07-22 — Session 60 (work): **Skill/spell help topics
+redesigned (user wireframe, "gust" worked example) + Sign language
+(Sneezy → Tobin feature audit) + a same-session regression sweep of the
+`load obj` → inventory change (Session 59, home) that had gone un-audited across the
+rest of the suite.**
+- **Skill/spell help redesign**: user handed a wireframe using the live
+  `help gust` output as the worked example, with inline notes on what to
+  fix: a more descriptive body (area-effect vs. single-target), a bare
+  `Classes:` list (no `(Class, level 1)` parenthetical), a real
+  `Syntax:` line, `Requires:` naming the actual component instead of a
+  vague phrase, and a new `Approx. Level:` footer. Then a follow-up ask:
+  "line up the : to make it more readable and colorize appropriate."
+  Rebuilt `skill_help.sql` (275 rows) with a one-shot Python generator
+  (not committed, matching the file's own existing convention) that
+  parses `skill.c`'s `SKILLS[]` roster directly and categorizes each
+  entry with the EXACT SAME substring rules `cmd_cast.c`'s `task_cast()`
+  uses to dispatch the real effect (heal/cure/ward/area/damage/
+  uncategorized), so the help text can't silently drift from what a
+  spell actually does. `Requires:` now names a real, concretely-seeded
+  example (`a pouch of spell components` / `a wooden holy symbol` --
+  both genuinely common seeded rows, confirmed live, not invented).
+  `cmd_help.c` gained two new trailing-directive footers (`Approx.
+  Level:`, `Classes:`) rendered in the SAME cyan/14-char-aligned style as
+  the existing `Syntax:`/`Requires:`/`Related:` labels, pulling `Classes`
+  out of body prose entirely so every label's colon lines up in one
+  column. Two real generator bugs caught before shipping, not after:
+  (1) universal skills (`riding`/`sign`, duplicated onto every class
+  including Mage/Cleric) were being misread as cast/pray-reachable
+  purely because a caster class happened to list the name -- fixed by
+  checking for a real dispatch-table route FIRST, before any class-based
+  inference; (2) a physical Warrior skill's own flavor text ("a burst of
+  offense") false-matched the damage category on the word "burst" --
+  fixed by gating spell categorization on the entry actually having a
+  Mage/Druid/Cleric class at all, matching that `task_cast()`/
+  `task_pray()` never even run for a name no caster class lists. A third
+  bug found only by checking the LIVE database, not just the generated
+  file: the file's own `ON DUPLICATE KEY UPDATE name=name` (the correct,
+  standing no-op convention for every other seed file that only ever
+  INSERTs brand-new topics) silently prevented this REFRESH of already-
+  seeded rows from ever taking effect -- fixed with `ON DUPLICATE KEY
+  UPDATE body = IF(updated_by='seed', VALUES(body), body)`, refreshing
+  only rows never hand-edited via `hedit` (confirmed none of the 275
+  names collide with a real `hedit`-edited row before applying).
+  `tests/smoke_test_help_topics.py` had two assertions hardcoded to the
+  old wording -- updated to match, all `help*` tests (`help`, `help_
+  content`, `help_format`, `help_topics`) pass clean.
+- **Regression sweep first**: pulled Session 57-59's work (repair-shop
+  economy, banking, material properties) in; Session 59's own STATUS.md
+  entry had explicitly flagged "~55 other test files that also call
+  `load obj`... not audited" as a real risk. Ran the targeted set already
+  identified as touching the changed files (`skillcombat`, `objects`,
+  `object_maintenance`, `repair`, `bank`, `material`) and found exactly
+  that risk materializing twice, live: `smoke_test_objects.py` (three
+  `load obj` call sites that expected the item on the room floor, one of
+  them a cross-character load-by-immortal/get-by-victim pattern) and
+  `smoke_test_skillcombat.py`'s disarm test (same cross-character pattern
+  -- an immortal `load obj`s a sword, a DIFFERENT Warrior character was
+  expected to `get` and wield it for the disarm check; the sword now sat
+  in the immortal's own inventory instead, so the "victim" never had a
+  weapon at all, and the disarm attempt failed with "they aren't even
+  holding a weapon" instead of ever reaching the real proficiency roll).
+  Fixed both test scripts with an explicit `drop` after each cross-
+  character `load obj`, same fix Session 59 itself already applied to
+  `smoke_test_repair.py`/`smoke_test_object_maintenance.py`. Both pass
+  clean now; `repair`/`bank`/`material` were already clean.
+- **A real, currently-live production issue found and resolved along the
+  way, unrelated to sign language**: multiple past test runs (material,
+  repair, and this session's own first two `object_maintenance` re-runs)
+  left the server logging `foreign key constraint fails` on `player_
+  attrs`/`player_progress`/`player_inventory` every ~60s, indefinitely --
+  an orphaned in-memory connection whose underlying `player` row had
+  already been deleted by that same test's own cleanup, being retried on
+  every autosave tick. Matches Session 59's own "17-minute hang" root
+  cause exactly (test process hangs or gets force-killed before its own
+  `finally`-block socket close runs), confirming the "close in finally"
+  fix from that session's `93e7080` doesn't fully close the gap -- a
+  force-killed (`kill -9`) or genuinely-hung process never reaches its
+  own `finally` block at all, hang or no hang. Resolved by killing the
+  stuck test PIDs directly (same remedy Session 59 found) -- the FK-error
+  spam stopped within one autosave cycle, no server restart needed.
+  Leftover fixture rows (two full sets of `object_maintenance` rooms/
+  objs/players, one from a run killed for hanging ~22 minutes) cleaned up
+  by hand. **Not fixed at the root**: there's still no way to force-
+  disconnect a stuck in-memory descriptor short of a full server
+  restart -- Session 59 already flagged this exact gap ("no admin
+  'disconnect a stuck connection' command exists yet"); still open.
+  `smoke_test_object_maintenance.py` itself still hasn't gotten a single
+  clean confirmed pass this session (both attempts here hung and were
+  killed) -- carried forward, not this session's own regression, but
+  worth another attempt before it's trusted again.
+- **Sign language**: checked the real upstream first (`docs/systems/
+  important/communication-system.md`'s "Sign Language Reception"
+  section, `misc/talk.cc`'s `doSign()`): silent, room-only speech that
+  only a fellow `SKILL_SIGN` holder actually reads -- everyone else sees
+  a generic "makes funny motions with hands" line, except a Thief
+  signer (a real, deliberate stealth-class exemption in the original:
+  hand-talk is common underworld knowledge, read by anyone regardless of
+  their own skill). New `sign <message>` command (`cmd_sign.c`) and a new
+  `sign` skill added IDENTICALLY to every class's roster (`skill.c`) --
+  the original lists it under `DISC_ADVENTURING`, a general skill every
+  class gets, not a per-class one, so duplicating one entry across every
+  class table is the same "genuinely universal skill" precedent `riding`
+  already established, not a new pattern. Gating: not fighting, not
+  asleep, both hands empty, neither arm at the real `limb_status_text()`
+  "hurt" threshold (<20%) or worse. **Deliberately not ported**: the
+  original's exact `POSITION_CRAWLING` minimum-position check -- Tobin's
+  `position_t` is never actually driven to CRAWLING/ENGAGED/FIGHTING by
+  anything today (position stays STANDING while fighting; "fighting" is
+  derived from the separate `fighting` pointer, per the Combat decision
+  row), so porting that literal enum comparison would have been a silent
+  no-op at best -- and garble/drunk speech distortion.
+- Command-table placement: inserted right after `sip`, deliberately NOT
+  before `sit` -- an existing comment on `sit`'s own table row already
+  reserves the "si" abbreviation for it specifically ("SWAP: sit before
+  sip, so 'si' sits"), so `sign` had to land after both to avoid stealing
+  it; "sig" is already unambiguous on its own.
+- **Own test-design bugs hit while verifying, both fixed, both now
+  disclosed in the test's own comments**: (1) tried the fighting-gate
+  check immediately after `attack`, which collided with `cmd_dispatch()`'s
+  own global wait-state gate (attack sets `COMBAT_ROUND_PULSES` of lag on
+  the attacker) -- same trap `smoke_test_skillcombat.py`'s own
+  `attack_and_settle()` helper already documents; fixed with the same
+  sleep. (2) `attack` silently no-oped ("They aren't here.") because
+  mortal-vs-mortal combat requires BOTH sides opted into PK
+  (`combat_pk_allowed()`, combat.c) -- missed on the first two attempts,
+  root-caused by reading `combat_find_room_target()` directly rather than
+  guessing further; fixed with `toggle pk` on both test characters,
+  matching a requirement `smoke_test_skillcombat.py`'s `make_pair()`
+  already names in its own docstring.
+- New `tests/smoke_test_sign.py` (12 checks: no-discipline refusal, empty
+  message, a fellow signer reading the real message, a non-signer seeing
+  the generic line, the Thief stealth exemption reaching a non-signer
+  too, and all four gating refusals -- fighting, hands full, a hurt arm,
+  asleep). New `sign` help topic; `news.sql`/`wiznews.sql` entries
+  (player-visible: a new command anyone can use).
+
+Previous update: 2026-07-22 — Session 59 (home): **Material property system
 (Sneezy → Tobin feature audit, task #24) + a cluster of player-facing
 polish requests that came up live while testing it: real condition-text
 wording/colors, qualitative combat-hit intensity everywhere, `load obj`

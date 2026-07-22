@@ -163,12 +163,12 @@ send_line(s, "help cure poison")
 out = recv_all(s)
 check("-- Help: Cure poison --" in out,
       "help <multi-word skill name> resolves exactly, not to another same-prefixed topic")
-check("Requires:" in out and "spell component" in out and "holy symbol" in out,
+check("Requires:" in out and "component" in out and "holy symbol" in out,
       "the cure poison topic's Requires footer lists both cast's component and pray's symbol")
 
 send_line(s, "help gust")
 out = recv_all(s)
-check("-- Help: Gust --" in out and "Requires:" in out and "a spell component (`cast`)" in out,
+check("-- Help: Gust --" in out and "Requires:" in out and 'keyworded "component"' in out and "(`cast`)" in out,
       "a Mage-only spell topic's Requires footer names just the component")
 
 send_line(s, "help edit room")

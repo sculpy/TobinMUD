@@ -261,11 +261,34 @@ bool cmd_help(descriptor_t *d, const char *args) {
                      * Used by skill/spell topics to name what `cast`/`pray`
                      * needs on hand (a component, a holy symbol, or
                      * nothing/not yet a real command, for the many
-                     * still-placeholder physical skills). */
+                     * still-placeholder physical skills). "Approx. Level:"
+                     * and "Classes:" (skill_help.sql redesign, 2026-07-22,
+                     * user: "line up the : to make it more readable and
+                     * colorize appropriate") are the same trailing-
+                     * directive convention too, authored in this order
+                     * (top to bottom): Requires, Related, Approx. Level,
+                     * Classes -- Classes is the true LAST line, peeled
+                     * first below. Both are skill/spell-topic-only (no
+                     * real `cmd_entry_t` to read a genuine minimum level
+                     * or class list from), pulled out of body prose and
+                     * into the same aligned/colorized footer as Syntax/
+                     * Requires/Related instead of staying plain white
+                     * body text, so every label in the footer lines up on
+                     * the same colon column. */
                     char related[128];
                     related[0] = '\0';
                     char requires[128];
                     requires[0] = '\0';
+                    char approx_level[32];
+                    approx_level[0] = '\0';
+                    char classes[128];
+                    classes[0] = '\0';
+                    /* Peel bottom-up in the order these are actually
+                     * authored (see skill_help.sql's own generator note):
+                     * Classes (true last line) -> Approx. Level -> Related
+                     * -> Requires. */
+                    (void)extract_trailing_directive(desc, &dlen, "Classes:", classes, sizeof(classes));
+                    (void)extract_trailing_directive(desc, &dlen, "Approx. Level:", approx_level, sizeof(approx_level));
                     (void)extract_trailing_directive(desc, &dlen, "Related:", related, sizeof(related));
                     (void)extract_trailing_directive(desc, &dlen, "Requires:", requires, sizeof(requires));
 
@@ -273,21 +296,47 @@ bool cmd_help(descriptor_t *d, const char *args) {
                     snprintf(shown, sizeof(shown), "<W>%.*s<z>\r\n", (int)dlen, desc);
                     descriptor_send(d, shown);
 
-                    /* Cyan-labelled Syntax / Minimum Level / Requires /
-                     * Related footer -- Syntax/Level are commands only
-                     * (prose topics have no table entry, so no footer);
-                     * Requires/Related show on any topic that authored one.
-                     * Labels right-aligned to 14 chars (user-specified). A
+                    /* Cyan-labelled Syntax / Minimum Level (or Approx.
+                     * Level) / Requires / Related footer. Syntax shows
+                     * whenever a syntax string exists -- a real command
+                     * (`match`) always has one (falls back to its own
+                     * name); a skill/spell topic has one only if its body
+                     * authored a leading "Usage:" line (cast/pray-
+                     * reachable ones do; still-placeholder physical
+                     * skills don't, so they get no Syntax line at all).
+                     * Minimum Level is real-command-only (from the actual
+                     * table); Approx. Level is its skill/spell-topic
+                     * analogue, authored directly in the body since these
+                     * have no table entry to read a real minimum from.
+                     * Requires/Related show on any topic that authored
+                     * one. Every label -- Classes/Syntax/Minimum Level/
+                     * Approx. Level/Requires/Related -- right-aligns its
+                     * OWN colon to the same 14-char column (user:
+                     * "line up the : to make it more readable"), all in
+                     * the same cyan (user: "colorize appropriate", same
+                     * <c> tag every other footer label already used). A
                      * leading blank line separates the footer from the
-                     * description body, added once, before whichever piece
-                     * ends up first. */
+                     * description body, added once, before whichever
+                     * piece ends up first. */
                     bool footer_started = false;
-                    if (match) {
+                    if (classes[0]) {
+                        char clsfooter[192];
+                        snprintf(clsfooter, sizeof(clsfooter), "\r\n<c>      Classes:<z> %s\r\n", classes);
+                        descriptor_send(d, clsfooter);
+                        footer_started = true;
+                    }
+                    if (syntax[0]) {
                         char footer[192];
-                        snprintf(footer, sizeof(footer),
-                                 "\r\n<c>       Syntax:<z> %s\r\n<c>Minimum Level:<z> %d\r\n",
-                                 syntax, match->min_level);
+                        snprintf(footer, sizeof(footer), "%s<c>       Syntax:<z> %s\r\n",
+                                 footer_started ? "" : "\r\n", syntax);
                         descriptor_send(d, footer);
+                        footer_started = true;
+                    }
+                    if (match) {
+                        char lvlfooter[64];
+                        snprintf(lvlfooter, sizeof(lvlfooter), "%s<c>Minimum Level:<z> %d\r\n",
+                                 footer_started ? "" : "\r\n", match->min_level);
+                        descriptor_send(d, lvlfooter);
                         footer_started = true;
                     }
                     if (requires[0]) {
@@ -302,6 +351,13 @@ bool cmd_help(descriptor_t *d, const char *args) {
                         snprintf(relfooter, sizeof(relfooter), "%s<c>      Related:<z> %s\r\n",
                                  footer_started ? "" : "\r\n", related);
                         descriptor_send(d, relfooter);
+                        footer_started = true;
+                    }
+                    if (approx_level[0]) {
+                        char alfooter[64];
+                        snprintf(alfooter, sizeof(alfooter), "%s<c>Approx. Level:<z> %s\r\n",
+                                 footer_started ? "" : "\r\n", approx_level);
+                        descriptor_send(d, alfooter);
                     }
                     return true;
                 }

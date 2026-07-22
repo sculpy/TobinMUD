@@ -285,6 +285,7 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,weight,can_
     f"VALUES ({WEAPON_VNUM},'sword','a steel sword','A steel sword is lying here.',"
     f"{TYPE_WEAPON},{WEAR_TAKE | WEAR_HOLD},5,1);")
 cmd(si, f"load obj {WEAPON_VNUM}")
+cmd(si, "drop sword")   # load lands in the loading immortal's own inventory now -- drop so nameJ (a different character) can get it
 cmd(sJ, "get sword")
 cmd(sJ, "wield sword")
 
@@ -304,6 +305,7 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,weight,can_
     f"VALUES ({WEAPON_VNUM2},'dagger','a rusty dagger','A rusty dagger is lying here.',"
     f"{TYPE_WEAPON},{WEAR_TAKE | WEAR_HOLD},2,1);")
 cmd(si, f"load obj {WEAPON_VNUM2}")
+cmd(si, "drop dagger")   # load lands in the loading immortal's own inventory now -- drop so nameL (a different character) can get it
 cmd(sL, "get dagger")
 cmd(sL, "wield dagger")
 

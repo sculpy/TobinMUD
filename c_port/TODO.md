@@ -884,9 +884,49 @@ implementation inspiration before each one, not guessed at.
       Home, AND (this time) captured them as idempotent
       `REGEXP_REPLACE`/`REPLACE` statements in `tobin_migrations.sql`
       itself, so a fresh install or another box gets them automatically
-      going forward instead of silently missing them again. Work box's
-      own DB state for these three is still unconfirmed -- no active
-      connection to it this session.
+      going forward instead of silently missing them again. **Work box's
+      own DB state confirmed 2026-07-22 (work, Session 60)**: `apply-
+      tobin-schema.sh` (idempotent) applied the same migration; live
+      query confirmed 0 rows still containing "grimhaven" afterward.
+- [x] **Skill/spell help topics redesigned** — done 2026-07-22 (work),
+      user wireframe using live `help gust` output as the worked
+      example. `skill_help.sql` (275 rows) regenerated via a one-shot
+      Python generator (not committed) parsing `skill.c`'s `SKILLS[]`
+      roster directly, categorized with the SAME substring rules
+      `cmd_cast.c`'s real dispatch uses, so help text can't drift from
+      actual spell behavior. Real `Syntax:`/`Approx. Level:`/`Classes:`
+      footer lines added to `cmd_help.c`, all cyan and aligned to the
+      same 14-char colon column (follow-up ask: "line up the : ... and
+      colorize appropriate"). `Requires:` now names a real seeded
+      example item instead of a vague phrase. See STATUS.md for the two
+      categorization bugs and one "no-op ON DUPLICATE KEY UPDATE
+      silently prevented the refresh" bug caught before shipping.
+- [x] **Sign language** — done 2026-07-22 (work). Checked the real
+      upstream first (`docs/systems/important/communication-system.md`'s
+      "Sign Language Reception" section, `misc/talk.cc`'s `doSign()`):
+      silent, room-only speech that only a fellow `SKILL_SIGN` holder
+      actually reads -- everyone else sees a generic "makes funny motions
+      with hands" line, except a Thief signer (a real stealth-class
+      exemption in the original). New `sign <message>` command
+      (`cmd_sign.c`) and a new `sign` skill added identically to every
+      class's roster (`skill.c`) -- the original lists it under
+      `DISC_ADVENTURING`, a general skill every class gets, matching the
+      same "genuinely universal skill" precedent `riding` already
+      established rather than a new pattern. Gated on not fighting, not
+      asleep, both hands empty, neither arm hurt (<20%, the real
+      `limb_status_text()` threshold). Deliberately not ported: the
+      original's exact `POSITION_CRAWLING` minimum-position check
+      (Tobin's `position_t` isn't actually driven to that value by
+      anything today, so it'd be a silent no-op) and garble/drunk
+      distortion. New `tests/smoke_test_sign.py` (12 checks). Same
+      session also ran the regression pass Session 59 itself flagged as
+      not-yet-done for the `load obj` → inventory change, and found it
+      had in fact broken two other test files live (`smoke_test_
+      objects.py`, `smoke_test_skillcombat.py`'s disarm test) -- both
+      fixed with the same `drop`-after-`load` pattern; see STATUS.md for
+      the full write-up, including a real live production issue (FK-
+      error autosave spam from orphaned test connections) found and
+      resolved along the way.
 
 ## Buildable now (no blocked dependencies)
 

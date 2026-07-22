@@ -245,6 +245,10 @@ static const cmd_entry_t COMMANDS[] = {
     /* SWAP: sit before sip, so "si" sits; sip must be typed in full. */
     { "sit",     cmd_sit,     "Sit down.",                                          MORTAL_LEVEL_MIN },
     { "sip",     cmd_sip,     "Taste a bit of a puddle or fountain, low risk (sip <liquid>).", MORTAL_LEVEL_MIN },
+    /* Placed AFTER sit/sip (above), never before -- "si" is deliberately
+     * reserved for sit (see its own comment); "sig" is already
+     * unambiguous (no other command starts with it). */
+    { "sign",    cmd_sign,    "Communicate silently with hand signals (sign <message>).", MORTAL_LEVEL_MIN },
     { "skills",  cmd_skills,  "List your class's skills/spells, known and locked.", MORTAL_LEVEL_MIN },
     { "sleep",   cmd_sleep,   "Lie down and sleep (heals fastest).",                MORTAL_LEVEL_MIN },
     /* "s"/"so" are south (movement head); socials needs "soc". */

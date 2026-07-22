@@ -293,3 +293,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'What Your Gear Is Made Of Actually Matters Now',
  'Every weapon and piece of armor has a real material behind it -- and now it shows. Steel, silver, mithril, and dozens of others are grouped into five broad tiers: Common, Fine, Superior, Rare, and Legendary. A higher tier hits harder, blocks more, holds up longer before it needs repair, and is worth more gold at a shop. Check `identify` on anything you are curious about to see its Material line. Your `inventory` and `equipment` also now show each item''s condition right next to its name, in color -- brand new, worn, or anywhere down to destroyed -- so you can tell at a glance what needs attention. And combat itself reads better: instead of a raw damage number, you will see how hard a hit actually landed, from "pathetically" all the way up to "into shreds."')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Quiet Way to Talk: Sign Language',
+ 'Everyone can now `sign` a message to the room instead of speaking it out loud -- handy when you would rather not be overheard. It takes both hands free and takes a moment to pick up, so a brand-new adventurer will need a little seasoning before it clicks. Only someone else who also knows how to sign actually understands you; everyone else just sees you gesturing. Word on the street is thieves have their own hand-talk that anyone can read, trained or not.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
