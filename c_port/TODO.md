@@ -787,6 +787,106 @@ implementation inspiration before each one, not guessed at.
       `smoke_test_heartbeat.py`'s own real-time boundary) -- sanity-
       checked the UPDATE query's syntax and FLOOR() math manually
       instead.
+- [x] **Material property system** — done 2026-07-22 (home). Checked the
+      real upstream first (`misc/materials.h`/`.cc`,
+      `docs/systems/informational/material-system.md`): 83 `MAT_*`
+      constants, a `material_type_numbers[200]` property table, and a
+      real per-object `material` field -- which Tobin ALREADY had
+      (`obj.material`/`obj_t.material`, loaded from the real seeded
+      import data since object-affects work, never mechanically used
+      until now). The original's own doc claims direct weapon-damage and
+      armor-AC multiplier formulas (`hardness/60.0`, `hardness/100.0`) --
+      verified against the actual `.cc` source and those formulas do NOT
+      exist there; what's real is durability (mutual hardness-vs-hardness
+      wear during combat) and value (a flat weight × material-price
+      lookup). Per user 2026-07-21's `AskUserQuestion`, Tobin's version
+      deliberately goes FURTHER than the real upstream: a genuine
+      damage/AC multiplier per tier, a disclosed invention rather than a
+      faithful port. Bucketed the 83 real material IDs into 5 Tobin-scale
+      tiers (Common/Fine/Superior/Rare/Legendary, new `material.c`'s
+      `material_tier_for_id()`) rather than inventing a new field --
+      matches the audit's own "3-5 tiers, not 83" sizing call, and gets
+      real per-item variety for free (confirmed live: 969 seeded items
+      at MAT_WOOD, 658 at MAT_STEEL, 194 at MAT_SILVER, ...). Each tier:
+      a damage/AC multiplier (1.0x-2.0x, folded into combat.c's existing
+      gamewide `dmg_mult` and `obj_armor_ac()`), a `max_struct` bonus
+      (+0 to +20, applied once at `obj_create_from_proto()` so it also
+      raises the repair-shop economy's ceiling), and a shop value
+      multiplier (1.0x-15.0x, `cmd_buy()`/`cmd_sell()`). `identify` now
+      shows a `Material:` line. New `tests/smoke_test_material.py` (12
+      checks) -- the AC/structure-bonus checks are exact (no randomness
+      involved), the damage-multiplier check is statistical (real combat
+      rolls), and the value-multiplier check temporarily bumps a real
+      shop item's seeded material (reverted after).
+- [x] **Object condition wording + colorization** — done 2026-07-22
+      (home). User: "put the condition of items after the short desc.
+      search sneezy for 'like new'". Found the real upstream's actual
+      condition ladder, `TObj::equip_condition()` (misc/info.cc) --
+      Tobin's own 6-tier wording ("is in excellent condition", "has seen
+      some wear", ...) was invented, not checked against source first.
+      Replaced with the real 11-tier ladder AND real per-tier colors
+      ported verbatim (e.g. `<C>brand new<1>`, `<c>like new<1>`, down to
+      `<r>destroyed<1>`) -- new shared `obj_condition_word()` (obj.h/.c),
+      used by `inventory`/`equipment` (shown inline right after each
+      item's short_descr in parens, e.g. "a long sword
+      (<C>brand new<1>)") and `identify` (a new `Condition:` row); the
+      single-item `look <item>` view keeps its own "It is <condition>."
+      sentence, just with the new wording. Colorization confirmed live
+      (real ANSI codes render, e.g. `\x1b[1;36m`).
+- [x] **Combat messages: qualitative hit intensity, not raw numbers** —
+      done 2026-07-22 (home). The 2026-07-12 "don't report damage"
+      decision only ever covered mortal-visible melee messages -- an
+      immortal-visible branch (melee) and EVERY spell/trap/wand-staff
+      damage message across `cmd_cast.c`/`cmd_pray.c`/`cmd_move.c`/
+      `cmd_use.c` still printed the raw number. Ported the real
+      upstream's own `describe_dam()` (misc/combat.cc) instead of
+      inventing a scale: an 11-tier ladder ("pathetically" up through
+      "into shreds"/"into a bloody pulp"), `dam` compared against the
+      struck limb's CURRENT pre-hit HP (not max) -- the exact same raw
+      damage number reads as more brutal against a limb that's already
+      nearly gone, an escalating-brutality narrative rather than a flat
+      word-per-number mapping. New shared `describe_dam()` (combat.h/.c),
+      reused across all 4 call sites rather than reimplemented per file.
+      User, when asked whether to scope this to melee only or apply
+      everywhere: "Yes, everywhere." Regression-tested (skillcombat,
+      material's own damage-multiplier check) after the change --
+      the material smoke test's damage measurement had to switch from
+      parsing "for %d damage!" combat text (now gone) to reading `tgt`'s
+      own `score` HP line before/after a fixed real-time combat window.
+- [x] **`load obj` puts the item in the loading immortal's own
+      inventory** — done 2026-07-22 (home). User: "when an immort loads
+      an obj let it go into inventory rather than the room" -- previously
+      landed on the room floor (same as a zone-reset load), requiring a
+      separate `get` as a second step every time. **Real, wide-reaching
+      test-suite consequence found and fixed the same session**: several
+      existing tests (`smoke_test_repair.py`, `smoke_test_
+      object_maintenance.py`) load an item as one immortal character and
+      `get` it as a DIFFERENT character (the actual test subject) -- with
+      the new behavior the item lands in the LOADING immortal's own
+      inventory, so the other character's `get` fails outright ("You
+      don't see that here"). Fixed by having the loading immortal `drop`
+      the item first in those two tests, matching what the old room-drop
+      behavior did implicitly. Not audited: the other ~55 test files
+      that also use `load obj` -- flagged as a real risk for the next
+      full sweep, not silently assumed fine.
+- [x] **Three "applied live only" DB content-text regressions found and
+      fixed** — 2026-07-22 (home). Grimhaven→Tobin City (639 rooms),
+      SneezyMUD→TobinMUD (4 rows), and talens→gold (263 shop rows) were
+      each already marked "done" in TODO.md/STATUS.md from earlier
+      sessions -- but all three were fixed as one-off live SQL against a
+      single running instance, never captured in `tobin_migrations.sql`.
+      Home's own database (192.168.254.200) had never actually received
+      any of them, despite Home/Work sharing git-synced code -- each box
+      runs its own independent `sneezy` database. Found while building
+      the money-v2 bank feature (the real seeded bank room still said
+      "Grimhaven First Kingdom Bank"), then the user separately flagged
+      the "talens" one live in a shop message. Re-applied all three to
+      Home, AND (this time) captured them as idempotent
+      `REGEXP_REPLACE`/`REPLACE` statements in `tobin_migrations.sql`
+      itself, so a fresh install or another box gets them automatically
+      going forward instead of silently missing them again. Work box's
+      own DB state for these three is still unconfirmed -- no active
+      connection to it this session.
 
 ## Buildable now (no blocked dependencies)
 

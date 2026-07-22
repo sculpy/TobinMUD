@@ -1,5 +1,109 @@
 # Tobin C Port — Status
 
+Last updated: 2026-07-22 — Session 59 (home): **Material property system
+(Sneezy → Tobin feature audit, task #24) + a cluster of player-facing
+polish requests that came up live while testing it: real condition-text
+wording/colors, qualitative combat-hit intensity everywhere, `load obj`
+landing in inventory, and three "applied live only" DB content
+regressions found and fixed for good.**
+- **Material property system**: checked the real upstream first
+  (`misc/materials.h`/`.cc`, `docs/systems/informational/
+  material-system.md`) — its own doc claims direct weapon-damage/AC
+  multiplier formulas that do NOT actually exist in the shipped code;
+  what's real is durability (mutual hardness-vs-hardness wear) and value
+  (a flat weight × material-price lookup). Asked before building rather
+  than assuming: scoped as "durability + value only" (faithful) vs. "also
+  add damage/AC multipliers" (a disclosed Tobin invention going further
+  than the real upstream) vs. skip. User picked the invention. Reused
+  Tobin's EXISTING real seeded `obj.material` column (populated since
+  earlier object-affects work, never mechanically read until now) rather
+  than adding a new field — bucketed the 83 real `MAT_*` IDs into 5
+  Tobin-scale tiers (Common/Fine/Superior/Rare/Legendary, new
+  `material.c`) instead of porting all 83, matching the audit's own "3-5
+  tiers" sizing call. Each tier: damage/AC multiplier (folded into
+  combat.c's existing gamewide `dmg_mult` and `obj_armor_ac()`), a
+  `max_struct` bonus at creation (feeds the repair-shop economy's
+  ceiling too), and a shop value multiplier. New `tests/
+  smoke_test_material.py` (12 checks: exact AC/structure-bonus math, a
+  statistical damage-multiplier check, a real-shop value-multiplier
+  check with the item's material temporarily bumped and reverted).
+- **Condition-text wording + colorization**: user, after seeing my own
+  invented 6-tier wording in a test run: "put the condition of items
+  after the short desc. search sneezy for 'like new'." Found the real
+  `TObj::equip_condition()` (misc/info.cc) — an 11-tier ladder with real
+  per-tier ANSI colors (`<C>brand new<1>` down to `<r>destroyed<1>`),
+  ported verbatim rather than guessed at a second time. New shared
+  `obj_condition_word()` (obj.h/.c), shown inline right after an item's
+  short_descr in `inventory`/`equipment` (parens, e.g. "a long sword
+  (<C>brand new<1>)") and as a new `Condition:` row in `identify`.
+  Confirmed live: real ANSI escapes render (`\x1b[1;36mbrand new\x1b[0m`).
+- **Combat messages: qualitative intensity, not raw numbers**: the
+  2026-07-12 "don't report damage" decision only ever covered
+  mortal-visible melee text — an immortal-visible melee branch AND every
+  spell/trap/wand-staff damage message still printed the raw number.
+  User: "take out the damage number and use it to describe how hard the
+  hit was" (pointing at one specific immortal-visible melee line);
+  confirmed via `AskUserQuestion` that this should apply everywhere, not
+  just melee. Ported the real upstream's own `describe_dam()`
+  (misc/combat.cc) — an 11-tier ladder ("pathetically" through "into
+  shreds"/"into a bloody pulp"), damage compared against the struck
+  limb's CURRENT pre-hit HP (not max), so the same raw number reads more
+  brutal against an already-battered limb. New shared `describe_dam()`
+  (combat.h/.c) reused across combat.c/cmd_cast.c/cmd_pray.c/
+  cmd_move.c/cmd_use.c. Broke `smoke_test_material.py`'s own
+  damage-multiplier measurement (it parsed "for %d damage!" text, now
+  gone) — fixed by reading `tgt`'s own `score` HP line before/after a
+  fixed real-time combat window instead.
+- **`load obj` → inventory, not the room floor**: user request, simple
+  on its face, but revealed a real wide-reaching test-suite risk once
+  actually changed: several existing tests load an item as one immortal
+  and `get` it as a DIFFERENT character (the real test subject) — with
+  items now landing in the LOADING immortal's own inventory, the other
+  character's `get` fails outright. Fixed the two tests this directly
+  broke (`smoke_test_repair.py`, `smoke_test_object_maintenance.py`, both
+  now `drop` explicitly before the other character `get`s). **Not**
+  audited: roughly 55 other test files that also call `load obj` —
+  flagged as a real risk for the next full sweep rather than assumed
+  fine.
+- **Three "applied live only" DB regressions, found and actually fixed
+  this time**: while picking the bank's real seeded room (Session 58),
+  found it still said "Grimhaven First Kingdom Bank" despite a "done"
+  TODO.md entry for a global Grimhaven→Tobin City rename. Investigated:
+  639 rooms on Home's own database still said "grimhaven" — the original
+  fix was applied as one-off live SQL against a single running instance,
+  never captured in `tobin_migrations.sql`, and Home/Work each run their
+  own independent database despite sharing git-synced code. Re-applied
+  live AND (new this time) captured as idempotent migrations so it can't
+  silently regress again. User separately flagged a second instance live
+  ("That'll be 198 talens. should be gold") — same root cause,
+  talens→gold (263 shop rows, also "done" in TODO.md, also never
+  migrated). Proactively swept for a third: SneezyMUD→TobinMUD (4 rows,
+  same pattern). All three now live in `tobin_migrations.sql` as
+  idempotent `REGEXP_REPLACE`/`REPLACE` statements. Work box's own DB
+  state for these three remains unconfirmed.
+- **Real incident, mine, mid-session**: a process-restart command
+  (`kill 16005; ... TOBIN_PORT=4003 ...`) accidentally also matched and
+  killed PRODUCTION (a broader pattern than intended) — the cron
+  watchdog auto-restarted it cold (no copyover) within a minute, so
+  anyone connected got a hard disconnect rather than a graceful
+  reconnect. Disclosed immediately; user said not to worry about
+  reboots at this stage of development ("just do it, dont worry about
+  players"). Since then: killing by exact PID only, never by
+  port-matching pattern, and (per user, same conversation) preview
+  retired entirely — "stop running preview, do all work on production."
+  A second, separate incident: a regression-test rerun hung for 17
+  minutes (not the expected ~90s) — root-caused to a pre-existing
+  test-script hygiene gap (sockets never closed in a `finally` on
+  assertion failure), which left the server retrying a failed autosave
+  for an orphaned-but-still-connected test character every ~60s after
+  the test's own cleanup had already deleted its `player` row out from
+  under it. Killing the stuck test process resolved it immediately (no
+  server-side bug) — not yet fixed at the test-script-hygiene level
+  across the suite, just diagnosed and worked around this session.
+- Verified live end-to-end on production (all of skillcombat/objects/
+  object_maintenance/repair/bank/material re-run clean after every
+  change in this cluster, not just the newest one).
+
 Last updated: 2026-07-21 — Session 58 (home): **Money system v2
 (banking/taxes), Sneezy → Tobin feature audit — same session as #57,
 picked next per the user's stated order (22 then 24).**

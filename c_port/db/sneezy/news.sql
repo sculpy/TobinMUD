@@ -288,3 +288,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Banking Has Arrived, and Shops Now Charge Tax',
  'The Tobin City First Kingdom Bank will now hold your gold for you. Visit and use `bank` to check your balance, `bank deposit <amount>` to put gold away safely, and `bank withdraw <amount>` to take it back out. Gold left in the bank earns a little interest every day, even while you are offline, so it is worth parking some there rather than carrying everything around. One catch: ordinary shop purchases now come with a small sales tax on top of the sticker price, which goes straight into the crown''s coffers -- something to budget for next time you go shopping.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'What Your Gear Is Made Of Actually Matters Now',
+ 'Every weapon and piece of armor has a real material behind it -- and now it shows. Steel, silver, mithril, and dozens of others are grouped into five broad tiers: Common, Fine, Superior, Rare, and Legendary. A higher tier hits harder, blocks more, holds up longer before it needs repair, and is worth more gold at a shop. Check `identify` on anything you are curious about to see its Material line. Your `inventory` and `equipment` also now show each item''s condition right next to its name, in color -- brand new, worn, or anywhere down to destroyed -- so you can tell at a glance what needs attention. And combat itself reads better: instead of a raw damage number, you will see how hard a hit actually landed, from "pathetically" all the way up to "into shreds."')
+ON DUPLICATE KEY UPDATE `title` = `title`;
