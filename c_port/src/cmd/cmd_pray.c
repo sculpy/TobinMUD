@@ -202,13 +202,12 @@ static void pray_area_damage(descriptor_t *d, being_t *ch, const skill_def_t *sk
         }
         hit_count++;
         limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+        int limb_hp_before = victim->limbs[limb].hp;
         bool defeated = combat_apply_skill_damage(ch, victim, dmg, limb);
         if (!defeated && victim->desc) {
             char msg[128];
-            if (being_is_immortal(victim))
-                snprintf(msg, sizeof(msg), "The %s catches you for %d damage!\r\n", sk->name, dmg);
-            else
-                snprintf(msg, sizeof(msg), "The %s catches you!\r\n", sk->name);
+            snprintf(msg, sizeof(msg), "The %s catches you %s!\r\n",
+                     sk->name, describe_dam(dmg, limb_hp_before, NULL));
             descriptor_notify(victim->desc, msg);
         }
         t = next;
@@ -416,25 +415,20 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
         }
         int dmg = spell_damage_for_level(sk->min_level);
         limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
         bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
-        /* Damage numbers (user 2026-07-12): hidden from a plain mortal,
-         * kept for an immortal (balancing/testing), same rule as
-         * combat.c's melee messages. */
-        if (being_is_immortal(ch))
-            snprintf(msg, sizeof(msg), "You pray for %s, striking %s for %d damage!\r\n",
-                     sk->name, being_display_name(atk_target), dmg);
-        else
-            snprintf(msg, sizeof(msg), "You pray for %s, striking %s.\r\n",
-                     sk->name, being_display_name(atk_target));
+        /* Damage numbers (user 2026-07-12, follow-up "take out the
+         * damage number and use it to describe how hard the hit was"):
+         * same describe_dam() treatment as combat.c's melee messages,
+         * shown to every viewer now, not just immortals. */
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You pray for %s, striking %s %s!\r\n",
+                 sk->name, being_display_name(atk_target), intensity);
         descriptor_send(d, msg);
         if (!defeated && atk_target->desc) {
             char tcapbuf[128];
-            if (being_is_immortal(atk_target))
-                snprintf(msg, sizeof(msg), "%s prays for %s, striking you for %d damage!\r\n",
-                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, dmg);
-            else
-                snprintf(msg, sizeof(msg), "%s prays for %s, striking you.\r\n",
-                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
+            snprintf(msg, sizeof(msg), "%s prays for %s, striking you %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, intensity);
             descriptor_notify(atk_target->desc, msg);
         }
     } else {

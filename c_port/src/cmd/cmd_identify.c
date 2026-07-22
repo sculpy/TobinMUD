@@ -9,6 +9,7 @@
 #include <strings.h>
 
 #include "being.h"
+#include "material.h"
 #include "obj.h"
 #include "obj_repo.h"
 #include "thing.h"
@@ -90,8 +91,13 @@ bool cmd_identify(descriptor_t *d, const char *args) {
     int n = snprintf(out, sizeof(out),
                       "You identify %s:\r\n"
                       "  Category:  %s\r\n"
-                      "  Weight:    %.1f\r\n",
-                      label, obj_category_name(o->category), o->weight);
+                      "  Weight:    %.1f\r\n"
+                      "  Material:  %s\r\n",
+                      label, obj_category_name(o->category), o->weight,
+                      material_tier_name(material_tier_for_id(o->material)));
+    const char *cond = obj_condition_word(o);
+    if (cond && (size_t)n < sizeof(out))
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "  Condition: %s\r\n", cond);
 
     switch (o->category) {
         case OBJ_CAT_WEAPON: {

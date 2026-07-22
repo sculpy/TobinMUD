@@ -466,8 +466,10 @@ bool cmd_inventory(descriptor_t *d, const char *args) {
         any = true;
         const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
         char capbuf[128];
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s\r\n",
-                      cap_first(label, capbuf, sizeof(capbuf)));
+        const char *cond = obj_condition_word(o);
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s%s%s%s\r\n",
+                      cap_first(label, capbuf, sizeof(capbuf)),
+                      cond ? " (" : "", cond ? cond : "", cond ? ")" : "");
     }
     if (!any && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  Nothing.\r\n");

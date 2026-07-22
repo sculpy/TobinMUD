@@ -247,6 +247,22 @@ typedef struct obj {
  * ARMOR_AC_MAX so one absurd item (real or placeholder) can't dominate. */
 int obj_armor_ac(const obj_t *o);
 
+/* One-word (color-tagged) structure-condition summary (Object
+ * maintenance, Sneezy → Tobin feature audit) -- the real 11-tier ladder
+ * AND real per-tier colors ported verbatim from `TObj::equip_condition()`
+ * (misc/info.cc, e.g. `"<C>like new<1>"`), not invented -- previously
+ * Tobin had its own uncolored 6-tier wording ("is in excellent
+ * condition", "has seen some wear", ...) rather than checking the real
+ * source first. The returned string already carries Tobin colorstring.c
+ * `<letter>` tags (translated to ANSI or stripped downstream per the
+ * viewer's color toggle, same as any other pre-colored string). Returns
+ * NULL if the prototype never set a max_struct (0 -- most sandbox/test
+ * fixtures, some real content), same "nothing meaningful to show"
+ * convention as before. Shown in parens right after an item's
+ * short_descr wherever one is listed (inventory/equipment), e.g.
+ * "a long sword (<C>brand new<1>)". */
+const char *obj_condition_word(const obj_t *o);
+
 /* True iff the object is a container (OBJ_CAT_CONTAINER). */
 static inline bool obj_is_container(const obj_t *o) {
     return o && o->category == OBJ_CAT_CONTAINER;

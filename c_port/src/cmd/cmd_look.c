@@ -205,24 +205,6 @@ static obj_t *find_obj_here(thing_t *chain, const char *tok, size_t len, int ord
     return NULL;
 }
 
-/* A one-word condition summary from cur_struct/max_struct, or NULL if the
- * prototype never set a max (0 -- most sandbox/test fixtures, some real
- * content) -- in which case `look <item>` just omits the condition line
- * rather than showing a meaningless "0/0". */
-static const char *obj_condition_text(const obj_t *o) {
-    if (o->max_struct <= 0)
-        return NULL;
-    int pct = (o->cur_struct * 100) / o->max_struct;
-    if (pct > 100) pct = 100;
-    if (pct < 0) pct = 0;
-    if (pct >= 100) return "is in excellent condition";
-    if (pct >= 75)  return "is in good condition";
-    if (pct >= 50)  return "has seen some wear";
-    if (pct >= 25)  return "is showing serious wear";
-    if (pct > 0)    return "is falling apart";
-    return "is destroyed";
-}
-
 /* `look <name>` -- describe another player, a mob (Phase 2D), or an object
  * (Phase 2C) in the room or in your own inventory/equipment. Matches by
  * case-insensitive keyword prefix (self included, so `look <ownname>`
@@ -354,9 +336,9 @@ bool look_at_target(descriptor_t *d, const char *args) {
                       o->long_descr[0]
                           ? obj_apply_ground_token(o->long_descr, r, groundbuf, sizeof(groundbuf))
                           : cap_first(o->base.short_descr, capbuf, sizeof(capbuf)));
-    const char *cond = obj_condition_text(o);
+    const char *cond = obj_condition_word(o);
     if (cond && (size_t)n < sizeof(out))
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "It %s.\r\n", cond);
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "It is %s.\r\n", cond);
     /* A container also shows what's inside, when it's open. */
     if (obj_is_container(o) && (size_t)n < sizeof(out)) {
         if (obj_container_closed(o)) {

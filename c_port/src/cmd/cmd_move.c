@@ -12,6 +12,7 @@
 #include "affect.h"
 #include "being.h"
 #include "cmd.h"
+#include "combat.h"
 #include "player_repo.h"
 #include "room.h"
 #include "room_repo.h"
@@ -175,19 +176,16 @@ static bool do_move(descriptor_t *d, int dir) {
         } else {
             int dmg = 5 + rand() % 10;
             limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+            int limb_hp_before = ch->limbs[limb].hp;
             being_hurt_limb(ch, limb, dmg);
-            char trap_msg[128];
-            /* Damage numbers (user 2026-07-12): hidden from a plain
-             * mortal, kept for an immortal (balancing/testing), same
-             * rule as combat.c's melee messages. */
-            if (being_is_immortal(ch))
-                snprintf(trap_msg, sizeof(trap_msg),
-                         "A trap rigged to the door springs! It catches your %s for %d damage!\r\n",
-                         limb_name(limb), dmg);
-            else
-                snprintf(trap_msg, sizeof(trap_msg),
-                         "A trap rigged to the door springs! It catches your %s!\r\n",
-                         limb_name(limb));
+            char trap_msg[160];
+            /* Damage numbers (user 2026-07-12, follow-up "take out the
+             * damage number and use it to describe how hard the hit
+             * was"): same describe_dam() treatment as combat.c's melee
+             * messages, shown to every viewer now, not just immortals. */
+            snprintf(trap_msg, sizeof(trap_msg),
+                     "A trap rigged to the door springs! It catches your %s %s!\r\n",
+                     limb_name(limb), describe_dam(dmg, limb_hp_before, NULL));
             descriptor_send(d, trap_msg);
             from->exit_cond[dir] &= ~EXIT_COND_TRAPPED;
             room_repo_save_exit(from->vnum, dir, from->exits[dir], from->exit_door[dir], from->exit_cond[dir]);

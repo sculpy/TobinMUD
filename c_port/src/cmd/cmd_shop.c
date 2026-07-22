@@ -12,6 +12,7 @@
 
 #include "affect.h"
 #include "being.h"
+#include "material.h"
 #include "obj.h"
 #include "obj_repo.h"
 #include "shop_repo.h"
@@ -397,7 +398,12 @@ bool cmd_buy(descriptor_t *d, const char *args) {
         return true;
     }
 
-    int price = (int)(proto.price * shop.profit_buy);
+    /* Material property system (Sneezy → Tobin feature audit): a
+     * higher-tier material raises an item's shop price, the one
+     * dimension the real upstream genuinely does this way too
+     * (obj_base_weapon.cc's price += weight * material.price). */
+    int price = (int)(proto.price * shop.profit_buy
+                       * material_tier_value_mult(material_tier_for_id(proto.material)));
     /* Sales tax (Money system v2, Sneezy → Tobin feature audit). The real
      * upstream's chargeTax() only taxes player-OWNED shop transactions,
      * routed to a per-shop tax office and journalized in double-entry --
@@ -512,7 +518,10 @@ bool cmd_sell(descriptor_t *d, const char *args) {
         return true;
     }
 
-    int price = (int)(found->price * shop.profit_sell);
+    /* Material property system: same value multiplier as buy, applied to
+     * whatever the item is actually worth on sale. */
+    int price = (int)(found->price * shop.profit_sell
+                       * material_tier_value_mult(material_tier_for_id(found->material)));
     if (price < 0)
         price = 0;
 

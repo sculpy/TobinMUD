@@ -15,6 +15,7 @@
 #include "balance.h"
 #include "descriptor.h"
 #include "log.h"
+#include "material.h"
 #include "obj.h"
 #include "obj_repo.h"
 #include "player_repo.h"
@@ -238,6 +239,42 @@ static const char *weapon_verb(const obj_t *weapon) {
         || ci_contains(n, "flail") || ci_contains(s, "flail"))
         return "lash";
     return "hit";
+}
+
+/* Qualitative hit-intensity description (user 2026-07-12: "dont report
+ * damage"; follow-up: "take out the damage number and use it to
+ * describe how hard the hit was"). Ported from the real upstream's own
+ * describe_dam()/REALNUM() (misc/combat.cc) rather than invented: same
+ * 11-tier ladder and same wording, `dam` compared against `capacity`
+ * (the struck limb's CURRENT, pre-hit HP -- not its max, so the exact
+ * same raw damage number reads as more brutal against a limb that's
+ * already nearly gone than a fresh one). Cross-multiplied against
+ * thousandths rather than using floating point, same precision-safety
+ * reasoning as material.c's tier multipliers. The real upstream also
+ * branches on damage TYPE for the "at or past 100%" case (TYPE_SLASH/
+ * TYPE_SLICE -> "into shreds", everything else -> "into a bloody
+ * pulp") -- approximated here off weapon_verb()'s own "slice"/"chop"
+ * cutting verbs vs. everything else, since Tobin has no separate damage-
+ * type enum. */
+const char *describe_dam(int dam, int capacity, const char *verb) {
+    if (dam <= 0 || capacity <= 0)
+        return "pathetically";
+    long d = (long)dam * 1000;
+    long cap = (long)capacity;
+    if (d >= cap * 1000) {
+        bool cutting = verb && (strcmp(verb, "slice") == 0 || strcmp(verb, "chop") == 0);
+        return cutting ? "into shreds" : "into a bloody pulp";
+    }
+    if (d > cap * 640) return "beyond all recognition";
+    if (d > cap * 320) return "incredibly well";
+    if (d > cap * 160) return "very severely";
+    if (d > cap * 80)  return "severely";
+    if (d > cap * 60)  return "very hard";
+    if (d > cap * 40)  return "hard";
+    if (d > cap * 20)  return "lightly";
+    if (d > cap * 10)  return "very lightly";
+    if (d > cap * 5)   return "only slightly";
+    return "pathetically";
 }
 
 /* Object maintenance (Sneezy -> Tobin feature audit) -- a Tobin-scale
@@ -482,6 +519,13 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     } else if (attacker->mob_class_known) {
         dmg_mult = class_balance_get(attacker->char_class)->dmg_mult;
     }
+    /* Material property system (Sneezy → Tobin feature audit): a
+     * higher-tier weapon material hits harder, folded into the same
+     * gamewide multiplier rather than a second separate scaling pass. A
+     * bare-handed attacker (weapon == NULL) gets no bonus, same shape as
+     * weapon_hitroll/weapon_damroll above. */
+    if (weapon)
+        dmg_mult *= (float)material_tier_damage_mult(material_tier_for_id(weapon->material));
     dmg = (int)(dmg * dmg_mult);
     if (dmg < 1)
         dmg = 1;
@@ -513,6 +557,7 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
 
     limb_t limb = pick_weighted_limb();
     int pct_before = being_limb_pct(defender, limb);
+    int limb_hp_before = defender->limbs[limb].hp; /* pre-hit capacity, for describe_dam() below */
     being_hurt_limb(defender, limb, dmg);
     int pct_after = being_limb_pct(defender, limb);
     combat_maybe_damage_equipment(defender, limb, dmg);
@@ -529,19 +574,21 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     char hit_capbuf[128];
     /* Damage numbers (user 2026-07-12: "dont report damage. messages
      * should read You stab a messenger from the goblins's left finger.")
-     * -- a plain mortal never sees the raw number, but an immortal still
-     * does (useful for balancing/testing), checked independently per
-     * viewer same as the nospam toggle above. */
-    if (being_is_immortal(attacker))
-        tell(attacker, "You %s %s's %s for %d damage!\r\n", verb, being_display_name(defender), ln, dmg);
-    else
-        tell(attacker, "You %s %s's %s.\r\n", verb, being_display_name(defender), ln);
-    if (being_is_immortal(defender))
-        tell(defender, "%s %s your %s for %d damage!\r\n",
-             being_display_name_cap(attacker, hit_capbuf, sizeof(hit_capbuf)), verb_3rd, ln, dmg);
-    else
-        tell(defender, "%s %s your %s.\r\n",
-             being_display_name_cap(attacker, hit_capbuf, sizeof(hit_capbuf)), verb_3rd, ln);
+     * -- originally a plain mortal never saw the raw number while an
+     * immortal still did (for balancing/testing), but the immortal
+     * branch never actually got the qualitative treatment the mortal
+     * one did (user, follow-up: "take out the damage number and use it
+     * to describe how hard the hit was"). Both now go through
+     * describe_dam() -- ported from the real upstream's own
+     * describe_dam()/normalHitMessage() (misc/combat.cc): the SAME hit
+     * reads as more brutal against a limb that's already nearly gone
+     * (ratio is against the limb's CURRENT pre-hit HP, not its max) --
+     * escalating flavor as a fight wears a limb down, not a flat
+     * word-per-damage-number mapping. */
+    const char *intensity = describe_dam(dmg, limb_hp_before, verb);
+    tell(attacker, "You %s %s's %s %s!\r\n", verb, being_display_name(defender), ln, intensity);
+    tell(defender, "%s %s your %s %s!\r\n",
+         being_display_name_cap(attacker, hit_capbuf, sizeof(hit_capbuf)), verb_3rd, ln, intensity);
 
     const char *status_before = limb_status_text(pct_before);
     const char *status_after = limb_status_text(pct_after);

@@ -12,6 +12,7 @@
 
 #include "being.h"
 #include "descriptor.h"
+#include "material.h"
 #include "obj_magic_repo.h"
 #include "obj_repo.h"
 #include "room.h"
@@ -319,6 +320,17 @@ obj_t *obj_create_from_proto(int vnum) {
     o->can_be_seen = proto.can_be_seen;
     o->decay_time = proto.decay_time;
 
+    /* Material property system (Sneezy → Tobin feature audit) -- a
+     * higher-tier material makes a freshly-created instance tougher from
+     * the start (material.h's material_tier_struct_bonus()), added to
+     * both halves so it starts undamaged, not already "hurt" relative to
+     * its new ceiling. */
+    if (o->max_struct > 0) {
+        int bonus = material_tier_struct_bonus(material_tier_for_id(o->material));
+        o->max_struct += bonus;
+        o->cur_struct += bonus;
+    }
+
     /* Magic items (Sneezy -> Tobin feature audit): cache this instance's
      * real objaffect-sourced stat/AC/HP/Vitality bonuses once, here, at
      * creation -- see obj_repo.h's obj_load_stat_affects() and obj_t's
@@ -622,14 +634,54 @@ int obj_armor_ac(const obj_t *o) {
      * caught the category-gated version of this dropping the bonus). The
      * guessed weight formula stays armor-only -- guessing an AC for a
      * ring with no real data would be nonsense. */
-    if (o->aff_ac != 0)
-        return o->aff_ac > ARMOR_AC_MAX ? ARMOR_AC_MAX : o->aff_ac;
-    if (o->category != OBJ_CAT_ARMOR)
-        return 0;
-    int ac = (int)(o->weight * ARMOR_AC_PER_WEIGHT);
+    int ac;
+    if (o->aff_ac != 0) {
+        ac = o->aff_ac;
+    } else {
+        if (o->category != OBJ_CAT_ARMOR)
+            return 0;
+        ac = (int)(o->weight * ARMOR_AC_PER_WEIGHT);
+    }
+    /* Material property system: a higher-tier material scales whatever
+     * AC the item already carries -- applied before the cap, so material
+     * can push a piece closer to ARMOR_AC_MAX but never past it. */
+    ac = (int)(ac * material_tier_ac_mult(material_tier_for_id(o->material)));
     if (ac > ARMOR_AC_MAX)
         ac = ARMOR_AC_MAX;
     return ac;
+}
+
+const char *obj_condition_word(const obj_t *o) {
+    if (!o || o->max_struct <= 0)
+        return NULL;
+    int cur = o->cur_struct;
+    if (cur > o->max_struct) cur = o->max_struct;
+    if (cur < 0) cur = 0;
+    int max = o->max_struct;
+    /* Real thresholds AND real colors, both from TObj::equip_condition()
+     * (misc/info.cc) -- e.g. `sstring a("<C>like new<1>");` -- ported
+     * verbatim rather than inventing Tobin's own scheme. <letter> tags
+     * match Tobin's own colorstring.c one-for-one (bright/dim pairs),
+     * stripped or ANSI-translated downstream depending on the viewer's
+     * color toggle, same as every other pre-colored string in the
+     * codebase (socials, help text, ...). Each a strict "p > 0.N"
+     * against the exact fraction cur/max, compared via
+     * cross-multiplication (cur*10 > max*N) rather than an integer
+     * percentage, which would floor/truncate and misclassify values
+     * right at a tenth boundary (e.g. cur/max == 0.90 exactly must fall
+     * through to "excellent", not get rounded up into "like new"). */
+    if (cur == max)          return "<C>brand new<1>";
+    if (cur * 10 > max * 9)  return "<c>like new<1>";
+    if (cur * 10 > max * 8)  return "<B>excellent<1>";
+    if (cur * 10 > max * 7)  return "<b>very good<1>";
+    if (cur * 10 > max * 6)  return "<P>good<1>";
+    if (cur * 10 > max * 5)  return "<p>fine<1>";
+    if (cur * 10 > max * 4)  return "<G>fair<1>";
+    if (cur * 10 > max * 3)  return "<g>poor<1>";
+    if (cur * 10 > max * 2)  return "<y>very poor<1>";
+    if (cur * 10 > max * 1)  return "<o>bad<1>";
+    if (cur > 0)             return "<R>very bad<1>";
+    return "<r>destroyed<1>";
 }
 
 static void apply_equip_stat_affects(being_t *ch, const obj_t *o, int sign) {

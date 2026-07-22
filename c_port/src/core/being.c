@@ -808,8 +808,13 @@ static void equip_line(char *out, size_t out_sz, size_t *n, const char *label,
     const char *value = o
         ? (o->base.short_descr[0] ? o->base.short_descr : o->base.name)
         : "nothing";
-    *n += (size_t)snprintf(out + *n, out_sz - *n, "  %*s: %s\r\n",
-                           EQUIP_LABEL_WIDTH, label, value);
+    /* Condition (Object maintenance, Sneezy → Tobin feature audit) --
+     * appended right after the short_descr, same convention cmd_object.c's
+     * cmd_inventory() uses. */
+    const char *cond = o ? obj_condition_word(o) : NULL;
+    *n += (size_t)snprintf(out + *n, out_sz - *n, "  %*s: %s%s%s%s\r\n",
+                           EQUIP_LABEL_WIDTH, label, value,
+                           cond ? " (" : "", cond ? cond : "", cond ? ")" : "");
 }
 
 void being_render_equipment(const being_t *b, char *out, size_t out_sz, size_t *n) {

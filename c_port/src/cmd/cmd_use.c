@@ -92,13 +92,12 @@ static void use_area_damage(descriptor_t *d, being_t *ch, const skill_def_t *sk,
         }
         hit_count++;
         limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+        int limb_hp_before = victim->limbs[limb].hp;
         bool defeated = combat_apply_skill_damage(ch, victim, dmg, limb);
         if (!defeated && victim->desc) {
             char msg[128];
-            if (being_is_immortal(victim))
-                snprintf(msg, sizeof(msg), "The %s catches you for %d damage!\r\n", sk->name, dmg);
-            else
-                snprintf(msg, sizeof(msg), "The %s catches you!\r\n", sk->name);
+            snprintf(msg, sizeof(msg), "The %s catches you %s!\r\n",
+                     sk->name, describe_dam(dmg, limb_hp_before, NULL));
             descriptor_notify(victim->desc, msg);
         }
         t = next;
@@ -171,17 +170,16 @@ static void apply_item_effect(descriptor_t *d, being_t *ch, being_t *target,
         }
         int dmg = spell_damage_for_level(sk->min_level);
         limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+        int limb_hp_before = target->limbs[limb].hp;
         bool defeated = combat_apply_skill_damage(ch, target, dmg, limb);
-        if (being_is_immortal(ch))
-            snprintf(msg, sizeof(msg), "You use %s -- %s hits %s for %d damage!\r\n",
-                     item_label, sk->name, being_display_name(target), dmg);
-        else
-            snprintf(msg, sizeof(msg), "You use %s -- %s hits %s!\r\n", item_label, sk->name, being_display_name(target));
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You use %s -- %s hits %s %s!\r\n",
+                 item_label, sk->name, being_display_name(target), intensity);
         descriptor_send(d, msg);
         if (!defeated && target->desc) {
             char tcapbuf[128];
-            snprintf(msg, sizeof(msg), "%s uses %s -- %s hits you!\r\n",
-                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), item_label, sk->name);
+            snprintf(msg, sizeof(msg), "%s uses %s -- %s hits you %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), item_label, sk->name, intensity);
             descriptor_notify(target->desc, msg);
         }
     } else {

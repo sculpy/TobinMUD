@@ -61,4 +61,17 @@ void combat_drown_pc(being_t *victim);
  * the caller MUST NOT touch `defender` again if so. */
 bool combat_apply_skill_damage(being_t *attacker, being_t *defender, int dmg, limb_t limb);
 
+/* Qualitative hit-intensity description (user 2026-07-12: "dont report
+ * damage"; follow-up: "take out the damage number and use it to
+ * describe how hard the hit was") -- ported from the real upstream's
+ * own describe_dam() (misc/combat.cc). `capacity` should be the struck
+ * limb's CURRENT (pre-hit) HP, not its max -- captured by the caller
+ * BEFORE applying the damage (being_hurt_limb()/combat_apply_skill_
+ * damage() zero it out). `verb` is only used to pick "into shreds" vs.
+ * "into a bloody pulp" at 100%+ -- pass NULL (or anything other than
+ * "slice"/"chop") for damage sources with no cutting/blunt distinction
+ * (spells, traps, wand/staff use). Shared across combat.c/cmd_cast.c/
+ * cmd_pray.c/cmd_move.c/cmd_use.c rather than reimplemented per file. */
+const char *describe_dam(int dam, int capacity, const char *verb);
+
 #endif
