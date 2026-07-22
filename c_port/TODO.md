@@ -898,9 +898,17 @@ implementation inspiration before each one, not guessed at.
       footer lines added to `cmd_help.c`, all cyan and aligned to the
       same 14-char colon column (follow-up ask: "line up the : ... and
       colorize appropriate"). `Requires:` now names a real seeded
-      example item instead of a vague phrase. See STATUS.md for the two
-      categorization bugs and one "no-op ON DUPLICATE KEY UPDATE
-      silently prevented the refresh" bug caught before shipping.
+      example item instead of a vague phrase -- and per a second
+      follow-up ("list the actual component required for the spell"),
+      56 spells get the REAL specific reagent the upstream source
+      assigned them (`obj/obj_component.h`'s `COMP_<SPELL> = <vnum>`
+      table, cross-referenced against `skill.c` and confirmed live
+      against Tobin's own seeded `obj` rows) instead of the generic
+      pouch/symbol phrasing every other spell honestly keeps (the
+      upstream never assigned those a specific item either). See
+      STATUS.md for the two categorization bugs and one "no-op ON
+      DUPLICATE KEY UPDATE silently prevented the refresh" bug caught
+      before shipping.
 - [x] **Sign language** — done 2026-07-22 (work). Checked the real
       upstream first (`docs/systems/important/communication-system.md`'s
       "Sign Language Reception" section, `misc/talk.cc`'s `doSign()`):

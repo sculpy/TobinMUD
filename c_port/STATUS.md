@@ -21,6 +21,28 @@ rest of the suite.**
   spell actually does. `Requires:` now names a real, concretely-seeded
   example (`a pouch of spell components` / `a wooden holy symbol` --
   both genuinely common seeded rows, confirmed live, not invented).
+  **Follow-up ask, same session**: "this should list the actual
+  component required for the spell, do this for all skills/spells that
+  require components or holy symbols." Found the real per-spell binding
+  in the bundled upstream source: `obj/obj_component.h`'s own `const int
+  COMP_<SPELL> = <vnum>;` table (124 entries) names the SPECIFIC themed
+  reagent each spell traditionally used, not a generic placeholder.
+  Cross-referenced against `skill.c`'s own names (accounting for the
+  original's abbreviation style -- `CLOUD_OF_CONCEAL` -> "cloud of
+  concealment", `DETECT_INVIS` -> "detect invisibility", etc.) and
+  confirmed every match against Tobin's real seeded `obj` table live --
+  56 solid matches (`hellfire` -> "some liquid brimstone", `feathery
+  descent` -> "an orange pigeon feather", ...), each a real row, not a
+  guess. Every OTHER Mage/Druid spell (the upstream never assigned
+  these a specific vnum either -- ordinary cantrips always drew from
+  the same generic pool) honestly keeps the generic phrasing rather
+  than fabricating a specific item. Cleric's holy-symbol Requires stays
+  generic throughout -- the upstream's Ritualism component system never
+  assigned individual holy items per-prayer the way Wizardry did per-
+  spell, so there's no equivalent real binding to port. The generator
+  now queries the live DB directly (one `mariadb` call, `subprocess`)
+  to pull each matched vnum's real `short_desc` rather than hardcoding
+  151 lines of Tobin-side item text that could drift from the DB.
   `cmd_help.c` gained two new trailing-directive footers (`Approx.
   Level:`, `Classes:`) rendered in the SAME cyan/14-char-aligned style as
   the existing `Syntax:`/`Requires:`/`Related:` labels, pulling `Classes`
