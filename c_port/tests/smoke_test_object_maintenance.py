@@ -187,9 +187,14 @@ try:
           "the corpse decays away on its own once its countdown reaches 0")
 
     # --- 2: equipment structure damage ---
+    # `load` now puts the item straight into the loading immortal's own
+    # inventory (2026-07-22), not the room floor -- drop it explicitly so
+    # `tgt` (a different character) can pick it up.
     cmd(imm, f"load obj {SHIRT_VNUM}")
+    cmd(imm, "drop shirt")
     cmd(tgt, "get shirt"); cmd(tgt, "wear shirt")
     cmd(imm, f"load obj {CAP_VNUM}")
+    cmd(imm, "drop cap")
     cmd(tgt, "get cap"); cmd(tgt, "wear cap")
     eq_before = cmd(tgt, "equipment")
     check("a fragile test shirt" in eq_before and "a fragile test cap" in eq_before,

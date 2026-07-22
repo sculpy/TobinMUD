@@ -153,7 +153,12 @@ try:
     recv_all(pc); recv_all(imm)  # drain arrival notices
 
     # --- 1: repair without the skill ---
+    # `load` now puts the item straight into the loading immortal's own
+    # inventory (2026-07-22), not the room floor -- drop it explicitly so
+    # `pc` (a different character) can pick it up, same as the old
+    # room-drop behavior used to do implicitly.
     cmd(imm, f"load obj {HELM_VNUM}")
+    cmd(imm, "drop helm")
     cmd(pc, "get helm")
     out = cmd(pc, "repair helm")
     check("don't know how to repair" in out.lower(),

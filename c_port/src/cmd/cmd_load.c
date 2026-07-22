@@ -124,7 +124,12 @@ static void load_obj(descriptor_t *d, being_t *ch, const char *trimmed) {
         return;
     }
 
-    thing_move_to(&o->base, &ch->base.roomp->base);
+    /* Straight into the loading immortal's own inventory (user
+     * 2026-07-22: "when an immort loads an obj let it go into inventory
+     * rather than the room") -- previously landed on the room floor,
+     * same as a zone-reset load, which meant an immortal testing/
+     * building had to `get` it themselves as a second step every time. */
+    thing_move_to(&o->base, &ch->base);
 
     char msg[256];
     const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
@@ -132,6 +137,9 @@ static void load_obj(descriptor_t *d, being_t *ch, const char *trimmed) {
     descriptor_send(d, msg);
     snprintf(msg, sizeof(msg), "%s conjures %s into being.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, msg);
+
+    if (ch->base.kind == THING_PC)
+        player_inventory_save(ch->player_id, ch);
 
     obj_proto_t proto;
     if (obj_proto_load(vnum, &proto))
