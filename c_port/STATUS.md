@@ -68,6 +68,42 @@ rest of the suite.**
   `tests/smoke_test_help_topics.py` had two assertions hardcoded to the
   old wording -- updated to match, all `help*` tests (`help`, `help_
   content`, `help_format`, `help_topics`) pass clean.
+- **Second follow-up, same session**: "is there a list of components to
+  spells from the code we could map along with the % of discipline
+  needed". Both real, both much bigger than what shipped first.
+  **Components**: `misc/spell_num.cc`'s `mapFileToSpellnum()` (~500
+  entries, ported into `file_to_spell.py`) maps a component object's raw
+  file-format "value 3" field to its real spell -- and Tobin's own
+  `obj.val2` preserves that exact field verbatim (confirmed live:
+  `val0`/`val1` are the already-documented charge pair, `val2` varies
+  meaningfully per real component, `val3` is something else, consistent
+  with `assignFourValues(x1,x2,x3,x4)`'s real argument order). The
+  generator now queries EVERY real "component"-keyword row in Tobin's
+  `obj` table, maps each one's `val2` through this table, and keeps the
+  lowest vnum per spell (matching the original's own `CompInfo.comp_num`
+  "lowest vnum wins" convention) -- 83 real matches, up from the first
+  pass's 56 (`gust` went from the generic fallback to a real "a rabbit's
+  foot on a silver chain"). **Discipline %**: `misc/spell_info.cc`'s
+  `discArray[SPELL_X] = new spellInfo(..., START_n, ...)` -- `start` is
+  a genuine 0-100 threshold checked directly against a live discipline
+  percentage in `misc/gaining.cc`, not a guess. Real complication,
+  surfaced before implementing rather than after: the original splits
+  casters across several separate per-school disciplines (Air/Fire/
+  Water/Mage/Ritualism/...), each its own 0-100 track, while Tobin
+  collapsed all of that into one `basic_disc_pct` + one
+  `advanced_disc_pct`. Asked the user how to reconcile a raw "START_26"
+  against that mismatch rather than silently picking an interpretation;
+  they chose showing the real upstream value as-is. New `Discipline:`
+  footer line (skill/spell topics only, shown only when the upstream
+  source actually assigned this spell a real value -- 248 of 275 do) in
+  `cmd_help.c`, same cyan/aligned style as every other label, peeled as
+  a fifth trailing directive (Classes -> Discipline -> Approx. Level ->
+  Related -> Requires, bottom-up -- peeling a directive that isn't
+  actually present is a harmless no-op, so this fixed order is safe
+  whether or not a given topic has one). Both new data sources
+  (`file_to_spell.py`, and a direct `discArray[]` regex parse of
+  `spell_info.cc`) are additions to the SAME one-shot generator script,
+  not new files kept in the repo.
 - **Regression sweep first**: pulled Session 57-59's work (repair-shop
   economy, banking, material properties) in; Session 59's own STATUS.md
   entry had explicitly flagged "~55 other test files that also call

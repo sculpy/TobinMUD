@@ -908,7 +908,17 @@ implementation inspiration before each one, not guessed at.
       upstream never assigned those a specific item either). See
       STATUS.md for the two categorization bugs and one "no-op ON
       DUPLICATE KEY UPDATE silently prevented the refresh" bug caught
-      before shipping.
+      before shipping. **Second follow-up, same session** ("is there a
+      list of components to spells... along with the % of discipline
+      needed"): components now come from `misc/spell_num.cc`'s real
+      ~500-entry `mapFileToSpellnum()` table joined against Tobin's own
+      `obj.val2` (which preserves the original's raw file-format field
+      verbatim) -- 83 real matches, up from 56. A new `Discipline:`
+      footer line reports `misc/spell_info.cc`'s real `discArray[]`
+      `start` value (248 of 275 topics) -- shown as the upstream's raw
+      value, per the user's own choice, since it's against that spell's
+      own per-school discipline track, not literally Tobin's collapsed
+      `basic_disc_pct`.
 - [x] **Sign language** — done 2026-07-22 (work). Checked the real
       upstream first (`docs/systems/important/communication-system.md`'s
       "Sign Language Reception" section, `misc/talk.cc`'s `doSign()`):

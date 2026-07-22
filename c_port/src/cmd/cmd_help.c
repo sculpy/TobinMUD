@@ -283,11 +283,18 @@ bool cmd_help(descriptor_t *d, const char *args) {
                     approx_level[0] = '\0';
                     char classes[128];
                     classes[0] = '\0';
+                    char discipline[16];
+                    discipline[0] = '\0';
                     /* Peel bottom-up in the order these are actually
                      * authored (see skill_help.sql's own generator note):
-                     * Classes (true last line) -> Approx. Level -> Related
-                     * -> Requires. */
+                     * Classes (true last line) -> Discipline (present only
+                     * when the upstream source had a real value for this
+                     * spell -- peeling a directive that isn't actually
+                     * there is a harmless no-op, so this order is safe
+                     * whether or not it's present) -> Approx. Level ->
+                     * Related -> Requires. */
                     (void)extract_trailing_directive(desc, &dlen, "Classes:", classes, sizeof(classes));
+                    (void)extract_trailing_directive(desc, &dlen, "Discipline:", discipline, sizeof(discipline));
                     (void)extract_trailing_directive(desc, &dlen, "Approx. Level:", approx_level, sizeof(approx_level));
                     (void)extract_trailing_directive(desc, &dlen, "Related:", related, sizeof(related));
                     (void)extract_trailing_directive(desc, &dlen, "Requires:", requires, sizeof(requires));
@@ -358,6 +365,21 @@ bool cmd_help(descriptor_t *d, const char *args) {
                         snprintf(alfooter, sizeof(alfooter), "%s<c>Approx. Level:<z> %s\r\n",
                                  footer_started ? "" : "\r\n", approx_level);
                         descriptor_send(d, alfooter);
+                        footer_started = true;
+                    }
+                    if (discipline[0]) {
+                        /* Real upstream misc/spell_info.cc discArray[]
+                         * `start` value (a genuine 0-100 threshold against
+                         * THAT spell's own, unported discipline track --
+                         * user: "along with the % of discipline needed to
+                         * gain the spell/skill", shown as-is per their own
+                         * follow-up choice rather than attempting to
+                         * reconcile it with Tobin's collapsed single
+                         * basic_disc_pct/advanced_disc_pct pair). */
+                        char discfooter[64];
+                        snprintf(discfooter, sizeof(discfooter), "%s<c>   Discipline:<z> %s\r\n",
+                                 footer_started ? "" : "\r\n", discipline);
+                        descriptor_send(d, discfooter);
                     }
                     return true;
                 }
