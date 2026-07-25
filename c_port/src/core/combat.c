@@ -742,10 +742,10 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
 
     if (slain) {
         tell(winner, "You have slain %s!\r\n", being_display_name(loser));
-        tell(loser, "You have been slain by %s!\r\nYou are DEAD!\r\n", being_display_name(winner));
+        tell(loser, "You have been slain by %s!\r\nYou are <r>DEAD<z>!\r\n", being_display_name(winner));
     } else {
         tell(winner, "You have defeated %s!\r\n", being_display_name(loser));
-        tell(loser, "You have been defeated by %s!\r\nYou are DEAD!\r\n", being_display_name(winner));
+        tell(loser, "You have been defeated by %s!\r\nYou are <r>DEAD<z>!\r\n", being_display_name(winner));
     }
 
     /* XP on kill (TODO backlog) -- placeholder reward scaling with the
@@ -775,7 +775,7 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             if (share < 1)
                 share = 1;
             int levels_gained = progress_add_xp(&m->progress, share);
-            tell(m, "You gain %ld experience points.\r\n", share);
+            tell(m, "You gain %ld experience.\r\n", share);
             if (levels_gained > 0) {
                 /* Bug found 2026-07-12 (weapon-depth testing): progress_add_xp()
                  * only bumps `level` -- it works on a bare progress_t, with no
@@ -825,6 +825,11 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         static const char *const DEATH_TAUNTS[] = {
             "The gods pause their board game to note that %s has been slain by %s.",
             "%s is dead. %s looks insufferably pleased about it.",
+            "%s has perished...AGAIN! Way to go %s!",
+            "%s is no more! %s made sure of it!",
+            "%s is pushing up the daisies, thanks to %s!",
+            "%s's corpse is now unidentifiable! %s, what is this?!?",
+            "%s doesn't want to go on the cart! %s says, 'Quit being a baby!'",
             "A distant bell tolls once for %s. %s rang it.",
             "%s's limbs are now a matter of public record, courtesy of %s.",
         };

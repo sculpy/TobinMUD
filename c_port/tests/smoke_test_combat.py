@@ -132,6 +132,7 @@ def make_player(suffix_tag):
     send_line(s, "done")
     recv_all(s)
     send_line(s, "2"); recv_all(s)  # alignment: neutral
+    send_line(s, "color off"); recv_all(s)  # assertions below match on raw text
     return s, name
 
 

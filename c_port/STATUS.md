@@ -1,6 +1,47 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-22 — Session 61 (work): **Repo hygiene (Work box's
+Last updated: 2026-07-24 — Session 62 (home): **Finished an in-progress,
+uncommitted death-message colorization + flavor-taunt change left over from
+a prior session, plus cleanup and two unrelated stale-test bugs found along
+the way.**
+- **Death-message colorization, finished + cleaned up**: found `combat.c`/
+  `descriptor.c` sitting uncommitted with the DEAD in a death message
+  wrapped in `<R>` (bright red) and the account menu's N/D/X/Q letters
+  wrapped in `<C>` -- plus several new death-taunt flavor lines already
+  added to `DEATH_TAUNTS[]`. Changed `<R>` -> `<r>` (dim red) to match the
+  codebase's own convention for this class of alarm text (`PANIC!`,
+  shutdown notices, `wipe` all use dim `<r>`; bright `<R>` is reserved
+  elsewhere for things like worst-tier object condition). The account
+  menu's `<C>` letters were already consistent with that same menu's
+  existing style elsewhere in the file, so left alone. Fixed two typos in
+  the new taunt lines (perrished -> perished, daisys -> daisies) and
+  trailing whitespace on one line.
+- **Two unrelated pre-existing test bugs found and fixed while verifying
+  live**: `smoke_test_kill.py`'s mortal-vs-mortal Part 1 never called
+  `toggle pk` -- a gate added by a later PK opt-in feature;
+  `smoke_test_combat.py`'s identical PvP setup had already been fixed for
+  this in a past session but the fix was never propagated here. Separately,
+  `smoke_test_kill.py`/`smoke_test_combat.py`/`smoke_test_menu_letters.py`
+  all had raw-substring assertions ("You are DEAD!", "N create") that broke
+  once those two spots started wrapping text in color tags -- fixed by
+  turning color off in the two combat tests' player setup (neither test is
+  about color) and relaxing the menu-letters check to the label text
+  instead of the letter+label pair (that test deliberately runs with color
+  on, by design). `smoke_test_accounts.py` failed on the same run too, but
+  that's a third, separate, unrelated pre-existing bug (the character list
+  has been hidden by default since Session 47 and this test never presses
+  `C` to reveal it) -- reproduced identically via `git stash` against the
+  pre-patch build to confirm it predates this session's work; left alone,
+  out of scope.
+- Clean rebuild (`rm -rf build`), zero warnings. Confirmed live:
+  `smoke_test_kill.py`, `smoke_test_combat.py`, `smoke_test_crit.py`,
+  `smoke_test_menu_letters.py` all pass. Full regression sweep not run
+  (user: skip it, just commit).
+- News + wiznews entries added per house rule (small player-facing
+  cosmetic change, still gets both).
+- Next: same open items as before -- `edmobile` is next up per TODO.md.
+
+Previous update: 2026-07-22 — Session 61 (work): **Repo hygiene (Work box's
 git bookkeeping reconciled with origin/main -- no real work was at risk,
 just a stale local HEAD) + root-caused and fixed
 `smoke_test_object_maintenance.py`'s real, reproducible hang (flagged by

@@ -92,7 +92,8 @@ send_line(s, "y")       # accept color -> time zone prompt
 recv_all(s)
 send_line(s, "")        # accept the (none) time zone default -> account menu
 out = recv_all(s)
-check("(none yet)" in out and "N create" in out, "the empty-account menu shows the lettered options")
+check("(none yet)" in out and "create" in out and "delete account" in out,
+      "the empty-account menu shows the lettered options")
 
 # N (uppercase) starts creation.
 send_line(s, "N")

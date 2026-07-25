@@ -303,3 +303,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Some Habits Are Hard to Shake',
  'Pipeweed, opium, pot, and frogslime are all real, usable substances now -- `smoke` a dose from any of them for a genuine, temporary effect on how you feel. Hobbits in particular find pipeweed clears the mind wonderfully; everyone else finds it leaves them a little worse for wear. Whatever you choose, dose too often and you will start to feel it when you go too long without another one.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Grimmer, Wittier Way to Go',
+ 'Dying now hits a little differently: the word DEAD in your death message stands out in color, and the world-wide announcement of your demise has a handful of new, cheekier ways to break the news to everyone else. Sorry in advance.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

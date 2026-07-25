@@ -132,12 +132,18 @@ def make_player(tag):
     send_line(s, "done")
     recv_all(s)
     send_line(s, "2"); recv_all(s)  # alignment: neutral
+    send_line(s, "color off"); recv_all(s)  # assertions below match on raw text
     return s, name
 
 
 # --- Part 1: mortal `kill` behaves exactly like `attack` ---
 sA, nameA = make_player("A")
 sB, nameB = make_player("B")
+
+# PK opt-in required for two mortals to fight each other (stale-test bug,
+# same one smoke_test_combat.py's PvP setup was fixed for -- see STATUS.md).
+send_line(sA, "toggle pk"); recv_all(sA)
+send_line(sB, "toggle pk"); recv_all(sB)
 
 send_line(sA, f"kill {nameB}")
 send_line(sA, "score")  # sent immediately after, same back-to-back pattern as smoke_test_combat.py

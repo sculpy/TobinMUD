@@ -759,7 +759,7 @@ static void show_account_menu(descriptor_t *d) {
     if (d->char_count == 0) {
         descriptor_send(d,
             "\r\n-- Your players --\r\n  (none yet)\r\n"
-            "\r\n  N create   D <name> delete   X delete account   Q quit\r\n\r\n> ");
+            "\r\n  <C>N<z> create   <C>D<z> <name> delete   <C>X<z> delete account   <C>Q<z> quit\r\n\r\n> ");
         return;
     }
 
