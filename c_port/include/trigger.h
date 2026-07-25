@@ -21,9 +21,13 @@ struct room;
  * room triggers, which have no single "self" to speak as -- they fall
  * back to "Something" in that case).
  *
- * Fixed action vocabulary (one per script line, verb then rest-of-line
- * argument) -- deliberately small, not a general-purpose scripting
- * language (see trigger.sql's header comment for why):
+ * Full DG Scripts-style language as of 2026-07-25 (user: "use the DG_*
+ * source files to revamp triggers") -- see trigger_script.h for the
+ * interpreter core (%var% substitution, if/elseif/else/end, while/done,
+ * switch/case/default/done, break, set/unset/eval/global). This file keeps
+ * only the fixed ACTION vocabulary (one per script line, verb then
+ * rest-of-line argument, already %var%-substituted by the time it reaches
+ * trigger_dispatch_action() in trigger.c):
  *   echo <text>      -- sent to `actor` only
  *   echoroom <text>  -- sent to everyone else in `room` (actor excluded)
  *   emote <text>     -- "<self_name> <text>" sent to everyone in `room`
@@ -43,17 +47,21 @@ struct room;
  *                        clamped), then resumes it -- e.g. a market-vendor
  *                        mob crying out one line at a time. The pause
  *                        survives past this trigger_run() call returning
- *                        (see trigger_pending_tick() below); `actor` is
- *                        NOT preserved across it (may have disconnected/
- *                        died/moved away by the time it resumes) -- only
- *                        `say`/`emote`/`echoroom`/`log` lines make sense
- *                        after a `wait`, since those only need `room`/
- *                        `self_name`, both safely re-derived at resume
- *                        time from the trigger's own target_type/
- *                        target_vnum (`echo`/`teleport`/`give`/`damage`,
- *                        which need a live `actor`, silently no-op if
- *                        placed after a `wait`, same as if actor were
- *                        NULL for any other reason).
+ *                        (see trigger_pending_tick() below). As of the
+ *                        2026-07-25 DG revamp, the full `set`/`eval`/
+ *                        `global` variable scope AND the resume point
+ *                        inside any `while` loop survive the pause intact
+ *                        (trigger.c snapshots trig_ctx_t); only `actor`
+ *                        itself is still NOT preserved (may have
+ *                        disconnected/died/moved away by the time it
+ *                        resumes) -- only `say`/`emote`/`echoroom`/`log`
+ *                        lines make sense after a `wait`, since those only
+ *                        need `room`/`self_name`, both safely re-derived
+ *                        at resume time from the trigger's own
+ *                        target_type/target_vnum (`echo`/`teleport`/
+ *                        `give`/`damage`, which need a live `actor`,
+ *                        silently no-op if placed after a `wait`, same as
+ *                        if actor were NULL for any other reason).
  * Unrecognized verbs are silently skipped (typo-tolerant, matching the
  * spirit of a builder-facing tool over a strict compiler). */
 void trigger_run(const trigger_t *trig, struct being *actor, struct room *room,

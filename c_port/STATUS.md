@@ -1,6 +1,75 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-24 — Session 62 (home): **Finished an in-progress,
+Last updated: 2026-07-25 — Session 63 (home): **DG Scripts-style trigger
+language revamp (user: "use the DG_* source files to revamp triggers" --
+full language port). Also reconciled a stale local git clone (9 commits
+behind after other sessions' work landed elsewhere) and fixed two
+pre-existing stale-test bugs found along the way.**
+- **Full DG Scripts language port, scoped to the LANGUAGE only** (user:
+  "stick to the edit unification" -- authoring stays through the existing
+  `edit trigger` flow, no separate dg_olc.c-style editor). New
+  `trigger_script.h`/`.c` interpreter core, ported from tbaMUD's real
+  `dg_scripts.c`/`dg_variables.c` (reference clone at `../tbamud-master/`,
+  now gitignored): `%var%` substitution (`%self%`/`%actor%`/`%arg%`/
+  `%time%`/`%random.N%` + user-defined locals via `set`), `if <expr>/
+  elseif/else/end`, `while <expr>/done`, `switch <val>/case/default/done`
+  (real DG fallthrough -- no implicit break), `break`, `set`/`unset`/
+  `eval` (locals), `global` (persisted, new `trigger_global_var` table/
+  `trigger_var_repo.c`). Tobin's existing fixed action vocabulary (echo/
+  echoroom/emote/say/teleport/give/damage/log/wait, trigger.c's
+  `trigger_dispatch_action()`) is unchanged in meaning, just now
+  `%var%`-substituted and usable inside if/while bodies.
+- **Block structure is computed statically from the line array on every
+  jump, not tracked on a runtime stack** -- backward/forward bracket
+  matching by keyword family (if/end vs. while|switch/done) means a
+  `done`/`break`/`elseif` resolves correctly from just its own line index,
+  with no call-stack state to snapshot. This is what let `wait` improve on
+  its pre-revamp limitation: the full `set`/`eval`/`global` variable scope
+  AND the resume point inside a `while` loop now survive the real-time
+  pause (only `actor` itself still doesn't, same as before -- may have
+  disconnected/moved/died by resume time). `pending_trigger_t` (trigger.c)
+  now carries `resume_pc` + a copy of the original script text (so line
+  indices stay stable) + the variable snapshot, replacing the old "raw
+  remaining text" scheme.
+- NOT ported (disclosed scope cuts): DG's full mob/obj/room command sets
+  (`dg_mobcmd.c`/`dg_objcmd.c`/`dg_wldcmd.c` -- hundreds of DG-specific
+  script commands), `remote`/`context`/`attach` (multi-script targeting),
+  and `dg_olc.c` (a separate numbered-script-per-vnum authoring model --
+  Tobin keeps one script per `edit trigger` row). `eval`'s arithmetic is
+  left-to-right with no operator precedence (disclosed simplification,
+  matches how the vast majority of real DG scripts use it anyway --
+  single binary op). Trigger TYPE roster (room enter/random; mob greet/
+  speech/death/random; obj get/wear) is unchanged -- this revamp is the
+  language underneath, not new firing hook points.
+- Verified live via a new `tests/smoke_test_trigger_dg.py` (38 checks: if/
+  else branch selection, while/eval loop counts, switch/break vs. real
+  fallthrough, `%actor%`/`%self%`/`%arg%` substitution, `global`
+  persistence across two DIFFERENT mobs' triggers, and the wait-preserves-
+  variables improvement) plus a full regression pass of the pre-existing
+  `smoke_test_trigger.py`/`smoke_test_trigger_wait.py`.
+- **Found and fixed along the way**: `smoke_test_trigger.py`'s obj get/wear
+  sub-tests were a stale casualty of the 2026-07-22 "`load` now puts the
+  item in the loading immortal's own inventory" change -- never got the
+  `drop` calls the OTHER three affected test files received that session
+  (flagged then as "the other ~55 test files using `load obj` weren't
+  audited"). Fixed here since it surfaced live as a false regression signal
+  while validating this session's actual change.
+- **Local git hygiene**: this session's local `E:\New MUD` clone had drifted
+  9 commits behind `origin/main` (oedit, sign language, drug tracking, and
+  a death-message colorization polish pass all landed via other sessions'
+  clones in the interim) -- reconciled via stash + fast-forward pull,
+  confirmed the stashed working-tree edits were byte-identical (modulo
+  CRLF) to what was already committed, then dropped the stash. No real
+  work was at risk, just a stale local HEAD (same class of issue as
+  Session 61's Work-box reconciliation).
+- Deployed straight to production (preview retired per user, 2026-07-22).
+  Exact-PID kill + relaunch (pid 3769), confirmed no duplicate process from
+  the watchdog cron racing the restart window. Zero build warnings on a
+  full clean rebuild.
+- News/wiznews: builder-only change (trigger authoring), no player-facing
+  news entry -- matches oedit's own precedent.
+
+Previous update: 2026-07-24 — Session 62 (home): **Finished an in-progress,
 uncommitted death-message colorization + flavor-taunt change left over from
 a prior session, plus cleanup and two unrelated stale-test bugs found along
 the way.**

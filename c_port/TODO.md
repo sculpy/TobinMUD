@@ -2099,6 +2099,37 @@ already tracked — pointers, not duplicates):
       hit/miss hooks -- follow-ups if a real need shows up. New
       `tests/smoke_test_trigger.py` covers all seven trigger types plus
       the level gate and list/delete.
+- [x] **DG Scripts-style trigger language revamp** — done 2026-07-25. User:
+      "use the DG_* source files to revamp triggers" -- confirmed via
+      AskUserQuestion this meant a FULL language port (not just closing
+      a few gaps, not just new trigger types), and "stick to the edit
+      unification" -- authoring stays through `edit trigger`, no separate
+      dg_olc.c-style editor. New `trigger_script.h`/`.c` interpreter,
+      ported from tbaMUD's real `dg_scripts.c`/`dg_variables.c` (a
+      12,155-line reference subsystem; reference clone at
+      `../tbamud-master/`, gitignored same as sneezymud-master/): `%var%`
+      substitution (`%self%`/`%actor%`/`%arg%`/`%time%`/`%random.N%` +
+      locals via `set`/`unset`/`eval`), `if/elseif/else/end`, `while/
+      done` (+`break`), `switch/case/default/done` (real DG fallthrough,
+      not an always-breaks simplification), and `global` (new persisted
+      `trigger_global_var` table -- one mob's script can set a flag a
+      completely different mob's script later reads). The existing fixed
+      action vocabulary above is unchanged in meaning, just `%var%`-
+      substituted now and usable inside if/while bodies. Block structure
+      is resolved by scanning the line array fresh on every jump rather
+      than a runtime stack, which is what let `wait` stop dropping the
+      whole variable scope on a pause -- only `actor` itself still isn't
+      preserved across it (unchanged limitation, see trigger.h). NOT
+      ported (disclosed): DG's hundreds of mob/obj/room-specific script
+      commands, `remote`/`context` multi-script targeting, dg_olc.c's own
+      authoring model, and `eval`'s arithmetic has no operator precedence
+      (left-to-right only). Full reference: `docs/TRIGGER_SCRIPTING.md`.
+      New `tests/smoke_test_trigger_dg.py` (38 checks) plus a clean
+      regression pass of the pre-existing trigger tests -- which
+      incidentally caught and fixed a stale bug in `smoke_test_trigger.py`
+      (its obj get/wear sub-tests never got the `drop` call the
+      2026-07-22 load-to-inventory change required, unlike 3 other test
+      files that got fixed that session).
 - [x] **Seed starter trigger content from SneezyMUD spec procs** — done --
       deployed and verified via standalone smoke test
       (`tests/smoke_test_trigger_seed.py`). User: "and convert what sneezy

@@ -262,6 +262,10 @@ check("The floor hums faintly." in out, "the room random trigger fired via aitic
 # --- 8: obj "get" trigger (damage action) ---
 make_obj(OBJ_GET, f"stickerbush{_suffix}", WEAR_TAKE)
 check("You conjure" in cmd(s, f"load obj {OBJ_GET}"), "the sticker-bush object is loaded")
+# `load` now puts the item straight into the loading immortal's own
+# inventory (2026-07-22), not the room floor -- drop it explicitly so
+# `sw` (a different character) can pick it up.
+cmd(s, f"drop stickerbush{_suffix}")
 out = cmd(s, f"edit trigger obj {OBJ_GET} get")
 check("Writing trigger" in out, "edit trigger obj get opens the script editor")
 cmd(s, "echo Ouch! The thorns prick your fingers.")
@@ -278,6 +282,7 @@ check(int(hp_after_m.group(1)) == int(hp_before_m.group(1)) - 3,
 # --- 9: obj "wear" trigger (echo action) ---
 make_obj(OBJ_WEAR, f"warmcloak{_suffix}", WEAR_TAKE | WEAR_BODY)
 check("You conjure" in cmd(s, f"load obj {OBJ_WEAR}"), "the warm cloak object is loaded")
+cmd(s, f"drop warmcloak{_suffix}")
 out = cmd(s, f"edit trigger obj {OBJ_WEAR} wear")
 check("Writing trigger" in out, "edit trigger obj wear opens the script editor")
 cmd(s, "echo You feel a strange warmth.")

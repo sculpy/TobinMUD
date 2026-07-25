@@ -80,6 +80,9 @@ tobin_takehome.zip
 # tobin-mud, and far too large to commit.
 sneezymud-master/
 
+# Upstream tbaMUD reference clone -- same rationale as sneezymud-master/.
+tbamud-master/
+
 # Loose class-reference scratch notes dumped at the repo root.
 *skills.txt
 

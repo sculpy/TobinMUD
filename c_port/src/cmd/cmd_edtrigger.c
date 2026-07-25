@@ -143,11 +143,15 @@ bool cmd_edtrigger(descriptor_t *d, const char *args) {
     d->edit_buf[0] = '\0';
     d->edit_len = 0;
 
-    char head[320];
+    char head[768];
     snprintf(head, sizeof(head),
         "\r\n-- Writing trigger: %s %d %s%s%s --\r\n"
-        "Type the script, one action per line (echo/echoroom/emote/say/teleport/"
-        "give/damage/log/wait). /s saves, /a aborts, /b blanks, /f reflows to width.\r\n] ",
+        "Type the script, one command per line. Actions: echo/echoroom/emote/say/"
+        "teleport/give/damage/log/wait. Variables: set/unset/eval/global, %%self%%/"
+        "%%actor%%/%%arg%%/%%time%%/%%random.N%%. Control flow: if <expr>/elseif/else/"
+        "end, while <expr>/done, switch <val>/case/default/done, break. Expr operators: "
+        "== != < > <= >= && || !.\r\n"
+        "/s saves, /a aborts, /b blanks, /f reflows to width.\r\n] ",
         a, vnum, c,
         d->trig_match_text[0] ? " keyword=" : "", d->trig_match_text);
     descriptor_send(d, head);

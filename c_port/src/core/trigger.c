@@ -19,88 +19,93 @@
 #include "room.h"
 #include "room_repo.h"
 #include "thing.h"
+#include "trigger_script.h"
 #include "world.h"
 
-static void do_echo(being_t *actor, const char *arg) {
-    if (!actor || !actor->desc)
-        return;
-    char msg[256];
-    snprintf(msg, sizeof(msg), "%s\r\n", arg);
-    descriptor_send(actor->desc, msg);
-}
+/* This is the fixed action-vocabulary half of the DG Scripts-style
+ * language (trigger_script.h/.c owns the interpreter core: %var%
+ * substitution, if/while/switch/break, set/unset/eval/global). Called back
+ * from trig_script_exec() for any verb it doesn't itself recognize as
+ * control flow. Same seven actions as before the 2026-07-25 revamp, just
+ * now %var%-substituted before arriving here. */
+void trigger_dispatch_action(trig_ctx_t *ctx, const char *verb, const char *arg) {
+    being_t *actor = ctx->actor;
+    room_t *room = ctx->room;
+    const char *self_name = ctx->self_name;
 
-static void do_echoroom(being_t *actor, room_t *room, const char *arg) {
-    if (!room)
-        return;
-    char msg[256];
-    snprintf(msg, sizeof(msg), "%s\r\n", arg);
-    descriptor_room_echo(room, actor, msg);
-}
-
-static void do_emote(room_t *room, const char *self_name, const char *arg) {
-    if (!room)
-        return;
-    char msg[320];
-    snprintf(msg, sizeof(msg), "%s %s\r\n", self_name ? self_name : "Something", arg);
-    descriptor_room_echo(room, NULL, msg);
-}
-
-static void do_say(room_t *room, const char *self_name, const char *arg) {
-    if (!room)
-        return;
-    char msg[320];
-    snprintf(msg, sizeof(msg), "%s says, '%s'\r\n", self_name ? self_name : "Something", arg);
-    descriptor_room_echo(room, NULL, msg);
-}
-
-static void do_teleport(being_t *actor, const char *arg) {
-    if (!actor)
-        return;
-    int vnum = atoi(arg);
-    room_t *dest = world_get_room(vnum);
-    if (!dest) {
-        dest = room_repo_load(vnum);
-        if (dest)
-            world_register_room(dest);
+    if (strcasecmp(verb, "echo") == 0) {
+        if (!actor || !actor->desc)
+            return;
+        char msg[256];
+        snprintf(msg, sizeof(msg), "%s\r\n", arg);
+        descriptor_send(actor->desc, msg);
+    } else if (strcasecmp(verb, "echoroom") == 0) {
+        if (!room)
+            return;
+        char msg[256];
+        snprintf(msg, sizeof(msg), "%s\r\n", arg);
+        descriptor_room_echo(room, actor, msg);
+    } else if (strcasecmp(verb, "emote") == 0) {
+        if (!room)
+            return;
+        char msg[320];
+        snprintf(msg, sizeof(msg), "%s %s\r\n", self_name ? self_name : "Something", arg);
+        descriptor_room_echo(room, NULL, msg);
+    } else if (strcasecmp(verb, "say") == 0) {
+        if (!room)
+            return;
+        char msg[320];
+        snprintf(msg, sizeof(msg), "%s says, '%s'\r\n", self_name ? self_name : "Something", arg);
+        descriptor_room_echo(room, NULL, msg);
+    } else if (strcasecmp(verb, "teleport") == 0) {
+        if (!actor)
+            return;
+        int vnum = atoi(arg);
+        room_t *dest = world_get_room(vnum);
+        if (!dest) {
+            dest = room_repo_load(vnum);
+            if (dest)
+                world_register_room(dest);
+        }
+        if (!dest)
+            return;
+        thing_set_room(&actor->base, dest);
+    } else if (strcasecmp(verb, "give") == 0) {
+        if (!actor)
+            return;
+        int vnum = atoi(arg);
+        obj_t *o = obj_create_from_proto(vnum);
+        if (!o)
+            return;
+        thing_move_to(&o->base, &actor->base);
+        if (actor->base.kind == THING_PC)
+            player_inventory_save(actor->player_id, actor);
+    } else if (strcasecmp(verb, "damage") == 0) {
+        if (!actor)
+            return;
+        int dmg = atoi(arg);
+        if (dmg <= 0)
+            return;
+        actor->progress.hp -= dmg;
+        if (actor->progress.hp < 1)
+            actor->progress.hp = 1; /* non-lethal, same limitation drink's poison accepted */
+    } else if (strcasecmp(verb, "log") == 0) {
+        game_log(LOG_SILENT, "trigger: %s [%s]", arg, actor ? actor->base.name : "no actor");
     }
-    if (!dest)
-        return;
-    thing_set_room(&actor->base, dest);
+    /* Unrecognized verbs are silently skipped -- see trigger.h. */
 }
 
-static void do_give(being_t *actor, const char *arg) {
-    if (!actor)
-        return;
-    int vnum = atoi(arg);
-    obj_t *o = obj_create_from_proto(vnum);
-    if (!o)
-        return;
-    thing_move_to(&o->base, &actor->base);
-    if (actor->base.kind == THING_PC)
-        player_inventory_save(actor->player_id, actor);
-}
-
-static void do_damage(being_t *actor, const char *arg) {
-    if (!actor)
-        return;
-    int dmg = atoi(arg);
-    if (dmg <= 0)
-        return;
-    actor->progress.hp -= dmg;
-    if (actor->progress.hp < 1)
-        actor->progress.hp = 1; /* non-lethal, same limitation drink's poison accepted */
-}
-
-static void do_log(being_t *actor, const char *arg) {
-    game_log(LOG_SILENT, "trigger: %s [%s]", arg, actor ? actor->base.name : "no actor");
-}
-
-/* Pending `wait`-paused continuations -- see trigger.h's `wait` doc for the
- * design (actor is deliberately NOT preserved; target_type/target_vnum +
- * room_vnum are, so a mob/room's identity is safely re-derived fresh at
- * resume time instead of holding a raw pointer across the pause). Fixed-
- * size like RANDOM_VNUM_SET_MAX below -- a builder-facing tool, not
- * expected to ever need more than a handful of these live at once. */
+/* Pending `wait`-paused continuations. Unlike the pre-revamp version, the
+ * FULL variable scope (`set`/`eval`/`global`-assigned locals) now survives
+ * the pause -- only `actor` itself is still deliberately NOT preserved
+ * (may have disconnected/died/moved away by the time it resumes; room/
+ * self_name are safely re-derived fresh, same as before). `resume_pc` +
+ * a copy of the original script text (so line indices stay stable, see
+ * trig_script_split()'s doc comment) replace the old "raw remaining text"
+ * scheme, since the interpreter now needs real line indices to resume
+ * inside a loop correctly instead of always starting a fresh top-level
+ * scan. Fixed-size like RANDOM_VNUM_SET_MAX below -- a builder-facing
+ * tool, never expected to need more than a handful of these live at once. */
 #define PENDING_MAX 32
 typedef struct {
     bool active;
@@ -108,27 +113,28 @@ typedef struct {
     char target_type[8];
     int target_vnum;
     int room_vnum;
-    char remaining[TRIGGER_SCRIPT_MAX];
+    int resume_pc;
+    char full_script[TRIGGER_SCRIPT_MAX];
+    trig_var_t vars[TRIG_VAR_MAX];
+    int var_count;
 } pending_trigger_t;
 static pending_trigger_t g_pending[PENDING_MAX];
 
 #define TRIGGER_PULSES_PER_SEC 10 /* pulse.h: a pulse is 100ms */
-#define TRIGGER_WAIT_MAX_SECS 3600
 
-static void schedule_pending(const char *target_type, int target_vnum, int room_vnum,
-                             const char *remaining, int wait_secs, long now_pulse) {
-    if (wait_secs < 1)
-        wait_secs = 1;
-    if (wait_secs > TRIGGER_WAIT_MAX_SECS)
-        wait_secs = TRIGGER_WAIT_MAX_SECS;
+static void schedule_pending(const trigger_t *trig, int room_vnum, const trig_ctx_t *ctx,
+                             int resume_pc, int wait_secs, long now_pulse) {
     for (int i = 0; i < PENDING_MAX; i++) {
         if (g_pending[i].active)
             continue;
         g_pending[i].active = true;
-        snprintf(g_pending[i].target_type, sizeof(g_pending[i].target_type), "%s", target_type);
-        g_pending[i].target_vnum = target_vnum;
+        snprintf(g_pending[i].target_type, sizeof(g_pending[i].target_type), "%s", trig->target_type);
+        g_pending[i].target_vnum = trig->target_vnum;
         g_pending[i].room_vnum = room_vnum;
-        snprintf(g_pending[i].remaining, sizeof(g_pending[i].remaining), "%s", remaining);
+        g_pending[i].resume_pc = resume_pc;
+        snprintf(g_pending[i].full_script, sizeof(g_pending[i].full_script), "%s", trig->script);
+        memcpy(g_pending[i].vars, ctx->vars, sizeof(g_pending[i].vars));
+        g_pending[i].var_count = ctx->var_count;
         g_pending[i].resume_at_pulse = now_pulse + (long)wait_secs * TRIGGER_PULSES_PER_SEC;
         return;
     }
@@ -138,73 +144,24 @@ static void schedule_pending(const char *target_type, int target_vnum, int room_
 
 static long g_now_pulse = 0;
 
-/* Runs `script_text` (a newline-separated action list -- either a whole
- * trigger's script, or the tail of one resuming after a `wait`) against
- * this context. `trig` supplies target_type/target_vnum, needed only if a
- * `wait` line is hit (to schedule its continuation) -- may be NULL when
- * resuming (the continuation record already captured what a fresh `wait`
- * inside it would need). Manual line-scanning over the ORIGINAL text
- * (not strtok_r) so hitting `wait` can hand off "everything after this
- * line, verbatim" without needing to un-mutate anything. */
-static void run_script(const trigger_t *trig, being_t *actor, room_t *room,
-                       const char *self_name, const char *script_text) {
-    const char *cursor = script_text;
-    while (cursor && *cursor) {
-        const char *nl = strchr(cursor, '\n');
-        size_t linelen = nl ? (size_t)(nl - cursor) : strlen(cursor);
-        if (linelen > 255)
-            linelen = 255;
-        char line[256];
-        memcpy(line, cursor, linelen);
-        line[linelen] = '\0';
-        const char *next = nl ? nl + 1 : NULL;
-
-        char *p = line;
-        while (*p == ' ')
-            p++;
-        char verb[16];
-        int vlen = 0;
-        while (p[vlen] && p[vlen] != ' ' && vlen < (int)sizeof(verb) - 1) {
-            verb[vlen] = p[vlen];
-            vlen++;
-        }
-        verb[vlen] = '\0';
-        const char *arg = p + vlen;
-        while (*arg == ' ')
-            arg++;
-
-        if (strcasecmp(verb, "wait") == 0) {
-            if (trig && next && *next)
-                schedule_pending(trig->target_type, trig->target_vnum,
-                                 room ? room->vnum : -1, next, atoi(arg), g_now_pulse);
-            return; /* stop here regardless -- either scheduled or nothing left to do */
-        }
-        if (strcasecmp(verb, "echo") == 0)
-            do_echo(actor, arg);
-        else if (strcasecmp(verb, "echoroom") == 0)
-            do_echoroom(actor, room, arg);
-        else if (strcasecmp(verb, "emote") == 0)
-            do_emote(room, self_name, arg);
-        else if (strcasecmp(verb, "say") == 0)
-            do_say(room, self_name, arg);
-        else if (strcasecmp(verb, "teleport") == 0)
-            do_teleport(actor, arg);
-        else if (strcasecmp(verb, "give") == 0)
-            do_give(actor, arg);
-        else if (strcasecmp(verb, "damage") == 0)
-            do_damage(actor, arg);
-        else if (strcasecmp(verb, "log") == 0)
-            do_log(actor, arg);
-        /* Unrecognized verbs are silently skipped -- see trigger.h. */
-
-        cursor = next;
-    }
-}
-
 void trigger_run(const trigger_t *trig, being_t *actor, room_t *room, const char *self_name) {
     if (!trig)
         return;
-    run_script(trig, actor, room, self_name, trig->script);
+
+    char buf[TRIGGER_SCRIPT_MAX];
+    char *lines[TRIG_LINES_MAX];
+    int nlines = trig_script_split(trig->script, buf, sizeof(buf), lines);
+
+    trig_ctx_t ctx = {0};
+    ctx.actor = actor;
+    ctx.room = room;
+    ctx.self_name = self_name;
+    ctx.arg = trig->match_text[0] ? trig->match_text : NULL;
+
+    int resume_pc, wait_secs;
+    trig_exec_result_t r = trig_script_exec(&ctx, lines, nlines, 0, &resume_pc, &wait_secs);
+    if (r == TRIG_EXEC_WAIT)
+        schedule_pending(trig, room ? room->vnum : -1, &ctx, resume_pc, wait_secs, g_now_pulse);
 }
 
 /* short_descr may start with a color tag (e.g. "<o>a dirty refuse
@@ -229,8 +186,8 @@ void trigger_pending_tick(long pulse_num) {
 
         pending_trigger_t p = g_pending[i];
         g_pending[i].active = false; /* free the slot before running -- a
-                                       * fresh `wait` inside p.remaining is
-                                       * free to reuse it (or any slot) */
+                                       * fresh `wait` inside can reuse it
+                                       * (or any slot) */
 
         room_t *room = world_get_room(p.room_vnum);
         if (!room)
@@ -251,13 +208,29 @@ void trigger_pending_tick(long pulse_num) {
             self_name = cap_mob_name(self->base.short_descr, capbuf, sizeof(capbuf));
         }
         /* target_type "room": self_name stays NULL, same "Something"
-         * fallback do_emote()/do_say() already use. */
+         * fallback trigger_dispatch_action()'s emote/say use. */
 
+        char buf[TRIGGER_SCRIPT_MAX];
+        char *lines[TRIG_LINES_MAX];
+        int nlines = trig_script_split(p.full_script, buf, sizeof(buf), lines);
+
+        trig_ctx_t ctx = {0};
+        ctx.actor = NULL; /* deliberately not preserved -- see doc comment above */
+        ctx.room = room;
+        ctx.self_name = self_name;
+        ctx.arg = NULL;
+        memcpy(ctx.vars, p.vars, sizeof(ctx.vars));
+        ctx.var_count = p.var_count;
+
+        int resume_pc, wait_secs;
         trigger_t fake_trig = {0};
         snprintf(fake_trig.target_type, sizeof(fake_trig.target_type), "%s", p.target_type);
         fake_trig.target_vnum = p.target_vnum;
+        snprintf(fake_trig.script, sizeof(fake_trig.script), "%s", p.full_script);
 
-        run_script(&fake_trig, NULL, room, self_name, p.remaining);
+        trig_exec_result_t r = trig_script_exec(&ctx, lines, nlines, p.resume_pc, &resume_pc, &wait_secs);
+        if (r == TRIG_EXEC_WAIT)
+            schedule_pending(&fake_trig, p.room_vnum, &ctx, resume_pc, wait_secs, g_now_pulse);
     }
 }
 
