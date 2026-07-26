@@ -4761,19 +4761,23 @@ already tracked — pointers, not duplicates):
       round pacing for one modifier's marginal coverage; verified instead
       via a live spot-check plus the existing combat/limb regression
       suite passing clean.
-- [ ] **`smoke_test_limbs_cmd.py` intermittent flake, real and unrelated to
-      this session's limb work** — found 2026-07-19 while regression-
-      testing the defender-vulnerability change above (that change doesn't
-      touch this test's code path at all -- `hurtlimb`/`limbs`, no
-      `combat_strike()` involved). Fails maybe 1 run in 3-4, always at the
-      same assertion ("the injured limb... shows its exact percentage
-      (13%)"), even running in total isolation (no concurrent test load).
-      `being_limbs_full_heal()`'s per-limb `share` calc has no randomness
-      (confirmed by reading it) and level-1 baseline-stat characters
-      should get an identical, deterministic 13% every time -- root cause
-      not yet found. Re-running always passes clean on retry, so this
-      wasn't chased further this session; flagging for whoever picks it up
-      next rather than silently living with an occasional false failure.
+- [x] **`smoke_test_limbs_cmd.py` intermittent flake** — root-caused and
+      fixed 2026-07-26. Not infra flakiness or anything in `hurtlimb`/
+      `limbs`/`being_limbs_full_heal()` (all confirmed deterministic, as
+      the original note suspected) -- the real cause is
+      `regen_tick_run()` (regen.c), which heals EVERY limb by a small
+      amount every `REGEN_PULSES` (~5s real time) for any connected,
+      non-fighting character (`being_heal()`'s per-limb spillover). If
+      that tick lands in the gap between the test's `hurtlimb` call and
+      its immediate `limbs` read -- usually sub-second, but not
+      guaranteed -- the injured limb picks up +1 HP (2->3 out of the
+      15-floor max, i.e. 20% not 13%), a genuine race against wall-clock
+      time rather than a bug in the feature itself. Fixed by accepting
+      either outcome (13% with 0 ticks, 20% with 1) rather than
+      requiring the single exact figure; 2+ ticks (would need several
+      real seconds of delay between the two commands) still fails, since
+      that would indicate an actual problem, not ordinary scheduling
+      jitter. Verified with 4 consecutive clean runs.
 - [x] **Global "Grimhaven" → "Tobin City" text replace** — done. User:
       "search the entire database and replace any instances of
       'Grimhaven' with 'Tobin City'." Scanned every varchar/text column

@@ -173,6 +173,20 @@ check("LimbCmd Sandbox" in cmd(sv, "look"), "the victim lands directly in the sa
 
 # hp=2 against the LIMB_MIN_MAX_HP=15 floor -> 13%, inside the "hurt rather
 # badly" (<20%, >=10%) tier.
+#
+# Root-caused 2026-07-26 (was previously an unexplained ~1-in-3-4 flake,
+# TODO.md): regen_tick_run() (regen.c) heals EVERY limb by a small amount
+# every REGEN_PULSES (~5s real time) for any connected, non-fighting
+# character -- being_heal()'s per-limb spillover, not a bug. If that tick
+# happens to land in the (usually sub-second, but not guaranteed) gap
+# between the `hurtlimb` call and this `limbs` read, the right leg picks
+# up +1 HP (2->3, i.e. 15% not 13%) per tick that fires -- a real,
+# expected race against wall-clock time, not infra flakiness. Accepting
+# either outcome (0 or 1 regen ticks) keeps this deterministic without
+# either disabling real regen behavior just for a test or requiring
+# sub-tick-precision timing; 2+ ticks (would need several seconds of
+# delay between the two commands) still fails, since that would indicate
+# something actually wrong rather than ordinary scheduling jitter.
 out = cmd(s, f"hurtlimb {victim_name} rightleg 2")
 check("Limb HP set" in out, "hurtlimb confirms (not a decapitation)")
 
@@ -181,8 +195,9 @@ check("Limbs" in out, "limbs still shows a Limbs header after injury")
 limb_lines = [l for l in out.splitlines()
               if "%" in l and any(limb in l for limb in LIMB_NAMES)]
 check(len(limb_lines) == 13, "limbs still lists all 13 limbs, not just the injured one")
-check(any("right leg" in l and "13%" in l for l in limb_lines),
-      "the injured limb (right leg) shows its exact percentage (13%)")
+check(any("right leg" in l and ("13%" in l or "20%" in l) for l in limb_lines),
+      "the injured limb (right leg) shows its expected percentage (13%, or 20% if one "
+      "~5s regen tick landed between hurtlimb and this check)")
 check(sum(1 for l in limb_lines if "100%" in l) == 12,
       "the other 12 untouched limbs still show 100%")
 
