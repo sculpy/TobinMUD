@@ -1134,28 +1134,22 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       vnum-equality check -- handles real prototype items and ephemeral
       (vnum 0) items like Planting's fruit/hide/meat with one mechanism.
       New `tests/smoke_test_inventory_stacking.py` (3 checks).
-- [ ] **Money tree yields a literal "talen" item, not gold** — user,
-      2026-07-26 (found via the new stacking feature): "when planting a
-      money tree, you see 'A single talen is here. (x4)'. that should be
-      gold." Root-caused 2026-07-26: mechanically this vnum (13, real
-      seeded `obj.type`=20/ITEM_MONEY) already behaves exactly like every
-      other money pile -- `pick_up_money()` (cmd_object.c) will auto-credit
-      its `val[0]` gold amount and destroy it on `get`, same as any other
-      OBJ_CAT_MONEY row. It's flavor-text only: the 2026-07-17 "talens ->
-      gold" rename (`tobin_migrations.sql`) was applied live to the `obj`
-      table (16 vnums) but only ever matched the PLURAL "talens" pattern
-      in shop flavor text -- vnum 13's own name/short_desc/long_desc use
-      the SINGULAR "a talen" and were never touched by that pass. Added a
-      follow-up migration in `tobin_migrations.sql` (right after the
-      original talens->gold shop UPDATEs) that catches any remaining
-      ITEM_MONEY row still saying singular "talen". **Blocked on
-      deployment**: the whole 192.168.254.x network (VM + gateway) was
-      unreachable from Home when this was found, so the migration hasn't
-      been applied to the live DB yet -- run
-      `mariadb sneezy < db/sneezy/tobin_migrations.sql` (idempotent, only
-      touches rows still matching) once the VM is reachable again, then
-      verify live with `mariadb sneezy -e "SELECT vnum,name,short_desc
-      FROM obj WHERE vnum=13;"`.
+- [x] **Money tree yields a literal "talen" item, not gold** — done
+      2026-07-26. User: "when planting a money tree, you see 'A single
+      talen is here. (x4)'. that should be gold." Root cause: mechanically
+      vnum 13 (real seeded `obj.type`=20/ITEM_MONEY) already behaved
+      exactly like every other money pile -- `pick_up_money()`
+      (cmd_object.c) auto-credits its `val[0]` gold amount and destroys it
+      on `get`. It was flavor-text only: the 2026-07-17 "talens -> gold"
+      rename (`tobin_migrations.sql`) only ever matched the PLURAL
+      "talens" pattern in shop text, missing vnum 13's SINGULAR "a talen".
+      Fixed live and captured in `tobin_migrations.sql`: matched to the
+      "gold coins" house style already used elsewhere (vnum 15246, "a
+      pile of gold coins"), not a bare word-swap -- two earlier passes
+      ("a gold"/"A single gold is here.", then "a pile of golds") were
+      each corrected same session before shipping, per user follow-up
+      ("it should be gold coins"). Verified live: vnum 13 now reads "a
+      small pile of gold coins" / "A small pile of gold coins is here."
 - [x] **Immortal inventory/worn items purged on quit!** — done 2026-07-26.
       A mortal's `quit!` still drops everything on the floor (existing
       behavior); an immortal's now gets destroyed outright instead

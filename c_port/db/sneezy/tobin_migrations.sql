@@ -517,11 +517,15 @@ UPDATE `shop` SET `message_sell` = REPLACE(`message_sell`, 'talens', 'gold') WHE
 -- shop flavor text -- it missed `obj` rows whose flavor text uses the
 -- SINGULAR "a talen" (e.g. the money-tree fruit, vnum 13, obj_plant.c),
 -- surfaced live 2026-07-26 when a player saw "A single talen is here."
--- Catches any remaining ITEM_MONEY (type=20) row still saying "talen".
-UPDATE `obj` SET `name` = REPLACE(`name`, 'talen', 'gold'),
-                 `short_desc` = REPLACE(`short_desc`, 'talen', 'gold'),
-                 `long_desc` = REPLACE(`long_desc`, 'talen', 'gold')
-  WHERE `type` = 20 AND (`name` LIKE '%talen%' OR `short_desc` LIKE '%talen%' OR `long_desc` LIKE '%talen%');
+-- Fixed to match the "gold coins" house style already used elsewhere
+-- (vnum 15246, "a pile of gold coins"), not a bare word-swap -- two
+-- earlier passes landed "a gold"/"A single gold is here." and then
+-- "a pile of golds", both corrected live same day (user: "it should be
+-- gold coins").
+UPDATE `obj` SET `name` = 'gold coins small pile',
+                 `short_desc` = '<y>a small pile of gold coins<1>',
+                 `long_desc` = '<y>A small pile of gold coins is here.<1>'
+  WHERE `vnum` = 13;
 
 -- Unseen-wiznews bookmark, same shape as news_last_seen_id above (2026-07-17
 -- batch) -- highest wiznews.id an immortal has already caught up on. Bumped
