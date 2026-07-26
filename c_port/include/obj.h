@@ -100,6 +100,14 @@ typedef struct obj {
      *   WEAPON:   val[0]=damage dice count val[1]=damage dice sides
      *   ARMOR:    val[0]=armor class (protection value)
      *   CONTAINER:val[0]=max weight cap.   val[1]=flags(closeable/closed/locked/pickproof) val[2]=key vnum (0=no lock)
+     *             CORPSE sub-case (ephemeral, vnum 0, name=="corpse" --
+     *             combat.c's corpse-drop-on-death): val[1] is always 0
+     *             (never closeable/locked, see combat.c's own comment),
+     *             so val[2] is repurposed there for the source being's
+     *             `mob_race` (0/NORACE for a dead PC) -- added for
+     *             `cook`'s TYPE_CORPSE ingredients (task_cook.h port,
+     *             cook.c), matching mob_race's own "raw MOB_RACE_NAMES[]
+     *             index" convention rather than inventing a new scale.
      *   DRINK:    val[0]=max units         val[1]=current units
      *             val[2]=liquid type (liquids.h's liquid_info(), verbatim
      *             liqTypeT ordinal from the original -- real seeded rows

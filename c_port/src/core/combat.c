@@ -934,7 +934,7 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             corpse->wear_flag = 0;   /* not takeable as a whole */
             corpse->val[0] = 0;      /* unlimited capacity (0 == unlimited, see cmd_put.c) */
             corpse->val[1] = 0;      /* not closed, not locked -- loot immediately */
-            corpse->val[2] = 0;
+            corpse->val[2] = loser->mob_race; /* source race, `cook`'s TYPE_CORPSE (0/NORACE for a PC) */
             corpse->val[3] = 0;      /* Crafting & extraction: CORPSE_SKINNED(1)/BUTCHERED(2)
                                         bitmask, see cmd_skin.c/cmd_butcher.c */
             corpse->raw_type = loser_is_pc ? CORPSE_KIND_PC : CORPSE_KIND_MOB;
@@ -1122,7 +1122,7 @@ void combat_drown_pc(being_t *victim) {
             corpse->wear_flag = 0;
             corpse->val[0] = 0;
             corpse->val[1] = 0;
-            corpse->val[2] = 0;
+            corpse->val[2] = victim->mob_race; /* source race, `cook`'s TYPE_CORPSE */
             corpse->weight = 50;
             thing_move_to(&corpse->base, &scene->base);
         }

@@ -6140,7 +6140,35 @@ conversation and in `sneezymud-master`): `positionTypeT` (done), `prompt_mesg`
 
 ## Deferred decisions (blocked on choosing, not on code)
 
-- [ ] Which ~8-10 `disc/` disciplines to keep; which 1-2 `task/` professions.
+- [x] Which ~8-10 `disc/` disciplines to keep -- resolved by the Full
+      spell/skill/prayer roster import batch above (2026-07-25): Ranger
+      (->Druid), 6 named Shaman spells (->Druid), Adventuring/Advanced
+      Adventuring (->all classes), Monk, Thief, Warrior, Mage, Cleric,
+      full import each -- that IS the ~8-10.
+- [x] Which 1-2 `task/` professions -- both exist in the source (`cook`,
+      `whittle`), so "keep 1-2" just means keep both. **Cook**: done
+      2026-07-26 (user: "professions"). New `cook.h`/`cook.c`/
+      `cmd_cook.c` -- task_cook.h's real 13-recipe ingredient-matching
+      system ported verbatim (every referenced vnum/liquid/race confirmed
+      live against Tobin's actual seeded data first, zero missing).
+      `cook <recipe>` checks every ingredient slot (multiple rows sharing
+      a slot are alternatives, e.g. any of 4 lettuce vnums) before
+      consuming anything -- all-or-nothing, not a partial-consume bug.
+      Two ingredient kinds needed real new plumbing, not stubs:
+      COOK_ING_LIQUID reuses Liquids' carried-container val[] fields
+      directly; COOK_ING_CORPSE needed a brand new `corpse->val[2]`
+      source-race field (obj.h's own CORPSE val[] doc comment, set in
+      combat.c at both corpse-creation sites) since Tobin's corpse
+      objects previously carried no race data at all -- verified live
+      with a real killed bird mob's corpse feeding "fried chicken".
+      `tests/smoke_test_cook.py` (7 checks: recipe listing, refusal
+      without ingredients, real ingredient consumption, a VNUM-only
+      recipe, and the new corpse-race path) all pass live.
+      **Whittle**: not yet started -- task_whittle.cc is a much bigger,
+      multi-stage timed-carving system (855 lines, difficulty tiers,
+      several real pulse-driven work stages) than cook's single-action
+      ingredient check; needs its own scoping pass before starting,
+      same "ask before building" precedent as every other large item.
 - [x] Hospital mechanic for destroyed limbs — done 2026-07-18, see above.
 - [ ] Whether the destroyed-limb hit penalty scales with count (flat -15 now).
 - [x] Immortal-vs-immortal `kill` guard — done (Session 43): `cmd_kill.c`

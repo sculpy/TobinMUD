@@ -1022,3 +1022,9 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('fill', 'Usage: fill <container>\n\nFills a carried drink container from a fountain or a ground puddle in\nthe room. A fountain never runs dry; a puddle is used up a little at\na time and can eventually disappear. Refuses if the container already\nholds a different liquid -- `pour` it out first to switch.\n\nRelated: pour drink sip', 'seed'),
 ('pour', 'Usage: pour <container>\n\nEmpties a carried drink container onto the ground as a puddle anyone\ncan see (and `fill` from later). Does nothing to an already-empty\ncontainer.\n\nRelated: fill drink sip', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Cook profession (Sneezy -> Tobin feature audit, user 2026-07-26:
+-- "professions" -- task_cook.h/.cc, real ingredient-matching recipes).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('cook', 'Usage: cook <recipe>\n\nCooks a known recipe from ingredients you''re carrying (and, for meat\nrecipes, a matching animal corpse on the ground). Type `cook` alone to\nsee the full recipe list. Nothing is consumed unless every ingredient\nfor the recipe is actually present.\n\nRelated: fill drink', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

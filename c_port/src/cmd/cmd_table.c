@@ -129,6 +129,9 @@ static const cmd_entry_t COMMANDS[] = {
     { "catchup", cmd_catchup, "Replay game messages missed while editing or paging.", MORTAL_LEVEL_MIN },
     { "cast",    cmd_cast,    "Cast a spell (Mage/Druid) -- requires a component.", MORTAL_LEVEL_MIN },
     { "color",   cmd_color,   "Toggle ANSI color rendering on or off.",             MORTAL_LEVEL_MIN },
+    /* Cook profession (user 2026-07-26): "coo" is unambiguous -- color
+     * already needs "co" (comment above), so "cook" needs one more letter. */
+    { "cook",    cmd_cook,    "Cook a known recipe from carried/nearby ingredients (cook <recipe>).", MORTAL_LEVEL_MIN },
     /* SWAP: continue before consider, so "con" keeps repeating a heal
      * rather than sizing up a fight; consider needs "cons". */
     { "continue", cmd_continue, "Repeat your last heal-type prayer until the target is healed or your holy symbols run out.", MORTAL_LEVEL_MIN },
