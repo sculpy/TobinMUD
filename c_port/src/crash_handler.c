@@ -82,4 +82,19 @@ void crash_handler_install(void) {
     signal(SIGFPE, crash_handler);
     signal(SIGBUS, crash_handler);
     signal(SIGILL, crash_handler);
+
+    /* SIGPIPE (found live, 2026-07-26, while testing Transformation): a
+     * raw client disconnect -- socket.close() with no `quit!`, exactly
+     * what a crashed/killed client or a flaky connection looks like, not
+     * just a test artifact -- means any LATER write() to that socket
+     * (an ordinary room broadcast, a prompt, anything) raises SIGPIPE.
+     * With no handler, the default disposition is to TERMINATE THE WHOLE
+     * PROCESS -- one player's network hiccup was capable of crashing the
+     * server for everyone else too. write()/send() already return -1/
+     * EPIPE on the failed call either way; nothing in this codebase's
+     * socket-writing paths needs the signal itself, so ignoring it
+     * outright (not routing it through crash_handler() above -- this
+     * isn't a real crash, no report/core dump wanted) is the standard,
+     * correct fix for any socket server. */
+    signal(SIGPIPE, SIG_IGN);
 }

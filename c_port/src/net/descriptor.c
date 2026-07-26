@@ -325,13 +325,27 @@ void descriptor_destroy(descriptor_t *d) {
      * so the link-drop handling below (room announce, log, linkdead
      * parking) applies to the real character, not the puppeted mob --
      * and so the mob goes back to being a normal, un-puppeted, desc==NULL
-     * mob rather than getting stuck wearing a PC's link-drop state. */
+     * mob rather than getting stuck wearing a PC's link-drop state.
+     *
+     * A POLYMORPHED form (being_start_polymorph(), being.c) is left the
+     * SAME way, deliberately NOT destroyed here even though it's a
+     * temporary body that (unlike a real `possess`d target) has nowhere
+     * else to go -- a real, live crash was traced to destroying a being
+     * from inside this exact disconnect path while OTHER game state
+     * (an unresolved fight, another descriptor mid-iteration in
+     * game_loop_run's own g_descriptors walk) could still reference it;
+     * see STATUS.md for the fuller writeup. Left as an ordinary orphaned
+     * mob instead -- a real but strictly smaller gap (a stray "brown
+     * bear" left behind after a player's raw disconnect mid-polymorph,
+     * cleanable like any other stray mob) than the crash it replaces.
+     * AFFECT_CHARMED never needed this branch at all -- a charmed PET
+     * mob has no descriptor of its own. */
     if (d->possess_original) {
         being_t *mob = d->character;
-        if (mob)
-            mob->desc = NULL;
         d->character = d->possess_original;
         d->possess_original = NULL;
+        if (mob)
+            mob->desc = NULL;
     }
 
     descriptor_t **cur = &g_descriptors;

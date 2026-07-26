@@ -737,6 +737,31 @@ being_t *being_find_charmed_pet(const being_t *master);
  * does the mechanical summon. */
 being_t *being_summon_charmed_pet(being_t *master, int vnum, int duration_rounds);
 
+/* Transformation (Sneezy → Tobin feature audit, Mage "polymorph").
+ * Spawns a fresh mob from `vnum` (being_create_mob()), places it in `d`'s
+ * current room, and swaps `d`'s descriptor onto it -- the EXACT same
+ * raw swap `possess`/`return` already use (cmd_possess.c), reusing
+ * `d->possess_original` rather than a second parallel field: `d->
+ * character` now points at the temporary form, and the player's real
+ * body sits parked with desc==NULL (same shape a plain link-drop already
+ * leaves a body in) -- STILL VISIBLE in the room, tagged "(linkdead)"
+ * (cmd_look.c's existing convention), not hidden away. Real Sneezy
+ * stashes the original body in a dedicated Room::POLY_STORAGE instead;
+ * Tobin has no such "nowhere" concept, so this is a disclosed
+ * simplification, not an oversight -- someone sharing a room with a
+ * freshly-polymorphed player can still see their real name sitting
+ * there, linkdead, right next to their new form. Marked AFFECT_POLYMORPH
+ * for `duration_rounds` so it
+ * reverts on its own (affect.c's tick_being_affects()) -- see also
+ * combat.c's combat_defeat() and descriptor.c's descriptor_destroy(),
+ * both of which revert IMMEDIATELY (death, disconnect) rather than
+ * leaving a dangling swapped descriptor for the affect to eventually
+ * clean up. Returns false, doing nothing, if `d` is already possessing/
+ * polymorphed into something, has no character, or `vnum` doesn't
+ * exist. Caller (cmd_cast.c's "polymorph") prints its own flavor
+ * message; this only does the mechanical swap. */
+bool being_start_polymorph(struct descriptor *d, int vnum, int duration_rounds);
+
 /* True iff b->progress.level >= IMMORTAL_LEVEL_MIN. */
 bool being_is_immortal(const being_t *b);
 

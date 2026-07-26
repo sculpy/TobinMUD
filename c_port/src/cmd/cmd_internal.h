@@ -23,6 +23,7 @@ bool cmd_dismount(descriptor_t *d, const char *args);
 bool cmd_bash(descriptor_t *d, const char *args);
 bool cmd_kick(descriptor_t *d, const char *args);
 bool cmd_disarm(descriptor_t *d, const char *args);
+bool cmd_disguise(descriptor_t *d, const char *args);
 bool cmd_repair(descriptor_t *d, const char *args);
 bool cmd_submit(descriptor_t *d, const char *args);
 bool cmd_retrieve(descriptor_t *d, const char *args);

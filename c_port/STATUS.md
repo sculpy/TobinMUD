@@ -1,6 +1,69 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-25 — Session 66 (home): **Pet/charm -- the last
+Last updated: 2026-07-26 — Session 67 (home): **Transformation --
+Polymorph (Mage) + Disguise (Thief) -- plus two real bugs found and
+fixed along the way (a missing SIGPIPE handler, and a memory-corruption
+path in combat death-handling for a possessed/polymorphed mob). Shipped
+with a disclosed, NOT fully eliminated residual crash risk -- see below.**
+- **Scoped via AskUserQuestion**: fixed form per spell (no player choice
+  of target shape), covering Polymorph (Mage) + Disguise (Thief) only --
+  user explicitly declined a Druid Shapeshift this pass.
+- **Polymorph**: reuses the exact `possess`/`return` puppet-swap pattern
+  (`descriptor_t.possess_original`) that immortal `possess` already used,
+  now made mortal-accessible and timed. `being_start_polymorph()` swaps
+  the descriptor onto a real seeded mob body (brown bear, vnum 585) for
+  `TRANSFORM_DURATION_ROUNDS` (~5 min), tracked via new `AFFECT_POLYMORPH`;
+  expiry (or an explicit early `return`) reverts the swap and destroys the
+  temporary mob body. Disclosed simplification vs. Sneezy's real
+  `Room::POLY_STORAGE`: the player's original body stays visible in the
+  room, tagged "(linkdead)", instead of being pulled into hidden storage.
+- **Disguise**: much lighter-weight, purely cosmetic -- toggles
+  `short_descr` between empty and "a hooded stranger", reusing
+  `cmd_look.c`'s existing short_descr-over-name preference. No descriptor
+  swap, no stat transfer (Sneezy's real `DisguiseStuff()` does full
+  stat/equipment transfer; disclosed as a deliberately smaller feature).
+- **Bug #1 found and fixed (confirmed solid)**: the codebase had NO
+  SIGPIPE handler anywhere -- default disposition terminates the whole
+  process on any write to an already-closed client socket. Added
+  `signal(SIGPIPE, SIG_IGN)` to `crash_handler_install()`. Verified live
+  (attaching gdb intercepted a real SIGPIPE that would otherwise have
+  killed the server; process survived under gdb, proving the mechanism).
+- **Bug #2 found and partially fixed**: a `combat_defeat()` loss for a
+  possessed/polymorphed mob, when it fell through to the full PC-death
+  pipeline (`descriptor_leave_to_menu()`), corrupted memory -- traced via
+  `coredumpctl`/gdb to a SIGSEGV in `descriptor_room_echo()` with a freed/
+  reused `d->character`. Fixed by having `combat_defeat()` revert the
+  swap, heal the player to half HP, and return immediately for this case,
+  skipping the death pipeline entirely (no XP loss/corpse/menu-kick).
+  This reduced crash frequency substantially (several consecutive clean
+  full runs) but **a later regression run hit the identical crash
+  signature again, during what looked like an ordinary, non-polymorphed
+  PC disconnect** -- meaning the true root cause may be a more general,
+  possibly pre-existing bug in the raw-disconnect path, not fully
+  isolated to Transformation. Not fully root-caused before this session's
+  effort budget ran out. **Known residual risk, disclosed rather than
+  hidden.** Production is currently up and stable on this build (pid
+  checked, watchdog cron active as always); Pet/charm and Group
+  regression tests pass clean on the same build.
+- Also: `disguise` needed `combat_disc_pct` (it's `SKILL_TIER_COMBAT`,
+  gated the same as a combat skill) -- test helper `set_caster()` reused
+  from the Pet/charm session rather than the immortal-instant-slay
+  bypass, since that bypass would prevent testing real pulse-driven
+  combat/death paths.
+- New `tests/smoke_test_transformation.py`: transform/look/return/
+  death-safety for Polymorph, toggle/class-gating for Disguise. One
+  assertion ("own body present, marked linkdead") is a known occasional
+  timing flake (~2/10 runs) even on non-crashing runs -- matches this
+  codebase's existing "rotating sweep flakes -- re-run standalone"
+  precedent, documented in the test's own docstring rather than chased
+  further.
+- Next: keep an eye on production for the disclosed residual crash
+  signature (raw-disconnect path); if it recurs, treat it as a
+  general/pre-existing bug hunt, not Transformation-specific. Then:
+  Crafting & extraction (task 23), Planting (task 34, needs its own
+  scoping), the full spell/skill roster import (task 35).
+
+### Session 66 (home): **Pet/charm -- the last
 remaining builder-tools-adjacent Sneezy → Tobin audit item to get a full
 build in this window -- plus a small "there's new wiznews" login notice,
 mirroring the existing news one.**

@@ -902,7 +902,15 @@ UPDATE `help_topic` SET `body` = 'Usage: whisper <name> <message>\n\nA private m
 -- something else in Tobin (swap held items, cmd_object.c).
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('possess', 'Usage: possess <mob>\n\nLevel 59+ only: puppet a mob''s body -- your commands drive the mob\ninstead of your own character until you `return`. The mob must be in\nyour room, unpossessed, and not a player. Your own immortal command\naccess stays with you the whole time (so `return` always works, even\nif the mob''s in-game level is low); a disconnect while possessing\nautomatically returns you first, so you never get stranded in the\nmob''s body.\n\nRelated: return', 'seed'),
-('return', 'Usage: return\n\nComes back to your own body after `possess`ing a mob.\n\nRelated: possess', 'seed')
+('return', 'Usage: return\n\nComes back to your own body after `possess`ing a mob, or early from a\n`polymorph`.\n\nRelated: possess polymorph', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `polymorph`/`disguise` (Sneezy → Tobin feature audit, "Transformation").
+-- Polymorph reuses possess/return's descriptor-swap; disguise is a
+-- lighter, purely cosmetic short_descr toggle.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('polymorph', 'Usage: cast polymorph\n\nMage spell. Twists your body into a brown bear for a while, taking on\nits full strength -- reverts on its own after a time, or early with\n`return`. Your own body stays behind in the room, linkdead, until you\nrevert.\n\nRelated: return', 'seed'),
+('disguise', 'Usage: disguise\n\nThief skill. Pulls up your hood and becomes "a hooded stranger" to\neveryone else in the room, hiding your real name. Use `disguise`\nagain to drop it. Purely cosmetic -- doesn''t change your stats or\nequipment.\n\nRelated: none', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- `wiznet @<level>` targeting (Sneezy → Tobin feature audit, "OOC

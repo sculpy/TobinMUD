@@ -318,3 +318,7 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Summon a Companion to Fight and Follow You',
  'Mages can now `cast conjure elemental air/earth/fire/water` to call a loyal elemental to their side, Clerics can `pray summon swarm` for a cloud of locusts, and Druids can `cast animal companion` for a loyal beast. Whatever you summon will follow you from room to room and join you in a fight -- and it actually listens: say something like "attack guard" and it will turn on that target, or say "stop" to call it off. Try other things too -- say "dance" and see what happens. Just don''t be surprised if it looks confused and ignores you every so often; charmed creatures only listen so well. `dismiss` sends your companion away early, and the bond fades on its own after a while regardless. You can only keep one companion charmed at a time.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Become Someone -- or Something -- Else', 'Mages can now `cast polymorph` to twist their body into a brown bear for a while -- full strength of the new form, reverting on its own after a time (or early with `return`). Thieves can `disguise` themselves as a hooded stranger instead, hiding who they are from anyone else in the room -- `disguise` again to drop the act.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

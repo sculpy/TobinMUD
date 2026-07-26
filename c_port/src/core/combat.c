@@ -664,6 +664,46 @@ static int group_recipients(being_t *winner, room_t *room, being_t **out, int ma
     return 1;
 }
 static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
+    /* A mob loser that's actually a connected player's body -- possessed
+     * (cmd_possess.c) or polymorphed (AFFECT_POLYMORPH, being.c) -- needs
+     * its descriptor reverted to the REAL underlying character, RIGHT
+     * HERE, RETURNING IMMEDIATELY rather than falling through to the
+     * normal PC-death pipeline below (menu-kick via descriptor_leave_
+     * to_menu(), which itself being_destroy()s the character and resets
+     * the descriptor's connection state). Originally this DID fall
+     * through, matching Sneezy's own real behavior ("the player survives
+     * in their own body" but still takes normal death consequences) --
+     * but a real, reproducible crash was traced to that exact
+     * combination (revert-then-immediately-run-the-full-death-pipeline,
+     * from WITHIN combat_process_run()'s own g_descriptors walk, which
+     * doesn't pre-capture a `next` pointer the way safer iterations
+     * elsewhere in this codebase do) that root-causing didn't fully
+     * resolve in the time available; see STATUS.md for the full
+     * writeup. This is the deliberately conservative fallback: heal the
+     * player back up and return them to their body with NO further
+     * death consequences (no XP loss, no corpse, no menu-kick) --
+     * disclosed as a real simplification, not Sneezy's exact behavior,
+     * but one that avoids the crash outright rather than risk it in
+     * production. `possess` (an immortal's puppet dying) hits this same
+     * safe path. */
+    if (loser->base.kind == THING_MOB && loser->desc && loser->desc->possess_original) {
+        descriptor_t *pd = loser->desc;
+        being_t *original = pd->possess_original;
+        loser->desc = NULL;
+        pd->character = original;
+        original->desc = pd;
+        pd->possess_original = NULL;
+        winner->fighting = NULL;
+        original->fighting = NULL;
+        original->progress.hp = original->progress.max_hp / 2;
+        if (original->progress.hp < 1)
+            original->progress.hp = 1;
+        being_limbs_full_heal(original);
+        descriptor_send(pd, "Your body is destroyed -- you snap back into your own, badly shaken!\r\n");
+        being_destroy(loser); /* the temporary/puppeted mob body; safe now that no descriptor points at it */
+        return;
+    }
+
     loser->fighting = NULL;
     winner->fighting = NULL;
 

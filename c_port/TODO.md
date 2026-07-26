@@ -150,6 +150,21 @@ implementation inspiration before each one, not guessed at.
       combining `possess` with a same-level check inside another command
       is an unexplored edge case. New `tests/smoke_test_possess.py` (9
       checks, including the disconnect-while-possessing recovery).
+- [x] **Transformation (Polymorph + Disguise)** — done 2026-07-26. The
+      "separate spell-driven polymorph flavor" flagged above as not-yet-
+      built. Scoped via AskUserQuestion: fixed form per spell, Polymorph
+      (Mage) + Disguise (Thief) only (user explicitly declined a Druid
+      Shapeshift). Polymorph reuses the same `possess_original` puppet-
+      swap this `possess`/`return` item introduced, now mortal-accessible
+      and timed (`AFFECT_POLYMORPH`, ~5 min, brown bear vnum 585);
+      Disguise is a much lighter cosmetic `short_descr` toggle. Two real
+      bugs found and fixed along the way: a codebase-wide missing SIGPIPE
+      handler (confirmed solid fix), and a memory-corruption path in
+      `combat_defeat()`'s death-handling for a possessed/polymorphed mob
+      (substantially mitigated, but a residual crash signature recurred
+      once more under an ordinary disconnect in a later regression run --
+      **disclosed, not fully root-caused** — see STATUS.md Session 67 for
+      the full writeup). New `tests/smoke_test_transformation.py`.
 - [x] **OOC channels (commune, etc.)** — done 2026-07-19. Checked Sneezy's
       own `communication-system.md` doc first: `wiznet` (`;<message>`
       shorthand) already covers the original's "immortal broadcast" half

@@ -295,6 +295,26 @@ being_t *being_summon_charmed_pet(being_t *master, int vnum, int duration_rounds
     return pet;
 }
 
+bool being_start_polymorph(descriptor_t *d, int vnum, int duration_rounds) {
+    if (!d || !d->character || d->possess_original)
+        return false;
+    being_t *ch = d->character;
+    if (!ch->base.roomp)
+        return false;
+
+    being_t *form = being_create_mob(vnum);
+    if (!form)
+        return false;
+
+    thing_set_room(&form->base, ch->base.roomp);
+    d->possess_original = ch;
+    ch->desc = NULL;
+    d->character = form;
+    form->desc = d;
+    being_apply_affect(form, AFFECT_POLYMORPH, duration_rounds);
+    return true;
+}
+
 bool being_is_immortal(const being_t *b) {
     return b && b->progress.level >= IMMORTAL_LEVEL_MIN;
 }

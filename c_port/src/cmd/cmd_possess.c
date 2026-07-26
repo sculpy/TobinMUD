@@ -93,5 +93,16 @@ bool cmd_return(descriptor_t *d, const char *args) {
     d->possess_original = NULL;
 
     descriptor_send(d, "You return to your own body.\r\n");
+
+    /* A POLYMORPHED form (being_start_polymorph(), being.c) was spawned
+     * only to be this player's temporary body -- unlike a real `possess`d
+     * target mob, which existed before and should just go back to being
+     * an ordinary un-puppeted mob, this one is destroyed outright rather
+     * than left wandering the world forever, ownerless. Same cleanup
+     * affect.c's own AFFECT_POLYMORPH expiry and descriptor.c's
+     * disconnect handling both already do. */
+    if (being_has_affect(mob, AFFECT_POLYMORPH))
+        being_destroy(mob);
+
     return true;
 }

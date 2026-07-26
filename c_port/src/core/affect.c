@@ -47,6 +47,7 @@ static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "Water Breathing",
     "Flying",
     "Charmed",
+    "Polymorphed",
 };
 
 /* HP drained per damage sub-tick for AFFECT_POISON -- its own faster gate
@@ -261,6 +262,40 @@ static void dissolve_charmed_pet(being_t *b) {
     being_destroy(b);
 }
 
+/* AFFECT_POLYMORPH expiring reverts the transformation -- swaps the
+ * player's descriptor back to their own body (same shape `return`,
+ * cmd_possess.c, already uses) and destroys the temporary mob body `b`.
+ * `b` is freed here; caller must not touch it again. If `b`'s descriptor
+ * already went away some other way (shouldn't normally happen --
+ * descriptor_destroy() and combat_defeat() both revert immediately on
+ * disconnect/death rather than leaving the affect to expire naturally --
+ * but checked defensively rather than assumed), this just cleans up the
+ * orphaned body. */
+static void revert_polymorph(being_t *b) {
+    descriptor_t *d = b->desc;
+    if (!d || !d->possess_original) {
+        being_destroy(b);
+        return;
+    }
+
+    being_t *original = d->possess_original;
+    b->desc = NULL;
+    d->character = original;
+    original->desc = d;
+    d->possess_original = NULL;
+
+    descriptor_send(d, "Your polymorph fades, and you return to your own body.\r\n");
+    if (original->base.roomp) {
+        char capbuf[128], msg[192];
+        being_display_name_cap(original, capbuf, sizeof(capbuf));
+        snprintf(msg, sizeof(msg), "%s shimmers and returns to %s own form.\r\n",
+                 capbuf, gender_possess(original->gender));
+        descriptor_room_echo(original->base.roomp, original, msg);
+    }
+
+    being_destroy(b);
+}
+
 static void notify_wears_off(being_t *b, descriptor_t *d, affect_type_t type) {
     if (d) {
         char msg[64];
@@ -316,6 +351,15 @@ static void tick_being_affects(being_t *b, descriptor_t *d) {
                 dissolve_charmed_pet(b);
                 return;
             }
+            if (type == AFFECT_POLYMORPH) {
+                /* b is freed here too -- same reasoning as AFFECT_CHARMED
+                 * above, except this one DOES have a live descriptor (d
+                 * itself, since the polymorphed mob body IS d->character
+                 * while transformed) -- reached via the g_descriptors loop
+                 * in affect_tick_run(), not mob_affect_tick_visit(). */
+                revert_polymorph(b);
+                return;
+            }
             notify_wears_off(b, d, type);
             b->affects[i].type = AFFECT_NONE;
             b->affects[i].rounds_left = 0;
@@ -324,6 +368,16 @@ static void tick_being_affects(being_t *b, descriptor_t *d) {
 }
 
 static void mob_affect_tick_visit(being_t *m) {
+    /* A mob with a live descriptor (possessed via cmd_possess.c, or
+     * polymorphed into via AFFECT_POLYMORPH below) is ALREADY ticked by
+     * the g_descriptors loop in affect_tick_run() -- world_for_each_mob()
+     * still visits it too, since it's sitting in a room like any other
+     * mob, so skip it here or it would tick twice every round (found
+     * live while building polymorph: a rounds_left counter halving its
+     * real duration, and a disease/poison sub-tick draining HP at double
+     * rate, for anyone possessing or polymorphed into a mob body). */
+    if (m->desc)
+        return;
     tick_being_affects(m, NULL);
 }
 

@@ -442,6 +442,28 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
         snprintf(roommsg, sizeof(roommsg), "%s casts %s, and %s appears, obedient to their will!\r\n",
                  being_display_name_cap(ch, capbuf, sizeof(capbuf)), sk->name, pet->base.short_descr);
         descriptor_room_echo(ch->base.roomp, ch, roommsg);
+    } else if (strcasecmp(sk->name, "polymorph") == 0) {
+        /* Transformation (Sneezy → Tobin feature audit). Scoped via
+         * AskUserQuestion, 2026-07-26: a FIXED form (a brown bear, real
+         * seeded vnum 585 -- not a player-chosen target), reusing the
+         * exact same descriptor-swap `possess`/`return` already use
+         * (being_start_polymorph(), being.c) rather than a second
+         * transformation mechanism. `ch` below still refers to the
+         * player's OWN body after a successful swap (it isn't freed,
+         * just detached from `d`) -- only used here for the room-echo
+         * name and roomp, both still valid. */
+        room_t *room = ch->base.roomp;
+        char capbuf[128];
+        being_display_name_cap(ch, capbuf, sizeof(capbuf));
+        if (!being_start_polymorph(d, 585, TRANSFORM_DURATION_ROUNDS)) {
+            descriptor_send(d, "You cast polymorph, but the transformation fails to take hold.\r\n");
+            return;
+        }
+        descriptor_send(d, "Your body twists and reshapes -- you have become a brown bear!\r\n");
+        if (room) {
+            snprintf(msg, sizeof(msg), "%s twists and reshapes into a brown bear!\r\n", capbuf);
+            descriptor_room_echo(room, NULL, msg);
+        }
     } else {
         snprintf(msg, sizeof(msg),
                  "You cast %s, but nothing happens yet -- its real effect isn't implemented.\r\n",

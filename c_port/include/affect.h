@@ -121,6 +121,17 @@ typedef enum {
      * charmed creature's affect simply ending its obedience. See
      * being_summon_charmed_pet() (being.c) for how one gets created. */
     AFFECT_CHARMED,
+    /* Transformation (Sneezy → Tobin feature audit, Mage "polymorph").
+     * Carried by the TEMPORARY mob body a polymorphed player's descriptor
+     * is currently attached to (d->character points at it, same swap
+     * shape `possess`/`return` already use -- see descriptor.h's
+     * `possess_original` field comment). Times how long the
+     * transformation lasts; expiry is special-cased in
+     * tick_being_affects() to swap the player's descriptor back to their
+     * own body (not the generic "wears off" message) and destroy the
+     * temporary mob body, mirroring `return`'s own logic. See
+     * being_start_polymorph() (being.c). */
+    AFFECT_POLYMORPH,
     AFFECT_COUNT,
 } affect_type_t;
 
@@ -154,6 +165,13 @@ affect_type_t affect_random_disease(void);
  * value -- a Tobin-scale simplification of Sneezy's own per-spell
  * duration formulas. */
 #define PET_CHARM_DURATION_ROUNDS 250
+
+/* Default AFFECT_POLYMORPH lifespan (Transformation, Sneezy → Tobin
+ * feature audit) -- same ~5-minute magnitude as PET_CHARM_DURATION_ROUNDS
+ * (both roughly "a while, not the whole session"), kept as its own named
+ * constant rather than reused directly since the two features are
+ * conceptually unrelated and only coincidentally share a duration. */
+#define TRANSFORM_DURATION_ROUNDS 250
 
 #define MAX_ACTIVE_AFFECTS 4
 

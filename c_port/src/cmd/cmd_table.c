@@ -329,6 +329,10 @@ static const cmd_entry_t COMMANDS[] = {
     /* Mortal Thief skill (see settrap's note); needs "disarmt"+ now that
      * combat `disarm` (above) owns the shared "di"/"dis" abbreviation. */
     { "disarmtrap", cmd_disarmtrap, "Safely remove a trap from a door (Thief, disarmtrap <direction>).", MORTAL_LEVEL_MIN },
+    /* Needs "disg"+ to reach -- "disarm"/"disarmtrap" above already own
+     * the shared "di"/"dis" prefix, same abbreviation-ownership shape as
+     * disarmtrap's own note just above. */
+    { "disguise", cmd_disguise, "Alter your apparent identity (Thief, toggle).", MORTAL_LEVEL_MIN },
     { "dig",     cmd_dig,     "Dig a new room in the current direction, if none exists yet (dig <direction>).", BUILD_MIN_LEVEL },
     { "edbug",   cmd_edbug,   "Resolve a bug report in place (edbug <id> [note]).", EDBUG_MIN_LEVEL },
     /* Unified editor dispatcher (user 2026-07-11: "unify all ed* commands
@@ -389,10 +393,19 @@ static const cmd_entry_t COMMANDS[] = {
     /* Bare `purge` clears the room; `purge linkdead` (58+, checked inside
      * cmd_purge itself) sweeps the whole game. */
     { "purge",   cmd_purge,   "Clear this room's mobs/objects, or purge linkdead (58+).", PURGE_MIN_LEVEL },
-    { "return",  cmd_return,  "Come back to your own body after `possess`ing a mob.", IMMORTAL_LEVEL_MIN },
+    /* MORTAL_LEVEL_MIN, not immortal-only (2026-07-26, Transformation):
+     * `cast polymorph` sets the exact same d->possess_original swap
+     * `possess` does, so an ordinary mage needs to be able to run
+     * `return` to end it early -- `possess` itself stays immortal-only
+     * (POSSESS_MIN_LEVEL above), only this shared "come back" half is
+     * now reachable by anyone. A mortal typing `return` while not
+     * possessing/polymorphed into anything just gets cmd_return's own
+     * "You aren't possessing anything." -- harmless, same shape as
+     * `stop` showing up for someone not currently following anyone. */
+    { "return",  cmd_return,  "Come back to your own body after `possess`ing or polymorphing.", MORTAL_LEVEL_MIN },
     /* Placed right after "return" (not in strict alpha order among the
      * mortal r-block above) so "ret"/"retu" keep reaching the far more
-     * frequently-typed immortal `return` -- `retrieve` (a deliberate,
+     * frequently-typed `return` -- `retrieve` (a deliberate,
      * ticket-number-driven action) is meant to be typed in full anyway. */
     { "retrieve", cmd_retrieve, "Pay for and collect a repaired item (retrieve <ticket #>).", MORTAL_LEVEL_MIN },
     /* "set" must stay ahead of "setsev"/"settrap" -- all three start with
