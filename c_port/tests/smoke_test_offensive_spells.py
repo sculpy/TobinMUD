@@ -113,6 +113,23 @@ def make_char(name, pw, class_choice):
     s.close()
 
 
+def make_char_and_quit(name, pw, class_choice):
+    """Same as make_char(), but sends a real `quit!` before closing --
+    a raw close() leaves a linkdead body behind, and that body's ROOM
+    takes priority over `load_room` on the very next connect (see
+    descriptor.c's `linkdead_room_vnum` check), silently defeating any
+    `UPDATE player SET load_room=...` done afterward. Only needed for a
+    character a later step relies on `load_room` actually landing them
+    in a specific room right away (immortal targets who self-navigate
+    via `goto` after connecting don't need this)."""
+    s = socket.create_connection((host, port), timeout=5)
+    recv_all(s)
+    for step in (name, "y", pw, pw, "new", name, "1", class_choice, "done", "done"):
+        send_line(s, step); recv_all(s)
+    send_line(s, "quit!"); recv_all(s)
+    s.close()
+
+
 def login(name, pw):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
@@ -123,15 +140,21 @@ def login(name, pw):
     return s
 
 
-def dmg_of(out):
-    m = re.search(r"for (\d+) damage", out)
-    return int(m.group(1)) if m else None
+def hp_of(sock):
+    """Live in-memory HP, read from the target's OWN `score` (not SQL --
+    a spell/prayer hit never calls player_progress_save() for its target,
+    unlike an ongoing melee ROUND (combat_process_run()'s "Mid-fight
+    persistence"), so the DB row stays stale between casts; only the
+    live connection sees the real number right after a hit)."""
+    m = re.search(r"HP:\s*(\d+)", cmd(sock, "score"))
+    return int(m.group(1))
 
 
 imm_name = f"Offimma{_suffix}"
 imm2_name = f"Offimmb{_suffix}"
 b1_name = f"Offbysa{_suffix}"
 b2_name = f"Offbysb{_suffix}"
+dummy_name = f"Offdmyx{_suffix}"
 pw = "offspellpw123"
 
 try:
@@ -139,20 +162,30 @@ try:
     make_char(imm2_name, pw, "1")
     make_char(b1_name, pw, "3")
     make_char(b2_name, pw, "3")
-    # All four promoted to immortal -- not just imm/imm2. b1/b2 only need
-    # to be reachable, damageable-in-name targets for the offensive-spell
-    # checks below; being immortal doesn't affect any of those (an
-    # immortal DEFENDER just takes zero real damage, same immunity rule
-    # combat_strike() enforces -- the messages/damage NUMBERS shown to
-    # the immortal CASTER are the requested amount, not the post-immunity
-    # one, so the tiered-damage assertions below are unaffected). Doing
-    # this means all four can `goto` a throwaway sandbox room (`goto` is
+    make_char_and_quit(dummy_name, pw, "3")
+    # All four (imm/imm2/b1/b2) promoted to immortal -- b1/b2 only need to
+    # be reachable, damageable-in-name targets for the open-combat/area-
+    # effect checks below; being immortal doesn't affect any of THOSE
+    # (they only check messages/targeting, not real HP loss). Doing this
+    # means all four can `goto` a throwaway sandbox room (`goto` is
     # immortal-only) instead of running the area-effect spell in a real,
     # populated production room where it could catch actual bystanders.
+    #
+    # dummy_name stays MORTAL and gets a huge HP pool instead (matching
+    # smoke_test_object_maintenance.py's own precedent) -- it's the one
+    # target real damage actually applies to, needed for the tier-scaling
+    # check below since combat_strike() zeroes damage against an immortal
+    # DEFENDER outright. Real messages never carry a raw damage number
+    # (fixed 2026-07-26: describe_dam() -- combat.c -- is qualitative-only
+    # everywhere, "striking them incredibly well!", not "for N damage";
+    # this was already true well before today, an earlier stale-test bug,
+    # not something introduced today) so HP loss is the only real signal.
     set_level(imm_name, 51)
     set_level(imm2_name, 51)
     set_level(b1_name, 51)
     set_level(b2_name, 51)
+    sql(f"UPDATE player_progress SET hp=999999, max_hp=999999 WHERE player_id="
+        f"(SELECT id FROM player WHERE name='{dummy_name}');")
 
     imm = login(imm_name, pw)
     imm2 = login(imm2_name, pw)
@@ -162,11 +195,15 @@ try:
     sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
         f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
         f"VALUES ({ROOM},0,0,0,'Offensive Spell Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
+    # dummy_name is mortal (no `goto`) -- route it in via load_room, same
+    # convention every other mortal-target smoke test in this suite uses.
+    sql(f"UPDATE player SET load_room={ROOM} WHERE name='{dummy_name}';")
+    dummy = login(dummy_name, pw)
     check("Offensive Spell Sandbox" in cmd(imm, f"goto {ROOM}"), "goto lands in the sandbox room")
     cmd(imm2, f"goto {ROOM}")
     cmd(b1, f"goto {ROOM}")
     cmd(b2, f"goto {ROOM}")
-    recv_all(imm); recv_all(imm2); recv_all(b1); recv_all(b2)  # drain arrival notices
+    recv_all(imm); recv_all(imm2); recv_all(b1); recv_all(b2); recv_all(dummy)  # drain arrival notices
 
     sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
         f"VALUES ({COMPONENT},'pouch component reagent','a pouch of spell components',"
@@ -183,29 +220,18 @@ try:
         cmd(imm, f"load obj {SYMBOL}")
         cmd(imm, "get symbol")
 
-    # --- 1: damage scales with the SPELL's own tier, not a flat formula.
-    # Both casts target the SAME being (b1) -- ch is fighting nobody yet,
-    # so the first cast opens combat with b1, and the second (b1 still
-    # being ch->fighting) is a normal continued strike, not a one-off on
-    # a different bystander -- keeps step 2 below unambiguous. ---
-    restock_component()
-    out = cmd(imm, f"cast gust {b1_name}")  # level 1, "A bolt of wind damage."
-    check("You cast gust at" in out, "`cast <spell> <target>` works at all (previously no target syntax existed)")
-    dmg_low = dmg_of(out)
-    check(dmg_low is not None, "casting a low-tier offensive spell shows a damage number (immortal caster)")
-
-    restock_component()
-    out = cmd(imm, f"cast atomize {b1_name}")  # level 48, "An overwhelming single-target burst of energy."
-    dmg_high = dmg_of(out)
-    check(dmg_high is not None, "casting a high-tier offensive spell shows a damage number")
-    check(dmg_high > dmg_low * 2,
-          f"a level-48 spell ({dmg_high}) hits far harder than a level-1 one ({dmg_low}) -- "
-          "tiered by the SPELL itself, not a flat formula")
-
     # --- 2: `cast <spell> <target>` genuinely OPENS combat, proven by a
     # second cast with NO target still landing on the same opponent
-    # (ch->fighting was really set by the very first cast above, not
-    # just a one-off hit each time). ---
+    # (ch->fighting was really set by the very first cast on b1 here, not
+    # just a one-off hit each time). imm hasn't fought anyone yet at this
+    # point (the tier-scaling check against dummy_name runs LAST instead,
+    # see below -- it would otherwise leave imm mid-fight with dummy here,
+    # turning this section's own "cast gust {b1_name}" into a one-off hit
+    # instead of a real retarget, same "already fighting someone else"
+    # rule section 3 below relies on). ---
+    restock_component()
+    out = cmd(imm, f"cast gust {b1_name}")
+    check(b1_name in out, "the opening cast on b1 lands")
     restock_component()
     out = cmd(imm, "cast gust")  # no target this time
     check(b1_name in out, "a follow-up cast with no target keeps hitting the SAME opponent -- "
@@ -242,16 +268,47 @@ try:
     out_imm2 = recv_all(imm2, timeout=1.0)
     check("catches you" in out_imm2, "imm2 (a third, still-different being) is caught by the same area burst too")
 
+    # --- 1: damage scales with the SPELL's own tier, not a flat formula.
+    # Deliberately LAST -- both casts target dummy_name (the one MORTAL,
+    # huge-HP target in this test, see its setup above), and leaving imm
+    # mid-fight with dummy afterward would turn section 2's own opening
+    # cast on b1 into a one-off hit instead of a real retarget (same
+    # "already fighting someone else" rule section 3 relies on). Real HP
+    # loss is the only signal available here -- no message anywhere
+    # carries a raw damage number (confirmed live 2026-07-26;
+    # combat_strike() also zeroes damage against an immortal DEFENDER
+    # outright, so b1/b2/imm2 could never have shown real scaling either
+    # way) -- so each cast's actual HP delta is measured directly via
+    # player_progress.hp before/after. ---
+    hp_before = hp_of(dummy)
+    restock_component()
+    out = cmd(imm, f"cast gust {dummy_name}")  # level 1, "A bolt of wind damage."
+    check("You cast gust at" in out, "`cast <spell> <target>` works at all (previously no target syntax existed)")
+    dmg_low = hp_before - hp_of(dummy)
+    check(dmg_low > 0, "casting a low-tier offensive spell actually costs the target real HP")
+
+    hp_before = hp_of(dummy)
+    restock_component()
+    cmd(imm, f"cast atomize {dummy_name}")  # level 48, "An overwhelming single-target burst of energy."
+    dmg_high = hp_before - hp_of(dummy)
+    check(dmg_high > 0, "casting a high-tier offensive spell actually costs the target real HP")
+    check(dmg_high > dmg_low * 2,
+          f"a level-48 spell ({dmg_high} HP) hits far harder than a level-1 one ({dmg_low} HP) -- "
+          "tiered by the SPELL itself, not a flat formula")
+
     imm.close()
     imm2.close()
     b1.close()
     b2.close()
+    dummy.close()
 
     announce_done("smoke_test_offensive_spells")
     print("=== ALL CHECKS PASSED ===")
 finally:
     sql(f"DELETE FROM player_progress WHERE player_id IN "
-        f"(SELECT id FROM player WHERE name IN ('{imm_name}', '{imm2_name}', '{b1_name}', '{b2_name}'));")
-    sql(f"DELETE FROM player WHERE name IN ('{imm_name}', '{imm2_name}', '{b1_name}', '{b2_name}');")
+        f"(SELECT id FROM player WHERE name IN "
+        f"('{imm_name}', '{imm2_name}', '{b1_name}', '{b2_name}', '{dummy_name}'));")
+    sql(f"DELETE FROM player WHERE name IN "
+        f"('{imm_name}', '{imm2_name}', '{b1_name}', '{b2_name}', '{dummy_name}');")
     sql(f"DELETE FROM room WHERE vnum={ROOM};")
     sql(f"DELETE FROM obj WHERE vnum IN ({COMPONENT}, {SYMBOL});")
