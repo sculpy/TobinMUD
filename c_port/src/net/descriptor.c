@@ -188,6 +188,7 @@ bool descriptor_in_editor(const descriptor_t *d) {
         || (d->state >= CONN_BALANCE_MENU && d->state <= CONN_BALANCE_QUIT_CONFIRM)
         || (d->state >= CONN_EDACCOUNT_MENU && d->state <= CONN_EDACCOUNT_PASSWORD)
         || (d->state >= CONN_EDSOCIAL_LIST && d->state <= CONN_EDSOCIAL_DELETE_CONFIRM)
+        || (d->state >= CONN_TRIGEDIT_LIST && d->state <= CONN_TRIGEDIT_SCRIPT)
         || d->page_len > 0; /* mid-pager -- same "no interruptions" treatment */
 }
 
@@ -2008,6 +2009,118 @@ void descriptor_edsocial_begin(descriptor_t *d, const char *name) {
     } else {
         show_edsocial_list(d);
     }
+}
+
+/* ---- Menu-driven trigger manager (edit trigger), CONN_TRIGEDIT_* ------ *
+ * See descriptor.h's CONN_TRIGEDIT_* enum comment for the overall shape. */
+
+static const char *trigedit_valid_types(const char *target_type) {
+    if (strcasecmp(target_type, "room") == 0)
+        return "enter, random";
+    if (strcasecmp(target_type, "mob") == 0)
+        return "greet, speech, death, random";
+    return "get, wear"; /* obj */
+}
+
+static bool trigedit_type_valid(const char *target_type, const char *trigger_type) {
+    if (strcasecmp(target_type, "room") == 0)
+        return strcasecmp(trigger_type, "enter") == 0 || strcasecmp(trigger_type, "random") == 0;
+    if (strcasecmp(target_type, "mob") == 0)
+        return strcasecmp(trigger_type, "greet") == 0 || strcasecmp(trigger_type, "speech") == 0
+              || strcasecmp(trigger_type, "death") == 0 || strcasecmp(trigger_type, "random") == 0;
+    return strcasecmp(trigger_type, "get") == 0 || strcasecmp(trigger_type, "wear") == 0;
+}
+
+static void show_trigedit_list(descriptor_t *d) {
+    trigger_t trigs[32];
+    int n = trigger_repo_list_for(d->trigedit_target_type, d->trigedit_target_vnum, trigs, 32);
+
+    char out[3072];
+    size_t len = (size_t)snprintf(out, sizeof(out),
+        "\r\n<c>=== Triggers on %s %d ===<z>\r\n",
+        d->trigedit_target_type, d->trigedit_target_vnum);
+    if (n == 0 && len < sizeof(out))
+        len += (size_t)snprintf(out + len, sizeof(out) - len, "  (none yet)\r\n");
+    for (int i = 0; i < n && len < sizeof(out); i++) {
+        char suffix[TRIGGER_MATCH_LEN + 24] = "";
+        if (trigs[i].match_text[0])
+            snprintf(suffix, sizeof(suffix), " match=\"%s\"", trigs[i].match_text);
+        else if (strcasecmp(trigs[i].trigger_type, "random") == 0)
+            snprintf(suffix, sizeof(suffix), " chance=%d%%", trigs[i].chance_pct);
+        len += (size_t)snprintf(out + len, sizeof(out) - len,
+            "  %2d) %-10s%s [id %ld]\r\n", i + 1, trigs[i].trigger_type, suffix, trigs[i].id);
+    }
+    if (len < sizeof(out))
+        snprintf(out + len, sizeof(out) - len,
+            "\r\n  A) Add a new trigger    blank) quit\r\ntrigedit> ");
+    descriptor_send(d, out);
+    d->state = CONN_TRIGEDIT_LIST;
+}
+
+static void show_trigedit_item(descriptor_t *d) {
+    trigger_t t;
+    if (!trigger_repo_get(d->trig_edit_id, &t)) {
+        descriptor_send(d, "That trigger no longer exists.\r\n");
+        show_trigedit_list(d);
+        return;
+    }
+    char out[TRIGGER_MATCH_LEN + 320];
+    snprintf(out, sizeof(out),
+        "\r\n<c>Editing trigger #%ld:<z> %s on %s %d\r\n\r\n"
+        "   1) Match text/keyword: %s\r\n"
+        "   2) Chance percent:     %d\r\n"
+        "   3) Edit script\r\n"
+        "   D) Delete this trigger\r\n\r\n"
+        "   blank) back to list\r\ntrigedit-%ld> ",
+        t.id, t.trigger_type, t.target_type, t.target_vnum,
+        t.match_text[0] ? t.match_text : "(none)",
+        t.chance_pct, t.id);
+    descriptor_send(d, out);
+    d->state = CONN_TRIGEDIT_ITEM;
+}
+
+/* Arms the shared line editor for a trigger's script body -- either a
+ * brand-new trigger (d->trig_edit_id == 0, `existing` NULL) or re-editing
+ * an existing one's script (d->trig_edit_id > 0, `existing` its current
+ * script text, shown below the banner same as cmd_hedit.c's own existing-
+ * topic convention). Caller has already populated d->trig_target_type/
+ * vnum/trigger_type/match_text/chance_pct. */
+static void trigedit_arm_script_editor(descriptor_t *d, const char *existing) {
+    if (existing) {
+        snprintf(d->edit_buf, sizeof(d->edit_buf), "%s", existing);
+        d->edit_len = (int)strlen(d->edit_buf);
+    } else {
+        d->edit_buf[0] = '\0';
+        d->edit_len = 0;
+    }
+    d->edit_kind = EDIT_TRIGGER;
+
+    char head[896];
+    snprintf(head, sizeof(head),
+        "\r\n-- Writing trigger: %s %d %s%s%s%s --\r\n"
+        "Type the script, one command per line. Actions: echo/echoroom/emote/say/"
+        "teleport/give/damage/log/wait. Variables: set/unset/eval/global, %%self%%/"
+        "%%actor%%/%%arg%%/%%time%%/%%random.N%%. Control flow: if <expr>/elseif/else/"
+        "end, while <expr>/done, switch <val>/case/default/done, break. Expr operators: "
+        "== != < > <= >= && || !.\r\n"
+        "/s saves, /a aborts, /b blanks, /f reflows to width.\r\n",
+        d->trig_target_type, d->trig_target_vnum, d->trig_trigger_type,
+        d->trig_match_text[0] ? " keyword=" : "", d->trig_match_text,
+        existing ? " (existing shown below)" : "");
+    descriptor_send(d, head);
+    if (existing && existing[0]) {
+        descriptor_send(d, existing);
+        if (existing[strlen(existing) - 1] != '\n')
+            descriptor_send(d, "\r\n");
+    }
+    descriptor_send(d, "] ");
+    d->state = CONN_TRIGEDIT_SCRIPT;
+}
+
+void descriptor_trigedit_begin(descriptor_t *d, const char *target_type, int target_vnum) {
+    snprintf(d->trigedit_target_type, sizeof(d->trigedit_target_type), "%s", target_type);
+    d->trigedit_target_vnum = target_vnum;
+    show_trigedit_list(d);
 }
 
 static bool handle_line(descriptor_t *d, const char *line) {
@@ -4271,6 +4384,219 @@ static bool handle_line(descriptor_t *d, const char *line) {
             return true;
         }
 
+        case CONN_TRIGEDIT_LIST: {
+            if (!line[0]) {
+                d->state = CONN_PLAYING;
+                descriptor_send(d, "Leaving the trigger editor.\r\n");
+                descriptor_editor_exit_notice(d);
+                return true;
+            }
+            if (strcasecmp(line, "a") == 0) {
+                char msg[160];
+                snprintf(msg, sizeof(msg),
+                    "\r\nTrigger types for %s: %s\r\nEnter type (blank to cancel): ",
+                    d->trigedit_target_type, trigedit_valid_types(d->trigedit_target_type));
+                descriptor_send(d, msg);
+                d->state = CONN_TRIGEDIT_NEW_TYPE;
+                return true;
+            }
+            char *end;
+            long idx = strtol(line, &end, 10);
+            if (end != line && *end == '\0' && idx >= 1) {
+                trigger_t trigs[32];
+                int n = trigger_repo_list_for(d->trigedit_target_type, d->trigedit_target_vnum, trigs, 32);
+                if (idx <= n) {
+                    d->trig_edit_id = trigs[idx - 1].id;
+                    show_trigedit_item(d);
+                    return true;
+                }
+            }
+            descriptor_send(d, "Pick a trigger number, A to add, or blank to quit.\r\n");
+            show_trigedit_list(d);
+            return true;
+        }
+
+        case CONN_TRIGEDIT_ITEM: {
+            if (!line[0]) {
+                show_trigedit_list(d);
+                return true;
+            }
+            char c = (char)toupper((unsigned char)line[0]);
+            if (line[1] == '\0' && c == '1') {
+                trigger_t t;
+                if (!trigger_repo_get(d->trig_edit_id, &t)) {
+                    descriptor_send(d, "That trigger no longer exists.\r\n");
+                    show_trigedit_list(d);
+                    return true;
+                }
+                char msg[TRIGGER_MATCH_LEN + 96];
+                snprintf(msg, sizeof(msg),
+                    "\r\nCurrent: %s\r\nEnter new match text (blank to cancel): ",
+                    t.match_text[0] ? t.match_text : "(none)");
+                descriptor_send(d, msg);
+                d->state = CONN_TRIGEDIT_MATCH;
+                return true;
+            }
+            if (line[1] == '\0' && c == '2') {
+                trigger_t t;
+                if (!trigger_repo_get(d->trig_edit_id, &t)) {
+                    descriptor_send(d, "That trigger no longer exists.\r\n");
+                    show_trigedit_list(d);
+                    return true;
+                }
+                char msg[96];
+                snprintf(msg, sizeof(msg),
+                    "\r\nCurrent: %d%%\r\nEnter new chance percent, 1-100 (blank to cancel): ",
+                    t.chance_pct);
+                descriptor_send(d, msg);
+                d->state = CONN_TRIGEDIT_CHANCE;
+                return true;
+            }
+            if (line[1] == '\0' && c == '3') {
+                trigger_t t;
+                if (!trigger_repo_get(d->trig_edit_id, &t)) {
+                    descriptor_send(d, "That trigger no longer exists.\r\n");
+                    show_trigedit_list(d);
+                    return true;
+                }
+                snprintf(d->trig_target_type, sizeof(d->trig_target_type), "%s", t.target_type);
+                d->trig_target_vnum = t.target_vnum;
+                snprintf(d->trig_trigger_type, sizeof(d->trig_trigger_type), "%s", t.trigger_type);
+                snprintf(d->trig_match_text, sizeof(d->trig_match_text), "%s", t.match_text);
+                d->trig_chance_pct = t.chance_pct;
+                d->trig_edit_id = t.id; /* > 0 -- save handler updates, not inserts */
+                trigedit_arm_script_editor(d, t.script);
+                return true;
+            }
+            if (line[1] == '\0' && c == 'D') {
+                char msg[64];
+                snprintf(msg, sizeof(msg), "\r\nReally delete trigger #%ld? (yes/no): ", d->trig_edit_id);
+                descriptor_send(d, msg);
+                d->state = CONN_TRIGEDIT_DELETE_CONFIRM;
+                return true;
+            }
+            descriptor_send(d, "Pick 1, 2, 3, D, or blank to return.\r\n");
+            show_trigedit_item(d);
+            return true;
+        }
+
+        case CONN_TRIGEDIT_MATCH: {
+            if (line[0])
+                trigger_repo_update_match(d->trig_edit_id, line);
+            show_trigedit_item(d);
+            return true;
+        }
+
+        case CONN_TRIGEDIT_CHANCE: {
+            if (line[0]) {
+                char *end;
+                long pct = strtol(line, &end, 10);
+                if (end != line && *end == '\0' && pct >= 1 && pct <= 100)
+                    trigger_repo_update_chance(d->trig_edit_id, (int)pct);
+                else
+                    descriptor_send(d, "Chance percent must be a number from 1 to 100.\r\n");
+            }
+            show_trigedit_item(d);
+            return true;
+        }
+
+        case CONN_TRIGEDIT_DELETE_CONFIRM: {
+            if (strcasecmp(line, "yes") == 0) {
+                if (trigger_repo_delete(d->trig_edit_id))
+                    descriptor_send(d, "Trigger deleted.\r\n");
+                else
+                    descriptor_send(d, "Delete failed -- it may already be gone.\r\n");
+                show_trigedit_list(d);
+            } else {
+                descriptor_send(d, "Cancelled.\r\n");
+                show_trigedit_item(d);
+            }
+            return true;
+        }
+
+        case CONN_TRIGEDIT_NEW_TYPE: {
+            if (!line[0]) {
+                descriptor_send(d, "Cancelled.\r\n");
+                show_trigedit_list(d);
+                return true;
+            }
+            char type[16];
+            snprintf(type, sizeof(type), "%.15s", line);
+            for (char *p = type; *p; p++)
+                *p = (char)tolower((unsigned char)*p);
+            if (!trigedit_type_valid(d->trigedit_target_type, type)) {
+                char msg[160];
+                snprintf(msg, sizeof(msg), "Not a valid type for %s. Valid: %s\r\n",
+                         d->trigedit_target_type, trigedit_valid_types(d->trigedit_target_type));
+                descriptor_send(d, msg);
+                show_trigedit_list(d);
+                return true;
+            }
+            snprintf(d->trig_target_type, sizeof(d->trig_target_type), "%s", d->trigedit_target_type);
+            d->trig_target_vnum = d->trigedit_target_vnum;
+            snprintf(d->trig_trigger_type, sizeof(d->trig_trigger_type), "%s", type);
+            d->trig_match_text[0] = '\0';
+            d->trig_chance_pct = 25; /* default, matches the old TRIGGER_DEFAULT_CHANCE_PCT */
+            d->trig_edit_id = 0;     /* 0 -- save handler inserts a new row */
+
+            if (strcasecmp(type, "speech") == 0) {
+                descriptor_send(d, "\r\nEnter the speech keyword to match (required): ");
+                d->state = CONN_TRIGEDIT_NEW_MATCH;
+            } else if (strcasecmp(type, "random") == 0) {
+                descriptor_send(d, "\r\nEnter the percent chance per tick, 1-100 (blank for 25): ");
+                d->state = CONN_TRIGEDIT_NEW_CHANCE;
+            } else {
+                trigedit_arm_script_editor(d, NULL);
+            }
+            return true;
+        }
+
+        case CONN_TRIGEDIT_NEW_MATCH: {
+            if (!line[0]) {
+                descriptor_send(d, "A speech trigger needs a keyword. Cancelled.\r\n");
+                show_trigedit_list(d);
+                return true;
+            }
+            snprintf(d->trig_match_text, sizeof(d->trig_match_text), "%s", line);
+            trigedit_arm_script_editor(d, NULL);
+            return true;
+        }
+
+        case CONN_TRIGEDIT_NEW_CHANCE: {
+            if (line[0]) {
+                char *end;
+                long pct = strtol(line, &end, 10);
+                if (end == line || *end != '\0' || pct < 1 || pct > 100) {
+                    descriptor_send(d, "Chance percent must be a number from 1 to 100. Cancelled.\r\n");
+                    show_trigedit_list(d);
+                    return true;
+                }
+                d->trig_chance_pct = (int)pct;
+            }
+            trigedit_arm_script_editor(d, NULL);
+            return true;
+        }
+
+        case CONN_TRIGEDIT_SCRIPT: {
+            editor_action_t act = editor_feed(d, line);
+            if (act == EDITOR_SAVE) {
+                const char *who = d->character ? d->character->base.name : "";
+                bool ok = d->trig_edit_id > 0
+                    ? trigger_repo_update_script(d->trig_edit_id, d->edit_buf)
+                    : trigger_repo_add(who, d->trig_target_type, d->trig_target_vnum,
+                                      d->trig_trigger_type, d->trig_match_text,
+                                      d->trig_chance_pct, d->edit_buf);
+                descriptor_send(d, ok ? "Trigger saved.\r\n" : "Saving the trigger failed.\r\n");
+                d->edit_kind = EDIT_NONE;
+                show_trigedit_list(d);
+            } else if (act == EDITOR_ABORT) {
+                d->edit_kind = EDIT_NONE;
+                descriptor_send(d, "Edit aborted -- nothing changed.\r\n");
+                show_trigedit_list(d);
+            }
+            return true;
+        }
+
         case CONN_PLAYING: {
             /* Output pager (news): while a page is pending, a line advances
              * (ENTER) or stops (Q) instead of running a command. */
@@ -4307,14 +4633,6 @@ static bool handle_line(descriptor_t *d, const char *line) {
                             descriptor_send(d, msg);
                         } else {
                             descriptor_send(d, "Saving the rule failed.\r\n");
-                        }
-                    } else if (d->edit_kind == EDIT_TRIGGER) {
-                        if (trigger_repo_add(who, d->trig_target_type, d->trig_target_vnum,
-                                             d->trig_trigger_type, d->trig_match_text,
-                                             d->trig_chance_pct, d->edit_buf)) {
-                            descriptor_send(d, "Trigger saved.\r\n");
-                        } else {
-                            descriptor_send(d, "Saving the trigger failed.\r\n");
                         }
                     } else {
                         char final_body[HELP_BODY_MAX + sizeof(d->edit_related) + 16];

@@ -51,6 +51,23 @@ int trigger_repo_list_for(const char *target_type, int target_vnum,
  * exists or on DB error. Backs `edit trigger delete <id>`. */
 bool trigger_repo_delete(long id);
 
+/* Menu-driven `edit trigger` (2026-07-25 redesign -- user: "edit trigger
+ * <room|mob|obj> vnum should go into a menu driven editor ... edit
+ * trigger list <vnum> should display all three types"). Fetches one
+ * trigger row by id for the item-detail view; returns false if no such
+ * row exists. */
+bool trigger_repo_get(long id, trigger_t *out);
+
+/* In-place field updates for the item-detail menu -- each commits
+ * immediately (same "no working copy" convention `edit social` already
+ * uses for its per-field edits), unlike `script`, which still goes
+ * through the shared line editor's own save step. `match_text` may be
+ * NULL/empty to clear it (stored as SQL NULL, matching trigger_repo_add()).
+ * All three return false if no such trigger id exists or on DB error. */
+bool trigger_repo_update_script(long id, const char *script);
+bool trigger_repo_update_match(long id, const char *match_text);
+bool trigger_repo_update_chance(long id, int chance_pct);
+
 /* Loads up to `max` DISTINCT target_vnum values that have at least one
  * trigger_type='random' row for `target_type`. Unlike trigger_repo_load_for()
  * this IS meant as a hot-path gate: trigger_random_tick() (trigger.c) calls

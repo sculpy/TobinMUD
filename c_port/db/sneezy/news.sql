@@ -308,3 +308,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Grimmer, Wittier Way to Go',
  'Dying now hits a little differently: the word DEAD in your death message stands out in color, and the world-wide announcement of your demise has a handful of new, cheekier ways to break the news to everyone else. Sorry in advance.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Score Has a New Look',
+ '`score` now lays everything out in a tidy grid instead of one long column -- your level, race, class, gold, HP, and stats all at a glance. Your age now genuinely climbs over time instead of just tracking how recently you were born, and casters see their class''s own resource named properly (Piety for the faithful, Lifeforce for druids, Mana for the rest).')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -87,6 +87,22 @@ def check(condition, message):
     print(f">>> OK: {message}")
 
 
+def author_trigger(sock, target_type, vnum, trigger_type, match_or_chance, script_lines):
+    """Authors a trigger via the menu-driven `edit trigger` flow (2026-07-25
+    redesign, replacing the old one-shot `edit trigger <type> <vnum>
+    <trigger_type> [match|chance]` command)."""
+    out = cmd(sock, f"edit trigger {target_type} {vnum}")
+    out += cmd(sock, "a")
+    out += cmd(sock, trigger_type)
+    if trigger_type == "speech" or (trigger_type == "random" and match_or_chance is not None):
+        out += cmd(sock, str(match_or_chance))
+    for line in script_lines:
+        out += cmd(sock, line)
+    out += cmd(sock, "/s")
+    cmd(sock, "")  # leave the trigedit menu
+    return out
+
+
 def sql(stmt):
     subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
 
@@ -148,9 +164,6 @@ vendor_kw = f"vendor{_suffix}"
 make_mob(MOB_VENDOR, vendor_kw)
 check("You conjure" in cmd(s, f"load mob {MOB_VENDOR}"), "the vendor mob is loaded")
 
-out = cmd(s, f"edit trigger mob {MOB_VENDOR} random 100")
-check("Writing trigger" in out, "edit trigger mob random opens the script editor")
-cmd(s, "say Wolf nipple chips!")
 # A LONG wait (not the 1s a real vendor script would actually use) is
 # deliberate: the live server's own background pulse scheduler resolves
 # `wait`-paused scripts on its own real ~1s cadence too (trigger_pending_tick,
@@ -158,9 +171,10 @@ cmd(s, "say Wolf nipple chips!")
 # "hasn't fired yet" check even runs (a real race, caught live: the recv
 # window below is itself up to ~1s). A wait this long can only resolve via
 # the explicit aitick force below, making the test deterministic.
-cmd(s, "wait 3600")
-cmd(s, "say Otters' noses!")
-check("Trigger saved" in cmd(s, "/s"), "the vendor's wait/say script saves")
+out = author_trigger(s, "mob", MOB_VENDOR, "random", 100,
+                     ["say Wolf nipple chips!", "wait 3600", "say Otters' noses!"])
+check("Writing trigger" in out, "edit trigger mob random opens the script editor")
+check("Trigger saved" in out, "the vendor's wait/say script saves")
 
 out = cmd(s, "aitick 1")
 check(f"A {vendor_kw} says, 'Wolf nipple chips!'" in out,
@@ -175,7 +189,7 @@ check("Otters' noses" in out,
 # --- teardown: same precedent as smoke_test_trigger.py -- a 100%-chance
 # random trigger left attached is permanent ambient noise for every test
 # that runs after this one. ---
-listing = cmd(s, f"edit trigger list mob {MOB_VENDOR}")
+listing = cmd(s, f"edit trigger list {MOB_VENDOR}")
 for trig_id in re.findall(r"#(\d+)", listing):
     cmd(s, f"edit trigger delete {trig_id}")
 

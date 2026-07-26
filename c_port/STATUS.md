@@ -1,6 +1,71 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-25 — Session 63 (home): **DG Scripts-style trigger
+Last updated: 2026-07-25 — Session 64 (home): **Score screen revamp
+(wireframe layout, class-aware resource label) and `edit trigger` redesign
+into a full menu-driven manager, both same-session follow-ups after the
+DG Scripts trigger language revamp below.**
+- **Score revamp**: user pasted a wireframe directly ("First a revamped
+  score ... Colorize tastefully") -- new compact grid (Name/Level/
+  Experience, Race/Class/Gold, HP/resource-pool/Move, six stats two-per-
+  line, AC/Hand/Sex, Align/Hunger/Thirst, Age, Position), replacing the
+  old single-column layout. Age is now real elapsed time converted
+  through gametime.h's established mud-year ratio (starts at 17, +1 year
+  per 336 mud-days). The HP-row resource-pool field started as a static
+  "Mana/Piety: 0" per the wireframe, then two follow-up requests refined
+  it: "should either display mana or piety according to class ... maybe
+  we should call druid mana Lifeforce (LF)" then "default to mana in non
+  magic classes" -- `resource_pool_label()` now shows Piety (Cleric),
+  Lifeforce (LF) (Druid), or Mana (everyone else); the underlying VALUE
+  stays 0 regardless (no mana/piety/lifeforce pool exists in Tobin at
+  all, a disclosed simplification). Colorization ended up deliberately
+  minimal -- an earlier draft also tinted labels and HP/Move/Hunger/
+  Thirst by state, but colorstring.c's `<tag>` markup becomes real ANSI
+  escape bytes in the wire output, and most smoke tests parse `score`
+  with plain substring/regex checks that never call `color off` -- an
+  escape sitting between a label and its value broke even `"Level: 1" in
+  out`. Reverted to just Level's existing immortal-rank tint (always
+  empty for the common mortal case, so it never breaks a plain-text
+  check). Updated every test asserting score's old field spacing/labels
+  (~20 files) -- caught and fixed 4 unrelated stale casualties of the
+  2026-07-22 load-to-inventory change along the way (armor/drink/vitals/
+  water_drowning_flight tests never got the `drop` call a different-
+  character `get` needs), and undid two lines mistakenly touched during
+  that pass that actually belonged to the unrelated attribute-allocation
+  screen, not `score` (smoke_test_accounts.py/smoke_test_trade_attrs.py).
+- **`edit trigger` menu-driven redesign**: user: "edit trigger <room|mob|
+  obj> vnum should go into a menu driven editor where you choose type
+  with an option to delete the trigger inside the menu -- edit trigger
+  list <vnum> should display all three types -- edit trigger delete
+  <id|vnum> should work as is." Replaces the old one-shot `edit trigger
+  <type> <vnum> <trigger_type> [match|chance]` entirely with a new
+  CONN_TRIGEDIT_* menu (descriptor.c), mirroring edsocial's "commits
+  immediately, no working copy" shape: a list view (numbered existing
+  triggers + "A" to add), a detail view per trigger (match text/chance
+  percent edit immediately; "3" opens the script in the shared line
+  editor; "D" deletes with a yes/no confirm). New `trigger_repo_get()`/
+  `_update_script()`/`_update_match()`/`_update_chance()`. `edit trigger
+  list <vnum>` (no target type) now checks room AND mob AND obj at that
+  vnum and merges the results; `edit trigger delete <id>` unchanged.
+  **Real bug found live** (user reproduced it immediately after this
+  shipped: typing a script line like "wait 20" got misparsed as an
+  answer to an unrelated chance-percent prompt and the whole trigger got
+  silently cancelled) -- root cause: the shared line editor's active-
+  editing interception only lives inside `case CONN_PLAYING`, but the
+  menu never sets `d->state` back to CONN_PLAYING before arming it, so
+  typed lines kept re-entering whatever CONN_TRIGEDIT_* state was still
+  set. Fixed with a dedicated `CONN_TRIGEDIT_SCRIPT` state that owns
+  `editor_feed()` directly in its own switch case, the same fix shape
+  CONN_REDIT_DESC already uses for exactly this reason (room
+  descriptions, reached from CONN_REDIT_MENU). New `tests/
+  smoke_test_trigedit_menu.py` (24 checks covering the menu mechanics
+  themselves) plus conversion of all 3 pre-existing trigger-authoring
+  test files (smoke_test_trigger.py/_wait.py/_dg.py) from the old one-
+  shot syntax to a shared `author_trigger()` helper -- all confirmed
+  passing after the fix.
+- Both features deployed to production, zero build warnings, `help
+  trigger`/docs/TRIGGER_SCRIPTING.md updated for the new command shape.
+
+Previous update: 2026-07-25 — Session 63 (home): **DG Scripts-style trigger
 language revamp (user: "use the DG_* source files to revamp triggers" --
 full language port). Also reconciled a stale local git clone (9 commits
 behind after other sessions' work landed elsewhere) and fixed two

@@ -207,6 +207,53 @@ typedef enum {
     CONN_OEDIT_SPEC_PROC,
     CONN_OEDIT_MAX_EXIST,
     CONN_OEDIT_QUIT_CONFIRM,
+    /* Menu-driven trigger manager (`edit trigger <room|mob|obj> <vnum>`,
+     * 2026-07-25 redesign -- user: "should go into a menu driven editor
+     * where you choose type with an option to delete the trigger inside
+     * the menu"). Replaces the old one-shot `edit trigger <target_type>
+     * <vnum> <trigger_type> [match_text|chance]` command line entirely --
+     * every field is now reachable from inside the menu instead of having
+     * to be front-loaded as arguments. Same "commits immediately, no
+     * working copy" shape as CONN_EDSOCIAL_* (a trigger row is small and
+     * fully independent, nothing worth buffering) EXCEPT the script body
+     * itself, which still goes through the shared line editor (edit_kind
+     * EDIT_TRIGGER) -- trig_edit_id (0 = creating new, >0 = updating that
+     * existing row) tells its save handler which to do.
+     * CONN_TRIGEDIT_LIST shows every trigger already on this target
+     * (trigedit_target_type/vnum) and accepts a list number (jump to its
+     * detail view), "A" (add a new one), or blank (quit). CONN_TRIGEDIT_
+     * ITEM is one trigger's detail view: match text, chance percent,
+     * "edit script" (opens the shared line editor), and delete.
+     * CONN_TRIGEDIT_NEW_TYPE/_NEW_MATCH/_NEW_CHANCE walk a new trigger's
+     * header fields (trigger_type, then match_text OR chance_pct
+     * depending on which that type actually uses) before landing in the
+     * same script editor. See descriptor_trigedit_begin() and the
+     * CONN_TRIGEDIT_* cases in descriptor.c. */
+    CONN_TRIGEDIT_LIST,
+    CONN_TRIGEDIT_ITEM,
+    CONN_TRIGEDIT_MATCH,
+    CONN_TRIGEDIT_CHANCE,
+    CONN_TRIGEDIT_DELETE_CONFIRM,
+    CONN_TRIGEDIT_NEW_TYPE,
+    CONN_TRIGEDIT_NEW_MATCH,
+    CONN_TRIGEDIT_NEW_CHANCE,
+    /* The script body itself, reached from CONN_TRIGEDIT_ITEM (option 3)
+     * or after a new trigger's header fields are filled in. Unlike every
+     * other CONN_TRIGEDIT_* state, this one owns editor_feed() directly
+     * in its own switch case (descriptor.c) rather than relying on the
+     * generic "if (d->edit_kind != EDIT_NONE)" interception inside
+     * CONN_PLAYING -- that generic path only ever fires when d->state IS
+     * CONN_PLAYING, which is true for every OTHER shared-line-editor use
+     * (hedit, addnews, the old one-shot edit-trigger flow) but NOT here,
+     * since the menu never leaves the CONN_TRIGEDIT_* range. Bug found
+     * live (2026-07-25, user reproduced it immediately after this
+     * redesign shipped): without its own case, a line typed into the
+     * script body (e.g. "wait 20") fell through to whatever
+     * CONN_TRIGEDIT_* state d->state still held (CONN_TRIGEDIT_NEW_CHANCE
+     * in the reported repro) and got misparsed there instead of reaching
+     * the editor at all. Same fix shape CONN_REDIT_DESC already uses for
+     * exactly this reason (room descriptions, reached from CONN_REDIT_MENU). */
+    CONN_TRIGEDIT_SCRIPT,
     CONN_PLAYING,
     CONN_CLOSED
 } conn_state_t;
@@ -334,15 +381,27 @@ typedef struct descriptor {
      * branch). Empty means no Related footer. */
     char edit_related[128];
 
-    /* EDIT_TRIGGER scratch (edit trigger <type> <vnum> <trigger_type>
-     * [match_text|chance]) -- the header fields are captured before
-     * dropping into the shared line editor for the script body itself
-     * (edit_buf, above), then all saved together on "/s". */
+    /* EDIT_TRIGGER scratch, shared by the CONN_TRIGEDIT_* menu (2026-07-25
+     * redesign) -- these header fields are captured before dropping into
+     * the shared line editor for the script body itself (edit_buf,
+     * above); the save handler uses trig_edit_id to decide whether to
+     * INSERT a new trigger row (0) or UPDATE an existing one's script
+     * (>0, see trigger_repo_update_script()). */
     char trig_target_type[8];
     int trig_target_vnum;
     char trig_trigger_type[16];
     char trig_match_text[TRIGGER_MATCH_LEN];
     int trig_chance_pct;
+    long trig_edit_id;
+
+    /* CONN_TRIGEDIT_LIST/_ITEM/etc. scratch -- which target the menu is
+     * open on (trigedit_target_type/vnum, set once at descriptor_
+     * trigedit_begin()) and which trigger's detail view is current
+     * (trig_edit_id, reused above -- same field, since the item view and
+     * the script editor's save-routing need the exact same "which row"
+     * value). */
+    char trigedit_target_type[8];
+    int trigedit_target_vnum;
 
     /* Output pager (the `news` command): long output is buffered here and
      * released one page (page_size lines) at a time. While page_len > 0 the
@@ -587,6 +646,13 @@ bool descriptor_edaccount_begin(descriptor_t *d, const char *name);
  * functions, no bool return; nothing here is a "no such X" failure case
  * the caller (cmd_edit.c) needs to report. */
 void descriptor_edsocial_begin(descriptor_t *d, const char *name);
+
+/* Opens the menu-driven trigger manager on `target_type`/`target_vnum`
+ * (`edit trigger <room|mob|obj> <vnum>`, 2026-07-25 redesign), entering
+ * CONN_TRIGEDIT_LIST. Always succeeds (an empty trigger list is a valid,
+ * normal state -- there's nothing to fail on). Caller (cmd_edtrigger.c)
+ * owns the level gate and the room-target zone_can_edit() check. */
+void descriptor_trigedit_begin(descriptor_t *d, const char *target_type, int target_vnum);
 
 /* Sends `msg` to every connected player in room `r` except `except` (may
  * be NULL to include everyone). Shared by movement, quit/link-drop, and

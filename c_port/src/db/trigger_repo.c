@@ -111,3 +111,60 @@ bool trigger_repo_delete(long id) {
     db_close(db);
     return ok;
 }
+
+bool trigger_repo_get(long id, trigger_t *out) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool found = false;
+    if (db_query(db, "select id, target_type, target_vnum, trigger_type, match_text, "
+                     "chance_pct, script from `trigger` where id=%i", (int)id))
+        found = fetch_rows(db, out, 1) == 1;
+
+    db_close(db);
+    return found;
+}
+
+bool trigger_repo_update_script(long id, const char *script) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool found = db_query(db, "select 1 from `trigger` where id=%i", (int)id) && db_fetch_row(db);
+    bool ok = found && db_query(db, "update `trigger` set script='%s' where id=%i",
+                                script ? script : "", (int)id);
+
+    db_close(db);
+    return ok;
+}
+
+bool trigger_repo_update_match(long id, const char *match_text) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool found = db_query(db, "select 1 from `trigger` where id=%i", (int)id) && db_fetch_row(db);
+    bool ok;
+    if (match_text && match_text[0])
+        ok = found && db_query(db, "update `trigger` set match_text='%s' where id=%i",
+                               match_text, (int)id);
+    else
+        ok = found && db_query(db, "update `trigger` set match_text=NULL where id=%i", (int)id);
+
+    db_close(db);
+    return ok;
+}
+
+bool trigger_repo_update_chance(long id, int chance_pct) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool found = db_query(db, "select 1 from `trigger` where id=%i", (int)id) && db_fetch_row(db);
+    bool ok = found && db_query(db, "update `trigger` set chance_pct=%i where id=%i",
+                                chance_pct, (int)id);
+
+    db_close(db);
+    return ok;
+}

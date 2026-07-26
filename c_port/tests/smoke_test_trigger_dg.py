@@ -98,6 +98,22 @@ def check(condition, message):
     print(f">>> OK: {message}")
 
 
+def author_trigger(sock, target_type, vnum, trigger_type, match_or_chance, script_lines):
+    """Authors a trigger via the menu-driven `edit trigger` flow (2026-07-25
+    redesign, replacing the old one-shot `edit trigger <type> <vnum>
+    <trigger_type> [match|chance]` command)."""
+    out = cmd(sock, f"edit trigger {target_type} {vnum}")
+    out += cmd(sock, "a")
+    out += cmd(sock, trigger_type)
+    if trigger_type == "speech" or (trigger_type == "random" and match_or_chance is not None):
+        out += cmd(sock, str(match_or_chance))
+    for line in script_lines:
+        out += cmd(sock, line)
+    out += cmd(sock, "/s")
+    cmd(sock, "")  # leave the trigedit menu
+    return out
+
+
 def sql(stmt):
     subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
 
@@ -178,11 +194,10 @@ try:
 
     # --- 1: if/else ---
     check("DG If Room" in cmd(s, f"goto {ROOM_IF}"), "immortal reaches the if-test room")
-    out = cmd(s, f"edit trigger room {ROOM_IF} random 100")
+    out = author_trigger(s, "room", ROOM_IF, "random", 100,
+                         ["set x 5", "if %x% > 3", "echoroom big", "else", "echoroom small", "end"])
     check("Writing trigger" in out, "edit trigger opens the script editor")
-    for line in ["set x 5", "if %x% > 3", "echoroom big", "else", "echoroom small", "end"]:
-        cmd(s, line)
-    check("Trigger saved" in cmd(s, "/s"), "the if/else trigger saves")
+    check("Trigger saved" in out, "the if/else trigger saves")
 
     out = cmd(sm, "look", 2.0)  # gives aitick's own random-tick a moment if needed
     cmd(s, "aitick 1")
@@ -194,11 +209,11 @@ try:
     check("DG While Room" in cmd(s, f"goto {ROOM_WHILE}"), "immortal reaches the while-test room")
     cmd(s, f"transfer {mort_name} {ROOM_WHILE}")
     recv_all(sm); recv_all(s)
-    out = cmd(s, f"edit trigger room {ROOM_WHILE} random 100")
+    out = author_trigger(s, "room", ROOM_WHILE, "random", 100,
+                         ["set i 0", "while %i% < 3", "eval i %i% + 1", "echoroom tick %i%",
+                          "done", "echoroom loopdone"])
     check("Writing trigger" in out, "edit trigger opens the script editor for the while test")
-    for line in ["set i 0", "while %i% < 3", "eval i %i% + 1", "echoroom tick %i%", "done", "echoroom loopdone"]:
-        cmd(s, line)
-    check("Trigger saved" in cmd(s, "/s"), "the while/eval trigger saves")
+    check("Trigger saved" in out, "the while/eval trigger saves")
 
     cmd(s, "aitick 1")
     out = cmd(sm, "", 1.5)
@@ -210,12 +225,11 @@ try:
     check("DG If Room" in cmd(s, f"goto {ROOM_IF}"), "immortal returns to load the switch mob")
     make_mob(MOB_SWITCH, f"switcher{_suffix}")
     check("You conjure" in cmd(s, f"load mob {MOB_SWITCH}"), "the switch-test mob is loaded")
-    out = cmd(s, f"edit trigger mob {MOB_SWITCH} random 100")
+    out = author_trigger(s, "mob", MOB_SWITCH, "random", 100,
+                         ["set color red", "switch %color%", "case red", "echoroom redcase", "break",
+                          "case blue", "echoroom bluecase", "done"])
     check("Writing trigger" in out, "edit trigger opens the script editor for the switch test")
-    for line in ["set color red", "switch %color%", "case red", "echoroom redcase", "break",
-                 "case blue", "echoroom bluecase", "done"]:
-        cmd(s, line)
-    check("Trigger saved" in cmd(s, "/s"), "the switch/break trigger saves")
+    check("Trigger saved" in out, "the switch/break trigger saves")
 
     check("DG If Room" in cmd(s, f"goto {ROOM_IF}"), "immortal is in the if-test room to transfer the walker")
     cmd(s, f"transfer {mort_name} {ROOM_IF}")
@@ -228,11 +242,10 @@ try:
     # --- 4: switch fallthrough (no break) ---
     make_mob(MOB_FALLTHROUGH, f"faller{_suffix}")
     check("You conjure" in cmd(s, f"load mob {MOB_FALLTHROUGH}"), "the fallthrough-test mob is loaded")
-    out = cmd(s, f"edit trigger mob {MOB_FALLTHROUGH} random 100")
+    out = author_trigger(s, "mob", MOB_FALLTHROUGH, "random", 100,
+                         ["set n 1", "switch %n%", "case 1", "echoroom one", "case 2", "echoroom two", "done"])
     check("Writing trigger" in out, "edit trigger opens the script editor for the fallthrough test")
-    for line in ["set n 1", "switch %n%", "case 1", "echoroom one", "case 2", "echoroom two", "done"]:
-        cmd(s, line)
-    check("Trigger saved" in cmd(s, "/s"), "the switch-fallthrough trigger saves")
+    check("Trigger saved" in out, "the switch-fallthrough trigger saves")
 
     cmd(s, "aitick 1")
     out = cmd(sm, "", 1.5)
@@ -242,11 +255,10 @@ try:
     # --- 5: %actor%/%self%/%arg% substitution ---
     make_mob(MOB_SPEECH, f"speaker{_suffix}")
     check("You conjure" in cmd(s, f"load mob {MOB_SPEECH}"), "the speech-test mob is loaded")
-    out = cmd(s, f"edit trigger mob {MOB_SPEECH} speech greetme")
+    out = author_trigger(s, "mob", MOB_SPEECH, "speech", "greetme",
+                         ["emote nods to %actor% and mutters about %self%, regarding \"%arg%\"."])
     check("Writing trigger" in out, "edit trigger opens the script editor for the speech test")
-    for line in ["emote nods to %actor% and mutters about %self%, regarding \"%arg%\"."]:
-        cmd(s, line)
-    check("Trigger saved" in cmd(s, "/s"), "the substitution trigger saves")
+    check("Trigger saved" in out, "the substitution trigger saves")
 
     out = cmd(sm, "say greetme")
     check(f"nods to {mort_name}" in out, "%actor% substitutes the speaker's display name")
@@ -258,16 +270,15 @@ try:
     check("You conjure" in cmd(s, f"load mob {MOB_GLOBAL_A}"), "the first global-test mob is loaded")
     check("You conjure" in cmd(s, f"load mob {MOB_GLOBAL_B}"), "the second global-test mob is loaded")
 
-    out = cmd(s, f"edit trigger mob {MOB_GLOBAL_A} speech setflag")
+    out = author_trigger(s, "mob", MOB_GLOBAL_A, "speech", "setflag", ["global shrine_seen yes"])
     check("Writing trigger" in out, "edit trigger opens the editor for the global-set mob")
-    cmd(s, "global shrine_seen yes")
-    check("Trigger saved" in cmd(s, "/s"), "the global-set trigger saves")
+    check("Trigger saved" in out, "the global-set trigger saves")
 
-    out = cmd(s, f"edit trigger mob {MOB_GLOBAL_B} speech checkflag")
+    out = author_trigger(s, "mob", MOB_GLOBAL_B, "speech", "checkflag",
+                         ["if %shrine_seen% == yes", "echo flag was set", "else",
+                          "echo flag missing", "end"])
     check("Writing trigger" in out, "edit trigger opens the editor for the global-read mob")
-    for line in ["if %shrine_seen% == yes", "echo flag was set", "else", "echo flag missing", "end"]:
-        cmd(s, line)
-    check("Trigger saved" in cmd(s, "/s"), "the global-read trigger saves")
+    check("Trigger saved" in out, "the global-read trigger saves")
 
     out = cmd(sm, "say checkflag")
     check("flag missing" in out, "the global var isn't set yet, so the reader mob sees its absence")
@@ -285,12 +296,11 @@ try:
     # No exits are wired for ROOM_WAIT, so a real "enter" trigger can't be
     # exercised by walking in -- attach as `random 100` instead (forced via
     # `aitick`, same precedent as smoke_test_trigger_wait.py's own wait test).
-    out = cmd(s, f"edit trigger room {ROOM_WAIT} random 100")
+    out = author_trigger(s, "room", ROOM_WAIT, "random", 100,
+                         ["set counter 1", "wait 1", "eval counter %counter% + 1",
+                          "echoroom Counter is now %counter%."])
     check("Writing trigger" in out, "edit trigger opens the editor for the wait test")
-    for line in ["set counter 1", "wait 1", "eval counter %counter% + 1",
-                 "echoroom Counter is now %counter%."]:
-        cmd(s, line)
-    check("Trigger saved" in cmd(s, "/s"), "the random-tick wait/eval trigger saves")
+    check("Trigger saved" in out, "the random-tick wait/eval trigger saves")
 
     cmd(s, "aitick 1")  # fires the random trigger, which immediately hits `wait`
     recv_all(sm, 0.5)   # nothing yet -- still paused

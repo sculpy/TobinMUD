@@ -4,10 +4,10 @@
 we want interaction with mobs objs and room via scripts"). The in-game-
 authorable alternative to SneezyMUD's hardcoded spec procs (see
 db/sneezy/trigger.sql's header comment) -- a builder attaches a trigger
-via `edit trigger <room|mob|obj> <vnum> <trigger_type> [match_text|chance]`
-then writes a short script (echo/echoroom/emote/teleport/give/damage/log,
-one action per line) in the same line editor `edit news`/`edit rules`
-already use.
+via the menu-driven `edit trigger <room|mob|obj> <vnum>` (2026-07-25
+redesign -- see author_trigger() below), then writes a short script
+(echo/echoroom/emote/teleport/give/damage/log, one action per line) in
+the same shared line editor `edit news`/`edit rules` already use.
 
   1. `edit trigger` is hidden below BUILD_MIN_LEVEL (the `edit` gate).
   2. Room `enter`: walking into a room fires its script.
@@ -98,6 +98,24 @@ def check(condition, message):
     print(f">>> OK: {message}")
 
 
+def author_trigger(sock, target_type, vnum, trigger_type, match_or_chance, script_lines):
+    """Authors a trigger via the menu-driven `edit trigger` flow (2026-07-25
+    redesign, replacing the old one-shot `edit trigger <type> <vnum>
+    <trigger_type> [match|chance]` command). Returns the concatenated
+    transcript of every response along the way, so existing call sites can
+    still check for "Writing trigger"/"Trigger saved" substrings in it."""
+    out = cmd(sock, f"edit trigger {target_type} {vnum}")
+    out += cmd(sock, "a")
+    out += cmd(sock, trigger_type)
+    if trigger_type == "speech" or (trigger_type == "random" and match_or_chance is not None):
+        out += cmd(sock, str(match_or_chance))
+    for line in script_lines:
+        out += cmd(sock, line)
+    out += cmd(sock, "/s")
+    cmd(sock, "")  # leave the trigedit menu
+    return out
+
+
 def sql(stmt):
     subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
 
@@ -164,7 +182,7 @@ mort_name = f"Trigmort{_suffix}"
 mort_pw = "trigmortpw123"
 sm = socket.create_connection((host, port), timeout=5)
 make_char(sm, mort_name, mort_pw)
-out = cmd(sm, f"edit trigger room {ROOM_A} enter")
+out = cmd(sm, f"edit trigger room {ROOM_A}")
 check("Command not found" in out, "edit trigger is hidden from a mortal")
 sm.close()
 
@@ -184,10 +202,9 @@ sql(f"INSERT INTO roomexit (vnum, direction, name, description, type, "
 check("Trigger Room A" in cmd(s, f"goto {ROOM_A}"), "goto lands in the SQL-bootstrapped sandbox room")
 
 # --- 2: room "enter" trigger ---
-out = cmd(s, f"edit trigger room {ROOM_B} enter")
+out = author_trigger(s, "room", ROOM_B, "enter", None, ["echo Welcome to the shrine."])
 check("Writing trigger" in out, "edit trigger opens the script editor")
-cmd(s, "echo Welcome to the shrine.")
-check("Trigger saved" in cmd(s, "/s"), "the room enter trigger saves")
+check("Trigger saved" in out, "the room enter trigger saves")
 
 mort2_name = f"Trigwalk{_suffix}"
 mort2_pw = "trigwalkpw123"
@@ -206,20 +223,19 @@ check("Welcome to the shrine." in out, "the room enter trigger fired for the wal
 make_mob(MOB_GREET, f"greeter{_suffix}")
 check("Trigger Room B" in cmd(s, f"goto {ROOM_B}"), "immortal goes to room B to load the greeter")
 check("You conjure" in cmd(s, f"load mob {MOB_GREET}"), "the greeter mob is loaded")
-out = cmd(s, f"edit trigger mob {MOB_GREET} greet")
+out = author_trigger(s, "mob", MOB_GREET, "greet", None, ["emote nods at the newcomer."])
 check("Writing trigger" in out, "edit trigger mob greet opens the script editor")
-cmd(s, "emote nods at the newcomer.")
-check("Trigger saved" in cmd(s, "/s"), "the mob greet trigger saves")
+check("Trigger saved" in out, "the mob greet trigger saves")
 
 cmd(sw, "west")
 out = cmd(sw, "east")
 check("nods at the newcomer." in out, "the mob greet trigger fired for the walker")
 
 # --- 4: mob "speech" trigger ---
-out = cmd(s, f"edit trigger mob {MOB_GREET} speech password")
+out = author_trigger(s, "mob", MOB_GREET, "speech", "password",
+                     ["echo The greeter winks knowingly."])
 check("Writing trigger" in out, "edit trigger mob speech opens the script editor")
-cmd(s, "echo The greeter winks knowingly.")
-check("Trigger saved" in cmd(s, "/s"), "the mob speech trigger saves")
+check("Trigger saved" in out, "the mob speech trigger saves")
 
 out = cmd(sw, "say password")
 check("The greeter winks knowingly." in out, "the mob speech trigger fired on the matching keyword")
@@ -229,10 +245,10 @@ check("winks knowingly" not in out, "the mob speech trigger does NOT fire on a n
 # --- 5: mob "death" trigger ---
 make_mob(MOB_DEATH, f"victimmob{_suffix}")
 check("You conjure" in cmd(s, f"load mob {MOB_DEATH}"), "the death-trigger mob is loaded")
-out = cmd(s, f"edit trigger mob {MOB_DEATH} death")
+out = author_trigger(s, "mob", MOB_DEATH, "death", None,
+                     ["echoroom The crowd cheers as the beast falls!"])
 check("Writing trigger" in out, "edit trigger mob death opens the script editor")
-cmd(s, "echoroom The crowd cheers as the beast falls!")
-check("Trigger saved" in cmd(s, "/s"), "the mob death trigger saves")
+check("Trigger saved" in out, "the mob death trigger saves")
 
 out = cmd(s, f"kill victimmob{_suffix}")
 witness = recv_all(sw, timeout=1.0)
@@ -242,19 +258,18 @@ check("The crowd cheers as the beast falls!" in (out + witness),
 # --- 6: mob "random" trigger, forced via aitick ---
 make_mob(MOB_RANDOM, f"ambientmob{_suffix}")
 check("You conjure" in cmd(s, f"load mob {MOB_RANDOM}"), "the random-trigger mob is loaded")
-out = cmd(s, f"edit trigger mob {MOB_RANDOM} random 100")
+out = author_trigger(s, "mob", MOB_RANDOM, "random", 100,
+                     ["echoroom The ambient mob mutters to itself."])
 check("Writing trigger" in out, "edit trigger mob random opens the script editor")
-cmd(s, "echoroom The ambient mob mutters to itself.")
-check("Trigger saved" in cmd(s, "/s"), "the mob random trigger saves")
+check("Trigger saved" in out, "the mob random trigger saves")
 
 out = cmd(s, "aitick 1")
 check("The ambient mob mutters to itself." in out, "the mob random trigger fired via aitick (100% chance)")
 
 # --- 7: room "random" trigger, forced via aitick ---
-out = cmd(s, f"edit trigger room {ROOM_B} random 100")
+out = author_trigger(s, "room", ROOM_B, "random", 100, ["echoroom The floor hums faintly."])
 check("Writing trigger" in out, "edit trigger room random opens the script editor")
-cmd(s, "echoroom The floor hums faintly.")
-check("Trigger saved" in cmd(s, "/s"), "the room random trigger saves")
+check("Trigger saved" in out, "the room random trigger saves")
 
 out = cmd(s, "aitick 1")
 check("The floor hums faintly." in out, "the room random trigger fired via aitick (100% chance)")
@@ -266,11 +281,10 @@ check("You conjure" in cmd(s, f"load obj {OBJ_GET}"), "the sticker-bush object i
 # inventory (2026-07-22), not the room floor -- drop it explicitly so
 # `sw` (a different character) can pick it up.
 cmd(s, f"drop stickerbush{_suffix}")
-out = cmd(s, f"edit trigger obj {OBJ_GET} get")
+out = author_trigger(s, "obj", OBJ_GET, "get", None,
+                     ["echo Ouch! The thorns prick your fingers.", "damage 3"])
 check("Writing trigger" in out, "edit trigger obj get opens the script editor")
-cmd(s, "echo Ouch! The thorns prick your fingers.")
-cmd(s, "damage 3")
-check("Trigger saved" in cmd(s, "/s"), "the obj get trigger saves")
+check("Trigger saved" in out, "the obj get trigger saves")
 
 hp_before_m = re.search(r"HP:\s*(-?\d+) \((\d+) Max", cmd(sw, "score"))
 out = cmd(sw, f"get stickerbush{_suffix}")
@@ -283,17 +297,16 @@ check(int(hp_after_m.group(1)) == int(hp_before_m.group(1)) - 3,
 make_obj(OBJ_WEAR, f"warmcloak{_suffix}", WEAR_TAKE | WEAR_BODY)
 check("You conjure" in cmd(s, f"load obj {OBJ_WEAR}"), "the warm cloak object is loaded")
 cmd(s, f"drop warmcloak{_suffix}")
-out = cmd(s, f"edit trigger obj {OBJ_WEAR} wear")
+out = author_trigger(s, "obj", OBJ_WEAR, "wear", None, ["echo You feel a strange warmth."])
 check("Writing trigger" in out, "edit trigger obj wear opens the script editor")
-cmd(s, "echo You feel a strange warmth.")
-check("Trigger saved" in cmd(s, "/s"), "the obj wear trigger saves")
+check("Trigger saved" in out, "the obj wear trigger saves")
 
 cmd(sw, f"get warmcloak{_suffix}")
 out = cmd(sw, f"wear warmcloak{_suffix}")
 check("You feel a strange warmth." in out, "the obj wear trigger fired")
 
 # --- 10: list/delete ---
-out = cmd(s, f"edit trigger list mob {MOB_GREET}")
+out = cmd(s, f"edit trigger list {MOB_GREET}")
 check("greet" in out and "speech" in out, "edit trigger list shows both triggers on the greeter")
 
 m = re.search(r"#(\d+) mob \d+ speech", out)
@@ -301,7 +314,7 @@ check(m is not None, "the speech trigger's id is visible in the listing")
 trig_id = m.group(1)
 out = cmd(s, f"edit trigger delete {trig_id}")
 check("Trigger deleted" in out, "edit trigger delete removes it")
-out = cmd(s, f"edit trigger list mob {MOB_GREET}")
+out = cmd(s, f"edit trigger list {MOB_GREET}")
 check("speech" not in out, "the deleted speech trigger no longer appears")
 check("greet" in out, "the greet trigger is untouched")
 
@@ -313,10 +326,8 @@ check("greet" in out, "the greet trigger is untouched")
 # (discovered 2026-07-11: 91 of 93 rows in `trigger` were orphans from
 # earlier runs of this exact file). Delete every trigger still attached
 # to any target this run created, not just the one demo-deleted above.
-for kind, vnum in (("room", ROOM_A), ("room", ROOM_B), ("mob", MOB_GREET),
-                   ("mob", MOB_DEATH), ("mob", MOB_RANDOM),
-                   ("obj", OBJ_GET), ("obj", OBJ_WEAR)):
-    listing = cmd(s, f"edit trigger list {kind} {vnum}")
+for vnum in (ROOM_A, ROOM_B, MOB_GREET, MOB_DEATH, MOB_RANDOM, OBJ_GET, OBJ_WEAR):
+    listing = cmd(s, f"edit trigger list {vnum}")
     for trig_id in re.findall(r"#(\d+)", listing):
         cmd(s, f"edit trigger delete {trig_id}")
 

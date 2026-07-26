@@ -2130,6 +2130,58 @@ already tracked — pointers, not duplicates):
       (its obj get/wear sub-tests never got the `drop` call the
       2026-07-22 load-to-inventory change required, unlike 3 other test
       files that got fixed that session).
+- [x] **`edit trigger` menu-driven redesign** — done 2026-07-25, same
+      session as the language revamp above. User: "edit trigger <room|
+      mob|obj> vnum should go into a menu driven editor where you choose
+      type with an option to delete the trigger inside the menu -- edit
+      trigger list <vnum> should display all three types -- edit trigger
+      delete <id|vnum> should work as is." Replaced the old one-shot
+      `edit trigger <type> <vnum> <trigger_type> [match|chance]` command
+      entirely with a new `CONN_TRIGEDIT_*` menu (descriptor.c), same
+      "commits immediately, no working copy" shape `edit social` uses:
+      list view (numbered existing triggers + A to add), detail view per
+      trigger (match text/chance edit immediately; option 3 opens the
+      script in the shared line editor; D deletes with confirm). New
+      `trigger_repo_get()`/`_update_script()`/`_update_match()`/
+      `_update_chance()`. `edit trigger list <vnum>` now checks room AND
+      mob AND obj at that vnum, no target type needed; `edit trigger
+      delete <id>` unchanged. Real bug caught live within minutes of
+      shipping (user reproduced it: a script line like "wait 20" got
+      misparsed as an answer to an unrelated chance-percent prompt,
+      trigger silently cancelled) -- the shared editor's active-edit
+      interception only lives inside `case CONN_PLAYING`, but the menu
+      never left the `CONN_TRIGEDIT_*` range before arming it. Fixed with
+      a dedicated `CONN_TRIGEDIT_SCRIPT` state owning `editor_feed()`
+      directly, same fix shape `CONN_REDIT_DESC` already uses for room
+      descriptions. New `tests/smoke_test_trigedit_menu.py` (24 checks)
+      plus all 3 pre-existing trigger-authoring test files converted to a
+      shared `author_trigger()` helper -- all confirmed passing live.
+- [x] **Score screen revamp** — done 2026-07-25. User pasted a wireframe
+      directly ("First a revamped score ... Colorize tastefully"): new
+      compact grid layout (Name/Level/Experience, Race/Class/Gold, HP/
+      resource-pool/Move, six stats two-per-line, AC/Hand/Sex, Align/
+      Hunger/Thirst, Age, Position) replacing the old single-column list.
+      Age is now real elapsed time converted through gametime.h's
+      established mud-year ratio (starts at 17, +1 year per 336 mud-
+      days). Two follow-up requests refined the HP-row resource-pool
+      field: "should either display mana or piety according to class ...
+      maybe we should call druid mana Lifeforce (LF)" then "default to
+      mana in non magic classes" -- `resource_pool_label()` now shows
+      Piety (Cleric)/Lifeforce (LF) (Druid)/Mana (everyone else); the
+      VALUE stays 0 regardless (no such resource pool exists in Tobin at
+      all). Colorization ended up deliberately minimal: an earlier draft
+      also tinted labels and HP/Move/Hunger/Thirst by state, but
+      colorstring.c's `<tag>` markup becomes real ANSI escape bytes in
+      the wire output and most smoke tests parse `score` with plain
+      substring/regex checks that never call `color off` -- an escape
+      between a label and its value broke even `"Level: 1" in out`.
+      Reverted to just Level's existing immortal-rank tint (always empty
+      for the common mortal case). Updated ~20 tests for the new field
+      spacing/labels; caught and fixed 4 unrelated stale casualties of
+      the 2026-07-22 load-to-inventory change along the way (armor/
+      drink/vitals/water_drowning_flight), and undid two lines mistakenly
+      touched during that pass that actually belonged to the unrelated
+      attribute-allocation screen, not `score`.
 - [x] **Seed starter trigger content from SneezyMUD spec procs** — done --
       deployed and verified via standalone smoke test
       (`tests/smoke_test_trigger_seed.py`). User: "and convert what sneezy
