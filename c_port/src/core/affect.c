@@ -46,6 +46,7 @@ static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "Extreme Pain",
     "Water Breathing",
     "Flying",
+    "Charmed",
 };
 
 /* HP drained per damage sub-tick for AFFECT_POISON -- its own faster gate
@@ -236,6 +237,30 @@ static void notify_poison_burn(being_t *b, descriptor_t *d) {
     }
 }
 
+/* AFFECT_CHARMED expiring means the bond breaks -- the pet doesn't just
+ * keep standing there uncontrolled, it dissolves outright (b is freed by
+ * being_destroy() here; caller must not touch it again). Notifies the
+ * master (if still connected) and the room the pet was standing in;
+ * being_destroy() itself handles detaching from master->followers[]. */
+static void dissolve_charmed_pet(being_t *b) {
+    room_t *room = b->base.roomp;
+    being_t *master = b->master;
+    char capbuf[128];
+    being_display_name_cap(b, capbuf, sizeof(capbuf));
+
+    if (master && master->desc) {
+        char msg[224];
+        snprintf(msg, sizeof(msg), "Your bond with %s fades, and it dissolves into mist.\r\n", capbuf);
+        descriptor_notify(master->desc, msg);
+    }
+    if (room) {
+        char msg[160];
+        snprintf(msg, sizeof(msg), "%s dissolves into mist.\r\n", capbuf);
+        descriptor_room_echo(room, NULL, msg);
+    }
+    being_destroy(b);
+}
+
 static void notify_wears_off(being_t *b, descriptor_t *d, affect_type_t type) {
     if (d) {
         char msg[64];
@@ -280,6 +305,17 @@ static void tick_being_affects(being_t *b, descriptor_t *d) {
             notify_poison_burn(b, d);
         }
         if (b->affects[i].rounds_left <= 0) {
+            if (type == AFFECT_CHARMED) {
+                /* b is freed here -- nothing after this may touch it. A
+                 * charmed pet always reaches this via mob_affect_tick_visit()
+                 * below (d is always NULL for it, a mob has no descriptor of
+                 * its own), called from world_for_each_mob(), whose caller
+                 * already saves the next thing pointer before visiting --
+                 * same safe-delete-mid-iteration pattern being_destroy()'s
+                 * other callers rely on. */
+                dissolve_charmed_pet(b);
+                return;
+            }
             notify_wears_off(b, d, type);
             b->affects[i].type = AFFECT_NONE;
             b->affects[i].rounds_left = 0;

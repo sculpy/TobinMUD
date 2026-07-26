@@ -108,6 +108,13 @@ bool player_set_prompt_flags(long player_id, int flags);
 long player_get_news_last_seen(long player_id);
 bool player_set_news_last_seen(long player_id, long news_id);
 
+/* Same shape as the pair above, for the immortal-only `wiznews` channel
+ * (news_repo's `wiz=true` side) -- backs its own "there is new wiznews"
+ * login notice (descriptor.c, gated on being_is_immortal()) and gets
+ * bumped whenever they actually read `wiznews` (cmd_wiznews.c). */
+long player_get_wiznews_last_seen(long player_id);
+bool player_set_wiznews_last_seen(long player_id, long news_id);
+
 /* Persists the player-flags bitmask (player.pflags, PLR_*). */
 bool player_set_pflags(long player_id, int flags);
 

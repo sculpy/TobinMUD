@@ -370,6 +370,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "ride",    cmd_ride,    "Mount a rideable creature (ride <target>).",         MORTAL_LEVEL_MIN },
     { "mount",   cmd_ride,    "Mount a rideable creature -- alias of ride.",        MORTAL_LEVEL_MIN },
     { "dismount", cmd_dismount, "Get off your mount.",                             MORTAL_LEVEL_MIN },
+    { "dismiss", cmd_dismiss, "Release a charmed pet early, before its bond fades on its own.", MORTAL_LEVEL_MIN },
     { "pee",     cmd_pee,     "Leave a puddle on the floor (pee <liquid> for a specific type).", IMMORTAL_LEVEL_MIN },
     /* Mortal Thief skill (gated internally by being_knows_skill(), same
      * pattern as settrap/disarmtrap), but placed here rather than

@@ -962,6 +962,48 @@ implementation inspiration before each one, not guessed at.
       representation design, the withdrawal-threshold test bug found and
       fixed, the regression pass). New `tests/smoke_test_drugs.py` (10
       checks). New `smoke` help topic; `news.sql`/`wiznews.sql` entries.
+- [x] **Pet / charm** — done 2026-07-26 (home). Scoped via
+      AskUserQuestion: full pet behavior (follows its master room-to-
+      room, assists in combat), all three fitting classes in one pass.
+      Checked the real upstream first: several classes summon a
+      temporary charmed mob follower (`addFollower()` + `AFF_CHARM` +
+      duration) -- Mage's real "conjure elemental air/earth/fire/water"
+      (already existed in skill.c as unwired placeholders with the real
+      Sneezy names/flavor text) got a real implementation instead of new
+      entries; Cleric's new "summon swarm" and Druid's new "animal
+      companion" round out the set, reusing real seeded mobs (elementals
+      16/17/18/19, wolf 570, locust swarm 7852) via `being_create_mob()`
+      -- no new DB rows. New `AFFECT_CHARMED` (affect.h) times a pet's
+      life and dissolves it on expiry (not the generic "wears off");
+      `being_summon_charmed_pet()`/`being_find_charmed_pet()` (being.c)
+      reuse the EXISTING `master`/`followers[]` fields from the Group/
+      party system rather than new relationship storage -- one pet at a
+      time. New `dismiss` command releases one early. A real cadence bug
+      caught live: the first version set the pet's "join the fight"
+      pointer from `mob_ai_tick` (~60s cadence) while combat itself
+      resolves every ~1.2s -- a pet could sit out nearly a minute of its
+      master's fight. Fixed by moving both the join and the pet's own
+      strike into a new pass appended to `combat_process_run()` --
+      deliberately one-sided (the pet never draws the target's own
+      retaliation), a disclosed simplification of Sneezy's real 3-way
+      combat; a kill the pet lands is credited to the master, not the
+      pet. Two same-session follow-up requests, both built: (1) "master
+      says 'attack guard' then pet attacks guard" -- new
+      `try_pet_command()` (cmd_say.c) parses whoever's in the same room
+      as a charmed pet for "attack"/"kill"/"stop"/"stay"/"guard", falling
+      back to (2) "master says dance pet dances etc" -- any other verb is
+      tried as a real social via new `social_perform_for()` (socials.c),
+      so a pet can perform any of the ~155 ported emotes too. (3) "add a
+      chance of failure, confused pet" -- a flat 20% roll per spoken
+      command, before interpreting it, so a confused pet visibly does
+      nothing rather than the wrong thing. New `tests/smoke_test_pet.py`
+      (27 checks) -- caught a real test-design bug along the way:
+      `attack`/`kill` gives an immortal an instant slay, so the usual
+      immortal-level-bypass trick other cast/pray tests use would have
+      killed the sandbox dummy before the pet ever got a turn; fixed by
+      granting `player_skill` proficiency directly and keeping the test
+      character a genuine mortal. Deployed to production, zero build
+      warnings.
 - [ ] **Planting** — not part of the original 2026-07-19 audit list;
       surfaced 2026-07-25 (home) while investigating a user question,
       found in `peel-sneezymud/` (a fuller reference clone than
@@ -985,6 +1027,75 @@ implementation inspiration before each one, not guessed at.
       how much of the farming depth to port (Tobin-scale slice vs. full
       15-type/growth-stage system) before design begins, same as every
       other large audit item got.
+
+## Full spell/skill/prayer roster import (user 2026-07-25, from the roster review)
+
+User reviewed the [Sneezy → Tobin Spell & Skill Roster](spell_roster artifact,
+471 real entries from `spell_info.cc`'s `discArray[]`, published 2026-07-25 --
+see the "Sneezy → Tobin feature audit" section above for the earlier, smaller
+audit this supersedes in scope) and asked for a MUCH broader import than any
+single item above -- effectively "port the whole roster," organized per class,
+not just the handful of named spells/skills each earlier audit item touched
+individually. Verbatim from the user:
+
+- "All sneezy ranger spells to be imported and coded for the druid class
+  split between basic and advanced" -- Tobin has no Ranger class; Druid is
+  the closest fit (already absorbed some Ranger/nature flavor, see
+  `class_stat_bonus()`/skill.c's existing Druid roster). Every real
+  `DISC_RANGER`/`DISC_ANIMAL`/`DISC_PLANTS` entry (roster artifact: 11
+  entries tagged class Ranger) gets ported onto Druid, sorted into
+  `SKILL_TIER_CLASS` ("basic") vs `SKILL_TIER_ADVANCED` per skill.c's
+  existing tier convention.
+- "Flatulence, sacrifice, Stupidity, Brew, Transform Limb, Healing Grasp
+  from shaman split between druid basic and advanced" -- six SPECIFIC
+  named Shaman spells/skills (not the whole Shaman roster, unlike Ranger
+  above) also land on Druid, basic/advanced split.
+- "All in adventuring discipline goes into combat skills for all" -- every
+  `DISC_ADVENTURING`/`DISC_ADVANCED_ADVENTURING` entry (roster artifact:
+  General/all-classes, 24 entries -- forage/climb/swim/cook/fishing/
+  tactics/language skills/etc.) becomes available to EVERY class, not
+  scoped per-class -- lands in Tobin's existing `SKILL_TIER_COMBAT` tier
+  (skill.c's "universal fighting basics, available from level 1" tier,
+  the closest existing home for a cross-class universal skill, per its
+  own doc comment) rather than a new tier.
+- "All monk disciplines can be imported and split between basic and
+  advanced" -- every real Monk entry (roster artifact: 40 entries)
+  ported, basic/advanced split.
+- "All thief and warrior disciplines can be imported and split between
+  basic and advanced" -- every real Thief (34) and Warrior (43) entry,
+  same split.
+- "All mage and cleric disciplines can be imported and split between
+  basic and advanced" -- every real Mage (105) and Cleric (61) entry,
+  same split (many already exist in skill.c from earlier audit passes --
+  this is now the FULL set, not just the offensive/utility subset
+  "Offensive spell system (breadth)" covered).
+
+**Not yet scoped or started.** This is an order of magnitude bigger than any
+single item in the audit list above (potentially 300+ new skill.c entries
+across 6 classes, most needing real task_cast()/task_pray() mechanic
+branches, not just roster placeholders -- see cmd_cast.c/cmd_pray.c's own
+"nothing happens yet" fallback for what an unwired entry looks like today).
+Real open questions before starting, same "ask before building" pattern
+every other large item in this file got: (1) is a `skill_def_t` entry alone
+("shows in `skills`, gated by level/class, falls into the generic fallback
+like ~150 existing entries already do") an acceptable FIRST pass, with real
+per-spell mechanics as a separate follow-up pass -- or does "imported and
+coded" mean every entry needs a real, distinct effect before this is done?
+(2) basic-vs-advanced tier boundary for each specific spell -- the user said
+"split between basic and advanced" as the shape, not which spells land on
+which side; skill.c's existing per-class rosters (e.g. Mage lines
+~206-321) show the established level-threshold convention to follow, but
+471 individual tier calls is a lot to make without checking a representative
+sample against the user first. (3) name collisions -- some roster entries
+share a name with something Tobin already implemented differently (e.g.
+Mage's real `SPELL_ANIMATE` from the roster describes "Animates an OBJECT to
+fight for you" -- distinct from the new Pet/charm "conjure elemental"
+spells this same session just wired up, which reuse the roster's real
+`conjure elemental air/earth/fire/water` names instead of `animate`
+specifically to avoid this exact mismatch). Pet/charm (directly above) is
+a live example of the RIGHT granularity for a "wire up a specific roster
+placeholder for real" pass -- worth using as the template once scope is
+confirmed.
 
 ## Buildable now (no blocked dependencies)
 

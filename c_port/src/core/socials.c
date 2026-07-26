@@ -188,6 +188,17 @@ static void social_room_echo(room_t *r, being_t *exclude, const char *tmpl,
     descriptor_room_echo(r, exclude, buf);
 }
 
+bool social_perform_for(being_t *actor, const char *verb) {
+    const social_t *soc = social_find(verb);
+    if (!soc || !actor || !actor->base.roomp)
+        return false;
+    if ((int)actor->position < soc->min_position)
+        return false;
+
+    social_room_echo(actor->base.roomp, NULL, soc->others_no_arg, actor, NULL);
+    return true;
+}
+
 bool social_try(descriptor_t *d, const char *verb, const char *args) {
     const social_t *soc = social_find(verb);
     if (!soc)

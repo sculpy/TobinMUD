@@ -715,6 +715,28 @@ int being_group_members(const being_t *self, being_t **out, int max);
  * call on a being with no group relationships at all (no-op). */
 void being_leave_group(being_t *b);
 
+/* Pet/charm (Sneezy → Tobin feature audit). The charmed pet mob currently
+ * following `master`, or NULL if it has none -- scans master->followers[]
+ * for one carrying AFFECT_CHARMED (see affect.h). Used to enforce a
+ * one-pet-at-a-time cap (being_summon_charmed_pet() below refuses a
+ * second summon while this returns non-NULL) and by mob_ai.c/combat.c/
+ * cmd_move.c to find a master's own pet without a second parallel field. */
+being_t *being_find_charmed_pet(const being_t *master);
+
+/* Spawns a fresh mob from `vnum` (being_create_mob()), places it in
+ * master's room, attaches it as a follower (master->followers[], same
+ * slot mechanism `follow` uses -- see cmd_group.c), and marks it charmed
+ * for `duration_rounds` (AFFECT_CHARMED, being_apply_affect()) so it
+ * dissolves on its own when the affect runs out (affect.c's
+ * tick_being_affects()). Returns NULL, doing nothing, if: `vnum` doesn't
+ * exist, master's followers[] is full, or master already has a charmed
+ * pet (being_find_charmed_pet() -- v1 scope is one pet at a time, not
+ * Sneezy's own level-scaled multi-pet cap, tooManyFollowers()). Callers
+ * (cmd_cast.c/cmd_pray.c's new "conjure elemental"/"summon swarm"/
+ * "animal companion" spells) print their own flavor message; this only
+ * does the mechanical summon. */
+being_t *being_summon_charmed_pet(being_t *master, int vnum, int duration_rounds);
+
 /* True iff b->progress.level >= IMMORTAL_LEVEL_MIN. */
 bool being_is_immortal(const being_t *b);
 

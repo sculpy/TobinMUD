@@ -512,3 +512,12 @@ UPDATE `objextra` SET `description` = REGEXP_REPLACE(`description`, 'sneezymud',
 -- flavor text still said "talens" (263 rows each) until this.
 UPDATE `shop` SET `message_buy` = REPLACE(`message_buy`, 'talens', 'gold') WHERE `message_buy` LIKE '%talens%';
 UPDATE `shop` SET `message_sell` = REPLACE(`message_sell`, 'talens', 'gold') WHERE `message_sell` LIKE '%talens%';
+
+-- Unseen-wiznews bookmark, same shape as news_last_seen_id above (2026-07-17
+-- batch) -- highest wiznews.id an immortal has already caught up on. Bumped
+-- to news_repo_max_id(true) when they run `wiznews`; compared against it at
+-- login (gated on being_is_immortal(), since mortals can't reach wiznews at
+-- all) to show a one-line "there's new wiznews" notice, same no-count/no-id
+-- house rule. int, not bigint: matches wiznews.id's own column type.
+ALTER TABLE `player`
+  ADD COLUMN IF NOT EXISTS `wiznews_last_seen_id` int(11) NOT NULL DEFAULT 0;

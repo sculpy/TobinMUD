@@ -235,6 +235,21 @@ static bool do_move(descriptor_t *d, int dir) {
         thing_set_room(&ch->mount->base, to);
     }
 
+    /* Pet/charm (Sneezy → Tobin feature audit): a charmed pet follows its
+     * master room-to-room, same "comes along for the ride" precedent as
+     * the mount block above -- unlike a mount, no indoor exception (a
+     * pet isn't too big for a doorway). Silent on the pet's own arrival/
+     * departure (no separate room echo either side) -- the master's own
+     * move messages already cover it, same choice `follow`'s own PC-
+     * following convention would make if it dragged followers at all
+     * (see being.h's `master`/`followers` field comment for why it
+     * currently doesn't -- a pet is the one exception, since letting a
+     * player's own controlled pet wander off on a room change would
+     * defeat the point of summoning one). */
+    being_t *pet = being_find_charmed_pet(ch);
+    if (pet)
+        thing_set_room(&pet->base, to);
+
     if (ch->poofin[0]) {
         apply_poof_tokens(ch->poofin, DIR_NAMES[REV_DIR[dir]], ch->gender, body, sizeof(body));
         snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, body);

@@ -1050,6 +1050,16 @@ static void enter_world(descriptor_t *d, being_t *b) {
     if (newest_news_id > 0 && player_get_news_last_seen(b->player_id) < newest_news_id)
         descriptor_send(d, "<y>There is new news! Type 'news' to catch up.<z>\r\n");
 
+    /* Same notice, immortal-only wiznews channel (user 2026-07-25: "add a
+     * message like this for wiznews as well"). Gated on being_is_immortal()
+     * since a mortal can't reach `wiznews` at all -- showing the reminder
+     * to someone who could never act on it would just be noise. */
+    if (being_is_immortal(b)) {
+        long newest_wiznews_id = news_repo_max_id(true);
+        if (newest_wiznews_id > 0 && player_get_wiznews_last_seen(b->player_id) < newest_wiznews_id)
+            descriptor_send(d, "<y>There is new wiznews! Type 'wiznews' to catch up.<z>\r\n");
+    }
+
     /* Connect is a typed player-io event, symmetric to the link-loss line
      * in descriptor_destroy(): logged to the file and echoed to online
      * immortals with a colored [PIO] tag, carrying the IP. */

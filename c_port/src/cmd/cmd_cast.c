@@ -395,6 +395,53 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, intensity);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (ci_contains(sk->name, "conjure elemental") || strcasecmp(sk->name, "animal companion") == 0) {
+        /* Pet/charm (Sneezy → Tobin feature audit): Mage's four
+         * "conjure elemental air/earth/fire/water" spells already existed
+         * in the roster as CLASS-tier placeholders (real Sneezy names,
+         * real "Summons a(n) X elemental ally" flavor text) but fell into
+         * the generic fallback below like everything else Tobin has no
+         * subsystem for -- this is that subsystem. Druid's "animal
+         * companion" is new (no Ranger class in Tobin to inherit the real
+         * beast-charm mechanic from). All four elemental/animal mob vnums
+         * are real seeded world content (mob.c's own `wolf fierce gray`/
+         * `fire elemental flame [fire]`/etc.), reused via
+         * being_create_mob() the same way cmd_load.c's `load mob` does --
+         * not new rows. */
+        int vnum;
+        const char *flavor;
+        if (ci_contains(sk->name, "air")) {
+            vnum = 19;
+            flavor = "The air around you gathers itself into a swirling elemental form!";
+        } else if (ci_contains(sk->name, "earth")) {
+            vnum = 18;
+            flavor = "The ground churns and rises, taking the shape of an elemental of earth!";
+        } else if (ci_contains(sk->name, "fire")) {
+            vnum = 16;
+            flavor = "Flames roar together and take the shape of a fire elemental!";
+        } else if (ci_contains(sk->name, "water")) {
+            vnum = 17;
+            flavor = "Water rushes together and takes the shape of a water elemental!";
+        } else {
+            vnum = 570;
+            flavor = "A loyal beast pads silently out of the wild to your side!";
+        }
+
+        if (being_find_charmed_pet(ch)) {
+            descriptor_send(d, "You already have a charmed creature under your control.\r\n");
+            return;
+        }
+        being_t *pet = being_summon_charmed_pet(ch, vnum, PET_CHARM_DURATION_ROUNDS);
+        if (!pet) {
+            descriptor_send(d, "The summoning fizzles -- nothing answers your call.\r\n");
+            return;
+        }
+        snprintf(msg, sizeof(msg), "%s\r\n", flavor);
+        descriptor_send(d, msg);
+        char capbuf[128], roommsg[256];
+        snprintf(roommsg, sizeof(roommsg), "%s casts %s, and %s appears, obedient to their will!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)), sk->name, pet->base.short_descr);
+        descriptor_room_echo(ch->base.roomp, ch, roommsg);
     } else {
         snprintf(msg, sizeof(msg),
                  "You cast %s, but nothing happens yet -- its real effect isn't implemented.\r\n",

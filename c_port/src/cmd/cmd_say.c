@@ -6,10 +6,13 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
+#include "combat.h"
 #include "room.h"
+#include "socials.h"
 #include "thing.h"
 #include "trigger.h"
 
@@ -63,6 +66,78 @@ static void run_speech_triggers(being_t *speaker, room_t *r, const char *said) {
     }
 }
 
+/* Pet/charm (Sneezy → Tobin feature audit), user 2026-07-25: "add a
+ * trigger for the pet once following the master to react and do whatever
+ * he says to do, like Master says, 'attack guard' then pet attacks
+ * guard" -- and the follow-up, "master says dance pet dances etc". A
+ * charmed pet in the SAME room as whoever just spoke listens for its
+ * first word: "attack"/"kill <target>" sets the pet's own one-sided
+ * fighting pointer (same mechanism combat.c's pet-assist pass already
+ * resolves each round -- see its own comment); "stop"/"stay"/"guard"
+ * disengages; anything else is tried as a social verb (social_perform_
+ * for(), socials.c) so "dance"/"bow"/"laugh"/... make the pet perform
+ * that social too, same 155-verb roster a player has. Not gated on the
+ * speaker actually BEING the pet's master -- Sneezy has no analogous
+ * mechanic to check against, and restricting it to "your own pet only
+ * obeys you" is a reasonable-but-arbitrary call this doesn't need to
+ * make, since only the pet's own master can plausibly benefit from
+ * ordering it around (a stranger's "attack" would just help the pet's
+ * real owner). No feedback line to the speaker beyond the room echo
+ * itself (attack/stop) or the social's own others_no_arg text (dance/...) --
+ * unrecognized speech is simply not a command, same silent fallthrough
+ * `say` always had.
+ *
+ * PET_CONFUSION_CHANCE_PCT (user follow-up, "add a chance of failure,
+ * confused pet"): a charmed creature isn't a fully obedient tool -- one
+ * roll per spoken command, checked AFTER confirming there's a pet in
+ * earshot and a real word to react to (so silence or an empty room never
+ * "wastes" a confusion), but BEFORE interpreting what was said, so a
+ * confused pet visibly does nothing at all rather than doing the WRONG
+ * thing (simpler than picking a plausible wrong action, and reads fine
+ * either way -- "looks confused" doesn't promise it almost obeyed). */
+#define PET_CONFUSION_CHANCE_PCT 20
+
+static void try_pet_command(being_t *speaker, room_t *r, const char *said) {
+    being_t *pet = being_find_charmed_pet(speaker);
+    if (!pet || pet->base.roomp != r)
+        return;
+
+    char verb[32] = "", rest[192] = "";
+    sscanf(said, "%31s %191[^\r\n]", verb, rest);
+    if (!verb[0])
+        return;
+
+    char capbuf[128], msg[256];
+    being_display_name_cap(pet, capbuf, sizeof(capbuf));
+
+    if (rand() % 100 < PET_CONFUSION_CHANCE_PCT) {
+        snprintf(msg, sizeof(msg), "%s tilts its head, looking confused.\r\n", capbuf);
+        descriptor_room_echo(r, NULL, msg);
+        return;
+    }
+
+    if (strcasecmp(verb, "attack") == 0 || strcasecmp(verb, "kill") == 0) {
+        if (!rest[0])
+            return;
+        being_t *target = combat_find_room_target(pet, rest);
+        if (!target || target == speaker)
+            return;
+        pet->fighting = target;
+        snprintf(msg, sizeof(msg), "%s obeys, and turns to attack %s!\r\n",
+                 capbuf, being_display_name(target));
+        descriptor_room_echo(r, NULL, msg);
+        return;
+    }
+    if (strcasecmp(verb, "stop") == 0 || strcasecmp(verb, "stay") == 0 || strcasecmp(verb, "guard") == 0) {
+        pet->fighting = NULL;
+        snprintf(msg, sizeof(msg), "%s obeys, and stands down.\r\n", capbuf);
+        descriptor_room_echo(r, NULL, msg);
+        return;
+    }
+
+    social_perform_for(pet, verb);
+}
+
 bool cmd_say(descriptor_t *d, const char *args) {
     if (!d->character || !d->character->base.roomp) {
         descriptor_send(d, "You are nowhere.\r\n");
@@ -97,6 +172,7 @@ bool cmd_say(descriptor_t *d, const char *args) {
     }
 
     run_speech_triggers(d->character, r, args);
+    try_pet_command(d->character, r, args);
 
     return true;
 }

@@ -11,6 +11,7 @@
 #include "social_repo.h"
 
 struct descriptor;
+struct being;
 
 /* Socials (emotes): smile, nod, wave, ... A full port of the original's
  * lib/actions (db/import-socials.py, db/sneezy/social.sql -- 155 verbs),
@@ -31,6 +32,17 @@ void social_cache_load(void);
  * resolves to the first cached (alphabetical) social it matches, same
  * rule as the command table. */
 bool social_try(struct descriptor *d, const char *verb, const char *args);
+
+/* Performs the exact-or-abbreviated `verb` social AS `actor`, no target,
+ * with no self-message (unlike social_try(), `actor` may have no
+ * descriptor -- see cmd_say.c's charmed-pet command-obeying, user
+ * 2026-07-25: "master says dance pet dances etc"). Only the room-facing
+ * `others_no_arg` template is sent, to everyone in actor's room (actor
+ * included, since there's no separate "you" line for something with no
+ * descriptor to receive it). False if `verb` isn't a known social, or
+ * actor's position doesn't meet the social's min_position (same silent-
+ * refusal shape as an out-of-position PC would get). */
+bool social_perform_for(struct being *actor, const char *verb);
 
 /* Comma-separated list of every cached social's verb, for the `socials`
  * command (paged -- see cmd_socials.c). */

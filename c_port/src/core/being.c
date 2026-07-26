@@ -149,6 +149,20 @@ void being_destroy(being_t *b) {
             if (d->character->position == POSITION_MOUNTED)
                 d->character->position = POSITION_STANDING;
         }
+        /* Pet/charm: a connected PC's own charmed pet may ALSO have been
+         * independently fighting b (combat.c's pet-assist pass gives a
+         * pet its own one-sided ->fighting pointer, separate from its
+         * master's) -- b has no descriptor of its own for a symmetric
+         * check to catch this, so it's done here instead, from the
+         * master's side. Without this, a second pet piling onto the same
+         * target the first pet just killed (or a pet whose target the
+         * PC's own strike killed first) would dereference freed memory
+         * on its next combat tick. */
+        if (d->character) {
+            being_t *pet = being_find_charmed_pet(d->character);
+            if (pet && pet->fighting == b)
+                pet->fighting = NULL;
+        }
     }
     /* b itself was riding something when it was destroyed (a PC quitting
      * or dying while mounted) -- the mount survives, so clear ITS side of
@@ -241,6 +255,44 @@ void being_leave_group(being_t *b) {
         f->grouped = false;
         b->followers[i] = NULL;
     }
+}
+
+being_t *being_find_charmed_pet(const being_t *master) {
+    if (!master)
+        return NULL;
+    for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
+        being_t *f = master->followers[i];
+        if (f && being_has_affect(f, AFFECT_CHARMED))
+            return f;
+    }
+    return NULL;
+}
+
+being_t *being_summon_charmed_pet(being_t *master, int vnum, int duration_rounds) {
+    if (!master || !master->base.roomp)
+        return NULL;
+    if (being_find_charmed_pet(master))
+        return NULL;
+
+    int slot = -1;
+    for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
+        if (!master->followers[i]) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot < 0)
+        return NULL;
+
+    being_t *pet = being_create_mob(vnum);
+    if (!pet)
+        return NULL;
+
+    thing_set_room(&pet->base, master->base.roomp);
+    pet->master = master;
+    master->followers[slot] = pet;
+    being_apply_affect(pet, AFFECT_CHARMED, duration_rounds);
+    return pet;
 }
 
 bool being_is_immortal(const being_t *b) {

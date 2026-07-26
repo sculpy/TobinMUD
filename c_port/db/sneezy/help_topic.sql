@@ -975,3 +975,14 @@ UPDATE `help_topic` SET `body` = REPLACE(REPLACE(`body`,
     '`edit trigger list <type> <vnum>` shows what''s already attached;\n`edit trigger delete <id>` removes one.',
     '`edit trigger list <vnum>` shows everything attached to that vnum\nacross all three target types; `edit trigger delete <id>` removes one\nwithout opening the menu at all.')
   WHERE `name` = 'trigger' AND `updated_by` = 'seed';
+
+-- Pet/charm (Sneezy -> Tobin feature audit). New `dismiss` command plus a
+-- general `pet` topic covering the whole mechanic (summon spells, follow,
+-- combat assist, obeying spoken commands, confusion chance).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('dismiss', 'Usage: dismiss\n\nReleases your charmed pet early, before its bond fades on its own.\nOnly does anything if you currently have a charmed pet -- see `pet`\nfor how to get one.\n\nRelated: pet', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('pet', 'Usage: cast conjure elemental air/earth/fire/water   (Mage)\n       pray summon swarm                              (Cleric)\n       cast animal companion                           (Druid)\n\nSummons a charmed creature that follows you from room to room and\njoins any fight you''re in. You can only have one charmed pet at a\ntime -- summoning another while you already have one just fails.\n\nA pet obeys you if you speak in its presence:\n\n  say attack <target>   -- turns to attack that target\n  say kill <target>     -- same as attack\n  say stop               -- stops fighting and stands down\n  say stay                -- same as stop\n  say guard               -- same as stop\n\nAnything else you say is tried as a social -- \"say dance\" makes your\npet dance, and so on for any other emote it knows.\n\nA charmed pet doesn''t always listen -- every so often it just looks\nconfused and ignores what you said entirely.\n\n`dismiss` releases your pet early; otherwise its bond fades on its\nown after a while regardless.\n\nRelated: dismiss cast pray follow', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

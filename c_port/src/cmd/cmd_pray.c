@@ -431,6 +431,26 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, intensity);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (strcasecmp(sk->name, "summon swarm") == 0) {
+        /* Pet/charm (Sneezy → Tobin feature audit). Reuses the real
+         * seeded "swarm locusts cloud" mob (vnum 7852) via
+         * being_create_mob(), same non-new-row precedent cmd_cast.c's
+         * elemental/animal-companion branch uses. */
+        ch->last_heal_target = NULL;
+        if (being_find_charmed_pet(ch)) {
+            descriptor_send(d, "You already have a charmed creature under your control.\r\n");
+            return;
+        }
+        being_t *pet = being_summon_charmed_pet(ch, 7852, PET_CHARM_DURATION_ROUNDS);
+        if (!pet) {
+            descriptor_send(d, "Your prayer goes unanswered -- nothing answers your call.\r\n");
+            return;
+        }
+        descriptor_send(d, "A droning cloud of locusts descends and settles at your command!\r\n");
+        char capbuf[128], roommsg[256];
+        snprintf(roommsg, sizeof(roommsg), "%s prays for %s, and %s descends, obedient to their will!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)), sk->name, pet->base.short_descr);
+        descriptor_room_echo(ch->base.roomp, ch, roommsg);
     } else {
         ch->last_heal_target = NULL;
         snprintf(msg, sizeof(msg),

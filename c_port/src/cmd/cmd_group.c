@@ -124,6 +124,37 @@ bool cmd_stop(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `dismiss` -- releases a charmed pet early (Pet/charm, Sneezy → Tobin
+ * feature audit) rather than waiting out its AFFECT_CHARMED duration.
+ * The MASTER's side of the relationship (`stop` above is the opposite:
+ * a follower leaving THEIR OWN master) -- no real Sneezy command to port
+ * (its charm affects just expire), a small Tobin-scale addition so a
+ * player isn't stuck carrying an inconvenient pet (e.g. into a
+ * ROOM_FLAG_NO_MOB area) until the timer runs out. */
+bool cmd_dismiss(descriptor_t *d, const char *args) {
+    (void)args;
+    being_t *ch = d->character;
+    if (!ch)
+        return true;
+
+    being_t *pet = being_find_charmed_pet(ch);
+    if (!pet) {
+        descriptor_send(d, "You have no charmed creature to dismiss.\r\n");
+        return true;
+    }
+
+    char capbuf[128], msg[224];
+    being_display_name_cap(pet, capbuf, sizeof(capbuf));
+    snprintf(msg, sizeof(msg), "You release %s from your service, and it fades away.\r\n", capbuf);
+    descriptor_send(d, msg);
+    if (pet->base.roomp) {
+        snprintf(msg, sizeof(msg), "%s fades away.\r\n", capbuf);
+        descriptor_room_echo(pet->base.roomp, NULL, msg);
+    }
+    being_destroy(pet);
+    return true;
+}
+
 bool cmd_group(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

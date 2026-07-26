@@ -109,6 +109,18 @@ typedef enum {
      * entirely while airborne over water. */
     AFFECT_WATERBREATH,
     AFFECT_FLYING,
+    /* Pet/charm (Sneezy → Tobin feature audit). Carried by a SUMMONED PET
+     * MOB, never a PC -- marks it as charmed and times its lifespan.
+     * Reuses this same generic buff/debuff array rather than a new field
+     * on being_t (same "storage/display/expiry plumbing already exists"
+     * reasoning as the disease block above), but its expiry is NOT the
+     * generic "wears off" message -- affect_tick_run() special-cases it
+     * in tick_being_affects() to actually dissolve and being_destroy()
+     * the pet, since letting a charm run out just means the mob keeps
+     * existing uncontrolled, matching Sneezy's own real behavior of the
+     * charmed creature's affect simply ending its obedience. See
+     * being_summon_charmed_pet() (being.c) for how one gets created. */
+    AFFECT_CHARMED,
     AFFECT_COUNT,
 } affect_type_t;
 
@@ -133,6 +145,15 @@ int affect_cure_price(affect_type_t type);
  * table and predates this; this is for newer callers, e.g. cast/pray's
  * disease-inflicting spells, cmd_cast.c/cmd_pray.c). */
 affect_type_t affect_random_disease(void);
+
+/* Default AFFECT_CHARMED lifespan for a summoned pet (Pet/charm, Sneezy →
+ * Tobin feature audit) -- roughly 5 real minutes at COMBAT_ROUND_PULSES'
+ * ~1.2s/round, one shared duration across all three pet-summon spells
+ * (cmd_cast.c's "conjure elemental air/earth/fire/water" and "animal
+ * companion", cmd_pray.c's "summon swarm") rather than a per-spell tuned
+ * value -- a Tobin-scale simplification of Sneezy's own per-spell
+ * duration formulas. */
+#define PET_CHARM_DURATION_ROUNDS 250
 
 #define MAX_ACTIVE_AFFECTS 4
 

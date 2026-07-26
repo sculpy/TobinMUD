@@ -202,6 +202,13 @@ static const skill_def_t SKILLS[] = {
     { "crusade",          CLASS_CLERIC, SKILL_TIER_ADVANCED, 49, "A group-wide blessing for everyone in the room." },
     { "portal",           CLASS_CLERIC, SKILL_TIER_ADVANCED, 49, "Opens a portal to a named location." },
     { "heal full spray",  CLASS_CLERIC, SKILL_TIER_ADVANCED, 50, "The strongest area heal, for everyone in the room." },
+    /* Pet/charm (Sneezy → Tobin feature audit) -- new, not a Sneezy-named
+     * port like the Mage "conjure elemental" spells below (Cleric has no
+     * real upstream pet-summon prayer of its own), but reuses the same
+     * real seeded "swarm locusts cloud" mob (vnum 7852) as a fitting
+     * Cleric flavor -- a plague made obedient, distinct from the
+     * already-implemented "plague of locusts" AoE damage spell above. */
+    { "summon swarm",     CLASS_CLERIC, SKILL_TIER_ADVANCED, 30, "Summons a swarm of locusts to fight at your side." },
 
     /* ---------------- MAGE ---------------- */
     { "riding",               CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
@@ -350,6 +357,11 @@ static const skill_def_t SKILLS[] = {
     { "feral wrath",       CLASS_DRUID, SKILL_TIER_ADVANCED, 28, "Channel a spirit animal for a temporary stat boost." },
     { "earthmaw",          CLASS_DRUID, SKILL_TIER_ADVANCED, 28, "The ground splits beneath a target, damaging and knocking them down -- outdoors only." },
     { "sky spirit",        CLASS_DRUID, SKILL_TIER_ADVANCED, 28, "Summons a phantasmal bird spirit to strike a target -- scales with your skill." },
+    /* Pet/charm (Sneezy → Tobin feature audit) -- new, closest real
+     * upstream analog is Ranger's own DISC_ANIMAL "beast" mechanics (no
+     * Ranger class in Tobin; Druid absorbed its nature-magic flavor).
+     * Reuses the real seeded "wolf fierce gray" mob (vnum 570). */
+    { "animal companion",  CLASS_DRUID, SKILL_TIER_ADVANCED, 24, "Calls a loyal beast companion to your side." },
     { "cure blindness",    CLASS_DRUID, SKILL_TIER_ADVANCED, 30, "Removes blindness from a victim." },
     { "wave crash",        CLASS_DRUID, SKILL_TIER_ADVANCED, 32, "A crashing wave slams into a target, possibly knocking them down." },
     { "withering touch",   CLASS_DRUID, SKILL_TIER_ADVANCED, 32, "A draining touch that saps a victim's vitality into you." },

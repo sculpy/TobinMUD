@@ -1,6 +1,79 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-25 — Session 65 (home): **`edit mob` (medit) --
+Last updated: 2026-07-25 — Session 66 (home): **Pet/charm -- the last
+remaining builder-tools-adjacent Sneezy → Tobin audit item to get a full
+build in this window -- plus a small "there's new wiznews" login notice,
+mirroring the existing news one.**
+- **Pet/charm**: scoped via AskUserQuestion -- full pet behavior (follows
+  its master room-to-room, assists in combat) across all three fitting
+  classes in one pass. Mage's four pre-existing "conjure elemental air/
+  earth/fire/water" skill.c placeholders (real Sneezy names/flavor text,
+  never wired to anything before this) got a real implementation instead
+  of new entries; Cleric's new "summon swarm" and Druid's new "animal
+  companion" round out the set. All three reuse real seeded world mobs
+  (fire/water/earth/air elementals vnums 16/17/18/19, wolf 570, locust
+  swarm 7852) via `being_create_mob()`, same non-new-row pattern
+  `cmd_load.c`'s `load mob` already uses.
+- **Mechanism**: new `AFFECT_CHARMED` (affect.h) marks a summoned pet and
+  times its lifespan (`PET_CHARM_DURATION_ROUNDS`, ~5 real minutes);
+  expiry is special-cased in `tick_being_affects()` to actually dissolve
+  and `being_destroy()` the pet, not just print a generic "wears off".
+  New `being_summon_charmed_pet()`/`being_find_charmed_pet()` (being.c)
+  attach it via the EXISTING `master`/`followers[]` fields the Group/
+  party system already has -- one pet at a time (refused with a clear
+  message otherwise), no new relationship storage needed. New `dismiss`
+  command releases a pet early.
+- **A real cadence bug found and fixed live**: the first version set the
+  pet's "join the fight" pointer from `mob_ai_tick` (~60s wander/scavenge
+  cadence) -- live testing showed a pet could sit out nearly a full
+  minute of combat before ever engaging, since `combat_process_run()`
+  actually resolves every ~1.2s. Fixed by moving both the join AND the
+  strike into a new pass appended to `combat_process_run()` itself.
+  Deliberately one-sided (the target's own retaliation stays with
+  whoever it's really paired with; the pet never draws aggro) -- a
+  disclosed simplification of Sneezy's real 3-way combat. A kill the pet
+  lands is credited to the MASTER, not the pet, so XP/gold/kill messages
+  make sense.
+- **A second design gap found while testing the same-session follow-up
+  requests** (see below): the pet's fighting pointer used to be cleared
+  the instant `master->fighting` didn't match it exactly -- fine for
+  auto-assist, but it meant an EXPLICITLY ordered attack (a target the
+  master wasn't personally fighting) got silently cancelled the very
+  next tick. Relaxed so a pet keeps its own target -- however it was
+  set, auto-assist or ordered -- until that target dies/leaves or the
+  master says "stop".
+- **Same-session follow-up requests, both implemented**: (1) "add a
+  trigger for the pet ... react and do whatever [the master] says to
+  do, like Master says, 'attack guard' then pet attacks guard" -- new
+  `try_pet_command()` (cmd_say.c) listens to whoever's in the same room
+  as a charmed pet; "attack"/"kill <target>" sets its fighting pointer
+  (reusing `combat_find_room_target()`, same target-resolution `attack`
+  itself uses), "stop"/"stay"/"guard" disengages. (2) "master says dance
+  pet dances etc" -- anything else is tried as a real social verb via a
+  new `social_perform_for()` (socials.c), so the pet can perform any of
+  the ~155 real ported social emotes too, not just combat orders. (3)
+  "add a chance of failure, confused pet" -- `PET_CONFUSION_CHANCE_PCT`
+  (20%) rolled once per spoken command, before interpreting it, so a
+  confused pet visibly does nothing rather than doing the wrong thing.
+- New `tests/smoke_test_pet.py` (27 checks): summon/cap-refusal/follow-
+  through-a-move/combat-assist-visible-message/dismiss-then-resummon for
+  Mage, spot-checks for Cleric/Druid, and the full say-command suite
+  (attack/stop/dance) with confusion-tolerant retries. A real test-design
+  bug caught along the way: `attack`/`kill` gives an IMMORTAL an instant
+  slay (cmd_table.c) -- the first draft's mortal-bypass trick (level 51)
+  killed the sandbox dummy in one blow before pulse-driven combat (and
+  the pet's own strike) ever got a chance to run; fixed by granting
+  `player_skill` proficiency directly instead of relying on the
+  immortal shortcut, keeping the test character genuinely mortal.
+- **wiznews login notice** (user, same session: "add a message like this
+  for wiznews as well", pointing at the existing "there is new news!"
+  mortal notice): new `wiznews_last_seen_id` player column, `player_get_
+  wiznews_last_seen()`/`player_set_wiznews_last_seen()` (mirroring the
+  news pair exactly), bumped by `cmd_wiznews.c` on read, checked at login
+  gated on `being_is_immortal()` (a mortal can't reach `wiznews` at all).
+  Deployed to production, zero build warnings.
+
+Previous update: 2026-07-25 — Session 65 (home): **`edit mob` (medit) --
 the last builder-tools-OLC gap -- plus same-session follow-ups: all
 three prototype editors auto-create a blank row on a missing vnum,
 medit's menu was rebuilt to the user's own wireframe with auto-computed

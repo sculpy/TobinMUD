@@ -313,3 +313,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Score Has a New Look',
  '`score` now lays everything out in a tidy grid instead of one long column -- your level, race, class, gold, HP, and stats all at a glance. Your age now genuinely climbs over time instead of just tracking how recently you were born, and casters see their class''s own resource named properly (Piety for the faithful, Lifeforce for druids, Mana for the rest).')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Summon a Companion to Fight and Follow You',
+ 'Mages can now `cast conjure elemental air/earth/fire/water` to call a loyal elemental to their side, Clerics can `pray summon swarm` for a cloud of locusts, and Druids can `cast animal companion` for a loyal beast. Whatever you summon will follow you from room to room and join you in a fight -- and it actually listens: say something like "attack guard" and it will turn on that target, or say "stop" to call it off. Try other things too -- say "dance" and see what happens. Just don''t be surprised if it looks confused and ignores you every so often; charmed creatures only listen so well. `dismiss` sends your companion away early, and the bond fades on its own after a while regardless. You can only keep one companion charmed at a time.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

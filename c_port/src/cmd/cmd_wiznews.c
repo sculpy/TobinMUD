@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "news_repo.h"
+#include "player_repo.h"
 
 /* `wiznews [lines-per-page]`: level 51+ -- the immortals' news channel, read
  * exactly like `news` (whole feed, newest first, paged), but from the
@@ -24,6 +25,13 @@ bool cmd_wiznews(descriptor_t *d, const char *args) {
         page_size = 100;
     if (page_size < 5)
         page_size = 5;
+
+    /* Reading the feed catches this immortal up -- clears the login
+     * "there's new wiznews" notice (descriptor.c) until something newer
+     * is posted. Same bookmark-only convention as cmd_news.c's own
+     * player_set_news_last_seen() call. */
+    if (d->character)
+        player_set_wiznews_last_seen(d->character->player_id, news_repo_max_id(true));
 
     /* Sized generously (found truncating silently at the old 15000/16000,
      * user 2026-07-11 bug report via smoke_test_wiznews.py: with 40 items

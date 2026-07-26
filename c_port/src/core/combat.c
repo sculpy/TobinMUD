@@ -24,6 +24,7 @@
 #include "skill.h"
 #include "thing.h"
 #include "trigger.h"
+#include "world.h"
 
 /* Best-effort message to b's connection, if any -- no-op for a mob (once
  * mobs exist) or a being whose descriptor already went away. */
@@ -1142,6 +1143,79 @@ void combat_process_run(long pulse_num) {
             player_progress_save(a->player_id, &a->progress);
         if (b->base.kind == THING_PC)
             player_progress_save(b->player_id, &b->progress);
+    }
+
+    /* Pet/charm (Sneezy → Tobin feature audit): a charmed pet lands its
+     * own strike against whatever it's currently fighting, right here,
+     * right on COMBAT_ROUND_PULSES -- NOT mob_ai_tick's ~60s wander/
+     * scavenge cadence (a first version set pet->fighting from mob_ai.c
+     * and found, live, that a pet could go up to a full minute without
+     * ever engaging, since combat resolves roughly every 1.2s -- moving
+     * the join here as well as the strike fixes that mismatch outright).
+     * Mobs have no descriptor, so the main PC-driven loop above never
+     * resolves a pet's SIDE of a fight either way.
+     *
+     * pet->fighting gets set two ways: auto-assist (below, if the pet has
+     * no target of its own and its master is fighting someone) or an
+     * explicit spoken order (cmd_say.c's try_pet_command(), "say attack
+     * <target>", user 2026-07-25) -- once set, EITHER way, the pet keeps
+     * fighting that specific target regardless of what the master does
+     * next (they might defeat their own opponent, or start a different
+     * fight, while the pet is still busy with whoever it was told to
+     * attack) until it dies, leaves, or the master says "stop"/"stay"/
+     * "guard". Deliberately one-sided: the target's own retaliation still
+     * goes entirely to whoever it's ACTUALLY paired with in the main loop
+     * above (target->fighting is never touched here), so a pet adds bonus
+     * damage without ever drawing aggro onto itself -- a disclosed
+     * simplification of Sneezy's real 3-way combat, not an oversight;
+     * genuine multi-attacker retaliation is a bigger, separate lift. A
+     * kill the pet lands is credited to the MASTER (combat_defeat(target,
+     * master, ...)), not the pet -- a mob "winner" would make no sense
+     * for XP/gold/kill messages. Safe against a target already destroyed
+     * earlier in this same tick (by the main loop above, or by a second
+     * pet's own strike below): being_destroy() itself clears any charmed
+     * pet's dangling ->fighting pointer to whatever it just freed (see
+     * its own comment, being.c), so `pet->fighting` is already NULL by
+     * the time this runs if that happened -- no stale dereference. */
+    for (descriptor_t *d = g_descriptors; d; d = d->next) {
+        being_t *master = d->character;
+        if (!master)
+            continue;
+        being_t *pet = being_find_charmed_pet(master);
+        if (!pet)
+            continue;
+
+        if (pet->position != POSITION_STANDING || !pet->base.roomp
+            || pet->base.roomp != master->base.roomp) {
+            pet->fighting = NULL; /* the pet can't reach its master at all -- stand down */
+            continue;
+        }
+        if (!pet->fighting && master->fighting)
+            pet->fighting = master->fighting; /* auto-assist: joins the master's own target */
+
+        being_t *target = pet->fighting;
+        if (!target)
+            continue;
+        if (target->progress.hp <= 0 || !target->base.roomp || target->base.roomp != pet->base.roomp) {
+            pet->fighting = NULL; /* target already down, or no longer reachable */
+            continue;
+        }
+
+        /* combat_strike() itself only messages the two combatants directly
+         * (tell(), both no-ops here -- a mob has no descriptor either
+         * side) -- the master gets their own explicit line so a pet's
+         * contribution is actually visible, not silent extra damage. */
+        int hp_before = target->progress.hp;
+        bool decapitated = combat_strike(pet, target);
+        if (target->progress.hp < hp_before) {
+            tell(master, "%s strikes %s!\r\n", being_display_name(pet), being_display_name(target));
+        } else {
+            tell(master, "%s misses %s!\r\n", being_display_name(pet), being_display_name(target));
+        }
+        if (target->progress.hp <= 0 || decapitated) {
+            pet->fighting = NULL;
+            combat_defeat(target, master, decapitated);
+        }
     }
 }
 

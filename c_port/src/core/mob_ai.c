@@ -105,6 +105,14 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
 }
 
 static void mob_try_wander(being_t *m) {
+    /* Pet/charm (Sneezy → Tobin feature audit): a charmed pet only ever
+     * moves by following its master room-to-room (cmd_move.c's
+     * charmed-pet drag-along), never on its own -- a random ACT_SENTINEL-
+     * less wander would otherwise let a freshly-summoned pet (mob_actions
+     * defaults to 0, so no ACT_SENTINEL bit) drift away from its master
+     * within a tick or two. */
+    if (being_has_affect(m, AFFECT_CHARMED))
+        return;
     if (m->mob_actions & ACT_SENTINEL)
         return;
     if (m->fighting || m->position != POSITION_STANDING || !m->base.roomp)
@@ -396,6 +404,14 @@ static void mob_ai_visit(being_t *m) {
     mob_try_aggress(m);
     mob_try_align_flavor(m);
     mob_try_lamplighter(m);
+    /* Pet/charm's own "joins its master's fight" logic lives in
+     * combat.c's pet-assist pass (combat_process_run()) instead of here
+     * -- this AI tick runs on a ~60s wander/scavenge cadence, far too
+     * slow for combat (COMBAT_ROUND_PULSES is ~1.2s); a first version
+     * set it here and a charmed pet could sit out nearly a full minute
+     * of its master's fight before ever engaging. mob_try_wander()'s own
+     * AFFECT_CHARMED guard above still applies -- a pet just never
+     * randomly wanders, regardless of where the join logic lives. */
 }
 
 void mob_ai_tick(long pulse_num) {
