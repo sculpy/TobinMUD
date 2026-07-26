@@ -136,6 +136,8 @@ bool cmd_score(descriptor_t *d, const char *args) {
     char injuries[512];
     int inj_n = 0;
     for (int i = 0; i < LIMB_COUNT && (size_t)inj_n < sizeof(injuries); i++) {
+        if (!being_has_limb(ch, (limb_t)i))
+            continue;
         int limb_pct = being_limb_pct(ch, (limb_t)i);
         const char *status = limb_status_text(limb_pct);
         if (status)

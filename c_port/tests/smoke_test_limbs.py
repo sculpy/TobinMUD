@@ -72,7 +72,8 @@ _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in rang
 ROOM = 900000 + (int(time.time()) % 70000)
 
 LIMB_NAMES = [
-    "head", "neck", "left arm", "right arm", "left finger", "right finger",
+    "head", "neck", "back", "left arm", "right arm", "left wrist", "right wrist",
+    "left hand", "right hand", "left finger", "right finger",
     "body", "waist", "genitalia", "right leg", "left leg", "left foot", "right foot",
 ]
 INJURY_PHRASES = [
@@ -178,10 +179,15 @@ for _ in range(6):
     time.sleep(1.5)  # comfortably past one COMBAT_ROUND_PULSES (~1.2s)
     chunk_a = recv_all(sA, timeout=0.5)
     chunk_b = recv_all(sB, timeout=0.5)
-    # Mortals no longer get a "for N damage" suffix (user 2026-07-12) --
-    # a limb-hit line now just ends right after the limb name.
+    # Stale pattern fixed 2026-07-26 (Limbs -> wearSlotT): a landed hit's
+    # message is "...'s <limb> <quality word>!" (e.g. "hits your right leg
+    # incredibly well!"), not a bare period right after the limb name --
+    # confirmed against real combat output while verifying this change
+    # didn't break anything (it hadn't; the old exact-period pattern here
+    # simply never matched the real, unrelated hit-quality-descriptor
+    # message format that had already landed separately).
     if any(
-        f"'s {limb}." in (chunk_a + chunk_b) or f"your {limb}." in (chunk_a + chunk_b)
+        f"'s {limb} " in (chunk_a + chunk_b) or f"your {limb} " in (chunk_a + chunk_b)
         for limb in LIMB_NAMES
     ):
         found_limb_message = True

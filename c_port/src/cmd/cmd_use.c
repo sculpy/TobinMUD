@@ -91,7 +91,10 @@ static void use_area_damage(descriptor_t *d, being_t *ch, const skill_def_t *sk,
             continue;
         }
         hit_count++;
-        limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+        /* LIMB_REAL_COUNT, not LIMB_COUNT (Limbs -> wearSlotT, 2026-07-26)
+         * -- excludes the mob-only, always-inactive EX_* placeholder
+         * slots from ever being randomly hit. */
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
         int limb_hp_before = victim->limbs[limb].hp;
         bool defeated = combat_apply_skill_damage(ch, victim, dmg, limb);
         if (!defeated && victim->desc) {
@@ -169,7 +172,10 @@ static void apply_item_effect(descriptor_t *d, being_t *ch, being_t *target,
             being_set_wait(ch, COMBAT_ROUND_PULSES);
         }
         int dmg = spell_damage_for_level(sk->min_level);
-        limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+        /* LIMB_REAL_COUNT, not LIMB_COUNT (Limbs -> wearSlotT, 2026-07-26)
+         * -- excludes the mob-only, always-inactive EX_* placeholder
+         * slots from ever being randomly hit. */
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
         int limb_hp_before = target->limbs[limb].hp;
         bool defeated = combat_apply_skill_damage(ch, target, dmg, limb);
         const char *intensity = describe_dam(dmg, limb_hp_before, NULL);

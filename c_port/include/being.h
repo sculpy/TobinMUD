@@ -249,23 +249,38 @@ typedef struct {
 
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in
- * misc/being.h, driven by `wearSlotT`'s 13 equipment-aligned slots plus
- * race-specific `slotChance()` weighting -- see misc/limbs.{h,cc}). As of
- * the 13-limb set below it's a near 1:1 match of the original's actual
- * slot list (head/neck/two arms/two fingers/body/waist/genitalia/two
- * legs/two feet -- "finger" here in place of the original's "hand", no
- * separate "back" slot), and combat.c's pick_weighted_limb() (user
- * 2026-07-12) now mirrors slotChance()'s own humanoid proportions too --
- * no per-race variation yet (Tobin has no race-specific body types), but
- * the per-limb weighting itself is a real port, not a Tobin invention.
- * Not persisted (like `fighting`/`desc`) -- see STATUS.md: this follows
- * the same already-accepted precedent as `progress.hp` (only saved at
- * combat defeat, not after every exchange). */
+ * misc/being.h, driven by `wearSlotT`'s 22-slot layout plus race-specific
+ * `slotChance()` weighting -- see misc/limbs.{h,cc}/body.cc). Reshaped
+ * 2026-07-26 (user, "Limbs -> wearSlotT") toward that real slot list,
+ * decisions confirmed with the user first (none defaulted silently):
+ * BACK/WRIST_L/R/HAND_L/R added (real seeded `obj.wear_flag` bits for all
+ * of these already existed, just unmapped -- see wear_slot_for_flag(),
+ * obj.c); Tobin's own GENITALIA slot (no upstream equivalent) is KEPT;
+ * `HOLD_RIGHT`/`HOLD_LEFT` from the original stay OUT of this enum --
+ * Tobin's separate `held[2]` array below is unchanged, lower-risk than
+ * folding holding into every equipment[] loop in the codebase; the
+ * original's mob-only `WEAR_EX_*` extra-leg/-foot slots (four-legged/
+ * multi-limbed bodies) are added at the END of the enum, ALWAYS INACTIVE
+ * (max_hp=0, see being_limbs_full_heal()/being_has_limb()) until the
+ * separate, not-yet-built Body types system actually assigns them to a
+ * specific mob prototype -- LIMB_EX_RIGHT_LEG is also `LIMB_REAL_COUNT`,
+ * the boundary between real/always-active slots and these placeholders.
+ * combat.c's pick_weighted_limb() mirrors slotChance()'s real humanoid
+ * proportions (body.cc's BODY_HUMANOID row) for every slot including the
+ * new ones; EX_* slots get weight 0, so they're never hit under today's
+ * humanoid-only combat regardless. Not persisted (like `fighting`/`desc`)
+ * -- see STATUS.md: this follows the same already-accepted precedent as
+ * `progress.hp` (only saved at combat defeat, not after every exchange). */
 typedef enum {
     LIMB_HEAD,
     LIMB_NECK,
+    LIMB_BACK,
     LIMB_LEFT_ARM,
     LIMB_RIGHT_ARM,
+    LIMB_LEFT_WRIST,
+    LIMB_RIGHT_WRIST,
+    LIMB_LEFT_HAND,
+    LIMB_RIGHT_HAND,
     LIMB_LEFT_FINGER,
     LIMB_RIGHT_FINGER,
     LIMB_BODY,
@@ -275,13 +290,29 @@ typedef enum {
     LIMB_LEFT_LEG,
     LIMB_LEFT_FOOT,
     LIMB_RIGHT_FOOT,
+    LIMB_EX_RIGHT_LEG,  /* mob-only, inactive until Body types -- see above */
+    LIMB_EX_LEFT_LEG,
+    LIMB_EX_RIGHT_FOOT,
+    LIMB_EX_LEFT_FOOT,
     LIMB_COUNT
 } limb_t;
+
+/* The first mob-only EX_* slot -- also the count of always-active,
+ * humanoid-usable limb slots (everything before this one). */
+#define LIMB_REAL_COUNT LIMB_EX_RIGHT_LEG
 
 typedef struct {
     int hp;
     int max_hp;
 } limb_state_t;
+
+/* True iff `b` actually has this limb slot (max_hp > 0) -- false for any
+ * of the mob-only EX_* slots on every being today (nothing assigns them a
+ * real max_hp until Body types exists). Guards every per-limb display/
+ * status loop (cmd_limbs.c, cmd_score.c, being_render_equipment()) and
+ * being_has_destroyed_limb() below so an always-inactive EX_* slot is
+ * never mistaken for a permanently-destroyed real limb. */
+bool being_has_limb(const struct being *b, limb_t limb);
 
 /* Display name for a limb (e.g. "left arm"), used in combat messages and
  * score's limb breakdown. */

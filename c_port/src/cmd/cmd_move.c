@@ -175,7 +175,10 @@ static bool do_move(descriptor_t *d, int dir) {
             descriptor_send(d, "You spot a trap rigged to the door and carefully step around it.\r\n");
         } else {
             int dmg = 5 + rand() % 10;
-            limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+            /* LIMB_REAL_COUNT, not LIMB_COUNT (Limbs -> wearSlotT,
+             * 2026-07-26) -- excludes the mob-only, always-inactive EX_*
+             * placeholder slots from ever being randomly hit. */
+            limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
             int limb_hp_before = ch->limbs[limb].hp;
             being_hurt_limb(ch, limb, dmg);
             char trap_msg[160];

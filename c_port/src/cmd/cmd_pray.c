@@ -201,7 +201,10 @@ static void pray_area_damage(descriptor_t *d, being_t *ch, const skill_def_t *sk
             continue;
         }
         hit_count++;
-        limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+        /* LIMB_REAL_COUNT, not LIMB_COUNT (Limbs -> wearSlotT, 2026-07-26)
+         * -- excludes the mob-only, always-inactive EX_* placeholder
+         * slots from ever being randomly hit. */
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
         int limb_hp_before = victim->limbs[limb].hp;
         bool defeated = combat_apply_skill_damage(ch, victim, dmg, limb);
         if (!defeated && victim->desc) {
@@ -414,7 +417,10 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
             being_set_wait(ch, COMBAT_ROUND_PULSES);
         }
         int dmg = spell_damage_for_level(sk->min_level);
-        limb_t limb = (limb_t)(rand() % LIMB_COUNT);
+        /* LIMB_REAL_COUNT, not LIMB_COUNT (Limbs -> wearSlotT, 2026-07-26)
+         * -- excludes the mob-only, always-inactive EX_* placeholder
+         * slots from ever being randomly hit. */
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
         int limb_hp_before = atk_target->limbs[limb].hp;
         bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
         /* Damage numbers (user 2026-07-12, follow-up "take out the

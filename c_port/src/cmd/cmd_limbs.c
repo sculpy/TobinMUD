@@ -26,6 +26,8 @@ bool cmd_limbs(descriptor_t *d, const char *args) {
         n = 0;
 
     for (int i = 0; i < LIMB_COUNT && (size_t)n < sizeof(out); i++) {
+        if (!being_has_limb(d->character, (limb_t)i))
+            continue;
         int pct = being_limb_pct(d->character, (limb_t)i);
         const char *status = limb_status_text(pct);
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-13s %3d%%%s%s\r\n",

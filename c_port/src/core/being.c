@@ -435,8 +435,10 @@ int being_calc_max_vit(const being_t *b) {
 }
 
 static const char *LIMB_NAMES[LIMB_COUNT] = {
-    "head", "neck", "left arm", "right arm", "left finger", "right finger",
+    "head", "neck", "back", "left arm", "right arm", "left wrist", "right wrist",
+    "left hand", "right hand", "left finger", "right finger",
     "body", "waist", "genitalia", "right leg", "left leg", "left foot", "right foot",
+    "extra right leg", "extra left leg", "extra right foot", "extra left foot",
 };
 
 /* position_types[] (misc/being.cc), indexed by position_t. */
@@ -797,13 +799,24 @@ const char *limb_name(limb_t limb) {
 void being_limbs_full_heal(being_t *b) {
     if (!b)
         return;
-    int share = b->progress.max_hp / LIMB_COUNT;
+    /* Only the real, always-active slots (everything before LIMB_REAL_COUNT
+     * -- i.e. not the mob-only EX_* placeholders) compete for a share of
+     * overall HP; EX_* slots stay at 0/0 ("this being doesn't have this
+     * limb") until Body types exists to actually assign them. */
+    int share = b->progress.max_hp / LIMB_REAL_COUNT;
     if (share < LIMB_MIN_MAX_HP)
         share = LIMB_MIN_MAX_HP;
     for (int i = 0; i < LIMB_COUNT; i++) {
-        b->limbs[i].max_hp = share;
-        b->limbs[i].hp = share;
+        bool active = i < LIMB_REAL_COUNT;
+        b->limbs[i].max_hp = active ? share : 0;
+        b->limbs[i].hp = active ? share : 0;
     }
+}
+
+bool being_has_limb(const being_t *b, limb_t limb) {
+    if (!b || limb < 0 || limb >= LIMB_COUNT)
+        return false;
+    return b->limbs[limb].max_hp > 0;
 }
 
 void being_hurt_limb(being_t *b, limb_t limb, int dmg) {
@@ -840,7 +853,10 @@ bool being_has_destroyed_limb(const being_t *b) {
     if (!b)
         return false;
     for (int i = 0; i < LIMB_COUNT; i++) {
-        if (b->limbs[i].hp <= 0)
+        /* An always-inactive EX_* slot (max_hp<=0, being_has_limb()) sits
+         * at hp=0 permanently -- that's "this being doesn't have this
+         * limb", not a real destroyed one, and must never count here. */
+        if (being_has_limb(b, (limb_t)i) && b->limbs[i].hp <= 0)
             return true;
     }
     return false;
@@ -893,7 +909,7 @@ void being_render_equipment(const being_t *b, char *out, size_t out_sz, size_t *
     if (!b)
         return;
     for (int i = 0; i < LIMB_COUNT && *n < out_sz; i++) {
-        if (i == LIMB_GENITALIA)
+        if (i == LIMB_GENITALIA || !being_has_limb(b, (limb_t)i))
             continue;
         equip_line(out, out_sz, n, limb_name((limb_t)i), b->equipment[i]);
     }

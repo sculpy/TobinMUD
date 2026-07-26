@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Smoke test for the `limbs` command: unlike `score`'s Limbs section
-(which only lists an injured limb), `limbs` always shows all 13 limbs
-(head, neck, left/right arm, left/right finger, body, waist, genitalia,
-right/left leg, left/right foot) with their current health percentage,
-whether they're hurt or not.
+(which only lists an injured limb), `limbs` always shows all 18 real,
+always-active limbs (head, neck, back, left/right arm, left/right wrist,
+left/right hand, left/right finger, body, waist, genitalia, right/left
+leg, left/right foot -- Limbs -> wearSlotT, 2026-07-26) with their
+current health percentage, whether they're hurt or not. The 4 mob-only
+EX_* extra-leg/-foot slots stay hidden (being_has_limb()) since nothing
+assigns them a real max_hp until the separate Body types system exists.
 
 Deterministic by design (Session 43 continued, diagnosed as a pre-existing
 flake): rather than waiting on combat RNG to land enough hits on one limb
@@ -60,7 +63,8 @@ _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in rang
 ROOM = 900000 + (int(time.time()) % 70000)
 
 LIMB_NAMES = [
-    "head", "neck", "left arm", "right arm", "left finger", "right finger",
+    "head", "neck", "back", "left arm", "right arm", "left wrist", "right wrist",
+    "left hand", "right hand", "left finger", "right finger",
     "body", "waist", "genitalia", "right leg", "left leg", "left foot", "right foot",
 ]
 
@@ -126,7 +130,7 @@ def login(name, pw):
     return s
 
 
-# --- Part 1: a fresh, undamaged character shows all 13 limbs at 100% ---
+# --- Part 1: a fresh, undamaged character shows all 18 limbs at 100% ---
 name = f"LimbCmd{_suffix}"
 pw = "limbcmdtestpw123"
 sA = socket.create_connection((host, port), timeout=5)
@@ -144,7 +148,7 @@ check("hurt" not in out and "medical attention" not in out and "destroyed" not i
 sA.close()
 
 # --- Part 2: after a deterministic injury via hurtlimb, limbs still shows
-# all 13, with the injured one flagged, alongside untouched limbs at 100% ---
+# all 18, with the injured one flagged, alongside untouched limbs at 100% ---
 imm_name = f"Limbcmdimm{_suffix}"
 imm_pw = "limbcmdimmpw123"
 victim_name = f"Limbcmdvic{_suffix}"
@@ -194,12 +198,12 @@ out = cmd(sv, "limbs")
 check("Limbs" in out, "limbs still shows a Limbs header after injury")
 limb_lines = [l for l in out.splitlines()
               if "%" in l and any(limb in l for limb in LIMB_NAMES)]
-check(len(limb_lines) == 13, "limbs still lists all 13 limbs, not just the injured one")
+check(len(limb_lines) == 18, "limbs still lists all 18 real limbs, not just the injured one")
 check(any("right leg" in l and ("13%" in l or "20%" in l) for l in limb_lines),
       "the injured limb (right leg) shows its expected percentage (13%, or 20% if one "
       "~5s regen tick landed between hurtlimb and this check)")
-check(sum(1 for l in limb_lines if "100%" in l) == 12,
-      "the other 12 untouched limbs still show 100%")
+check(sum(1 for l in limb_lines if "100%" in l) == 17,
+      "the other 17 untouched limbs still show 100%")
 
 s.close()
 sv.close()

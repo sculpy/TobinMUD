@@ -88,8 +88,18 @@ static void tell(being_t *b, const char *fmt, ...) {
  * more cumulative hits before its own HP share runs out. Indexed by
  * limb_t; used as relative weights for a weighted random pick in
  * combat_strike(), replacing the old flat `rand() % LIMB_COUNT`. */
+/* BACK/WRIST/HAND weights added 2026-07-26 (Limbs -> wearSlotT), ported
+ * verbatim from the original's real BODY_HUMANOID row (body.cc's
+ * slot_chance[] table: back=10, wrist=3 each, hand=3 each) -- not
+ * invented numbers. EX_* slots are left at the implicit 0 (unset
+ * designated-initializer entries default to 0 in C), matching that same
+ * row's own EX_* columns for BODY_HUMANOID -- they're never hit under
+ * today's humanoid-only combat regardless of Body types' status. */
 static const int LIMB_HIT_WEIGHT[LIMB_COUNT] = {
-    [LIMB_HEAD] = 7, [LIMB_NECK] = 4, [LIMB_LEFT_ARM] = 5, [LIMB_RIGHT_ARM] = 5,
+    [LIMB_HEAD] = 7, [LIMB_NECK] = 4, [LIMB_BACK] = 10,
+    [LIMB_LEFT_ARM] = 5, [LIMB_RIGHT_ARM] = 5,
+    [LIMB_LEFT_WRIST] = 3, [LIMB_RIGHT_WRIST] = 3,
+    [LIMB_LEFT_HAND] = 3, [LIMB_RIGHT_HAND] = 3,
     [LIMB_LEFT_FINGER] = 1, [LIMB_RIGHT_FINGER] = 1, [LIMB_BODY] = 26, [LIMB_WAIST] = 5,
     [LIMB_GENITALIA] = 1, [LIMB_RIGHT_LEG] = 3, [LIMB_LEFT_LEG] = 3,
     [LIMB_LEFT_FOOT] = 2, [LIMB_RIGHT_FOOT] = 2,

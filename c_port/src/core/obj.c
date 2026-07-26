@@ -284,6 +284,23 @@ int wear_slot_for_flag(int wear_flag, const struct being *fitter) {
         if (!fitter->equipment[LIMB_RIGHT_ARM]) return LIMB_RIGHT_ARM;
         if (!fitter->equipment[LIMB_LEFT_ARM]) return LIMB_LEFT_ARM;
     }
+    /* BACK/WRISTS/HANDS (Limbs -> wearSlotT, 2026-07-26): these bits
+     * already existed verbatim on real seeded objects (obj_t's own field
+     * comment) but had no Tobin limb to map to until now. */
+    if (wear_flag & WEAR_BACK) {
+        matched = true;
+        if (!fitter->equipment[LIMB_BACK]) return LIMB_BACK;
+    }
+    if (wear_flag & WEAR_WRISTS) {
+        matched = true;
+        if (!fitter->equipment[LIMB_RIGHT_WRIST]) return LIMB_RIGHT_WRIST;
+        if (!fitter->equipment[LIMB_LEFT_WRIST]) return LIMB_LEFT_WRIST;
+    }
+    if (wear_flag & WEAR_HANDS) {
+        matched = true;
+        if (!fitter->equipment[LIMB_RIGHT_HAND]) return LIMB_RIGHT_HAND;
+        if (!fitter->equipment[LIMB_LEFT_HAND]) return LIMB_LEFT_HAND;
+    }
     if (wear_flag & WEAR_FINGERS) {
         matched = true;
         if (!fitter->equipment[LIMB_RIGHT_FINGER]) return LIMB_RIGHT_FINGER;
@@ -303,10 +320,10 @@ int wear_slot_for_flag(int wear_flag, const struct being *fitter) {
     if (matched)
         return WEAR_SLOT_NO_ROOM;
 
-    /* HANDS/WRISTS/BACK/THROW/reserved bits: no Tobin limb equivalent (the
-     * 13-limb set was already deliberately trimmed vs. the original's real
-     * slot list, see STATUS.md's Limbs decision row) -- carriable, not
-     * wearable in this port. */
+    /* THROW/reserved bits only, as of the Limbs -> wearSlotT reshape
+     * (2026-07-26) -- HANDS/WRISTS/BACK are now real Tobin limbs, mapped
+     * above. THROW has no Tobin throwing-weapon mechanic; carriable, not
+     * wearable. */
     return WEAR_SLOT_NOT_WEARABLE;
 }
 

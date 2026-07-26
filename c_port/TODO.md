@@ -5984,12 +5984,51 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       gamewide class/race modifiers (HP/damage multiplier, to-hit/AC
       modifier), applied with no restart needed (`balance_repo.h`/
       `balance.c`, `tests/smoke_test_balance.py`).
-- [ ] **Limbs → `wearSlotT`** — reshape the 13-limb enum toward Sneezy's
-      `wearSlotT` (back, wrist, hand vs finger, HOLD, EX_* for mobs). **Open
-      question:** keep the Tobin-added `genitalia` slot? include HOLD/EX for
-      players or mobs only? Own focused pass; touches combat/score/limbs.
-- [ ] **Limbs.h gap review** — weighted hit locations, PART_* flags, etc.
-      (overlaps the wearSlotT item).
+- [x] **Limbs → `wearSlotT`** — done 2026-07-26. Decisions confirmed with
+      the user first (none defaulted): keep Tobin's own GENITALIA slot
+      (yes); add BACK/WRIST_L/R/HAND_L/R for full parity with the
+      original's real slot list (yes -- real seeded `obj.wear_flag` bits
+      for all three already existed, just unmapped, see below); keep
+      `HOLD_RIGHT`/`HOLD_LEFT` OUT of the enum, unlike upstream (Tobin's
+      separate `held[2]` array stays as-is, lower risk than refactoring
+      every `equipment[]` loop); add the original's mob-only `EX_*` extra-
+      leg/-foot slots now even though the separate Body types system that
+      would let a mob actually use them isn't built yet (yes -- always
+      inactive, `max_hp=0`, until it exists).
+      13 limb slots -> 22 (18 real/always-active + 4 EX_* placeholders),
+      `include/being.h`. New `LIMB_REAL_COUNT`/`being_has_limb()` (real
+      max_hp>0 vs an EX_* placeholder) gate every per-limb display loop
+      (`cmd_limbs.c`, `cmd_score.c`, `being_render_equipment()`) and fixed
+      a real bug found while wiring this up: `being_has_destroyed_limb()`
+      (being.c) checked `hp<=0` with NO max_hp guard at all -- adding
+      EX_*'s permanently-zero HP would have made EVERY being permanently
+      "have a destroyed limb", applying combat's -15/+15 to-hit penalty/
+      bonus to literally everyone, always. Also fixed: four `rand() %
+      LIMB_COUNT` random-limb-hit call sites (cmd_cast.c x2, cmd_move.c,
+      cmd_pray.c x2, cmd_use.c x2) switched to `LIMB_REAL_COUNT` so a
+      spell/fall/prayer effect can never land on a nonexistent EX_* slot.
+      `wear_slot_for_flag()` (obj.c) now maps WEAR_BACK/WRISTS/HANDS to
+      real limbs -- these wear_flag bits were already sitting on real
+      seeded objects (e.g. vnum 348 a glove, vnum 716 a bracer) completely
+      unusable until now. `combat.c`'s `LIMB_HIT_WEIGHT` table extended
+      with the original's own real BODY_HUMANOID slot_chance[] numbers
+      (body.cc) for the new slots -- back=10, wrist=3 each, hand=3 each,
+      EX_*=0 (that same row's own values, not invented) -- not a Tobin
+      guess. `tests/smoke_test_limbs_cmd.py`/`smoke_test_limbs.py` both
+      had their own hardcoded 13-limb-name lists updated to the new
+      18-real-limb set (mechanical breakage, same class as the character-
+      creation redesign's test fallout); `smoke_test_limbs.py`'s combat-
+      message check also had an unrelated STALE pattern fixed along the
+      way (expected a bare period right after the limb name; the real
+      format has always been "...'s <limb> <quality word>!" since a
+      separate, earlier hit-quality-descriptor change -- confirmed via
+      raw combat output this was pre-existing staleness, not something
+      this reshape broke). All three limb-related smoke tests pass clean.
+- [x] **Limbs.h gap review** — folded into the item above; weighted hit
+      locations are now real (LIMB_HIT_WEIGHT, ported verbatim from
+      body.cc for every slot including the new ones). PART_* flags
+      (per-limb capability bits like CAN_HOLD/ATTACK/LEAF_NODE from the
+      original) remain out of scope -- no Tobin mechanic reads them yet.
 - [ ] **TobinMUD identity + DB rename** — rename DB `sneezy` → `tobin`
       (init-db.sh, config defaults, docs); rebrand credited as "Derivative of
       SneezyMUD and DikuMUD". Wide but mechanical; coordinate on all boxes.
