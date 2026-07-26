@@ -336,6 +336,10 @@ static const skill_def_t SKILLS[] = {
     { "pierce proficiency",   CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },
     { "barehand proficiency", CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency fighting unarmed." },
     { "ranged proficiency",   CLASS_DRUID, SKILL_TIER_COMBAT, 25, "Basic proficiency with ranged weapons." },
+    /* Full spell/skill/prayer roster import: 6 named Shaman spells
+     * (user 2026-07-26), ported onto Druid. Real level threshold from
+     * spell_info.cc's START_1 (task_sacrifice.cc). */
+    { "sacrifice",         CLASS_DRUID, SKILL_TIER_CLASS,  1, "Ritually sacrifice a corpse to the loa, restoring some vitality." },
     { "barkskin",          CLASS_DRUID, SKILL_TIER_CLASS,  1, "Your skin turns to bark, granting a strong armor bonus." },
     { "entangling roots",  CLASS_DRUID, SKILL_TIER_CLASS,  1, "Roots erupt underfoot, tripping and damaging a target -- only works outdoors." },
     { "heal light",        CLASS_DRUID, SKILL_TIER_CLASS,  1, "A minor healing touch." },

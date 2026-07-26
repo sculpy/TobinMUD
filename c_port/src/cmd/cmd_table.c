@@ -240,6 +240,9 @@ static const cmd_entry_t COMMANDS[] = {
      * ("s" is south -- movement head.) */
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
     { "save",    cmd_save,    "Save your character now.",                           MORTAL_LEVEL_MIN },
+    /* Full spell/skill/prayer roster import (user 2026-07-26): "sac" is
+     * unambiguous -- say already owns "sa", save "sav". */
+    { "sacrifice", cmd_sacrifice, "Ritually sacrifice a corpse to the loa (Druid, sacrifice <corpse>).", MORTAL_LEVEL_MIN },
     /* SWAP: score before scan, so "sc"/"sco" still reach score; scan needs
      * "sca". */
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },

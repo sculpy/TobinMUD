@@ -1028,3 +1028,9 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('cook', 'Usage: cook <recipe>\n\nCooks a known recipe from ingredients you''re carrying (and, for meat\nrecipes, a matching animal corpse on the ground). Type `cook` alone to\nsee the full recipe list. Nothing is consumed unless every ingredient\nfor the recipe is actually present.\n\nRelated: fill drink', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Full spell/skill/prayer roster import, Druid's 6 named Shaman
+-- spells (user 2026-07-26). Sacrifice.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('sacrifice', 'Usage: sacrifice <corpse>\n\nDruid ritual (Basic, level 1). Ritually sacrifices a corpse in the\nroom to the loa -- consumed either way, but on success restores some\nof your Move (vitality). Scoped down from the original''s full multi-\nround ritual (no totem item required, one action instead of several).\n\nRelated: skin butcher', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

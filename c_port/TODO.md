@@ -1090,10 +1090,26 @@ individually. Verbatim from the user:
   damage branch, since it's TAR_VIOLENT in the original too).
   `tests/smoke_test_druid_stupidity.py` (4 checks: real live INT drop,
   `affects` lists it, re-cast refreshes without stacking) all pass live.
-  **Remaining 5** (Flatulence, Sacrifice, Brew, Transform Limb, Healing
-  Grasp) not yet started -- each is its own distinct mechanic (AoE
-  nausea debuff, a resource-cost skill, a potion-brewing crafting skill,
-  a limb-shapeshifting skill, a self-heal), continuing incrementally.
+  **Sacrifice: done 2026-07-26** (second of the 6). Real upstream
+  (`task_sacrifice.cc`) is a full multi-round timed ritual needing a
+  "totem" tool item that wears down with use and a "lifeforce" resource
+  Tobin has no equivalent of, interruptible by room guards -- scoped
+  down to a single-action skill matching `cmd_skin.c`/`cmd_butcher.c`'s
+  exact pattern instead: `sacrifice <corpse>` (new `cmd_sacrifice.c`,
+  "sac" is the unambiguous prefix since "say"/"save" already own
+  "sa"/"sav") consumes any corpse in the room either way, and on a
+  skill-roll success restores vit/Move via the existing
+  `being_heal_vit()` (the closest real analog to "lifeforce" already
+  wired everywhere vit is spent -- not a literal port of the original's
+  separate stat), scaled by caster level (`5 + level/4`). New Druid
+  roster entry (`skill.c`, CLASS tier, level 1 matching the real
+  START_1). `tests/smoke_test_sacrifice.py` (5 checks: refused with no
+  corpse, corpse consumed either way, ritual completes, live Move
+  doesn't decrease) all pass live.
+  **Remaining 4** (Flatulence, Brew, Transform Limb, Healing Grasp) not
+  yet started -- each is its own distinct mechanic (AoE nausea debuff,
+  a potion-brewing crafting skill, a limb-shapeshifting skill, a
+  self-heal), continuing incrementally.
 - "All in adventuring discipline goes into combat skills for all" -- every
   `DISC_ADVENTURING`/`DISC_ADVANCED_ADVENTURING` entry (roster artifact:
   General/all-classes, 24 entries -- forage/climb/swim/cook/fishing/
