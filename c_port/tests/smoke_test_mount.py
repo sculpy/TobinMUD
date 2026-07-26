@@ -231,7 +231,7 @@ sB.close()
 # --- movement: horse comes along, vit cost is discounted ---
 def live_vit(sock, timeout=0.3):
     out = strip(cmd(sock, "score", timeout))
-    m = re.search(r"Vitality:\s+(\d+)/(\d+)", out)
+    m = re.search(r"Move:\s+(\d+) \((\d+) Max", out)
     return int(m.group(1)) if m else None
 
 before = live_vit(sA)

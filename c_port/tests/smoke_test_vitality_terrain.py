@@ -143,7 +143,7 @@ def live_vit(sock):
     under the 5s regen cadence -- the default 1.0s was still wide enough
     to straddle a tick roughly 1 exchange in 3."""
     out = cmd(sock, "score", timeout=0.3)
-    m = re.search(r"Vitality:\s*(\d+)/(\d+)", out)
+    m = re.search(r"Move:\s*(\d+) \((\d+) Max", out)
     return int(m.group(1))
 
 
@@ -192,7 +192,7 @@ sA = make_char(mort_name, mort_pw)
 
 # --- 1. score shows a Vitality line for a freshly created character ---
 out = cmd(sA, "score")
-m = re.search(r"Vitality:\s*(\d+)/(\d+)", out)
+m = re.search(r"Move:\s*(\d+) \((\d+) Max", out)
 check(m is not None, "score shows a Vitality: <n>/<n> line")
 check(int(m.group(1)) == int(m.group(2)) > 0, "a fresh character starts at full vitality")
 

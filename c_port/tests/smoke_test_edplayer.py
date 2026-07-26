@@ -224,16 +224,16 @@ cmd(sa, "Q")
 # --- verify via a fresh reconnect: level/xp/hp/attrs/gender/title/handed/room ---
 st = relogin(target)
 out = strip(cmd(st, "score"))
-check("Level:         30" in out, "the saved level persisted")
-check("Experience:    5000" in out, "the saved experience persisted")
-check("HP:            4" in out and "/60" in out,
+check("Level: 30" in out, "the saved level persisted")
+check("Experience: 5000" in out, "the saved experience persisted")
+check("HP: 4" in out and "60 Max" in out,
       "the saved HP/Max HP persisted (current HP may have ticked up slightly from regen "
       "by the time this reconnects, so just check the max and that it starts with 4x)")
-check("Strength:      200" in out, "the saved attribute persisted")
-check("Gender: female" in out, "the saved gender persisted")
-check("You are left handed" in out, "the saved handedness persisted")
-check("Race:          Elf" in out, "the saved race persisted")
-check("Class:         Warrior" in out, "the saved class persisted")
+check("Str: 200" in out, "the saved attribute persisted")
+check("Sex: female" in out, "the saved gender persisted")
+check("Pri. Hand: Left" in out, "the saved handedness persisted")
+check("Race: Elf" in out, "the saved race persisted")
+check("Class: Warrior" in out, "the saved class persisted")
 
 out = strip(cmd(st, "who"))
 check("the Tested" in out, "the saved title shows in who")
@@ -266,7 +266,7 @@ check("Leaving the player editor" in out, "D discards and leaves")
 
 st = relogin(target)
 out = strip(cmd(st, "score"))
-check("Level:         30" in out, "the discarded level change did NOT persist -- still 30")
+check("Level: 30" in out, "the discarded level change did NOT persist -- still 30")
 st.close()
 
 sa.close()

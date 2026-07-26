@@ -121,7 +121,7 @@ def query(stmt):
 
 def live_vit(sock):
     out = cmd(sock, "score", timeout=0.3)
-    m = re.search(r"Vitality:\s*(\d+)/(\d+)", out)
+    m = re.search(r"Move:\s*(\d+) \((\d+) Max", out)
     return int(m.group(1))
 
 
@@ -244,6 +244,7 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"'A pouch of spell components is lying here.',12,1,1);")
 cmd(si, f"goto {ROOM_LAND}")
 cmd(si, f"load obj {COMPONENT_A}")
+cmd(si, "drop pouch")
 cmd(sB, "get pouch")
 
 out = cmd(sB, "cast gills of flesh")
@@ -258,7 +259,7 @@ for _ in range(5):
     cmd(si, "aitick 1")
     cmd(sB, "", timeout=0.3)
 out = cmd(sB, "score")
-m = re.search(r"HP:\s*(\d+)/(\d+)", out)
+m = re.search(r"HP:\s*(\d+) \((\d+) Max", out)
 check(int(m.group(1)) == int(m.group(2)), "a mortal with water breathing takes no drowning damage underwater")
 cmd(sB, "quit!"); sB.close()
 
@@ -276,6 +277,7 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"'A pouch of spell components is lying here.',12,1,1);")
 cmd(si, f"goto {ROOM_LAND}")
 cmd(si, f"load obj {COMPONENT_B}")
+cmd(si, "drop pouch")
 cmd(sC, "get pouch")
 
 out = cmd(sC, "cast levitate")

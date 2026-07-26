@@ -146,8 +146,8 @@ out = step(s, "alignment: neutral", "2")
 check(f"Welcome, {char1_name}" in out, "'done' creates the character and enters the world")
 
 out = step(s, "score", "score")
-check("You are left handed" in out, "score shows the chosen left-handedness")
-check("Strength:      146" in out and "Dexterity:     120" in out,
+check("Pri. Hand: Left" in out, "score shows the chosen left-handedness")
+check("Str: 146" in out and "Dex: 120" in out,
       "score shows the persisted point-buy allocation (150 str -4 for the Mage class chosen at creation)")
 
 s.close()
@@ -170,7 +170,7 @@ out = step(s2, "alignment: neutral", "2")
 check(f"Welcome, {char2_name}" in out, "second character created with default (unallocated) attrs")
 
 out = step(s2, "score for second character", "score")
-check("Strength:      116" in out, "second character kept the ATTR_BASE defaults (no allocation made; "
+check("Str: 116" in out, "second character kept the ATTR_BASE defaults (no allocation made; "
       "120 -4 for the Mage class chosen at creation)")
 
 s2.close()

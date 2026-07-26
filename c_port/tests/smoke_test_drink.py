@@ -168,7 +168,7 @@ for _ in range(30):
     if "poison courses through you" in out:
         poisoned = True
     hp_out = cmd(sm, "score")
-    m = re.search(r"HP:\s*(-?\d+)/(\d+)", hp_out)
+    m = re.search(r"HP:\s*(-?\d+) \((\d+) Max", hp_out)
     if m:
         check(int(m.group(1)) >= 1, "poison never drops HP below 1")
 
@@ -180,6 +180,7 @@ check(poisoned, "the poison message fired at least once across 30 drinks (30% ch
 # vnum 3 ("fountain water" / "a large fountain") is real seeded content.
 FOUNTAIN_VNUM = 3
 check("You conjure" in cmd(s, f"load obj {FOUNTAIN_VNUM}"), "the immortal loads a real seeded fountain")
+cmd(s, "drop fountain")
 out = cmd(sm, "drink fountain")
 check("Refreshing!" in out, "drink resolves a real fountain, no longer 'You don't see that here to drink'")
 out = cmd(sm, "look")

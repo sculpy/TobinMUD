@@ -133,8 +133,8 @@ def make_weak_mob(vnum, keyword):
 
 
 def max_hp_from_score(out):
-    m = re.search(r"HP:\s*(\d+)/(\d+)", out)
-    check(m is not None, "score shows an HP: current/max pair")
+    m = re.search(r"HP:\s*(\d+) \((\d+) Max", out)
+    check(m is not None, "score shows an HP: current (max Max.) pair")
     return int(m.group(2))
 
 

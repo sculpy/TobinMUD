@@ -143,13 +143,13 @@ def reconnect(s, name):
 s1, name1 = make_player("Mone")
 send_line(s1, "score")
 out = recv_all(s1)
-check("Level:         1" in out, "fresh character shows 'Level: 1'")
+check("Level: 1" in out, "fresh character shows 'Level: 1'")
 
 set_level(name1, 50)
 s1 = reconnect(s1, name1)
 send_line(s1, "score")
 out = recv_all(s1)
-check("Level:         50" in out, "level 50 (mortal ceiling) shows 'Level: 50', not a title")
+check("Level: 50" in out, "level 50 (mortal ceiling) shows 'Level: 50', not a title")
 s1.close()
 
 # Immortal tiers: 51, 53 (Immortal); 54, 57 (God); 58 (Greater God);
@@ -170,8 +170,8 @@ for level, expected_title in tiers:
     send_line(s, "score")
     raw = recv_all(s)
     out = strip_ansi(raw)
-    check(f"Level:         {expected_title}" in out, f"level {level} score shows '{expected_title}'")
-    check(f"Level:         {level}" not in out, f"level {level} score does NOT show the raw number")
+    check(f"Level: {expected_title}" in out, f"level {level} score shows '{expected_title}'")
+    check(f"Level: {level}" not in out, f"level {level} score does NOT show the raw number")
 
     send_line(s, "who")
     raw = recv_all(s)

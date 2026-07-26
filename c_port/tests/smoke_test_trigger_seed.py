@@ -149,10 +149,11 @@ check("mutters something rude" in out, "the hauler's seeded speech trigger fires
 
 # --- 2: stickerBush-inspired get trigger on the new brambles ---
 check("You conjure" in cmd(s, f"load obj {BRAMBLE_VNUM}"), "the new tangle of thorny brambles is loaded")
-hp_before_m = re.search(r"HP:\s*(-?\d+)/(\d+)", cmd(sm, "score"))
+cmd(s, "drop brambles")
+hp_before_m = re.search(r"HP:\s*(-?\d+) \((\d+) Max", cmd(sm, "score"))
 out = cmd(sm, "get brambles")
 check("thorns prick your fingers" in out, "the get trigger's echo action fires")
-hp_after_m = re.search(r"HP:\s*(-?\d+)/(\d+)", cmd(sm, "score"))
+hp_after_m = re.search(r"HP:\s*(-?\d+) \((\d+) Max", cmd(sm, "score"))
 check(int(hp_after_m.group(1)) == int(hp_before_m.group(1)) - 2,
       "the get trigger's damage action ALSO fires (both script lines ran)")
 

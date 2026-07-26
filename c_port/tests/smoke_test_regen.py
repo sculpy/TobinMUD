@@ -114,7 +114,7 @@ def set_hp(name, hp):
 
 
 def read_hp(out):
-    m = re.search(r"HP:\s+(\d+)/(\d+)", out)
+    m = re.search(r"HP:\s+(\d+) \((\d+) Max", out)
     check(m is not None, "score output includes a parseable HP line")
     return int(m.group(1)), int(m.group(2))
 

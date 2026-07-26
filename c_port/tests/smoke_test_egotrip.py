@@ -150,13 +150,13 @@ send_line(s_mort, "1"); recv_all(s_mort)
 cmd(s_mort, "color off")
 
 score = cmd(s_mort, "score")
-before_hp = int(re.search(r"HP:\s+(\d+)/", score).group(1))
+before_hp = int(re.search(r"HP:\s+(\d+) \(", score).group(1))
 out = cmd(s_imm, f"egotrip blast {mort_name}")
 check(f"You blast {mort_name}" in out, "egotrip blast confirms delivery to the caster")
 out = recv_all(s_mort, 1.0)
 check("BZZZZZaaaaaappppp" in out, "the target sees the lightning-bolt message")
 score = cmd(s_mort, "score")
-after_hp = int(re.search(r"HP:\s+(\d+)/", score).group(1))
+after_hp = int(re.search(r"HP:\s+(\d+) \(", score).group(1))
 # Regen ticks (REGEN_PULSES, ~every 5s) can nudge HP up between reads --
 # check for a roughly-halved result, not an exact value.
 check(after_hp <= before_hp // 2 + 3, f"the blast roughly halves HP ({before_hp} -> {after_hp})")
@@ -164,7 +164,7 @@ check(after_hp <= before_hp // 2 + 3, f"the blast roughly halves HP ({before_hp}
 before_hp = after_hp
 out = cmd(s_imm, f"egotrip blast {mort_name}")
 score = cmd(s_mort, "score")
-after_hp = int(re.search(r"HP:\s+(\d+)/", score).group(1))
+after_hp = int(re.search(r"HP:\s+(\d+) \(", score).group(1))
 check(after_hp <= before_hp // 2 + 3, f"a second blast roughly halves HP again ({before_hp} -> {after_hp})")
 
 s_imm.close()

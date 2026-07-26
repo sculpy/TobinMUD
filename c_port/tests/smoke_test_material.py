@@ -275,7 +275,7 @@ try:
     # real-time window is now the only way to compare average damage.
     def tgt_hp():
         out = cmd(tgt, "score")
-        m = re.search(r"HP:\s+(\d+)/", out)
+        m = re.search(r"HP:\s+(\d+) \(", out)
         check(m is not None, "score's HP line is parseable")
         return int(m.group(1))
 

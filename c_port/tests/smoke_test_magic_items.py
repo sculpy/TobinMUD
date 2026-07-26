@@ -140,7 +140,7 @@ def ac_of(score_out):
 
 
 def max_hp_of(score_out):
-    m = re.search(r"HP:\s+\d+/(\d+)", score_out)
+    m = re.search(r"HP:\s+\d+ \((\d+) Max", score_out)
     return int(m.group(1)) if m else None
 
 

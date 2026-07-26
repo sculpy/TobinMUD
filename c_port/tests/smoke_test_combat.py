@@ -101,7 +101,7 @@ def try_read_hp(out):
     None -- a defeated combatant is now ejected to the account menu (see
     combat_defeat() / STATUS.md), so a "score" sent right after a fatal
     round returns menu text, not an HP line."""
-    m = re.search(r"HP:\s+(\d+)/(\d+)", out)
+    m = re.search(r"HP:\s+(\d+) \((\d+) Max", out)
     return (int(m.group(1)), int(m.group(2))) if m else None
 
 

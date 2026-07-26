@@ -126,7 +126,7 @@ def relog(name, pw):
 
 
 def hp_from_score(out):
-    m = re.search(r"HP:\s+(\d+)/(\d+)", out)
+    m = re.search(r"HP:\s+(\d+) \((\d+) Max", out)
     return (int(m.group(1)), int(m.group(2))) if m else None
 
 

@@ -2,7 +2,7 @@
 """Smoke test for gender + appearance at character creation (descriptor.c,
 being.c, player_repo.c, cmd_score.c, cmd_look.c):
   1. `gender male` + `appearance <text>` on the creation screen take effect;
-     score shows "Gender: male" and the appearance line.
+     score shows "Sex: male" and the appearance line.
   2. Both persist across a reconnect (player.gender / player.appearance).
   3. `look <player>` shows another player's appearance.
   4. Looking at a player with no appearance gives a gender-aware
@@ -117,14 +117,14 @@ appearA = "a towering scarred warrior"
 sA = make_char(nameA, gender="male", appearance=appearA)
 
 out = cmd(sA, "score")
-check("Gender: male" in out, "score shows the chosen gender (male)")
+check("Sex: male" in out, "score shows the chosen gender (male)")
 check(appearA in out, "score shows the chosen appearance")
 
 # Persistence across reconnect.
 sA.close()
 sA = relogin(nameA)
 out = cmd(sA, "score")
-check("Gender: male" in out and appearA in out,
+check("Sex: male" in out and appearA in out,
       "gender and appearance persist across a reconnect")
 
 # A neuter character with no appearance, in the same start room (Center Square).

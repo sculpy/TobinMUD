@@ -9,7 +9,7 @@ prerequisite (progress_t.alignment, -1000 evil .. +1000 good, 0 neutral
 default) plus the one reaction described: an ACT_AGGRESSIVE mob backs off
 a sufficiently good-aligned target.
 
-  1. A fresh character starts neutral (score shows "Alignment: neutral").
+  1. A fresh character starts neutral (score shows "Align: neutral").
   2. `set <name> alignment <value>` (58+) changes it, reflected in score
      with the right word tier, and rejects out-of-range values.
   3. An ACT_AGGRESSIVE mob attacks a neutral-aligned mortal within a
@@ -146,7 +146,7 @@ sv = socket.create_connection((host, port), timeout=5)
 make_char(sv, mort_name, mort_pw)
 
 out = cmd(sv, "score")
-check("Alignment:     neutral" in out, "a fresh character starts neutral")
+check("Align: neutral" in out, "a fresh character starts neutral")
 
 imm_name = f"Alignimm{_suffix}"
 imm_pw = "alignimmpw123"
@@ -159,7 +159,7 @@ s = login(imm_name, imm_pw)
 out = cmd(s, f"set {mort_name} alignment 500")
 check("alignment is now 500 (good)" in out, "set alignment updates and names the tier")
 out = cmd(sv, "score")
-check("Alignment:     good" in out, "the mortal's own score reflects the new alignment")
+check("Align: good" in out, "the mortal's own score reflects the new alignment")
 
 out = cmd(s, f"set {mort_name} alignment 5000")
 check("must be between -1000" in out, "an out-of-range alignment is rejected")

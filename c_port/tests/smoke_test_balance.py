@@ -179,8 +179,8 @@ warrior_name = f"Balwar{_suffix}"
 sw = make_char(warrior_name, pw, "3")
 out = cmd(sw, "score")
 import re
-m = re.search(r"HP:\s*(\d+)/(\d+)", out)
-check(m is not None, "score shows an HP: current/max pair")
+m = re.search(r"HP:\s*(\d+) \((\d+) Max", out)
+check(m is not None, "score shows an HP: current (max Max.) pair")
 max_hp = int(m.group(2))
 
 # being_calc_max_hp() = 20 + (constitution - 120) + level * 5 * (class_hp_scale * hp_mult).

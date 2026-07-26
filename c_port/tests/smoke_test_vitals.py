@@ -164,10 +164,10 @@ si = relog(imm_name, imm_pw)
 
 # --- 1: a fresh character starts well fed/quenched, with an Age line ---
 out = cmd(sA, "score")
-check("Hunger:        well fed" in out, "a fresh character starts well fed")
-check("Thirst:        quenched" in out, "a fresh character starts quenched")
-check(re.search(r"Age:\s+(less than a minute old|\d+ (minute|second)s? old)", out) is not None,
-      "score shows a fresh Age line")
+check("Hunger: well fed" in out, "a fresh character starts well fed")
+check("Thirst: quenched" in out, "a fresh character starts quenched")
+check(re.search(r"Age:\s+\d+ years old", out) is not None,
+      "score shows a fresh Age line (starts at 17, real-time converted via gametime's mud-year ratio)")
 
 # --- bootstrap a sandbox room + real food/drink objects ---
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
@@ -181,7 +181,9 @@ sA = relog(mort_name, mort_pw)
 
 cmd(si, f"goto {ROOM}")
 cmd(si, f"load obj {FOOD_VNUM}")
+cmd(si, "drop steak")
 cmd(si, f"load obj {FOUNTAIN_VNUM}")
+cmd(si, "drop fountain")
 out = cmd(sA, "get steak")
 check("You get" in out or "you get" in out.lower(), "the mortal picks up the loaded steak")
 
@@ -229,8 +231,8 @@ check(hp_of(mort_name) == 1, "starvation damage is floored at 1 HP -- never leth
 
 # --- 6: an immortal is immune regardless of stored value ---
 out = cmd(si, "score")
-check("Hunger:        immune" in out, "an immortal's score shows Hunger: immune")
-check("Thirst:        immune" in out, "an immortal's score shows Thirst: immune")
+check("Hunger: immune" in out, "an immortal's score shows Hunger: immune")
+check("Thirst: immune" in out, "an immortal's score shows Thirst: immune")
 
 sA.close()
 si.close()

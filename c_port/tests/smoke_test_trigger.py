@@ -272,10 +272,10 @@ cmd(s, "echo Ouch! The thorns prick your fingers.")
 cmd(s, "damage 3")
 check("Trigger saved" in cmd(s, "/s"), "the obj get trigger saves")
 
-hp_before_m = re.search(r"HP:\s*(-?\d+)/(\d+)", cmd(sw, "score"))
+hp_before_m = re.search(r"HP:\s*(-?\d+) \((\d+) Max", cmd(sw, "score"))
 out = cmd(sw, f"get stickerbush{_suffix}")
 check("Ouch! The thorns prick your fingers." in out, "the obj get trigger fired (echo)")
-hp_after_m = re.search(r"HP:\s*(-?\d+)/(\d+)", cmd(sw, "score"))
+hp_after_m = re.search(r"HP:\s*(-?\d+) \((\d+) Max", cmd(sw, "score"))
 check(int(hp_after_m.group(1)) == int(hp_before_m.group(1)) - 3,
       "the obj get trigger fired (damage 3 applied)")
 

@@ -2,7 +2,7 @@
 """Smoke test for armor class (user 2026-07-11: "Armor & protection (AC)
 go in next, complete the to-hit / defense formula depth"). Covers:
 
-  1. A fresh character shows "Armor Class:   0" in `score` -- unarmored.
+  1. A fresh character shows "Armor Class: 0" in `score` -- unarmored.
   2. Wearing a heavy armor piece raises it. The real seeded `obj` table's
      armor rows all have val0=0 (no per-item AC data ever populated), so
      obj_armor_ac() derives AC from the item's weight instead -- this
@@ -145,7 +145,7 @@ check("Armor Sandbox" in cmd(sv, "look"), "the mortal lands directly in the sand
 
 # --- 1: unarmored, Armor Class: 0 ---
 out = cmd(sv, "score")
-check("Armor Class:   0" in out, "a fresh character shows Armor Class: 0")
+check("Armor Class: 0" in out, "a fresh character shows Armor Class: 0")
 
 # A heavy (weight 20) armor item -- val0=0 like every real seeded armor
 # row, so this only shows a nonzero AC at all if obj_armor_ac() derives
@@ -154,6 +154,7 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,weight,val0
     f"VALUES ({ARMOR_ITEM},'heavy plate armor','a suit of heavy plate armor',"
     f"'A suit of heavy plate armor is lying here.',{TYPE_ARMOR},{WEAR_TAKE | WEAR_BODY},20,0,1);")
 check("You conjure" in cmd(s, f"load obj {ARMOR_ITEM}"), "the heavy plate armor is loaded")
+cmd(s, "drop plate")
 
 out = cmd(sv, "get plate")
 check("you get" in out.lower(), "the mortal picks up the plate armor")
@@ -162,13 +163,13 @@ check("wear" in out.lower(), "wear equips the plate armor")
 
 # --- 2: armored, Armor Class rises (weight 20 * 2 per point, capped at 30) ---
 out = cmd(sv, "score")
-check("Armor Class:   30" in out, "wearing heavy armor raises Armor Class (derived from weight, capped at 30)")
+check("Armor Class: 30" in out, "wearing heavy armor raises Armor Class (derived from weight, capped at 30)")
 
 # --- 3: remove it, Armor Class drops back to 0 ---
 out = cmd(sv, "remove plate")
 check("remove" in out.lower(), "remove takes the armor back off")
 out = cmd(sv, "score")
-check("Armor Class:   0" in out, "removing the armor drops Armor Class back to 0")
+check("Armor Class: 0" in out, "removing the armor drops Armor Class back to 0")
 
 s.close()
 sv.close()
