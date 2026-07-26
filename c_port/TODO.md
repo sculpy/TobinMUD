@@ -1137,17 +1137,25 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - [ ] **Money tree yields a literal "talen" item, not gold** — user,
       2026-07-26 (found via the new stacking feature): "when planting a
       money tree, you see 'A single talen is here. (x4)'. that should be
-      gold." Planting's money-tree fruit vnum (13, "talen", real seeded
-      `obj.type`=20/ITEM_MONEY) is a real OBJ_CAT_MONEY item -- Tobin's
-      established money-pile convention (`pick_up_money()`, cmd_object.c)
-      auto-credits the coin amount to the picker's wallet and destroys
-      the object on `get`, rather than it being a real carryable item.
-      Not yet investigated why it's showing as a static "is here" ground
-      item instead of behaving like other money piles on `get` -- check
-      `obj_plant_growth_tick()`'s fruit-drop path (obj_plant.c) and
-      whether `pick_up_money()`'s gate is actually reached for this
-      specific vnum, or whether val[0] (coin amount) is being read
-      correctly off this particular real seeded row.
+      gold." Root-caused 2026-07-26: mechanically this vnum (13, real
+      seeded `obj.type`=20/ITEM_MONEY) already behaves exactly like every
+      other money pile -- `pick_up_money()` (cmd_object.c) will auto-credit
+      its `val[0]` gold amount and destroy it on `get`, same as any other
+      OBJ_CAT_MONEY row. It's flavor-text only: the 2026-07-17 "talens ->
+      gold" rename (`tobin_migrations.sql`) was applied live to the `obj`
+      table (16 vnums) but only ever matched the PLURAL "talens" pattern
+      in shop flavor text -- vnum 13's own name/short_desc/long_desc use
+      the SINGULAR "a talen" and were never touched by that pass. Added a
+      follow-up migration in `tobin_migrations.sql` (right after the
+      original talens->gold shop UPDATEs) that catches any remaining
+      ITEM_MONEY row still saying singular "talen". **Blocked on
+      deployment**: the whole 192.168.254.x network (VM + gateway) was
+      unreachable from Home when this was found, so the migration hasn't
+      been applied to the live DB yet -- run
+      `mariadb sneezy < db/sneezy/tobin_migrations.sql` (idempotent, only
+      touches rows still matching) once the VM is reachable again, then
+      verify live with `mariadb sneezy -e "SELECT vnum,name,short_desc
+      FROM obj WHERE vnum=13;"`.
 - [x] **Immortal inventory/worn items purged on quit!** — done 2026-07-26.
       A mortal's `quit!` still drops everything on the floor (existing
       behavior); an immortal's now gets destroyed outright instead

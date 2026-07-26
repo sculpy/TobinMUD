@@ -513,6 +513,16 @@ UPDATE `objextra` SET `description` = REGEXP_REPLACE(`description`, 'sneezymud',
 UPDATE `shop` SET `message_buy` = REPLACE(`message_buy`, 'talens', 'gold') WHERE `message_buy` LIKE '%talens%';
 UPDATE `shop` SET `message_sell` = REPLACE(`message_sell`, 'talens', 'gold') WHERE `message_sell` LIKE '%talens%';
 
+-- The original 2026-07-17 pass above only matched the PLURAL "talens" in
+-- shop flavor text -- it missed `obj` rows whose flavor text uses the
+-- SINGULAR "a talen" (e.g. the money-tree fruit, vnum 13, obj_plant.c),
+-- surfaced live 2026-07-26 when a player saw "A single talen is here."
+-- Catches any remaining ITEM_MONEY (type=20) row still saying "talen".
+UPDATE `obj` SET `name` = REPLACE(`name`, 'talen', 'gold'),
+                 `short_desc` = REPLACE(`short_desc`, 'talen', 'gold'),
+                 `long_desc` = REPLACE(`long_desc`, 'talen', 'gold')
+  WHERE `type` = 20 AND (`name` LIKE '%talen%' OR `short_desc` LIKE '%talen%' OR `long_desc` LIKE '%talen%');
+
 -- Unseen-wiznews bookmark, same shape as news_last_seen_id above (2026-07-17
 -- batch) -- highest wiznews.id an immortal has already caught up on. Bumped
 -- to news_repo_max_id(true) when they run `wiznews`; compared against it at
