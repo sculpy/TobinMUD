@@ -18,7 +18,7 @@ bool mob_proto_load(int vnum, mob_proto_t *out) {
     if (db_query(db,
             "select name, short_desc, long_desc, description, actions, affects, faction, "
             "fact_perc, attacks, level, tohit, ac, hpbonus, damage_level, damage_precision, "
-            "gold, race, weight, height, str, bra, con, dex, agi, intel, wis, foc, per, cha, "
+            "gold, race, body_type, weight, height, str, bra, con, dex, agi, intel, wis, foc, per, cha, "
             "kar, spe, def_position, sex, spec_proc, skin, vision, can_be_seen, max_exist, "
             "local_sound, adjacent_sound, align, class "
             "from mob where vnum=%i", vnum)
@@ -40,6 +40,7 @@ bool mob_proto_load(int vnum, mob_proto_t *out) {
         out->damage_precision = atoi(db_get(db, "damage_precision"));
         out->gold = atoi(db_get(db, "gold"));
         out->race = atoi(db_get(db, "race"));
+        out->body_type = atoi(db_get(db, "body_type"));
         out->weight = atoi(db_get(db, "weight"));
         out->height = atoi(db_get(db, "height"));
         out->str = atoi(db_get(db, "str"));
@@ -88,6 +89,7 @@ bool mob_proto_save(int vnum, const mob_proto_t *p) {
         "update mob set name='%s', short_desc='%s', long_desc='%s', description='%s', "
         "actions=%i, affects=%i, faction=%i, fact_perc=%i, attacks=%f, level=%i, tohit=%i, "
         "ac=%f, hpbonus=%f, damage_level=%f, damage_precision=%i, gold=%i, race=%i, "
+        "body_type=%i, "
         "weight=%i, height=%i, str=%i, bra=%i, con=%i, dex=%i, agi=%i, intel=%i, wis=%i, "
         "foc=%i, per=%i, cha=%i, kar=%i, spe=%i, def_position=%i, sex=%i, spec_proc=%i, "
         "skin=%i, vision=%i, can_be_seen=%i, max_exist=%i, local_sound='%s', "
@@ -95,6 +97,7 @@ bool mob_proto_save(int vnum, const mob_proto_t *p) {
         p->name, p->short_descr, p->long_descr, p->description,
         p->actions, p->affects, p->faction, p->fact_perc, p->attacks, p->level, p->tohit,
         p->ac, p->hpbonus, p->damage_level, p->damage_precision, p->gold, p->race,
+        p->body_type,
         p->weight, p->height, p->str, p->bra, p->con, p->dex, p->agi, p->intel, p->wis,
         p->foc, p->per, p->cha, p->kar, p->spe, p->def_position, p->sex, p->spec_proc,
         p->skin, p->vision, p->can_be_seen, p->max_exist, p->local_sound,

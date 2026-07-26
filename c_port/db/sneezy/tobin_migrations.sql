@@ -535,3 +535,44 @@ UPDATE `obj` SET `name` = 'gold coins small pile',
 -- house rule. int, not bigint: matches wiznews.id's own column type.
 ALTER TABLE `player`
   ADD COLUMN IF NOT EXISTS `wiznews_last_seen_id` int(11) NOT NULL DEFAULT 0;
+
+-- Body types (Sneezy -> Tobin feature audit, user 2026-07-26: "creatures
+-- have different limb sets", full 60-type parity per the original's real
+-- body_t/slot_chance -- see body.h/body.c). The real seeded `mob` table
+-- never carried body-shape data at all -- every mob defaults to
+-- BODY_HUMANOID (1). The UPDATEs below classify a real, meaningful
+-- SAMPLE of obviously non-humanoid mobs via word-boundary name matching
+-- (mob.name is a space-separated keyword list, e.g. "spider giant cave"
+-- -- REGEXP word boundaries used deliberately, a raw substring LIKE
+-- '%rat%' would also match "pirate"/"curator"/"Stratos" etc, confirmed
+-- live). This is a representative pass, NOT an exhaustive audit of every
+-- real seeded mob -- most still default to BODY_HUMANOID until someone
+-- does that fuller classification later.
+ALTER TABLE `mob`
+  ADD COLUMN IF NOT EXISTS `body_type` int(11) NOT NULL DEFAULT 1;
+
+UPDATE `mob` SET `body_type` = 26 WHERE `name` REGEXP '(^| )(spider|scorpion)'; -- SPIDER
+UPDATE `mob` SET `body_type` = 24 WHERE `name` REGEXP '(^| )snake'; -- SNAKE
+UPDATE `mob` SET `body_type` = 25 WHERE `name` REGEXP '(^| )naga'; -- NAGA
+UPDATE `mob` SET `body_type` = 22 WHERE `name` REGEXP '(^| )dragon($| )'; -- DRAGON
+UPDATE `mob` SET `body_type` = 58 WHERE `name` REGEXP '(^| )ant($| )'; -- ANT
+UPDATE `mob` SET `body_type` = 30 WHERE `name` REGEXP '(^| )bat($| )'; -- BAT
+UPDATE `mob` SET `body_type` = 40 WHERE `name` REGEXP '(^| )turtle'; -- TURTLE
+UPDATE `mob` SET `body_type` = 44 WHERE `name` REGEXP '(^| )frog'; -- FROG
+UPDATE `mob` SET `body_type` = 23 WHERE `name` REGEXP '(^| )fish($| )'; -- FISH (fish specifically, not fisherman/fishman etc)
+UPDATE `mob` SET `body_type` = 28 WHERE `name` REGEXP '(^| )octopus'; -- OCTOPUS
+UPDATE `mob` SET `body_type` = 27 WHERE `name` REGEXP '(^| )centipede'; -- CENTIPEDE
+UPDATE `mob` SET `body_type` = 33 WHERE `name` REGEXP '(^| )slime'; -- SLIME
+UPDATE `mob` SET `body_type` = 54 WHERE `name` REGEXP '(^| )golem'; -- GOLEM
+UPDATE `mob` SET `body_type` = 36 WHERE `name` REGEXP '(^| )demon'; -- DEMON
+UPDATE `mob` SET `body_type` = 31 WHERE `name` REGEXP '(^| )treant'; -- TREE
+UPDATE `mob` SET `body_type` = 15 WHERE `name` REGEXP '(^| )centaur'; -- CENTAUR
+UPDATE `mob` SET `body_type` = 57 WHERE `name` REGEXP '(^| )pegasus'; -- PEGASUS
+UPDATE `mob` SET `body_type` = 12 WHERE `name` REGEXP '(^| )griffon'; -- GRIFFON
+UPDATE `mob` SET `body_type` = 16 WHERE `name` REGEXP '(^| )lamia'; -- LAMIA
+UPDATE `mob` SET `body_type` = 53 WHERE `name` REGEXP '(^| )minotaur'; -- MINOTAUR
+UPDATE `mob` SET `body_type` = 37 WHERE `name` REGEXP '(^| )(lion|tiger)'; -- LION (big cats)
+UPDATE `mob` SET `body_type` = 50 WHERE `name` REGEXP '(^| )elephant'; -- ELEPHANT
+UPDATE `mob` SET `body_type` = 39 WHERE `name` REGEXP '(^| )(pig|boar)($| )'; -- PIG
+UPDATE `mob` SET `body_type` = 41 WHERE `name` REGEXP '(^| )(horse|cow|ox|mule|donkey|deer)($| )'; -- FOUR_HOOF
+UPDATE `mob` SET `body_type` = 38 WHERE `name` REGEXP '(^| )(wolf|dog|cat|bear)($| )'; -- FOUR_LEG (generic quadruped)

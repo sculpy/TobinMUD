@@ -5911,8 +5911,49 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       account-level connection preference (toggled far more casually,
       closer to a terminal setting than "a player's story"), not a
       pfile change. `tests/smoke_test_pfile_logging.py`.
-- [ ] **Body types** — `body.h` body-type concept (creatures have different
-      limb sets). Pairs with mobs + limbs.
+- [x] **Body types** — done 2026-07-26. Full 60-type parity chosen by the
+      user when asked (the alternative was a token 4-6-shape mechanism,
+      since the real seeded `mob` table had ZERO body-type data to build
+      against either way). New `body.h`/`body.c`: verbatim port of the
+      original's real `body_t` enum and its `slot_chance[][]` per-limb hit-
+      weight table (body.cc) -- one small quirk fixed rather than
+      reproduced: the original's own `bodyNames[]` array is missing an
+      entry for `BODY_WYVELIN` (60 strings for 61 real values); Tobin's
+      `body_type_name()` doesn't repeat that bug.
+      New `mob.body_type` column (Tobin-added, not upstream -- default 1/
+      BODY_HUMANOID) since none of this ever existed in seeded data.
+      Classified a real, meaningful SAMPLE (~460 mobs across ~26
+      creature-word matches: spider, snake, dragon, horse, wolf, etc. --
+      word-boundary REGEXP, not substring LIKE, after confirming live that
+      a naive `%rat%` falsely matches "pirate"/"curator"/"Stratos") via
+      `tobin_migrations.sql` -- explicitly NOT an exhaustive audit of every
+      seeded mob, most still default to BODY_HUMANOID. Some classification
+      noise disclosed and accepted (e.g. "spider monkey"/a spider-themed
+      priest NPC picked up the SPIDER tag from a keyword match, not because
+      they're arachnids) rather than hand-tuned away.
+      `being_limbs_full_heal()` (being.c) now decides which limbs a being
+      actually HAS from `body_limb_weight(body_type, limb)` instead of a
+      fixed "everything but EX_*" boundary -- a spider's real EX_* leg/foot
+      slots get a genuine HP share; a human's don't. `combat.c`'s
+      `pick_weighted_limb()` takes the defender's body type and uses the
+      per-type row instead of one flat humanoid table. Mid-fix, user
+      caught a real anatomical bug live ("spiders dont have feet") --
+      `body_limb_name_override()` (body.c) relabels an arthropod's (
+      INSECTOID/SPIDER/CENTIPEDE/ANT) foot/EX_foot slots "leg"/"extra leg"
+      instead, wired into all three combat.c message sites that print a
+      limb name.
+      Disclosed simplifications: `edit mob` (medit) doesn't expose
+      `body_type` yet (round-trips correctly via `mob_proto_t`/SQL, no UI);
+      the four `rand() % LIMB_REAL_COUNT` random-limb-hit sites added for
+      the earlier Limbs -> wearSlotT work (cmd_cast.c/cmd_move.c/
+      cmd_pray.c/cmd_use.c) still assume a humanoid-shaped victim, not
+      body-type-aware like melee combat now is -- a spell/fall/prayer
+      effect on a spider still can't land on its real EX_* legs. New
+      `tests/smoke_test_body_types.py`: fights a real BODY_SPIDER mob
+      (vnum 948) and confirms EX_* limbs actually take hits (and are
+      correctly named "leg" not "foot"), then confirms an ordinary
+      BODY_HUMANOID mob never shows an EX_* hit over the same round
+      count. All 3 checks pass live.
 
 ## Bigger systems (need design / a decision)
 

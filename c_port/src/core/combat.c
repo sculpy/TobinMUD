@@ -13,6 +13,7 @@
 
 #include "affect.h"
 #include "balance.h"
+#include "body.h"
 #include "descriptor.h"
 #include "extraction.h"
 #include "log.h"
@@ -82,36 +83,22 @@ static void tell(being_t *b, const char *fmt, ...) {
 
 /* Per-limb hit likelihood (user 2026-07-12: "some limbs are harder to
  * decapitate... this should be based on the likelihood that a limb
- * could be damaged"), lifted straight from Sneezy's own humanoid
- * slot_chance[] table (misc/body.cc) -- a bigger target (the torso) is
- * hit far more often than a small one (a finger), so it also survives
- * more cumulative hits before its own HP share runs out. Indexed by
- * limb_t; used as relative weights for a weighted random pick in
- * combat_strike(), replacing the old flat `rand() % LIMB_COUNT`. */
-/* BACK/WRIST/HAND weights added 2026-07-26 (Limbs -> wearSlotT), ported
- * verbatim from the original's real BODY_HUMANOID row (body.cc's
- * slot_chance[] table: back=10, wrist=3 each, hand=3 each) -- not
- * invented numbers. EX_* slots are left at the implicit 0 (unset
- * designated-initializer entries default to 0 in C), matching that same
- * row's own EX_* columns for BODY_HUMANOID -- they're never hit under
- * today's humanoid-only combat regardless of Body types' status. */
-static const int LIMB_HIT_WEIGHT[LIMB_COUNT] = {
-    [LIMB_HEAD] = 7, [LIMB_NECK] = 4, [LIMB_BACK] = 10,
-    [LIMB_LEFT_ARM] = 5, [LIMB_RIGHT_ARM] = 5,
-    [LIMB_LEFT_WRIST] = 3, [LIMB_RIGHT_WRIST] = 3,
-    [LIMB_LEFT_HAND] = 3, [LIMB_RIGHT_HAND] = 3,
-    [LIMB_LEFT_FINGER] = 1, [LIMB_RIGHT_FINGER] = 1, [LIMB_BODY] = 26, [LIMB_WAIST] = 5,
-    [LIMB_GENITALIA] = 1, [LIMB_RIGHT_LEG] = 3, [LIMB_LEFT_LEG] = 3,
-    [LIMB_LEFT_FOOT] = 2, [LIMB_RIGHT_FOOT] = 2,
-};
-
-static limb_t pick_weighted_limb(void) {
+ * could be damaged"), Sneezy's own real slot_chance[] table (body.c,
+ * Body types 2026-07-26) -- a bigger target (the torso) is hit far more
+ * often than a small one (a finger), so it also survives more cumulative
+ * hits before its own HP share runs out. Now genuinely per-BODY-TYPE
+ * (body_limb_weight()), not a single flat humanoid table -- a
+ * BODY_SPIDER's own row weights its EX_* legs/feet for real and its
+ * arms/wrists/hands at 0, the exact reverse of a human. */
+static limb_t pick_weighted_limb(body_type_t bt) {
     int total = 0;
     for (int i = 0; i < LIMB_COUNT; i++)
-        total += LIMB_HIT_WEIGHT[i];
+        total += body_limb_weight(bt, (limb_t)i);
+    if (total <= 0)
+        return LIMB_BODY; /* defensive -- every real row has SOME weight */
     int roll = rand() % total;
     for (int i = 0; i < LIMB_COUNT; i++) {
-        roll -= LIMB_HIT_WEIGHT[i];
+        roll -= body_limb_weight(bt, (limb_t)i);
         if (roll < 0)
             return (limb_t)i;
     }
@@ -141,7 +128,9 @@ static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb)
     if (!defender->base.roomp)
         return;
 
-    const char *ln = limb_name(limb);
+    const char *ln = body_limb_name_override((body_type_t)defender->body_type, limb);
+    if (!ln)
+        ln = limb_name(limb);
     char short_descr[128]; /* matches thing_t.short_descr's own cap (thing.h) --
                                big enough for the longest name (64) + "'s severed "
                                + longest limb name ("left finger") with room to spare */
@@ -567,14 +556,16 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     if (being_is_immortal(defender))
         dmg = 0;
 
-    limb_t limb = pick_weighted_limb();
+    limb_t limb = pick_weighted_limb((body_type_t)defender->body_type);
     int pct_before = being_limb_pct(defender, limb);
     int limb_hp_before = defender->limbs[limb].hp; /* pre-hit capacity, for describe_dam() below */
     being_hurt_limb(defender, limb, dmg);
     int pct_after = being_limb_pct(defender, limb);
     combat_maybe_damage_equipment(defender, limb, dmg);
 
-    const char *ln = limb_name(limb);
+    const char *ln = body_limb_name_override((body_type_t)defender->body_type, limb);
+    if (!ln)
+        ln = limb_name(limb);
     char verb_3rd[16];
     {
         size_t vlen = strlen(verb);
@@ -1376,7 +1367,9 @@ bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int 
     target->limbs[limb].hp = hp;
     int pct_after = being_limb_pct(target, limb);
 
-    const char *ln = limb_name(limb);
+    const char *ln = body_limb_name_override((body_type_t)target->body_type, limb);
+    if (!ln)
+        ln = limb_name(limb);
     const char *status_before = limb_status_text(pct_before);
     const char *status_after = limb_status_text(pct_after);
     if (status_after && status_after != status_before) {

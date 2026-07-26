@@ -55,6 +55,17 @@ typedef struct {
     int gold;                    /* the flat gold-drop-on-kill amount */
     int race;                    /* raw index into MOB_RACE_NAMES[]/
                                    * mob_race_name() (being.c) */
+    int body_type;               /* body_type_t (body.h) -- Tobin-added
+                                   * column (Body types, 2026-07-26), not
+                                   * an upstream field: the real seeded
+                                   * `mob` table never carried body-shape
+                                   * data at all. Defaults to BODY_HUMANOID
+                                   * (1) for every mob unless
+                                   * tobin_migrations.sql's name-matching
+                                   * pass classified it otherwise. Not yet
+                                   * exposed in `edit mob` (medit) -- round-
+                                   * trips correctly via SQL/this struct,
+                                   * just no interactive UI for it yet. */
     int weight;
     int height;
     int str, bra, con, dex, agi, intel, wis, foc, per, cha, kar, spe; /* the

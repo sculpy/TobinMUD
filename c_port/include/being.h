@@ -535,6 +535,18 @@ typedef struct being {
      * gold-drop-on-kill in combat.c's combat_defeat() (user 2026-07-19:
      * "animal races should not have wealth, that doesnt make sense"). */
     int mob_race;
+    /* body_type_t (body.h), stored as plain int here to avoid a circular
+     * include (body.h itself needs limb_t, defined above in this same
+     * file). 0 (BODY_NONE) for a PC -- behaves identically to
+     * BODY_HUMANOID, since the original's own slot_chance[] row for
+     * BODY_NONE is a verbatim duplicate of its BODY_HUMANOID row. For a
+     * mob, copied from `mob.body_type` at spawn (mob_repo.h), same
+     * precedent as mob_race/mob_align/mob_spec_proc -- see
+     * being_limbs_full_heal()/combat.c's pick_weighted_limb() for where
+     * this actually changes which limbs a being has and how likely each
+     * is to be hit (Limbs -> wearSlotT's EX_* mob-only slots, 2026-07-26,
+     * finally becoming reachable here). */
+    int body_type;
     attrs_t attrs;
     progress_t progress;
     limb_state_t limbs[LIMB_COUNT];

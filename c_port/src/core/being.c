@@ -12,6 +12,7 @@
 #include <time.h>
 
 #include "balance.h"
+#include "body.h"
 #include "descriptor.h"
 #include "gametime.h"
 #include "log.h"
@@ -44,6 +45,7 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
         b->attrs.intelligence = b->attrs.wisdom = b->attrs.charisma = ATTR_BASE;
 
     b->handed_right = 1; /* right-handed default */
+    b->body_type = BODY_HUMANOID; /* every PC -- Body types, 2026-07-26 */
     b->position = POSITION_STANDING;
     b->progress.level = MORTAL_LEVEL_MIN;
     b->progress.experience = 0;
@@ -102,6 +104,10 @@ being_t *being_create_mob(int vnum) {
     b->mob_align = proto.align;
     b->mob_spec_proc = proto.spec_proc;
     b->mob_race = proto.race;
+    b->body_type = proto.body_type; /* Body types, 2026-07-26 -- must be set
+                                        BEFORE being_limbs_full_heal() below,
+                                        which reads it to decide which limbs
+                                        this mob actually has */
     b->mob_class_known = mob_class_mask_to_tobin(proto.class_mask, &b->char_class);
 
     /* Placeholder attrs/HP formulas (see STATUS.md's Mobiles decision row):
@@ -799,15 +805,24 @@ const char *limb_name(limb_t limb) {
 void being_limbs_full_heal(being_t *b) {
     if (!b)
         return;
-    /* Only the real, always-active slots (everything before LIMB_REAL_COUNT
-     * -- i.e. not the mob-only EX_* placeholders) compete for a share of
-     * overall HP; EX_* slots stay at 0/0 ("this being doesn't have this
-     * limb") until Body types exists to actually assign them. */
-    int share = b->progress.max_hp / LIMB_REAL_COUNT;
+    /* Body types (2026-07-26): which limbs are actually PRESENT now
+     * depends on b->body_type, not a fixed "everything before the EX_*
+     * slots" boundary -- a BODY_SPIDER has real EX_* legs/feet and no
+     * arms/wrists/hands at all, the exact reverse of a humanoid. A slot
+     * with weight 0 for this body shape (body_limb_weight(), body.c) gets
+     * 0/0 ("this being doesn't have this limb", being_has_limb()); only
+     * present slots share overall HP evenly. */
+    int present = 0;
+    for (int i = 0; i < LIMB_COUNT; i++)
+        if (body_limb_weight(b->body_type, (limb_t)i) > 0)
+            present++;
+    if (present < 1)
+        present = 1; /* never divide by zero for a body row that's somehow all-0 */
+    int share = b->progress.max_hp / present;
     if (share < LIMB_MIN_MAX_HP)
         share = LIMB_MIN_MAX_HP;
     for (int i = 0; i < LIMB_COUNT; i++) {
-        bool active = i < LIMB_REAL_COUNT;
+        bool active = body_limb_weight(b->body_type, (limb_t)i) > 0;
         b->limbs[i].max_hp = active ? share : 0;
         b->limbs[i].hp = active ? share : 0;
     }
