@@ -326,3 +326,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Grow Your Own -- Planting Has Arrived', 'Find a sack of seeds and `plant` it outdoors to start a real garden -- tomatoes, roses, apple and orange trees, a money tree, pipeweed, pumpkins, turnips, lettuce, pot, catnip, candy heart trees, and gray grapes, fifteen crops in all. Dig a hole, sow the seeds, cover it up, and watch it grow over time from a bare mound of dirt into a mature, fruit-bearing plant. Thieves have their own use for the word: `plant <item> <victim>` secretly slips something into someone else''s pocket instead of picking one.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Live Off the Land -- Skinning, Butchering, and Foraging', 'Druids can now put a fresh kill to use: `skin` a corpse for a hide, or `butcher` it for a raw steak -- each corpse gives up one of each, once. Away from a fight, `forage` gathers a bit of wild food from the terrain around you outdoors; give it a little while between attempts.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

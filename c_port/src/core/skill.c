@@ -372,6 +372,12 @@ static const skill_def_t SKILLS[] = {
     { "leeching vine",     CLASS_DRUID, SKILL_TIER_ADVANCED, 48, "A grasping vine drains a target's life into you." },
     { "wildfire",          CLASS_DRUID, SKILL_TIER_ADVANCED, 48, "An intense, heavy burst of flame." },
     { "word of recall",    CLASS_DRUID, SKILL_TIER_ADVANCED, 50, "Teleports yourself or an ally to the recall point." },
+    /* Crafting & extraction (Sneezy -> Tobin feature audit) -- Druid,
+     * Tobin's established Ranger-flavor analog (same mapping the roster-
+     * import section above uses for Ranger's own real spell list). */
+    { "butcher",           CLASS_DRUID, SKILL_TIER_CLASS,     1, "Carve edible meat from a slain animal's corpse." },
+    { "skin",              CLASS_DRUID, SKILL_TIER_ADVANCED, 15, "Strip a hide from a slain animal's corpse." },
+    { "forage",            CLASS_DRUID, SKILL_TIER_ADVANCED, 15, "Gather wild food from the terrain around you." },
 };
 
 #define SKILL_TOTAL (int)(sizeof(SKILLS) / sizeof(SKILLS[0]))

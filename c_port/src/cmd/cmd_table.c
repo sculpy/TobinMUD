@@ -115,6 +115,8 @@ static const cmd_entry_t COMMANDS[] = {
      * abbreviation -- "bank" only needs "ban" to disambiguate. */
     { "bank",    cmd_bank,    "Deposit/withdraw at a bank, or check your balance (bank [deposit|withdraw <amt>]).", MORTAL_LEVEL_MIN },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
+    /* Crafting & extraction (Sneezy -> Tobin feature audit, Druid). */
+    { "butcher", cmd_butcher, "Carve meat from a slain animal's corpse (Druid).",   MORTAL_LEVEL_MIN },
     { "buy",     cmd_buy,     "Buy an item from a shopkeeper (buy <item>|<#> -- see list).", MORTAL_LEVEL_MIN },
     /* SWAP: close before cast/catchup/color, so "c" still closes doors.
      * SWAP: catchup before cast, so "ca" reaches catchup; cast needs "cas".
@@ -153,6 +155,10 @@ static const cmd_entry_t COMMANDS[] = {
     { "extinguish", cmd_extinguish, "Put out a light source (extinguish <item> [held|room]).", MORTAL_LEVEL_MIN },
     { "flee",    cmd_flee,    "Try to escape a fight through a random exit.",       MORTAL_LEVEL_MIN },
     { "follow",  cmd_follow,  "Start following someone (follow <name>); `stop` to break it.", MORTAL_LEVEL_MIN },
+    /* Crafting & extraction (Sneezy -> Tobin feature audit, Druid). Placed
+     * after "follow" so "fo" keeps reaching the far more frequently typed
+     * `follow` -- "forage" needs "for" to disambiguate. */
+    { "forage",  cmd_forage,  "Gather a bit of wild food from the terrain (Druid).", MORTAL_LEVEL_MIN },
     /* "g" must reach get, not goto -- alphabetical already delivers that
      * (get < goto), but it is load-bearing, not incidental: goto's landmark
      * forms (guildmaster/rent/surplus) are mortal-visible, so goto would
@@ -249,6 +255,9 @@ static const cmd_entry_t COMMANDS[] = {
      * reserved for sit (see its own comment); "sig" is already
      * unambiguous (no other command starts with it). */
     { "sign",    cmd_sign,    "Communicate silently with hand signals (sign <message>).", MORTAL_LEVEL_MIN },
+    /* Crafting & extraction (Sneezy -> Tobin feature audit, Druid). "ski"
+     * is unambiguous -- no collision with "skills" ("skil"). */
+    { "skin",    cmd_skin,    "Strip a hide from a slain animal's corpse (Druid).", MORTAL_LEVEL_MIN },
     { "skills",  cmd_skills,  "List your class's skills/spells, known and locked.", MORTAL_LEVEL_MIN },
     { "sleep",   cmd_sleep,   "Lie down and sleep (heals fastest).",                MORTAL_LEVEL_MIN },
     { "smoke",   cmd_smoke,   "Smoke a carried drug item (smoke <item>).",          MORTAL_LEVEL_MIN },

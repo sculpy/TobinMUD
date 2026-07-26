@@ -1000,3 +1000,10 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('plant', 'Usage: plant <seeds>              -- sow a crop (anyone, outdoors)\n       plant <item> <victim>      -- secretly plant an item (Thief)\n\nSeed farming: find a sack of seeds and `plant` it outdoors, away from\nwater and out of any building. You''ll spend a few moments digging a\nhole, sowing the seeds, and covering it back up -- stay put and out of\na fight while you work, or the task is abandoned (your seeds are safe\nuntil the sowing step actually uses them). Watch it grow from a bare\nmound of dirt through a sprout to a mature plant, occasionally\nyielding fruit you can pick up once it''s grown. A room can only hold\nso many plants at once.\n\nThief plant: `plant <item> <victim>` secretly slips a carried item\ninto someone else''s inventory -- the reverse of pickpocketing. Needs\nboth hands free, and (against another player) needs `toggle pk` on\nboth sides, same as any other player-vs-player mischief.\n\nRelated: none', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Crafting & extraction (Sneezy -> Tobin feature audit). Druid-only.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('skin', 'Usage: skin <corpse>\n\nDruid skill. Strips a hide from a slain animal''s corpse -- once per\ncorpse, and only works on an animal, not a person.\n\nRelated: butcher', 'seed'),
+('butcher', 'Usage: butcher <corpse>\n\nDruid skill. Carves a raw steak from a slain animal''s corpse -- once\nper corpse, and only works on an animal, not a person.\n\nRelated: skin', 'seed'),
+('forage', 'Usage: forage\n\nDruid skill. Gathers a bit of wild food from the terrain around you --\nneeds to be outdoors, away from water and out of any building, and\nnot too soon after your last attempt.\n\nRelated: none', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

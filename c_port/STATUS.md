@@ -1,6 +1,42 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 68 (home): **Planting -- seed farming
+Last updated: 2026-07-26 — Session 69 (home): **Crafting & extraction --
+`skin`/`butcher` (mob-corpse material gathering) + `forage` (wild food),
+the last open item from the 2026-07-19 Sneezy → Tobin feature audit.**
+- User said "you pick" on what to build next -- picked the last remaining
+  audit-list item (everything else in that ~26-item list was already
+  done). Checked the real upstream's own doc first
+  (`docs/systems/informational/crafting-extraction.md`): a much bigger
+  system spanning Ranger (skin/butcher/forage), Shaman (brew/dissect),
+  Mage (scribe), and Warrior (blacksmithing/sharpen). Scoped down to a
+  Tobin-scale slice per this whole audit's own ground rule ("large
+  economy/material systems get a Tobin-scale slice, not the full
+  original depth"): skin+butcher+forage only, all landing on Druid
+  (Tobin's established Ranger-flavor analog). Brewing/scribing need a
+  Shaman-style component/charge system Tobin doesn't have; dissection
+  needs per-race quest-item data outside this bundled source; material-
+  category repair would duplicate the simpler repair system Object
+  maintenance already shipped -- all disclosed cuts, not silent gaps.
+- **Mechanism**: corpses (already lootable containers, combat.c) gained
+  a `raw_type` marker (mob vs PC -- `CORPSE_KIND_MOB`/`_PC`, new
+  `extraction.h`) and a `val[3]` flag bitmask (`CORPSE_SKINNED`/
+  `_BUTCHERED`) for once-only extraction -- no half-yield partial tier,
+  unlike the original. `skin`/`butcher` (new `cmd_skin.c`/`cmd_butcher.c`)
+  resolve instantly against a mob corpse in the room (no multi-pulse
+  task -- no general task engine exists in Tobin outside Planting's own
+  one-off), yielding ONE generic item each (a hide, weight-scaled off
+  the corpse; a steak, using the FOOD category's existing val[0]/val[1]
+  max/current-units convention) rather than porting the original's full
+  per-race item-mapping table. `forage` (new `cmd_forage.c`) gathers
+  wild food outdoors (reuses Planting's `room_can_plant()` gate) with a
+  cooldown via a new `AFFECT_FORAGE_COOLDOWN` -- reusing the EXISTING
+  buff/debuff expiry machinery instead of a dedicated timestamp field.
+- New `tests/smoke_test_craft.py` (13 checks). Deployed to production,
+  zero build warnings.
+- Also logged this session (not started): user, "object stacking needs
+  to work on inventory" -- TODO.md's newest "Buildable now" batch item.
+
+### Session 68 (home): **Planting -- seed farming
 (all 15 real crop types) + Thief reverse-pickpocket, plus two real bugs
 found and fixed live (a full pulse-registration table silently dropping
 a tick function, and a use-after-clear bug in the sowing task's own

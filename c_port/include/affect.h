@@ -132,6 +132,14 @@ typedef enum {
      * temporary mob body, mirroring `return`'s own logic. See
      * being_start_polymorph() (being.c). */
     AFFECT_POLYMORPH,
+    /* Crafting & extraction (Sneezy → Tobin feature audit, "Planting"'s
+     * neighboring audit item): `forage`'s anti-spam cooldown -- plain
+     * generic expiry (no special-casing in tick_being_affects(), just the
+     * ordinary "wears off" message), gates cmd_forage.c's next attempt via
+     * being_has_affect(). Simplification of the original's separate
+     * success/failure cooldown durations (4 mud hours / 2 mud hours) down
+     * to one flat duration regardless of outcome. */
+    AFFECT_FORAGE_COOLDOWN,
     AFFECT_COUNT,
 } affect_type_t;
 
@@ -172,6 +180,12 @@ affect_type_t affect_random_disease(void);
  * constant rather than reused directly since the two features are
  * conceptually unrelated and only coincidentally share a duration. */
 #define TRANSFORM_DURATION_ROUNDS 250
+
+/* `forage` cooldown (Crafting & extraction, Sneezy → Tobin feature audit)
+ * -- roughly 1 real minute at COMBAT_ROUND_PULSES' ~1.2s/round, short
+ * enough to not feel punitive but long enough that spamming `forage`
+ * every round isn't a free-food loop. */
+#define FORAGE_COOLDOWN_ROUNDS 50
 
 #define MAX_ACTIVE_AFFECTS 4
 

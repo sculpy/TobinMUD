@@ -1037,6 +1037,19 @@ implementation inspiration before each one, not guessed at.
       including a live mid-testing mishap (`aitick` run against
       production while a real user was connected, aging their own
       planted crop to withering) that's disclosed there too.
+- [x] **Crafting & extraction** — done 2026-07-26. Last remaining item
+      from this whole audit list. Tobin-scale slice (per this section's
+      own ground rule): `skin`/`butcher` (mob-corpse extraction) +
+      `forage` (wild food), all Druid -- brewing/scribing/dissection/
+      material-category repair out of scope (need infrastructure Tobin
+      doesn't have, or would duplicate the existing repair system). New
+      `extraction.h` (corpse `raw_type`/`val[3]` flags), `cmd_skin.c`/
+      `cmd_butcher.c`/`cmd_forage.c`, new `AFFECT_FORAGE_COOLDOWN`
+      reusing the existing buff/debuff expiry machinery for `forage`'s
+      cooldown instead of a new timestamp field. Resolves instantly (no
+      multi-pulse task), one generic yield item per operation (not a
+      per-race table). New `tests/smoke_test_craft.py` (13 checks). See
+      STATUS.md Session 69.
 
 ## Full spell/skill/prayer roster import (user 2026-07-25, from the roster review)
 
@@ -1111,6 +1124,21 @@ confirmed.
 
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.
+
+### User batch 2026-07-26 (home) — logged, not yet started
+
+- [ ] **Object stacking in inventory** — user, 2026-07-26: "object
+      stacking needs to work on inventory." `inventory`/room-floor
+      listings currently show one line per identical item (e.g. three
+      separate "a small sack of tomato seeds" lines) instead of grouping
+      them with a count ("a small sack of tomato seeds (x3)"), the way
+      `score`-adjacent listings and Pet/charm's own mob-count display
+      already do elsewhere (`cmd_look.c`'s room-mob "(x2)" convention is
+      the precedent to match). Needs a same-vnum-or-same-ephemeral-
+      keyword identity check (real prototype items via vnum; ephemeral
+      items like Planting's fruit/hide/meat via name+category, since
+      they're vnum 0) before grouping. Not yet scoped in more detail --
+      check `cmd_object.c`'s `cmd_inventory`/room listing code first.
 
 ### User batch 2026-07-19 (evening) — logged, not yet started
 

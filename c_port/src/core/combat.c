@@ -14,6 +14,7 @@
 #include "affect.h"
 #include "balance.h"
 #include "descriptor.h"
+#include "extraction.h"
 #include "log.h"
 #include "material.h"
 #include "obj.h"
@@ -933,6 +934,9 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             corpse->val[0] = 0;      /* unlimited capacity (0 == unlimited, see cmd_put.c) */
             corpse->val[1] = 0;      /* not closed, not locked -- loot immediately */
             corpse->val[2] = 0;
+            corpse->val[3] = 0;      /* Crafting & extraction: CORPSE_SKINNED(1)/BUTCHERED(2)
+                                        bitmask, see cmd_skin.c/cmd_butcher.c */
+            corpse->raw_type = loser_is_pc ? CORPSE_KIND_PC : CORPSE_KIND_MOB;
             corpse->weight = 50;     /* placeholder body weight */
             /* Object maintenance (Sneezy -> Tobin feature audit): corpses
              * used to sit in their room forever -- no decay mechanism
