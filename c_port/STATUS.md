@@ -1,6 +1,60 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 73 (home): **TobinMUD identity + DB
+Last updated: 2026-07-26 — Session 74 (home): **OLC editor menus
+colorized (ported from real SneezyMUD cyan/purple, no boxes), deployed
+live via copyover with a player connected.**
+- TODO.md's "Boxed ASCII-art menu rework, remaining editors" item,
+  unblocked when the user clarified it doesn't need an invented box
+  wireframe: "port directly from sneezy and i will correct adhoc". A
+  research pass over `sneezymud-master/code/code/misc/create_{rooms,
+  mobs,objs}.cc` (`update_room_menu`/`update_obj_menu`/`update_mob_menu`)
+  found the original's real OLC editors have **no box borders at all** --
+  plain numbered `N) Label` lists, colorized cyan-for-numbers/purple-for-
+  labels via `ch->cyan()`/`ch->purple()`/`ch->norm()` (non-bold
+  `\033[36m`/`\033[35m`/`\033[0m`), raw VT100 cursor-addressed, no shared
+  "print in a box" helper anywhere in that codebase. Also confirmed no
+  zedit/pedit exist upstream -- both are Tobin-original inventions. Mid-
+  task the user extended the ask: "and use colorization from sneezy for
+  all menus".
+- Applied `<c>N)<z> <p>Label<z>` (Tobin's own `<c>`/`<p>` tags are an
+  exact match for the original's non-bold cyan/purple, and match the
+  project's own "colorize with lowercase tags" habit) across every still-
+  plain menu in `descriptor.c`: `edit room` (main + flags/terrain/exits/
+  exit-submenu/doortype/conditions/extra-desc list+item), `edit player`,
+  `edit zone`, `edit object` (main + action-flags + wear-flags), `edit
+  mobile`, `balance`, `edit account`, `edit social` (item view), `edit
+  trigger` (list + item). One alignment nuance: `show_edsocial_item()`'s
+  two-column `%-22s` layout had to widen to `%-34s` to absorb the 12
+  invisible tag bytes each colorized label now carries, since `%-Ns`
+  pads on byte length, not the tag-aware visible width `visible_len()`
+  computes for the (deliberately untouched) account-menu box style.
+  Those two styles -- real Unicode box vs. plain colorized list -- are
+  now both legitimate, just for different screens: the account menu got
+  a user-supplied box1.txt wireframe; every OLC editor gets sneezy's
+  actual un-boxed style instead.
+- Verified: zero-warning build, `tests/smoke_test_redit.py` full pass
+  (32 checks) live against Home production, plus a raw-socket capture of
+  the real `edit room` output confirming the actual ANSI escape bytes
+  (`\x1b[0;36m`.../`\x1b[0;35m`...) land correctly. A real player was
+  connected during deployment -- used `copyover` (not a hard restart) via
+  a throwaway level-59 test account scripted over raw socket; both
+  connections (the real player and the throwaway) survived, confirmed via
+  the copyover log lines and the connection staying ESTABLISHED
+  throughout.
+- **Found, flagged, NOT fixed** (out of scope, spawned as its own follow-
+  up task): production is missing the `player_drug` table entirely
+  (`ERROR: query failed: Table 'tobin.player_drug' doesn't exist` on
+  every login) -- confirmed pre-existing (absent from the old `sneezy` DB
+  before this session's rename too, not something the rename caused). A
+  differently-named `drug_use` table exists live instead; needs its own
+  investigation into whether that's dead leftover data or something code
+  still reads.
+- Reconciled the Home VM's git working tree afterward (`git fetch && git
+  reset --hard origin/main`) -- it had been running on a tar-synced,
+  pre-commit working copy since Session 73's rename work; now a clean
+  checkout of the pushed commits again.
+
+### Session 73 (home): **TobinMUD identity + DB
 rename: underlying MariaDB database `sneezy` -> `tobin` (Home VM done and
 live-verified; Work box pending, unreachable this session).**
 - TODO.md's long-open "TobinMUD identity + DB rename" item, picking up

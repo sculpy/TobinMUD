@@ -4705,13 +4705,38 @@ already tracked — pointers, not duplicates):
       mortals" behavior -- unrelated to this fix, just surfaced by the
       same re-test) both pass clean now; `smoke_test_purge.py` re-run
       clean too.
-- [ ] **Boxed ASCII-art menu rework, remaining editors** — the account
-      menu itself is DONE (see the merged entry above); this entry now
-      covers just the "audit every other menu-driven screen" half:
-      `edit room`/`edit zone`/`edit player`/`edit zone`/`balance`'s
-      menu screens (per [[editors-menu-driven]] memory) haven't been
-      touched, and `send_boxed_menu()`/`visible_len()` (descriptor.c) are
-      ready to reuse for them. Original spec, for reference. Old:
+- [x] **Boxed ASCII-art menu rework, remaining editors** — the account
+      menu itself was DONE first (see the merged entry above). Done
+      2026-07-26 for the rest: user clarified this doesn't need a real
+      box -- "port directly from sneezy" -- and a research pass over
+      `sneezymud-master/code/code/misc/create_{rooms,mobs,objs}.cc`
+      confirmed the original's own room/object/mob editors (`update_room_
+      menu`/`update_obj_menu`/`update_mob_menu`) have NO box borders at
+      all, just plain numbered `N) Label` lists colorized cyan (numbers)
+      / purple (labels) via `ch->cyan()`/`ch->purple()`/`ch->norm()` --
+      confirmed no zedit/pedit exist upstream either (Tobin-original).
+      User then extended the ask mid-task: "use colorization from sneezy
+      for all menus". Applied `<c>N)<z> <p>Label<z>` (Tobin's existing
+      non-bold cyan/purple tags, exact match for the original's non-bold
+      `\033[36m`/`\033[35m`) across every still-plain menu screen in
+      descriptor.c: `edit room` (main menu + flags/terrain/exits/exit-
+      submenu/doortype/conditions/extra-desc-list/extra-desc-item),
+      `edit player`, `edit zone`, `edit object` (main + action-flags +
+      wear-flags), `edit mobile`, `balance`, `edit account`, `edit
+      social` (item view), `edit trigger` (list + item). The account
+      menu's own `send_boxed_menu()` box style was deliberately NOT
+      extended to these -- box vs. plain-colorized-list are two
+      different, both-real precedents now (account menu = user-supplied
+      box1.txt wireframe; every OLC editor = ported from sneezy's actual
+      un-boxed style). Verified zero-warning build, `smoke_test_redit.py`
+      full pass, plus a live raw-socket capture confirming the actual
+      ANSI bytes render correctly. Deployed to Home production via
+      `copyover` (a player was connected; survived it). Found and flagged
+      (not fixed, out of scope) a real pre-existing bug while verifying
+      live: `player_drug` table missing from production DB, unrelated to
+      this session's DB rename (confirmed absent from `sneezy` before the
+      rename too) -- see spawned follow-up task.
+      Original spec, for reference (account-menu box only). Old:
       ```
       -- Your characters --
         1. Jesus (Implementor)
@@ -4745,7 +4770,8 @@ already tracked — pointers, not duplicates):
       ```
       "make all character facing menus in this fashion" -- audit every
       other menu-driven screen (editors, `edit` menus, etc, per
-      [[editors-menu-driven]] memory) for the same boxed treatment.
+      [[editors-menu-driven]] memory). Turned out NOT to mean literal
+      boxes for the OLC editors -- see the done entry above.
 - [x] **Login banner: keep-gate art above the TobinMUD logo** — done
       2026-07-17. Same "3 text files ... use those to create new menu
       output" request as the account-menu box above; user confirmed via
@@ -6127,7 +6153,8 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       crontab to the `mud` user that checks whether the MUD is running and
       starts it if not. (Deploys still `pkill; sleep 1; restart` fast, before
       any cron tick, so there's no double-launch.)
-- [ ] Install a MUD client (Mudlet, for ANSI color) on the Windows machines.
+- [x] Install a MUD client (Mudlet, for ANSI color) on the Windows machines.
+      Done 2026-07-26 (user), all Windows machines.
 - [ ] **docs/systems review** — read `sneezymud-master/docs/systems` for how
       the original stored things; apply the lessons. RULE: prefer the DB.
 - [x] **Systems documentation** — done 2026-07-26. `c_port/doc/systems/README.md`:

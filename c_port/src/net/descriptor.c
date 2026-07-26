@@ -1366,13 +1366,13 @@ static void show_redit_menu(descriptor_t *d) {
              "<c>Number:<z> %d      <c>Sector Type:<z> <c>[ %s ]<z>\r\n"
              "<c>Flags:<z> <p>%s<z>\r\n\r\n"
              "<c>Menu:<z>\r\n"
-             "   1) Name              2) Description\r\n"
-             "   3) Flags             4) Sector Type\r\n"
-             "   5) Exits             6) Max Capacity: %d\r\n"
-             "   7) Room Height: %d    8) Extra Descriptions\r\n\r\n"
+             "   <c>1)<z> <p>Name<z>              <c>2)<z> <p>Description<z>\r\n"
+             "   <c>3)<z> <p>Flags<z>             <c>4)<z> <p>Sector Type<z>\r\n"
+             "   <c>5)<z> <p>Exits<z>             <c>6)<z> <p>Max Capacity<z>: %d\r\n"
+             "   <c>7)<z> <p>Room Height<z>: %d    <c>8)<z> <p>Extra Descriptions<z>\r\n\r\n"
              "Description:\r\n%s%s"
              "Exits: %s\r\n\r\n"
-             "   C) Clear room out    S) Save    Q) Quit\r\n%s[edit room] ",
+             "   <c>C)<z> <p>Clear room out<z>    <c>S)<z> <p>Save<z>    <c>Q)<z> <p>Quit<z>\r\n%s[edit room] ",
              w->base.name, w->vnum, sector_name(w->sector),
              room_flag_names(w->room_flag, flagbuf, sizeof(flagbuf)),
              w->capacity, w->height,
@@ -1389,7 +1389,7 @@ static void show_redit_flags(descriptor_t *d) {
         d->redit_work.vnum);
     for (int b = 0; b < room_flag_count(); b++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
-            "  %2d [%c] %-14s%s", b,
+            "  <c>%2d<z> [%c] <p>%-14s<z>%s", b,
             (d->redit_work.room_flag & (1 << b)) ? 'x' : ' ',
             room_flag_name(b), (b % 2 == 1) ? "\r\n" : "");
         if (n >= sizeof(out))
@@ -1409,7 +1409,7 @@ static void show_redit_terrain(descriptor_t *d) {
         d->redit_work.vnum, d->redit_work.sector, sector_name(d->redit_work.sector));
     for (int s = 0; s < MAX_SECTOR_TYPES; s++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
-            "  %2d %-22s%s", s, sector_name(s), (s % 3 == 2) ? "\r\n" : "");
+            "  <c>%2d<z> <p>%-22s<z>%s", s, sector_name(s), (s % 3 == 2) ? "\r\n" : "");
         if (n >= sizeof(out))
             break;
     }
@@ -1437,7 +1437,7 @@ static void show_redit_exits(descriptor_t *d) {
                      exit_cond_names(w->exit_cond[i], cbuf, sizeof(cbuf)));
         }
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
-            "  %2d) %-10s %s\r\n", i, DIR_NAMES[i], info);
+            "  <c>%2d)<z> <p>%-10s<z> %s\r\n", i, DIR_NAMES[i], info);
         if (n >= sizeof(out))
             break;
     }
@@ -1457,8 +1457,8 @@ static void show_redit_exit_menu(descriptor_t *d) {
     snprintf(out, sizeof(out),
         "\r\n<c>Exit %s<z>\r\n"
         "  Target: %s   Door: %s   Cond: %s\r\n\r\n"
-        "  1) Target room      2) Door type\r\n"
-        "  3) Conditions       4) Remove this exit\r\n"
+        "  <c>1)<z> <p>Target room<z>      <c>2)<z> <p>Door type<z>\r\n"
+        "  <c>3)<z> <p>Conditions<z>       <c>4)<z> <p>Remove this exit<z>\r\n"
         "  blank) back\r\nexit-%s> ",
         DIR_NAMES[dir], tgt, door_type_name(w->exit_door[dir]),
         exit_cond_names(w->exit_cond[dir], cbuf, sizeof(cbuf)), DIR_NAMES[dir]);
@@ -1474,7 +1474,7 @@ static void show_redit_doortype(descriptor_t *d) {
         DIR_NAMES[dir], door_type_name(d->redit_work.exit_door[dir]));
     for (int t = 0; t < door_type_count(); t++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
-            "  %2d %-14s%s", t, door_type_name(t), (t % 3 == 2) ? "\r\n" : "");
+            "  <c>%2d<z> <p>%-14s<z>%s", t, door_type_name(t), (t % 3 == 2) ? "\r\n" : "");
         if (n >= sizeof(out))
             break;
     }
@@ -1494,7 +1494,7 @@ static void show_redit_conditions(descriptor_t *d) {
         DIR_NAMES[dir]);
     for (int b = 0; b < exit_cond_count(); b++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
-            "  %2d [%c] %-18s%s", b, (cond & (1 << b)) ? 'x' : ' ',
+            "  <c>%2d<z> [%c] <p>%-18s<z>%s", b, (cond & (1 << b)) ? 'x' : ' ',
             exit_cond_name(b), (b % 2 == 1) ? "\r\n" : "");
         if (n >= sizeof(out))
             break;
@@ -1528,13 +1528,13 @@ static void show_redit_extra_menu(descriptor_t *d) {
     } else {
         for (int i = 0; i < n && len < sizeof(out); i++) {
             len += (size_t)snprintf(out + len, sizeof(out) > len ? sizeof(out) - len : 0,
-                "  %2d) %s\r\n", i + 1, names[i]);
+                "  <c>%2d)<z> %s\r\n", i + 1, names[i]);
         }
     }
     if (len < sizeof(out)) {
-        len += (size_t)snprintf(out + len, sizeof(out) - len, "\r\n  A) Add new\r\n");
+        len += (size_t)snprintf(out + len, sizeof(out) - len, "\r\n  <c>A)<z> <p>Add new<z>\r\n");
         if (n > 0 && len < sizeof(out))
-            len += (size_t)snprintf(out + len, sizeof(out) - len, "  Z) Delete ALL\r\n");
+            len += (size_t)snprintf(out + len, sizeof(out) - len, "  <c>Z)<z> <p>Delete ALL<z>\r\n");
         if (len < sizeof(out))
             snprintf(out + len, sizeof(out) - len, "extra> ");
     }
@@ -1555,8 +1555,8 @@ static void show_redit_extra_item(descriptor_t *d) {
     snprintf(out, sizeof(out),
         "\r\n<c>Extra Description: %s<z>\r\n\r\n"
         "Description:\r\n%s%s\r\n"
-        "  1) Keywords         2) Description\r\n"
-        "  3) Delete\r\n"
+        "  <c>1)<z> <p>Keywords<z>         <c>2)<z> <p>Description<z>\r\n"
+        "  <c>3)<z> <p>Delete<z>\r\n"
         "  blank) back\r\nextra-desc> ",
         d->redit_extra_name, desc, descnl);
     descriptor_send(d, out);
@@ -1700,12 +1700,12 @@ static void show_edplayer_menu(descriptor_t *d) {
     char out[900];
     snprintf(out, sizeof(out),
              "\r\n<c>Editing player:<z> %s\r\n\r\n"
-             "   1) Level: %d              2) Experience: %ld\r\n"
-             "   3) HP/Max HP: %d/%d       4) Attributes (str/dex/con/int/wis/cha)\r\n"
-             "   5) Gender: %s      6) Title: %s\r\n"
-             "   7) Load Room: %d          8) Handedness: %s\r\n"
-             "   9) Class: %s       0) Race: %s\r\n\r\n"
-             "   S) Save    Q) Quit%s\r\n[edit player] ",
+             "   <c>1)<z> <p>Level<z>: %d              <c>2)<z> <p>Experience<z>: %ld\r\n"
+             "   <c>3)<z> <p>HP/Max HP<z>: %d/%d       <c>4)<z> <p>Attributes<z> (str/dex/con/int/wis/cha)\r\n"
+             "   <c>5)<z> <p>Gender<z>: %s      <c>6)<z> <p>Title<z>: %s\r\n"
+             "   <c>7)<z> <p>Load Room<z>: %d          <c>8)<z> <p>Handedness<z>: %s\r\n"
+             "   <c>9)<z> <p>Class<z>: %s       <c>0)<z> <p>Race<z>: %s\r\n\r\n"
+             "   <c>S)<z> <p>Save<z>    <c>Q)<z> <p>Quit<z>%s\r\n[edit player] ",
              w->base.name, w->progress.level, w->progress.experience,
              w->progress.hp, w->progress.max_hp,
              gender_name(w->gender), w->title[0] ? w->title : "(none)",
@@ -1789,12 +1789,12 @@ static void show_edzone_menu(descriptor_t *d) {
     char out[1024];
     snprintf(out, sizeof(out),
              "\r\n<c>Editing zone:<z> %s (#%d)\r\n\r\n"
-             "   1) Name: %s\r\n"
-             "   2) Enabled: %s              3) Lifespan (minutes): %d\r\n"
-             "   4) Vnum range: %d-%d\r\n"
-             "   5) Assigned builders: %s\r\n\r\n"
-             "   R) Reset this zone now\r\n"
-             "   S) Save    Q) Quit%s\r\n[edit zone] ",
+             "   <c>1)<z> <p>Name<z>: %s\r\n"
+             "   <c>2)<z> <p>Enabled<z>: %s              <c>3)<z> <p>Lifespan (minutes)<z>: %d\r\n"
+             "   <c>4)<z> <p>Vnum range<z>: %d-%d\r\n"
+             "   <c>5)<z> <p>Assigned builders<z>: %s\r\n\r\n"
+             "   <c>R)<z> <p>Reset this zone now<z>\r\n"
+             "   <c>S)<z> <p>Save<z>    <c>Q)<z> <p>Quit<z>%s\r\n[edit zone] ",
              w->name, w->zone_nr, w->name, w->enabled ? "yes" : "no", w->lifespan,
              w->bottom, w->top, ownerbuf,
              d->edzone_dirty ? "\r\n   <c>* unsaved changes *<z>" : "");
@@ -1866,20 +1866,20 @@ static void show_oedit_menu(descriptor_t *d) {
     char out[2304];
     snprintf(out, sizeof(out),
              "\r\n<c>Editing object:<z> %s (#%d)\r\n\r\n"
-             "   1) Name: %s\r\n"
-             "   2) Short description: %s\r\n"
-             "   3) Item type: %s (#%d)\r\n"
-             "   4) Long description: %s\r\n"
-             "   5) Weight: %.1f                     6) Volume: %d\r\n"
-             "   7) Extra flags: %s\r\n"
-             "   8) Take flags: %s\r\n"
-             "   9) Cost/value: %d\r\n"
-             "  10) Four values: %d %d %d %d  (%s)\r\n"
-             "  11) Decay time: %d                  12) Max struct points: %d\r\n"
-             "  13) Struct points: %d                14) Material: %d (%s)\r\n"
-             "  15) Can be seen: %s                  16) Special proc: %d\r\n"
-             "  17) Max exist: %d\r\n\r\n"
-             "   S) Save    Q) Quit%s\r\n[oedit] ",
+             "   <c>1)<z> <p>Name<z>: %s\r\n"
+             "   <c>2)<z> <p>Short description<z>: %s\r\n"
+             "   <c>3)<z> <p>Item type<z>: %s (#%d)\r\n"
+             "   <c>4)<z> <p>Long description<z>: %s\r\n"
+             "   <c>5)<z> <p>Weight<z>: %.1f                     <c>6)<z> <p>Volume<z>: %d\r\n"
+             "   <c>7)<z> <p>Extra flags<z>: %s\r\n"
+             "   <c>8)<z> <p>Take flags<z>: %s\r\n"
+             "   <c>9)<z> <p>Cost/value<z>: %d\r\n"
+             "  <c>10)<z> <p>Four values<z>: %d %d %d %d  (%s)\r\n"
+             "  <c>11)<z> <p>Decay time<z>: %d                  <c>12)<z> <p>Max struct points<z>: %d\r\n"
+             "  <c>13)<z> <p>Struct points<z>: %d                <c>14)<z> <p>Material<z>: %d (%s)\r\n"
+             "  <c>15)<z> <p>Can be seen<z>: %s                  <c>16)<z> <p>Special proc<z>: %d\r\n"
+             "  <c>17)<z> <p>Max exist<z>: %d\r\n\r\n"
+             "   <c>S)<z> <p>Save<z>    <c>Q)<z> <p>Quit<z>%s\r\n[oedit] ",
              w->name, w->vnum,
              w->name, w->short_descr, obj_type_name(w->type), w->type,
              w->long_descr, w->weight, w->volume,
@@ -1901,7 +1901,7 @@ static void show_oedit_action_flags(descriptor_t *d) {
         d->oedit_work.vnum);
     for (int b = 0; b < obj_action_flag_count(); b++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
-            "  %2d [%c] %-14s%s", b,
+            "  <c>%2d<z> [%c] <p>%-14s<z>%s", b,
             (d->oedit_work.action_flag & (1 << b)) ? 'x' : ' ',
             obj_action_flag_name(b), (b % 2 == 1) ? "\r\n" : "");
         if (n >= sizeof(out))
@@ -1921,7 +1921,7 @@ static void show_oedit_wear_flags(descriptor_t *d) {
         d->oedit_work.vnum);
     for (int b = 0; b < obj_wear_flag_count(); b++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
-            "  %2d [%c] %-14s%s", b,
+            "  <c>%2d<z> [%c] <p>%-14s<z>%s", b,
             (d->oedit_work.wear_flag & (1 << b)) ? 'x' : ' ',
             obj_wear_flag_name(b), (b % 2 == 1) ? "\r\n" : "");
         if (n >= sizeof(out))
@@ -1974,21 +1974,21 @@ static void show_medit_menu(descriptor_t *d) {
     char out[4096];
     snprintf(out, sizeof(out),
              "\r\n<c>Editing mob:<z> %s (#%d)\r\n\r\n"
-             "   1) Name: %s\r\n"
-             "   2) Short desc: %s\r\n"
-             "   3) Long desc: %s\r\n"
-             "   4) Description: %s\r\n"
-             "   5) Action flags: %d                 6) Affect flags: %d\r\n"
-             "   7) Attacks: %.1f                     8) Level: %d\r\n"
-             "   9) Hitroll: %d                      10) Armor Level: %.1f\r\n"
-             "  11) HP Level: %.1f                    12) Damage: %.1f +%d\r\n"
-             "  13) Gold: %d                          14) Race: %d (%s)\r\n"
-             "  15) Sex: %s                       16) Max exist: %d\r\n"
-             "  17) Default position: %s          18) Class (bitmask): %d\r\n"
-             "  19) Height/Weight: %d/%d               20) Vision: %d\r\n"
-             "  21) Can be seen: %s                   22) Skin: %d\r\n"
-             "  23) Alignment: %d\r\n\r\n"
-             "   S) Save    Q) Quit%s\r\nMob Editor> ",
+             "   <c>1)<z> <p>Name<z>: %s\r\n"
+             "   <c>2)<z> <p>Short desc<z>: %s\r\n"
+             "   <c>3)<z> <p>Long desc<z>: %s\r\n"
+             "   <c>4)<z> <p>Description<z>: %s\r\n"
+             "   <c>5)<z> <p>Action flags<z>: %d                 <c>6)<z> <p>Affect flags<z>: %d\r\n"
+             "   <c>7)<z> <p>Attacks<z>: %.1f                     <c>8)<z> <p>Level<z>: %d\r\n"
+             "   <c>9)<z> <p>Hitroll<z>: %d                      <c>10)<z> <p>Armor Level<z>: %.1f\r\n"
+             "  <c>11)<z> <p>HP Level<z>: %.1f                    <c>12)<z> <p>Damage<z>: %.1f +%d\r\n"
+             "  <c>13)<z> <p>Gold<z>: %d                          <c>14)<z> <p>Race<z>: %d (%s)\r\n"
+             "  <c>15)<z> <p>Sex<z>: %s                       <c>16)<z> <p>Max exist<z>: %d\r\n"
+             "  <c>17)<z> <p>Default position<z>: %s          <c>18)<z> <p>Class (bitmask)<z>: %d\r\n"
+             "  <c>19)<z> <p>Height/Weight<z>: %d/%d               <c>20)<z> <p>Vision<z>: %d\r\n"
+             "  <c>21)<z> <p>Can be seen<z>: %s                   <c>22)<z> <p>Skin<z>: %d\r\n"
+             "  <c>23)<z> <p>Alignment<z>: %d\r\n\r\n"
+             "   <c>S)<z> <p>Save<z>    <c>Q)<z> <p>Quit<z>%s\r\nMob Editor> ",
              w->name, d->medit_vnum,
              w->name, w->short_descr, w->long_descr, w->description,
              w->actions, w->affects,
@@ -2080,9 +2080,9 @@ static void show_balance_menu(descriptor_t *d) {
     char out[512];
     snprintf(out, sizeof(out),
              "\r\n<c>Balancing %s:<z> %s\r\n\r\n"
-             "   1) HP multiplier: %.2f          2) Damage multiplier: %.2f\r\n"
-             "   3) To-hit modifier: %+d         4) AC modifier: %+d\r\n\r\n"
-             "   S) Save    Q) Quit%s\r\n[balance %s] ",
+             "   <c>1)<z> <p>HP multiplier<z>: %.2f          <c>2)<z> <p>Damage multiplier<z>: %.2f\r\n"
+             "   <c>3)<z> <p>To-hit modifier<z>: %+d         <c>4)<z> <p>AC modifier<z>: %+d\r\n\r\n"
+             "   <c>S)<z> <p>Save<z>    <c>Q)<z> <p>Quit<z>%s\r\n[balance %s] ",
              kind, name, (double)w->hp_mult, (double)w->dmg_mult, w->tohit_mod, w->ac_mod,
              d->balance_dirty ? "\r\n   <c>* unsaved changes *<z>" : "", kind);
     descriptor_send(d, out);
@@ -2152,8 +2152,8 @@ static void show_edaccount_menu(descriptor_t *d) {
     snprintf(out, sizeof(out),
              "\r\n<c>Editing account:<z> %s\r\n\r\n"
              "   Characters: %s\r\n\r\n"
-             "   1) Rename account          2) Reset password\r\n\r\n"
-             "   Q) Quit\r\n[edit account] ",
+             "   <c>1)<z> <p>Rename account<z>          <c>2)<z> <p>Reset password<z>\r\n\r\n"
+             "   <c>Q)<z> <p>Quit<z>\r\n[edit account] ",
              acct.name, charlist);
     descriptor_send(d, out);
     d->state = CONN_EDACCOUNT_MENU;
@@ -2251,15 +2251,20 @@ static void show_edsocial_item(descriptor_t *d) {
 
     for (int i = 0; i < EDSOCIAL_FIELD_COUNT && n < sizeof(out); i++) {
         const char *val = edsocial_field_ptr(&s, i + 1);
-        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %d) %-22s %s\r\n",
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  <c>%d)<z> <p>%-22s<z> %s\r\n",
                               i + 1, EDSOCIAL_FIELD_LABELS[i], val[0] ? val : "(empty)");
     }
 
+    /* Field width bumped 22 -> 34 to absorb the 12 invisible tag bytes
+     * ("<c></z>" x2 + "<p></z>" x2) each label below now carries, so the
+     * VISIBLE column width (and second-column start) stays the same as
+     * before colorizing -- %-Ns pads on byte length, which doesn't know
+     * a <X> tag renders to zero screen columns. */
     if (n < sizeof(out))
         n += (size_t)snprintf(out + n, sizeof(out) - n,
-            "\r\n  %-22s%-22s\r\n  %-22s%-22s\r\n",
-            "H) Toggle hide-unseen", "P) Set minimum position",
-            "R) Rename", "D) Delete this social");
+            "\r\n  %-34s%-34s\r\n  %-34s%-34s\r\n",
+            "<c>H)<z> <p>Toggle hide-unseen<z>", "<c>P)<z> <p>Set minimum position<z>",
+            "<c>R)<z> <p>Rename<z>", "<c>D)<z> <p>Delete this social<z>");
     if (n < sizeof(out))
         snprintf(out + n, sizeof(out) - n,
             "\r\n  blank) back to list\r\nedsocial-%s> ", s.name);
@@ -2320,11 +2325,11 @@ static void show_trigedit_list(descriptor_t *d) {
         else if (strcasecmp(trigs[i].trigger_type, "random") == 0)
             snprintf(suffix, sizeof(suffix), " chance=%d%%", trigs[i].chance_pct);
         len += (size_t)snprintf(out + len, sizeof(out) - len,
-            "  %2d) %-10s%s [id %ld]\r\n", i + 1, trigs[i].trigger_type, suffix, trigs[i].id);
+            "  <c>%2d)<z> <p>%-10s<z>%s [id %ld]\r\n", i + 1, trigs[i].trigger_type, suffix, trigs[i].id);
     }
     if (len < sizeof(out))
         snprintf(out + len, sizeof(out) - len,
-            "\r\n  A) Add a new trigger    blank) quit\r\ntrigedit> ");
+            "\r\n  <c>A)<z> <p>Add a new trigger<z>    blank) quit\r\ntrigedit> ");
     descriptor_send(d, out);
     d->state = CONN_TRIGEDIT_LIST;
 }
@@ -2339,10 +2344,10 @@ static void show_trigedit_item(descriptor_t *d) {
     char out[TRIGGER_MATCH_LEN + 320];
     snprintf(out, sizeof(out),
         "\r\n<c>Editing trigger #%ld:<z> %s on %s %d\r\n\r\n"
-        "   1) Match text/keyword: %s\r\n"
-        "   2) Chance percent:     %d\r\n"
-        "   3) Edit script\r\n"
-        "   D) Delete this trigger\r\n\r\n"
+        "   <c>1)<z> <p>Match text/keyword<z>: %s\r\n"
+        "   <c>2)<z> <p>Chance percent<z>:     %d\r\n"
+        "   <c>3)<z> <p>Edit script<z>\r\n"
+        "   <c>D)<z> <p>Delete this trigger<z>\r\n\r\n"
         "   blank) back to list\r\ntrigedit-%ld> ",
         t.id, t.trigger_type, t.target_type, t.target_vnum,
         t.match_text[0] ? t.match_text : "(none)",
