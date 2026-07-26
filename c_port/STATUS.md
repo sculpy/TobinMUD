@@ -1,6 +1,50 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 74 (home): **OLC editor menus
+Last updated: 2026-07-26 — Session 75 (home): **Fixed the missing
+`player_drug` table flagged at the end of Session 74, plus a real
+`score` display bug caught while verifying it.**
+- User-supplied task: figure out why production logged
+  `Table 'tobin.player_drug' doesn't exist` on every login, fix it on
+  both boxes without touching real player data, and decide what to do
+  with the orphaned `drug_use` table.
+- Root cause: `db/tobin/player_drug.sql` was correct but had never
+  actually been run against Home's live DB — predates the sneezy→tobin
+  rename entirely (confirmed absent from the old `sneezy` DB too via
+  `information_schema.TABLES`, so not caused by that rename). Checked
+  `src/db/drug_repo.c`/`src/core/drug.c` for both `player_drug` and
+  `drug_use`: only `player_drug` is referenced anywhere in Tobin's code
+  — `drug_use` is inert leftover upstream seed schema (0 rows), left
+  alone rather than dropped.
+- Fix: re-ran `db/apply-tobin-schema.sh` on Home — safe/idempotent since
+  every file in `db/tobin/` uses `CREATE TABLE IF NOT EXISTS`/`ON
+  DUPLICATE KEY UPDATE`. Applied all 23 files clean; `player_drug` now
+  exists with the right schema, and the 4 missing drug-item vnums
+  (90010-90013) came back too. **Work box (db.kullit.com) still needs
+  this same catchup** — unreachable from this session, same as the
+  DB-rename item it's now bundled with in TODO.md.
+- While verifying via `tests/smoke_test_drugs.py`, hit a `TypeError`
+  crash in the test's own `stats_from_score()` helper — its regex only
+  ever matched full-word stat labels (`Strength:`, `Dexterity:`, ...),
+  which never matched `score`'s real abbreviated output at all. Went to
+  fix the test and found the real story was the opposite: `score`
+  itself (`cmd_score.c`) abbreviates five of six stats but spells out
+  `Wisdom:` in full — a genuine inconsistency with no upstream Sneezy
+  precedent (this exact score layout is Tobin's own revamp from Session
+  ~71, not a port), confirmed by checking `sneezymud-master` for a
+  matching `do_score`-style stat block and finding none. Fixed
+  `cmd_score.c` to say `Wis:` like its siblings, and updated the test's
+  stale regex to match the now-consistent format.
+- Verified live on Home: full 10-check `smoke_test_drugs.py` run passes
+  clean (dose apply/consolidate/expiry, Hobbit bonus, item destruction
+  on last charge, and — the one that actually exercises Str/Con parsing
+  for the first time — withdrawal's real STR/CON penalty). One
+  transient false-negative along the way (failed once right after a
+  copyover, passed cleanly on immediate re-run and via an isolated
+  standalone repro) — treated as a copyover-timing fluke per the sweep-
+  failure-triage habit, not chased further since it didn't reproduce.
+  Deployed via copyover, zero build warnings.
+
+### Session 74 (home): **OLC editor menus
 colorized (ported from real SneezyMUD cyan/purple, no boxes), deployed
 live via copyover with a player connected.**
 - TODO.md's "Boxed ASCII-art menu rework, remaining editors" item,

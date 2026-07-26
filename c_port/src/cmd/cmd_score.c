@@ -108,7 +108,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
              "  Race: %s\tClass: %s\tGold: %d\r\n"
              "  HP: %d (%d Max.)\t%s: 0\tMove: %d (%d Max.)\r\n"
              "  Str: %d\tInt: %d\tDex: %d\r\n"
-             "  Wisdom: %d\tCon: %d\tCha: %d\r\n"
+             "  Wis: %d\tCon: %d\tCha: %d\r\n"
              "  Armor Class: %d  Pri. Hand: %s  Sex: %s\r\n"
              "  Align: %s  Hunger: %s\tThirst: %s\r\n"
              "  Age: %d years old\r\n"

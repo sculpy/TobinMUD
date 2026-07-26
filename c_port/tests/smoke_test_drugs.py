@@ -119,9 +119,13 @@ def login(name, pw):
 
 
 def stats_from_score(out):
+    # `score`'s real labels are all abbreviated (Str/Dex/Con/Int/Wis/Cha)
+    # -- stale full-word regex here (Strength/Dexterity/etc) never
+    # matched, silently returning None for everything. Confirmed live
+    # 2026-07-26 against a fresh character's actual `score` output.
     d = {}
-    for label, key in (("Strength", "str"), ("Dexterity", "dex"), ("Constitution", "con"),
-                       ("Intelligence", "int"), ("Wisdom", "wis"), ("Charisma", "cha")):
+    for label, key in (("Str", "str"), ("Dex", "dex"), ("Con", "con"),
+                       ("Int", "int"), ("Wis", "wis"), ("Cha", "cha")):
         m = re.search(rf"{label}:\s+(-?\d+)", out)
         d[key] = int(m.group(1)) if m else None
     return d

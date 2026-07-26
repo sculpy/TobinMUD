@@ -6143,6 +6143,34 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       Code's already pushed (`main`); Work's side is just pull + rebuild +
       the same backup/RENAME TABLE/restart sequence Home used.** Rebrand
       credit sentence in README.md was left alone (out of scope, prose-only).
+      **Also still needed on Work once it's reachable: the `player_drug`
+      schema-catchup below was only ever run on Home — re-run
+      `db/apply-tobin-schema.sh` on Work too once the rename lands there.**
+
+- [x] **`player_drug` table missing from live production DB** — user-flagged
+      2026-07-26 (found incidentally during the colorization deploy above).
+      Root cause: `db/tobin/player_drug.sql` was correct but had never
+      actually been run against Home's live DB -- predates the sneezy→tobin
+      rename entirely (confirmed absent from the old `sneezy` DB too, not
+      caused by that rename). An unrelated, unused `drug_use` table was also
+      sitting in the live DB; confirmed via `src/db/drug_repo.c`/
+      `src/core/drug.c` that no Tobin code references it at all -- inert
+      upstream seed-schema leftover, left alone rather than dropped. Fixed
+      by re-running `db/apply-tobin-schema.sh` on Home (safe/idempotent,
+      every file uses `CREATE TABLE IF NOT EXISTS`/`ON DUPLICATE KEY
+      UPDATE`) -- applied all 23 files clean, table now exists, the 4
+      missing drug-item vnums (90010-90013) came back too. **Same catchup
+      still needed on Work** (see DB-rename item above -- Work wasn't
+      reachable this session either). While verifying via
+      `tests/smoke_test_drugs.py`, also caught and fixed a real, unrelated
+      display bug: `score`'s Wisdom line was the only one of six stats NOT
+      abbreviated (`Wisdom:` vs `Str:`/`Dex:`/etc) -- no upstream Sneezy
+      precedent for this exact layout (it's Tobin's own score revamp), so
+      fixed `cmd_score.c` to say `Wis:` like its siblings and updated the
+      test's stale full-word regex to match. Verified live on Home: full
+      10-check drug smoke test (dose, consolidation, expiry, Hobbit bonus,
+      item destruction, withdrawal STR/CON penalty) passes clean. Deployed
+      via copyover, zero build warnings.
 
 ## Chores / infra
 
