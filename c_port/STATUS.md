@@ -1,6 +1,72 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-25 — Session 64 (home): **Score screen revamp
+Last updated: 2026-07-25 — Session 65 (home): **`edit mob` (medit) --
+the last builder-tools-OLC gap -- plus same-session follow-ups: all
+three prototype editors auto-create a blank row on a missing vnum,
+medit's menu was rebuilt to the user's own wireframe with auto-computed
+characteristics, and oedit gained inline value hints plus an `obj`
+abbreviation.**
+- **`edit mob <vnum>` (medit)**: new CONN_MEDIT_* menu (descriptor.c),
+  same snapshot-working-copy shape as `edit object`/oedit. Widened
+  `mob_proto_t`/`mob_repo.c` to cover every column the real upstream's
+  `send_mob_menu()` (misc/create_mobs.cc) exposes AND Tobin's `mob`
+  table actually has. The FIRST implementation (renumbered sequentially,
+  paired fields combined onto one prompt each, all 12 upstream stat
+  columns shown as "Characteristics") was superseded by a user-supplied
+  wireframe paste: final menu is a fixed 23 fields (Name through
+  Alignment), prompt is `Mob Editor> ` (not `[medit] `), Sex displays as
+  a word ("neuter"/"male"/"female", also accepted as input alongside
+  0/1/2), and Faction, Special proc, Local/Adjacent sound, and manually-
+  edited Characteristics were dropped from the menu entirely.
+  Characteristics (str/con/wis/intel/dex/cha) are now auto-computed on
+  Save, not editable at all: `medit_apply_characteristics()` reuses the
+  exact same formula `being_create_mob()` uses for live-spawned mobs
+  (`ATTR_BASE + level`, capped `ATTR_MAX`, then `class_stat_bonus()`'s
+  per-class deltas via a newly-exposed `mob_class_mask_to_tobin()`).
+  User asked for race to factor in too ("according to race and class")
+  but no race-to-attrs mapping exists yet, so only class contributes
+  beyond the level base -- a disclosed gap, not silently dropped. The
+  other 6 upstream-only stats (bra/agi/foc/per/kar/spe) still round-trip
+  through load/save completely unedited.
+- **Auto-create on a missing vnum**: user tested `edit mob 43` live
+  (a vnum that didn't exist) and got the expected-at-the-time refusal,
+  then said "if one doesn't exist a blank one should be created", then
+  "objects and rooms should behave the same" -- widened to all three:
+  new `mob_proto_create_blank()`/`obj_proto_create_blank()`, and
+  `descriptor_redit_begin()` now falls back to the exact same
+  `room_create()`+`room_repo_save()` call redit's own exit-auto-create
+  already used for a missing exit target. All three `_begin()` functions
+  call the appropriate create-blank helper and re-load before opening
+  the editor, rather than returning false.
+- **oedit polish (same session)**: `edit obj <vnum>` now works as an
+  abbreviation for `edit object <vnum>` (cmd_edit.c dispatch). The
+  "Four values" line now shows an inline, type-aware hint of what each
+  of the 4 numbers means for the object's current type (weapon dice,
+  armor AC, light fuel state, container cap/flags/key, drink/food
+  units, etc.) via new `oedit_val_hint()`, reusing the existing
+  `category_for_item_type()` classifier with FUEL/BOARD special-cased
+  by raw type first.
+- **Two real bugs found and fixed within minutes, live**: the mob blank-
+  INSERT's column list (43 columns) and its value list were off by one
+  (11 `120`s where 12 were needed for the original all-12-stat design) --
+  `Column count doesn't match value count`, caught by testing the raw SQL
+  directly before it ever reached a rebuild. The exact same miscount
+  existed independently in `tests/smoke_test_edmobile.py`'s own fixture
+  INSERT (an 11-`120` slip, not copy-pasted from the same bug) --
+  caught when the test itself failed with the identical MariaDB error.
+  Both fixed by counting columns and values programmatically instead of
+  by eye before re-testing.
+- New `tests/smoke_test_edmobile.py` (18 checks, rewritten twice to
+  track the wireframe correction: menu display sans Faction/manual-
+  Characteristics, dirty-before-save, Save auto-computing the 6 real
+  characteristics from level+class while leaving the un-edited
+  upstream-only stats untouched, auto-create-on-missing-vnum, Discard).
+  updated `smoke_test_edobject.py`'s stale "nonexistent vnum is refused"
+  check to the new auto-create behavior; confirmed `edit room`/`edit obj`
+  on a missing/abbreviated vnum live (no existing test covered those
+  paths). Deployed to production, zero build warnings.
+
+Previous update: 2026-07-25 — Session 64 (home): **Score screen revamp
 (wireframe layout, class-aware resource label) and `edit trigger` redesign
 into a full menu-driven manager, both same-session follow-ups after the
 DG Scripts trigger language revamp below.**

@@ -5469,23 +5469,12 @@ already tracked — pointers, not duplicates):
 
 ## Blocked on Objects / Mobs (Phase 2C/2D/2E)
 
-### >>> NEXT UP (work session): `edmobile` <<<
-
 Objects (2C) and Mobiles (2D) are BOTH done as of 2026-07-07 (Sessions 34
 and 35) -- see STATUS.md's decision rows. `edobject` shipped 2026-07-22
-(Session 61, see below); `edmobile` is the one remaining editor, still
-deliberately deferred to its own session (designing a system and its
-editor at once serves neither well); the user already said they want a
-wireframe drafted (not provided), from Sneezy's real menu:
-- `edmobile`: `create_mobs.cc`'s `send_mob_menu` (30 fields), covering the
-  `mob` table's real columns -- note Tobin's `being_create_mob()` only
-  uses 6 of ~40 columns today (name/short_desc/description/level/hpbonus/
-  sex), so this editor's scope decision (edit only what's wired up, vs.
-  edit the full row and leave most fields inert until AI/combat-stats work
-  lands) is itself worth raising with the user before drafting the
-  wireframe.
-Same menu-driven working-copy pattern as `edplayer`/`edroom`/`edobject`
-(see [[editors-menu-driven]]).
+(Session 61); `edmobile` shipped 2026-07-25 (Session 65) -- all four
+builder-tools-OLC editors (`edroom`/`edzone`/`edobject`/`edmobile`) are
+now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
+`edobject` (see [[editors-menu-driven]]).
 
 - [x] **Objects (2C)** — done 2026-07-07: `obj_t` (16-category collapse,
       not the originally-estimated ~15 -- close enough, see obj.c's
@@ -5523,9 +5512,22 @@ Same menu-driven working-copy pattern as `edplayer`/`edroom`/`edobject`
       `attack`/`kill`/`look` topics + a news entry. Still unlocks the real
       kill-XP economy once `progress_add_xp()` gets wired up (separate
       follow-up, see the small-gameplay-follow-ups list above).
-- [ ] **`edmobile` (medit)** — mob editor (menu-driven, DB prototype rows
-      in the existing `mob` table). See NEXT UP note above. Sneezy's
-      `send_mob_menu` has 30 fields (STATUS / create_mobs.cc).
+- [x] **`edmobile` (medit)** — done 2026-07-25 (Session 65, home):
+      mob-prototype editor, same working-copy pattern as `edobject`/
+      `edroom`. Final 23-field menu built from a user-supplied wireframe
+      (not the originally-planned 30-field port of Sneezy's
+      `send_mob_menu`) -- Faction, Special proc, Local/Adjacent sound,
+      and manually-edited Characteristics all dropped from the menu.
+      Characteristics (str/con/wis/intel/dex/cha) are auto-computed on
+      Save from level+class, matching `being_create_mob()`'s own
+      formula (race not yet mapped, disclosed gap). Closes the
+      builder-tools-OLC gap alongside `edroom`/`edzone`/`edobject`.
+      `tests/smoke_test_edmobile.py` (18 checks) + wiznews entry
+      (builder-only, no player-facing news, same precedent as oedit).
+      Same-session follow-ups: all three prototype editors (`mob`/
+      `object`/`room`) now auto-create a blank row on a missing vnum
+      instead of refusing; `edit obj` abbreviates `edit object`; oedit's
+      "Four values" field shows an inline type-aware hint.
 - [x] **Mob AI / aggression** — `ACT_AGGRESSIVE` shipped (see the
       "Mobile_Attitude"/alignment entry earlier in this file,
       `mob_ai_tick()` in mob_ai.c, `tests/smoke_test_alignment.py`) --

@@ -11,6 +11,7 @@
 #include "balance_repo.h"
 #include "being.h"
 #include "help_repo.h"
+#include "mob_repo.h"
 #include "obj_repo.h"
 #include "player_repo.h"
 #include "room.h"
@@ -254,6 +255,50 @@ typedef enum {
      * the editor at all. Same fix shape CONN_REDIT_DESC already uses for
      * exactly this reason (room descriptions, reached from CONN_REDIT_MENU). */
     CONN_TRIGEDIT_SCRIPT,
+    /* Menu-driven mob-prototype editor (`edit mob <vnum>`/medit,
+     * 2026-07-25 -- the last builder-tools-OLC gap, TODO.md). Same
+     * snapshot-working-copy shape as CONN_OEDIT_* (a prototype row isn't
+     * kept resident like a room is): loaded via mob_proto_load() on
+     * entry, field edits mutate d->medit_work only, (S)ave writes the
+     * whole row back via mob_proto_save(). EDIT-ONLY, same scope boundary
+     * `edit object`/`edit room` draw -- no "create a new mob vnum" path
+     * here. Field numbering/order/labels follow the real upstream's own
+     * `send_mob_menu()` (misc/create_mobs.cc, 30 fields) as closely as
+     * Tobin's `mob` table allows, renumbered sequentially and with
+     * naturally-paired values (faction+percent, damage level+precision,
+     * height+weight) combined onto one prompt each to keep the menu a
+     * manageable size -- same renumbering precedent CONN_OEDIT_* already
+     * set. Two real upstream fields are a disclosed gap, not an
+     * oversight: "Immunities" (Tobin's `mob` table has no immunity/
+     * resistance column to write to) and the real menu's own slot 15,
+     * labeled "unused" with no case in ITS OWN dispatcher either. See
+     * descriptor_medit_begin() and the CONN_MEDIT_* cases in
+     * descriptor.c. */
+    CONN_MEDIT_MENU,
+    CONN_MEDIT_NAME,
+    CONN_MEDIT_SHORT_DESC,
+    CONN_MEDIT_LONG_DESC,
+    CONN_MEDIT_DESCRIPTION,
+    CONN_MEDIT_ACTIONS,
+    CONN_MEDIT_AFFECTS,
+    CONN_MEDIT_ATTACKS,
+    CONN_MEDIT_LEVEL,
+    CONN_MEDIT_HITROLL,
+    CONN_MEDIT_ARMOR,
+    CONN_MEDIT_HPLEVEL,
+    CONN_MEDIT_DAMAGE,
+    CONN_MEDIT_GOLD,
+    CONN_MEDIT_RACE,
+    CONN_MEDIT_SEX,
+    CONN_MEDIT_MAX_EXIST,
+    CONN_MEDIT_DEF_POSITION,
+    CONN_MEDIT_CLASS,
+    CONN_MEDIT_SIZE,
+    CONN_MEDIT_VISION,
+    CONN_MEDIT_CAN_BE_SEEN,
+    CONN_MEDIT_SKIN,
+    CONN_MEDIT_ALIGN,
+    CONN_MEDIT_QUIT_CONFIRM,
     CONN_PLAYING,
     CONN_CLOSED
 } conn_state_t;
@@ -476,6 +521,15 @@ typedef struct descriptor {
     obj_proto_t oedit_work;
     bool oedit_dirty;
 
+    /* Menu-driven mob-prototype editor working copy (CONN_MEDIT_*,
+     * `edit mob <vnum>`, 2026-07-25 -- the last builder-tools-OLC gap).
+     * DB snapshot (mob_proto_load()), same shape as oedit_work above --
+     * medit_vnum is threaded separately since mob_proto_save() takes it
+     * as its own argument rather than storing vnum inside mob_proto_t. */
+    int medit_vnum;
+    mob_proto_t medit_work;
+    bool medit_dirty;
+
     /* Menu-driven balance editor working copy (CONN_BALANCE_*, user
      * 2026-07-12). balance_is_class picks which table (true =
      * class_balance, false = race_balance); balance_index is the
@@ -622,6 +676,12 @@ bool descriptor_edzone_begin(descriptor_t *d, int zone_nr);
  * (entering CONN_OEDIT_MENU). Returns false if no such prototype exists.
  * Caller (cmd_edobject.c) owns the level gate. */
 bool descriptor_oedit_begin(descriptor_t *d, int vnum);
+
+/* Opens the menu-driven mob-prototype editor on `vnum`, copies its DB row
+ * into the descriptor's working copy, and shows the medit menu (entering
+ * CONN_MEDIT_MENU). Returns false if no such prototype exists. Caller
+ * (cmd_edmobile.c) owns the level gate. */
+bool descriptor_medit_begin(descriptor_t *d, int vnum);
 
 /* Opens the menu-driven balance editor on class `cls` (if `is_class`) or
  * race `race_val` (if not), copies its current class_balance/race_balance

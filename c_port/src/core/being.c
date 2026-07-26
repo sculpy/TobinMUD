@@ -68,7 +68,7 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
  * other(256) have no Tobin class and are left unmapped; ranger(128)
  * maps to Druid, matching the Druid roster's own Ranger-skill lineage
  * (see skill.c's Druid section). */
-static bool mob_class_mask_to_tobin(int mask, player_class_t *out) {
+bool mob_class_mask_to_tobin(int mask, player_class_t *out) {
     switch (mask) {
         case 1:   *out = CLASS_MAGE;    return true;
         case 2:   *out = CLASS_CLERIC;  return true;

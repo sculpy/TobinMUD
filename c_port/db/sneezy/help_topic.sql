@@ -943,8 +943,18 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- `edit object` (oedit, TODO.md's "NEXT UP" item -- builder-tools-OLC gap).
+-- 2026-07-25 follow-up: a missing vnum now auto-creates a blank object
+-- instead of refusing, `edit obj` abbreviates, and Four values (10) shows
+-- an inline type-aware hint.
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
-('edit object', 'Usage: edit object <vnum>   (level 51+ builders)\n\nMenu-driven editor for an existing object prototype (the `obj` table).\nEdits are held in a working copy -- nothing touches the DB until you\nSave. EDIT-ONLY: there is no way to create a brand-new vnum here.\n\n   1) Name                  2) Short description\n   3) Item type              4) Long description\n   5) Weight                 6) Volume\n   7) Extra flags            8) Take flags\n   9) Cost/value            10) Four values\n  11) Decay time            12) Max struct points\n  13) Struct points         14) Material\n  15) Can be seen           16) Special proc\n  17) Max exist\n\nExtra/Take flags (7/8) open a toggle-by-number submenu; blank returns\nto the main menu. Four values (10) takes all four numbers at once,\ne.g. \"0 0 0 0\".\n\n  S) Save    Q) Quit (warns on unsaved changes)\n\nRelated: room zone stat load', 'seed')
+('edit object', 'Usage: edit object <vnum>   (also: edit obj <vnum>; level 51+ builders)\n\nMenu-driven editor for an object prototype (the `obj` table). Edits\nare held in a working copy -- nothing touches the DB until you Save.\nA vnum that doesn''t exist yet auto-creates a blank object and opens\nstraight into the editor.\n\n   1) Name                  2) Short description\n   3) Item type              4) Long description\n   5) Weight                 6) Volume\n   7) Extra flags            8) Take flags\n   9) Cost/value            10) Four values (meaning shown inline,\n  11) Decay time                depends on item type)\n  12) Max struct points     13) Struct points\n  14) Material              15) Can be seen\n  16) Special proc          17) Max exist\n\nExtra/Take flags (7/8) open a toggle-by-number submenu; blank returns\nto the main menu. Four values (10) takes all four numbers at once,\ne.g. \"0 0 0 0\".\n\n  S) Save    Q) Quit (warns on unsaved changes)\n\nRelated: room zone mob stat load', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `edit mob` (medit, closes the last builder-tools-OLC gap). Menu built
+-- from a user-supplied wireframe (2026-07-25) -- 23 fixed fields,
+-- Characteristics auto-computed on Save rather than editable.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('edit mob', 'Usage: edit mob <vnum>   (level 51+ builders)\n\nMenu-driven editor for a mob prototype (the `mob` table). Edits are\nheld in a working copy -- nothing touches the DB until you Save. A\nvnum that doesn''t exist yet auto-creates a blank mob and opens\nstraight into the editor.\n\n   1) Name                  2) Short desc\n   3) Long desc              4) Description\n   5) Action flags           6) Affect flags\n   7) Attacks                8) Level\n   9) Hitroll               10) Armor Level\n  11) HP Level              12) Damage\n  13) Gold                  14) Race\n  15) Sex                   16) Max exist\n  17) Default position      18) Class (bitmask)\n  19) Height/Weight         20) Vision\n  21) Can be seen           22) Skin\n  23) Alignment\n\nCharacteristics (strength/constitution/wisdom/intelligence/dexterity/\ncharisma) are NOT edited here -- Save auto-computes them from this\nmob''s level and class, the same formula a live-spawned mob gets.\n\n  S) Save    Q) Quit (warns on unsaved changes)\n\nRelated: room zone object stat load', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- DG Scripts-style trigger language revamp (user, 2026-07-25: "use the

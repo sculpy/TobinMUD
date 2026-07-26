@@ -433,6 +433,17 @@ bool mob_race_is_rideable(int idx);
  * CHA; druid (new) high WIS+CON/low INT. */
 void class_stat_bonus(player_class_t c, attrs_t *a);
 
+/* Maps the upstream `mob.class` bitmask to a Tobin player_class_t -- only
+ * the single-class bits that have a real Tobin equivalent (user
+ * 2026-07-12's practice/guildmaster request). Shaman(16)/deikhan(32)/
+ * other(256) have no Tobin class and are left unmapped (returns false);
+ * ranger(128) maps to Druid, matching the Druid roster's own Ranger-skill
+ * lineage. Exposed (not static to being.c) so medit's characteristics
+ * auto-calculation (descriptor.c, 2026-07-25) can reuse the exact same
+ * mapping being_create_mob() itself uses, rather than a second guess at
+ * it. */
+bool mob_class_mask_to_tobin(int mask, player_class_t *out);
+
 /* Player races (user 2026-07-11: "implement races, 6 player races: human,
  * elf, ogre, dwarf, hobbit, gnome. The rest of the sneezy races are for
  * mobs only"). Chosen at character creation, persisted in player.race as

@@ -60,15 +60,25 @@ typedef struct {
 bool obj_proto_load(int vnum, obj_proto_t *out);
 
 /* Writes every editable field of `p` back to the existing `obj` row
- * p->vnum (an UPDATE, not an INSERT -- `oedit`/cmd_edobject.c only edits
- * prototypes that already exist, same "no new-vnum allocation" scope
- * `edroom` draws around rooms, where a separate `dig` command handles
- * creation instead). Returns false if the DB rejected it (p->vnum has no
- * matching row, or a query error). action_desc is deliberately NOT part
- * of obj_proto_t/this save -- confirmed against the real upstream's own
- * oedit (create_objs.cc's update_obj_menu numbers it "9) Unused" with no
- * case in the dispatcher at all, not merely an omission on Tobin's side. */
+ * p->vnum (an UPDATE, not an INSERT -- see obj_proto_create_blank() below
+ * for how a missing vnum gets a row in the first place). Returns false if
+ * the DB rejected it (p->vnum has no matching row, or a query error).
+ * action_desc is deliberately NOT part of obj_proto_t/this save --
+ * confirmed against the real upstream's own oedit (create_objs.cc's
+ * update_obj_menu numbers it "9) Unused" with no case in the dispatcher
+ * at all, not merely an omission on Tobin's side. */
 bool obj_proto_save(const obj_proto_t *p);
+
+/* Inserts a brand-new, minimal `obj` row at `vnum` -- descriptor_oedit_
+ * begin() calls this automatically when `edit object <vnum>` targets a
+ * vnum with no existing row (2026-07-25, user: "if one doesn't exist a
+ * blank one should be created", then "objects and rooms should behave
+ * the same" -- edroom's own room_create()+room_repo_save() is the
+ * equivalent for rooms). Not itself gated or called from `edit`'s own
+ * level check -- callers already sit behind BUILD_MIN_LEVEL. Returns
+ * false if `vnum` already exists (a PRIMARY KEY collision) or on any
+ * other DB error. */
+bool obj_proto_create_blank(int vnum);
 
 /* Finds the lowest vnum whose `name` column contains `name` (case-
  * insensitive substring, e.g. "sword" matches "a rusty sword"), or -1 if

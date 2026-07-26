@@ -189,6 +189,7 @@ bool descriptor_in_editor(const descriptor_t *d) {
         || (d->state >= CONN_EDACCOUNT_MENU && d->state <= CONN_EDACCOUNT_PASSWORD)
         || (d->state >= CONN_EDSOCIAL_LIST && d->state <= CONN_EDSOCIAL_DELETE_CONFIRM)
         || (d->state >= CONN_TRIGEDIT_LIST && d->state <= CONN_TRIGEDIT_SCRIPT)
+        || (d->state >= CONN_MEDIT_MENU && d->state <= CONN_MEDIT_QUIT_CONFIRM)
         || d->page_len > 0; /* mid-pager -- same "no interruptions" treatment */
 }
 
@@ -1556,8 +1557,21 @@ static void redit_leave(descriptor_t *d) {
 
 bool descriptor_redit_begin(descriptor_t *d, int vnum) {
     room_t *live = redit_room_get(vnum);
-    if (!live)
-        return false;
+    if (!live) {
+        /* No room yet -- create a blank one and open THAT, rather than
+         * refusing (2026-07-25, user: "if one doesn't exist a blank one
+         * should be created", then "objects and rooms should behave the
+         * same" -- same "An unfinished room" convention redit_apply_exits()
+         * already uses for an exit target that doesn't exist yet). */
+        live = room_create(vnum, "An unfinished room",
+                           "This freshly dug room has not been described yet.\n", 0);
+        if (!live || !room_repo_save(live)) {
+            room_destroy(live);
+            return false;
+        }
+        world_register_room(live);
+        descriptor_send(d, "No room existed at that vnum -- created a blank one.\r\n");
+    }
     d->redit_work = *live; /* field copy; only scalars + exits are ever used
                               or applied back, never the base pointers. */
     d->redit_dirty = false;
@@ -1698,12 +1712,42 @@ bool descriptor_edzone_begin(descriptor_t *d, int zone_nr) {
     return true;
 }
 
+/* What val[0..3] mean for the CURRENT item type -- shown inline next to
+ * "Four values" so a builder doesn't have to go dig up obj.h's own doc
+ * comment to know what they're actually setting (user 2026-07-25: "should
+ * be defined in the editor"). Keyed by category (obj.h's own val[]
+ * comment is organized the same way -- most raw types collapse into a
+ * handful of categories that share a val[] layout), with `type` itself
+ * consulted first for the two cases that DON'T follow category (FUEL
+ * collapses into OBJ_CAT_OTHER but has its own real layout; WRITTEN's
+ * val[0] only means something for the board sub-type, ITEM_BOARD=24).
+ * Component/holy-symbol/drug val[] layouts are identified by KEYWORD, not
+ * type/category, so they can't be hinted here -- same disclosed gap. */
+static const char *oedit_val_hint(int type) {
+    if (type == 6) /* ITEM_FUEL */
+        return "fuel remaining/max fuel/-/-";
+    if (type == 24) /* ITEM_BOARD */
+        return "min read level/-/-/-";
+    switch (category_for_item_type(type)) {
+        case OBJ_CAT_LIGHT:        return "radius (unused)/max fuel (-1=none)/cur fuel/lit(0-1)";
+        case OBJ_CAT_WEAPON:       return "damage dice count/damage dice sides/-/-";
+        case OBJ_CAT_ARMOR:        return "armor class/-/-/-";
+        case OBJ_CAT_CONTAINER:    return "max weight cap/flags(closed/locked/pickproof)/key vnum/-";
+        case OBJ_CAT_DRINK:        return "max units/current units/-/-";
+        case OBJ_CAT_FOOD:         return "max units (hunger)/current units/-/-";
+        case OBJ_CAT_MONEY:        return "coin amount/-/-/-";
+        case OBJ_CAT_KEY:          return "unused -- matched by this obj's own vnum, not val[]";
+        case OBJ_CAT_MAGIC_DEVICE: return "charges/uses remaining/-/-/-";
+        default:                   return "unused for this type";
+    }
+}
+
 static void show_oedit_menu(descriptor_t *d) {
     obj_proto_t *w = &d->oedit_work;
     char wearbuf[256], actionbuf[512];
     obj_wear_flag_names(w->wear_flag, wearbuf, sizeof(wearbuf));
     obj_action_flag_names(w->action_flag, actionbuf, sizeof(actionbuf));
-    char out[2048];
+    char out[2304];
     snprintf(out, sizeof(out),
              "\r\n<c>Editing object:<z> %s (#%d)\r\n\r\n"
              "   1) Name: %s\r\n"
@@ -1714,7 +1758,7 @@ static void show_oedit_menu(descriptor_t *d) {
              "   7) Extra flags: %s\r\n"
              "   8) Take flags: %s\r\n"
              "   9) Cost/value: %d\r\n"
-             "  10) Four values: %d %d %d %d\r\n"
+             "  10) Four values: %d %d %d %d  (%s)\r\n"
              "  11) Decay time: %d                  12) Max struct points: %d\r\n"
              "  13) Struct points: %d                14) Material: %d (%s)\r\n"
              "  15) Can be seen: %s                  16) Special proc: %d\r\n"
@@ -1724,7 +1768,7 @@ static void show_oedit_menu(descriptor_t *d) {
              w->name, w->short_descr, obj_type_name(w->type), w->type,
              w->long_descr, w->weight, w->volume,
              actionbuf, wearbuf, w->price,
-             w->val[0], w->val[1], w->val[2], w->val[3],
+             w->val[0], w->val[1], w->val[2], w->val[3], oedit_val_hint(w->type),
              w->decay_time, w->max_struct,
              w->cur_struct, w->material, material_tier_name(material_tier_for_id(w->material)),
              w->can_be_seen ? "yes" : "no", w->spec_proc,
@@ -1792,11 +1836,123 @@ static void oedit_leave(descriptor_t *d) {
 
 bool descriptor_oedit_begin(descriptor_t *d, int vnum) {
     obj_proto_t loaded;
-    if (!obj_proto_load(vnum, &loaded))
-        return false;
+    if (!obj_proto_load(vnum, &loaded)) {
+        /* No row yet -- create a blank one and open THAT, rather than
+         * refusing (2026-07-25, user: "if one doesn't exist a blank one
+         * should be created", then "objects and rooms should behave the
+         * same" -- matches edroom's own room_create() fallback below). */
+        if (!obj_proto_create_blank(vnum) || !obj_proto_load(vnum, &loaded))
+            return false;
+        descriptor_send(d, "No object existed at that vnum -- created a blank one.\r\n");
+    }
     d->oedit_work = loaded;
     d->oedit_dirty = false;
     show_oedit_menu(d);
+    return true;
+}
+
+/* ---- Menu-driven mob-prototype editor (medit), CONN_MEDIT_* ----------- */
+
+static void show_medit_menu(descriptor_t *d) {
+    mob_proto_t *w = &d->medit_work;
+    char out[4096];
+    snprintf(out, sizeof(out),
+             "\r\n<c>Editing mob:<z> %s (#%d)\r\n\r\n"
+             "   1) Name: %s\r\n"
+             "   2) Short desc: %s\r\n"
+             "   3) Long desc: %s\r\n"
+             "   4) Description: %s\r\n"
+             "   5) Action flags: %d                 6) Affect flags: %d\r\n"
+             "   7) Attacks: %.1f                     8) Level: %d\r\n"
+             "   9) Hitroll: %d                      10) Armor Level: %.1f\r\n"
+             "  11) HP Level: %.1f                    12) Damage: %.1f +%d\r\n"
+             "  13) Gold: %d                          14) Race: %d (%s)\r\n"
+             "  15) Sex: %s                       16) Max exist: %d\r\n"
+             "  17) Default position: %s          18) Class (bitmask): %d\r\n"
+             "  19) Height/Weight: %d/%d               20) Vision: %d\r\n"
+             "  21) Can be seen: %s                   22) Skin: %d\r\n"
+             "  23) Alignment: %d\r\n\r\n"
+             "   S) Save    Q) Quit%s\r\nMob Editor> ",
+             w->name, d->medit_vnum,
+             w->name, w->short_descr, w->long_descr, w->description,
+             w->actions, w->affects,
+             w->attacks, w->level,
+             w->tohit, w->ac,
+             w->hpbonus, w->damage_level, w->damage_precision,
+             w->gold, w->race, mob_race_name(w->race),
+             gender_name((gender_t)w->sex), w->max_exist,
+             position_name((position_t)w->def_position), w->class_mask,
+             w->height, w->weight, w->vision,
+             w->can_be_seen ? "yes" : "no", w->skin,
+             w->align,
+             d->medit_dirty ? "\r\n   <c>* unsaved changes *<z>" : "");
+    descriptor_send(d, out);
+    d->state = CONN_MEDIT_MENU;
+}
+
+/* Sets the working copy's 6 real Tobin characteristics from level and
+ * class, the same way a live mob gets its attrs at spawn time
+ * (being_create_mob()) -- 2026-07-25, user: "Characteristics should be
+ * automatically calculated like players", then "according to race and
+ * class". Reuses being_create_mob()'s own level-driven base formula and
+ * class_stat_bonus() (via the same mob_class_mask_to_tobin() mapping
+ * being_create_mob() itself uses) so a saved prototype and a freshly
+ * spawned instance of it agree. The race half is a disclosed gap: mob.race
+ * is a raw upstream MOB_RACE_NAMES index, not a Tobin player_race_t, and
+ * no mapping between the two scales exists yet (being.c's class mapper
+ * has no race equivalent) -- only class contributes beyond the level base
+ * for now. */
+static void medit_apply_characteristics(mob_proto_t *w) {
+    int base = ATTR_BASE + w->level;
+    if (base > ATTR_MAX)
+        base = ATTR_MAX;
+    attrs_t a;
+    a.strength = a.dexterity = a.constitution = a.intelligence = a.wisdom = a.charisma = base;
+
+    player_class_t cls;
+    if (mob_class_mask_to_tobin(w->class_mask, &cls))
+        class_stat_bonus(cls, &a);
+
+    w->str = a.strength;
+    w->dex = a.dexterity;
+    w->con = a.constitution;
+    w->intel = a.intelligence;
+    w->wis = a.wisdom;
+    w->cha = a.charisma;
+}
+
+static void medit_save(descriptor_t *d) {
+    medit_apply_characteristics(&d->medit_work);
+    if (!mob_proto_save(d->medit_vnum, &d->medit_work)) {
+        descriptor_send(d, "Save failed -- the DB rejected part of it.\r\n");
+        return;
+    }
+    d->medit_dirty = false;
+    descriptor_send(d, "Mob saved.\r\n");
+}
+
+static void medit_leave(descriptor_t *d) {
+    d->state = CONN_PLAYING;
+    d->medit_dirty = false;
+    descriptor_send(d, "Leaving the mob editor.\r\n");
+    descriptor_editor_exit_notice(d);
+}
+
+bool descriptor_medit_begin(descriptor_t *d, int vnum) {
+    mob_proto_t loaded;
+    if (!mob_proto_load(vnum, &loaded)) {
+        /* No row yet -- create a blank one and open THAT, rather than
+         * refusing (2026-07-25, user: "if one doesn't exist a blank one
+         * should be created", then "objects and rooms should behave the
+         * same"). */
+        if (!mob_proto_create_blank(vnum) || !mob_proto_load(vnum, &loaded))
+            return false;
+        descriptor_send(d, "No mob existed at that vnum -- created a blank one.\r\n");
+    }
+    d->medit_vnum = vnum;
+    d->medit_work = loaded;
+    d->medit_dirty = false;
+    show_medit_menu(d);
     return true;
 }
 
@@ -4011,6 +4167,473 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 oedit_leave(d);
             } else {
                 show_oedit_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_MEDIT_MENU: {
+            if (isdigit((unsigned char)line[0])) {
+                switch (atoi(line)) {
+                    case 1:
+                        descriptor_send(d, "\r\nEnter new name (blank to cancel): ");
+                        d->state = CONN_MEDIT_NAME;
+                        break;
+                    case 2:
+                        descriptor_send(d, "\r\nEnter new short description (blank to cancel): ");
+                        d->state = CONN_MEDIT_SHORT_DESC;
+                        break;
+                    case 3:
+                        descriptor_send(d, "\r\nEnter new long description (blank to cancel): ");
+                        d->state = CONN_MEDIT_LONG_DESC;
+                        break;
+                    case 4:
+                        descriptor_send(d, "\r\nEnter new description (blank to cancel): ");
+                        d->state = CONN_MEDIT_DESCRIPTION;
+                        break;
+                    case 5:
+                        descriptor_send(d, "\r\nEnter new action flags bitmask (blank to cancel): ");
+                        d->state = CONN_MEDIT_ACTIONS;
+                        break;
+                    case 6:
+                        descriptor_send(d, "\r\nEnter new affect flags bitmask (blank to cancel): ");
+                        d->state = CONN_MEDIT_AFFECTS;
+                        break;
+                    case 7:
+                        descriptor_send(d, "\r\nEnter new number of attacks, e.g. 1.0 (blank to cancel): ");
+                        d->state = CONN_MEDIT_ATTACKS;
+                        break;
+                    case 8:
+                        descriptor_send(d, "\r\nEnter new level (blank to cancel): ");
+                        d->state = CONN_MEDIT_LEVEL;
+                        break;
+                    case 9:
+                        descriptor_send(d, "\r\nEnter new hitroll (blank to cancel): ");
+                        d->state = CONN_MEDIT_HITROLL;
+                        break;
+                    case 10:
+                        descriptor_send(d, "\r\nEnter new armor level (blank to cancel): ");
+                        d->state = CONN_MEDIT_ARMOR;
+                        break;
+                    case 11:
+                        descriptor_send(d, "\r\nEnter new HP level (blank to cancel): ");
+                        d->state = CONN_MEDIT_HPLEVEL;
+                        break;
+                    case 12:
+                        descriptor_send(d, "\r\nEnter damage level and precision, e.g. \"2.5 3\" (blank to cancel): ");
+                        d->state = CONN_MEDIT_DAMAGE;
+                        break;
+                    case 13:
+                        descriptor_send(d, "\r\nEnter new gold (blank to cancel): ");
+                        d->state = CONN_MEDIT_GOLD;
+                        break;
+                    case 14:
+                        descriptor_send(d, "\r\nEnter new race number (blank to cancel): ");
+                        d->state = CONN_MEDIT_RACE;
+                        break;
+                    case 15:
+                        descriptor_send(d, "\r\nEnter new sex, e.g. \"male\" (or 0 neuter, 1 male, 2 female; blank to cancel): ");
+                        d->state = CONN_MEDIT_SEX;
+                        break;
+                    case 16:
+                        descriptor_send(d, "\r\nEnter new max exist, 0 for uncapped (blank to cancel): ");
+                        d->state = CONN_MEDIT_MAX_EXIST;
+                        break;
+                    case 17:
+                        descriptor_send(d, "\r\nEnter new default position, e.g. \"standing\" (blank to cancel): ");
+                        d->state = CONN_MEDIT_DEF_POSITION;
+                        break;
+                    case 18:
+                        descriptor_send(d, "\r\nEnter new class bitmask (blank to cancel): ");
+                        d->state = CONN_MEDIT_CLASS;
+                        break;
+                    case 19:
+                        descriptor_send(d, "\r\nEnter height and weight, e.g. \"72 180\" (blank to cancel): ");
+                        d->state = CONN_MEDIT_SIZE;
+                        break;
+                    case 20:
+                        descriptor_send(d, "\r\nEnter new vision bonus (blank to cancel): ");
+                        d->state = CONN_MEDIT_VISION;
+                        break;
+                    case 21:
+                        descriptor_send(d, "\r\nCan be seen? yes or no (blank to cancel): ");
+                        d->state = CONN_MEDIT_CAN_BE_SEEN;
+                        break;
+                    case 22:
+                        descriptor_send(d, "\r\nEnter new skin type number (blank to cancel): ");
+                        d->state = CONN_MEDIT_SKIN;
+                        break;
+                    case 23:
+                        descriptor_send(d, "\r\nEnter new alignment, -1 evil, 0 unaligned, 1 good (blank to cancel): ");
+                        d->state = CONN_MEDIT_ALIGN;
+                        break;
+                    default:
+                        descriptor_send(d, "Pick a menu number (1-23), or S/Q.\r\n");
+                        show_medit_menu(d);
+                        break;
+                }
+                return true;
+            }
+            switch ((char)toupper((unsigned char)line[0])) {
+                case 'S':
+                    medit_save(d);
+                    show_medit_menu(d);
+                    break;
+                case 'Q':
+                    if (d->medit_dirty) {
+                        descriptor_send(d,
+                            "\r\nYou have unsaved changes. (S)ave, (D)iscard, (C)ancel: ");
+                        d->state = CONN_MEDIT_QUIT_CONFIRM;
+                    } else {
+                        medit_leave(d);
+                    }
+                    break;
+                default:
+                    descriptor_send(d, "Pick a menu number (1-23), or S/Q.\r\n");
+                    show_medit_menu(d);
+                    break;
+            }
+            return true;
+        }
+
+        case CONN_MEDIT_NAME: {
+            if (line[0]) {
+                snprintf(d->medit_work.name, sizeof(d->medit_work.name), "%s", line);
+                d->medit_dirty = true;
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_SHORT_DESC: {
+            if (line[0]) {
+                snprintf(d->medit_work.short_descr, sizeof(d->medit_work.short_descr), "%s", line);
+                d->medit_dirty = true;
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_LONG_DESC: {
+            if (line[0]) {
+                snprintf(d->medit_work.long_descr, sizeof(d->medit_work.long_descr), "%s", line);
+                d->medit_dirty = true;
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_DESCRIPTION: {
+            if (line[0]) {
+                snprintf(d->medit_work.description, sizeof(d->medit_work.description), "%s", line);
+                d->medit_dirty = true;
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_ACTIONS: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->medit_work.actions = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Action flags must be a non-negative number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_AFFECTS: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->medit_work.affects = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Affect flags must be a non-negative number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_ATTACKS: {
+            if (line[0]) {
+                char *end;
+                double v = strtod(line, &end);
+                if (end != line && v >= 0) {
+                    d->medit_work.attacks = v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Attacks must be a non-negative number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_LEVEL: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->medit_work.level = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Level must be a non-negative number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_HITROLL: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line) {
+                    d->medit_work.tohit = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Hitroll must be a number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_ARMOR: {
+            if (line[0]) {
+                char *end;
+                double v = strtod(line, &end);
+                if (end != line) {
+                    d->medit_work.ac = v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Armor level must be a number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_HPLEVEL: {
+            if (line[0]) {
+                char *end;
+                double v = strtod(line, &end);
+                if (end != line) {
+                    d->medit_work.hpbonus = v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "HP level must be a number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_DAMAGE: {
+            if (line[0]) {
+                double lvl;
+                int prec;
+                if (sscanf(line, "%lf %d", &lvl, &prec) == 2) {
+                    d->medit_work.damage_level = lvl;
+                    d->medit_work.damage_precision = prec;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Enter two numbers, e.g. \"2.5 3\".\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_GOLD: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->medit_work.gold = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Gold must be a non-negative number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_RACE: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->medit_work.race = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Race must be a non-negative number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_SEX: {
+            if (line[0]) {
+                bool matched = true;
+                if (strcasecmp(line, "neuter") == 0) d->medit_work.sex = 0;
+                else if (strcasecmp(line, "male") == 0) d->medit_work.sex = 1;
+                else if (strcasecmp(line, "female") == 0) d->medit_work.sex = 2;
+                else {
+                    char *end;
+                    long v = strtol(line, &end, 10);
+                    if (end != line && v >= 0 && v <= 2)
+                        d->medit_work.sex = (int)v;
+                    else
+                        matched = false;
+                }
+                if (matched)
+                    d->medit_dirty = true;
+                else
+                    descriptor_send(d, "Sex must be \"neuter\", \"male\", \"female\" (or 0/1/2).\r\n");
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_MAX_EXIST: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->medit_work.max_exist = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Max exist must be 0 (uncapped) or a positive number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_DEF_POSITION: {
+            if (line[0]) {
+                position_t pos;
+                if (position_from_name(line, &pos)) {
+                    d->medit_work.def_position = (int)pos;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Not a recognized position -- try \"standing\", \"sitting\", etc.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_CLASS: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->medit_work.class_mask = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Class bitmask must be a non-negative number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_SIZE: {
+            if (line[0]) {
+                int h, w;
+                if (sscanf(line, "%d %d", &h, &w) == 2 && h >= 0 && w >= 0) {
+                    d->medit_work.height = h;
+                    d->medit_work.weight = w;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Enter two non-negative numbers, e.g. \"72 180\".\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+
+        case CONN_MEDIT_VISION: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line) {
+                    d->medit_work.vision = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Vision must be a number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_CAN_BE_SEEN: {
+            if (line[0]) {
+                bool is_no = strcasecmp(line, "n") == 0 || strcasecmp(line, "no") == 0;
+                bool is_yes = strcasecmp(line, "y") == 0 || strcasecmp(line, "yes") == 0;
+                if (is_yes || is_no) {
+                    d->medit_work.can_be_seen = is_yes;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Please answer yes or no.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_SKIN: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->medit_work.skin = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Skin type must be a non-negative number.\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_ALIGN: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= -1 && v <= 1) {
+                    d->medit_work.align = (int)v;
+                    d->medit_dirty = true;
+                } else {
+                    descriptor_send(d, "Alignment must be -1 (evil), 0 (unaligned), or 1 (good).\r\n");
+                }
+            }
+            show_medit_menu(d);
+            return true;
+        }
+
+        case CONN_MEDIT_QUIT_CONFIRM: {
+            char c = (char)toupper((unsigned char)line[0]);
+            if (c == 'S') {
+                medit_save(d);
+                medit_leave(d);
+            } else if (c == 'D') {
+                medit_leave(d);
+            } else {
+                show_medit_menu(d);
             }
             return true;
         }

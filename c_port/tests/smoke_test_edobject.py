@@ -8,7 +8,11 @@ builder-tools-OLC gap). Covers:
   3. Editing name/weight/four-values/a take-flag bit marks the working
      copy dirty (shown in the menu) but doesn't touch the DB until Save.
   4. Save persists all of it in one write.
-  5. A nonexistent vnum is refused with a clear message, not a crash.
+  5. A nonexistent vnum auto-creates a blank object and opens straight
+     into the editor, rather than being refused (2026-07-25, user: "if
+     one doesn't exist a blank one should be created", then "objects and
+     rooms should behave the same" -- edmobile got the identical
+     treatment).
   6. Quit with unsaved changes prompts Save/Discard/Cancel; Discard
      actually discards (DB unchanged).
 
@@ -149,9 +153,17 @@ s2 = login(mort_name, mort_pw)
 out = cmd(s2, f"edit object {VNUM}")
 check("command not found" in out.lower(), "a mortal typing edit gets the generic unknown-command message")
 
-# --- 5: a nonexistent vnum is refused cleanly ---
-out = cmd(s, "edit object 999999999")
-check("no object 999999999 to edit" in out.lower(), "a vnum with no obj row is refused, not a crash")
+# --- 5: a nonexistent vnum auto-creates a blank object ---
+VNUM_NEW = VNUM + 1
+sql(f"DELETE FROM obj WHERE vnum={VNUM_NEW};")
+out = cmd(s, f"edit object {VNUM_NEW}")
+check("no object existed at that vnum" in out.lower() and "created a blank one" in out.lower(),
+      "a nonexistent vnum gets a blank object created instead of being refused")
+check("an unfinished object" in out, "the auto-created blank object opens straight into the editor")
+check(query(f"SELECT name FROM obj WHERE vnum={VNUM_NEW};") == "an unfinished object",
+      "the blank object was actually persisted to the DB immediately, not just held in a working copy")
+cmd(s, "Q")
+sql(f"DELETE FROM obj WHERE vnum={VNUM_NEW};")
 
 # --- 2: opens the menu, showing the real prototype fields ---
 out = cmd(s, f"edit object {VNUM}")

@@ -72,6 +72,29 @@ bool obj_proto_save(const obj_proto_t *p) {
     return ok;
 }
 
+/* Inserts a brand-new, minimal `obj` row at `vnum` -- 2026-07-25, user:
+ * "if one doesn't exist a blank one should be created" (edit mob 43 on a
+ * missing vnum), then "objects and rooms should behave the same". Every
+ * numeric column left off here has a real `0`/-`1` DB-level default
+ * already (see the schema); only the four string columns genuinely need
+ * an explicit value. Returns false if `vnum` already exists (a real
+ * PRIMARY KEY collision, surfaced by the caller as a save/DB-error
+ * message) or on any other DB error. */
+bool obj_proto_create_blank(int vnum) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok = db_query(db,
+        "insert into obj (vnum, name, short_desc, long_desc, action_desc) "
+        "values (%i, 'an unfinished object', 'an unfinished object', "
+        "'An unfinished object is lying here.', '')",
+        vnum);
+
+    db_close(db);
+    return ok;
+}
+
 int obj_find_vnum_by_name(const char *name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
