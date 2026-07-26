@@ -1,6 +1,30 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 75 (home): **Fixed the missing
+Last updated: 2026-07-26 — Session 76 (home): **Two small closeouts:
+`db/fix-workbox.sh` (Work box's still-pending DB rename + player_drug
+schema catchup, one script, unattended-safe) and a resolved design
+decision on the destroyed-limb hit penalty.**
+- `db/fix-workbox.sh`: combines the two things Work (db.kullit.com)
+  still needs from Sessions 73/75 -- the sneezy->tobin rename and the
+  player_drug schema catchup -- into one idempotent script (backup,
+  atomic RENAME TABLE, apply-tobin-schema.sh, clean rebuild, restart
+  both preview/production instances, smoke-test both). Refuses to run
+  with a real player connected. Committed and pushed; Work box itself
+  is still unreachable from this environment, so it's staged for
+  whoever can actually SSH in to run `git pull && bash
+  db/fix-workbox.sh`.
+- **Destroyed-limb hit penalty scaling** (TODO.md, open since the
+  Hospital-mechanic work): asked the user directly rather than guessing
+  -- flat -15 (current behavior, doesn't get worse with more destroyed
+  limbs) vs. scaling per limb, capped or uncapped. No upstream SneezyMUD
+  precedent exists for this mechanic at all (`combat.c:44`'s own comment
+  already flagged it as Tobin-original), so there was no "port it
+  correctly" answer available, only a genuine design call. **Decided:
+  stays flat.** No code behavior change; updated `combat.c`'s comment to
+  record the decision (no longer a "placeholder") and closed the TODO
+  item.
+
+### Session 75 (home): **Fixed the missing
 `player_drug` table flagged at the end of Session 74, plus a real
 `score` display bug caught while verifying it.**
 - User-supplied task: figure out why production logged

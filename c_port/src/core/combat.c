@@ -44,9 +44,13 @@ static void tell(being_t *b, const char *fmt, ...) {
 /* A destroyed limb (0% HP) penalizes its owner's own offense (and, as of
  * this session, their defense too -- see the mirrored check in
  * combat_strike() below) -- flat, non-stacking (doesn't get worse with
- * more than one destroyed limb), placeholder amount. A destroyed limb can
- * be repaired mid-game at a Hospital (see being_has_destroyed_limb()'s doc
- * comment in being.h) -- it's not a permanent penalty. */
+ * more than one destroyed limb). No upstream SneezyMUD precedent for this
+ * mechanic exists at all -- it's a Tobin-original addition -- so the
+ * flat-vs-scaling question was a pure design call, not a bug: user decided
+ * 2026-07-26 to keep it flat (see TODO.md), not a placeholder anymore. A
+ * destroyed limb can be repaired mid-game at a Hospital (see
+ * being_has_destroyed_limb()'s doc comment in being.h) -- it's not a
+ * permanent penalty. */
 #define DESTROYED_LIMB_HIT_PENALTY 15
 
 /* Positions polish (TODO backlog) -- see combat_strike(). Same magnitude as

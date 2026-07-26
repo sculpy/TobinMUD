@@ -6283,7 +6283,13 @@ conversation and in `sneezymud-master`): `positionTypeT` (done), `prompt_mesg`
       ingredient check; needs its own scoping pass before starting,
       same "ask before building" precedent as every other large item.
 - [x] Hospital mechanic for destroyed limbs — done 2026-07-18, see above.
-- [ ] Whether the destroyed-limb hit penalty scales with count (flat -15 now).
+- [x] Whether the destroyed-limb hit penalty scales with count (flat -15 now)
+      — **decided 2026-07-26 (user): stays flat.** No upstream SneezyMUD
+      precedent exists for this mechanic at all (it's a Tobin-original
+      addition, `combat.c:44-50`'s own comment already calls it a
+      "placeholder amount" with no port to lean on), so this was a pure
+      design call, not a bug. One destroyed limb or eighteen: same -15 to
+      both the owner's own attack roll and their defense. No code change.
 - [x] Immortal-vs-immortal `kill` guard — done (Session 43): `cmd_kill.c`
       refuses to instakill a PC target whose TRUE rank (true_level if set,
       else level -- protects a target who's toggled mortal via `immort`
