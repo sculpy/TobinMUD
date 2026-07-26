@@ -77,9 +77,23 @@ int main(int argc, char **argv) {
 
     srand((unsigned int)time(NULL));
 
-    /* Fail fast: confirm the DB is reachable before opening the listening
-     * socket, so connectivity problems are obvious at boot rather than
-     * discovered mid-session. */
+    /* Open the listening socket (or, for a copyover, adopt the inherited
+     * one) as early as possible -- BEFORE the DB probe / world-load work
+     * below, so anyone connecting (or, for a copyover, already connected
+     * and riding out the reboot) during that window gets a "still
+     * booting" notice instead of dead silence (user 2026-07-26: "when
+     * connecting during a reboot, we should accept the connection and
+     * give some booting information ... and also for the logs"). */
+    static const char BOOT_HOLD_MSG[] =
+        "\r\nTobinMUD is rebooting -- please hold on a moment...\r\n";
+    if (!game_loop_boot_open(cfg->telnet_port, copyover_file)) {
+        log_error("Could not open the listening socket on port %d.", cfg->telnet_port);
+        return EXIT_FAILURE;
+    }
+    game_loop_boot_poll(BOOT_HOLD_MSG);
+
+    /* Fail fast: confirm the DB is reachable, so connectivity problems are
+     * obvious at boot rather than discovered mid-session. */
     db_conn_t *probe = db_open(DB_TOBIN);
     if (!probe || !db_query(probe, "select 1")) {
         log_error("Could not reach the '%s' database at %s. Set TOBIN_DB_HOST/"
@@ -90,6 +104,7 @@ int main(int argc, char **argv) {
     }
     db_close(probe);
     log_info("Database connection OK.");
+    game_loop_boot_poll(BOOT_HOLD_MSG);
 
     multiplay_load(); /* restore the persisted multiplay game flag */
     gametime_load();  /* restore the persisted game clock */
@@ -98,12 +113,14 @@ int main(int argc, char **argv) {
     wisdom_practice_load(); /* wisdom->practice-points scalar (practice.c) */
     social_cache_load(); /* socials (emotes) -- checked on nearly every unmatched
                              player command, see socials.h for why this is cached */
+    game_loop_boot_poll(BOOT_HOLD_MSG);
 
     /* Zones Part 2 (Session 43): populate rooms from the zone_reset data
      * migrated in Part 1. Runs unconditionally here -- for both a cold
      * boot and a copyover-resumed process alike, since neither preserves
      * room/mob/object state (see zone.h). */
     zone_boot_all();
+    game_loop_boot_poll(BOOT_HOLD_MSG);
 
     pulse_register(1, wait_tick_run);
     pulse_register(10, shutdown_pulse_tick);     /* ~1s: pending `shutdown <seconds>` countdown */

@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/select.h>
 #include <sys/time.h>
 #include <time.h>
@@ -50,8 +51,102 @@ static long long now_usec(void) {
 static volatile sig_atomic_t g_shutdown = 0;
 static int g_listen_fd = -1;
 
+/* Boot-phase state (see game_loop.h's game_loop_boot_open()/
+ * game_loop_boot_poll() doc comments): the listening socket lives here
+ * from the moment boot_open() runs, well before game_loop_run() itself
+ * starts -- so a connection arriving during main()'s DB/world-load work
+ * can be accepted and held immediately instead of sitting silent in the
+ * kernel's backlog. */
+static main_socket_t g_boot_ms = { .listen_fd = -1 };
+static bool g_boot_is_copyover = false;
+static char g_boot_copyover_file[512];
+static bool g_boot_notified_existing = false;
+
+#define MAX_BOOT_PENDING 32
+static int g_boot_pending_fd[MAX_BOOT_PENDING];
+static char g_boot_pending_ip[MAX_BOOT_PENDING][46];
+static int g_boot_pending_count = 0;
+
 int game_loop_listen_fd(void) {
     return g_listen_fd;
+}
+
+bool game_loop_boot_open(int port, const char *copyover_file) {
+    g_boot_ms.listen_fd = -1;
+    g_boot_is_copyover = false;
+    g_boot_notified_existing = false;
+    g_boot_pending_count = 0;
+
+    if (copyover_file) {
+        /* Peek the recovery file just for the inherited listen fd -- the
+         * full "conn ..." adoption into real descriptor_t's still happens
+         * later, in copyover_recover(), once game_loop_run() actually
+         * starts. Deliberately does NOT unlink the file (copyover_recover()
+         * does that once it's done reading it for real). */
+        FILE *f = fopen(copyover_file, "r");
+        if (f) {
+            char line[512];
+            if (fgets(line, sizeof(line), f)
+                && sscanf(line, "listen %d", &g_boot_ms.listen_fd) == 1
+                && g_boot_ms.listen_fd >= 0) {
+                g_boot_is_copyover = true;
+                snprintf(g_boot_copyover_file, sizeof(g_boot_copyover_file), "%s", copyover_file);
+            } else {
+                g_boot_ms.listen_fd = -1;
+            }
+            fclose(f);
+        }
+    }
+
+    if (g_boot_ms.listen_fd < 0 && !main_socket_open(&g_boot_ms, port))
+        return false;
+
+    return true;
+}
+
+int game_loop_boot_poll(const char *message) {
+    int notified = 0;
+    size_t msg_len = strlen(message);
+
+    /* Existing (copyover) connections only need this once -- they're
+     * frozen the whole boot window, not repeatedly reconnecting. */
+    if (g_boot_is_copyover && !g_boot_notified_existing) {
+        g_boot_notified_existing = true;
+        FILE *f = fopen(g_boot_copyover_file, "r");
+        if (f) {
+            char line[512];
+            fgets(line, sizeof(line), f); /* skip the "listen %d" header */
+            while (fgets(line, sizeof(line), f)) {
+                int fd;
+                if (sscanf(line, "conn %d", &fd) == 1 && fd >= 0) {
+                    socket_write(fd, message, msg_len);
+                    notified++;
+                }
+            }
+            fclose(f);
+        }
+        log_info("Boot: notified %d existing connection(s) riding out a copyover reboot.", notified);
+    }
+
+    char ip[46];
+    int fd;
+    while ((fd = main_socket_accept(&g_boot_ms, ip, sizeof(ip))) >= 0) {
+        socket_write(fd, message, msg_len);
+        if (g_boot_pending_count < MAX_BOOT_PENDING) {
+            g_boot_pending_fd[g_boot_pending_count] = fd;
+            snprintf(g_boot_pending_ip[g_boot_pending_count], sizeof(g_boot_pending_ip[0]), "%s", ip);
+            g_boot_pending_count++;
+        } else {
+            /* Backlog cap hit -- extremely unlikely (32 simultaneous new
+             * connections mid-boot), but close rather than leak the fd. */
+            log_error("Boot: pending-connection cap hit, closing fd %d from %s.", fd, ip);
+            close(fd);
+        }
+        notified++;
+        log_info("Boot: new connection (fd %d) from %s arrived during startup -- held.", fd, ip);
+    }
+
+    return notified;
 }
 
 void game_loop_request_shutdown(void) {
@@ -113,11 +208,16 @@ static bool copyover_recover(const char *file, main_socket_t *ms) {
 }
 
 int game_loop_run(int port, const char *copyover_file) {
-    main_socket_t ms;
-    ms.listen_fd = -1;
+    /* Reuse the socket game_loop_boot_open() already opened at the very
+     * start of main() -- calling main_socket_open() again here (the old
+     * behavior) would try to re-bind a port that's already bound and fail.
+     * copyover_recover() below still re-parses the recovery file for the
+     * real "conn ..." adoption, and harmlessly re-sets the same listen_fd
+     * value while doing so. */
+    main_socket_t ms = g_boot_ms;
 
     bool recovered = copyover_file && copyover_recover(copyover_file, &ms);
-    if (!recovered && !main_socket_open(&ms, port))
+    if (!recovered && ms.listen_fd < 0 && !main_socket_open(&ms, port))
         return 1;
     g_listen_fd = ms.listen_fd;
 
@@ -128,6 +228,23 @@ int game_loop_run(int port, const char *copyover_file) {
         log_info("Copyover complete -- still listening on port %d.", port);
     else
         log_info("Listening on port %d. Press Ctrl+C to stop.", port);
+
+    /* Hand off anyone who connected during main()'s boot window (see
+     * game_loop_boot_open()/game_loop_boot_poll()) straight into the game,
+     * exactly as if they'd just been accepted in the loop below. */
+    for (int i = 0; i < g_boot_pending_count; i++) {
+        int fd = g_boot_pending_fd[i];
+        descriptor_t *nd = descriptor_create(fd);
+        if (nd) {
+            snprintf(nd->ip, sizeof(nd->ip), "%s", g_boot_pending_ip[i]);
+            hostname_resolve_start(fd, nd->ip);
+            log_info("Boot: handing off held connection (fd %d) from %s now that startup is complete.",
+                      fd, nd->ip);
+        } else {
+            close(fd);
+        }
+    }
+    g_boot_pending_count = 0;
 
     long pulse_count = 0;
     long long next_pulse_due = now_usec() + OPT_USEC;

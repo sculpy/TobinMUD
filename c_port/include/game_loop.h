@@ -5,6 +5,8 @@
 #ifndef TOBIN_GAME_LOOP_H
 #define TOBIN_GAME_LOOP_H
 
+#include <stdbool.h>
+
 /* Opens a listening socket on `port` and runs the select()-driven
  * accept/read loop until interrupted (SIGINT). Returns 0 on clean
  * shutdown, nonzero on a fatal setup error (e.g. couldn't bind).
@@ -15,6 +17,28 @@
  * binary -- so a copyover reboot keeps everyone connected. Falls back to
  * a fresh socket if the file is missing/unreadable. */
 int game_loop_run(int port, const char *copyover_file);
+
+/* Opens the listening socket (or, for a copyover, adopts the inherited one
+ * straight from the recovery file's "listen" line) as early as possible in
+ * main()'s startup -- BEFORE the DB probe / world-load work that otherwise
+ * leaves anyone connecting during that window sitting in the kernel's
+ * accept backlog in total silence until game_loop_run() finally starts
+ * (user 2026-07-26: "when connecting during a reboot, we should accept
+ * the connection and give some booting information"). Must be called
+ * before any game_loop_boot_poll()/game_loop_run() call. Returns false on
+ * a fatal socket error (bind/listen failure). */
+bool game_loop_boot_open(int port, const char *copyover_file);
+
+/* Call between each slow setup step in main()'s boot sequence. Sends
+ * `message` once to (a) every existing player connection listed in the
+ * copyover recovery file, if this is a copyover reboot, the first time
+ * this is called, and (b) any brand-new connection accepted on the
+ * listening socket since the last call. New connections are held (their
+ * fd remembered, nothing else) until game_loop_run() starts and hands
+ * them a real descriptor_t, exactly as if they'd been accepted in its
+ * first loop iteration. Returns how many distinct sockets were pinged
+ * this call, purely so main() can log a meaningful boot-status summary. */
+int game_loop_boot_poll(const char *message);
 
 /* The live listening socket's fd (-1 before game_loop_run sets it up) --
  * cmd_copyover.c writes it into the recovery file so the next exec can
