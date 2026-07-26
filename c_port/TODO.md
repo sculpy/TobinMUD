@@ -6130,7 +6130,21 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
 - [ ] Install a MUD client (Mudlet, for ANSI color) on the Windows machines.
 - [ ] **docs/systems review** — read `sneezymud-master/docs/systems` for how
       the original stored things; apply the lessons. RULE: prefer the DB.
-- [ ] **Systems documentation** — a doc/systems README for the TobinMUD base.
+- [x] **Systems documentation** — done 2026-07-26. `c_port/doc/systems/README.md`:
+      an orientation map (directory layout + what lives where, grouped by
+      system: core data model, networking, persistence, combat/body,
+      magic/skills/classes, professions, economy, world/building, social,
+      admin, scheduling), not a deep mechanics reference like the
+      original's 61-file `docs/systems/` -- explicitly defers to
+      STATUS.md's session log for that, and flags that STATUS.md's own
+      "Architecture decisions"/"Module port status" tables are stale
+      (last comprehensively updated early on, haven't kept pace with the
+      session log). Spot-checked several claims against real code before
+      writing them down (limb count is 18 real + 4 mob-only EX_* slots in
+      `being.h`'s `limb_t`, not `body.h` which is actually the 60
+      creature-body-TYPE hit-weighting table; class count is 6, not 8 --
+      Ranger/Shaman fold into Druid rather than existing as separate
+      classes).
 - [ ] **Function comment headers sweep** — a header comment per function (what
       it's for + cross-refs to what it affects / depends on), then a habit.
 - [x] **STATUS.md's "Module port status" table is stale** — audited and
