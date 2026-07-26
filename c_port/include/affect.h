@@ -140,6 +140,12 @@ typedef enum {
      * success/failure cooldown durations (4 mud hours / 2 mud hours) down
      * to one flat duration regardless of outcome. */
     AFFECT_FORAGE_COOLDOWN,
+    /* Full spell/skill/prayer roster import, Druid's 6 named Shaman
+     * spells (user 2026-07-26): Stupidity (disc_shaman.cc) -- a
+     * level-scaled INTELLIGENCE penalty, the first stat-modifying affect
+     * in Tobin (see being_apply_stat_affect(), affect.c's own
+     * affect_stat_target()). */
+    AFFECT_STUPIDITY,
     AFFECT_COUNT,
 } affect_type_t;
 
@@ -192,6 +198,11 @@ affect_type_t affect_random_disease(void);
 typedef struct {
     affect_type_t type; /* AFFECT_NONE = this slot is empty */
     int rounds_left;
+    int modifier;       /* nonzero only for a stat-modifying affect (e.g.
+                            AFFECT_STUPIDITY's INT penalty) -- the exact
+                            delta already applied to the target attrs_t
+                            field, reversed automatically on expiry/
+                            removal. See being_apply_stat_affect(). */
 } active_affect_t;
 
 /* Display name for an affect type ("Sanctuary", ...) -- used by the
@@ -206,6 +217,19 @@ bool being_has_affect(const struct being *b, affect_type_t type);
  * with OTHER affect types (a deliberately small, fixed cap -- see
  * MAX_ACTIVE_AFFECTS). */
 void being_apply_affect(struct being *b, affect_type_t type, int rounds);
+
+/* Same as being_apply_affect(), but for a STAT-modifying affect (e.g.
+ * AFFECT_STUPIDITY): `modifier` is added directly to the attribute
+ * affect_stat_target() (affect.c) says this type modifies, immediately,
+ * and reversed automatically the moment the affect expires (tick_being_
+ * affects()) or is explicitly removed (being_remove_affect()) -- same
+ * "apply now, reverse later" shape obj.c's own equip/unequip stat bonus
+ * already uses, just timer-driven instead of equip-driven. Refreshing an
+ * already-active instance of the same type first reverses the OLD
+ * modifier before applying the new one, so re-casting a weaker version
+ * of the same debuff on top of a stronger one can't leave a stale,
+ * doubled-up penalty behind. */
+void being_apply_stat_affect(struct being *b, affect_type_t type, int rounds, int modifier);
 
 /* Removes `type` from `b` immediately, if present (no message -- callers
  * that want one print it themselves, e.g. on manual dispel). */

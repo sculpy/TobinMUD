@@ -401,6 +401,41 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, intensity);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (ci_contains(sk->name, "stupidity")) {
+        /* Full spell/skill/prayer roster import, Druid's 6 named Shaman
+         * spells (user 2026-07-26) -- ported from disc_shaman.cc's real
+         * stupidity(): a level-scaled INTELLIGENCE penalty
+         * (aff.modifier = -(level/4) there), the first stat-modifying
+         * affect Tobin has (being_apply_stat_affect(), affect.c). Opens
+         * combat the same way the plain damage branch above does --
+         * this is TAR_VIOLENT in the original too, not a buff. */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int penalty = sk->min_level / 4;
+        if (penalty < 1)
+            penalty = 1;
+        /* 100 rounds -- same "several real minutes" duration
+         * AFFECT_WATERBREATH/AFFECT_FLYING already established for a
+         * non-combat-bound utility-ish buff/debuff, standing in for the
+         * original's real "10 mud-hours / 2" duration at a comparable
+         * scale rather than a literal mudhour-to-round conversion. */
+        being_apply_stat_affect(atk_target, AFFECT_STUPIDITY, 100, -penalty);
+        snprintf(msg, sizeof(msg), "You cast %s at %s -- their eyes glaze over stupidly!\r\n",
+                 sk->name, being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts %s at you -- your mind fogs with stupidity!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
+            descriptor_notify(atk_target->desc, msg);
+        }
     } else if (ci_contains(sk->name, "conjure elemental") || strcasecmp(sk->name, "animal companion") == 0) {
         /* Pet/charm (Sneezy → Tobin feature audit): Mage's four
          * "conjure elemental air/earth/fire/water" spells already existed

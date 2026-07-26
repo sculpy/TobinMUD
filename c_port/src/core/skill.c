@@ -350,6 +350,10 @@ static const skill_def_t SKILLS[] = {
     { "salve",             CLASS_DRUID, SKILL_TIER_CLASS, 12, "Treats a minor wound." },
     { "heal serious",      CLASS_DRUID, SKILL_TIER_CLASS, 14, "A stronger healing touch." },
     { "sunscald",          CLASS_DRUID, SKILL_TIER_CLASS, 16, "Sears a target with focused sunlight." },
+    /* Full spell/skill/prayer roster import: 6 named Shaman spells
+     * (user 2026-07-26), ported onto Druid. Real level threshold from
+     * spell_info.cc's START_15 (disc_shaman.cc's stupidity()). */
+    { "stupidity",         CLASS_DRUID, SKILL_TIER_CLASS, 15, "Addles a target's mind, dulling their intelligence for a while." },
     { "storm call",        CLASS_DRUID, SKILL_TIER_CLASS, 23, "Calls down lightning or hail -- only works in the right weather." },
     { "cure disease",      CLASS_DRUID, SKILL_TIER_CLASS, 23, "Removes disease from a victim." },
     { "refresh",           CLASS_DRUID, SKILL_TIER_CLASS, 25, "Restores movement points." },

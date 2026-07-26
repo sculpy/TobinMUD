@@ -1073,6 +1073,27 @@ individually. Verbatim from the user:
   from shaman split between druid basic and advanced" -- six SPECIFIC
   named Shaman spells/skills (not the whole Shaman roster, unlike Ranger
   above) also land on Druid, basic/advanced split.
+  **Stupidity: done 2026-07-26** (first of the 6). Real level-scaled INT
+  penalty ported from disc_shaman.cc's stupidity() (aff.modifier =
+  -(level/4)) -- needed a genuinely new subsystem first, not a quick
+  wire-up: `being_apply_stat_affect()` (affect.c/affect.h), Tobin's FIRST
+  stat-MODIFYING affect (every prior AFFECT_* was a plain flag/timer --
+  poison, disease, sanctuary, ...). New `active_affect_t.modifier` field
+  + `affect_stat_target()` (switch on affect_type_t -> which attrs_t
+  field) + automatic reversal wired into both expiry
+  (`tick_being_affects()`) and explicit removal
+  (`being_remove_affect()`) -- and refreshing an already-active instance
+  correctly un-applies the OLD delta before applying the new one, so it
+  can never double-stack. New Druid roster entry (`skill.c`, CLASS tier,
+  level 15 matching the real START_15), new `cast stupidity <target>`
+  dispatch branch in cmd_cast.c (opens combat like the existing plain-
+  damage branch, since it's TAR_VIOLENT in the original too).
+  `tests/smoke_test_druid_stupidity.py` (4 checks: real live INT drop,
+  `affects` lists it, re-cast refreshes without stacking) all pass live.
+  **Remaining 5** (Flatulence, Sacrifice, Brew, Transform Limb, Healing
+  Grasp) not yet started -- each is its own distinct mechanic (AoE
+  nausea debuff, a resource-cost skill, a potion-brewing crafting skill,
+  a limb-shapeshifting skill, a self-heal), continuing incrementally.
 - "All in adventuring discipline goes into combat skills for all" -- every
   `DISC_ADVENTURING`/`DISC_ADVANCED_ADVENTURING` entry (roster artifact:
   General/all-classes, 24 entries -- forage/climb/swim/cook/fishing/

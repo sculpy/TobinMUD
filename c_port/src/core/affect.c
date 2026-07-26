@@ -49,6 +49,7 @@ static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "Charmed",
     "Polymorphed",
     "Foraging Fatigue",
+    "Stupidity",
 };
 
 /* HP drained per damage sub-tick for AFFECT_POISON -- its own faster gate
@@ -187,6 +188,61 @@ void being_apply_affect(struct being *b, affect_type_t type, int rounds) {
      * an edge case this v1 doesn't need to solve. */
 }
 
+/* Which attrs_t field a stat-modifying affect targets, or NULL for a
+ * plain flag/timer affect (the vast majority). New stat-modifying
+ * entries from the roster import add a case here, not a whole new
+ * subsystem -- being_apply_stat_affect()/the reversal call sites below
+ * are all generic already. */
+static int *affect_stat_target(being_t *b, affect_type_t type) {
+    switch (type) {
+        case AFFECT_STUPIDITY: return &b->attrs.intelligence;
+        default: return NULL;
+    }
+}
+
+/* Reverses whatever modifier is currently recorded in slot `i` (if any),
+ * then zeroes it -- shared by being_remove_affect() and the expiry path
+ * in tick_being_affects() so the "apply now, reverse later" contract
+ * being_apply_stat_affect() promises actually holds regardless of HOW
+ * the affect ends. */
+static void reverse_stat_modifier(being_t *b, int i) {
+    if (b->affects[i].modifier == 0)
+        return;
+    int *target = affect_stat_target(b, b->affects[i].type);
+    if (target)
+        *target -= b->affects[i].modifier;
+    b->affects[i].modifier = 0;
+}
+
+void being_apply_stat_affect(struct being *b, affect_type_t type, int rounds, int modifier) {
+    if (!b || type == AFFECT_NONE || rounds <= 0)
+        return;
+    for (int i = 0; i < MAX_ACTIVE_AFFECTS; i++) {
+        if (b->affects[i].type == type) {
+            reverse_stat_modifier(b, i); /* don't stack on top of the old delta */
+            b->affects[i].rounds_left = rounds;
+            b->affects[i].modifier = modifier;
+            int *target = affect_stat_target(b, type);
+            if (target)
+                *target += modifier;
+            return;
+        }
+    }
+    for (int i = 0; i < MAX_ACTIVE_AFFECTS; i++) {
+        if (b->affects[i].type == AFFECT_NONE) {
+            b->affects[i].type = type;
+            b->affects[i].rounds_left = rounds;
+            b->affects[i].modifier = modifier;
+            int *target = affect_stat_target(b, type);
+            if (target)
+                *target += modifier;
+            return;
+        }
+    }
+    /* All slots full of OTHER affects -- same deliberate drop as
+     * being_apply_affect() above. */
+}
+
 /* Ends a buff/debuff on `b` right away, if they have it -- used when
  * something explicitly cancels an affect (as opposed to it simply
  * running out, which affect_tick_run() handles). */
@@ -195,6 +251,7 @@ void being_remove_affect(struct being *b, affect_type_t type) {
         return;
     for (int i = 0; i < MAX_ACTIVE_AFFECTS; i++) {
         if (b->affects[i].type == type) {
+            reverse_stat_modifier(b, i);
             b->affects[i].type = AFFECT_NONE;
             b->affects[i].rounds_left = 0;
             return;
@@ -362,6 +419,7 @@ static void tick_being_affects(being_t *b, descriptor_t *d) {
                 return;
             }
             notify_wears_off(b, d, type);
+            reverse_stat_modifier(b, i);
             b->affects[i].type = AFFECT_NONE;
             b->affects[i].rounds_left = 0;
         }
