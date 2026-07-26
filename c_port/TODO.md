@@ -1180,23 +1180,23 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       (new `CONN_CHAR_DELETE_PICK` state -- couldn't reuse the plain
       account-menu state since a bare number there already means
       "connect", a different action for the same input).
-- [ ] **Accept connections during a reboot with boot-status info** —
-      user, 2026-07-26: "when connecting during a reboot, we should
-      accept the connection and give some booting information, see the
-      peel sneezy for inspiration" + "and also for the logs". Not yet
-      scoped or started -- check `peel-sneezymud/` for the real
-      upstream's reboot/connecting-during-boot behavior first (likely
-      around copyover/startup, `main.cc`/`comm.cc`-equivalent) before
-      designing Tobin's own version. Two halves: (1) a connecting player
-      during startup should see something other than silence/a dropped
-      connection -- some kind of "still booting, hang on" message; (2)
-      "also for the logs" -- unclear yet whether this means logging the
-      boot-status event itself, or surfacing similar status info via an
-      immortal-facing log/wiznews channel. Needs a closer look at
-      exactly when in main.c's startup sequence a connection could even
-      arrive before the listener's ready (may turn out to be a narrow
-      window, or may not be reachable at all depending on socket accept
-      timing) before committing to a design.
+- [x] **Accept connections during a reboot with boot-status info** — done
+      2026-07-26. Root-caused first: a cold restart has a real gap where
+      nothing is listening at all (flat "connection refused", nothing
+      app-level to intercept), but a copyover keeps the listen fd alive
+      across `exec()` — connections land in the kernel's backlog silently
+      until `main()`'s DB probe/zone-load work finishes. Fixed by moving
+      socket setup (`game_loop_boot_open()`, game_loop.c/.h) to the very
+      top of `main()`, before that setup work, then polling
+      (`game_loop_boot_poll()`) between each slow step to accept/hold any
+      new arrivals and message any existing copyover connections, both
+      with a "still booting" notice; each is logged and handed off
+      normally (`descriptor_create()`) once setup completes. Verified
+      live: a connection made 0.01s after restart got the hold message,
+      then the full banner 0.9s later once boot finished; log lines
+      confirm both the hold and the handoff. `smoke_test_copyover.py` and
+      a run of `smoke_test.py`/`smoke_test_multiplay.py`/
+      `smoke_test_accounts.py`/`smoke_test_quit.py` all pass clean.
 
 ### User batch 2026-07-19 (evening) — logged, not yet started
 
