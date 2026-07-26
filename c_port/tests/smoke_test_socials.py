@@ -102,7 +102,7 @@ def sql(stmt):
 def make_char(nm, gender_choice):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (nm, "y", "socpw", "socpw", "new", nm, "1", "1", "done", "2"):
+    for step in (nm, "y", "socpw", "socpw", "new", nm, "1", "1", "done", "done"):
         send_line(s, step); recv_all(s)
     # gender is set post-creation via SQL below (character creation doesn't
     # prompt for it directly in every build) -- see set_gender().

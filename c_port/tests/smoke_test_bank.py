@@ -107,7 +107,7 @@ def sql_out(stmt):
 def make_char(name, pw, class_choice):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (name, "y", pw, pw, "new", name, "1", class_choice, "done", "2"):
+    for step in (name, "y", pw, pw, "new", name, "1", class_choice, "done", "done"):
         send_line(s, step); recv_all(s)
     cmd(s, "quit!")
     s.close()

@@ -133,7 +133,7 @@ def set_level(name, level):
 def make_char(name, pw):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (name, "y", pw, pw, "new", name, "1", "1", "done", "2"):
+    for step in (name, "y", pw, pw, "new", name, "1", "1", "done", "done"):
         send_line(s, step); recv_all(s)
     s.close()
 
