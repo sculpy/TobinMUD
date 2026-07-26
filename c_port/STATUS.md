@@ -1,6 +1,71 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 76 (home): **Two small closeouts:
+Last updated: 2026-07-26 — Session 77 (home): **Active affects
+(buffs/debuffs) now persist across a quit!/reconnect, closing a real
+gap a docs/systems audit found.**
+- The audit (spawned earlier this session) compared sneezymud-master's
+  own persistence docs against Tobin's `src/db/*_repo.c` layer looking
+  for "should be DB-backed but isn't" gaps. Nearly everything checked
+  out as already-disclosed, deliberate simplifications (mount/rider,
+  drug effect ticks, planting progress) -- except one: `being.h`'s
+  `active_affect_t affects[]` was commented "session-scoped, meaningless
+  across a reconnect, same as a real MUD", but the original's own
+  `08-persistence-storage.md` shows SneezyMUD's charFile actually DOES
+  round-trip active affects through every login/logout. User: "make it
+  persistent."
+- New `player_active_affect` table (db/tobin/) + `affect_repo.h`/`.c`
+  (load/save-all, matching drug_repo.h's shape), wired into the single
+  `player_save()`/`player_load()` choke point (`player_repo.c`) every
+  other per-player save/load already shares -- covers quit!, combat
+  defeat, the 5-minute linkdead auto-purge, and the explicit `save`
+  command for free from one place, no new call sites needed. Load is
+  bookkeeping-only (doesn't re-apply a stat-affect's `modifier` to
+  attrs -- `player_attrs_save()` already snapshots the LIVE, already-
+  modified attrs blob, so re-applying on top would double it).
+  AFFECT_CHARMED/AFFECT_POLYMORPH are skipped defensively -- both live
+  on a mob (a summoned pet, a temporary transformed body), never a
+  real player's own being_t, so they were never reaching this path
+  anyway.
+- **Named `player_active_affect`, not the shorter `player_affect`** --
+  caught live via added debug logging (`log_info`, temporarily) after
+  the first end-to-end test showed the save silently failing:
+  `player_affect` was ALREADY a table name, an unrelated, unused
+  (0-row) leftover from the upstream SneezyMUD seed schema with a
+  completely different, incompatible column set (`type`/`level`/
+  `duration`/`renew`/`modifier2`/`location`/`bitvector`...) --
+  `CREATE TABLE IF NOT EXISTS` silently no-op'd against it instead of
+  creating the right schema. Confirmed nothing in Tobin's own code
+  references the old table (same "inert upstream leftover" status as
+  the `drug_use` precedent from the `player_drug` fix two sessions
+  ago) -- renamed Tobin's own table rather than touching the old one.
+  Debug logging removed once root-caused.
+- New `tests/smoke_test_affect_persistence.py`: casts Sanctuary, does a
+  real `quit!` (not a raw socket close), reconnects as the same
+  character, and checks THREE things, not just the display -- Sanctuary
+  is still listed with a sane (not reset, not grown) remaining
+  duration, it's still actually reducing HP loss under sustained
+  attack (not just cosmetic), and it still wears off cleanly afterward
+  with no double-reversal bug introduced by the reload.
+- **Found along the way, NOT fixed here** (flagged as its own follow-
+  up task instead): the existing `tests/smoke_test_affects.py` has been
+  broken by two separate, unrelated, pre-existing issues -- the
+  documented `load obj`-lands-in-inventory-not-room gap (2026-07-22),
+  and a newer one: `combat.c`'s `describe_dam()` replaced ALL raw
+  damage numbers with qualitative words ("pathetically", "very
+  lightly", ...) for mortals AND immortals alike, so that test's
+  `damages_from()` regex can never collect a single sample anymore.
+  This session's new persistence test sidesteps both (works around the
+  load/drop gap, measures via live `score` HP polling instead of
+  message parsing) rather than fixing the older test, which needs its
+  own separate pass.
+- Verified live on Home: zero-warning clean rebuild (two header
+  changes), deployed via copyover with a player connected, full pass
+  on the new persistence test plus regression passes on
+  `smoke_test_drugs.py` and `smoke_test_accounts.py` (both exercise
+  the same shared `player_save()`/`player_load()` path this change
+  touched).
+
+### Session 76 (home): **Two small closeouts:
 `db/fix-workbox.sh` (Work box's still-pending DB rename + player_drug
 schema catchup, one script, unattended-safe) and a resolved design
 decision on the destroyed-limb hit penalty.**

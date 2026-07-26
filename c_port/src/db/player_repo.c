@@ -9,6 +9,7 @@
 #include <strings.h>
 #include <time.h>
 
+#include "affect_repo.h"
 #include "db.h"
 #include "drug_repo.h"
 #include "log.h"
@@ -77,6 +78,7 @@ being_t *player_load(const char *name, long account_id) {
         player_attrs_load(b->player_id, &b->attrs); /* falls back to ATTR_BASE defaults if missing */
         player_progress_load(b->player_id, &b->progress); /* falls back to being_create_pc()'s defaults if missing */
         drug_repo_load_all(b->player_id, b->drugs); /* rows with no history leave the calloc'd all-zero defaults alone */
+        affect_repo_load_all(b->player_id, b->affects); /* bookkeeping only -- see affect_repo.h, attrs above already carries any baked-in modifier */
         /* Returning from `rent` (cmd_rent.c): heal for the real time spent
          * rented out, then clear the marker so this only fires once. */
         if (b->progress.rented_at > 0) {
@@ -667,5 +669,6 @@ bool player_save(long player_id, const being_t *b) {
     bool ok = player_attrs_save(player_id, &b->attrs);
     ok = player_progress_save(player_id, &b->progress) && ok;
     ok = player_inventory_save(player_id, b) && ok;
+    ok = affect_repo_save_all(player_id, b->affects) && ok;
     return ok;
 }

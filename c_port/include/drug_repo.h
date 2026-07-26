@@ -6,10 +6,12 @@
 #include "drug.h"
 
 /* Persistence for drug.h's per-being tracking -- only first_use/
- * last_use/total_consumed are saved (see drug.h's own doc comment for
- * why effect_until_time/applied[]/withdrawal_applied[] deliberately
- * aren't: same "in-memory only" precedent as active_affect_t). One row
- * per (player_id, drug_type). */
+ * last_use/total_consumed are saved; effect_ticks_left/applied[]/
+ * withdrawal_applied[] deliberately aren't (see drug.h's own doc
+ * comment) -- unlike active_affect_t (affect_repo.h, persisted as of
+ * 2026-07-26), a drug dose's own in-progress effect is genuinely
+ * transient bookkeeping the original itself doesn't round-trip either.
+ * One row per (player_id, drug_type). */
 
 /* Loads every drug row this player has into `states` (indexed by
  * drug_type_t) -- rows with no history simply stay however the caller

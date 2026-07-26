@@ -674,10 +674,18 @@ typedef struct being {
     struct being *rider;
 
     /* Active timed buffs/debuffs (user 2026-07-11's "Affects system
-     * (buffs/debuffs/status)" backlog item) -- see affect.h. Live
-     * in-memory only, same "meaningless across a reconnect" rule as
-     * `fighting` (a disconnect ends any active buff, same as a real
-     * MUD's session-scoped affects). */
+     * (buffs/debuffs/status)" backlog item) -- see affect.h. Persisted
+     * for a real PC (affect_repo.h/.c, player_active_affect table) as of
+     * 2026-07-26 -- the original SneezyMUD round-trips active affects
+     * through every login/logout, so Tobin now matches. A quick linkdead
+     * reconnect (within LINKDEAD_PURGE_SECONDS) never actually touches
+     * this persistence layer at all -- it reuses the same live being_t
+     * directly, so an active buff was already surviving that path before
+     * this change too; the DB layer only matters once the being_t is
+     * genuinely destroyed and reloaded (a real quit!, the 5-minute
+     * linkdead auto-purge, or a plain process restart). A mob's own
+     * affects (charmed pets, a polymorph's temporary body) are still
+     * never persisted -- see affect_repo.h. */
     active_affect_t affects[MAX_ACTIVE_AFFECTS];
 
     /* Drug tracking (Sneezy -> Tobin feature audit) -- see drug.h.
