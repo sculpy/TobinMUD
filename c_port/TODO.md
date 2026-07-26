@@ -962,6 +962,29 @@ implementation inspiration before each one, not guessed at.
       representation design, the withdrawal-threshold test bug found and
       fixed, the regression pass). New `tests/smoke_test_drugs.py` (10
       checks). New `smoke` help topic; `news.sql`/`wiznews.sql` entries.
+- [ ] **Planting** — not part of the original 2026-07-19 audit list;
+      surfaced 2026-07-25 (home) while investigating a user question,
+      found in `peel-sneezymud/` (a fuller reference clone than
+      `sneezymud-master/`, gitignored the same way). Two unrelated
+      mechanics share the real upstream's `plant` command:
+      (1) **Seed farming** (`obj_plant.cc`/`.h`, `task_plant.cc`):
+      `plant <seeds>` starts a timed dig-hole/sow/cover task (needs a
+      `TOOL_SEED` item, outdoors only, capped at 8 plants/room), spawns a
+      `TPlant` that ages over real in-game time through 5 growth stages
+      (dirt mound -> sprout -> small -> mature -> withered/dies),
+      periodically yields a fruit object while mature. 15 real plant
+      types (tomato/roses/apple/orange/"money tree"/pipeweed/pumpkin/
+      turnip/lettuce/marijuana/catnip/candy heart tree/grapes), each
+      with its own real lifespan (6 months-15 years); pipeweed/marijuana
+      would tie directly into the already-shipped drug-tracking system.
+      Also has a `verminated` pest-loss counter and a `peeOnMe()` stat-
+      penalty hook. (2) **Thief `plant`** (reverse pickpocket):
+      `plant <item> <victim>` secretly slips an item into someone else's
+      inventory, gated on `SKILL_STEAL`, stealth-checked the same way
+      `steal` is. Not scoped or started -- needs an AskUserQuestion on
+      how much of the farming depth to port (Tobin-scale slice vs. full
+      15-type/growth-stage system) before design begins, same as every
+      other large audit item got.
 
 ## Buildable now (no blocked dependencies)
 
