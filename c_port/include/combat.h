@@ -20,6 +20,13 @@ void combat_process_run(long pulse_num);
  * so both target the same way. Returns NULL if nobody matches. */
 being_t *combat_find_room_target(being_t *self, const char *name);
 
+/* PK opt-in gate (see combat.c's own doc comment) -- exported so any other
+ * PC-vs-PC hostile action (Thief `plant`, cmd_plant.c) can reuse the exact
+ * same mutual-consent rule combat itself uses, rather than inventing a
+ * separate one. Mob targets always allowed; an immortal on either side
+ * bypasses it. */
+bool combat_pk_allowed(const being_t *self, const being_t *t);
+
 /* Immortal-only instant kill (see misc/offense.cc's doKill()/POWER_SLAY in
  * the original -- there it's gated by a wiz-power flag Tobin doesn't have;
  * here it's gated by being_is_immortal() at the call site in cmd_kill.c).

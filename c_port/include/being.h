@@ -644,6 +644,25 @@ typedef struct being {
      * `affects[]` above. */
     drug_state_t drugs[DRUG_COUNT];
 
+    /* Seed-farming `plant <seeds>` task-in-progress (Planting, Sneezy ->
+     * Tobin feature audit) -- the dig-hole/sow-seeds/cover-hole 3-step
+     * task from the original's task_plant(), scaled down to a simple
+     * per-being countdown (no general task engine exists in Tobin yet;
+     * see planting.c) rather than a dedicated task struct. `planting_seed`
+     * is the SEED OBJECT being consumed (not just its vnum) so a step can
+     * verify it's still actually there -- same "obj gone -> abort" safety
+     * check task_plant() itself does. `planting_ticks_left` 0 = not
+     * planting; 3/2/1 = dig hole / sow seeds / cover hole (planting.c's
+     * planting_tick_run() counts it down and prints each step's message).
+     * `planting_room` guards against the task surviving a room change
+     * (task_plant()'s own `ch->in_room != ch->task->wasInRoom` check).
+     * Live in-memory only, same reconnect rule as `fighting` -- a
+     * disconnect simply abandons the task. */
+    struct obj *planting_seed;
+    int planting_ticks_left;
+    int planting_type;
+    struct room *planting_room;
+
     /* Pulses remaining before this character can act again (see pulse.h).
      * Mortals accumulate this from `being_set_wait()`; immortals always
      * read/write it as a no-op via being_get_wait()/being_set_wait(). */

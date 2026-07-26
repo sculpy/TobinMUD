@@ -11,6 +11,8 @@
 #include "gametime.h"
 #include "mob_ai.h"
 #include "obj.h"
+#include "obj_plant.h"
+#include "planting.h"
 #include "trigger.h"
 #include "vitals.h"
 #include "weather.h"
@@ -23,10 +25,12 @@
  * obj_decay_tick()'s room-floor decay countdowns (corpses, severed
  * limbs, ...), trigger_random_tick()'s "random" scripted triggers,
  * (Sneezy → Tobin feature audit, "Vital statistics") vitals_tick_run()'s
- * hunger/thirst drain + starvation, and (same audit, "Weather & light
+ * hunger/thirst drain + starvation, (same audit, "Weather & light
  * levels") gametime_tick()'s clock advance + weather_tick_run()'s sky
- * transitions only actually fire on the real ~60s pulse cadence, far too
- * slow to wait on in an automated smoke test.
+ * transitions, and (Planting) obj_plant_growth_tick()'s crop aging/fruit
+ * yield only actually fire on the real ~60s pulse cadence, far too slow
+ * to wait on in an automated smoke test; planting_tick_run() (the
+ * dig/sow/cover task itself) is faster (~3s) but still worth forcing.
  * `aitick [count]` forces `count` (default 1, capped at 100) consecutive
  * world ticks synchronously, so a test can force overwhelming odds of a
  * wander/scavenge/random-trigger firing (e.g. `aitick 30` for a ~99.9%
@@ -62,6 +66,8 @@ bool cmd_aitick(descriptor_t *d, const char *args) {
         drug_tick_run(0);
         gametime_tick(0);
         weather_tick_run(0);
+        planting_tick_run(0);
+        obj_plant_growth_tick(0);
     }
 
     char msg[64];

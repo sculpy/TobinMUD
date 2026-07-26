@@ -1266,7 +1266,7 @@ void combat_process_run(long pulse_num) {
  * separately, see cmd_kill.c) are governed by their own existing rules,
  * unaffected by PLR_PK_OPTIN. Only mortal-vs-mortal PC combat needs
  * both sides to have `toggle pk` on. */
-static bool combat_pk_allowed(const being_t *self, const being_t *t) {
+bool combat_pk_allowed(const being_t *self, const being_t *t) {
     if (t->base.kind != THING_PC)
         return true;
     if (being_is_immortal(self) || being_is_immortal(t))

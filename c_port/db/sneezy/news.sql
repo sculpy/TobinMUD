@@ -322,3 +322,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Become Someone -- or Something -- Else', 'Mages can now `cast polymorph` to twist their body into a brown bear for a while -- full strength of the new form, reverting on its own after a time (or early with `return`). Thieves can `disguise` themselves as a hooded stranger instead, hiding who they are from anyone else in the room -- `disguise` again to drop the act.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Grow Your Own -- Planting Has Arrived', 'Find a sack of seeds and `plant` it outdoors to start a real garden -- tomatoes, roses, apple and orange trees, a money tree, pipeweed, pumpkins, turnips, lettuce, pot, catnip, candy heart trees, and gray grapes, fifteen crops in all. Dig a hole, sow the seeds, cover it up, and watch it grow over time from a bare mound of dirt into a mature, fruit-bearing plant. Thieves have their own use for the word: `plant <item> <victim>` secretly slips something into someone else''s pocket instead of picking one.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

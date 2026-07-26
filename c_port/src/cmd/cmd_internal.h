@@ -131,6 +131,7 @@ bool cmd_follow(descriptor_t *d, const char *args);
 bool cmd_stop(descriptor_t *d, const char *args);
 bool cmd_group(descriptor_t *d, const char *args);
 bool cmd_dismiss(descriptor_t *d, const char *args);
+bool cmd_plant(descriptor_t *d, const char *args);
 bool cmd_split(descriptor_t *d, const char *args);
 bool cmd_get(descriptor_t *d, const char *args);
 bool cmd_put(descriptor_t *d, const char *args);

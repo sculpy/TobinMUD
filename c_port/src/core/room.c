@@ -102,6 +102,23 @@ bool sector_is_underwater(int sector) {
     return strstr(sector_name(sector), "UNDERWATER") != NULL;
 }
 
+bool room_can_plant(const struct room *r) {
+    if (!r)
+        return false;
+    if (r->room_flag & ROOM_FLAG_INDOORS)
+        return false;
+    const char *name = sector_name(r->sector);
+    if (strstr(name, "UNDERWATER") || strstr(name, "OCEAN") || strstr(name, "RIVER")
+        || strstr(name, "ICEFLOW"))
+        return false;
+    if (strstr(name, "ATMOSPHERE") || strstr(name, "MAKE FLY") || strstr(name, "ASTRAL"))
+        return false;
+    if (strstr(name, "LAVA") || strstr(name, "SOLID ROCK") || strstr(name, "SOLID ICE")
+        || strstr(name, "INSIDE MOB"))
+        return false;
+    return true;
+}
+
 /* Sector-name substring bucketing, same style as sector_color() above --
  * most-specific rule first. See room.h's declaration comment for the
  * weather-prefix simplification. */

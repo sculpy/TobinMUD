@@ -6,13 +6,16 @@
 
 #include "log.h"
 
-#define MAX_PULSE_PROCESSES 24 /* was 8, then 16 (Session 43, gametime_tick) --
-                                  bumped again when trigger_pending_tick (the
-                                  17th registration, main.c) silently got
-                                  dropped: pulse_register()'s own overflow
-                                  guard logged an error but didn't stop the
-                                  boot, so `wait` in trigger scripts just
-                                  quietly never fired until this was caught. */
+#define MAX_PULSE_PROCESSES 32 /* was 8, then 16 (Session 43, gametime_tick),
+                                  then 24 (trigger_pending_tick) -- bumped
+                                  again when Planting's two new registrations
+                                  (planting_tick_run/obj_plant_growth_tick,
+                                  main.c) pushed the count to 26 and got
+                                  silently dropped the same way: the overflow
+                                  guard logs an error but doesn't stop the
+                                  boot, so a whole tick system just quietly
+                                  never fires until someone notices. Some
+                                  headroom left this time, not just +1/+2. */
 
 typedef struct {
     int trigger_pulse;

@@ -66,6 +66,14 @@ int sector_move_cost(int sector);
  * fires for a true underwater sector, not merely a wet one. */
 bool sector_is_underwater(int sector);
 
+/* True if seeds can be sown here (Planting, Sneezy → Tobin feature
+ * audit): not indoors, not on/under water, not on bare rock/lava, not
+ * open-air atmosphere -- the same four categories the original's
+ * doSeedPlant() refuses (isFallSector/isWaterSector/isIndoorSector/
+ * isUnderwaterSector), matched here by ROOM_FLAG_INDOORS plus sector-name
+ * keyword bucketing (same substring-match precedent as sector_color()). */
+bool room_can_plant(const struct room *r);
+
 /* Renders the set ROOM_* flag bits (original misc/room.h, 22 bits) into
  * buf as space-separated names ("always-lit indoors ..."), or "none".
  * Returns buf for convenience. */

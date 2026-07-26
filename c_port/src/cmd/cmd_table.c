@@ -385,6 +385,11 @@ static const cmd_entry_t COMMANDS[] = {
      * one. Mortals never see "pee" at all, so this costs them nothing;
      * "peek" itself still works fine typed in full either way. */
     { "peek",    cmd_peek,    "Attempt to see what someone is carrying, without their knowledge (Thief, peek <target>).", MORTAL_LEVEL_MIN },
+    /* Two unrelated mechanics, same command name -- see cmd_plant.c's own
+     * doc comment. `plant <seeds>` (anyone, outdoors) vs. `plant <item>
+     * <victim>` (Thief skill, gated internally). No prefix collision:
+     * nothing else in this table starts "pl". */
+    { "plant",   cmd_plant,   "Sow seeds (plant <seeds>), or secretly slip an item onto someone (Thief, plant <item> <victim>).", MORTAL_LEVEL_MIN },
     { "poofin",  cmd_poofin,  "Set your custom walking arrival message (poofin [msg]).",   IMMORTAL_LEVEL_MIN },
     { "poofout", cmd_poofout, "Set your custom walking departure message (poofout [msg]).", IMMORTAL_LEVEL_MIN },
     { "possess", cmd_possess, "Puppet a mob's body (possess <mob>; `return` to come back).", POSSESS_MIN_LEVEL },

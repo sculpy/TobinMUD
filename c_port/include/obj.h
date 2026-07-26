@@ -134,6 +134,11 @@ typedef struct obj {
      *             different val[] layout than components/symbols
      *             (those have no type to encode) but the same "spend a
      *             charge, destroy at 0" lifecycle, see cmd_smoke.c.
+     *   Planted crops (identified by raw_type==OBJ_PLANT_RAW_TYPE, obj_
+     *             plant.h -- an ephemeral OBJ_CAT_OTHER object, not a
+     *             dedicated category): val[0]=plant type index (0-14),
+     *             val[1]=age in growth ticks, val[2]=lifetime fruit
+     *             yield, val[3]=yield lost to vermin. See obj_plant.h.
      * Categories not listed leave val[] unused/decorative for now. */
     int val[4];
     double weight;

@@ -24,6 +24,8 @@
 #include "multiplay.h"
 #include "log.h"
 #include "obj.h"
+#include "obj_plant.h"
+#include "planting.h"
 #include "practice.h"
 #include "pulse.h"
 #include "regen.h"
@@ -126,6 +128,8 @@ int main(int argc, char **argv) {
     pulse_register(10, trigger_pending_tick);    /* ~1s: resume `wait`-paused trigger scripts */
     pulse_register(6000, tips_pulse_tick);       /* ~10min: echo a random tip to newbie-flagged players */
     pulse_register(600, linkdead_purge_tick);    /* ~60s: force-save + destroy any PC linkdead 5+ minutes */
+    pulse_register(30, planting_tick_run);       /* ~3s: advance in-progress `plant <seeds>` tasks */
+    pulse_register(600, obj_plant_growth_tick);  /* ~60s: age planted crops, occasionally yield fruit */
 
     int rc = game_loop_run(cfg->telnet_port, copyover_file);
 

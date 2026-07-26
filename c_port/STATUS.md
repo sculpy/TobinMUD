@@ -1,6 +1,71 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 67 (home): **Transformation --
+Last updated: 2026-07-26 — Session 68 (home): **Planting -- seed farming
+(all 15 real crop types) + Thief reverse-pickpocket, plus two real bugs
+found and fixed live (a full pulse-registration table silently dropping
+a tick function, and a use-after-clear bug in the sowing task's own
+safety check).**
+- **Scoped via AskUserQuestion**: both unrelated mechanics the real
+  `plant` command covers, in one pass ("Both, same pass"), and the full
+  15-plant-type depth rather than a trimmed slice ("Full 15-type
+  system"). Found while investigating a user question in
+  `peel-sneezymud/`, a fuller reference clone than `sneezymud-master/`.
+- **Seed farming**: new `obj_plant.h`/`obj_plant.c` ports TPlant
+  (`obj_plant.cc`) as an ordinary ephemeral obj_t (category
+  `OBJ_CAT_OTHER`, a new `raw_type==OBJ_PLANT_RAW_TYPE` marker) rather
+  than a new struct -- reuses the existing generic `val[4]` payload for
+  TPlant's own four fields (type/age/yield/verminated). All 15 real
+  seed vnums and fruit pairings ported verbatim from `seed_to_plant()`/
+  `plantfruits[]`; type 11 displays as "pot" (Tobin's own established
+  drug-naming convention, `drug.c`'s `DRUG_POT`) rather than the
+  original's literal "marijuana". Disclosed simplification: the
+  original's real lifespans run 6 months to 15 real YEARS -- compressed
+  into tens/hundreds of ~1-real-minute growth ticks so a plant is
+  actually observable in a session, preserving the original's fast/slow
+  ordering (candy heart trees still wither far faster than rose bushes).
+- **`plant <seeds>`** (anyone, outdoors -- new `room_can_plant()`,
+  room.c, same fall/water/indoor/underwater refusal set as the
+  original) starts a new 3-step dig/sow/cover task. No general task
+  engine exists in Tobin yet, so this is a deliberately scoped one-off
+  (new `being_t` fields `planting_seed`/`planting_ticks_left`/
+  `planting_type`/`planting_room`, new `planting.c`'s
+  `planting_tick_run()`) rather than porting the original's task-system
+  integration. Growth (`obj_plant_growth_tick()`) ages every planted
+  crop, occasionally yields fruit (dropped onto the room floor next to
+  the plant, not into it as a container -- Tobin's flatter object model
+  has no "look in <plant>" step) or loses it to vermin (a flat 10%
+  roll), and hands a withered plant off to the EXISTING
+  `obj_decay_tick()` machinery to actually disappear.
+- **Thief `plant <item> <victim>`**: reverse pickpocket, gated on the
+  "plant" skill itself (both `plant` and `steal` already existed as
+  unwired skill.c placeholders) rather than "steal" the way the
+  original oddly does. PC-vs-PC targeting reuses combat.c's own mutual
+  `toggle pk` consent gate (now exported as `combat_pk_allowed()`) since
+  the original's peaceful-room gate has no Tobin equivalent yet -- mobs
+  are always fair game.
+- **Two real bugs caught live, not just guessed at**: (1)
+  `pulse_register()`'s `MAX_PULSE_PROCESSES` cap (24) was already fully
+  used -- registering the two new tick functions silently dropped one
+  (the same failure mode a past session already flagged once for
+  `trigger_pending_tick`), so the sowing task never advanced until the
+  cap was bumped to 32 with real headroom this time. (2)
+  `planting_tick_run()`'s own "do you still have the seeds" safety check
+  ran on every tick including the one right after the sow step
+  legitimately consumed them, misreading its own successful consumption
+  as "you lost your seeds" and aborting one step before completion --
+  fixed by only checking while there's still a real seed pointer to
+  check.
+- **Live mishap, disclosed rather than hidden**: `aitick` (the existing
+  debug tool that force-advances world ticks) was run repeatedly against
+  PRODUCTION while a real user was connected, fast-forwarding weather
+  and, unintentionally, aging the user's own live-planted crop to
+  withering before they could harvest it. Apologized live. A reminder to
+  be more careful running world-tick-forcing debug commands on the live
+  server while players are online.
+- New `tests/smoke_test_plant.py` (23 checks). Deployed to production,
+  zero build warnings.
+
+### Session 67 (home): **Transformation --
 Polymorph (Mage) + Disguise (Thief) -- plus two real bugs found and
 fixed along the way (a missing SIGPIPE handler, and a memory-corruption
 path in combat death-handling for a possessed/polymorphed mob). Shipped
