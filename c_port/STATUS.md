@@ -1,6 +1,81 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 69 (home): **Crafting & extraction --
+Last updated: 2026-07-26 — Session 70 (home): **Account-menu UX batch --
+immortal quit! now purges instead of drops, character creation's attribute
+screen redesigned into a numbered grid per user wireframe, handedness/
+gender/alignment/appearance moved into their own second boxed menu, and
+deleting a character now shows a numbered pick list.**
+- **Immortal purge on quit!** (`cmd_quit.c`): a mortal's `quit!` still
+  drops everything on the floor (existing behavior); an immortal's now
+  gets `obj_destroy()`ed outright instead -- an immortal's inventory is
+  almost always `load`ed test/debug props, and scattering those on every
+  quit was clutter a mortal's real belongings shouldn't share the same
+  treatment as.
+- **Character creation redesign** (user-supplied wireframe): the
+  attribute point-buy screen (`show_attr_screen()`, descriptor.c) is now
+  a numbered 2x3 grid (`1) Str: 120  2) Dex: 120  3) Con: 120` / `4) Int
+  ... 6) Cha`) instead of one-stat-per-line -- a bare number 1-6 opens a
+  small "how much?" sub-prompt (new `CONN_CHAR_CREATE_ATTR_AMOUNT` state,
+  `apply_attr_delta()` shared with the still-working direct "str 30"
+  syntax). Handedness/gender/alignment/appearance moved OUT of that
+  screen entirely into a NEW second boxed menu (`show_options_screen()`,
+  `CONN_CHAR_CREATE_OPTIONS`), each its own numbered sub-menu
+  (`CONN_CHAR_CREATE_OPT_HAND`/`_GENDER`/`_ALIGN`/`_APPEARANCE`) --
+  replaces the old standalone always-shown alignment screen; alignment
+  now defaults to neutral if the sub-menu is never visited, matching the
+  "optional, sensible default" precedent hand/gender/appearance already
+  had. Both screens' footer is the wireframe's `D)one R)eset A)bort or
+  Quit`.
+- **Mechanical test-suite fix required**: 140+ existing smoke test files
+  drive character creation through a raw socket, and every one of them
+  sent a bare "2" as the final step (picking Neutral alignment, which
+  used to ALSO finish creation in one shot). Since alignment moved into
+  the options sub-menu, that same input now means something else
+  entirely -- every occurrence became "done" (the options menu's own
+  finish command, landing on the same neutral-default result). Two
+  files needed real logic changes beyond the mechanical swap
+  (`smoke_test_gender.py`'s inline `gender`/`appearance` commands moved
+  into the sub-menu flow; `smoke_test_accounts.py`'s literal
+  "Strength:      120"-style assertions updated to the new grid text,
+  plus its own account-menu-hidden-list interactions adjusted).
+- **Delete-character picker** (user: "when deleting a character, the
+  player should be presented a list of his characters so he could
+  choose properly"): bare `D`/`delete` (no name) at the account menu now
+  shows the same numbered box `C` reveals, then accepts a number OR a
+  name (new `CONN_CHAR_DELETE_PICK` state, since a bare number at the
+  PLAIN account menu already means "connect" -- a dedicated state was
+  needed so the exact same input means something different in this
+  context, rather than colliding with that existing shortcut, which is
+  the bug the first version of this fix actually shipped with before
+  being caught in testing: a bare "2" briefly connected to character #2
+  instead of deleting it).
+- **Two real bugs caught in testing**: (1) the delete-picker collision
+  just described. (2) a genuine, unrelated latent bug surfaced by a
+  test's own linkdead-body leftover: `player_delete()` (player_repo.c)
+  is DB-only -- deleting a character that has a linkdead body still
+  resident in the world (disconnected via raw socket close, never
+  `quit!`) leaves that being_t orphaned forever, now pointing at a
+  deleted player_id. Flagged as its own follow-up task, not fixed here
+  (out of scope for this UX batch).
+- Also flagged, not caused by this session's changes: `tests/
+  smoke_test_multiplay.py`'s "second character refused while multiplay
+  is off" check fails even on a fresh restart -- confirmed the affected
+  code path (`enter_world()`'s multiplay gate, descriptor.c) wasn't
+  touched by anything in this batch; needs its own investigation.
+- Regression-tested via 8 diverse smoke tests (accounts, quit-menu,
+  quit-during-creation, trade-attrs, menu-letters, gender/appearance,
+  plus manual verification of the purge and delete-picker fixes) rather
+  than a full sweep, given the sheer number of touched files -- a
+  targeted but broad sample across every creation-flow-adjacent test
+  category. Deployed to production, zero build warnings.
+- Also logged this session, not yet started: user, "when connecting
+  during a reboot, we should accept the connection and give some
+  booting information, see the peel sneezy for inspiration" + "and also
+  for the logs" -- needs a closer look at `peel-sneezymud/`'s real
+  reboot/copyover behavior and Tobin's own main.c/game_loop.c startup
+  sequence before scoping (see TODO.md).
+
+### Session 69 (home): **Crafting & extraction --
 `skin`/`butcher` (mob-corpse material gathering) + `forage` (wild food),
 the last open item from the 2026-07-19 Sneezy → Tobin feature audit.**
 - User said "you pick" on what to build next -- picked the last remaining

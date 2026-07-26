@@ -144,7 +144,7 @@ step(s, "race: human", "1")
 step(s, "class: mage", "1")
 step(s, "allocate", "str 15")
 step(s, "finish attrs -> alignment screen", "done")
-out = step(s, "alignment: neutral -> playing", "2")
+out = step(s, "alignment: neutral -> playing", "done")
 check(f"Welcome, {real_name_display}" in out, "a real character can still be created after two cancellations")
 
 s.close()

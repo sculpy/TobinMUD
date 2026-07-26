@@ -41,7 +41,27 @@ typedef enum {
     CONN_CHAR_CREATE_RACE,      /* after name: pick one of 6 races */
     CONN_CHAR_CREATE_CLASS,     /* after race: pick one of 6 classes */
     CONN_CHAR_CREATE_ATTRS,     /* after class: point-buy, race/class bonuses folded in on "done" */
-    CONN_CHAR_CREATE_ALIGNMENT, /* after attrs: pick good/neutral/evil, then create */
+    CONN_CHAR_CREATE_ATTR_AMOUNT, /* numbered-pick (1-6) sub-prompt: "how much?" for one attribute */
+    /* Second boxed menu (user wireframe, 2026-07-26), shown after attrs:
+     * handedness/gender/alignment/appearance all live here now, each its
+     * own numbered sub-menu -- "done" here (not a bare alignment number)
+     * is what actually creates the character. Replaces the old standalone
+     * CONN_CHAR_CREATE_ALIGNMENT screen (alignment is now option 3 here,
+     * defaulting to neutral rather than always forcing a choice). */
+    CONN_CHAR_CREATE_OPTIONS,
+    CONN_CHAR_CREATE_OPT_HAND,
+    CONN_CHAR_CREATE_OPT_GENDER,
+    CONN_CHAR_CREATE_OPT_ALIGN,
+    CONN_CHAR_CREATE_OPT_APPEARANCE,
+    /* Bare D/delete (no target) at the account menu -- shows the numbered
+     * character list and waits for a number/name pick before moving on to
+     * CONN_CHAR_DELETE_CONFIRM (user, 2026-07-26: "when deleting a
+     * character, the player should be presented a list of his characters
+     * so he could choose properly"). A dedicated state rather than reusing
+     * CONN_ACCOUNT_MENU because a bare number THERE already means "connect
+     * to that character" -- this needs its own distinct meaning for the
+     * exact same input. */
+    CONN_CHAR_DELETE_PICK,
     CONN_CHAR_DELETE_CONFIRM,
     CONN_CHAR_DELETE_PASSWORD, /* typed YES accepted; now re-verify the account password */
     CONN_ACCOUNT_DELETE_CONFIRM,
@@ -391,15 +411,18 @@ typedef struct descriptor {
     bool char_list_shown;
 
     /* CONN_CHAR_CREATE_NAME / CONN_CHAR_CREATE_ATTRS / CONN_CHAR_CREATE_RACE /
-     * CONN_CHAR_CREATE_CLASS / CONN_CHAR_CREATE_ALIGNMENT scratch. */
+     * CONN_CHAR_CREATE_CLASS / CONN_CHAR_CREATE_OPTIONS scratch. */
     char new_char_name[PLAYER_NAME_LEN];
     attrs_t new_char_attrs;
+    int new_char_attr_pick; /* 1-6, which attribute a numbered pick (CONN_CHAR_CREATE_ATTRS)
+                                is waiting on an amount for (CONN_CHAR_CREATE_ATTR_AMOUNT) */
     int new_char_handed; /* 1 right (default), 0 left */
     gender_t new_char_gender; /* GENDER_NEUTER default */
     char new_char_appearance[BEING_APPEARANCE_LEN]; /* empty default */
     player_race_t new_char_race;   /* chosen in CONN_CHAR_CREATE_RACE */
     player_class_t new_char_class; /* chosen in CONN_CHAR_CREATE_CLASS */
-    int new_char_alignment;        /* chosen in CONN_CHAR_CREATE_ALIGNMENT: -500/0/500 */
+    int new_char_alignment;        /* chosen in CONN_CHAR_CREATE_OPTIONS' alignment
+                                       sub-menu: -500/0/500, defaults 0 (neutral) */
 
     /* CONN_CHAR_DELETE_CONFIRM scratch. */
     char delete_char_name[PLAYER_NAME_LEN];

@@ -102,7 +102,7 @@ send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
 send_line(s, "1"); recv_all(s)  # class: mage
 send_line(s, "done")
 recv_all(s)
-send_line(s, "2"); out = recv_all(s)  # alignment: neutral
+send_line(s, "done"); out = recv_all(s)  # alignment: neutral
 check(f"Welcome, {char_name}" in out, "character created and playing")
 
 # A second connection to observe `who` before/after quitting.
@@ -124,7 +124,7 @@ send_line(s2, "1"); recv_all(s2)  # race: human (zero stat modifier)
 send_line(s2, "1"); recv_all(s2)  # class: mage
 send_line(s2, "done")
 recv_all(s2)
-send_line(s2, "2"); recv_all(s2)  # alignment: neutral
+send_line(s2, "done"); recv_all(s2)  # alignment: neutral
 
 send_line(s2, "who")
 out = recv_all(s2)

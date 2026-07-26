@@ -99,7 +99,7 @@ def make_char(name, pw, level=None):
     cmd(s, "1")  # race: human (zero stat modifier)
     cmd(s, "1")  # class: mage
     cmd(s, "done")
-    cmd(s, "2")  # alignment: neutral
+    cmd(s, "done")  # alignment: neutral
     if level is not None:
         sql(f"UPDATE player_progress SET level={level} WHERE player_id="
             f"(SELECT id FROM player WHERE name='{name}');")

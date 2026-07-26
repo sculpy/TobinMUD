@@ -94,7 +94,7 @@ def make_char(name, pw):
     cmd(s, "1")  # race: human (zero stat modifier)
     cmd(s, "1")  # class: mage
     cmd(s, "done")
-    cmd(s, "2")  # alignment: neutral
+    cmd(s, "done")  # alignment: neutral
     return s
 
 

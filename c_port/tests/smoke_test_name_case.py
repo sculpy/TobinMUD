@@ -98,7 +98,7 @@ def create_account_and_character(tag, typed_name):
     send_line(s, "1"); recv_all(s)  # class: mage
     send_line(s, "done")
     recv_all(s)
-    send_line(s, "2"); recv_all(s)  # alignment: neutral
+    send_line(s, "done"); recv_all(s)  # alignment: neutral
     return s
 
 
@@ -175,7 +175,7 @@ send_line(sVal, "1"); recv_all(sVal)  # race: human (zero stat modifier)
 send_line(sVal, "1"); recv_all(sVal)  # class: mage
 send_line(sVal, "done")
 recv_all(sVal)
-send_line(sVal, "2"); out = recv_all(sVal)  # alignment: neutral
+send_line(sVal, "done"); out = recv_all(sVal)  # alignment: neutral
 check(f"Welcome, {valid_name.capitalize()}" in out,
       "a valid letters-only name still creates fine after rejections")
 sVal.close()
@@ -203,7 +203,7 @@ send_line(sDup, "1"); recv_all(sDup)  # race: human (zero stat modifier)
 send_line(sDup, "1"); recv_all(sDup)  # class: mage
 send_line(sDup, "done")
 recv_all(sDup)
-send_line(sDup, "2"); out = recv_all(sDup)  # alignment: neutral
+send_line(sDup, "done"); out = recv_all(sDup)  # alignment: neutral
 check("Welcome, Freshguy" in out, "a unique name still creates after the rejection")
 sDup.close()
 

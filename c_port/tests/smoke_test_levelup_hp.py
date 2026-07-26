@@ -105,7 +105,7 @@ def make_char(name, pw, class_choice):
     send_line(s, "1"); recv_all(s)  # race: human
     send_line(s, class_choice); recv_all(s)
     send_line(s, "done"); recv_all(s)
-    send_line(s, "2"); recv_all(s)  # alignment: neutral
+    send_line(s, "done"); recv_all(s)  # alignment: neutral
     cmd(s, "color off")
     return s
 
@@ -153,7 +153,7 @@ send_line(s_imm, imm_name); recv_all(s_imm)
 send_line(s_imm, "1"); recv_all(s_imm)
 send_line(s_imm, "1"); recv_all(s_imm)
 send_line(s_imm, "done"); recv_all(s_imm)
-send_line(s_imm, "2"); recv_all(s_imm)
+send_line(s_imm, "done"); recv_all(s_imm)
 sql(f"UPDATE player_progress SET level=51 WHERE player_id="
     f"(SELECT id FROM player WHERE name='{imm_name}');")
 s_imm.close()

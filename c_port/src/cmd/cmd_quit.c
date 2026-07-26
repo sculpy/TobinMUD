@@ -52,16 +52,26 @@ bool cmd_quit(descriptor_t *d, const char *args) {
      * worn, and held items are all the same `stuff_head` chain (see
      * combat_defeat()'s corpse population for the identical pattern);
      * gold itself has no field to drop yet -- there is no Money system
-     * (TODO.md task 29) -- so this covers items only until one exists. */
+     * (TODO.md task 29) -- so this covers items only until one exists.
+     *
+     * Immortals instead get everything PURGED outright (user, 2026-07-26:
+     * "immortal inventory and worn items must be purged upon quit!") --
+     * an immortal's inventory is almost always test/debug props (`load`),
+     * and leaving those scattered on the ground on every quit is clutter
+     * a mortal's real belongings shouldn't be treated the same as. */
     if (d->character && d->character->base.roomp) {
         being_t *ch = d->character;
-        int dropped = 0;
+        bool is_imm = being_is_immortal(ch);
+        int affected = 0;
         thing_t *t = ch->base.stuff_head;
         while (t) {
             thing_t *next = t->stuff_next;
             if (t->kind == THING_OBJ) {
-                thing_move_to(t, &ch->base.roomp->base);
-                dropped++;
+                if (is_imm)
+                    obj_destroy((obj_t *)t);
+                else
+                    thing_move_to(t, &ch->base.roomp->base);
+                affected++;
             }
             t = next;
         }
@@ -69,11 +79,15 @@ bool cmd_quit(descriptor_t *d, const char *args) {
             ch->equipment[i] = NULL;
         for (int i = 0; i < 2; i++)
             ch->held[i] = NULL;
-        if (dropped > 0) {
+        if (affected > 0) {
             player_inventory_save(ch->player_id, ch);
-            snprintf(msg, sizeof(msg), "%s's belongings spill onto the ground!\r\n", ch->base.name);
-            descriptor_room_echo(ch->base.roomp, ch, msg);
-            descriptor_send(d, "Your belongings spill onto the ground as you leave!\r\n");
+            if (is_imm) {
+                descriptor_send(d, "Your belongings vanish as you leave.\r\n");
+            } else {
+                snprintf(msg, sizeof(msg), "%s's belongings spill onto the ground!\r\n", ch->base.name);
+                descriptor_room_echo(ch->base.roomp, ch, msg);
+                descriptor_send(d, "Your belongings spill onto the ground as you leave!\r\n");
+            }
         }
     }
 

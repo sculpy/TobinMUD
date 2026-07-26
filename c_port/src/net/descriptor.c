@@ -751,6 +751,38 @@ static void send_boxed_menu(descriptor_t *d, const char *const *lines, int count
     descriptor_send(d, out);
 }
 
+/* Boxed, numbered character list (user: "colorize the number list with
+ * <C>") -- shared by show_account_menu()'s revealed listing and the
+ * delete flow's own "which one?" picker (user, 2026-07-26: "when
+ * deleting a character, the player should be presented a list of his
+ * characters so he could choose properly"), each adding its own trailing
+ * prompt line since the two contexts want different wording. Assumes
+ * d->char_list/char_count are already fresh. */
+static void show_char_list_box(descriptor_t *d) {
+    char lines[MAX_CHARS_PER_ACCOUNT][96];
+    const char *line_ptrs[MAX_CHARS_PER_ACCOUNT];
+    for (int i = 0; i < d->char_count; i++) {
+        /* Same convention as `who`: immortals show their rank title,
+         * mortals show the level number. A character already in the
+         * world (on any connection) is marked (user request). */
+        bool online = false;
+        for (descriptor_t *it = g_descriptors; it && !online; it = it->next) {
+            if (it->state == CONN_PLAYING && it->character
+                && strcasecmp(it->character->base.name, d->char_list[i]) == 0)
+                online = true;
+        }
+        const char *title = being_level_title(d->char_levels[i]);
+        if (title)
+            snprintf(lines[i], sizeof(lines[i]), "<C>%d.<z> %s [%s]%s",
+                     i + 1, d->char_list[i], title, online ? " (connected)" : "");
+        else
+            snprintf(lines[i], sizeof(lines[i]), "<C>%d.<z> %s [Level %d]%s",
+                     i + 1, d->char_list[i], d->char_levels[i], online ? " (connected)" : "");
+        line_ptrs[i] = lines[i];
+    }
+    send_boxed_menu(d, line_ptrs, d->char_count);
+}
+
 static void show_account_menu(descriptor_t *d) {
     player_list_by_account(d->account.account_id, d->char_list, d->char_levels,
                            MAX_CHARS_PER_ACCOUNT, &d->char_count);
@@ -779,31 +811,7 @@ static void show_account_menu(descriptor_t *d) {
         return;
     }
 
-    /* Revealed listing (user: "colorize the number list with <C>") --
-     * boxed the same as the hidden letter-menu above, one line per
-     * character, its number bright-cyan. */
-    char lines[MAX_CHARS_PER_ACCOUNT][96];
-    const char *line_ptrs[MAX_CHARS_PER_ACCOUNT];
-    for (int i = 0; i < d->char_count; i++) {
-        /* Same convention as `who`: immortals show their rank title,
-         * mortals show the level number. A character already in the
-         * world (on any connection) is marked (user request). */
-        bool online = false;
-        for (descriptor_t *it = g_descriptors; it && !online; it = it->next) {
-            if (it->state == CONN_PLAYING && it->character
-                && strcasecmp(it->character->base.name, d->char_list[i]) == 0)
-                online = true;
-        }
-        const char *title = being_level_title(d->char_levels[i]);
-        if (title)
-            snprintf(lines[i], sizeof(lines[i]), "<C>%d.<z> %s [%s]%s",
-                     i + 1, d->char_list[i], title, online ? " (connected)" : "");
-        else
-            snprintf(lines[i], sizeof(lines[i]), "<C>%d.<z> %s [Level %d]%s",
-                     i + 1, d->char_list[i], d->char_levels[i], online ? " (connected)" : "");
-        line_ptrs[i] = lines[i];
-    }
-    send_boxed_menu(d, line_ptrs, d->char_count);
+    show_char_list_box(d);
     descriptor_send(d, "Choose a number to connect that player to the game: ");
 }
 
@@ -830,10 +838,16 @@ void descriptor_leave_to_menu(descriptor_t *d) {
     show_account_menu(d);
 }
 
-/* Prints the current point-buy allocation and remaining pool. */
+/* Prints the current point-buy allocation and remaining pool (user
+ * wireframe, 2026-07-26): a numbered 2-column grid (1-6) instead of the
+ * old one-stat-per-line list, so a player can either type the familiar
+ * "str 30" directly OR type a bare number (1-6) and get asked for the
+ * amount separately (CONN_CHAR_CREATE_ATTR_AMOUNT) -- both paths call the
+ * same apply_attr_delta() helper. Handedness/gender/alignment/appearance
+ * moved OUT of this screen entirely into the second boxed menu
+ * (show_options_screen(), shown once this one's "done"). */
 static void show_attr_screen(descriptor_t *d) {
     int remaining = ATTR_POOL - attrs_allocated(&d->new_char_attrs);
-    const char *appear = d->new_char_appearance[0] ? d->new_char_appearance : "(none set)";
 
     char head[96];
     snprintf(head, sizeof(head), "-- Allocate attributes for %s --", d->new_char_name);
@@ -843,20 +857,11 @@ static void show_attr_screen(descriptor_t *d) {
     snprintf(intro2, sizeof(intro2), "%d in either direction -- lowering one frees up room to raise another.", ATTR_DELTA_CAP);
     snprintf(intro3, sizeof(intro3), "Net pool: %d points. Commands:", ATTR_POOL);
 
-    /* Sized for a full-length appearance line (up to BEING_APPEARANCE_LEN,
-     * bumped Session 43 continued for the mob-description truncation fix
-     * -- new_char_appearance shares that buffer size) plus its label. */
-    char strength[32], dexterity[32], constitution[32], intelligence[32], wisdom[32], charisma[32];
-    char handedness[32], gender[48], appearance[BEING_APPEARANCE_LEN + 32], points[48];
-    snprintf(strength, sizeof(strength), "  Strength:      %3d", d->new_char_attrs.strength);
-    snprintf(dexterity, sizeof(dexterity), "  Dexterity:     %3d", d->new_char_attrs.dexterity);
-    snprintf(constitution, sizeof(constitution), "  Constitution:  %3d", d->new_char_attrs.constitution);
-    snprintf(intelligence, sizeof(intelligence), "  Intelligence:  %3d", d->new_char_attrs.intelligence);
-    snprintf(wisdom, sizeof(wisdom), "  Wisdom:        %3d", d->new_char_attrs.wisdom);
-    snprintf(charisma, sizeof(charisma), "  Charisma:      %3d", d->new_char_attrs.charisma);
-    snprintf(handedness, sizeof(handedness), "  Handedness:    %s", d->new_char_handed ? "right" : "left");
-    snprintf(gender, sizeof(gender), "  Gender:        %s", gender_name(d->new_char_gender));
-    snprintf(appearance, sizeof(appearance), "  Appearance:    %s", appear);
+    char row1[64], row2[64], points[48];
+    snprintf(row1, sizeof(row1), "<C>1)<z> Str: %-3d   <C>2)<z> Dex: %-3d   <C>3)<z> Con: %-3d",
+             d->new_char_attrs.strength, d->new_char_attrs.dexterity, d->new_char_attrs.constitution);
+    snprintf(row2, sizeof(row2), "<C>4)<z> Int: %-3d   <C>5)<z> Wis: %-3d   <C>6)<z> Cha: %-3d",
+             d->new_char_attrs.intelligence, d->new_char_attrs.wisdom, d->new_char_attrs.charisma);
     snprintf(points, sizeof(points), "Points remaining: %d", remaining);
 
     const char *const lines[] = {
@@ -864,16 +869,13 @@ static void show_attr_screen(descriptor_t *d) {
         "",
         "  str/dex/con/int/wis/cha <amount>   set that attribute's adjustment,",
         "                                      e.g. \"str 30\" or \"wis -20\"",
-        "  hand left|right                    choose your primary hand (default right)",
-        "  gender male|female|neuter          choose your gender (default neuter)",
-        "  appearance <text>                  describe how you look to others",
-        "  reset                              clear all adjustments",
-        "  done                                finish and create the character",
-        "  quit!                               cancel and return to the character menu",
         "",
-        strength, dexterity, constitution, intelligence, wisdom, charisma,
-        handedness, gender, appearance,
+        row1, row2,
+        "",
         points,
+        "",
+        "  Choose a number to adjust each stat, or",
+        "  <C>D<z>)one   <C>R<z>eset   <C>A<z>bort or Quit",
     };
     descriptor_send(d, "\r\n");
     descriptor_send(d, head);
@@ -881,7 +883,96 @@ static void show_attr_screen(descriptor_t *d) {
     descriptor_send(d, "> ");
 }
 
-/* CONN_CHAR_CREATE_RACE / CONN_CHAR_CREATE_CLASS / CONN_CHAR_CREATE_ALIGNMENT
+/* Sub-prompt after a bare numbered pick (1-6) at the attr screen. */
+static const char *const ATTR_PICK_NAMES[6] = {
+    "Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma",
+};
+
+static void show_attr_amount_prompt(descriptor_t *d) {
+    char msg[128];
+    snprintf(msg, sizeof(msg), "\r\nEnter the adjustment for %s (-%d to +%d), or blank to cancel: ",
+             ATTR_PICK_NAMES[d->new_char_attr_pick - 1], ATTR_DELTA_CAP, ATTR_DELTA_CAP);
+    descriptor_send(d, msg);
+}
+
+/* Shared by both the direct "str <amount>" typed command and the
+ * numbered-pick-then-amount flow -- one field, one rule, one message set. */
+static bool apply_attr_delta(descriptor_t *d, int *field, int amount) {
+    if (amount < -ATTR_DELTA_CAP || amount > ATTR_DELTA_CAP) {
+        char msg[96];
+        snprintf(msg, sizeof(msg), "Adjustment must be between -%d and +%d.\r\n",
+                 ATTR_DELTA_CAP, ATTR_DELTA_CAP);
+        descriptor_send(d, msg);
+        return false;
+    }
+    int old_value = *field;
+    *field = ATTR_BASE + amount;
+    if (attrs_allocated(&d->new_char_attrs) > ATTR_POOL) {
+        *field = old_value; /* would overspend the net pool -- reject */
+        descriptor_send(d, "Not enough points remaining for that.\r\n");
+        return false;
+    }
+    return true;
+}
+
+/* Second boxed menu (user wireframe, 2026-07-26) -- handedness, gender,
+ * alignment, and appearance, each its own numbered sub-menu. Shown once
+ * the attribute screen is "done"; ITS "done" is what actually creates the
+ * character now (see the CONN_CHAR_CREATE_OPTIONS case). */
+static void show_options_screen(descriptor_t *d) {
+    char head[96];
+    snprintf(head, sizeof(head), "-- Finish up %s --", d->new_char_name);
+
+    const char *align_word = d->new_char_alignment > 0 ? "Good"
+                            : d->new_char_alignment < 0 ? "Evil" : "Neutral";
+    const char *appear = d->new_char_appearance[0] ? d->new_char_appearance : "(none set)";
+
+    char row1[80], row2[64], row3[BEING_APPEARANCE_LEN + 32];
+    snprintf(row1, sizeof(row1), "<C>1)<z> Handedness: %-8s   <C>2)<z> Gender: %s",
+             d->new_char_handed ? "Right" : "Left", gender_name(d->new_char_gender));
+    snprintf(row2, sizeof(row2), "<C>3)<z> Alignment: %s", align_word);
+    snprintf(row3, sizeof(row3), "<C>4)<z> Appearance: %s", appear);
+
+    const char *const lines[] = {
+        row1,
+        row2,
+        row3,
+        "",
+        "  Choose a number to adjust each, or",
+        "  <C>D<z>)one   <C>R<z>eset   <C>A<z>bort or Quit",
+    };
+    descriptor_send(d, "\r\n");
+    descriptor_send(d, head);
+    send_boxed_menu(d, lines, (int)(sizeof(lines) / sizeof(lines[0])));
+    descriptor_send(d, "> ");
+}
+
+static void show_opt_hand_screen(descriptor_t *d) {
+    static const char *const lines[] = {
+        "<C>1)<z> Left",
+        "<C>2)<z> Right",
+    };
+    descriptor_send(d, "\r\n-- Choose your primary hand --");
+    send_boxed_menu(d, lines, 2);
+    descriptor_send(d, "Enter a number (1-2), or 'quit!' to cancel: ");
+}
+
+static void show_opt_gender_screen(descriptor_t *d) {
+    static const char *const lines[] = {
+        "<C>1)<z> Male",
+        "<C>2)<z> Female",
+        "<C>3)<z> Neuter",
+    };
+    descriptor_send(d, "\r\n-- Choose your gender --");
+    send_boxed_menu(d, lines, 3);
+    descriptor_send(d, "Enter a number (1-3), or 'quit!' to cancel: ");
+}
+
+static void show_opt_appearance_screen(descriptor_t *d) {
+    descriptor_send(d, "\r\nDescribe how you look to others (blank to clear, 'quit!' to cancel): ");
+}
+
+/* CONN_CHAR_CREATE_RACE / CONN_CHAR_CREATE_CLASS / CONN_CHAR_CREATE_OPT_ALIGN
  * (user 2026-07-11: "implement races, 6 player races" / "implement classes,
  * 6 player classes" / "ask player to choose initial alignment"): short
  * numbered-choice steps on the way to creating the character. Race and
@@ -966,10 +1057,12 @@ static void show_class_screen(descriptor_t *d) {
     descriptor_send(d, "Enter a number (1-6), or 'quit!' to cancel: ");
 }
 
-static void show_alignment_screen(descriptor_t *d) {
-    char head[96];
-    snprintf(head, sizeof(head), "-- Choose an alignment for %s --", d->new_char_name);
-    descriptor_send(d, "\r\n");
+/* Alignment sub-menu (option 3 of show_options_screen()) -- same three
+ * choices the old standalone CONN_CHAR_CREATE_ALIGNMENT screen offered,
+ * just reached via the options menu now instead of always being forced
+ * right after attrs; defaults to Neutral if never visited. */
+static void show_opt_align_screen(descriptor_t *d) {
+    descriptor_send(d, "\r\n-- Choose an alignment --");
     static const char *const lines[] = {
         "<C>1)<z> Good     -- other good-aligned mobs leave you be; evil ones may",
         "               target you, and you'll never be picked on by mobs that",
@@ -978,7 +1071,6 @@ static void show_alignment_screen(descriptor_t *d) {
         "               taunt from evil or word of support from good",
         "<C>3)<z> Evil     -- the mirror of Good",
     };
-    descriptor_send(d, head);
     send_boxed_menu(d, lines, (int)(sizeof(lines) / sizeof(lines[0])));
     descriptor_send(d, "Enter a number (1-3), or 'quit!' to cancel: ");
 }
@@ -2549,21 +2641,38 @@ static bool handle_line(descriptor_t *d, const char *line) {
                                              && strncasecmp(line, "delete", 6) != 0 ? 1 : 6);
                 while (*target == ' ')
                     target++;
+                /* User, 2026-07-26: "when deleting a character, the player
+                 * should be presented a list of his characters so he could
+                 * choose properly" -- bare D/delete (no target) reveals the
+                 * numbered list (same char_list_shown mechanism `C` already
+                 * uses), same "show what you can pick" spirit as connect. */
                 if (!*target) {
-                    descriptor_send(d, "Delete whom? Usage: delete <name>\r\n");
+                    if (d->char_count == 0) {
+                        descriptor_send(d, "No characters yet to delete.\r\n");
+                        show_account_menu(d);
+                        return true;
+                    }
+                    show_char_list_box(d);
+                    descriptor_send(d, "Delete which number or name (or 'quit!' to cancel)? ");
+                    d->state = CONN_CHAR_DELETE_PICK;
+                    return true;
+                }
+                const char *pick = NULL;
+                char *tend = NULL;
+                long tnum = strtol(target, &tend, 10);
+                if (tend != target && *tend == '\0' && tnum >= 1 && tnum <= d->char_count) {
+                    pick = d->char_list[tnum - 1];
+                } else {
+                    for (int i = 0; i < d->char_count; i++) {
+                        if (strcasecmp(d->char_list[i], target) == 0) { pick = d->char_list[i]; break; }
+                    }
+                }
+                if (!pick) {
+                    descriptor_send(d, "No character by that name or number on this account.\r\n");
                     show_account_menu(d);
                     return true;
                 }
-                int found = 0;
-                for (int i = 0; i < d->char_count; i++) {
-                    if (strcasecmp(d->char_list[i], target) == 0) { found = 1; break; }
-                }
-                if (!found) {
-                    descriptor_send(d, "No character by that name on this account.\r\n");
-                    show_account_menu(d);
-                    return true;
-                }
-                snprintf(d->delete_char_name, sizeof(d->delete_char_name), "%s", target);
+                snprintf(d->delete_char_name, sizeof(d->delete_char_name), "%s", pick);
                 char confirm[192];
                 snprintf(confirm, sizeof(confirm),
                          "\r\nReally delete '%s'? This cannot be undone.\r\n"
@@ -2719,61 +2828,15 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_CHAR_CREATE_ATTRS: {
-            if (strcasecmp(line, "quit!") == 0) {
+            if (strcasecmp(line, "quit!") == 0 || strcasecmp(line, "quit") == 0
+                || strcasecmp(line, "abort") == 0 || strcasecmp(line, "a") == 0) {
                 descriptor_send(d, "Character creation cancelled.\r\n");
                 d->state = CONN_ACCOUNT_MENU;
                 show_account_menu(d);
                 return true;
             }
 
-            /* Handedness choice (Session 21): optional, default right. */
-            if (strncasecmp(line, "hand", 4) == 0) {
-                char hd[16];
-                if (sscanf(line + 4, "%15s", hd) == 1
-                    && (strcasecmp(hd, "left") == 0 || strcasecmp(hd, "l") == 0)) {
-                    d->new_char_handed = 0;
-                } else if (sscanf(line + 4, "%15s", hd) == 1
-                           && (strcasecmp(hd, "right") == 0 || strcasecmp(hd, "r") == 0)) {
-                    d->new_char_handed = 1;
-                } else {
-                    descriptor_send(d, "Usage: hand left | hand right\r\n");
-                }
-                show_attr_screen(d);
-                return true;
-            }
-
-            /* Gender choice (Session 23): optional, default neuter. */
-            if (strncasecmp(line, "gender", 6) == 0) {
-                char gd[16];
-                if (sscanf(line + 6, "%15s", gd) != 1) {
-                    descriptor_send(d, "Usage: gender male | female | neuter\r\n");
-                } else if (strcasecmp(gd, "male") == 0 || strcasecmp(gd, "m") == 0) {
-                    d->new_char_gender = GENDER_MALE;
-                } else if (strcasecmp(gd, "female") == 0 || strcasecmp(gd, "f") == 0) {
-                    d->new_char_gender = GENDER_FEMALE;
-                } else if (strcasecmp(gd, "neuter") == 0 || strcasecmp(gd, "n") == 0) {
-                    d->new_char_gender = GENDER_NEUTER;
-                } else {
-                    descriptor_send(d, "Usage: gender male | female | neuter\r\n");
-                }
-                show_attr_screen(d);
-                return true;
-            }
-
-            /* Appearance (Session 23): free-text self-description, optional. */
-            if (strncasecmp(line, "appearance", 10) == 0) {
-                const char *p = line + 10;
-                while (*p == ' ')
-                    p++;
-                if (*p)
-                    snprintf(d->new_char_appearance, sizeof(d->new_char_appearance), "%s", p);
-                else
-                    d->new_char_appearance[0] = '\0'; /* bare 'appearance' clears it */
-                show_attr_screen(d);
-                return true;
-            }
-
-            if (strcasecmp(line, "done") == 0) {
+            if (strcasecmp(line, "done") == 0 || strcasecmp(line, "d") == 0) {
                 /* Race and class are already chosen by this point (user
                  * 2026-07-12: "selection of race and class should go before
                  * picking attributes") -- their stat bonuses fold into the
@@ -2782,21 +2845,33 @@ static bool handle_line(descriptor_t *d, const char *line) {
                  * still measures pure point-buy spend, not race/class deltas. */
                 race_stat_bonus(d->new_char_race, &d->new_char_attrs);
                 class_stat_bonus(d->new_char_class, &d->new_char_attrs);
-                d->state = CONN_CHAR_CREATE_ALIGNMENT;
-                show_alignment_screen(d);
+                d->state = CONN_CHAR_CREATE_OPTIONS;
+                show_options_screen(d);
                 return true;
             }
 
-            if (strcasecmp(line, "reset") == 0) {
+            if (strcasecmp(line, "reset") == 0 || strcasecmp(line, "r") == 0) {
                 d->new_char_attrs = (attrs_t){ ATTR_BASE, ATTR_BASE, ATTR_BASE, ATTR_BASE, ATTR_BASE, ATTR_BASE };
                 show_attr_screen(d);
+                return true;
+            }
+
+            /* Numbered pick (user wireframe, 2026-07-26): a bare 1-6 asks
+             * for the amount separately instead of requiring the full
+             * "str <amount>" in one line. */
+            int pick = 0;
+            if (sscanf(line, "%d", &pick) == 1 && pick >= 1 && pick <= 6
+                && line[strspn(line, "0123456789 ")] == '\0') {
+                d->new_char_attr_pick = pick;
+                d->state = CONN_CHAR_CREATE_ATTR_AMOUNT;
+                show_attr_amount_prompt(d);
                 return true;
             }
 
             char tok[32];
             int amount = 0;
             if (sscanf(line, "%31s %d", tok, &amount) != 2) {
-                descriptor_send(d, "Usage: <attribute> <amount>, 'reset', 'done', or 'quit!'.\r\n");
+                descriptor_send(d, "Usage: <attribute> <amount>, a number (1-6), 'reset', 'done', or 'quit!'.\r\n");
                 show_attr_screen(d);
                 return true;
             }
@@ -2807,30 +2882,114 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 show_attr_screen(d);
                 return true;
             }
-            if (amount < -ATTR_DELTA_CAP || amount > ATTR_DELTA_CAP) {
-                char msg[96];
-                snprintf(msg, sizeof(msg), "Adjustment must be between -%d and +%d.\r\n",
-                         ATTR_DELTA_CAP, ATTR_DELTA_CAP);
-                descriptor_send(d, msg);
-                show_attr_screen(d);
-                return true;
-            }
-
-            int old_value = *field;
-            *field = ATTR_BASE + amount;
-            if (attrs_allocated(&d->new_char_attrs) > ATTR_POOL) {
-                *field = old_value; /* would overspend the net pool -- reject */
-                descriptor_send(d, "Not enough points remaining for that.\r\n");
-                show_attr_screen(d);
-                return true;
-            }
-
+            apply_attr_delta(d, field, amount);
             show_attr_screen(d);
             return true;
         }
 
-        case CONN_CHAR_CREATE_ALIGNMENT: {
-            if (strcasecmp(line, "quit!") == 0) {
+        case CONN_CHAR_CREATE_ATTR_AMOUNT: {
+            if (strcasecmp(line, "quit!") == 0 || strcasecmp(line, "quit") == 0) {
+                descriptor_send(d, "Character creation cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            if (line[0] == '\0') {
+                /* Blank cancels just this one pick, back to the grid. */
+                d->state = CONN_CHAR_CREATE_ATTRS;
+                show_attr_screen(d);
+                return true;
+            }
+            int amount = 0;
+            if (sscanf(line, "%d", &amount) != 1) {
+                descriptor_send(d, "Enter a number, or leave blank to cancel: ");
+                return true;
+            }
+            static const char *const FIELD_TOKS[6] = { "str", "dex", "con", "int", "wis", "cha" };
+            int *field = attrs_field(&d->new_char_attrs, FIELD_TOKS[d->new_char_attr_pick - 1]);
+            apply_attr_delta(d, field, amount);
+            d->state = CONN_CHAR_CREATE_ATTRS;
+            show_attr_screen(d);
+            return true;
+        }
+
+        case CONN_CHAR_CREATE_OPTIONS: {
+            if (strcasecmp(line, "quit!") == 0 || strcasecmp(line, "quit") == 0
+                || strcasecmp(line, "abort") == 0 || strcasecmp(line, "a") == 0) {
+                descriptor_send(d, "Character creation cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+
+            if (strcasecmp(line, "reset") == 0 || strcasecmp(line, "r") == 0) {
+                d->new_char_handed = 1;
+                d->new_char_gender = GENDER_NEUTER;
+                d->new_char_alignment = 0;
+                d->new_char_appearance[0] = '\0';
+                show_options_screen(d);
+                return true;
+            }
+
+            if (strcasecmp(line, "done") == 0 || strcasecmp(line, "d") == 0) {
+                being_t *b = player_create(d->new_char_name, d->account.account_id,
+                                           &d->new_char_attrs, d->new_char_handed,
+                                           d->new_char_gender, d->new_char_appearance,
+                                           d->new_char_class, d->new_char_race,
+                                           d->new_char_alignment);
+                if (!b) {
+                    descriptor_send(d, "Could not create that character (name may already be taken).\r\n");
+                    d->state = CONN_ACCOUNT_MENU;
+                    show_account_menu(d);
+                    return true;
+                }
+                /* One-time nudge (user 2026-07-12: "i want it so a first
+                 * time player of this game will feel comfortable playing
+                 * because he knows where to find game play information")
+                 * -- shown only right here, at genuine character
+                 * creation, not on every later login (see enter_world()'s
+                 * "Welcome, X!"), so a veteran never sees it again. */
+                descriptor_send(d, "\r\nNew to TobinMUD? Type 'help playing' any time for an overview of the basics.\r\n");
+                enter_world(d, b);
+                return true;
+            }
+
+            int choice = 0;
+            if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > 4) {
+                descriptor_send(d, "Enter a number (1-4), 'done', 'reset', or 'quit!'.\r\n");
+                show_options_screen(d);
+                return true;
+            }
+            switch (choice) {
+                case 1: d->state = CONN_CHAR_CREATE_OPT_HAND; show_opt_hand_screen(d); break;
+                case 2: d->state = CONN_CHAR_CREATE_OPT_GENDER; show_opt_gender_screen(d); break;
+                case 3: d->state = CONN_CHAR_CREATE_OPT_ALIGN; show_opt_align_screen(d); break;
+                case 4: d->state = CONN_CHAR_CREATE_OPT_APPEARANCE; show_opt_appearance_screen(d); break;
+            }
+            return true;
+        }
+
+        case CONN_CHAR_CREATE_OPT_HAND: {
+            if (strcasecmp(line, "quit!") == 0 || strcasecmp(line, "quit") == 0) {
+                descriptor_send(d, "Character creation cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            int choice = 0;
+            if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > 2) {
+                descriptor_send(d, "Enter a number from 1 to 2, or 'quit!'.\r\n");
+                show_opt_hand_screen(d);
+                return true;
+            }
+            d->new_char_handed = (choice == 2) ? 1 : 0;
+            d->state = CONN_CHAR_CREATE_OPTIONS;
+            show_options_screen(d);
+            return true;
+        }
+
+        case CONN_CHAR_CREATE_OPT_GENDER: {
+            if (strcasecmp(line, "quit!") == 0 || strcasecmp(line, "quit") == 0) {
                 descriptor_send(d, "Character creation cancelled.\r\n");
                 d->state = CONN_ACCOUNT_MENU;
                 show_account_menu(d);
@@ -2839,7 +2998,27 @@ static bool handle_line(descriptor_t *d, const char *line) {
             int choice = 0;
             if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > 3) {
                 descriptor_send(d, "Enter a number from 1 to 3, or 'quit!'.\r\n");
-                show_alignment_screen(d);
+                show_opt_gender_screen(d);
+                return true;
+            }
+            static const gender_t GENDER_CHOICES[3] = { GENDER_MALE, GENDER_FEMALE, GENDER_NEUTER };
+            d->new_char_gender = GENDER_CHOICES[choice - 1];
+            d->state = CONN_CHAR_CREATE_OPTIONS;
+            show_options_screen(d);
+            return true;
+        }
+
+        case CONN_CHAR_CREATE_OPT_ALIGN: {
+            if (strcasecmp(line, "quit!") == 0 || strcasecmp(line, "quit") == 0) {
+                descriptor_send(d, "Character creation cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            int choice = 0;
+            if (sscanf(line, "%d", &choice) != 1 || choice < 1 || choice > 3) {
+                descriptor_send(d, "Enter a number from 1 to 3, or 'quit!'.\r\n");
+                show_opt_align_screen(d);
                 return true;
             }
             /* 1 Good -> +500, 2 Neutral -> 0, 3 Evil -> -500 -- solidly in
@@ -2848,26 +3027,53 @@ static bool handle_line(descriptor_t *d, const char *line) {
              * through play. */
             static const int ALIGNMENT_CHOICES[3] = { 500, 0, -500 };
             d->new_char_alignment = ALIGNMENT_CHOICES[choice - 1];
+            d->state = CONN_CHAR_CREATE_OPTIONS;
+            show_options_screen(d);
+            return true;
+        }
 
-            being_t *b = player_create(d->new_char_name, d->account.account_id,
-                                       &d->new_char_attrs, d->new_char_handed,
-                                       d->new_char_gender, d->new_char_appearance,
-                                       d->new_char_class, d->new_char_race,
-                                       d->new_char_alignment);
-            if (!b) {
-                descriptor_send(d, "Could not create that character (name may already be taken).\r\n");
+        case CONN_CHAR_CREATE_OPT_APPEARANCE: {
+            if (strcasecmp(line, "quit!") == 0 || strcasecmp(line, "quit") == 0) {
+                descriptor_send(d, "Character creation cancelled.\r\n");
                 d->state = CONN_ACCOUNT_MENU;
                 show_account_menu(d);
                 return true;
             }
-            /* One-time nudge (user 2026-07-12: "i want it so a first time
-             * player of this game will feel comfortable playing because
-             * he knows where to find game play information") -- shown
-             * only right here, at genuine character creation, not on
-             * every later login (see enter_world()'s "Welcome, X!"),
-             * so a veteran never sees it again. */
-            descriptor_send(d, "\r\nNew to TobinMUD? Type 'help playing' any time for an overview of the basics.\r\n");
-            enter_world(d, b);
+            snprintf(d->new_char_appearance, sizeof(d->new_char_appearance), "%s", line);
+            d->state = CONN_CHAR_CREATE_OPTIONS;
+            show_options_screen(d);
+            return true;
+        }
+
+        case CONN_CHAR_DELETE_PICK: {
+            if (strcasecmp(line, "quit!") == 0 || strcasecmp(line, "quit") == 0) {
+                descriptor_send(d, "Cancelled.\r\n");
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            const char *pick = NULL;
+            char *tend = NULL;
+            long tnum = strtol(line, &tend, 10);
+            if (tend != line && *tend == '\0' && tnum >= 1 && tnum <= d->char_count) {
+                pick = d->char_list[tnum - 1];
+            } else {
+                for (int i = 0; i < d->char_count; i++) {
+                    if (strcasecmp(d->char_list[i], line) == 0) { pick = d->char_list[i]; break; }
+                }
+            }
+            if (!pick) {
+                descriptor_send(d, "No character by that name or number. Delete which number or name (or 'quit!' to cancel)? ");
+                return true;
+            }
+            snprintf(d->delete_char_name, sizeof(d->delete_char_name), "%s", pick);
+            char confirm[192];
+            snprintf(confirm, sizeof(confirm),
+                     "\r\nReally delete '%s'? This cannot be undone.\r\n"
+                     "Type YES (all caps) to confirm, or anything else to cancel: ",
+                     d->delete_char_name);
+            descriptor_send(d, confirm);
+            d->state = CONN_CHAR_DELETE_CONFIRM;
             return true;
         }
 

@@ -100,7 +100,7 @@ def make_player(tag):
     send_line(s, "1"); recv_all_bytes(s)  # class: mage
     send_line(s, "done")
     recv_all_bytes(s)
-    send_line(s, "2"); recv_all_bytes(s)  # alignment: neutral
+    send_line(s, "done"); recv_all_bytes(s)  # alignment: neutral
     return s
 
 

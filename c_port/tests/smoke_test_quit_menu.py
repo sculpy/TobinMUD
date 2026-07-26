@@ -100,7 +100,7 @@ step(s, "char name -> race screen", char_name)
 step(s, "race: human", "1")
 step(s, "class: mage -> attr screen", "1")
 step(s, "done -> alignment screen", "done")
-out = step(s, "alignment: neutral -> playing", "2")
+out = step(s, "alignment: neutral -> playing", "done")
 check(f"Welcome, {expected_name}" in out, "character created and playing")
 
 # Bare "quit" (no bang) must NOT do anything -- confirm the char stays put.

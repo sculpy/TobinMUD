@@ -114,7 +114,7 @@ send_line(s, mort_name); recv_all(s)
 send_line(s, "1"); recv_all(s)
 send_line(s, "1"); recv_all(s)
 send_line(s, "done"); recv_all(s)
-out = cmd(s, "2")  # alignment: neutral -- finishes creation, enters the world
+out = cmd(s, "done")  # alignment: neutral -- finishes creation, enters the world
 check("New to TobinMUD? Type 'help playing'" in out, "a brand-new character sees the one-time playing nudge")
 cmd(s, "quit!")
 s.close()

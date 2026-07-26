@@ -105,7 +105,7 @@ def make_char(sock, name, pw):
     send_line(sock, "1"); recv_all(sock)
     send_line(sock, "1"); recv_all(sock)
     send_line(sock, "done"); recv_all(sock)
-    send_line(sock, "2"); recv_all(sock)
+    send_line(sock, "done"); recv_all(sock)
 
 
 def make_mob(vnum, keyword):

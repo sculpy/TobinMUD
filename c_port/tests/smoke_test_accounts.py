@@ -16,6 +16,7 @@ the full reply to it -- there's no separate "read more" step.
     python3 tests/smoke_test_accounts.py [host] [port] [account_name]
 """
 import socket
+import subprocess
 import sys
 import time
 
@@ -100,6 +101,13 @@ def check(condition, message):
     print(f">>> OK: {message}")
 
 
+def player_name_exists_in_db(name):
+    out = subprocess.run(["mariadb", "sneezy", "-N", "-e",
+                          f"select 1 from player where name='{name}';"],
+                         check=True, capture_output=True, text=True).stdout
+    return out.strip() == "1"
+
+
 print(f"Using account name: {account_name}")
 
 # --- Session 1: new account, new character, point-buy, play, score ---
@@ -122,7 +130,7 @@ step(s, "choose 'new'", "new")
 step(s, "character name -> race screen", char1_name)
 step(s, "race: human", "1")
 out = step(s, "class: mage -> attr screen (defaults)", "1")
-check("Strength:      120" in out, "attributes start at ATTR_BASE (120)")
+check("Str: 120" in out, "attributes start at ATTR_BASE (120)")
 check("Points remaining: 30" in out, "full pool (30) available before spending")
 
 # Each attribute is capped at +/-30 from base (120), and the net pool is also
@@ -133,16 +141,18 @@ check("Points remaining: 30" in out, "full pool (30) available before spending")
 out = step(s, "allocate strength (exhausts the pool)", "str 30")
 check("Points remaining: 0" in out, "strength at +30 exactly spends the 30-point pool")
 
-# Handedness (Session 21): optional choice on this screen, default right.
-send_line(s, "hand left")
-out = recv_all(s)
-check("Handedness:    left" in out, "hand left flips the attr screen's handedness line")
-
 out = step(s, "overspend rejected", "dex 5")
 check("Not enough points remaining" in out, "spending more than what's left is rejected")
 
-step(s, "finish creation", "done")
-out = step(s, "alignment: neutral", "2")
+step(s, "attrs done -> the options menu", "done")
+
+# Handedness (Session 21, moved into the options menu 2026-07-26): optional
+# choice, default right.
+step(s, "options menu -> handedness sub-menu", "1")
+out = step(s, "pick left", "1")
+check("Handedness: Left" in out, "picking left flips the options menu's handedness line")
+
+out = step(s, "options menu done -> playing", "done")
 check(f"Welcome, {char1_name}" in out, "'done' creates the character and enters the world")
 
 out = step(s, "score", "score")
@@ -156,17 +166,19 @@ s.close()
 s2 = socket.create_connection((host, port), timeout=5)
 recv_all(s2)
 step(s2, "account name (existing)", account_name)
-out = step(s2, "password (existing account) -> menu", password)
-check(char1_name in out, f"{char1_name} shows up in the account menu on a fresh login")
-check(f"{char1_name} (Level 1)" in out,
-      "the menu lists each character's level next to the name")
+out = step(s2, "password (existing account) -> menu (hidden list)", password)
+# The character list is hidden by default (Session 47) until 'C'; with
+# only one character, bare 'c' auto-connects instead of revealing a list
+# (see show_account_menu()) -- the multi-character reveal itself is
+# already covered below, once char2 exists (Session 3).
+check("(none yet)" not in out, "the account menu recognizes the existing character (list just hidden)")
 
 step(s2, "create second character", "new")
 step(s2, "second character name -> race screen", char2_name)
 step(s2, "race: human", "1")
 step(s2, "class: mage -> attr screen", "1")
 step(s2, "accept defaults, finish", "done")
-out = step(s2, "alignment: neutral", "2")
+out = step(s2, "alignment: neutral", "done")
 check(f"Welcome, {char2_name}" in out, "second character created with default (unallocated) attrs")
 
 out = step(s2, "score for second character", "score")
@@ -179,7 +191,8 @@ s2.close()
 s3 = socket.create_connection((host, port), timeout=5)
 recv_all(s3)
 step(s3, "account name", account_name)
-out = step(s3, "password -> menu (both characters)", password)
+step(s3, "password -> menu (hidden list)", password)
+out = step(s3, "reveal the list (2 characters now)", "c")
 check(char1_name in out and char2_name in out, "both characters listed before deletion")
 
 out = step(s3, f"delete {char1_name}", f"delete {char1_name}")
@@ -204,9 +217,20 @@ s3.close()
 s4 = socket.create_connection((host, port), timeout=5)
 recv_all(s4)
 step(s4, "account name", account_name)
-out = step(s4, "password -> menu (post-delete)", password)
-check(char1_name not in out, f"{char1_name} is permanently gone after reconnecting")
-check(char2_name in out, f"{char2_name} survived the deletion of {char1_name}")
+step(s4, "password -> menu (hidden list, only char2 left)", password)
+# Only one character left now -- bare 'c' auto-connects (see
+# show_account_menu()'s char_count==1 case) rather than listing.
+out = step(s4, "connect (auto, only one character left)", "c")
+check(f"Welcome back, {char2_name}" in out or char2_name in out,
+      f"{char2_name} survived the deletion of {char1_name}")
+# Not asserting char1_name's absence from the room-floor text here: an
+# earlier session in this same script (s.close()) disconnected char1
+# WITHOUT quitting, leaving a linkdead body resident in the world --
+# deleting the player row (player_delete(), player_repo.c) is DB-only and
+# doesn't clean up an already-in-memory linkdead being_t. That's a real,
+# separate latent gap (flagged via spawn_task), not something to paper
+# over with a weaker assertion here.
+check(not player_name_exists_in_db(char1_name), f"{char1_name}'s player row is gone from the DB")
 
 s4.close()
 

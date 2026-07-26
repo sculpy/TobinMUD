@@ -106,7 +106,7 @@ step(s, "char name -> race screen", char_name)
 step(s, "race: human", "1")
 step(s, "class: mage -> attr screen", "1")
 step(s, "done -> alignment screen", "done")
-out = step(s, "alignment: neutral -> playing (auto look)", "2")
+out = step(s, "alignment: neutral -> playing (auto look)", "done")
 check(out.rstrip().endswith(">"), "auto-look after character creation ends with a prompt")
 
 # --- 1. Abbreviation matching ---

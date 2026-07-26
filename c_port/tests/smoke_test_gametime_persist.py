@@ -99,7 +99,7 @@ send_line(s, name); recv_all(s)
 cmd(s, "1")  # race: human (zero stat modifier)
 cmd(s, "1")  # class: mage
 cmd(s, "done")
-cmd(s, "2")  # alignment: neutral
+cmd(s, "done")  # alignment: neutral
 
 # 1: a live server has ALREADY persisted some clock value via the tick
 # (gametime_save(), called every tick) -- confirm the row exists and its

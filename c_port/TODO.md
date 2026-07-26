@@ -1139,6 +1139,53 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       items like Planting's fruit/hide/meat via name+category, since
       they're vnum 0) before grouping. Not yet scoped in more detail --
       check `cmd_object.c`'s `cmd_inventory`/room listing code first.
+- [x] **Immortal inventory/worn items purged on quit!** — done 2026-07-26.
+      A mortal's `quit!` still drops everything on the floor (existing
+      behavior); an immortal's now gets destroyed outright instead
+      (`cmd_quit.c`) -- an immortal's inventory is almost always test/
+      debug props (`load`), and leaving those scattered on every quit was
+      clutter a mortal's real belongings shouldn't be treated the same as.
+- [x] **Character creation menu redesign (attrs grid + options sub-menu)**
+      — done 2026-07-26, per user wireframe. The attribute point-buy
+      screen (`show_attr_screen()`, descriptor.c) is now a numbered 2x3
+      grid (1-6) instead of one-stat-per-line -- a bare number opens a
+      small "how much?" sub-prompt (`CONN_CHAR_CREATE_ATTR_AMOUNT`), the
+      old direct "str 30" syntax still works too. Handedness/gender/
+      alignment/appearance moved OUT of the attrs screen entirely into a
+      NEW second boxed menu (`show_options_screen()`,
+      `CONN_CHAR_CREATE_OPTIONS`) with its own numbered sub-menu per
+      field (replaces the old standalone always-shown alignment screen --
+      alignment now defaults to neutral if never visited, same "optional,
+      sensible default" precedent hand/gender/appearance already had).
+      Mechanical fix required across 140+ existing smoke tests: every
+      creation flow's old bare "2" (alignment: neutral) step became
+      "done" (the options menu's own finish command) instead, since a
+      bare number at that screen now means something else entirely.
+- [x] **Delete-character shows a numbered list to pick from** — done
+      2026-07-26. User: "when deleting a character, the player should be
+      presented a list of his characters so he could choose properly."
+      Bare `D`/`delete` (no name) at the account menu now shows the same
+      numbered box `C` reveals, then accepts either a number or a name
+      (new `CONN_CHAR_DELETE_PICK` state -- couldn't reuse the plain
+      account-menu state since a bare number there already means
+      "connect", a different action for the same input).
+- [ ] **Accept connections during a reboot with boot-status info** —
+      user, 2026-07-26: "when connecting during a reboot, we should
+      accept the connection and give some booting information, see the
+      peel sneezy for inspiration" + "and also for the logs". Not yet
+      scoped or started -- check `peel-sneezymud/` for the real
+      upstream's reboot/connecting-during-boot behavior first (likely
+      around copyover/startup, `main.cc`/`comm.cc`-equivalent) before
+      designing Tobin's own version. Two halves: (1) a connecting player
+      during startup should see something other than silence/a dropped
+      connection -- some kind of "still booting, hang on" message; (2)
+      "also for the logs" -- unclear yet whether this means logging the
+      boot-status event itself, or surfacing similar status info via an
+      immortal-facing log/wiznews channel. Needs a closer look at
+      exactly when in main.c's startup sequence a connection could even
+      arrive before the listener's ready (may turn out to be a narrow
+      window, or may not be reachable at all depending on socket accept
+      timing) before committing to a design.
 
 ### User batch 2026-07-19 (evening) — logged, not yet started
 

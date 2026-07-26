@@ -109,7 +109,7 @@ send_line(s, imm_name); recv_all(s)
 send_line(s, "1"); recv_all(s)  # race: human
 send_line(s, "1"); recv_all(s)  # class: mage
 send_line(s, "done"); recv_all(s)
-send_line(s, "2"); recv_all(s)  # alignment: neutral
+send_line(s, "done"); recv_all(s)  # alignment: neutral
 set_level(imm_name, 51)
 s.close()
 s = socket.create_connection((host, port), timeout=5)

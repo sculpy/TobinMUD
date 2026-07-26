@@ -105,7 +105,7 @@ def make_char(name, pw, class_choice):
     send_line(s, "1"); recv_all(s)  # race: human
     send_line(s, class_choice); recv_all(s)
     send_line(s, "done"); recv_all(s)
-    send_line(s, "2"); recv_all(s)  # alignment: neutral
+    send_line(s, "done"); recv_all(s)  # alignment: neutral
     cmd(s, "color off")
     return s
 
@@ -133,7 +133,7 @@ send_line(s_imm, imm_name); recv_all(s_imm)
 send_line(s_imm, "1"); recv_all(s_imm)  # race: human
 send_line(s_imm, "3"); recv_all(s_imm)  # class: warrior
 send_line(s_imm, "done"); recv_all(s_imm)
-send_line(s_imm, "2"); recv_all(s_imm)  # alignment: neutral
+send_line(s_imm, "done"); recv_all(s_imm)  # alignment: neutral
 set_level(imm_name, 51)
 s_imm.close()
 s_imm = socket.create_connection((host, port), timeout=5)

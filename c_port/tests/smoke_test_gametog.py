@@ -99,7 +99,7 @@ send_line(s, name); recv_all(s)
 send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
 send_line(s, "1"); recv_all(s)  # class: mage
 send_line(s, "done"); recv_all(s)
-send_line(s, "2"); recv_all(s)  # alignment: neutral
+send_line(s, "done"); recv_all(s)  # alignment: neutral
 cmd(s, "color off")
 
 # --- a 51 immortal (below 58) is gated out of gametog ---

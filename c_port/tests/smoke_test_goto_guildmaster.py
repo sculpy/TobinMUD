@@ -112,7 +112,7 @@ def make_char(sock, name, pw, class_choice):
     send_line(sock, "1"); recv_all(sock)  # race: human
     send_line(sock, class_choice); recv_all(sock)
     send_line(sock, "done"); recv_all(sock)
-    send_line(sock, "2"); recv_all(sock)  # alignment: neutral
+    send_line(sock, "done"); recv_all(sock)  # alignment: neutral
 
 
 def login(name, pw):

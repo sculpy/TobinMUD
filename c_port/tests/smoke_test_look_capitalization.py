@@ -116,7 +116,7 @@ send_line(s, name); recv_all(s)
 cmd(s, "1")  # race: human (zero stat modifier)
 cmd(s, "1")  # class: mage
 cmd(s, "done")
-cmd(s, "2")  # alignment: neutral
+cmd(s, "done")  # alignment: neutral
 sql(f"UPDATE player_progress SET level=52 WHERE player_id="
     f"(SELECT id FROM player WHERE name='{name}');")  # BUILD_MIN_LEVEL, for `load`
 s.close()

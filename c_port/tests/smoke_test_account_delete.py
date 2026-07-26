@@ -108,7 +108,7 @@ step(s, "first character name -> race screen", char1_name)
 step(s, "race: human", "1")
 step(s, "class: mage -> attr screen", "1")
 step(s, "finish creation", "done")
-step(s, "alignment: neutral", "2")
+step(s, "alignment: neutral", "done")
 step(s, "back to menu", "quit!")  # leave-to-menu (playing quit!), not disconnect
 s.close()
 
@@ -122,7 +122,7 @@ step(s, "second character name -> race screen", char2_name)
 step(s, "race: human", "1")
 step(s, "class: mage -> attr screen", "1")
 step(s, "finish creation", "done")
-step(s, "alignment: neutral", "2")
+step(s, "alignment: neutral", "done")
 
 # --- Part 1: cancelling doesn't delete anything ---
 out = step(s, "leave to menu", "quit!")

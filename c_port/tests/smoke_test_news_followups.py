@@ -107,7 +107,7 @@ def make_char(name, pw, race="1", cls="1"):
     send_line(s, race); recv_all(s)
     send_line(s, cls); recv_all(s)
     send_line(s, "done"); recv_all(s)
-    send_line(s, "2"); recv_all(s)
+    send_line(s, "done"); recv_all(s)
     cmd(s, "color off")
     return s
 

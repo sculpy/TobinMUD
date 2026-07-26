@@ -94,12 +94,15 @@ def make_char(nm, gender=None, appearance=None):
     send_line(s, nm); recv_all(s)      # now on the race screen
     send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
     send_line(s, "1"); recv_all(s)  # class: mage
+    send_line(s, "done"); recv_all(s)  # attrs done -> the options menu (hand/gender/align/appearance)
     if gender:
-        send_line(s, f"gender {gender}"); recv_all(s)
+        send_line(s, "2"); recv_all(s)  # options menu -> gender sub-menu
+        choice = {"male": "1", "female": "2", "neuter": "3"}[gender]
+        send_line(s, choice); recv_all(s)  # picks gender, back at the options menu
     if appearance:
-        send_line(s, f"appearance {appearance}"); recv_all(s)
-    send_line(s, "done"); recv_all(s)
-    send_line(s, "2"); recv_all(s)  # alignment: neutral
+        send_line(s, "4"); recv_all(s)  # options menu -> appearance sub-menu
+        send_line(s, appearance); recv_all(s)  # sets it, back at the options menu
+    send_line(s, "done"); recv_all(s)  # finishes creation
     return s
 
 
