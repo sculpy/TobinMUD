@@ -122,7 +122,7 @@ currently have it (never needed it yet).
 
 As of Home's rebuilt VM (Session 48+), the box runs **two live instances
 side by side**: a **preview** on port 4003 and **production** on port 4000,
-sharing the one `sneezy` DB. New work gets built + deployed to preview
+sharing the one `tobin` DB. New work gets built + deployed to preview
 first, smoke-tested there, THEN the same binary is restarted on production
 — this lets iteration happen without disrupting whoever/whatever is
 relying on production mid-session (including a long-running `sweep.sh`).
@@ -135,9 +135,9 @@ cd ~/NewMUD/c_port
 git pull origin main                                          # (or the scp-then-commit-later flow, Home specifics above)
 make -j4                                                       # expect ZERO warnings; incremental is fine day-to-day,
                                                                  #   but rm -rf build/obj first after any header change
-mariadb sneezy < db/sneezy/tobin_migrations.sql                # + any other changed db/sneezy/*.sql (idempotent)
-mariadb sneezy < db/sneezy/wiznews.sql                         # apply the new wiznews/news changelog entries
-mariadb sneezy < db/sneezy/news.sql
+mariadb tobin < db/tobin/tobin_migrations.sql                  # + any other changed db/tobin/*.sql (idempotent)
+mariadb tobin < db/tobin/wiznews.sql                            # apply the new wiznews/news changelog entries
+mariadb tobin < db/tobin/news.sql
 ```
 
 Restart preview and production **separately** (each is its own
@@ -174,7 +174,7 @@ bash tests/sweep.sh                                             # full suite, on
 - Launch line (no DB password — `mud` has local socket access), if not
   using `.env.local`:
   ```bash
-  TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=sneezy \
+  TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=tobin \
     setsid nohup ./build/tobin_c > ~/NewMUD/tobin_c.log 2>&1 < /dev/null &
   ```
 - **Known rotating sweep flakes** (pass standalone): `idle`, `parser_display`,

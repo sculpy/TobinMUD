@@ -24,7 +24,7 @@
 #define RENT_REGEN_SECONDS_PER_HP 5
 
 /* Default landing room for freshly created characters -- vnum 100 ("Center Square")
- * exists in the seed data (db/sneezy/room.sql) and has a real description,
+ * exists in the seed data (db/tobin/room.sql) and has a real description,
  * unlike vnum 0 ("The Void"). Revisit once zone-aware character creation
  * (starting city selection etc) is ported. */
 #define DEFAULT_LOAD_ROOM DEFAULT_LOAD_ROOM_MORTAL

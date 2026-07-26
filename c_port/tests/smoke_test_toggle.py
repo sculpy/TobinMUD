@@ -89,7 +89,7 @@ def strip(s):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def make_char(nm):

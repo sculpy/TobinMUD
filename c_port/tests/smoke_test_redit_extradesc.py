@@ -111,11 +111,11 @@ def check(condition, message):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def query(stmt):
-    return subprocess.run(["mariadb", "-N", "sneezy", "-e", stmt],
+    return subprocess.run(["mariadb", "-N", "tobin", "-e", stmt],
                           check=True, capture_output=True, text=True).stdout
 
 

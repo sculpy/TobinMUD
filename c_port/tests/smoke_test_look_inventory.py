@@ -103,7 +103,7 @@ def strip(s):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def obj_insert(vnum, name, short_desc, long_desc, item_type, wear_flag,

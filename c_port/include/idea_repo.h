@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* Player feature requests, backed by the `idea` table (db/sneezy/idea.sql).
+/* Player feature requests, backed by the `idea` table (db/tobin/idea.sql).
  * Same shape as bug_repo.h. */
 
 /* Files an idea from `submitter`. Returns false on DB error. */

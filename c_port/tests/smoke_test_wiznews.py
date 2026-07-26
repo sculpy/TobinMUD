@@ -90,7 +90,7 @@ def check(condition, message):
 
 
 def set_level(name, level):
-    subprocess.run(["mariadb", "sneezy", "-e",
+    subprocess.run(["mariadb", "tobin", "-e",
                     f"UPDATE player_progress SET level={level} WHERE player_id="
                     f"(SELECT id FROM player WHERE name='{name}');"], check=True)
 
@@ -163,7 +163,7 @@ set_level(name, 1)
 # Clean up the item this run posted -- otherwise repeated runs pile up
 # wiznews entries and eventually push the seeded item off the display's
 # most-recent window (same fix as smoke_test_news.py).
-subprocess.run(["mariadb", "sneezy", "-e",
+subprocess.run(["mariadb", "tobin", "-e",
                 f"DELETE FROM wiznews WHERE title = '{headline}';"],
                check=True)
 

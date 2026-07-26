@@ -1,4 +1,4 @@
--- Persisted attributes for a player (db/sneezy/player_attrs.sql).
+-- Persisted attributes for a player (db/tobin/player_attrs.sql).
 -- Tobin-specific (not part of the upstream seed).
 --
 -- CREATE TABLE IF NOT EXISTS -- NOT an unconditional DROP+CREATE. This file

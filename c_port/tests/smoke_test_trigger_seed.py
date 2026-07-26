@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Smoke test for the starter trigger content (user, 2026-07-11: "and
 convert what sneezy has into a starter set of db data for tobin"),
-db/sneezy/trigger_seed.sql -- verifies the seeded rows actually fire, not
+db/tobin/trigger_seed.sql -- verifies the seeded rows actually fire, not
 just that they exist in the table.
 
   1. The real "dirty refuse hauler" (vnum 33271) mutters something rude
@@ -86,7 +86,7 @@ def check(condition, message):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def set_level(name, level):

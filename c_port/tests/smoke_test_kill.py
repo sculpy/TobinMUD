@@ -160,7 +160,7 @@ sTarget, nameTarget = make_player("Tgt")
 sObs, nameObs = make_player("Obs")  # a bystander for the global death taunt
 
 subprocess.run(
-    ["mariadb", "sneezy", "-e",
+    ["mariadb", "tobin", "-e",
      f"UPDATE player_progress SET level=51 WHERE player_id=(SELECT id FROM player WHERE name='{nameImm}');"],
     check=True,
 )

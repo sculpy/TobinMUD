@@ -11,7 +11,7 @@
 #include "thing.h"
 
 /* C replacement for the TRoom slice of misc/thing.h + the `room` DB table
- * (db/sneezy/room.sql). Phase 1 keeps only the fields needed for `look`. */
+ * (db/tobin/room.sql). Phase 1 keeps only the fields needed for `look`. */
 
 #define ROOM_DESCRIPTION_MAX 4096
 /* The original dirTypeT's full set, IN ITS ORDER: north(0), east(1),

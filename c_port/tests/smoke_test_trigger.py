@@ -3,7 +3,7 @@
 "implement mob object and room scripting -- examine sneezy for ideas --
 we want interaction with mobs objs and room via scripts"). The in-game-
 authorable alternative to SneezyMUD's hardcoded spec procs (see
-db/sneezy/trigger.sql's header comment) -- a builder attaches a trigger
+db/tobin/trigger.sql's header comment) -- a builder attaches a trigger
 via the menu-driven `edit trigger <room|mob|obj> <vnum>` (2026-07-25
 redesign -- see author_trigger() below), then writes a short script
 (echo/echoroom/emote/teleport/give/damage/log, one action per line) in
@@ -117,7 +117,7 @@ def author_trigger(sock, target_type, vnum, trigger_type, match_or_chance, scrip
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def set_level(name, level):

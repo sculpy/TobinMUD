@@ -28,9 +28,9 @@
  */
 
 typedef enum {
-    DB_TOBIN,   /* the underlying MariaDB database is still named "sneezy" on
-                 * disk (db/ wasn't renamed, see STATUS.md) -- this enum tag
-                 * is just this port's internal name for it */
+    DB_TOBIN,   /* the underlying MariaDB database is named "tobin" on disk
+                 * (renamed from "sneezy", see STATUS.md) -- this enum tag is
+                 * just this port's internal name for it */
     DB_IMMORTAL,
     DB_MAX
 } db_type_t;

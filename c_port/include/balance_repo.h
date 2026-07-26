@@ -10,7 +10,7 @@
 #include "being.h"
 
 /* DB access for the `class_balance`/`race_balance` tables
- * (db/sneezy/balance.sql, Tobin-specific -- see balance.h for the
+ * (db/tobin/balance.sql, Tobin-specific -- see balance.h for the
  * in-memory cache these back and cmd_balance.c for the in-game
  * editor). Every row is seeded at creation (neutral 1.0/1.0/0/0), one
  * per player_class_t/player_race_t value, so a load should always

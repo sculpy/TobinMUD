@@ -9,7 +9,7 @@
 #include <stddef.h>
 
 /* C replacement for socials (emotes) persistence, backed by the `social`
- * table (db/sneezy/social.sql, generated from the upstream lib/actions
+ * table (db/tobin/social.sql, generated from the upstream lib/actions
  * file by db/import-socials.py -- see that script for the exact upstream
  * format and the min_position code translation).
  *

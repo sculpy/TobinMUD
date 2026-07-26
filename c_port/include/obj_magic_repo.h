@@ -9,7 +9,7 @@
 #include <stddef.h>
 
 /* DB access for magic items (Sneezy -> Tobin feature audit, "Magic
- * items") -- see db/sneezy/obj_magic.sql for the full rationale (why
+ * items") -- see db/tobin/obj_magic.sql for the full rationale (why
  * this is a fresh Tobin table rather than reinterpreting messy upstream
  * val[] data). One row per scroll/wand/staff VNUM, naming the spell it
  * invokes and how many charges it starts with. */

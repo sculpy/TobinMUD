@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* Player bug reports, backed by the `bug` table (db/sneezy/bug.sql). */
+/* Player bug reports, backed by the `bug` table (db/tobin/bug.sql). */
 
 /* Files a bug report from `submitter`. Returns false on DB error. */
 bool bug_repo_add(const char *submitter, const char *body);

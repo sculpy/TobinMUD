@@ -9,7 +9,7 @@
 #include <stdbool.h>
 
 /* C replacement for the login-relevant slice of misc/account.{h,cc}'s
- * TAccount, backed by the `account` table (db/sneezy/account.sql). */
+ * TAccount, backed by the `account` table (db/tobin/account.sql). */
 
 typedef struct {
     long account_id;

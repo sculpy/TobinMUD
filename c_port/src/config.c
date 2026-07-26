@@ -19,7 +19,7 @@ const config_t *config_get(void) {
         g_config.db_host = env_or("TOBIN_DB_HOST", "localhost");
         g_config.db_user = getenv("TOBIN_DB_USER");
         g_config.db_pass = getenv("TOBIN_DB_PASS");
-        g_config.db_name_tobin = env_or("TOBIN_DB_NAME", "sneezy");
+        g_config.db_name_tobin = env_or("TOBIN_DB_NAME", "tobin");
         g_config.db_name_immortal = env_or("TOBIN_DB_NAME_IMMORTAL", "immortal");
 
         const char *port_str = getenv("TOBIN_PORT");

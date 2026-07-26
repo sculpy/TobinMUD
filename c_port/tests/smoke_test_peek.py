@@ -82,7 +82,7 @@ def check(condition, message):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def make_char(name, pw, race="1", cls="1"):
@@ -160,7 +160,7 @@ sql(f"INSERT INTO obj (vnum, name, short_desc, long_desc, action_desc) VALUES "
     f"({item_vnum}, 'peek trinket testitem', 'a small peek-test trinket', "
     f"'A small trinket sits here.', '');")
 target_pid_row = subprocess.run(
-    ["mariadb", "sneezy", "-N", "-e", f"SELECT id FROM player WHERE name='{target_name}';"],
+    ["mariadb", "tobin", "-N", "-e", f"SELECT id FROM player WHERE name='{target_name}';"],
     capture_output=True, text=True, check=True)
 target_pid = target_pid_row.stdout.strip()
 sql(f"INSERT INTO player_inventory (player_id, vnum, slot) VALUES ({target_pid}, {item_vnum}, -1);")

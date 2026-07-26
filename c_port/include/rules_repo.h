@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* Numbered game rules, backed by the `rules` table (db/sneezy/rules.sql). */
+/* Numbered game rules, backed by the `rules` table (db/tobin/rules.sql). */
 
 /* Renders the rule list ("  1. Title") into `out`, ascending by number.
  * Returns false if there are no rules (out left empty) or on DB error. */

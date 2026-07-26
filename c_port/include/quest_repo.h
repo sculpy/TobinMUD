@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* DB access for `player_quest`/`quest_def` (db/sneezy/tobin_migrations.sql)
+/* DB access for `player_quest`/`quest_def` (db/tobin/tobin_migrations.sql)
  * -- Sneezy → Tobin feature audit, "Quest system". User, AskUserQuestion
  * 2026-07-19: infrastructure only. Sneezy's real quest system is a fixed
  * 454-bit array (`toggles[]`) tied entirely to hand-authored content that

@@ -102,7 +102,7 @@ def check(condition, message):
 
 
 def player_name_exists_in_db(name):
-    out = subprocess.run(["mariadb", "sneezy", "-N", "-e",
+    out = subprocess.run(["mariadb", "tobin", "-N", "-e",
                           f"select 1 from player where name='{name}';"],
                          check=True, capture_output=True, text=True).stdout
     return out.strip() == "1"

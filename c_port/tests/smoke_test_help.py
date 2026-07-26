@@ -142,7 +142,7 @@ check("Command not found" in out, "a mortal typing wizhelp gets Command not foun
 
 # --- Part 3: an immortal sees the real immortal-only list ---
 subprocess.run(
-    ["mariadb", "sneezy", "-e",
+    ["mariadb", "tobin", "-e",
      f"UPDATE player_progress SET level=51 WHERE player_id=(SELECT id FROM player WHERE name='{nameA}');"],
     check=True,
 )

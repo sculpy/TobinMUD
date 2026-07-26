@@ -6222,7 +6222,7 @@ conversation and in `sneezymud-master`): `positionTypeT` (done), `prompt_mesg`
   mid-sweep, from an incident where it caused unrelated flakes — no longer
   applies now that sweeps aren't run casually between changes.)
 - Every player-facing change gets a `news.sql` entry (no numbers). See CLAUDE.md.
-- Every new `db/sneezy/*.sql` file MUST use `CREATE TABLE IF NOT EXISTS`,
+- Every new `db/tobin/*.sql` file MUST use `CREATE TABLE IF NOT EXISTS`,
   never an unconditional `DROP TABLE IF EXISTS` + `CREATE TABLE` — the
   latter silently wipes live data every time `apply-tobin-schema.sh` re-runs
   it (which it always does; that script re-applies every file, every time).

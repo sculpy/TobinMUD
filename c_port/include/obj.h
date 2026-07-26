@@ -17,7 +17,7 @@
  * val0..val3 generic fields) instead of one C++ class per item type.
  *
  * Object PROTOTYPES already exist in the DB -- the upstream seed's `obj`
- * table (db/sneezy/obj.sql, thousands of real rows, PK vnum) is read
+ * table (db/tobin/obj.sql, thousands of real rows, PK vnum) is read
  * directly by obj_repo.c, no new prototype table needed. Only in-world
  * INSTANCES (this struct) are new state; see obj_repo.h for what of that
  * gets persisted. */

@@ -1,4 +1,4 @@
--- Persisted level/experience/HP for a player (db/sneezy/player_progress.sql).
+-- Persisted level/experience/HP for a player (db/tobin/player_progress.sql).
 -- Tobin-specific (not part of the upstream seed).
 --
 -- CREATE TABLE IF NOT EXISTS -- NOT an unconditional DROP+CREATE. This file

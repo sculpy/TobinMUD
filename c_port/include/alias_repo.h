@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* DB access for the `account_alias` table (db/sneezy/tobin_migrations.sql)
+/* DB access for the `account_alias` table (db/tobin/tobin_migrations.sql)
  * -- player-defined command aliases, stored on the account and scoped by
  * tier (mortal vs immortal, see cmd_alias.c). */
 

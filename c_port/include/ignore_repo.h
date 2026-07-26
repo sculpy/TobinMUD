@@ -7,7 +7,7 @@
 
 #include <stdbool.h>
 
-/* DB access for the `player_ignore` table (db/sneezy/tobin_migrations.sql)
+/* DB access for the `player_ignore` table (db/tobin/tobin_migrations.sql)
  * -- a flat per-character name block list, checked by `tell`/`whisper`
  * (cmd_tell.c/cmd_whisper.c) before delivery. See that migration's own
  * comment for why this is name-keyed and scoped down from Sneezy's

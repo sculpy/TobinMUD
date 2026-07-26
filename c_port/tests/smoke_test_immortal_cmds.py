@@ -132,7 +132,7 @@ check("Command not found" not in out and "usage: get" in out.lower(),
 
 # --- Bootstrap the immortal (level 58 so the above-own-level cap is testable) ---
 subprocess.run(
-    ["mariadb", "sneezy", "-e",
+    ["mariadb", "tobin", "-e",
      f"UPDATE player_progress SET level=58 WHERE player_id=(SELECT id FROM player WHERE name='{nameImm}');"],
     check=True,
 )

@@ -214,7 +214,7 @@ sTarget, nameTarget = make_player("Tgt")
 # Hand-promote the "immortal" test character to level 51 via the DB --
 # there's no in-game promotion path yet (see STATUS.md).
 subprocess.run(
-    ["mariadb", "sneezy", "-e",
+    ["mariadb", "tobin", "-e",
      f"UPDATE player_progress SET level=51 WHERE player_id=(SELECT id FROM player WHERE name='{nameImm}');"],
     check=True,
 )

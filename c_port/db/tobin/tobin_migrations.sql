@@ -2,7 +2,7 @@
 -- Fresh seeds get these columns from the base CREATE files; this file
 -- brings already-seeded databases up to date. Safe to re-run any time
 -- (IF NOT EXISTS throughout). Load alongside help_topic.sql on deploys:
---     mariadb sneezy < db/sneezy/tobin_migrations.sql
+--     mariadb tobin < db/tobin/tobin_migrations.sql
 
 -- Mortal/immortal toggle: the suspended TRUE level (0 = not suspended).
 ALTER TABLE `player_progress`
@@ -463,7 +463,7 @@ INSERT INTO `world_treasury` (`id`, `gold`) VALUES (1, 0)
 -- never made it into a migration file -- discovered when Home's own
 -- database (192.168.254.200) turned out to still have every one of
 -- these regressed, despite Home/Work sharing git-synced code: each box
--- runs its own independent `sneezy` database, so a plain live SQL fix
+-- runs its own independent `tobin` database, so a plain live SQL fix
 -- on one box silently never reaches the other (or a fresh install).
 -- Idempotent (REGEXP_REPLACE/REPLACE are no-ops once the text no longer
 -- matches), safe to re-run on a box that already has the fix.

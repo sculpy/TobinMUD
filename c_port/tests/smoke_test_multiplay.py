@@ -56,7 +56,7 @@ announce("smoke_test_multiplay")
 # just an in-memory default, so a crashed earlier run can leave it stuck
 # "on" indefinitely, silently defeating this test's own "default off"
 # assumption on every later run until manually reset).
-subprocess.run(["mariadb", "sneezy", "-e",
+subprocess.run(["mariadb", "tobin", "-e",
                 "UPDATE game_config SET value='off' WHERE name='multiplay';"], check=True)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
@@ -142,7 +142,7 @@ recv_all(si)
 for step in (immname, "y", "mppw", "mppw", "new", immname, "1", "1", "done", "done"):
     send_line(si, step); recv_all(si)
 si.close()
-subprocess.run(["mariadb", "sneezy", "-e",
+subprocess.run(["mariadb", "tobin", "-e",
                 f"UPDATE player_progress SET level=59 WHERE player_id="
                 f"(SELECT id FROM player WHERE name='{immname}');"], check=True)
 si = socket.create_connection((host, port), timeout=5)

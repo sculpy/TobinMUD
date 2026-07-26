@@ -5,7 +5,7 @@ don't exist in the upstream SneezyMUD seed. Everything else (rooms, mobs,
 objects, shops, the `player`/`account` base tables, etc.) comes from the
 untouched upstream seed under `../../sneezymud-master/db/`.
 
-## `sneezy/` — Tobin-specific tables (loaded into the `sneezy` DB)
+## `tobin/` — Tobin-specific tables (loaded into the `tobin` DB)
 
 | File | Purpose |
 |---|---|
@@ -20,11 +20,11 @@ All four are safe to re-run: `CREATE TABLE IF NOT EXISTS`,
 ## Seeding a database from scratch
 
 ```sh
-# 1. upstream seed — creates + fills fresh `sneezy` and `immortal` DBs
+# 1. upstream seed — creates + fills fresh `tobin` and `immortal` DBs
 sneezymud-master/db/init-db.sh [db_user]
 
 # 2. Tobin schema on top (this dir)
-c_port/db/apply-tobin-schema.sh          # defaults to the `sneezy` DB
+c_port/db/apply-tobin-schema.sh          # defaults to the `tobin` DB
 ```
 
 Step 2 alone also serves as the "apply new migrations to an existing DB"

@@ -100,7 +100,7 @@ def news_read(sock, arg=""):
 
 
 def set_level(name, level):
-    subprocess.run(["mariadb", "sneezy", "-e",
+    subprocess.run(["mariadb", "tobin", "-e",
                     f"UPDATE player_progress SET level={level} WHERE player_id="
                     f"(SELECT id FROM player WHERE name='{name}');"], check=True)
 
@@ -172,7 +172,7 @@ set_level(name, 1)
 # Clean up the item this run posted -- otherwise repeated runs pile up news
 # entries and eventually push the real (older) headlines off the news
 # display's most-recent window, which fails the "whole feed is shown" check.
-subprocess.run(["mariadb", "sneezy", "-e",
+subprocess.run(["mariadb", "tobin", "-e",
                 f"DELETE FROM news WHERE title = 'Fresh Off The Press {_suffix}';"],
                check=True)
 

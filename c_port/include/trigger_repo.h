@@ -8,7 +8,7 @@
 #include <stdbool.h>
 
 /* Scripted mob/object/room behavior, backed by the `trigger` table
- * (db/sneezy/trigger.sql) -- see that file's header comment for the full
+ * (db/tobin/trigger.sql) -- see that file's header comment for the full
  * design rationale (the in-game-authorable alternative to SneezyMUD's
  * hardcoded spec procs). One row = one trigger attached to a prototype. */
 

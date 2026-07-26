@@ -128,7 +128,7 @@ s.close()
 # Two fighters with huge HP so a combat round can't end the fight before we
 # check (rounds fire on a global pulse -- see STATUS.md).
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def relogin(nm):

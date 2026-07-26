@@ -107,7 +107,7 @@ def make_player(tag):
 
 def set_hp(name, hp):
     subprocess.run(
-        ["mariadb", "sneezy", "-e",
+        ["mariadb", "tobin", "-e",
          f"UPDATE player_progress SET hp={hp} WHERE player_id=(SELECT id FROM player WHERE name='{name}');"],
         check=True,
     )

@@ -14,7 +14,7 @@ struct descriptor;
 struct being;
 
 /* Socials (emotes): smile, nod, wave, ... A full port of the original's
- * lib/actions (db/import-socials.py, db/sneezy/social.sql -- 155 verbs),
+ * lib/actions (db/import-socials.py, db/tobin/social.sql -- 155 verbs),
  * DB-backed but read through an in-memory cache built by
  * social_cache_load() -- social_try() runs on nearly every unmatched
  * player command (checked AFTER the whole command table, classic DikuMUD

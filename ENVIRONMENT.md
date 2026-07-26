@@ -24,10 +24,10 @@ directories around. Each machine's database is local and stays put.
 
 Key facts that make the commands below work:
 - The server runs as OS user **`mud`** and talks to MariaDB as `mud@localhost`
-  over the **unix socket** (no password). So `mariadb sneezy` "just works" when
+  over the **unix socket** (no password). So `mariadb tobin` "just works" when
   logged in as `mud`.
-- Databases: **`sneezy`** (the game) and **`immortal`** (immortal world copy).
-- Default runtime config needs no env vars (host `localhost`, DB `sneezy`,
+- Databases: **`tobin`** (the game) and **`immortal`** (immortal world copy).
+- Default runtime config needs no env vars (host `localhost`, DB `tobin`,
   telnet port `4000`). Overridable: `TOBIN_DB_HOST` / `TOBIN_DB_USER` /
   `TOBIN_DB_PASS` / `TOBIN_DB_NAME` / `TOBIN_PORT`.
 - The server path is **`~/NewMUD/c_port`** (note: `NewMUD`, no space — unlike
@@ -118,10 +118,10 @@ it from a **sudo-capable** shell and pass `mud` as the DB user it should grant.
 Then apply Tobin's own tables **as `mud`**.
 
 ```sh
-# creates + fills fresh `sneezy` and `immortal`, and grants mud@localhost:
+# creates + fills fresh `tobin` and `immortal`, and grants mud@localhost:
 ~/NewMUD/sneezymud-master/db/init-db.sh mud
 
-# Tobin-specific tables + idempotent migrations on top (defaults to `sneezy`):
+# Tobin-specific tables + idempotent migrations on top (defaults to `tobin`):
 ~/NewMUD/c_port/db/apply-tobin-schema.sh
 ```
 Both are safe to re-run. `apply-tobin-schema.sh` is also the **"apply new
@@ -179,7 +179,7 @@ ssh mud@db.kullit.com          # (or mud@192.168.254.200 at home)
 cd ~/NewMUD && git pull
 cd c_port && cmake --build build          # zero-warning
 ./db/apply-tobin-schema.sh                 # picks up new/changed migrations (idempotent)
-mariadb sneezy < db/sneezy/help_topic.sql  # only if help text changed (ON DUP KEY = no-op otherwise)
+mariadb tobin < db/tobin/help_topic.sql    # only if help text changed (ON DUP KEY = no-op otherwise)
 pkill -x tobin_c; sleep 1
 setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &
 ```
@@ -187,7 +187,7 @@ setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &
 Rules that bit us before:
 - **Never rebuild/restart while a sweep is running** — the restart freeze makes
   unrelated smoke tests flake. Let the sweep finish first.
-- New schema files under `c_port/db/sneezy/` are auto-picked-up by
+- New schema files under `c_port/db/tobin/` are auto-picked-up by
   `apply-tobin-schema.sh`; standalone seed edits (help/news/rules bodies) that
   use `ON DUPLICATE KEY UPDATE name=name` need an explicit `mariadb ... < file`
   to actually change existing rows.
@@ -216,7 +216,7 @@ Repo:            https://github.com/sculpy/NewMUD.git   (branch main)
 Upstream ref:    https://github.com/sneezymud/sneezymud.git → sneezymud-master/  (gitignored, per-location)
 Home server:     mud@192.168.254.200:~/NewMUD/c_port
 Work server:     mud@db.kullit.com:~/NewMUD/c_port
-Databases:       MariaDB `sneezy` + `immortal`, unix_socket auth as OS user mud
+Databases:       MariaDB `tobin` + `immortal`, unix_socket auth as OS user mud
 Seed a DB:       sneezymud-master/db/init-db.sh mud   &&   c_port/db/apply-tobin-schema.sh
 Build:           cd ~/NewMUD/c_port && cmake -S . -B build && cmake --build build
 Run:             cd ~/NewMUD/c_port && setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &

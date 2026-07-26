@@ -10,7 +10,7 @@
 
 /* Tips system (TODO.md: "tips command + periodic tip echoes (pulse-
  * driven), per-player newbie toggle, tipedit (53+). DB-backed like
- * news/help") -- backed by the `tip` table (db/sneezy/tip.sql). Kept
+ * news/help") -- backed by the `tip` table (db/tobin/tip.sql). Kept
  * one-liner-simple like `bug`/`idea` rather than a full menu editor
  * (news/help's own editors are for long-form, titled content; a tip is
  * one short sentence) -- `tipedit` is a single command with add/list/

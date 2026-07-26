@@ -77,7 +77,7 @@ announce("smoke_test_logging")
 
 def set_level(name, level):
     subprocess.run(
-        ["mariadb", "sneezy", "-e",
+        ["mariadb", "tobin", "-e",
          f"UPDATE player_progress SET level={level} WHERE player_id="
          f"(SELECT id FROM player WHERE name='{name}');"],
         check=True,

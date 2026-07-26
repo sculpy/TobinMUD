@@ -11,7 +11,7 @@
 #include "room.h"
 
 /* C replacement for room persistence, backed by the `room` and `roomexit`
- * tables (db/sneezy/room.sql, roomexit.sql). */
+ * tables (db/tobin/room.sql, roomexit.sql). */
 
 /* Loads room `vnum` (and its exits) fresh from the DB. Returns a freshly
  * allocated room_t, or NULL if no such room exists. */

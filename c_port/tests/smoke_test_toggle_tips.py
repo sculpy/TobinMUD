@@ -92,11 +92,11 @@ def strip(s):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def sql_scalar(stmt):
-    out = subprocess.run(["mariadb", "sneezy", "-N", "-e", stmt],
+    out = subprocess.run(["mariadb", "tobin", "-N", "-e", stmt],
                           check=True, capture_output=True, text=True)
     return out.stdout.strip()
 

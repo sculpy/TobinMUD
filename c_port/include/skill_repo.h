@@ -7,7 +7,7 @@
 
 #include <stdbool.h>
 
-/* DB access for the `player_skill` table (db/sneezy/tobin_migrations.sql)
+/* DB access for the `player_skill` table (db/tobin/tobin_migrations.sql)
  * -- one row per player per skill/spell they've actually attempted, used
  * by skill.c's learn-by-doing proficiency system. See skill.h for the
  * gain formula and the higher-level API game commands actually call. */

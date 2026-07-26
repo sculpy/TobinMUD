@@ -83,7 +83,7 @@ def check(condition, message):
 
 def set_level(name, level):
     subprocess.run(
-        ["mariadb", "sneezy", "-e",
+        ["mariadb", "tobin", "-e",
          f"UPDATE player_progress SET level={level} WHERE player_id=(SELECT id FROM player WHERE name='{name}');"],
         check=True,
     )

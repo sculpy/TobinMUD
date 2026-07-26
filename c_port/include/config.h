@@ -20,9 +20,8 @@ typedef struct {
  *   TOBIN_DB_HOST  (default "localhost")
  *   TOBIN_DB_USER  (default NULL -- let the mysql client library decide)
  *   TOBIN_DB_PASS  (default NULL)
- *   TOBIN_DB_NAME           (default "sneezy" -- the underlying MariaDB
- *                             database is still named "sneezy" on disk;
- *                             db/ wasn't renamed, see STATUS.md)
+ *   TOBIN_DB_NAME           (default "tobin" -- renamed from "sneezy", see
+ *                             STATUS.md)
  *   TOBIN_DB_NAME_IMMORTAL  (default "immortal")
  *   TOBIN_PORT     (default 4000)
  *   TOBIN_WIPE_PASSWORD  (default NULL -- `wipe` (cmd_wipe.c) refuses

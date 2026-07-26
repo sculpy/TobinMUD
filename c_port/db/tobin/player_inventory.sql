@@ -1,7 +1,7 @@
 -- Persists which object PROTOTYPE instances a player is carrying/wearing/
 -- holding across a reconnect (Phase 2C -- see obj_repo.h/obj.h). Tobin-
 -- specific (not upstream seed); the prototypes themselves live in the
--- upstream-seeded `obj` table (db/sneezy/obj.sql, unchanged).
+-- upstream-seeded `obj` table (db/tobin/obj.sql, unchanged).
 --
 -- Room-floor objects (via bare `oload`, not carried) are deliberately NOT
 -- persisted here -- there's no zone-reset system yet to repopulate them at

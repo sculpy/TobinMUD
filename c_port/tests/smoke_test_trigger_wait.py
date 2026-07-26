@@ -104,7 +104,7 @@ def author_trigger(sock, target_type, vnum, trigger_type, match_or_chance, scrip
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def set_level(name, level):

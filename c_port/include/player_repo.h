@@ -10,7 +10,7 @@
 #include "being.h"
 
 /* C replacement for player persistence, backed by the `player`,
- * `player_attrs`, and `player_progress` tables (db/sneezy/player.sql,
+ * `player_attrs`, and `player_progress` tables (db/tobin/player.sql,
  * player_attrs.sql, player_progress.sql). An account can own multiple
  * characters (player.account_id); every lookup by name here is scoped to
  * the owning account_id to enforce that. */

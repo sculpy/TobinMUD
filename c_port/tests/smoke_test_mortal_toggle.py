@@ -113,7 +113,7 @@ recv_all(s)
 # character back up from the account menu (which does a fresh
 # player_load()) -- otherwise the auto-save would clobber this SQL edit.
 subprocess.run(
-    ["mariadb", "sneezy", "-e",
+    ["mariadb", "tobin", "-e",
      f"UPDATE player_progress SET level=56 WHERE player_id=(SELECT id FROM player WHERE name='{name}');"],
     check=True,
 )
@@ -158,7 +158,7 @@ check("Command not found" in out, "immort while already immortal acts like an un
 
 # hygiene
 subprocess.run(
-    ["mariadb", "sneezy", "-e",
+    ["mariadb", "tobin", "-e",
      f"UPDATE player_progress SET level=1, true_level=0 WHERE player_id=(SELECT id FROM player WHERE name='{name}');"],
     check=True,
 )

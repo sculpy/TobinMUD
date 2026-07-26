@@ -14,7 +14,7 @@ end of every session. [c_port/TODO.md](c_port/TODO.md) tracks what's next.
 ## Where am I? (ask the user if unstated)
 
 - **Home**: work from this tree; build/test on the VirtualBox VM
-  `NUDServer` — Fedora 44, `ssh mud@192.168.254.200` (key auth set up),
+  `MUDServer` — Fedora 44, `ssh mud@192.168.254.200` (key auth set up),
   tree mirrored at `~/NewMUD/`, MariaDB local to the VM, server on port
   4000, logs in `~/NewMUD/c_port/logs/`.
 - **Work**: box is db.kullit.com (10.0.0.12), user `mud` (key auth set up),
@@ -34,7 +34,7 @@ end of every session. [c_port/TODO.md](c_port/TODO.md) tracks what's next.
 
 ```
 cd ~/NewMUD/c_port && cmake --build build     # zero warnings expected
-TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=sneezy \
+TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=tobin \
   setsid nohup ./build/tobin_c > ~/NewMUD/tobin_c.log 2>&1 < /dev/null &
 for f in tests/smoke_test*.py; do python3 "$f"; done   # full suite
 ```
@@ -63,7 +63,7 @@ First-time DB seed (or to re-seed) is two steps — upstream world first,
 then Tobin's schema on top:
 
 ```
-~/NewMUD/sneezymud-master/db/init-db.sh mud   # fresh sneezy + immortal DBs
+~/NewMUD/sneezymud-master/db/init-db.sh mud   # fresh tobin + immortal DBs
 ~/NewMUD/c_port/db/apply-tobin-schema.sh      # Tobin tables + migrations
 ```
 
@@ -100,11 +100,11 @@ freeze makes tests flake).
   at every commit.
 - **News entries** (user rule): every code change that affects a player's
   ability to play, changes a command, or adds new zones gets a `news` entry
-  appended to `c_port/db/sneezy/news.sql` in the same change. Keep it
+  appended to `c_port/db/tobin/news.sql` in the same change. Keep it
   player-facing prose with **NO NUMBERS** (no vnums, levels, counts,
   versions) in the title or body. See `news.sql` for the pattern.
 - **Wiznews entries** (user rule): every code change also gets a `wiznews`
-  entry appended to `c_port/db/sneezy/wiznews.sql` in the same change --
+  entry appended to `c_port/db/tobin/wiznews.sql` in the same change --
   the immortal-facing dev changelog. Write it in **plain English** for a
   human, NOT code-speak (no symbol names / file paths). Player-facing work
   gets both a news AND a wiznews entry; builder/immortal-only or internal

@@ -84,7 +84,7 @@ def check(condition, message):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def set_level(name, level):
@@ -188,7 +188,7 @@ max_hp = int(m.group(2))
 # is 2.6 instead of 1.3 -- compute the exact expected value from the
 # Warrior's actual persisted constitution rather than guessing it.
 con_result = subprocess.run(
-    ["mariadb", "sneezy", "-N", "-e",
+    ["mariadb", "tobin", "-N", "-e",
      f"SELECT constitution FROM player_attrs WHERE player_id="
      f"(SELECT id FROM player WHERE name='{warrior_name}');"],
     check=True, capture_output=True, text=True)
@@ -228,7 +228,7 @@ check("Leaving the balance editor" in out, "Discard leaves without saving")
 
 # Confirm the discard really didn't persist.
 result = subprocess.run(
-    ["mariadb", "sneezy", "-N", "-e", "SELECT tohit_mod FROM race_balance WHERE race=1;"],
+    ["mariadb", "tobin", "-N", "-e", "SELECT tohit_mod FROM race_balance WHERE race=1;"],
     check=True, capture_output=True, text=True)
 check(result.stdout.strip() == "0", "the discarded to-hit modifier was never saved to the DB")
 

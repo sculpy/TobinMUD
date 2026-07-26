@@ -89,7 +89,7 @@ def check(condition, message):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def set_level(name, level):
@@ -181,7 +181,7 @@ sql(f"UPDATE player SET load_room={ROOM} WHERE name='{patient_name}';")
 # picks it up. Wounded (not full) so `continue`'s repeated-heal loop
 # actually has to run more than zero rounds to reach "fully healed".
 result = subprocess.run(
-    ["mariadb", "sneezy", "-N", "-e",
+    ["mariadb", "tobin", "-N", "-e",
      f"SELECT max_hp FROM player_progress WHERE player_id="
      f"(SELECT id FROM player WHERE name='{patient_name}');"],
     check=True, capture_output=True, text=True)

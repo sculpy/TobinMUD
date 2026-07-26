@@ -90,7 +90,7 @@ def make_char(nm):
 
 
 def promote(nm, level):
-    subprocess.run(["mariadb", "sneezy", "-e",
+    subprocess.run(["mariadb", "tobin", "-e",
                     f"UPDATE player_progress SET level={level} WHERE player_id="
                     f"(SELECT id FROM player WHERE name='{nm}');"], check=True)
 

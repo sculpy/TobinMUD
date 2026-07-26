@@ -11,7 +11,7 @@
 /* DB access for bulletin boards (`read`/`write`, cmd_board.c) -- Sneezy
  * port (user 2026-07-18: "we need to make bulletin boards function, read
  * and write commands, from sneezy"). The `board_message` table is real
- * upstream schema (db/sneezy/board_message.sql, already imported, FK'd to
+ * upstream schema (db/tobin/board_message.sql, already imported, FK'd to
  * `obj.vnum`) -- no migration needed, just this read/write layer on top.
  *
  * Scoped DOWN from the original's TBoard mechanic in one way: posting is

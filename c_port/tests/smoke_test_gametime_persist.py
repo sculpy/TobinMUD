@@ -80,7 +80,7 @@ def check(condition, message):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 name = f"Gtsave{_suffix}"
@@ -111,7 +111,7 @@ hour12, minute, ampm = m.groups()
 hour24 = int(hour12) % 12 + (12 if ampm == "PM" else 0)
 
 result = subprocess.run(
-    ["mariadb", "sneezy", "-N", "-e",
+    ["mariadb", "tobin", "-N", "-e",
      "SELECT name, value FROM game_config WHERE name LIKE 'gametime_%';"],
     check=True, capture_output=True, text=True)
 rows = dict(line.split("\t") for line in result.stdout.strip().splitlines() if line)

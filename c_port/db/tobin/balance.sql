@@ -1,4 +1,4 @@
--- Gamewide class/race balance modifiers (db/sneezy/balance.sql).
+-- Gamewide class/race balance modifiers (db/tobin/balance.sql).
 -- Tobin-specific (not part of the upstream seed). CREATE TABLE IF NOT
 -- EXISTS + INSERT IGNORE, same idempotent-safe pattern as
 -- player_attrs.sql/player_progress.sql -- safe to re-run.

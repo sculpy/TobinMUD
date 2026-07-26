@@ -93,7 +93,7 @@ bool cmd_help(descriptor_t *d, const char *args) {
     const cmd_entry_t *cmds = cmd_table_entries(&count);
     int level = d->character ? d->character->progress.level : MORTAL_LEVEL_MIN;
 
-    /* `help <topic>`: DB-backed prose topics (db/sneezy/help_topic.sql,
+    /* `help <topic>`: DB-backed prose topics (db/tobin/help_topic.sql,
      * editable in-game via `hedit`) -- a step back toward the original's
      * real file-based topic system, but stored in MariaDB like all other
      * Tobin content. Exact topic name first, then prefix. */

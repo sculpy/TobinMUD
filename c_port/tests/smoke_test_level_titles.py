@@ -118,7 +118,7 @@ def make_player(tag):
 
 def set_level(name, level):
     subprocess.run(
-        ["mariadb", "sneezy", "-e",
+        ["mariadb", "tobin", "-e",
          f"insert into player_progress (player_id, level, experience, hp, max_hp) "
          f"select id, {level}, 0, 100, 100 from player where name='{name}' "
          f"on duplicate key update level={level};"],

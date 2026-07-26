@@ -93,12 +93,12 @@ def check(condition, message):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def query_condition(vnum, direction):
     result = subprocess.run(
-        ["mariadb", "sneezy", "-N", "-e",
+        ["mariadb", "tobin", "-N", "-e",
          f"SELECT condition_flag FROM roomexit WHERE vnum={vnum} AND direction={direction};"],
         check=True, capture_output=True, text=True)
     return int(result.stdout.strip())

@@ -72,7 +72,7 @@ TOKEN_VNUM = 2
 RING_AC_BONUS = 5
 TOKEN_HP_BONUS = 25
 
-# New Tobin-owned magic items (db/sneezy/obj_magic.sql):
+# New Tobin-owned magic items (db/tobin/obj_magic.sql):
 WAND_VNUM = 90000     # wand of gusts, "gust", 5 charges, targeted
 STAFF_VNUM = 90001    # staff of fireball, "fireball", 3 charges, room-wide
 SCROLL_VNUM = 90002   # scroll of minor healing, "heal light", single-use
@@ -108,7 +108,7 @@ def check(condition, message):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def set_level(name, level):

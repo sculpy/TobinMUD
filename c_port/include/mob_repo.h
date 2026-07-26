@@ -10,7 +10,7 @@
 #include "being.h"
 
 /* DB access for mob prototypes: the upstream-seeded `mob` table
- * (db/sneezy/mob.sql) is read directly -- no new Tobin table needed, same
+ * (db/tobin/mob.sql) is read directly -- no new Tobin table needed, same
  * "prototypes already exist" precedent as obj_repo.h.
  *
  * As of `edit mob` (medit, 2026-07-25, the last builder-tools-OLC gap --

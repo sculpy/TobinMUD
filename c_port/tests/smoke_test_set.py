@@ -90,7 +90,7 @@ def strip(s):
 
 
 def sql(stmt):
-    subprocess.run(["mariadb", "sneezy", "-e", stmt], check=True)
+    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def make_char(nm, pw="settestpw123"):
@@ -146,7 +146,7 @@ sa = relogin(admin)
 cmd(sa, f"set {target} level 10")
 sa.close()
 out = subprocess.run(
-    ["mariadb", "sneezy", "-N", "-e",
+    ["mariadb", "tobin", "-N", "-e",
      f"SELECT level FROM player_progress WHERE player_id="
      f"(SELECT id FROM player WHERE name='{target}');"],
     check=True, capture_output=True, text=True,

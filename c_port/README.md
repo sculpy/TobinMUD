@@ -6,7 +6,7 @@ per-module port status, and full session-by-session log — **read that first**
 if you're picking this up fresh.
 
 Tobin boots, accepts telnet connections, logs a player in against the real
-`db/sneezy` schema, and supports multi-character accounts, point-buy
+`db/tobin` schema, and supports multi-character accounts, point-buy
 attributes, 60 levels (50 mortal + 10 immortal, with rank titles for
 immortals), `<X>`-tag color codes, a pulse-based task/wait-state engine, and
 minimal player-vs-player combat. No objects, disciplines, or spec-procs yet.
@@ -65,7 +65,7 @@ sneezymud-master/db/init-db.sh          # upstream seed; grants your OS user
 c_port/db/apply-tobin-schema.sh         # Tobin tables + migrations
 ```
 
-This creates and seeds both the `sneezy` and `immortal` databases (19,209
+This creates and seeds both the `tobin` and `immortal` databases (19,209
 rooms plus mobs/objects/shops/zones — the world won't function without it),
 then adds Tobin's help/attrs/progress tables. See
 [`db/README.md`](db/README.md) for details.
@@ -105,7 +105,7 @@ Point it at the MariaDB instance you seeded above:
 export TOBIN_DB_HOST=localhost
 export TOBIN_DB_USER=your_user
 export TOBIN_DB_PASS=your_pass
-export TOBIN_DB_NAME=sneezy
+export TOBIN_DB_NAME=tobin
 export TOBIN_PORT=4000       # optional, defaults to 4000
 
 ./build/tobin_c

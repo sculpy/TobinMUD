@@ -8,7 +8,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* DB-backed help topics (db/sneezy/help_topic.sql) shown by `help <topic>`
+/* DB-backed help topics (db/tobin/help_topic.sql) shown by `help <topic>`
  * and edited in-game by `hedit` (cmd_help.c / cmd_hedit.c). New-for-Tobin:
  * the original kept help as flatfiles under lib/help/; Tobin keeps bulk
  * content in MariaDB like everything else. */

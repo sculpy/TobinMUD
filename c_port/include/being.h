@@ -28,7 +28,7 @@ struct obj; /* forward decl only -- avoids a being.h<->obj.h include cycle,
  * Attributes are a simplified 6-stat set (not the original's 12-stat
  * STR/BRA/CON/DEX/AGI/INT/WIS/FOC/PER/CHA/KAR/SPE system in misc/stats.h),
  * chosen via point-buy at character creation and persisted in the new
- * player_attrs table (db/sneezy/player_attrs.sql -- the original doesn't
+ * player_attrs table (db/tobin/player_attrs.sql -- the original doesn't
  * persist attributes in the DB at all, see STATUS.md).
  *
  * Point-buy is a true trade: every attribute starts at ATTR_BASE, and you

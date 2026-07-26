@@ -11,10 +11,10 @@
 #include "obj.h"
 
 /* DB access for objects: prototype rows (the upstream-seeded `obj` table,
- * db/sneezy/obj.sql -- unchanged, real world content, no Tobin migration
+ * db/tobin/obj.sql -- unchanged, real world content, no Tobin migration
  * needed) plus the new Tobin-only `player_inventory` table that persists
  * which prototype instances a player is carrying/wearing/holding across a
- * reconnect (db/sneezy/player_inventory.sql). Room-floor objects (via bare
+ * reconnect (db/tobin/player_inventory.sql). Room-floor objects (via bare
  * `oload`) are NOT persisted -- there's no zone-reset system yet to
  * repopulate them at boot, so they're lost on restart; see STATUS.md. */
 
@@ -109,7 +109,7 @@ void obj_load_combat_mods(int vnum, int *hitroll, int *damroll);
 void obj_load_stat_affects(int vnum, int *str, int *dex, int *con, int *intel,
                            int *wis, int *cha, int *hit, int *move, int *ac);
 
-/* player_inventory.slot encoding (db/sneezy/player_inventory.sql): -1 is
+/* player_inventory.slot encoding (db/tobin/player_inventory.sql): -1 is
  * carried loose, 0..LIMB_COUNT-1 is a worn limb_t index, and these two
  * sentinels are the held[] pair. Kept out of obj.h's WEAR_SLOT_* sentinels
  * (those describe wear_slot_for_flag()'s return value, a different small
