@@ -11,9 +11,10 @@ Covers:
   1. A fresh character's `affects` shows "(none)".
   2. `pray sanctuary` applies it -- `affects` then shows "Sanctuary"
      with a round count.
-  3. Average incoming damage over real hits is meaningfully lower with
-     Sanctuary active than without (statistical, immortal attacker so
-     the mortal 1.2s post-swing cooldown doesn't slow this down).
+  3. HP loss under sustained attack over a fixed round window is
+     meaningfully lower with Sanctuary active than without (immortal
+     attacker so the mortal 1.2s post-swing cooldown doesn't slow
+     this down).
   4. Sanctuary wears off on its own after enough rounds, reporting
      "Your Sanctuary wears off." and leaving `affects` empty again.
 
@@ -62,22 +63,17 @@ announce("smoke_test_affects")
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 ROOM = 900000 + (int(time.time() * 1000) % 60000)
 SYMBOL = ROOM + 1
-# Individual hits are small integers (~1-6 damage), so a small-sample
-# average has enough variance that the baseline-vs-with-Sanctuary
-# comparison could occasionally land the wrong way by pure chance
-# (live-observed 2026-07-18: 3.00 -> 3.35, backwards, with 20 samples
-# each side). Two separate constants, not one shared SAMPLES, because
-# they have very different constraints: the BASELINE phase has no time
-# limit, so it can use a large sample for a tight estimate now that
-# recv_all()'s idle-gap fix (2026-07-18) makes each sample cheap to
-# collect; the WITH-SANCTUARY phase is capped by the buff's own 12-round
-# duration (~14.4s) -- asking for more samples than that window can
-# realistically produce would either run long waiting for hits that
-# never come at the buffed rate, or silently mix in post-expiry
-# (unbuffed) hits and corrupt the comparison. Kept well under 12 to
-# leave slack for round-boundary timing slop.
-BASELINE_SAMPLES = 60
-SANCTUARY_SAMPLES = 8
+# Two separate round-count constants, not one shared value, because they
+# have very different constraints: the BASELINE phase runs before
+# Sanctuary is even cast, so it can use a generous window for a stable
+# HP-loss-per-round estimate; the WITH-SANCTUARY phase is capped by the
+# buff's own 12-round duration (~14.4s) -- sampling longer than that
+# window would silently mix in post-expiry (unbuffed) rounds and corrupt
+# the comparison. Kept well under 12 to leave slack for round-boundary
+# timing slop and to still have a few rounds left afterward for the
+# natural-expiry check (item 4) to observe.
+BASELINE_ROUNDS = 10
+SANCTUARY_ROUNDS = 8
 
 
 def recv_all(sock, timeout=1.0, idle_gap=0.3):
@@ -157,48 +153,35 @@ def set_dex(name, dex):
         f"(SELECT id FROM player WHERE name='{name}');")
 
 
-def damages_from(text):
-    # Damage numbers are hidden from a plain mortal viewer entirely
-    # (user 2026-07-12) -- only an immortal still sees them, and only in
-    # their OWN outgoing "You <verb> X's <limb> for N damage!" line. So
-    # this measures damage dealt (from the immortal ATTACKER's own
-    # connection), not damage taken from the target's -- same pattern
-    # smoke_test_weapon_depth.py already uses for the same reason.
-    dmgs = []
-    for line in text.splitlines():
-        if not line.startswith("You "):
-            continue
-        m = re.search(r"for (\d+) damage", line)
-        if m:
-            dmgs.append(int(m.group(1)))
-    return dmgs
+def hp_of(sock):
+    # Combat messages carry NO raw damage number anymore (user 2026-07-12,
+    # follow-up: "take out the damage number and use it to describe how
+    # hard the hit was" -- combat.c's describe_dam() now emits a
+    # qualitative word like "pathetically"/"very lightly" instead, for
+    # BOTH mortals and immortals -- damages_from()'s old "for N damage"
+    # regex can no longer match anything at all). `score` still reports
+    # the real live HP directly from the being_t in memory, so HP loss
+    # over a fixed round window is used as the measurable signal instead.
+    out = cmd(sock, "score")
+    m = re.search(r"HP:\s*(-?\d+)\s*\(", out)
+    return int(m.group(1)) if m else None
 
 
-def average_incoming(attacker_sock, target_sock, target_name, n):
-    # Returns the raw text seen (on the TARGET's own connection) too --
-    # Sanctuary's 12-round duration can expire mid-sampling (20 hits can
-    # take longer than 12 rounds), and its "wears off" line would
-    # otherwise be silently consumed before a caller's own later poll
-    # ever sees it. The damage numbers themselves are read from the
-    # ATTACKER's connection instead (see damages_from()).
+def hp_loss_over(attacker_sock, target_sock, target_name, rounds):
+    # Returns (hp_lost, seen) -- `seen` is whatever text arrived on the
+    # TARGET's own connection during the window, so a caller can check it
+    # for a "wears off" line without a separate poll (Sanctuary's 12-round
+    # duration can expire mid-window, same reasoning the old
+    # average_incoming() had for returning its own `seen` text).
     cmd(attacker_sock, f"hit {target_name}")
-    dmgs = []
-    seen = ""
-    polls = 0
-    # Time-based budget, not a poll-count cap: recv_all()'s idle_gap fix
-    # (2026-07-18) means an empty poll now returns in ~0.3s instead of
-    # always burning a full 1.5s, so a fixed poll-count cap calibrated for
-    # the old per-poll cost would give up on real combat rounds (~1.2s
-    # apart) well before the equivalent wall-clock budget actually runs
-    # out. A generous multiple of the real round interval instead.
-    deadline = time.time() + n * COMBAT_ROUND_SECS * 1.5
-    while len(dmgs) < n and time.time() < deadline:
-        polls += 1
-        attacker_out = recv_all(attacker_sock, 1.5)
-        seen += recv_all(target_sock, 0.1)
-        dmgs.extend(damages_from(attacker_out))
-    check(len(dmgs) >= n, f"collected at least {n} incoming hits on {target_name} ({len(dmgs)} got, {polls} polls)")
-    return sum(dmgs) / len(dmgs), seen
+    before = hp_of(target_sock)
+    check(before is not None, "read the target's starting HP via score")
+    time.sleep(rounds * COMBAT_ROUND_SECS)
+    recv_all(attacker_sock, 0.3)  # drain buffered combat spam so it doesn't
+    seen = recv_all(target_sock, 0.3)  # bleed into the next command's response
+    after = hp_of(target_sock)
+    check(after is not None, "read the target's ending HP via score")
+    return before - after, seen
 
 
 pw = "affectspw123"
@@ -248,6 +231,11 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"VALUES ({SYMBOL},'symbol holy silver','a tarnished silver holy symbol',"
     f"'A tarnished silver holy symbol is lying here.',12,1,1);")
 check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "the holy symbol is loaded")
+# `load obj` lands the item in the LOADING immortal's own inventory, not
+# the room floor (documented gap, STATUS.md 2026-07-22) -- drop it back
+# onto the floor explicitly so the Cleric below can actually `get` it,
+# same workaround tests/smoke_test_drugs.py already uses.
+cmd(s_imm, "drop symbol")
 
 # --- Cleric MORTAL (a real defender now that immortals take zero damage)
 #     -- basic_disc_pct/advanced_disc_pct set directly via SQL to satisfy
@@ -305,8 +293,10 @@ check("you get" in out.lower(), "the Cleric picks up the holy symbol")
 out = cmd(s_cle, "affects")
 check("(none)" in out, "affects shows (none) before casting anything")
 
-# --- 3a: baseline incoming damage average, no Sanctuary yet ---
-baseline_avg, _ = average_incoming(s_imm, s_cle, cleric_name, BASELINE_SAMPLES)
+# --- 3a: baseline HP-loss rate, no Sanctuary yet ---
+baseline_loss, _ = hp_loss_over(s_imm, s_cle, cleric_name, BASELINE_ROUNDS)
+check(baseline_loss > 0, f"the immortal's sustained attack does real damage before Sanctuary ({baseline_loss} HP)")
+baseline_rate = baseline_loss / BASELINE_ROUNDS
 
 # --- 2: pray sanctuary applies the affect ---
 out = cmd(s_cle, "pray sanctuary")
@@ -316,10 +306,12 @@ check("Sanctuary" in out, "affects now lists Sanctuary")
 m = re.search(r"Sanctuary\s+(\d+) round", out)
 check(m is not None and int(m.group(1)) > 0, "affects shows a positive round count for Sanctuary")
 
-# --- 3b: incoming damage average drops noticeably with Sanctuary active ---
-sanctuary_avg, seen_during_sampling = average_incoming(s_imm, s_cle, cleric_name, SANCTUARY_SAMPLES)
-check(sanctuary_avg < baseline_avg - 0.4,
-      f"Sanctuary's damage reduction is clearly visible ({baseline_avg:.2f} -> {sanctuary_avg:.2f})")
+# --- 3b: HP-loss rate drops noticeably with Sanctuary active ---
+sanctuary_loss, seen_during_sampling = hp_loss_over(s_imm, s_cle, cleric_name, SANCTUARY_ROUNDS)
+sanctuary_rate = sanctuary_loss / SANCTUARY_ROUNDS
+check(sanctuary_rate < baseline_rate * 0.8,
+      f"Sanctuary's damage reduction is clearly visible "
+      f"({baseline_rate:.2f} HP/round -> {sanctuary_rate:.2f} HP/round)")
 
 # --- 4: Sanctuary wears off on its own -- its 12-round duration can
 #     expire mid-sampling above, so check the accumulated sampling text

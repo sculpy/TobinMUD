@@ -1,6 +1,30 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 78 (home): **`get all`, `get
+Last updated: 2026-07-26 — Session 79 (home): **Fixed
+`tests/smoke_test_affects.py`, flagged as its own follow-up two
+sessions ago.**
+- Two separate, unrelated, pre-existing issues, both confirmed via live
+  repro before touching the test: (1) `load obj` lands in the loading
+  immortal's own inventory, not the room floor (documented gap,
+  2026-07-22) -- the test never dropped it, so the Cleric's later `get
+  symbol` always failed. Fixed with the same load-then-drop workaround
+  `smoke_test_drugs.py`/`smoke_test_affect_persistence.py` already use.
+  (2) `damages_from()`'s `for (\d+) damage` regex can never match
+  anymore -- `combat.c`'s `describe_dam()` replaced every raw damage
+  number with a qualitative word ("pathetically", "very lightly", ...)
+  for mortals AND immortals alike (a later, deliberate change,
+  postdating whenever this test last actually passed). Replaced the
+  whole damage-number-measurement approach with the live-HP-loss-via-
+  `score` pattern `smoke_test_affect_persistence.py` introduced last
+  session (`hp_of()`/`hp_loss_over()`) -- reads the real in-memory HP
+  directly rather than parsing combat spam.
+- Verified live on Home: two consecutive full runs, both clean passes
+  (Sanctuary's damage-rate reduction showed as 3.50->2.25 and
+  4.60->2.38 HP/round respectively -- comfortably past the 20% cutoff
+  both times, not a borderline result). Test-only change, no game
+  source touched, no rebuild needed.
+
+### Session 78 (home): **`get all`, `get
 all.<item>`, and `drop all` (user requests, mid-session).**
 - User: "drop all should drop all items in inventory", then "and
   all.items should also work for get", then "get all all.corpse too"
