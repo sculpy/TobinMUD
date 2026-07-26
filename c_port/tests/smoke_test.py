@@ -42,10 +42,22 @@ send_line(s, name)
 print("=== after account name ===")
 print(recv_all(s).decode(errors="replace"))
 
-send_line(s, "smoketestpw123")
-send_line(s, "smoketestpw123")  # confirm password (Session 21)
+send_line(s, "y")  # confirm new account
+print("=== confirm new account ===")
 print(recv_all(s).decode(errors="replace"))
-print("=== after password (new account) -> account menu ===")
+
+send_line(s, "smoketestpw123")
+print(recv_all(s).decode(errors="replace"))
+send_line(s, "smoketestpw123")  # confirm password (Session 21)
+print("=== after password (new account) -> color prompt ===")
+print(recv_all(s).decode(errors="replace"))
+
+send_line(s, "y")  # enable color
+print("=== color prompt -> time zone prompt ===")
+print(recv_all(s).decode(errors="replace"))
+
+send_line(s, "")  # accept default time zone
+print("=== time zone prompt -> account menu ===")
 print(recv_all(s).decode(errors="replace"))
 
 send_line(s, "new")
@@ -53,20 +65,23 @@ print("=== choose 'new' ===")
 print(recv_all(s).decode(errors="replace"))
 
 send_line(s, name)
-print("=== character name -> attr screen ===")
+print("=== character name -> race screen ===")
+print(recv_all(s).decode(errors="replace"))
+
+send_line(s, "1")
+print("=== race: human -> class screen ===")
+print(recv_all(s).decode(errors="replace"))
+
+send_line(s, "1")
+print("=== class: mage -> attr screen ===")
 print(recv_all(s).decode(errors="replace"))
 
 send_line(s, "done")
-print("=== accept default attrs, finish ===")
+print("=== accept default attrs, finish -> options menu ===")
 print(recv_all(s).decode(errors="replace"))
-send_line(s, "1")
-print("=== race: human ===")
-print(recv_all(s).decode(errors="replace"))
-send_line(s, "1")
-print("=== class: mage ===")
-print(recv_all(s).decode(errors="replace"))
-send_line(s, "2")
-print("=== alignment: neutral (auto look) ===")
+
+send_line(s, "done")
+print("=== accept default options, finish (auto look) ===")
 print(recv_all(s).decode(errors="replace"))
 
 send_line(s, "who")

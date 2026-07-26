@@ -1,6 +1,44 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 70 (home): **Account-menu UX batch --
+Last updated: 2026-07-26 — Session 71 (home): **Three follow-ups from
+Session 70's account-menu batch, all confirmed and closed.**
+- **`smoke_test.py` fixed**: its character-creation sequence predated
+  both the "confirm new account" y/n step and the race/class-before-
+  attrs reorder, plus never accounted for the color/timezone prompts a
+  brand-new account gets -- silently out of sync with the real server
+  flow since before this session. Rewritten to match
+  `smoke_test_accounts.py`'s current sequence; passes cleanly end to end.
+- **Real bug fixed: `player_delete()` orphaned linkdead beings.** A
+  character disconnected via a raw socket close (never `quit!`) leaves a
+  linkdead body standing in its room (`descriptor_destroy()`'s own
+  documented behavior); deleting that character from the account menu
+  only ran a DB DELETE (`player_delete()`, player_repo.c), leaving the
+  in-memory being_t orphaned forever, now pointing at a player_id that
+  no longer exists. Fixed at the call site
+  (`CONN_CHAR_DELETE_PASSWORD`, descriptor.c): looks up
+  `player_id_for_name()` BEFORE the DB row goes away, then
+  `world_find_linkdead_pc()` + `being_destroy()` after a successful
+  delete -- the same lookup a real reconnect already uses in
+  `enter_world()`. New `tests/smoke_test_delete_linkdead.py` (5 checks)
+  reproduces the exact scenario end to end.
+- **Not a bug: `smoke_test_multiplay.py`'s "off by default" assumption.**
+  Root-caused via a live gdb breakpoint on the multiplay gate
+  (`enter_world()`): `multiplay_allowed()` was genuinely returning true,
+  not because of anything wrong in the gate logic itself, but because
+  the multiplay flag PERSISTS in the `game_config` DB table across a
+  server restart (`multiplay.c`'s `multiplay_load()`/`multiplay_set()`
+  -- not just an in-memory default like previously assumed) -- an
+  earlier crashed test run had left it stuck "on" in the DB, and every
+  subsequent restart faithfully reloaded that stuck value. Reset the DB
+  row directly, and made the test itself defensive against this exact
+  scenario going forward (resets the flag to off at its own start,
+  same "prior crashed run" precedent already established elsewhere in
+  this codebase's tests). Confirmed clean with a fresh restart + rerun.
+- All three verified with the relevant test(s) passing; test/leftover DB
+  rows cleaned up. No product code changed except the one real
+  `player_delete()` fix -- zero build warnings.
+
+### Session 70 (home): **Account-menu UX batch --
 immortal quit! now purges instead of drops, character creation's attribute
 screen redesigned into a numbered grid per user wireframe, handedness/
 gender/alignment/appearance moved into their own second boxed menu, and

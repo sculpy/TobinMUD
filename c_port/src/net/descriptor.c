@@ -3095,7 +3095,25 @@ static bool handle_line(descriptor_t *d, const char *line) {
         case CONN_CHAR_DELETE_PASSWORD: {
             if (!account_verify_password(&d->account, line)) {
                 descriptor_send(d, "Incorrect password. Deletion cancelled.\r\n");
-            } else if (player_delete(d->delete_char_name, d->account.account_id)) {
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+            /* A character disconnected via a raw socket close (never
+             * `quit!`) leaves a linkdead being_t standing in its room
+             * (descriptor_destroy()'s own documented behavior) -- look it
+             * up BEFORE the DB row goes away (world_find_linkdead_pc()
+             * matches by player_id, the same lookup a real reconnect uses
+             * in enter_world()) so deleting the character doesn't leave
+             * that body orphaned forever, now pointing at a player_id
+             * that no longer exists. */
+            long pid = player_id_for_name(d->delete_char_name);
+            if (player_delete(d->delete_char_name, d->account.account_id)) {
+                if (pid >= 0) {
+                    being_t *linkdead = world_find_linkdead_pc(pid);
+                    if (linkdead)
+                        being_destroy(linkdead);
+                }
                 log_info("Character %s deleted (account %s). [%s]",
                          d->delete_char_name, d->account.name, descriptor_display_host(d));
                 descriptor_send(d, "Character deleted.\r\n");

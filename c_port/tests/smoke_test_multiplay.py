@@ -50,6 +50,15 @@ def announce_done(test_name, host=host, port=port):
 
 announce("smoke_test_multiplay")
 
+# Defensive reset for a prior run that errored out before restoring this
+# (the multiplay flag persists in the `game_config` DB table across a
+# server restart, multiplay.c's multiplay_load()/multiplay_set() -- NOT
+# just an in-memory default, so a crashed earlier run can leave it stuck
+# "on" indefinitely, silently defeating this test's own "default off"
+# assumption on every later run until manually reset).
+subprocess.run(["mariadb", "sneezy", "-e",
+                "UPDATE game_config SET value='off' WHERE name='multiplay';"], check=True)
+
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
 
