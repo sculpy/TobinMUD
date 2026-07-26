@@ -1127,18 +1127,27 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ### User batch 2026-07-26 (home) — logged, not yet started
 
-- [ ] **Object stacking in inventory** — user, 2026-07-26: "object
-      stacking needs to work on inventory." `inventory`/room-floor
-      listings currently show one line per identical item (e.g. three
-      separate "a small sack of tomato seeds" lines) instead of grouping
-      them with a count ("a small sack of tomato seeds (x3)"), the way
-      `score`-adjacent listings and Pet/charm's own mob-count display
-      already do elsewhere (`cmd_look.c`'s room-mob "(x2)" convention is
-      the precedent to match). Needs a same-vnum-or-same-ephemeral-
-      keyword identity check (real prototype items via vnum; ephemeral
-      items like Planting's fruit/hide/meat via name+category, since
-      they're vnum 0) before grouping. Not yet scoped in more detail --
-      check `cmd_object.c`'s `cmd_inventory`/room listing code first.
+- [x] **Object stacking in inventory** — done 2026-07-26. `cmd_inventory()`
+      (cmd_object.c) now groups identical rendered lines with a "(xN)"
+      suffix, reusing `cmd_look.c`'s own "group by the rendered string
+      itself" technique (`group_room_items()`) rather than a separate
+      vnum-equality check -- handles real prototype items and ephemeral
+      (vnum 0) items like Planting's fruit/hide/meat with one mechanism.
+      New `tests/smoke_test_inventory_stacking.py` (3 checks).
+- [ ] **Money tree yields a literal "talen" item, not gold** — user,
+      2026-07-26 (found via the new stacking feature): "when planting a
+      money tree, you see 'A single talen is here. (x4)'. that should be
+      gold." Planting's money-tree fruit vnum (13, "talen", real seeded
+      `obj.type`=20/ITEM_MONEY) is a real OBJ_CAT_MONEY item -- Tobin's
+      established money-pile convention (`pick_up_money()`, cmd_object.c)
+      auto-credits the coin amount to the picker's wallet and destroys
+      the object on `get`, rather than it being a real carryable item.
+      Not yet investigated why it's showing as a static "is here" ground
+      item instead of behaving like other money piles on `get` -- check
+      `obj_plant_growth_tick()`'s fruit-drop path (obj_plant.c) and
+      whether `pick_up_money()`'s gate is actually reached for this
+      specific vnum, or whether val[0] (coin amount) is being read
+      correctly off this particular real seeded row.
 - [x] **Immortal inventory/worn items purged on quit!** — done 2026-07-26.
       A mortal's `quit!` still drops everything on the floor (existing
       behavior); an immortal's now gets destroyed outright instead

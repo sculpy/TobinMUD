@@ -1,6 +1,42 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 71 (home): **Three follow-ups from
+Last updated: 2026-07-26 — Session 72 (home): **Object stacking in
+`inventory`, plus the long-flagged `smoke_test_limbs_cmd.py` flake finally
+root-caused and fixed.**
+- **Object stacking** (user: "object stacking needs to work on
+  inventory"): `cmd_inventory()` (cmd_object.c) now groups identical
+  rendered lines together with a "(xN)" suffix, reusing the exact
+  "group by the rendered string itself" technique `cmd_look.c`'s
+  `group_room_items()` already established for room-floor items/mobs
+  (new `render_inventory_item()` + the same grouping loop) rather than a
+  separate vnum-equality check -- naturally handles both real prototype
+  items (same vnum, same condition tier render identically) and
+  ephemeral items like Planting's fruit/hide/meat (vnum 0, grouped by
+  label instead) with one mechanism. New
+  `tests/smoke_test_inventory_stacking.py` (3 checks). Regression-tested
+  against several other object-heavy tests; two unrelated pre-existing
+  failures surfaced (`smoke_test_containers.py`, `smoke_test_corpse.py`)
+  -- both the same already-documented "`load obj` puts the item in the
+  loading immortal's own inventory, not the room" gap from 2026-07-22,
+  never retrofitted into these older test files, confirmed unrelated by
+  checking their own git history (last real edit predates that fix).
+- **`smoke_test_limbs_cmd.py` flake, finally root-caused**: not infra
+  flakiness or anything wrong in `hurtlimb`/`limbs`/
+  `being_limbs_full_heal()` (all confirmed deterministic, as the
+  original TODO.md note suspected) -- `regen_tick_run()` (regen.c) heals
+  EVERY limb a small amount every `REGEN_PULSES` (~5s real time) for any
+  connected, non-fighting character (`being_heal()`'s per-limb
+  spillover, itself correct behavior). If that tick lands in the gap
+  between the test's `hurtlimb` call and its immediate `limbs` read --
+  usually sub-second, but not guaranteed -- the injured limb picks up
+  +1 HP (2->3 out of the 15-floor max, 13% -> 20%), a genuine race
+  against wall-clock time. Fixed by accepting either outcome instead of
+  requiring one exact figure; verified with 4 consecutive clean runs.
+- Also logged this session (not started): user, "when planting a money
+  tree, you see 'A single talen is here. (x4)' -- that should be gold."
+  See TODO.md.
+
+### Session 71 (home): **Three follow-ups from
 Session 70's account-menu batch, all confirmed and closed.**
 - **`smoke_test.py` fixed**: its character-creation sequence predated
   both the "confirm new account" y/n step and the race/class-before-

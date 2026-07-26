@@ -330,3 +330,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Live Off the Land -- Skinning, Butchering, and Foraging', 'Druids can now put a fresh kill to use: `skin` a corpse for a hide, or `butcher` it for a raw steak -- each corpse gives up one of each, once. Away from a fight, `forage` gathers a bit of wild food from the terrain around you outdoors; give it a little while between attempts.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Inventory Now Stacks Identical Items', '`inventory` no longer lists three separate lines for three of the same thing -- identical items now group together with a count, like "a small sack of tomato seeds (x3)".')
+ON DUPLICATE KEY UPDATE `title` = `title`;

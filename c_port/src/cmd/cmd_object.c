@@ -448,30 +448,70 @@ bool cmd_junk(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* Renders one inventory line (label + condition suffix, no leading
+ * "  " indent or trailing \r\n -- the caller adds those). */
+static void render_inventory_item(char *buf, size_t bufsz, const obj_t *o) {
+    const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+    char capbuf[128];
+    const char *cond = obj_condition_word(o);
+    snprintf(buf, bufsz, "%s%s%s%s",
+             cap_first(label, capbuf, sizeof(capbuf)),
+             cond ? " (" : "", cond ? cond : "", cond ? ")" : "");
+}
+
+/* Object stacking (user 2026-07-26: "object stacking needs to work on
+ * inventory") -- groups by the RENDERED line itself, same "identical
+ * output -> one line, count it" technique cmd_look.c's group_room_items()
+ * already uses for room-floor items/mobs, rather than a separate vnum-
+ * equality check: two real prototype items of the same vnum in the same
+ * condition tier render identical text and stack; two ephemeral items
+ * (vnum 0, e.g. Planting's fruit/hide/meat) with the same label do too,
+ * since they share the same label/condition-less rendering; anything
+ * visually distinct (different condition, different label) stays its
+ * own line. First-seen order preserved, same as room listings. */
+#define INVENTORY_LINE_LEN 160
 bool cmd_inventory(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
     if (!ch)
         return true;
 
-    char out[2048];
-    int n = snprintf(out, sizeof(out), "You are carrying:\r\n");
-    bool any = false;
-    for (thing_t *t = ch->base.stuff_head; t && (size_t)n < sizeof(out); t = t->stuff_next) {
+    char lines[64][INVENTORY_LINE_LEN];
+    int counts[64];
+    int groups = 0;
+    for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
         if (t->kind != THING_OBJ)
             continue;
         obj_t *o = (obj_t *)t;
         if (!is_loose(ch, o))
             continue;
-        any = true;
-        const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
-        char capbuf[128];
-        const char *cond = obj_condition_word(o);
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s%s%s%s\r\n",
-                      cap_first(label, capbuf, sizeof(capbuf)),
-                      cond ? " (" : "", cond ? cond : "", cond ? ")" : "");
+
+        char line[INVENTORY_LINE_LEN];
+        render_inventory_item(line, sizeof(line), o);
+
+        int i;
+        for (i = 0; i < groups; i++) {
+            if (strcmp(lines[i], line) == 0) {
+                counts[i]++;
+                break;
+            }
+        }
+        if (i == groups && groups < 64) {
+            snprintf(lines[groups], INVENTORY_LINE_LEN, "%s", line);
+            counts[groups] = 1;
+            groups++;
+        }
     }
-    if (!any && (size_t)n < sizeof(out))
+
+    char out[2048];
+    int n = snprintf(out, sizeof(out), "You are carrying:\r\n");
+    for (int i = 0; i < groups && (size_t)n < sizeof(out); i++) {
+        if (counts[i] > 1)
+            n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s (x%d)\r\n", lines[i], counts[i]);
+        else
+            n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s\r\n", lines[i]);
+    }
+    if (groups == 0 && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  Nothing.\r\n");
 
     descriptor_page_start(d, out, 0);
