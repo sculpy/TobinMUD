@@ -157,6 +157,65 @@ static obj_t *find_worn(const being_t *ch, const char *tok) {
     return NULL;
 }
 
+/* `get all` (every takeable item on the room floor) and `get all.<name>`
+ * (every item on the floor matching <name>, classic Diku dot-syntax) --
+ * user 2026-07-26. `name_filter` NULL means "everything takeable"; a
+ * non-NULL filter is matched the same case-insensitive per-keyword-prefix
+ * way find_obj()'s single-item lookup already uses (obj_name_matches()),
+ * just collecting every match instead of stopping at the first/Nth one.
+ * Shares the same per-item message/log/trigger shape the single-item and
+ * `get all <container>` paths above already use. */
+static bool get_all_from_room(descriptor_t *d, being_t *ch, const char *name_filter) {
+    size_t filter_len = name_filter ? strlen(name_filter) : 0;
+    thing_t *t = ch->base.roomp->base.stuff_head;
+    int gotten = 0;
+    while (t) {
+        thing_t *next = t->stuff_next; /* thing_move_to() relinks t out of the room's chain */
+        if (t->kind == THING_OBJ) {
+            obj_t *item = (obj_t *)t;
+            if (!obj_takeable(item->wear_flag)) {
+                t = next;
+                continue;
+            }
+            if (name_filter && !obj_name_matches(item->base.name, name_filter, filter_len)) {
+                t = next;
+                continue;
+            }
+            if (pick_up_money(d, ch, item)) {
+                gotten++;
+                t = next;
+                continue;
+            }
+            thing_move_to(&item->base, &ch->base);
+            gotten++;
+
+            game_log(LOG_SILENT, "%s gets %s (vnum %d) in room %d",
+                     ch->base.name, item->base.short_descr, item->vnum, ch->base.roomp->vnum);
+
+            char msg[256];
+            const char *label = item->base.short_descr[0] ? item->base.short_descr : item->base.name;
+            snprintf(msg, sizeof(msg), "You get %s.\r\n", label);
+            descriptor_send(d, msg);
+            snprintf(msg, sizeof(msg), "%s gets %s.\r\n", ch->base.name, label);
+            descriptor_room_echo(ch->base.roomp, ch, msg);
+
+            room_t *here = ch->base.roomp;
+            trigger_t trigs[8];
+            int n = trigger_repo_load_for("obj", item->vnum, "get", trigs, 8);
+            for (int i = 0; i < n; i++)
+                trigger_run(&trigs[i], ch, here, NULL);
+        }
+        t = next;
+    }
+    if (gotten == 0) {
+        descriptor_send(d, name_filter ? "You don't see any of those here.\r\n"
+                                        : "There's nothing here to get.\r\n");
+    } else {
+        player_inventory_save(ch->player_id, ch);
+    }
+    return true;
+}
+
 bool cmd_get(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -170,6 +229,15 @@ bool cmd_get(descriptor_t *d, const char *args) {
         descriptor_send(d, "Usage: get <item> [container]\r\n");
         return true;
     }
+
+    /* `get all` (bare, no container) -- every takeable item on the room
+     * floor. `get all.<name>` -- every item on the floor matching <name>.
+     * Both single-token (nargs == 1), distinct from `get all <container>`
+     * (nargs == 2) below. */
+    if (nargs == 1 && strcasecmp(tok, "all") == 0)
+        return get_all_from_room(d, ch, NULL);
+    if (nargs == 1 && strncasecmp(tok, "all.", 4) == 0 && tok[4] != '\0')
+        return get_all_from_room(d, ch, tok + 4);
 
     /* `get all <container>` -- empty an entire container (corpse, chest, ...)
      * into your inventory in one go, rather than naming each item. User,
@@ -383,6 +451,38 @@ bool cmd_drop(descriptor_t *d, const char *args) {
     char tok[64];
     if (sscanf(args, "%63s", tok) != 1) {
         descriptor_send(d, "Usage: drop <item>\r\n");
+        return true;
+    }
+
+    /* `drop all` (user 2026-07-26) -- every LOOSE carried item (same
+     * "not worn/held" filter find_obj's owner_for_loose_filter already
+     * enforces for a single `drop <item>` -- remove it first to drop
+     * something equipped), one at a time so each still gets its own
+     * message/log/save exactly like a normal drop would. */
+    if (strcasecmp(tok, "all") == 0) {
+        thing_t *t = ch->base.stuff_head;
+        int dropped = 0;
+        while (t) {
+            thing_t *next = t->stuff_next; /* thing_move_to() relinks t out of ch's chain */
+            if (t->kind == THING_OBJ && is_loose(ch, (obj_t *)t)) {
+                obj_t *o = (obj_t *)t;
+                thing_move_to(&o->base, &ch->base.roomp->base);
+                game_log(LOG_SILENT, "%s drops %s (vnum %d) in room %d",
+                         ch->base.name, o->base.short_descr, o->vnum, ch->base.roomp->vnum);
+                char msg[256];
+                const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+                snprintf(msg, sizeof(msg), "You drop %s.\r\n", label);
+                descriptor_send(d, msg);
+                snprintf(msg, sizeof(msg), "%s drops %s.\r\n", ch->base.name, label);
+                descriptor_room_echo(ch->base.roomp, ch, msg);
+                dropped++;
+            }
+            t = next;
+        }
+        if (dropped == 0)
+            descriptor_send(d, "You aren't carrying anything.\r\n");
+        else
+            player_inventory_save(ch->player_id, ch);
         return true;
     }
 

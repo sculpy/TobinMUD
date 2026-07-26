@@ -1,6 +1,32 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 77 (home): **Active affects
+Last updated: 2026-07-26 — Session 78 (home): **`get all`, `get
+all.<item>`, and `drop all` (user requests, mid-session).**
+- User: "drop all should drop all items in inventory", then "and
+  all.items should also work for get", then "get all all.corpse too"
+  (clarifying both the bare and dot forms should work for get).
+  Previously Tobin only had the two-word `get all <container>`
+  (emptying a named container like a corpse) -- a bare `get all` fell
+  through to a literal "find an item named all" lookup that always
+  failed, and `drop` had no multi-item form at all.
+- `cmd_object.c`: new shared `get_all_from_room()` helper backs both
+  bare `get all` (every takeable item on the floor) and `get all.<name>`
+  (dot syntax, classic Diku convention -- every item on the floor
+  matching `<name>`, reusing find_obj()'s own per-keyword-prefix
+  matching just without stopping at the first hit). `drop all` drops
+  every LOOSE carried item (worn/held items untouched, same as a single
+  `drop` already requires removing first). All three reuse the existing
+  per-item message/log/trigger/save plumbing, so behavior matches using
+  the singular commands one at a time.
+- Verified live: `get all.torch` on a 3-item floor (torch, torch, rock)
+  picked up only the 2 torches; a follow-up bare `get all` picked up
+  the rock; `drop all` correctly emptied the resulting inventory back
+  onto the floor. Confirmed the existing two-word `get all <container>`
+  path (emptying a chest) still works unchanged -- untouched code path,
+  double-checked live anyway. Deployed via copyover, zero build
+  warnings.
+
+### Session 77 (home): **Active affects
 (buffs/debuffs) now persist across a quit!/reconnect, closing a real
 gap a docs/systems audit found.**
 - The audit (spawned earlier this session) compared sneezymud-master's
