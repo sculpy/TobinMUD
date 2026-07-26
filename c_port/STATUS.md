@@ -1,8 +1,66 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 72 (home): **Object stacking in
-`inventory`, plus the long-flagged `smoke_test_limbs_cmd.py` flake finally
-root-caused and fixed.**
+Last updated: 2026-07-26 — Session 73 (home): **TobinMUD identity + DB
+rename: underlying MariaDB database `sneezy` -> `tobin` (Home VM done and
+live-verified; Work box pending, unreachable this session).**
+- TODO.md's long-open "TobinMUD identity + DB rename" item, picking up
+  where the 2026-07-01 partial rename (Session 1 part 3) deliberately
+  left off -- that session renamed every code identifier
+  (`DB_TOBIN`/`TOBIN_DB_*`/`tobin_c`) but explicitly kept the literal
+  MariaDB database name `sneezy` and `db/sneezy/*.sql` paths unchanged,
+  since `db/` itself wasn't renamed at the time. This session finishes it.
+- **Code side** (`c_port/`): `TOBIN_DB_NAME` default (`config.c`/`.h`),
+  `db.h`'s `DB_TOBIN` comment, `c_port/db/sneezy/` -> `c_port/db/tobin/`
+  (23 files, `git mv`), `apply-tobin-schema.sh`'s default arg + dir
+  lookup, every `db/sneezy/...sql` path mentioned in an `include/*.h` or
+  `src/**/*.c` comment (28 files), and all 151 `tests/smoke_test_*.py`
+  files' hardcoded `mariadb sneezy ...` CLI calls (187 occurrences,
+  mechanical `"sneezy"` -> `"tobin"` string swap -- verified none of the
+  non-quoted prose "Sneezy" mentions in the same files, which credit the
+  original project by name, got touched). Top-level docs (`README.md`,
+  `db/README.md`, `CLAUDE.md`, `SYNC.md`, `ENVIRONMENT.md`) updated to
+  match, since those describe current operational procedure. Historical
+  STATUS.md/TODO.md session-log prose describing what was true AT THE
+  TIME was deliberately left alone (same precedent this file's own
+  Session 1 part 3 entry set) -- only TODO.md's one *standing rule* about
+  future `db/tobin/*.sql` files was updated, since that's forward-looking.
+  Also hand-patched the local, gitignored `sneezymud-master/` reference
+  clone's `db/init-db.sh` + `db/README.md` (text) and renamed its own
+  `db/sneezy/` seed-dump dir to `db/tobin/` for consistency -- this is
+  LOCAL-ONLY (that tree is "re-clone per location", never git-synced) and
+  not load-bearing for the actual live rename below, since `init-db.sh`
+  is a destructive one-time bootstrap script never re-run against a live
+  box.
+- **Home VM (192.168.254.200) live rename**: `mysqldump --single-transaction
+  sneezy` backed up first (21 MB, kept at `~/db_backups/` on the box, NOT
+  deleted). Server stopped, `tobin` DB created (needed `sudo mariadb` --
+  `mud` has no `CREATE DATABASE` grant, only per-DB `ALL PRIVILEGES` on
+  `sneezy`/`immortal`), all 108 tables moved with one atomic multi-table
+  `RENAME TABLE sneezy.x TO tobin.x, ...` statement (metadata-only,
+  zero data copy, zero data loss -- confirmed `tobin` has 108 tables,
+  `sneezy` has 0 afterward, `tobin.player` still has all 1438 real rows).
+  Granted `mud` privileges on the new `tobin.*`. `.env.local` (per-box,
+  gitignored, not in git) updated to `TOBIN_DB_NAME=tobin`. Clean rebuild
+  (`make -j4`, zero warnings), restarted, re-attached gdb per the standing
+  habit. Verified two ways: raw-socket connect shows the real login
+  banner, and `smoke_test_accounts.py` passes clean end-to-end (account
+  creation, point-buy, character connect into a real seeded room, delete)
+  against the renamed DB. No players were connected at rename time
+  (checked first). Old `sneezy` DB deliberately NOT dropped -- kept as a
+  rollback safety net; user's call when to actually drop it.
+- **Work box (db.kullit.com) -- NOT done**: unreachable from this session
+  (SSH times out / "Network is unreachable" from Home's network for the
+  public IPs `db.kullit.com` resolves to; the Work-specific deploy key
+  `~/.ssh/id_ed25519_kullit` also isn't present on this machine). Code is
+  already pushed to `main` (commit `2178986`), so Work's side is just:
+  `git pull`, `rm -rf build/obj && make -j4`, then the identical
+  backup -> stop -> `CREATE DATABASE tobin` (sudo) -> one atomic
+  `RENAME TABLE` covering every `sneezy.*` table -> grant -> update
+  `.env.local` -> restart -> reattach gdb -> smoke-test sequence used on
+  Home above. Do this from a session that can actually reach
+  `db.kullit.com` (or forward the connection some other way).
+- Next: finish the Work box rename per the runbook above, then this TODO
+  item is fully done.
 - **Object stacking** (user: "object stacking needs to work on
   inventory"): `cmd_inventory()` (cmd_object.c) now groups identical
   rendered lines together with a "(xN)" suffix, reusing the exact

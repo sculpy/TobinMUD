@@ -6110,6 +6110,13 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
 - [ ] **TobinMUD identity + DB rename** — rename DB `sneezy` → `tobin`
       (init-db.sh, config defaults, docs); rebrand credited as "Derivative of
       SneezyMUD and DikuMUD". Wide but mechanical; coordinate on all boxes.
+      **2026-07-26: code side done + Home VM live-renamed and verified, see
+      STATUS.md Session 73 for the full runbook. Work box (db.kullit.com)
+      still needs the identical live rename -- wasn't reachable from that
+      session (no network route + missing deploy key on that machine).
+      Code's already pushed (`main`); Work's side is just pull + rebuild +
+      the same backup/RENAME TABLE/restart sequence Home used.** Rebrand
+      credit sentence in README.md was left alone (out of scope, prose-only).
 
 ## Chores / infra
 
