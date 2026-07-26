@@ -11,6 +11,7 @@
 
 #include "affect.h"
 #include "being.h"
+#include "liquids.h"
 #include "log.h"
 #include "obj.h"
 #include "thing.h"
@@ -88,6 +89,14 @@ static bool keyword_matches(const char *keywords, const char *tok) {
  * "Blech!"/"Refreshing!" quality distinction already in the messaging. */
 #define DRINK_FOUNTAIN_THIRST_GAIN 100
 #define DRINK_PUDDLE_THIRST_GAIN 30
+
+/* Liquids (Sneezy -> Tobin feature audit, user 2026-07-26): a real
+ * carried OBJ_CAT_DRINK container (waterskin, ale mug, ...) is now also a
+ * valid `drink` target, not just a room puddle/fountain -- consumes up to
+ * this many val[1] (current) units per drink, applying that fraction of
+ * liquid_info()'s per-unit thirst/hunger. See liquids.h's own comment for
+ * why the per-unit numbers are scaled the way they are. */
+#define DRINK_CONTAINER_UNITS 4
 bool cmd_drink(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -130,7 +139,35 @@ bool cmd_drink(descriptor_t *d, const char *args) {
     }
 
     if (!pool && !fount) {
-        descriptor_send(d, "You don't see that here to drink.\r\n");
+        obj_t *container = liquid_find_carried_container(ch, raw);
+        if (!container) {
+            descriptor_send(d, "You don't see that here to drink.\r\n");
+            return true;
+        }
+        if (container->val[1] <= 0) {
+            descriptor_send(d, "It's empty.\r\n");
+            return true;
+        }
+
+        int units = container->val[1] < DRINK_CONTAINER_UNITS ? container->val[1] : DRINK_CONTAINER_UNITS;
+        const liquid_type_t *liq = liquid_info(container->val[2]);
+        container->val[1] -= units;
+
+        const char *label = container->base.short_descr[0] ? container->base.short_descr : container->base.name;
+        char msg[400];
+        snprintf(msg, sizeof(msg), "You drink %s from %s.%s\r\n", liq->name, label,
+                 container->val[1] <= 0 ? " It's now empty." : "");
+        descriptor_send(d, msg);
+        snprintf(msg, sizeof(msg), "%s drinks from %s.\r\n", ch->base.name, label);
+        descriptor_room_echo(ch->base.roomp, ch, msg);
+
+        if (!being_is_immortal(ch)) {
+            int thirst = ch->progress.thirst + liq->thirst * units;
+            int hunger = ch->progress.hunger + liq->hunger * units;
+            ch->progress.thirst = thirst < 0 ? 0 : (thirst > 100 ? 100 : thirst);
+            ch->progress.hunger = hunger < 0 ? 0 : (hunger > 100 ? 100 : hunger);
+            player_progress_save(ch->player_id, &ch->progress);
+        }
         return true;
     }
 

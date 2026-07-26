@@ -3565,9 +3565,31 @@ already tracked — pointers, not duplicates):
       (`obj_component.cc`, 2471 lines) remains out of scope — these are
       plain, individually-vnum'd objects, same as everything else sold
       in Tobin's shops.
-- [ ] **Liquids** — drinkable liquids; pouring one out pools on the ground
-      (from Sneezy). Needs objects/containers.
-- [ ] **`fill`** — fill a container from a liquid pool. Needs liquids+objects.
+- [x] **Liquids** + **`fill`** — done 2026-07-26. New `liquids.h`/`liquids.c`
+      ports the real `liquids.cc`'s `liqTypeT` table for its 35 MUNDANE
+      ordinals (water, beer, wine, ...) verbatim in order -- confirmed
+      live these are the exact same indices already seeded in `obj.val2`
+      for real `type=17`/ITEM_DRINKCON rows. The original's 80+ magic-
+      potion/poison ordinals (LIQ_POT_*/LIQ_POISON_*, tied to the full
+      alchemy/spellcasting system) are out of scope, same simplification
+      as Money/Components. `drink`/`sip` (cmd_drink.c/cmd_sip.c) now also
+      accept a carried OBJ_CAT_DRINK container, not just a room puddle/
+      fountain -- decrements its val[1] (current units), applies the
+      liquid's thirst/hunger (rescaled from the original's own numbers so
+      a full drink of water still lands at the existing
+      DRINK_FOUNTAIN_THIRST_GAIN=100). New `pour <container>` (cmd_pour.c,
+      ported from TBaseCup::pourMeOut()) empties a container into a real
+      ground puddle via the SAME obj_grow_pool() machinery pee/blood
+      pools already use. New `fill <container>` (cmd_fill.c, ported from
+      TBaseCup::fillMe()) refills from a room fountain (never runs dry) or
+      puddle (finite, destroyed once drained) -- correctly recovers WHICH
+      liquid a puddle holds via the puddle's own keywords
+      (`liquid_type_from_keywords()`), not just defaulting to water.
+      Simplified from the original: mixing a different liquid into a
+      non-empty container is flatly refused rather than "spoiling into
+      slime." New `tests/smoke_test_liquids.py` (9 checks against real
+      seeded vnums 409/410, covering sip/drink/pour/fill/mixing-refusal/
+      correct-liquid-recovery), all passing live.
 - [x] **`switch`** — already shipped alongside `hold`/`wield`
       (cmd_object.c) -- entry pruned 2026-07-17, was a stale duplicate.
 - [x] **`examine`** — already shipped as a synonym for `look <target>`

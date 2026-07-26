@@ -136,7 +136,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* SWAP: drop before drink -- "dr" is far likelier to mean drop;
      * drink needs "dri". */
     { "drop",    cmd_drop,    "Put down a carried item (drop <item>).",             MORTAL_LEVEL_MIN },
-    { "drink",   cmd_drink,   "Drink from a puddle on the ground (drink <puddle>).", MORTAL_LEVEL_MIN },
+    { "drink",   cmd_drink,   "Drink from a puddle, fountain, or carried container (drink <target>).", MORTAL_LEVEL_MIN },
     /* "ea" is already claimed by "east" (pinned movement head, elsewhere in
      * this table) -- eat needs the full "eat" to reach it, same spirit as
      * the drop/drink swap just above. */
@@ -153,6 +153,10 @@ static const cmd_entry_t COMMANDS[] = {
     { "exits",   cmd_exits,   "List this room's exits and where they lead.",        MORTAL_LEVEL_MIN },
     { "examine", cmd_examine, "Look at something in detail -- a synonym for look <target>.", MORTAL_LEVEL_MIN },
     { "extinguish", cmd_extinguish, "Put out a light source (extinguish <item> [held|room]).", MORTAL_LEVEL_MIN },
+    /* Liquids (user 2026-07-26): "fi" is unambiguous -- nothing else in the
+     * table starts with "f" and "i" (flee/follow/forage all diverge at the
+     * 2nd letter already). */
+    { "fill",    cmd_fill,    "Fill a container from a fountain or puddle (fill <container>).", MORTAL_LEVEL_MIN },
     { "flee",    cmd_flee,    "Try to escape a fight through a random exit.",       MORTAL_LEVEL_MIN },
     { "follow",  cmd_follow,  "Start following someone (follow <name>); `stop` to break it.", MORTAL_LEVEL_MIN },
     /* Crafting & extraction (Sneezy -> Tobin feature audit, Druid). Placed
@@ -250,7 +254,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "shutdown", cmd_shutdown, "End the game gracefully, now or in N seconds (shutdown [seconds|cancel]).", SHUTDOWN_MIN_LEVEL },
     /* SWAP: sit before sip, so "si" sits; sip must be typed in full. */
     { "sit",     cmd_sit,     "Sit down.",                                          MORTAL_LEVEL_MIN },
-    { "sip",     cmd_sip,     "Taste a bit of a puddle or fountain, low risk (sip <liquid>).", MORTAL_LEVEL_MIN },
+    { "sip",     cmd_sip,     "Taste a bit of a puddle, fountain, or carried container, low risk (sip <target>).", MORTAL_LEVEL_MIN },
     /* Placed AFTER sit/sip (above), never before -- "si" is deliberately
      * reserved for sit (see its own comment); "sig" is already
      * unambiguous (no other command starts with it). */
@@ -407,6 +411,11 @@ static const cmd_entry_t COMMANDS[] = {
     /* Bare `purge` clears the room; `purge linkdead` (58+, checked inside
      * cmd_purge itself) sweeps the whole game. */
     { "purge",   cmd_purge,   "Clear this room's mobs/objects, or purge linkdead (58+).", PURGE_MIN_LEVEL },
+    /* Liquids (user 2026-07-26): "pou" reaches this fine -- nothing else in
+     * the table needs a prefix that short ("poofin"/"poofout" already need
+     * "poof", "possess" needs "pos", both longer than "pou" would ever
+     * collide with). */
+    { "pour",    cmd_pour,    "Empty a drink container onto the ground (pour <container>).", MORTAL_LEVEL_MIN },
     /* MORTAL_LEVEL_MIN, not immortal-only (2026-07-26, Transformation):
      * `cast polymorph` sets the exact same d->possess_original swap
      * `possess` does, so an ordinary mage needs to be able to run

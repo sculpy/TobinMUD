@@ -1007,3 +1007,18 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('butcher', 'Usage: butcher <corpse>\n\nDruid skill. Carves a raw steak from a slain animal''s corpse -- once\nper corpse, and only works on an animal, not a person.\n\nRelated: skin', 'seed'),
 ('forage', 'Usage: forage\n\nDruid skill. Gathers a bit of wild food from the terrain around you --\nneeds to be outdoors, away from water and out of any building, and\nnot too soon after your last attempt.\n\nRelated: none', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Liquids (Sneezy -> Tobin feature audit, user 2026-07-26: "drinkable
+-- liquids; pouring one out pools on the ground" + "fill a container from
+-- a liquid pool"). `drink`/`sip` already existed for room puddles/
+-- fountains -- their bodies are updated below to also mention a carried
+-- container, now a valid target too.
+UPDATE `help_topic` SET `body` = 'Usage: drink <puddle|fountain|container>\n\nDrinks from a puddle on the ground, a fountain, or a carried drink\ncontainer (waterskin, ale mug, ...). A puddle carries a chance of\ngetting poisoned or sick (a scare, not lethal on its own) -- a\nfountain or container never does. A container runs dry after enough\ndrinks; `fill` it again from a fountain or puddle, or `pour` it out.\n\nRelated: sip fill pour pee'
+  WHERE `name` = 'drink' AND `body` NOT LIKE '%container%';
+UPDATE `help_topic` SET `body` = 'Usage: sip <puddle|fountain|container>\n\nTastes a liquid -- a puddle on the ground, a fountain, or a carried\ndrink container -- without committing to a full `drink`. Much lower\nrisk than a full drink of whatever it might expose you to.\n\nRelated: drink fill pour'
+  WHERE `name` = 'sip' AND `body` NOT LIKE '%container%';
+
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('fill', 'Usage: fill <container>\n\nFills a carried drink container from a fountain or a ground puddle in\nthe room. A fountain never runs dry; a puddle is used up a little at\na time and can eventually disappear. Refuses if the container already\nholds a different liquid -- `pour` it out first to switch.\n\nRelated: pour drink sip', 'seed'),
+('pour', 'Usage: pour <container>\n\nEmpties a carried drink container onto the ground as a puddle anyone\ncan see (and `fill` from later). Does nothing to an already-empty\ncontainer.\n\nRelated: fill drink sip', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

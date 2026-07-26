@@ -10,6 +10,7 @@
 #include <strings.h>
 
 #include "being.h"
+#include "liquids.h"
 #include "log.h"
 #include "obj.h"
 #include "thing.h"
@@ -90,7 +91,34 @@ bool cmd_sip(descriptor_t *d, const char *args) {
     }
 
     if (!pool && !fount) {
-        descriptor_send(d, "You don't see that here to sip.\r\n");
+        obj_t *container = liquid_find_carried_container(ch, raw);
+        if (!container) {
+            descriptor_send(d, "You don't see that here to sip.\r\n");
+            return true;
+        }
+        if (container->val[1] <= 0) {
+            descriptor_send(d, "It's empty.\r\n");
+            return true;
+        }
+
+        const liquid_type_t *liq = liquid_info(container->val[2]);
+        container->val[1] -= 1;
+
+        const char *label = container->base.short_descr[0] ? container->base.short_descr : container->base.name;
+        char msg[400];
+        snprintf(msg, sizeof(msg), "You taste a bit of %s from %s.%s\r\n", liq->name, label,
+                 container->val[1] <= 0 ? " It's now empty." : "");
+        descriptor_send(d, msg);
+        snprintf(msg, sizeof(msg), "%s tastes a bit of %s.\r\n", ch->base.name, label);
+        descriptor_room_echo(ch->base.roomp, ch, msg);
+
+        if (!being_is_immortal(ch)) {
+            int thirst = ch->progress.thirst + liq->thirst;
+            int hunger = ch->progress.hunger + liq->hunger;
+            ch->progress.thirst = thirst < 0 ? 0 : (thirst > 100 ? 100 : thirst);
+            ch->progress.hunger = hunger < 0 ? 0 : (hunger > 100 ? 100 : hunger);
+            player_progress_save(ch->player_id, &ch->progress);
+        }
         return true;
     }
 
