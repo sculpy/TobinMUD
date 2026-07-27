@@ -66,12 +66,14 @@ bool cmd_edtrigger(descriptor_t *d, const char *args) {
             int n = trigger_repo_list_for(TYPES[t], vnum, trigs, 32);
             total += n;
             for (int i = 0; i < n && len < sizeof(out); i++) {
+                char suffix[TRIGGER_MATCH_LEN + 24] = "";
+                if (trigs[i].match_text[0])
+                    snprintf(suffix, sizeof(suffix), " match=\"%s\"", trigs[i].match_text);
+                else if (strcasecmp(trigs[i].trigger_type, "random") == 0)
+                    snprintf(suffix, sizeof(suffix), " chance=%d%%", trigs[i].chance_pct);
                 len += (size_t)snprintf(out + len, sizeof(out) - len,
-                    "%s %d %s%s%s%s\r\n",
-                    trigs[i].target_type, trigs[i].target_vnum, trigs[i].trigger_type,
-                    trigs[i].match_text[0] ? " match=\"" : "",
-                    trigs[i].match_text[0] ? trigs[i].match_text : "",
-                    trigs[i].match_text[0] ? "\"" : "");
+                    "%s %d %s%s\r\n",
+                    trigs[i].target_type, trigs[i].target_vnum, trigs[i].trigger_type, suffix);
             }
         }
         if (total == 0) {

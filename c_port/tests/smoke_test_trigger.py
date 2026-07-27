@@ -305,15 +305,21 @@ cmd(sw, f"get warmcloak{_suffix}")
 out = cmd(sw, f"wear warmcloak{_suffix}")
 check("You feel a strange warmth." in out, "the obj wear trigger fired")
 
-# --- 10: list/delete ---
+# --- 10: list, then delete via the menu (2026-07-26: no more raw-id
+# `edit trigger delete <id>` quick command -- user "forget the use of id,
+# use only vnums" -- deletion is menu-only now) ---
 out = cmd(s, f"edit trigger list {MOB_GREET}")
 check("greet" in out and "speech" in out, "edit trigger list shows both triggers on the greeter")
 
-m = re.search(r"#(\d+) mob \d+ speech", out)
-check(m is not None, "the speech trigger's id is visible in the listing")
-trig_id = m.group(1)
-out = cmd(s, f"edit trigger delete {trig_id}")
-check("Trigger deleted" in out, "edit trigger delete removes it")
+out = cmd(s, f"edit trigger mob {MOB_GREET}")
+check("greet" in out and "speech" in out, "the menu lists both triggers too")
+out = cmd(s, "2")  # greet was authored first (step 3), speech second (step 4)
+check("Editing speech trigger" in out, "picked the speech trigger's detail view")
+cmd(s, "d")
+out = cmd(s, "yes")
+check("Trigger deleted" in out, "the menu's delete option removes it")
+cmd(s, "")  # leave the trigedit menu
+
 out = cmd(s, f"edit trigger list {MOB_GREET}")
 check("speech" not in out, "the deleted speech trigger no longer appears")
 check("greet" in out, "the greet trigger is untouched")
@@ -326,10 +332,12 @@ check("greet" in out, "the greet trigger is untouched")
 # (discovered 2026-07-11: 91 of 93 rows in `trigger` were orphans from
 # earlier runs of this exact file). Delete every trigger still attached
 # to any target this run created, not just the one demo-deleted above.
+# Direct SQL (2026-07-26: there's no more `edit trigger delete <id>` quick
+# command to drive from a parsed listing -- menu-only deletion now, and a
+# raw DELETE is simpler and just as reliable for throwaway test fixtures).
 for vnum in (ROOM_A, ROOM_B, MOB_GREET, MOB_DEATH, MOB_RANDOM, OBJ_GET, OBJ_WEAR):
-    listing = cmd(s, f"edit trigger list {vnum}")
-    for trig_id in re.findall(r"#(\d+)", listing):
-        cmd(s, f"edit trigger delete {trig_id}")
+    sql(f"DELETE FROM `trigger` WHERE (target_type='room' OR target_type='mob' "
+        f"OR target_type='obj') AND target_vnum={vnum};")
 
 s.close()
 sw.close()

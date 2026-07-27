@@ -3,12 +3,12 @@
 2026-07-25: "edit trigger <room|mob|obj> vnum should go into a menu
 driven editor where you choose type with an option to delete the trigger
 inside the menu -- edit trigger list <vnum> should display all three
-types -- edit trigger delete <id|vnum> should work as is"). Replaces the
-old one-shot `edit trigger <type> <vnum> <trigger_type> [match|chance]`
-command entirely -- see smoke_test_trigger.py/smoke_test_trigger_wait.py/
-smoke_test_trigger_seed.py/smoke_test_trigger_dg.py for feature-behavior
-coverage (those exercise the new menu just enough to author triggers, not
-the menu's own mechanics, which is what this file covers).
+types"). Replaces the old one-shot `edit trigger <type> <vnum>
+<trigger_type> [match|chance]` command entirely -- see
+smoke_test_trigger.py/smoke_test_trigger_wait.py/smoke_test_trigger_seed.py/
+smoke_test_trigger_dg.py for feature-behavior coverage (those exercise the
+new menu just enough to author triggers, not the menu's own mechanics,
+which is what this file covers).
 
   1. `edit trigger <room|mob|obj> <vnum>` opens the list menu, empty at
      first ("(none yet)").
@@ -19,16 +19,20 @@ the menu's own mechanics, which is what this file covers).
   4. A "random" type prompts for chance percent first.
   5. A "speech" type (on a mob) prompts for a keyword first.
   6. Picking a list number opens that trigger's detail view (match text/
-     chance/script/delete).
+     chance/script/delete), which reads back the current script inline.
   7. Editing match text (option 1) and chance percent (option 2) commit
-     immediately, no separate save step.
+     immediately with an explicit save confirmation (2026-07-26, user:
+     "no option in editor for saving").
   8. "3" re-opens the script editor with the CURRENT script preloaded and
      shown; saving updates that same row (not a duplicate).
   9. "D" + "yes" deletes the trigger and returns to the (now empty) list.
   10. `edit trigger list <vnum>` (no target type) shows triggers across
       room AND mob AND obj at that vnum, not just one.
-  11. `edit trigger delete <id>` (the quick one-shot form) still works
-      unchanged, without opening the menu at all.
+
+  There is no `edit trigger delete <id>` quick form anymore (removed
+  2026-07-26, user: "forget the use of id, use only vnums") -- deletion
+  is menu-only now (step 9), and the raw db id is never shown to a
+  builder anywhere in this flow.
 
     python3 tests/smoke_test_trigedit_menu.py [host] [port]
 """
@@ -210,7 +214,7 @@ try:
 
     # --- 6/7: detail view, match text and chance edits commit immediately ---
     out = cmd(s, "1")
-    check("Editing trigger #" in out and "Match text/keyword: openmenu" in out,
+    check("Editing speech trigger" in out and "Match text/keyword: openmenu" in out,
           "picking a list number opens that trigger's detail view")
     out = cmd(s, "1")
     check("Enter new match text" in out, "option 1 prompts for a new match text")
@@ -252,15 +256,6 @@ try:
     out = cmd(s, f"edit trigger list {ROOM}")
     check(f"room {ROOM} enter" in out and f"room {ROOM} random" in out,
           "list <vnum> (no target type) finds the room's own triggers")
-
-    # --- 11: `edit trigger delete <id>` still works standalone ---
-    row = sql_out(f"SELECT id FROM `trigger` WHERE target_type='room' AND "
-                  f"target_vnum={ROOM} AND trigger_type='enter';").strip().splitlines()[-1]
-    trig_id = row.strip()
-    out = cmd(s, f"edit trigger delete {trig_id}")
-    check("Trigger deleted" in out, "the quick one-shot delete-by-id form still works unchanged")
-    left = sql_out(f"SELECT COUNT(*) FROM `trigger` WHERE id={trig_id};").strip().splitlines()[-1]
-    check(left.strip() == "0", "the deleted row is actually gone")
 
     announce_done("smoke_test_trigedit_menu")
     print("=== ALL CHECKS PASSED ===")

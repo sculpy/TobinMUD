@@ -15,7 +15,6 @@ all (trigger_run() ran a whole script synchronously, in one pass).
 
     python3 tests/smoke_test_trigger_wait.py [host] [port]
 """
-import re
 import socket
 import subprocess
 import sys
@@ -188,10 +187,9 @@ check("Otters' noses" in out,
 
 # --- teardown: same precedent as smoke_test_trigger.py -- a 100%-chance
 # random trigger left attached is permanent ambient noise for every test
-# that runs after this one. ---
-listing = cmd(s, f"edit trigger list {MOB_VENDOR}")
-for trig_id in re.findall(r"#(\d+)", listing):
-    cmd(s, f"edit trigger delete {trig_id}")
+# that runs after this one. Direct SQL (2026-07-26: no more `edit trigger
+# delete <id>` quick command to drive from a parsed listing). ---
+sql(f"DELETE FROM `trigger` WHERE target_type='mob' AND target_vnum={MOB_VENDOR};")
 
 s.close()
 announce_done("smoke_test_trigger_wait")
