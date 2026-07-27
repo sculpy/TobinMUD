@@ -111,7 +111,7 @@ static const skill_def_t SKILLS[] = {
     { "oomlat",          CLASS_MONK, SKILL_TIER_CLASS,   1, "A passive armor bonus while fighting unarmed." },
     { "catfall",         CLASS_MONK, SKILL_TIER_CLASS,   1, "Halves damage from a fall." },
     { "catleap",         CLASS_MONK, SKILL_TIER_CLASS,   1, "Leap and glide a direction, out of combat." },
-    { "cintai",          CLASS_MONK, SKILL_TIER_CLASS,   5, "A passive to-hit bonus while unarmed." },
+    { "cintai",          CLASS_MONK, SKILL_TIER_CLASS,   5, "A passive to-hit bonus." },
     { "springleap",      CLASS_MONK, SKILL_TIER_CLASS,  20, "Spring instantly from sitting or resting to standing." },
     { "advanced kicking", CLASS_MONK, SKILL_TIER_CLASS, 25, "More of your unarmed strikes land as kicks, boosting extra-attack odds." },
     { "iron fist",           CLASS_MONK, SKILL_TIER_ADVANCED,  25, "Bonus strength-based damage while your hands are bare." },

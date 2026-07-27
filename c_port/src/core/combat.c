@@ -397,6 +397,24 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     weapon_hitroll += kubo_bonus / 8;
     weapon_damroll += kubo_bonus / 20;
 
+    /* Cintai (Monk, spell/skill functional-completeness audit continued,
+     * level 5): skill.c's own roster text calls it "A passive to-hit
+     * bonus while unarmed," but the real upstream's own attackRound()
+     * (misc/combat.cc, found in the fuller peel-sneezymud reference
+     * clone) folds it into a GENERAL to-hit bonus function used for
+     * every attack, armed or not (alongside level scaling and a mounted
+     * Chivalry bonus) -- not gated on being unarmed at all, same
+     * "roster text guessed unarmed-only, real source disagrees"
+     * correction jirin needed above. Real formula: `(skillValue/20.0)*3.0`,
+     * a flat 0-15 bonus at full proficiency -- ported directly rather
+     * than scaled down further, since it's already a small, comparable
+     * magnitude to every other modifier here. */
+    if (!being_is_immortal(attacker) && being_knows_skill(attacker, "cintai")) {
+        const skill_def_t *cintai_sk = skill_find(attacker->char_class, "cintai", false);
+        if (cintai_sk)
+            weapon_hitroll += skill_learn_from_doing(attacker, cintai_sk) * 3 / 20;
+    }
+
     int base_roll = rand() % 100;
     int modifier = (attacker->attrs.dexterity - defender->attrs.dexterity) / 4;
     modifier += weapon_hitroll;

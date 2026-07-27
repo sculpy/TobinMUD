@@ -1349,13 +1349,27 @@ durations where warranted, and a cooldown where warranted. Audit findings
     (8 checks, including a statistical catfall-halves-damage comparison
     that needed bumping from 10 to 25 samples live to reliably separate
     from background HP-regen noise) passes live.
-  - Level 5+ (identified, not yet started, sorted ascending): cintai
-    (Monk, 5), shove/materialize (6), bodyslam (10), curse/slumber (13),
-    fear/identify (14), headbutt (15), telepathy (16), spin/invisibility/
-    dispel invisible (17), teleport/summon (19), slam/riposte/deathstroke/
-    dispel magic/springleap (20), blindness/word of recall (21), taunt/
-    paralyze limb (22), whirlwind/kneestrike/farlook/scribe/bind (25),
-    hide (31), paralyze (33), quivering palm (42), silence (48).
+  - Level 5+ (sorted ascending): **cintai** (Monk, 5) -- done 2026-07-27.
+    Wired into `combat_strike()` directly (not a command), same as
+    jirin/kubo/oomlat. skill.c's own roster text called it "A passive
+    to-hit bonus while unarmed" -- wrong per the real source
+    (`attackRound()`, misc/combat.cc, fuller peel-sneezymud reference
+    clone): a GENERAL to-hit bonus used for every attack regardless of
+    weapon, alongside level scaling and a mounted Chivalry bonus. Ported
+    the real formula directly (`(skillValue/20.0)*3.0`, flat 0-15 at
+    full proficiency) rather than approximating it. `tests/smoke_test_
+    cintai.py` (1 check, statistical) passes live -- needed a wider,
+    more central dex-mismatch calibration than jirin/kubo/oomlat's own
+    test uses; their clamped-edge (~6% baseline) design produced hit
+    counts too low/noisy for cintai's smaller effect size (one run came
+    back backwards, 15 vs 18, before recalibrating).
+    Not yet started: shove/materialize (6), bodyslam (10), curse/slumber
+    (13), fear/identify (14), headbutt (15), telepathy (16), spin/
+    invisibility/dispel invisible (17), teleport/summon (19), slam/
+    riposte/deathstroke/dispel magic/springleap (20), blindness/word of
+    recall (21), taunt/paralyze limb (22), whirlwind/kneestrike/
+    farlook/scribe/bind (25), hide (31), paralyze (33), quivering palm
+    (42), silence (48).
 - **Buff spells that conflate distinct effects**: sanctuary/armor/bless/
   stone skin/barkskin/protection-from-* all currently reuse the identical
   `AFFECT_SANCTUARY` buff rather than each having its own effect --

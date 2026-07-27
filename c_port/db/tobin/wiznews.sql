@@ -875,3 +875,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Falling is now real, and Monks can catch themselves', 'Rounding out the level-one Monk skill cluster: falling through open sky now deals real, escalating damage depending on how far you drop, occasionally fatal if you fall far enough. A Monk with catfall takes roughly half the damage from any fall. A Monk with catleap can now leap in any direction and glide across open space, even where there is normally no ground to jump from.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'cintai gives Monks another passive to-hit edge', 'First item off the level-5+ list in the spell/skill functional-completeness audit: cintai is a passive to-hit bonus, wired directly into combat math like jirin/kubo/oomlat before it. The roster description called it unarmed-only, but the real source shows it applies to every attack a Monk makes, armed or not -- corrected to match.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

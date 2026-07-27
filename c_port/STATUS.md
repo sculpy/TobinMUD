@@ -51,6 +51,17 @@ completeness audit continued).**
   25 samples live after a first run came back backwards against
   background HP-regen noise) passes live. Clean rebuild, restarted, no
   crash. This closes out the full level-1 Monk basic-stance cluster.
+- **cintai** (Monk, level 5, first item off the level-5+ list): another
+  wired-into-`combat_strike()` passive, same shape as jirin/kubo/oomlat.
+  Roster text called it unarmed-only -- wrong again, real source
+  (`attackRound()`, fuller peel-sneezymud clone) is a general to-hit
+  bonus for every attack. Ported the real formula directly this time
+  (`(skillValue/20.0)*3.0`). `tests/smoke_test_cintai.py` (1 check)
+  passes live, after a recalibration: the jirin/kubo/oomlat test's own
+  ~6%-baseline dex mismatch produced too-noisy hit counts for cintai's
+  smaller effect (one run came back backwards) -- switched to a wider,
+  more central mismatch (~30% baseline) for a reliable margin. Clean
+  rebuild, restarted, no crash.
 
 Previous update: 2026-07-27 — Session 83 (home): **Docs/systems persistence
 review, and its one real finding: tell history + `reply`.**
