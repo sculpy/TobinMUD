@@ -883,3 +883,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'shove and materialize are live -- level 6 audit items', 'Two more items off the spell/skill functional-completeness audit, the first from the level-5+ list: `shove <target> <direction>` (Warrior) pushes someone through a real exit into the next room on success, or starts a fight on failure -- a real, deliberate upstream design, not a bug. `materialize <item>` (Mage) spends 100 gold trying to conjure a cheap-enough item out of thin air, searched against the real object catalog; the gold is gone either way, win or lose, matching the original spell exactly.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'bodyslam is live -- a level 10 audit item', '`bodyslam <target>` (Warrior) lifts a standing foe overhead and slams them down for real damage on success, knocking them sitting; on failure the Warrior is the one who ends up on the ground instead. The real upstream version is a much heavier function with weight comparisons and held-item restrictions -- this is a Tobin-scale slice of it, same spirit as bash and kick.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -1394,7 +1394,29 @@ durations where warranted, and a cooldown where warranted. Audit findings
     session (same "SQL-then-relog, never SQL-then-quit!" trap
     documented in smoke_test_skillcombat3.py). `tests/smoke_test_
     materialize.py` (9 checks) passes live.
-    Not yet started: bodyslam (10), curse/slumber
+    **bodyslam** (Warrior, 10) -- done 2026-07-27. Real upstream
+    (cmd/cmd_bodyslam.cc's `canBodyslam()`/`bodyslam()`/`bodyslamHit()`/
+    `bodyslamMiss()`, fuller peel-sneezymud clone): a heavy function --
+    three miss types (DEX-avoid, STR-fails-to-lift, Monk countermove),
+    a carry-weight comparison, proficiency-gated held-item rules, a
+    `trySpringleap()` follow-up chain, mount dismounting. Scoped down
+    to the same "Tobin-scale slice" pattern as bash/kick/disarm: one
+    `skill_roll_success()` roll (no armor%/weight-comparison factor --
+    Tobin doesn't model carry capacity robustly enough to gate on it),
+    reused `combat_apply_skill_damage()`'s STR-flavored placeholder
+    formula scaled x2. Success knocks the victim down (POSITION_SITTING)
+    and deals damage; failure knocks the ATTACKER down instead (cheap
+    stand-in for the real crashLanding()/three-way-miss branching, no
+    springleap since Tobin doesn't have it). 15 Vitality. Deliberately
+    NOT ported: mount dismounting (refused outright) and the
+    proficiency-gated held-item restriction. New `cmd_bodyslam.c`.
+    Same dead self-target-branch bug this audit keeps re-hitting
+    (`combat_find_room_target()` already excludes self) caught and
+    fixed before commit. `tests/smoke_test_bodyslam.py` (5 checks)
+    passes live -- one real test bug caught: check 4 originally reused
+    the already-100%-seeded attacker instead of a fresh 0%-proficiency
+    one, so the failure path was never actually exercised.
+    Not yet started: curse/slumber
     (13), fear/identify (14), headbutt (15), telepathy (16), spin/
     invisibility/dispel invisible (17), teleport/summon (19), slam/
     riposte/deathstroke/dispel magic/springleap (20), blindness/word of

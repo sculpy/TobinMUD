@@ -109,6 +109,10 @@ static const cmd_entry_t COMMANDS[] = {
      * action layered on the automatic per-round exchange -- see
      * cmd_bash.c's own header comment. */
     { "bash",    cmd_bash,    "Bash your opponent, knocking them down (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
+    /* Level-5+ list, spell/skill functional-completeness audit
+     * (2026-07-27): first Warrior entry off that list. No existing
+     * "bo*" command -- unclaimed abbreviation. */
+    { "bodyslam", cmd_bodyslam, "Lift and slam your opponent down for real damage (Warrior, bodyslam <target>).", MORTAL_LEVEL_MIN },
     /* Spell/skill functional-completeness audit (2026-07-27): the first
      * batch of level-1 roster entries that previously had NO handler at
      * all (fell through to "Command not found"). Grouped here with bash

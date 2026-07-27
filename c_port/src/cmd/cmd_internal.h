@@ -21,6 +21,7 @@ bool cmd_level(descriptor_t *d, const char *args);
 bool cmd_ride(descriptor_t *d, const char *args);
 bool cmd_dismount(descriptor_t *d, const char *args);
 bool cmd_bash(descriptor_t *d, const char *args);
+bool cmd_bodyslam(descriptor_t *d, const char *args);
 bool cmd_kick(descriptor_t *d, const char *args);
 bool cmd_disarm(descriptor_t *d, const char *args);
 bool cmd_trip(descriptor_t *d, const char *args);

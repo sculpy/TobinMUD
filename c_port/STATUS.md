@@ -75,6 +75,12 @@ completeness audit continued).**
   keyword) and an SQL gold UPDATE issued after login that never reached
   the live session. `tests/smoke_test_materialize.py` (9 checks).
   Both pass live. Clean rebuild, restarted, no crash.
+- **bodyslam** (Warrior, 10): next off the level-5+ list. Scoped-down
+  skill roll (no weight-comparison/held-item gating) reusing
+  `combat_apply_skill_damage()`'s placeholder formula x2 -- success
+  knocks the victim down, failure knocks the attacker down instead. New
+  `cmd_bodyslam.c`, `tests/smoke_test_bodyslam.py` (5 checks) passes
+  live. Clean rebuild, restarted, no crash.
 
 Previous update: 2026-07-27 — Session 83 (home): **Docs/systems persistence
 review, and its one real finding: tell history + `reply`.**
