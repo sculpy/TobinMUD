@@ -86,7 +86,6 @@ tbamud-master/
 # Upstream SneezyMUD "peel" reference clone (more complete source tree than
 # sneezymud-master/, e.g. has the real planting system) -- same rationale.
 peel-sneezymud/
-sneezymud-peel/
 
 # Loose class-reference scratch notes dumped at the repo root.
 *skills.txt
