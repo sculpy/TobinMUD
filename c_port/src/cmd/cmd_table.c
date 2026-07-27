@@ -128,6 +128,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "rally",   cmd_rally,   "Let out a battlecry that boosts nearby allies' combat prowess (Warrior).", MORTAL_LEVEL_MIN },
     { "garrotte", cmd_garrotte, "Strangle an unaware victim with a cord (Thief, garrotte <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
     { "throatslit", cmd_throatslit, "A lethal opening throat-slitting attack (Thief, throatslit <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
+    { "yoginsa", cmd_yoginsa, "Meditate to recover HP and Vitality faster (Monk, must be sitting or resting).", MORTAL_LEVEL_MIN },
     /* Money system v2. Placed AFTER "bash" (not strict alphabetical
      * order, same "ret"/"retu" precedent as retrieve/return) so the
      * far-more-frequently-typed combat skill keeps ownership of the "ba"

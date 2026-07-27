@@ -33,6 +33,7 @@ bool cmd_berserk(descriptor_t *d, const char *args);
 bool cmd_rally(descriptor_t *d, const char *args);
 bool cmd_garrotte(descriptor_t *d, const char *args);
 bool cmd_throatslit(descriptor_t *d, const char *args);
+bool cmd_yoginsa(descriptor_t *d, const char *args);
 bool cmd_disguise(descriptor_t *d, const char *args);
 bool cmd_repair(descriptor_t *d, const char *args);
 bool cmd_submit(descriptor_t *d, const char *args);

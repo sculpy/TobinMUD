@@ -1279,12 +1279,19 @@ durations where warranted, and a cooldown where warranted. Audit findings
       refills HP/Move) rather than being a fully separate mechanic.
       Worth confirming by reading disc_monk_meditation.cc in full (only
       partially read this pass) before scoping.
-    **Recommendation for next session**: start with yoginsa (+ chi,
-    likely the same task) since it's the only one with a clear, fully-
-    read real implementation and no passive-combat-formula risk;
-    jirin/kubo/oomlat need a `combat.c` formula read-through first;
-    catfall/catleap need confirming whether Tobin has fall damage at all
-    before deciding if there's anything to port.
+    **yoginsa** (Monk) -- done 2026-07-27. Single-action heal (not the
+    real background multi-tick task -- Tobin has no generic "start a
+    self-task" mechanism to reuse), heals HP + Vitality (Tobin's two
+    resources; no separate mana pool exists to touch), gated on
+    sitting/resting and not fighting. New `cmd_yoginsa.c`.
+    `tests/smoke_test_yoginsa.py` (4 checks) passes live.
+    Remaining: **chi** (likely folds into the same meditation task as
+    yoginsa per the real source -- worth confirming by reading
+    disc_monk_meditation.cc in full before building a second, separate
+    command); **jirin/kubo/oomlat** need a `combat.c` formula read-
+    through first (passive combat-math modifiers, not commands);
+    **catfall/catleap** need confirming whether Tobin has fall damage at
+    all before deciding if there's anything to port.
   - Level 5+ (identified, not yet started, sorted ascending): cintai
     (Monk, 5), shove/materialize (6), bodyslam (10), curse/slumber (13),
     fear/identify (14), headbutt (15), telepathy (16), spin/invisibility/
