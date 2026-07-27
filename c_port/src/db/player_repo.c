@@ -14,6 +14,8 @@
 #include "drug_repo.h"
 #include "log.h"
 #include "obj_repo.h"
+#include "suit.h"
+#include "suit_repo.h"
 
 /* Flat offline-regen rate for a character returning from `rent`
  * (cmd_rent.c) -- 1 HP per this many real seconds elapsed since renting,
@@ -161,6 +163,14 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
             b->progress.vit = b->progress.max_vit;
             player_attrs_save(player_id, &b->attrs);
             player_progress_save(player_id, &b->progress);
+            /* Newbie equipment suit (user 2026-07-26): "load on the
+             * character when connecting for the first time" -- this IS
+             * that first load, the one-time actual character-creation
+             * path (not every login). Silently does nothing if no suit
+             * is defined for this class yet (suit.sql seeds all 6). */
+            int suit_id = suit_repo_find_for_class((int)char_class);
+            if (suit_id >= 0)
+                suit_grant(b, suit_id);
         }
     }
 

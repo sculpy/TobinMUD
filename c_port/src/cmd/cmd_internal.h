@@ -151,6 +151,7 @@ bool cmd_remove(descriptor_t *d, const char *args);
 bool cmd_use(descriptor_t *d, const char *args);
 bool cmd_equipment(descriptor_t *d, const char *args);
 bool cmd_load(descriptor_t *d, const char *args);
+bool cmd_loadsuit(descriptor_t *d, const char *args);
 bool cmd_purge(descriptor_t *d, const char *args);
 bool cmd_transfer(descriptor_t *d, const char *args);
 bool cmd_pee(descriptor_t *d, const char *args);
@@ -256,6 +257,11 @@ bool look_at_target(descriptor_t *d, const char *args);
 
 /* `addnews` (post a news item): 56+, user-specified. */
 #define ADDNEWS_MIN_LEVEL 56
+
+/* `loadsuit` (load a named equipment suit onto someone): 56+, user-
+ * specified ("the new loadsuit immortal 56+ command"), same tier as
+ * addnews/help-edit -- a bigger lever than the builder-tier `load`. */
+#define LOADSUIT_MIN_LEVEL 56
 
 /* `multiplay` (toggle the mortal-multiplay game flag): 59+, user-specified. */
 #define MULTIPLAY_MIN_LEVEL 59

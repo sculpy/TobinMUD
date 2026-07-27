@@ -1,6 +1,78 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 79 (home): **Fixed
+Last updated: 2026-07-26 — Session 80 (home): **Newbie equipment
+suits: 6 class-based starter kits, `loadsuit`, and the Welfare
+Department social worker's gear reissue.**
+- User: "we need 6 sets of newbie equipment to load on the character
+  when connecting for the first time... a shield and a weapon based
+  upon class choice", "or in room 570 (welfare) they could ask the
+  social worker to receive a new set of newbie gear", "report on the
+  vnums used for the new loadsuit immortal 56+ command... each suit is
+  defined in the database as a suitset... we will require all builders
+  to create at least one suit."
+- Confirmed a fresh character previously got NO starting inventory at
+  all (`being_create_pc()`/`player_create()` only ever set up stats).
+  New `suit`/`suit_item` tables (`db/tobin/suit.sql`) -- a suit is just
+  a named, optionally class-restricted bundle of obj vnums, builder-
+  extensible with two INSERTs and no code change. `suit_repo.h/.c`
+  (lookup layer) + `suit.h/.c`'s `suit_grant()` (create + drop loose
+  into inventory -- deliberately NOT auto-equipped, user: "they can
+  hold the items themselves, just load into inventory") back all three
+  real features from one shared implementation.
+- Seeded all 6 class suits: shared training shield (vnum 1010, real
+  upstream item) + a class weapon + shared torch (105) + shared
+  backpack (600). Three weapons reused real existing "training"-tier
+  items (177 staff/Mage, 325 dagger/Thief, 329 sword/Warrior); no
+  training-tier mace/sickle/nunchaku existed anywhere in the seed data,
+  so three new ones were added at the identical stat profile (90003
+  mace/Cleric, 90004 sickle/Druid, 90005 nunchaku/Monk) -- **reclaiming
+  the numeric gap between the two existing Tobin-owned vnum blocks**
+  (obj_magic.sql's 90000-90002, drug_items.sql's 90010-90013) rather
+  than opening a new range, per the user's own "we can reclaim some
+  vnums."
+- **Auto-issue caught a real transaction/mutual-recursion trap early**:
+  the first attempt tried to auto-equip suit items into hand slots
+  (weapon/shield/torch all HOLD-flagged, only 2 hands) -- live-tested
+  before the user simplified the ask ("just load into inventory"), and
+  along the way a suspected DB corruption during testing (character
+  creation intermittently landing at an empty account menu, some FK
+  violations in the log) turned out to be self-inflicted test-script
+  timing/pacing issues plus a known, already-documented "player_save on
+  copyover races a throwaway test account's own cleanup DELETE" pattern
+  -- not a real bug, confirmed by careful step-by-step re-verification.
+- `loadsuit <suit name> [target]` (new `cmd_loadsuit.c`,
+  `LOADSUIT_MIN_LEVEL` 56 -- same senior tier as `addnews`/help-edit,
+  per the user's own "immortal 56+") -- abbreviation-matched suit name,
+  defaults to self, or a named target found via the same room-lookup
+  `transfer`'s siblings already use.
+- Welfare Department social worker (mob vnum 90 "the ... social
+  worker", room 570 -- BOTH already present in the real upstream seed
+  data untouched, nothing new to add there) now actually does
+  something: keyword speech ("gear"/"equipment"/"newbie"/"supplies")
+  reissues the speaker's own class suit. Dispatch keyed on
+  `SPEC_PROC_NEWBIE_EQUIPPER` (147) -- the real original engine's own
+  spec-proc id for this exact NPC, already seeded on that mob vnum;
+  same data-driven lookup-key precedent as `SPEC_PROC_DOCTOR`/
+  `SPEC_PROC_LAMPLIGHTER` (no spec-proc EXECUTION ported, just the id).
+  No anti-farming limit -- nothing asked for one, "lost your gear, get
+  a replacement" is the whole point.
+- `vnum <room|obj|mob> <range>` (cmd_vnum.c) now also lists the FREE/
+  unused vnums in that range, not just what's taken -- user, hunting
+  vnums for this same feature: "we can reclaim some vnums" then "i need
+  a way to list them." Skipped if the existing-vnum listing itself got
+  truncated, so a reported gap is never a guess.
+- New `tests/smoke_test_newbie_gear.py` (16 checks, two consecutive
+  clean runs): fresh-character suit issue (items present, loose not
+  equipped), `loadsuit` on self and a named target (each gets their own
+  notice), a bogus suit name refused cleanly, and the social worker
+  reissuing on request while staying silent for unrelated speech.
+  Regression-checked `smoke_test_accounts.py` and `smoke_test_vnum.py`
+  (both still pass clean). Deployed via copyover, zero build warnings
+  across the whole 8-file feature. Test debris (dropped items,
+  throwaway characters) cleaned up from Center Square/room 570
+  afterward.
+
+### Session 79 (home): **Fixed
 `tests/smoke_test_affects.py`, flagged as its own follow-up two
 sessions ago.**
 - Two separate, unrelated, pre-existing issues, both confirmed via live

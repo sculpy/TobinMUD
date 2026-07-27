@@ -5,6 +5,7 @@
 #include "cmd_internal.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
@@ -19,12 +20,22 @@
  * new commands, since this already does everything else they'd need.
  * Room/obj/mob prototypes all live in DB_TOBIN, so this is a direct query
  * (same precedent as cmd_mudstats.c). Immortal builder tool, gated at
- * BUILD_MIN_LEVEL. */
+ * BUILD_MIN_LEVEL.
+ *
+ * Range mode ALSO lists the free/unused vnum gaps within that same range
+ * (user 2026-07-26, in the middle of hand-picking vnums for a new
+ * feature: "we can reclaim some vnums", then "i need a way to list
+ * them") -- a builder reserving a fresh block wants to see what's
+ * actually open, not just what's taken. Skipped if the existing-vnum
+ * listing itself got truncated (VNUM_LIST_MAX/buffer_full) -- past that
+ * point `seen` doesn't cover the whole range, so a reported gap could be
+ * wrong. */
 
 /* Safety cap so a very broad pattern can't try to build an unbounded list;
  * well above any realistic builder search, and the output is paged anyway. */
 #define VNUM_LIST_MAX 500
 #define VNUM_PAGE_SIZE 20  /* lines per page in the pager (like `news`) */
+#define VNUM_GAP_MAX 30    /* cap on free-vnum gap segments listed (range mode) */
 
 /* Recognizes a bare vnum ("1017") or a vnum range ("100-200") as an
  * alternative to the usual name/keyword substring search (TODO.md:
@@ -117,6 +128,9 @@ bool cmd_vnum(descriptor_t *d, const char *args) {
     }
     int count = 0;
     bool buffer_full = false;
+    /* Only tracked in range mode (see the gap-listing block below) -- a
+     * name search has no "the whole range" concept to diff against. */
+    int seen[VNUM_LIST_MAX];
     if (ok) {
         while (db_fetch_row(db)) {
             /* Leave room for one more max-length line + the truncation note. */
@@ -124,6 +138,9 @@ bool cmd_vnum(descriptor_t *d, const char *args) {
                 buffer_full = true;
                 break;
             }
+            int v = atoi(db_get(db, "vnum"));
+            if (is_range && count < VNUM_LIST_MAX)
+                seen[count] = v;
             n += snprintf(out + n, sizeof(out) - (size_t)n,
                           "  <c>[<z>%5s<c>]<z> %s\r\n",
                           db_get(db, "vnum"), db_get(db, "name"));
@@ -137,6 +154,40 @@ bool cmd_vnum(descriptor_t *d, const char *args) {
     else if (count >= VNUM_LIST_MAX || buffer_full)
         n += snprintf(out + n, sizeof(out) - (size_t)n,
                       "  <o>... list truncated -- narrow your pattern.<z>\r\n");
+
+    /* Free/unused vnums within the same range (user 2026-07-26: "i need a
+     * way to list them... to list <room|obj|mob> vnums in a range" --
+     * asked for right after "we can reclaim some vnums", i.e. the actual
+     * need is finding gaps to reuse, not just seeing what's taken).
+     * Skipped if the existing-vnum listing above was itself truncated --
+     * `seen` wouldn't cover the whole range, so any gap past that point
+     * would be a guess, not a fact. */
+    if (is_range && count < VNUM_LIST_MAX && !buffer_full) {
+        n += snprintf(out + n, sizeof(out) - (size_t)n,
+                      "\r\n<c>-- free %s vnums in %d-%d --<z>\r\n", label, lo, hi);
+        int gaps_shown = 0;
+        int next_free = lo;
+        for (int i = 0; i <= count; i++) {
+            int boundary = (i < count) ? seen[i] : hi + 1;
+            if (boundary > next_free) {
+                if ((size_t)n >= sizeof(out) - 100 || gaps_shown >= VNUM_GAP_MAX) {
+                    n += snprintf(out + n, sizeof(out) - (size_t)n,
+                                  "  <o>... more free vnums exist -- narrow your range to see them.<z>\r\n");
+                    break;
+                }
+                int gap_hi = boundary - 1;
+                if (next_free == gap_hi)
+                    n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d\r\n", next_free);
+                else
+                    n += snprintf(out + n, sizeof(out) - (size_t)n, "  %d-%d\r\n", next_free, gap_hi);
+                gaps_shown++;
+            }
+            next_free = boundary + 1;
+        }
+        if (gaps_shown == 0)
+            n += snprintf(out + n, sizeof(out) - (size_t)n, "  none -- the whole range is taken\r\n");
+    }
+
     /* Released a page at a time (the descriptor pager, like `news`). */
     descriptor_page_start(d, out, VNUM_PAGE_SIZE);
     return true;

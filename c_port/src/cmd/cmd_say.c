@@ -11,8 +11,11 @@
 #include <strings.h>
 
 #include "combat.h"
+#include "mob_ai.h"
 #include "room.h"
 #include "socials.h"
+#include "suit.h"
+#include "suit_repo.h"
 #include "thing.h"
 #include "trigger.h"
 
@@ -138,6 +141,45 @@ static void try_pet_command(being_t *speaker, room_t *r, const char *said) {
     social_perform_for(pet, verb);
 }
 
+/* SPEC_PROC_NEWBIE_EQUIPPER (mob_ai.h has the full origin/scope
+ * rationale) -- user 2026-07-26: "in room 570 (welfare) they could ask
+ * the social worker to receive a new set of newbie gear." Any mob
+ * carrying this spec-proc (seeded live only on vnum 90, "the Grimhaven
+ * social worker") reissues the SPEAKER's own class's newbie suit on
+ * request, same suit_grant() the automatic character-creation issue and
+ * `loadsuit` already call. Keyword-gated the same substring way
+ * run_speech_triggers() above matches a trigger's match_text, just a
+ * fixed built-in list instead of a DB row -- no anti-farming limit
+ * (nothing asked for one; this is explicitly "lost your gear, get a
+ * replacement"). Stops at the first matching mob in the room. */
+static bool is_newbie_gear_request(const char *said) {
+    return ci_contains(said, "gear") || ci_contains(said, "equipment")
+        || ci_contains(said, "newbie") || ci_contains(said, "supplies");
+}
+
+static void try_newbie_equipper(being_t *speaker, room_t *r, const char *said) {
+    if (!speaker->desc || speaker->player_id <= 0 || !is_newbie_gear_request(said))
+        return;
+    for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_MOB)
+            continue;
+        being_t *mob = (being_t *)t;
+        if (mob->mob_spec_proc != SPEC_PROC_NEWBIE_EQUIPPER)
+            continue;
+
+        char capbuf[128], msg[256];
+        being_display_name_cap(mob, capbuf, sizeof(capbuf));
+        int suit_id = suit_repo_find_for_class((int)speaker->char_class);
+        int n = suit_id >= 0 ? suit_grant(speaker, suit_id) : 0;
+        if (n > 0)
+            snprintf(msg, sizeof(msg), "%s hands you a fresh set of gear.\r\n", capbuf);
+        else
+            snprintf(msg, sizeof(msg), "%s frowns -- \"I'm afraid I don't have anything for you right now.\"\r\n", capbuf);
+        descriptor_send(speaker->desc, msg);
+        return;
+    }
+}
+
 bool cmd_say(descriptor_t *d, const char *args) {
     if (!d->character || !d->character->base.roomp) {
         descriptor_send(d, "You are nowhere.\r\n");
@@ -173,6 +215,7 @@ bool cmd_say(descriptor_t *d, const char *args) {
 
     run_speech_triggers(d->character, r, args);
     try_pet_command(d->character, r, args);
+    try_newbie_equipper(d->character, r, args);
 
     return true;
 }

@@ -375,6 +375,7 @@ static const cmd_entry_t COMMANDS[] = {
      * object/mob placed this way doesn't survive a restart. */
     { "load",    cmd_load,    "Spawn a mob or object prototype into your room (load <mob|obj> <vnum|name>).", BUILD_MIN_LEVEL },
     { "loadroom", cmd_loadroom, "Set the room your character logs in at.",          IMMORTAL_LEVEL_MIN },
+    { "loadsuit", cmd_loadsuit, "Load a named equipment suit onto yourself or a target (loadsuit <suit name> [target]).", LOADSUIT_MIN_LEVEL },
     { "log",     cmd_log,     "Read, search, list, or rotate the game logs.",       LOG_MIN_LEVEL },
     /* Mortality toggle, other half: `mortal` sets aside true immortal rank
      * to walk the world as an ordinary player for testing -- `immort`

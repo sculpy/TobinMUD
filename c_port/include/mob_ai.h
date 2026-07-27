@@ -85,4 +85,20 @@ const char *mob_action_names(int flags, char *buf, size_t size);
  * patrol coverage. */
 #define SPEC_PROC_LAMPLIGHTER 96
 
+/* The original engine's newbie-equipment-giver spec-proc id (spec_mobs.h,
+ * SPEC_NEWBIE_EQUIPPER 147) -- already seeded verbatim into mob.spec_proc
+ * for the real upstream NPC it was written for (vnum 90, "the Grimhaven
+ * social worker", room 570 "The Grimhaven Welfare Department" -- both
+ * already present in the seed data, nothing new to add there). Same
+ * data-driven lookup-key precedent as SPEC_PROC_LAMPLIGHTER above: no
+ * spec-proc EXECUTION from the original C++ engine is ported, just the
+ * numeric id, checked against being_t.mob_spec_proc (cached at spawn,
+ * mob_repo.h) by cmd_say.c's speech dispatch. User 2026-07-26: "or in
+ * room 570 (welfare) they could ask the social worker to receive a new
+ * set of newbie gear" -- reissues the speaker's own class's newbie suit
+ * (suit.h/suit_repo.h) on request, same suit_grant() the automatic
+ * character-creation issue and the `loadsuit` immortal command both
+ * already call. */
+#define SPEC_PROC_NEWBIE_EQUIPPER 147
+
 #endif
