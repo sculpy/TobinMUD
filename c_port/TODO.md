@@ -1235,6 +1235,72 @@ these; each ships with a smoke test + (if player-facing) a news entry.
       a run of `smoke_test.py`/`smoke_test_multiplay.py`/
       `smoke_test_accounts.py`/`smoke_test_quit.py` all pass clean.
 
+### User batch 2026-07-26 (later session) — logged, not yet started
+
+- [x] **Wisdom label fixed to "Wis:"** — done 2026-07-26. `cmd_score.c`
+      was the only stat line spelling it out in full; fixed to match
+      every other 3-letter stat abbreviation, and `smoke_test_drugs.py`'s
+      regex updated to match.
+- [x] **Destroyed-limb penalty: flat vs. scaling** — decided 2026-07-26
+      (user): stays flat (-15), no code change. See the entry above under
+      the 2026-07-19 batch for the full reasoning.
+- [x] **Active affects/debuffs persist across quit!/reconnect** — done
+      2026-07-26. New `player_active_affect` table (db/tobin/
+      player_active_affect.sql) + affect_repo.h/.c
+      (`affect_repo_load_all`/`affect_repo_save_all`), hooked into
+      `player_repo.c`'s existing `player_load`/`player_save` choke point
+      so every save path (quit!, combat defeat, 5-minute linkdead purge,
+      explicit `save`) covers it for free. Skips AFFECT_CHARMED/
+      AFFECT_POLYMORPH (not meant to survive a reconnect).
+      `smoke_test_affect_persistence.py` (new) verifies live.
+- [x] **6 newbie equipment suits + `loadsuit` immortal command** — done
+      2026-07-26, per user spec (shield + class weapon, loaded loose into
+      inventory not auto-equipped, reissuable by the Welfare Dept. social
+      worker in room 570, builder-authorable via the DB). New `suit`/
+      `suit_item` tables (db/tobin/suit.sql), suit_repo.h/.c, suit.h/.c,
+      wired into `player_create()`, `cmd_loadsuit.c` (level 56+), and
+      `cmd_say.c`'s SPEC_PROC_NEWBIE_EQUIPPER dispatch. 3 new class
+      weapons seeded (vnums 90003-90005); shield/torch/backpack and 3
+      other class weapons reused existing vnums. `vnum <room|obj|mob>
+      <lo> <hi>` extended to also list free vnum gaps in the range, so
+      builders adding suits can find room. `smoke_test_newbie_gear.py`
+      (new, 5 scenarios) passes live.
+- [x] **Street sweepers/haulers/trash collectors casually clean up loose
+      items to Surplus (room 563)** — done 2026-07-26. New, independent
+      of the existing ACT_SCAVENGER "eat trash" mechanic: any mob whose
+      name contains "sweeper"/"hauler"/"trash collector" has a small
+      per-tick chance to pick up one loose takeable item, and (once
+      carrying) a chance to teleport-deliver everything to Surplus and
+      return (`mob_ai.c`'s `mob_try_surplus_collect()`).
+- [x] **`catchup` should only replay real communication, not ambient
+      messages** — done 2026-07-26. Split `descriptor_notify()` (now
+      ambient, dropped while editing) from new `descriptor_notify_comm()`
+      (the old hold-then-replay behavior) in descriptor.c/.h; switched
+      tell/say/shout/whisper/wiznet/newbie-channel to the `_comm` variant.
+      Left promote/group/system notices as ambient on purpose (each is
+      documented at its call site). `smoke_test_catchup_comm.py` (new).
+- [x] **Function header comments backfilled + version bump to 0.5** —
+      done 2026-07-26. Scoped via a heuristic scan (976 functions total,
+      580 missing a header comment across 116 files); backfilled all of
+      them via 7 parallel agents, one per src subtree, matching each
+      file's existing comment tone. Bundled with the user's version-bump
+      request (0.1 -> 0.5 across every src/include file). Comment-only +
+      one-line version-string changes; zero build warnings on a full
+      clean rebuild.
+- [x] **Trigger editor save/read UX fixes** — done 2026-07-26, from live
+      user testing ("triggers don't save, no option in editor for
+      saving", "need a chance to read the trigger", "forget the use of
+      id, use only vnums"). Match-text/chance-percent edits (which commit
+      immediately) now send an explicit save/failure confirmation instead
+      of committing silently. The item detail view shows the trigger's
+      current script inline, so a builder can read it without opening the
+      script editor. Dropped the raw db id from every user-facing surface
+      (list markers, the item header, `edit trigger list`) and removed
+      the `edit trigger delete <id>` quick command entirely -- deletion
+      is menu-only now. `edit trigger list <vnum>` also now shows
+      chance=N% for random-type triggers (was silently omitted). All 5
+      trigger smoke tests updated and passing live.
+
 ### User batch 2026-07-19 (evening) — logged, not yet started
 
 - [x] **Weather shouldn't affect INDOORS rooms** — done 2026-07-19. Root

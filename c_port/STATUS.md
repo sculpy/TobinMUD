@@ -1,6 +1,49 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 81 (home): **Two more mid-session
+Last updated: 2026-07-26 — Session 82 (home): **Version bump + function
+comment-header sweep, and trigger editor save/read UX fixes from live
+testing.**
+- **Version bump**: every `TobinMUD ver. 0.1` header comment across all
+  268 src/include files bumped to `0.5` (user request), a single sed
+  pass, no functional change.
+- **Function comment-header sweep**: a heuristic scan (checks whether the
+  line directly above each top-level function definition ends `*/`)
+  found 580 of 976 total function definitions missing a header comment,
+  across 116 files. Backfilled all of them via 7 parallel agents (one per
+  src subtree: cmd A/B, core A/B, db, net/descriptor.c, net-remainder +
+  top-level), each matching its file's existing comment tone/depth and
+  skipping genuine false positives (a shared comment already covering a
+  tight family of functions). Comment-only changes -- zero build warnings
+  on a full clean rebuild afterward.
+- **Trigger editor (`edit trigger`) UX fixes**, from the user actually
+  driving the menu live: "triggers don't save, no option in editor for
+  saving" (`CONN_TRIGEDIT_MATCH`/`_CHANCE` commit immediately but gave no
+  confirmation at all -- easy to read as "nothing happened"; now send an
+  explicit "... saved."/failure message), "need a chance to read the
+  trigger" (the item detail view now shows the trigger's current script
+  body inline, instead of requiring option 3 -- which opens the actual
+  editor -- just to see what's already there), and "forget the use of
+  id, use only vnums" (dropped the raw db id from every user-facing
+  surface: list markers, the item header/prompt, and removed the
+  `edit trigger delete <id>` quick command entirely -- deletion is
+  menu-only now, reached by vnum + list position, never a raw id). Also
+  fixed a related gap noticed along the way: `edit trigger list <vnum>`
+  never showed a random-type trigger's chance percent, only its match
+  text -- now shows `chance=N%` too, matching the interactive menu.
+- Live-reproduced each reported symptom against the deployed build
+  before touching code (raw-socket driven, immortal test account),
+  confirmed each fix afterward the same way. Updated
+  `smoke_test_trigedit_menu.py`/`smoke_test_trigger.py`/
+  `smoke_test_trigger_wait.py` for the id removal (two switched their
+  teardown from the now-gone quick delete command to a direct SQL
+  DELETE); all 5 trigger smoke tests pass clean. One `smoke_test_trigger.py`
+  assertion ("mob random trigger fired via aitick") failed once on an
+  unrelated re-run and passed clean on retry -- confirmed flaky, not a
+  regression, before moving on.
+- Deployed via copyover (live player's connection restored both times),
+  committed as two commits, pushed, VM synced.
+
+### Session 81 (home): **Two more mid-session
 user requests: street sweeper/hauler/collector mobs that actually
 tidy up, and `catchup` restricted to real communication.**
 - **Surplus collection** (`mob_ai.c`'s new `mob_try_surplus_collect()`):
