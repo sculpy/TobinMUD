@@ -10,20 +10,23 @@
 
 #include "being.h"
 #include "descriptor.h"
-#include "ignore_repo.h"
-#include "tell_history_repo.h"
 
 /* `reply <message>` (2026-07-26 docs/systems review -- original's
  * `doReply()`/`desc->last_teller`): sends a tell to whoever most recently
  * `tell`'d this descriptor, without retyping their name. `last_teller` is
  * pure live descriptor state (descriptor.h) -- empty until someone tells
  * you this session, and never persisted, same as the original. Delivery
- * mirrors cmd_tell.c exactly (ignore check, history log, last_teller
- * chain), just with the target resolved from `d->last_teller` instead of
- * a typed name. */
+ * (history log, PLR_NOTELL/ignore/PLR_AFK checks, last_teller/last_told
+ * bookkeeping) is shared with `tell` via cmd_tell.c's tell_deliver(),
+ * just with the target resolved from `d->last_teller` instead of a
+ * typed name. */
 bool cmd_reply(descriptor_t *d, const char *args) {
     if (!d->character)
         return true;
+    if (d->character->pflags & PLR_MUTED) {
+        descriptor_send(d, "You have been muted and cannot tell anyone.\r\n");
+        return true;
+    }
 
     if (!*args) {
         descriptor_send(d, "Reply what?\r\n");
@@ -48,16 +51,6 @@ bool cmd_reply(descriptor_t *d, const char *args) {
         return true;
     }
 
-    char out[400];
-    snprintf(out, sizeof(out), "<p>You tell %s, \"<z>%s<p>\"<z>\r\n", target->base.name, args);
-    descriptor_send(d, out);
-    tell_history_add(d->character->player_id, target->player_id, args);
-    if (target->desc && !ignore_repo_is_ignored(target->player_id, d->character->base.name)) {
-        snprintf(out, sizeof(out), "<p>%s tells you, \"<z>%s<p>\"<z>\r\n",
-                 d->character->base.name, args);
-        descriptor_notify_comm(target->desc, out);
-        snprintf(target->desc->last_teller, sizeof(target->desc->last_teller), "%s",
-                 d->character->base.name);
-    }
+    tell_deliver(d, target, args);
     return true;
 }

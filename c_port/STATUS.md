@@ -42,6 +42,49 @@ review, and its one real finding: tell history + `reply`.**
 - Next, per the user: go over the toggle-related UNSURE items from the
   review (`AUTO_NOTELL`, `AUTO_AFK`, `PLR_GODNOSHOUT` and friends) --
   not yet started.
+- **Follow-up, same session**: checked what `toggle` already covers first
+  -- `noshout` (AUTO_NOSHOUT) already existed, so that one was already
+  covered. User: "dont need pg13. but implement the rest" -- `pg13`
+  (a real text-filter feature, not just a flag) explicitly dropped;
+  `notell`, `afk`, and `mute`/`unmute` (the PLR_GODNOSHOUT equivalent)
+  all added:
+  - **`toggle notell`** (`PLR_NOTELL`, being.h): blocks incoming tells,
+    with the original's own exception -- still gets through from whoever
+    THIS player last told themselves (new `descriptor_t.last_told`,
+    session-only, same shape as `last_teller`). Explicit failure message
+    to the sender, unlike the silent ignore-list block.
+  - **`toggle afk`** (`PLR_AFK`): opts in to an auto-away notice on
+    incoming tells once the target is actually idle -- reuses the same
+    5-minute idle threshold `who`'s "(idle)" tag already used (pulled out
+    to a new named `IDLE_DISPLAY_SECS` constant, descriptor.h, replacing
+    a bare `300` literal in cmd_who.c). Tell still delivers either way,
+    just an extra notice for the sender.
+  - **`mute <player>` / `unmute <player>`** (new `cmd_mute.c`, 
+    `PLR_MUTED`, IMMORTAL_LEVEL_MIN): an immortal-imposed ban on tell and
+    shout for a misbehaving player -- ported from the original's
+    PLR_GODNOSHOUT. The original also blocks "emote"; skipped, since
+    Tobin has no freeform emote command at all (only predefined, DB-
+    backed social actions with none of the abusive-freeform-text risk).
+    Online-only by design (player_repo.h has no by-name pflags setter,
+    and muting is inherently a right-now tool). Level-gated so a target
+    can't out-rank the muter.
+  - Both `notell`'s exception path and `afk`'s idle-triggered notice were
+    live-verified for real: `notell` via the normal test flow, `afk` by
+    temporarily rebuilding with `IDLE_DISPLAY_SECS` lowered to 2s on the
+    VM, confirming the notice actually fires once idle, then reverting
+    and rebuilding the real 300s value before deploying -- a genuine
+    5-minute wait has no place in a routine smoke test (same reasoning
+    `aitick` exists for).
+  - `tell`/`reply`'s shared delivery logic (history log, notell/ignore/
+    afk checks, last_teller/last_told bookkeeping) got pulled into one
+    `tell_deliver()` helper (cmd_tell.c, declared in cmd_internal.h) used
+    by both commands, rather than duplicating it a second time for this
+    follow-up.
+  - New `tests/smoke_test_toggles.py` (12 checks). Regression-checked
+    `smoke_test_reply.py`/`smoke_test_ignore.py`/`smoke_test_shout.py`/
+    `smoke_test_toggle.py`/`smoke_test_toggle_tips.py` (all clean).
+    Deployed via copyover with a player connected both times, connection
+    restored each time. Zero build warnings.
 
 ### Session 82 (home): **Version bump + function
 comment-header sweep, and trigger editor save/read UX fixes from live

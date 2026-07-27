@@ -159,6 +159,38 @@ static void tg_tips_set(descriptor_t *d, bool v) {
     player_set_pflags(d->character->player_id, d->character->pflags);
 }
 
+/* --- notell: block incoming tells, except from your own last_told
+ * (player.pflags bit, descriptor.h's last_told) -- the actual block
+ * happens in cmd_tell.c/cmd_reply.c, not here. */
+static bool tg_notell_get(descriptor_t *d) {
+    return d->character && (d->character->pflags & PLR_NOTELL);
+}
+static void tg_notell_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->pflags |= PLR_NOTELL;
+    else
+        d->character->pflags &= ~PLR_NOTELL;
+    player_set_pflags(d->character->player_id, d->character->pflags);
+}
+
+/* --- afk: opt in to an auto-away notice on incoming tells once idle
+ * (player.pflags bit) -- the actual idle check + notice happens in
+ * cmd_tell.c/cmd_reply.c, not here. */
+static bool tg_afk_get(descriptor_t *d) {
+    return d->character && (d->character->pflags & PLR_AFK);
+}
+static void tg_afk_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->pflags |= PLR_AFK;
+    else
+        d->character->pflags &= ~PLR_AFK;
+    player_set_pflags(d->character->player_id, d->character->pflags);
+}
+
 /* --- multiplay: global game toggle (55+) --- */
 static bool tg_multiplay_get(descriptor_t *d) { (void)d; return multiplay_allowed(); }
 static void tg_multiplay_set(descriptor_t *d, bool v) { (void)d; multiplay_set(v); }
@@ -170,6 +202,8 @@ static const toggle_t TOGGLES[] = {
     { "hp",        "hit points shown in prompt",    false, "Prompt",        tg_hp_get,        tg_hp_set },
     { "newbie",    "on the newbie help channel",    false, "Communication", tg_newbie_get,    tg_newbie_set },
     { "noshout",   "opted out of hearing shouts",   false, "Communication", tg_noshout_get,   tg_noshout_set },
+    { "notell",    "block incoming tells",          false, "Communication", tg_notell_get,    tg_notell_set },
+    { "afk",       "auto-away notice on tells",     false, "Communication", tg_afk_get,       tg_afk_set },
     { "tips",      "periodic newbie tip echoes",    false, "Communication", tg_tips_get,      tg_tips_set },
     { "pk",        "willing to fight other players", false, "Preferences",  tg_pk_get,        tg_pk_set },
     { "multiplay", "one account, many characters",  true,  NULL,            tg_multiplay_get, tg_multiplay_set },

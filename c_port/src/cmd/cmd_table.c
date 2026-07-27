@@ -385,6 +385,10 @@ static const cmd_entry_t COMMANDS[] = {
      * cmd_mortal.c. */
     { "mortal",  cmd_mortal,  "Walk the world as a mortal (immort to return).",     IMMORTAL_LEVEL_MIN },
     { "multiplay", cmd_multiplay, "Toggle whether mortals may multiplay (59+).",    MULTIPLAY_MIN_LEVEL },
+    /* Full names only recommended -- "mu" alone is already ambiguous
+     * between mudstats/multiplay/mute, first table match wins. */
+    { "mute",    cmd_mute,    "Block a misbehaving player's tell/shout (mute <player>).", IMMORTAL_LEVEL_MIN },
+    { "unmute",  cmd_unmute,  "Lift a mute (unmute <player>).",                     IMMORTAL_LEVEL_MIN },
     /* Mount/riding system (Sneezy → Tobin feature audit). Listed AFTER
      * "mortal" above on purpose -- "mortal" already owns the "mo"
      * abbreviation for immortals (both are reachable to them, and

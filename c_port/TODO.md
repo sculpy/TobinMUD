@@ -6260,10 +6260,8 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       creation advantages/disadvantages, e.g. Cowardice/Nightvision) came
       back UNSURE -- no trace anywhere in Tobin, never explicitly
       discussed either way -- **user 2026-07-27: not needed, skip.**
-      Also flagged but not yet decided: a family of player toggle bits
-      the original has and Tobin doesn't (`AUTO_NOTELL`/`AUTO_AFK`/
-      `PLR_GODNOSHOUT` and similar) -- **queued as the user's explicit
-      next topic ("then we can go over toggles"), not started.** Two
+      Also flagged: a family of player toggle bits the original has and
+      Tobin didn't -- **done same session, see the entry below.** Two
       near-misses turned out to be already-decided, not gaps: limb
       injury not persisting long-term (STATUS.md ~line 4019) and
       component/symbol charges being per-vnum not per-carried-item
@@ -6281,6 +6279,30 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       30 real `tell`s through the live server. Regression-checked
       `smoke_test_ignore.py`/`smoke_test_notify.py`/
       `smoke_test_catchup_comm.py` (all clean).
+- [x] **`notell`/`afk` toggles + `mute`/`unmute`** — done 2026-07-27
+      (Session 83), same review's toggle follow-up. User: "dont need
+      pg13. but implement the rest" -- `noshout` already existed (no
+      work needed); `pg13` (a real profanity-filter feature, not a flag)
+      explicitly dropped. `toggle notell` blocks incoming tells except
+      from whoever you yourself last told (new `PLR_NOTELL` + a new
+      session-only `descriptor_t.last_told`, same shape as
+      `last_teller`); `toggle afk` adds an auto-away notice to an
+      incoming tell once the target's actually idle (new `PLR_AFK`,
+      reuses the 5-minute idle threshold `who`'s "(idle)" tag already
+      used, pulled into a named `IDLE_DISPLAY_SECS` constant); new
+      `mute <player>`/`unmute <player>` (`cmd_mute.c`, `PLR_MUTED`,
+      IMMORTAL_LEVEL_MIN) blocks tell+shout for a misbehaving player,
+      porting the original's PLR_GODNOSHOUT -- "emote" skipped since
+      Tobin has no freeform emote command to gate, only predefined
+      social actions. `tell`/`reply`'s shared delivery logic got pulled
+      into one `tell_deliver()` helper rather than duplicated again.
+      `tests/smoke_test_toggles.py` (12 checks); the AFK idle-notice
+      path was live-verified once against a build with the idle
+      threshold temporarily dropped to 2s, then reverted -- a real
+      5-minute wait doesn't belong in a routine smoke test. Regression-
+      checked `smoke_test_reply.py`/`smoke_test_ignore.py`/
+      `smoke_test_shout.py`/`smoke_test_toggle.py`/
+      `smoke_test_toggle_tips.py` (all clean).
 - [x] **Systems documentation** — done 2026-07-26. `c_port/doc/systems/README.md`:
       an orientation map (directory layout + what lives where, grouped by
       system: core data model, networking, persistence, combat/body,

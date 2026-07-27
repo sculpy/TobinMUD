@@ -246,6 +246,30 @@ typedef struct {
  * tips". tips_pulse_tick() now requires PLR_NEWBIE set AND PLR_NOTIPS
  * clear, so tips still only ever reach newbie-flagged connections. */
 #define PLR_NOTIPS 32
+/* PLR_NOTELL = blocks incoming `tell`s (default off; toggle on with
+ * `toggle notell`), ported from the original's AUTO_NOTELL -- EXCEPT from
+ * whoever this player's OWN descriptor last told (desc->last_told,
+ * descriptor.h), so a conversation you started yourself still gets a
+ * reply through even with this on. Checked in cmd_tell.c/cmd_reply.c
+ * before delivery, with an explicit failure message to the sender
+ * (unlike the ignore list, which fails silently by design). */
+#define PLR_NOTELL 64
+/* PLR_AFK = opts in to auto-away behavior (default off; toggle on with
+ * `toggle afk`), ported from the original's AUTO_AFK ("auto-AFK after
+ * idle"). Doesn't mark you AFK by itself -- combined with the existing
+ * idle-detection threshold (descriptor.c's `last_active`, same one `who`
+ * already uses for its "(idle)" tag) in cmd_tell.c/cmd_reply.c: a tell to
+ * an idle player with this set gets an extra "is AFK" notice appended for
+ * the sender, tell still delivers normally either way. */
+#define PLR_AFK 128
+/* PLR_MUTED = an IMMORTAL-imposed ban on tell/shout/emote (ported from
+ * the original's PLR_GODNOSHOUT), set/cleared only by `mute`/`unmute`
+ * (58+, cmd_mute.c) -- unlike every other flag on this list, a player can
+ * never set or clear this on themselves. Checked at the SENDER side of
+ * each blocked command (cmd_tell.c, cmd_shout.c, the emote social) rather
+ * than the recipient side, since this restricts what a muted player can
+ * say, not what reaches them. */
+#define PLR_MUTED 256
 
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in

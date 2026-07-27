@@ -185,7 +185,11 @@ bool cmd_examine(descriptor_t *d, const char *args);
 bool cmd_sip(descriptor_t *d, const char *args);
 bool cmd_show(descriptor_t *d, const char *args);
 bool cmd_tell(descriptor_t *d, const char *args);
+/* Shared tell/reply delivery logic -- see cmd_tell.c's own doc comment. */
+void tell_deliver(descriptor_t *d, being_t *target, const char *msg_text);
 bool cmd_reply(descriptor_t *d, const char *args);
+bool cmd_mute(descriptor_t *d, const char *args);
+bool cmd_unmute(descriptor_t *d, const char *args);
 bool cmd_whisper(descriptor_t *d, const char *args);
 bool cmd_read(descriptor_t *d, const char *args);
 bool cmd_write(descriptor_t *d, const char *args);

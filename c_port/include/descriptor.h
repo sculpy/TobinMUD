@@ -607,6 +607,15 @@ typedef struct descriptor {
      * the original's own `last_teller` is exactly this transient). */
     char last_teller[PLAYER_NAME_LEN];
 
+    /* `toggle notell`'s exception (PLR_NOTELL, being.h -- original's
+     * `desc->last_told`): who this descriptor most recently `tell`'d.
+     * Checked on the RECIPIENT side of a blocked tell -- if the sender's
+     * name matches the recipient's OWN last_told, the tell gets through
+     * even with PLR_NOTELL set, so a conversation you started yourself
+     * still gets a reply. Live descriptor state only, same as
+     * last_teller above. */
+    char last_told[PLAYER_NAME_LEN];
+
     /* Held messages: while this connection is in an editor, asynchronous game
      * messages (says, combat, arrivals, broadcasts) are buffered here instead
      * of interrupting the editor. Reviewed with `catchup`; anything older than
@@ -788,6 +797,14 @@ void descriptor_keepalive(long pulse_num);
 /* Seconds a playing MORTAL may idle before being disconnected. Immortals are
  * exempt (never idle-dropped). 30 minutes. */
 #define IDLE_DISCONNECT_SECS 1800
+
+/* Seconds idle before a connection is considered "idle" for display
+ * purposes -- `who`'s "(idle)" tag (cmd_who.c) and the PLR_AFK auto-notice
+ * on an incoming tell (cmd_tell.c/cmd_reply.c, being.h's PLR_AFK comment)
+ * both use this same 5-minute threshold. Separate from
+ * IDLE_DISCONNECT_SECS on purpose -- "looks idle" and "gets disconnected"
+ * are very different thresholds. */
+#define IDLE_DISPLAY_SECS 300
 
 /* Pulse callback: disconnects mortals idle past IDLE_DISCONNECT_SECS; leaves
  * immortals connected. Registered in main.c. */

@@ -24,6 +24,10 @@ bool cmd_shout(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)
         return true;
+    if (ch->pflags & PLR_MUTED) {
+        descriptor_send(d, "You have been muted and cannot shout.\r\n");
+        return true;
+    }
     if (!*args) {
         descriptor_send(d, "Yes, but WHAT do you want to shout?\r\n");
         return true;

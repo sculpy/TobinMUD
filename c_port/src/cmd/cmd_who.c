@@ -138,7 +138,7 @@ bool cmd_who(descriptor_t *d, const char *args) {
         center_pad(centered, sizeof(centered), level_field, WHO_LEVEL_FIELD_WIDTH);
 
         /* Idle for over five minutes -> tagged (idle); any input clears it. */
-        bool idle = (long)time(NULL) - o->last_active > 300;
+        bool idle = (long)time(NULL) - o->last_active > IDLE_DISPLAY_SECS;
         /* Tint the level/rank BRACKET by immortal rank tier (mortals: no
          * color) -- the name itself stays uncolored (user spec). */
         const char *col = being_rank_color(o->character->progress.level);
