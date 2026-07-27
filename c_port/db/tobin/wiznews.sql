@@ -867,3 +867,11 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'chi gives Monks a real offensive skill, not a healing one', 'Second Monk skill from the spell/skill functional-completeness audit: `chi [<target>]` unleashes a chi-powered strike at a foe, defaulting to your current opponent mid-fight. The roster''s own old description called it a healing touch -- wrong, checked against the real upstream source, which is actually an offensive chi-blast, plus separate self-buff/room-AOE/object variants that all key off a mana pool Tobin does not have, so only the single-target attack made the cut this pass. New tests/smoke_test_chi.py (7 checks) passes live. Deployed via copyover, zero build warnings.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Monks get three new passive combat instincts: jirin, kubo, oomlat', 'These three round out the Monk basic-stance cluster from the spell/skill functional-completeness audit -- unlike every other skill in this audit they are not commands at all, they are wired directly into the hit/damage math itself. Jirin gives a Monk a passive chance to dodge an incoming attack (found the real behavior in a fuller reference source: it works against any attack, not just unarmed ones, despite how the skill was originally described). Kubo boosts a Monk''s own bare-handed to-hit and damage. Oomlat gives a bare-handed Monk a defensive bonus in place of armor. All three scale with proficiency. Deployed via copyover, zero build warnings.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Falling is now real, and Monks can catch themselves', 'Rounding out the level-one Monk skill cluster: falling through open sky now deals real, escalating damage depending on how far you drop, occasionally fatal if you fall far enough. A Monk with catfall takes roughly half the damage from any fall. A Monk with catleap can now leap in any direction and glide across open space, even where there is normally no ground to jump from.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

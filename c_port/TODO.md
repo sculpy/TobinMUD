@@ -1306,17 +1306,49 @@ durations where warranted, and a cooldown where warranted. Audit findings
     resolution path. New `cmd_chi.c`. `tests/smoke_test_chi.py` (7
     checks) passes live.
     **jirin/kubo/oomlat** -- done 2026-07-27. Wired directly into
-    `combat_strike()` (not new commands): jirin is a passive dodge roll
-    vs. an unarmed attacker (same shape as the existing `parry` check);
-    kubo adds an unarmed to-hit+damage bonus (fills the same slot a
-    weapon's hitroll/damroll would); oomlat adds an unarmed AC-style
-    to-hit-denial bonus. All three proficiency-scaled, ~12 points at
-    100% (comparable to existing modifiers like `NON_STANDING_HIT_
-    BONUS`). `tests/smoke_test_monkpassives.py` (3 checks -- jirin
-    discrete, kubo/oomlat statistical via a fixed dex-mismatch baseline)
-    passes live.
-    Remaining: **catfall/catleap** need confirming whether Tobin has
-    fall damage at all before deciding if there's anything to port.
+    `combat_strike()` (not new commands): jirin is a passive dodge roll,
+    same shape as the existing `parry` check -- initially gated on the
+    attacker being unarmed, corrected once the fuller peel-sneezymud
+    reference clone (not the originally-bundled sneezymud-master/)
+    turned up the real `monkDodge()`: it's a general anti-hit defense
+    ("a replacement for Monk's lack of AC" per its own comment), checked
+    against ANY incoming hit regardless of the attacker's weapon; kubo
+    adds an unarmed to-hit+damage bonus (fills the same slot a weapon's
+    hitroll/damroll would); oomlat adds an unarmed AC-style to-hit-
+    denial bonus. All three proficiency-scaled, ~12 points at 100%
+    (comparable to existing modifiers like `NON_STANDING_HIT_BONUS`).
+    `tests/smoke_test_monkpassives.py` (3 checks) passes live.
+    **catfall/catleap** -- done 2026-07-27. User: "the goal is to remain
+    as close as possible to the original" -- built the real fall-damage
+    mechanic (`fall.c`, ported from `TBeing::checkFalling()`) rather than
+    cutting catfall for lack of one. New `sector_is_fall()`/`sector_is_
+    water()` (room.c, same substring-bucketing convention as `room_can_
+    plant()`) mark ATMOSPHERE/MAKE FLY sectors as open air; `fall_check()`
+    (called from cmd_move.c after any successful move) drops a being
+    through consecutive DIR_DOWN-linked fall sectors, landing tier
+    decided by how many rooms were fallen through against two
+    thresholds (num1 = max survivable depth, 10 with catfall else 5;
+    num2 = num1-2) -- an agility-style DEX roll can land clean below
+    num2, a CON-scaled roll decides a crushing landing vs. death between
+    num2 and num1, and it's unconditionally fatal beyond num1 (new
+    `combat_fall_kill_pc()`, an environmental death mirroring
+    `combat_drown_pc()`). catfall halves damage; water landings soften
+    it further. Real primitives Tobin doesn't have were adapted, not
+    skipped: `getConShock()`/`isAgile()` -> flat CON/DEX-scaled percentage
+    rolls; `break_bone()` -> splitting the landing damage across both
+    legs via `being_hurt_limb()` (a leg-specific `being_hurt_limb()` call
+    on top of the normal damage would have double-counted it -- caught
+    live, since that function deducts from overall HP too, not just the
+    limb). catleap's own real function (`doLeap()`) was found only in
+    the fuller peel-sneezymud clone too -- ported as `cmd_catleap.c`:
+    refuses while fighting or standing on open air, spends 15 Vitality
+    (Move's Tobin equivalent), grants a brief `AFFECT_FLYING` then
+    dispatches the real typed direction through `cmd_dispatch()` rather
+    than reimplementing movement, reusing do_move()'s own cost/
+    messaging/fall-check logic for free. `tests/smoke_test_catfall.py`
+    (8 checks, including a statistical catfall-halves-damage comparison
+    that needed bumping from 10 to 25 samples live to reliably separate
+    from background HP-regen noise) passes live.
   - Level 5+ (identified, not yet started, sorted ascending): cintai
     (Monk, 5), shove/materialize (6), bodyslam (10), curse/slumber (13),
     fear/identify (14), headbutt (15), telepathy (16), spin/invisibility/

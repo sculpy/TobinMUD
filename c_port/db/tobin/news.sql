@@ -334,3 +334,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Inventory Now Stacks Identical Items', '`inventory` no longer lists three separate lines for three of the same thing -- identical items now group together with a count, like "a small sack of tomato seeds (x3)".')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Watch Your Step -- Falling Is Now Dangerous', 'Wandering into open sky with nothing but air underfoot will now send you plummeting, and the landing can genuinely hurt or even kill you depending on how far you fall. Monks trained in catfall land much softer. Monks trained in catleap can now leap across open space in any direction, gliding safely over ground they normally could not cross.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

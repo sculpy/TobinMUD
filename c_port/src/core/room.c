@@ -109,6 +109,33 @@ bool sector_is_underwater(int sector) {
     return strstr(sector_name(sector), "UNDERWATER") != NULL;
 }
 
+/* True for open-air sectors with nothing solid underfoot -- ATMOSPHERE
+ * (arctic/temperate/tropical/fire) and MAKE FLY, the same "open sky"
+ * bucket room_can_plant() already excludes together. Used by fall.c's
+ * checkFalling()-equivalent to decide whether a room drops you through
+ * to whatever is below (Sneezy → Tobin feature audit, "catfall/
+ * catleap"). CLIMBING sectors are deliberately NOT included here --
+ * the real upstream's own TerrainInfo table marks them passable
+ * ground, not open air (you can fall FROM a cliff face by other means,
+ * but standing on one isn't itself a fall risk the way open sky is). */
+bool sector_is_fall(int sector) {
+    const char *name = sector_name(sector);
+    return strstr(name, "ATMOSPHERE") != NULL || strcmp(name, "MAKE FLY") == 0;
+}
+
+/* True for any water sector, surface or underwater -- softens fall
+ * damage the same way the real upstream's isWaterSector() does (a
+ * splash lands better than a sidewalk). Deliberately broader than
+ * sector_is_underwater() above (which excludes swimmable surface
+ * water on purpose for the drowning check) -- falling cares about
+ * "is there water to land in at all," not whether it's deep enough to
+ * drown in. */
+bool sector_is_water(int sector) {
+    const char *name = sector_name(sector);
+    return strstr(name, "UNDERWATER") || strstr(name, "OCEAN")
+        || strstr(name, "RIVER") || strstr(name, "ICEFLOW");
+}
+
 /* True if a room's sector/flags allow planting seeds -- excludes indoors,
  * water/underwater, sky/astral, and solid-rock/lava/inside-mob sectors.
  * Used by the `plant` command (see planting.c) to reject bad locations

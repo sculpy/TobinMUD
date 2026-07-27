@@ -26,11 +26,31 @@ completeness audit continued).**
   New `cmd_chi.c`. `tests/smoke_test_chi.py` (7 checks) passes live.
   Clean rebuild, restarted, gdb-attached, no crash.
 - **jirin/kubo/oomlat** (Monk passives, wired into `combat_strike()`
-  directly, not new commands): jirin = passive dodge vs. an unarmed
-  attacker (parry's own shape); kubo = unarmed to-hit+damage bonus;
-  oomlat = unarmed AC-style to-hit-denial bonus. All proficiency-scaled.
+  directly, not new commands): jirin = passive dodge (parry's own
+  shape) -- corrected from "vs. an unarmed attacker" once the fuller
+  peel-sneezymud reference clone turned up the real monkDodge(): it's a
+  general anti-hit defense against ANY attack, not gated on the
+  attacker's weapon; kubo = unarmed to-hit+damage bonus; oomlat =
+  unarmed AC-style to-hit-denial bonus. All proficiency-scaled.
   `tests/smoke_test_monkpassives.py` (3 checks) passes live. Clean
   rebuild, restarted, no crash.
+- **catfall/catleap**: user wanted fidelity to the original over a
+  scope cut, so built the real fall-damage system (new `fall.c`,
+  `sector_is_fall()`/`sector_is_water()` in room.c) instead -- a being
+  falls through consecutive DIR_DOWN fall-sector rooms, landing tier
+  (safe/hurt/crushed/dead) decided by depth fallen vs. two thresholds,
+  catfall halving damage. `catleap`'s own real function was only found
+  in the fuller peel-sneezymud clone (not the original bundled source)
+  -- new `cmd_catleap.c` grants brief flight and dispatches the real
+  move through the normal command pipeline. Caught one real bug before
+  shipping: a "shatter both legs" flourish would have double-counted
+  damage (`being_hurt_limb()` deducts overall HP too, not just the
+  limb) -- fixed by splitting the existing damage across both legs
+  instead of adding more. `tests/smoke_test_catfall.py` (8 checks,
+  including a statistical catfall-damage comparison bumped from 10 to
+  25 samples live after a first run came back backwards against
+  background HP-regen noise) passes live. Clean rebuild, restarted, no
+  crash. This closes out the full level-1 Monk basic-stance cluster.
 
 Previous update: 2026-07-27 — Session 83 (home): **Docs/systems persistence
 review, and its one real finding: tell history + `reply`.**

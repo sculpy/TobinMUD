@@ -54,6 +54,13 @@ bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int 
  * PC (mobs don't drown -- they have no vitals tick at all yet). */
 void combat_drown_pc(being_t *victim);
 
+/* Fatal fall death (Sneezy → Tobin feature audit, "catfall/catleap"):
+ * called from fall.c once a fall's own damage roll is unsurvivable.
+ * Same "environmental death, no winner" shape as combat_drown_pc()
+ * above -- see its doc comment for why this can't just wrap
+ * combat_defeat(). No-op for anything but a PC. */
+void combat_fall_kill_pc(being_t *victim);
+
 /* Shared "deal skill-combat damage, then handle defeat" pipeline for
  * bash/kick (cmd_bash.c/cmd_kick.c, Skill-based combat, Sneezy → Tobin
  * feature audit) -- these are EXTRA player-triggered actions layered on

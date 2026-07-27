@@ -150,6 +150,11 @@ static const cmd_entry_t COMMANDS[] = {
      * just immortals mid-editor, so anyone can have something to catch up
      * on. */
     { "catchup", cmd_catchup, "Replay game messages missed while editing or paging.", MORTAL_LEVEL_MIN },
+    /* Shares the "cat" prefix with catchup above -- catchup (listed
+     * first) keeps "cat"/"catc", catleap needs "catl" to disambiguate;
+     * both are 4+ characters when actually typed in practice, so this
+     * doesn't cost either command a real-world abbreviation. */
+    { "catleap", cmd_catleap, "Leap and glide a direction, out of combat (Monk, catleap <direction>).", MORTAL_LEVEL_MIN },
     { "cast",    cmd_cast,    "Cast a spell (Mage/Druid) -- requires a component.", MORTAL_LEVEL_MIN },
     { "color",   cmd_color,   "Toggle ANSI color rendering on or off.",             MORTAL_LEVEL_MIN },
     /* Cook profession (user 2026-07-26): "coo" is unambiguous -- color

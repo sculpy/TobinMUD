@@ -115,6 +115,7 @@ bool cmd_sleep(descriptor_t *d, const char *args);
 bool cmd_smoke(descriptor_t *d, const char *args);
 bool cmd_wake(descriptor_t *d, const char *args);
 bool cmd_catchup(descriptor_t *d, const char *args);
+bool cmd_catleap(descriptor_t *d, const char *args);
 bool cmd_cast(descriptor_t *d, const char *args);
 bool cmd_pray(descriptor_t *d, const char *args);
 bool cmd_wiznews(descriptor_t *d, const char *args);

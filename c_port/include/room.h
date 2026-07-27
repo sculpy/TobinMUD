@@ -66,6 +66,14 @@ int sector_move_cost(int sector);
  * fires for a true underwater sector, not merely a wet one. */
 bool sector_is_underwater(int sector);
 
+/* True for open-air/no-floor sectors (catfall/catleap, Sneezy → Tobin
+ * feature audit) -- see room.c's own doc comment for the exact bucket. */
+bool sector_is_fall(int sector);
+
+/* True for any water sector, surface or underwater -- see room.c's own
+ * doc comment for why it's broader than sector_is_underwater() above. */
+bool sector_is_water(int sector);
+
 /* True if seeds can be sown here (Planting, Sneezy → Tobin feature
  * audit): not indoors, not on/under water, not on bare rock/lava, not
  * open-air atmosphere -- the same four categories the original's

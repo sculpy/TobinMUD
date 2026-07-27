@@ -13,6 +13,7 @@
 #include "being.h"
 #include "cmd.h"
 #include "combat.h"
+#include "fall.h"
 #include "player_repo.h"
 #include "room.h"
 #include "room_repo.h"
@@ -264,6 +265,16 @@ static bool do_move(descriptor_t *d, int dir) {
         descriptor_room_echo(to, ch, msg);
 
     run_room_and_greet_triggers(ch, to);
+
+    /* Falling (Sneezy → Tobin feature audit, "catfall/catleap") -- see
+     * fall.c's own doc comment. May destroy `ch` on a fatal landing
+     * (combat_fall_kill_pc() -> descriptor_leave_to_menu(), same "d->
+     * character freed and set NULL" shape combat_defeat()'s own loser-
+     * ejection path already uses) -- checked before the final `look`,
+     * same guard vitals_tick_run() uses after a fatal drowning check. */
+    fall_check(ch);
+    if (!d->character)
+        return true;
 
     return cmd_dispatch(d, "look");
 }

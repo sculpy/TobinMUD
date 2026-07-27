@@ -505,21 +505,26 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
 
     /* Jirin (Monk, spell/skill functional-completeness audit continued:
      * skill.c's own "Dodge, block, or deflect an incoming unarmed
-     * attack."). Real upstream checks it via a bSuccess() roll inside
-     * disc_monk_mind_body.cc, described there as a passive reactive
-     * save -- its exact effect wasn't traced further, so this reuses
-     * parry's own proven shape (quartered proficiency roll, checked
-     * before the normal hit/miss roll, negates the attack outright)
-     * rather than guessing at a different one. Gated on the ATTACKER
-     * being unarmed, matching the roster's own "incoming unarmed
-     * attack" framing -- jirin doesn't help against a wielded weapon. */
-    if (!weapon && !being_is_immortal(defender) && being_knows_skill(defender, "jirin")) {
+     * attack."). Found the real implementation in the fuller peel-
+     * sneezymud reference source (disc/disc_monk.cc's monkDodge(),
+     * not present in the original bundled sneezymud-master/) -- it's
+     * the Monk's own general anti-hit defense, "a replacement for
+     * Monk's lack of AC" per its own comment, checked against ANY
+     * incoming hit regardless of the ATTACKER's weapon -- NOT gated on
+     * the attacker being unarmed the way the roster's own flavor text
+     * implies. Reuses parry's proven shape (quartered proficiency roll,
+     * checked before the normal hit/miss roll, negates the attack
+     * outright) rather than porting monkDodge()'s own two-stage roll
+     * (a skill-diff-modifier gate, then a separate bSuccess() -- more
+     * involved than any other passive in this audit, without a clear
+     * Tobin equivalent for getSkillDiffModifier() to port faithfully). */
+    if (!being_is_immortal(defender) && being_knows_skill(defender, "jirin")) {
         const skill_def_t *jirin_sk = skill_find(defender->char_class, "jirin", false);
         if (jirin_sk && skill_roll_success(skill_learn_from_doing(defender, jirin_sk) / 4)) {
             if (!(attacker->pflags & PLR_NOSPAM))
-                tell(attacker, "%s deflects your unarmed attack!\r\n", being_display_name(defender));
+                tell(attacker, "%s deflects your attack!\r\n", being_display_name(defender));
             if (!(defender->pflags & PLR_NOSPAM))
-                tell(defender, "You deflect %s's unarmed attack!\r\n", being_display_name(attacker));
+                tell(defender, "You deflect %s's attack!\r\n", being_display_name(attacker));
             return false;
         }
     }
@@ -1222,6 +1227,79 @@ void combat_drown_pc(being_t *victim) {
     }
 
     log_info("%s has drowned. [%s]", being_display_name(victim),
+             victim->desc ? descriptor_display_host(victim->desc) : "?");
+
+    player_progress_save(victim->player_id, &victim->progress);
+    if (victim->desc)
+        descriptor_leave_to_menu(victim->desc);
+}
+
+/* Fatal fall (Sneezy → Tobin feature audit, "catfall/catleap"): called
+ * from fall.c's own checkFalling()-equivalent once a fall's own damage
+ * roll is unsurvivable (mirrors the real upstream's fallKill()). An
+ * environmental death, same "no winner" shape as combat_drown_pc()
+ * just above -- duplicates its PC-relevant slice rather than reusing
+ * combat_defeat() for the exact same reason that function's own doc
+ * comment already gives. */
+void combat_fall_kill_pc(being_t *victim) {
+    if (!victim || victim->base.kind != THING_PC)
+        return;
+
+    victim->fighting = NULL;
+    victim->progress.hp = victim->progress.max_hp / 2;
+    if (victim->progress.hp < 1)
+        victim->progress.hp = 1;
+    being_limbs_full_heal(victim);
+
+    if (!being_is_immortal(victim) && victim->progress.experience > 0) {
+        long base_loss = victim->progress.experience / 5;
+        long level_floor = progress_xp_for_level(victim->progress.level);
+        long max_loss = victim->progress.experience - level_floor;
+        if (max_loss < 0)
+            max_loss = 0;
+        long xp_loss = base_loss < max_loss ? base_loss : max_loss;
+        if (xp_loss > 0) {
+            victim->progress.experience -= xp_loss;
+            tell(victim, "You lose %ld experience point%s.\r\n", xp_loss, xp_loss == 1 ? "" : "s");
+        }
+    }
+
+    tell(victim, "The ground rushes up to meet you -- everything goes dark. You have fallen to your death!\r\n");
+
+    room_t *scene = victim->base.roomp;
+    if (scene) {
+        char namebuf[64], msg[128];
+        being_display_name_cap(victim, namebuf, sizeof(namebuf));
+        snprintf(msg, sizeof(msg), "%s slams into the ground and lies still.\r\n", namebuf);
+        descriptor_room_echo(scene, victim, msg);
+
+        char short_descr[128], long_descr[200];
+        snprintf(short_descr, sizeof(short_descr), "the corpse of %s", being_display_name(victim));
+        snprintf(long_descr, sizeof(long_descr), "The broken corpse of %s lies here.", being_display_name(victim));
+        obj_t *corpse = obj_create_ephemeral("corpse", short_descr, long_descr, OBJ_CAT_CONTAINER);
+        if (corpse) {
+            corpse->wear_flag = 0;
+            corpse->val[0] = 0;
+            corpse->val[1] = 0;
+            corpse->val[2] = victim->mob_race;
+            corpse->weight = 50;
+            thing_move_to(&corpse->base, &scene->base);
+        }
+        thing_t *t = victim->base.stuff_head;
+        while (t) {
+            thing_t *next = t->stuff_next;
+            if (t->kind == THING_OBJ)
+                thing_move_to(t, corpse ? &corpse->base : &scene->base);
+            t = next;
+        }
+        for (int i = 0; i < LIMB_COUNT; i++)
+            victim->equipment[i] = NULL;
+        for (int i = 0; i < 2; i++)
+            victim->held[i] = NULL;
+        player_inventory_save(victim->player_id, victim);
+    }
+
+    log_info("%s has fallen to death. [%s]", being_display_name(victim),
              victim->desc ? descriptor_display_host(victim->desc) : "?");
 
     player_progress_save(victim->player_id, &victim->progress);
