@@ -1227,10 +1227,64 @@ durations where warranted, and a cooldown where warranted. Audit findings
     hitting harder (x6 vs x4) instead of a separate kill check. New
     `cmd_throatslit.c`. `tests/smoke_test_thiefmurder.py` (6 checks)
     passes live.
-    Remaining Level 1 entries **not yet started**: the whole Monk
-    basic-stance cluster (yoginsa, jirin, kubo, chi, oomlat, catfall,
-    catleap) -- real Sneezy meanings not yet looked up, needs a research
-    pass into `disc_monk.cc`'s real mechanics before scoping.
+    Remaining Level 1 entries -- Monk basic-stance cluster (yoginsa,
+    jirin, kubo, chi, oomlat, catfall, catleap). **Research done
+    2026-07-27** (checked the real upstream source directly, not
+    guessed): these are NOT one shape at all --
+    - **yoginsa** IS a real player-invoked ability, `task_yoginsa()`
+      (`disc/disc_monk_meditation.cc:9`): a background multi-tick task
+      (must be resting/sitting, re-checks every 4 pulses) that restores
+      HP/Move/mana on a skill roll each tick, plus chained secondary
+      rolls at higher proficiency (self-salve at 20+, cure poison 35+,
+      sterilize 50+, cure disease 60+ -- all gated on a SEPARATE skill,
+      "wohlin meditation", that isn't even in Tobin's roster). Most
+      implementable of the seven, but Tobin has no existing "start a
+      background self-heal task and let it run for N ticks" pattern to
+      reuse (planting.c's `planting_ticks_left` is the closest shape,
+      single-purpose for seed-growing) -- would need a new small task
+      mechanism, not a one-shot skill_roll_success() roll like
+      backstab/trip/etc.
+    - **jirin**, **kubo**, **oomlat** are NOT commands at all -- they're
+      PASSIVE combat-math modifiers checked directly inside the
+      original's `misc/combat.cc`, the same "no cmd_*.cc file, wired
+      straight into the hit/damage pipeline" shape as Tobin's own
+      `parry` (combat.c:450). Specifically: **oomlat** is a passive AC
+      bonus scaled by skill value (`armor * skill/250`, combat.cc:2787);
+      **kubo** is a passive bonus appearing in several combat
+      calculations (`3 * skill`/`3.0 * skill/10`, combat.cc:1928,1933,
+      5981,5985 -- exact effect not fully traced, looked like a
+      dodge/damage-reduction factor); **jirin** is checked via a
+      `bSuccess()` roll inside `disc_monk_mind_body.cc` (a passive
+      reactive save, not traced to its exact effect either). Wiring
+      these in properly means finding and modifying Tobin's own
+      to-hit/AC/damage formulas in `combat.c`, not writing a new
+      `cmd_*.c` file -- a different, riskier kind of change than every
+      other skill in this audit, and worth a deliberate look at
+      `combat.c`'s current formulas first rather than guessing at the
+      exact multiplier to port.
+    - **catfall**/**catleap**: spell_info.cc registers `catfall` with a
+      `TOG_HAS_CATFALL` toggle bit (`toggle.h:161`) but no other file in
+      the whole codebase actually CHECKS that bit -- no fall-damage
+      function references it anywhere greppable. Either fall damage
+      lives in a file this search missed, or catfall was already
+      vestigial/unfinished in the real upstream. `catleap` has no
+      dedicated code at all beyond its spell_info.cc registration.
+      Before porting either, worth confirming Tobin even HAS a fall-
+      damage mechanic to hook a reduction into (unclear from this pass).
+    - **chi**: registered in spell_info.cc (`misc/spell_info.cc:2340ish`,
+      STAT_INT, a mana-recharge flavor message "You feel your inner chi
+      recharge") but no task_chi()/doChi() function was found alongside
+      yoginsa's real implementation -- likely folds into the same
+      meditation task as yoginsa (chi refills mana the way yoginsa
+      refills HP/Move) rather than being a fully separate mechanic.
+      Worth confirming by reading disc_monk_meditation.cc in full (only
+      partially read this pass) before scoping.
+    **Recommendation for next session**: start with yoginsa (+ chi,
+    likely the same task) since it's the only one with a clear, fully-
+    read real implementation and no passive-combat-formula risk;
+    jirin/kubo/oomlat need a `combat.c` formula read-through first;
+    catfall/catleap need confirming whether Tobin has fall damage at all
+    before deciding if there's anything to port.
   - Level 5+ (identified, not yet started, sorted ascending): cintai
     (Monk, 5), shove/materialize (6), bodyslam (10), curse/slumber (13),
     fear/identify (14), headbutt (15), telepathy (16), spin/invisibility/
