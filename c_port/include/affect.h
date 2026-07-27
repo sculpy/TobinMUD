@@ -146,6 +146,18 @@ typedef enum {
      * in Tobin (see being_apply_stat_affect(), affect.c's own
      * affect_stat_target()). */
     AFFECT_STUPIDITY,
+    /* Spell/skill functional-completeness audit (2026-07-27): `berserk`
+     * (Warrior, level 1) -- a plain flag/timer affect, same shape as
+     * AFFECT_SANCTUARY. Checked by combat.c's parry roll (a berserking
+     * attacker's hits can't be parried) and cmd_rescue.c (a berserking
+     * ally can't be rescued), matching the roster's own one-line
+     * description ("much harder to rescue or parry while raging"). */
+    AFFECT_BERSERK,
+    /* `rally` (Warrior, level 1) -- a stat-modifying affect (see
+     * affect_stat_target(), same shape as AFFECT_STUPIDITY but a
+     * positive STRENGTH bonus instead of a penalty), applied to every
+     * ally in the room by cmd_rally.c. */
+    AFFECT_RALLY,
     AFFECT_COUNT,
 } affect_type_t;
 

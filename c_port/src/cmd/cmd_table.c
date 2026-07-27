@@ -109,6 +109,25 @@ static const cmd_entry_t COMMANDS[] = {
      * action layered on the automatic per-round exchange -- see
      * cmd_bash.c's own header comment. */
     { "bash",    cmd_bash,    "Bash your opponent, knocking them down (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
+    /* Spell/skill functional-completeness audit (2026-07-27): the first
+     * batch of level-1 roster entries that previously had NO handler at
+     * all (fell through to "Command not found"). Grouped here with bash
+     * rather than split to each one's strict alphabetical slot, same
+     * "skill-combat commands cluster near bash" precedent bash's own
+     * placement above bank/bug already establishes. "back"+ is
+     * unambiguous against bash/bank/bug/butcher at 4 chars; rescue and
+     * trip are listed in their own alphabetical R/T comments below since
+     * they DO collide with existing short abbreviations there. */
+    { "backstab", cmd_backstab, "A devastating opening sneak attack (Thief, backstab <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
+    /* Same audit batch, same clustering precedent as backstab above --
+     * none of these four collide with an existing short abbreviation
+     * ("sn"/"gr"/"be"/"ra" are all otherwise unclaimed). */
+    { "sneak",   cmd_sneak,   "Toggle moving quietly, suppressing your own arrival/departure notices (Thief/Warrior).", MORTAL_LEVEL_MIN },
+    { "grapple", cmd_grapple, "Grab and hold your opponent, locking you both down a while (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
+    { "berserk", cmd_berserk, "Fly into a berserk rage -- unparryable, but you can't be rescued either (Warrior).", MORTAL_LEVEL_MIN },
+    { "rally",   cmd_rally,   "Let out a battlecry that boosts nearby allies' combat prowess (Warrior).", MORTAL_LEVEL_MIN },
+    { "garrotte", cmd_garrotte, "Strangle an unaware victim with a cord (Thief, garrotte <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
+    { "throatslit", cmd_throatslit, "A lethal opening throat-slitting attack (Thief, throatslit <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
     /* Money system v2. Placed AFTER "bash" (not strict alphabetical
      * order, same "ret"/"retu" precedent as retrieve/return) so the
      * far-more-frequently-typed combat skill keeps ownership of the "ba"
@@ -230,6 +249,13 @@ static const cmd_entry_t COMMANDS[] = {
     { "rent",    cmd_rent,    "Store your belongings and leave the game safely.",   MORTAL_LEVEL_MIN },
     { "repair",  cmd_repair,  "Mend a damaged item yourself (Warrior, repair <item>).", MORTAL_LEVEL_MIN },
     { "reply",   cmd_reply,   "Tell whoever last told you (reply <message>).",      MORTAL_LEVEL_MIN },
+    /* Spell/skill functional-completeness audit (2026-07-27). "res" alone
+     * still reaches "rest" (this block's own SWAP note above) -- rescue
+     * needs "resc"+ typed to disambiguate, an acceptable cost for a
+     * deliberate, planned action rather than a reflexive one (same
+     * "disarm needs a longer prefix than disarmtrap expected" precedent
+     * cmd_disarm.c's own table comment sets). */
+    { "rescue",  cmd_rescue,  "Swap places with an ally in combat, pulling their attacker onto you (Warrior, rescue <ally>).", MORTAL_LEVEL_MIN },
     { "rules",   cmd_rules,   "Read the game rules (rules, or rules <number>).",    MORTAL_LEVEL_MIN },
     /* Bulletin boards (user 2026-07-18). Placed after the whole r-block
      * above (not in strict alpha order, which would put it before "rest")
@@ -277,9 +303,18 @@ static const cmd_entry_t COMMANDS[] = {
     { "split",   cmd_split,   "Split gold evenly among your grouped members present (split <amount>).", MORTAL_LEVEL_MIN },
     { "stand",   cmd_stand,   "Stand up.",                                          MORTAL_LEVEL_MIN },
     { "stop",    cmd_stop,    "Stop following whoever you're following.",           MORTAL_LEVEL_MIN },
+    /* Spell/skill functional-completeness audit (2026-07-27). "ste" is
+     * unambiguous against stand's "sta" and stop's "sto" at 3 chars, so
+     * no ordering conflict with either despite the shared "st" prefix. */
+    { "steal",   cmd_steal,   "Steal gold or an item from someone (Thief, steal gold|<item> <target>).", MORTAL_LEVEL_MIN },
     { "submit",  cmd_submit,  "Hand a damaged item to a repair shop for a claim ticket (submit <item>).", MORTAL_LEVEL_MIN },
     /* "sw" is southwest's alias (movement head); switch needs "swi". */
     { "switch",  cmd_switch,  "Swap what's in your primary and secondary hold.",    MORTAL_LEVEL_MIN },
+    /* Spell/skill functional-completeness audit (2026-07-27): "tr" is free
+     * for mortals (transfer/treasury below are IMMORTAL_LEVEL_MIN, so the
+     * dispatch loop's level filter skips them for a mortal caller
+     * entirely -- see cmd_dispatch()'s own min_level-skip comment). */
+    { "trip",    cmd_trip,    "Knock your opponent to the ground (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
     { "tell",    cmd_tell,    "Send a private message to anyone playing (tell <name> <message>).", MORTAL_LEVEL_MIN },
     { "tickets", cmd_tickets, "List your pending claim tickets at a repair shop.",  MORTAL_LEVEL_MIN },
     { "time",    cmd_time,    "Show the current mud clock, weekday, and date.",     MORTAL_LEVEL_MIN },

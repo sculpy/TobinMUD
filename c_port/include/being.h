@@ -644,6 +644,19 @@ typedef struct being {
     struct being *fighting;
     long last_combat_pulse;
 
+    /* `sneak` (spell/skill functional-completeness audit, 2026-07-27,
+     * Thief/Warrior roster entry "Move around without waking sleepers
+     * or drawing attention", level 1). A live in-memory toggle, same
+     * "meaningless across a reconnect" rule as `fighting` -- you don't
+     * stay sneaking across a relog. Suppresses the normal room-wide
+     * arrival/departure echo (cmd_move.c) while moving; broken outright
+     * the moment you enter combat (cmd_attack.c/cmd_backstab.c clear it
+     * when `fighting` gets set), same spirit as disguise refusing to
+     * toggle while already fighting. Deliberately does NOT also hide you
+     * from a room's person-listing while stationary -- that's `hide`'s
+     * job (a separate, higher-level roster entry), not sneak's. */
+    bool sneaking;
+
     /* Group/party (Sneezy → Tobin feature audit, "Group / party system").
      * Live in-memory only, same "meaningless across a reconnect" rule as
      * `fighting` -- EXCEPT a disconnect deliberately does NOT clear these

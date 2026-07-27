@@ -47,6 +47,8 @@ bool cmd_attack(descriptor_t *d, const char *args) {
 
     d->character->fighting = target;
     target->fighting = d->character;
+    d->character->sneaking = false;
+    target->sneaking = false;
     being_set_wait(d->character, COMBAT_ROUND_PULSES);
 
     /* target->base.name is a mob's raw keyword list ("lady stroll walk"),

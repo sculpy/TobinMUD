@@ -447,7 +447,11 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * same "defensive reaction resolves first" ordering Sneezy uses --
      * a parry negates the attack outright regardless of what the to-
      * hit roll below would have been. */
-    if (!being_is_immortal(defender) && being_knows_skill(defender, "parry")) {
+    /* Spell/skill functional-completeness audit (2026-07-27): a
+     * berserking attacker's hits can't be parried at all (roster's own
+     * "much harder to ... parry while raging" description, cmd_berserk.c). */
+    if (!being_is_immortal(defender) && being_knows_skill(defender, "parry")
+        && !being_has_affect(attacker, AFFECT_BERSERK)) {
         const skill_def_t *parry_sk = skill_find(defender->char_class, "parry", false);
         if (parry_sk && skill_roll_success(skill_learn_from_doing(defender, parry_sk) / 4)) {
             if (!(attacker->pflags & PLR_NOSPAM))

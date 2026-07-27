@@ -50,6 +50,8 @@ static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "Polymorphed",
     "Foraging Fatigue",
     "Stupidity",
+    "Berserk",
+    "Rally",
 };
 
 /* HP drained per damage sub-tick for AFFECT_POISON -- its own faster gate
@@ -207,6 +209,7 @@ void being_apply_affect(struct being *b, affect_type_t type, int rounds) {
 static int *affect_stat_target(being_t *b, affect_type_t type) {
     switch (type) {
         case AFFECT_STUPIDITY: return &b->attrs.intelligence;
+        case AFFECT_RALLY: return &b->attrs.strength;
         default: return NULL;
     }
 }

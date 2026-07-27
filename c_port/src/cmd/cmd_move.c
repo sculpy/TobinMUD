@@ -211,7 +211,8 @@ static bool do_move(descriptor_t *d, int dir) {
     } else {
         snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, EXIT_PHRASES[dir]);
     }
-    descriptor_room_echo(from, ch, msg);
+    if (!ch->sneaking)
+        descriptor_room_echo(from, ch, msg);
 
     thing_set_room(&ch->base, to);
 
@@ -259,7 +260,8 @@ static bool do_move(descriptor_t *d, int dir) {
     } else {
         snprintf(msg, sizeof(msg), "%s has arrived.\r\n", ch->base.name);
     }
-    descriptor_room_echo(to, ch, msg);
+    if (!ch->sneaking)
+        descriptor_room_echo(to, ch, msg);
 
     run_room_and_greet_triggers(ch, to);
 

@@ -1157,6 +1157,94 @@ a live example of the RIGHT granularity for a "wire up a specific roster
 placeholder for real" pass -- worth using as the template once scope is
 confirmed.
 
+## Spell/skill functional-completeness audit (2026-07-27)
+
+User asked whether every spell/skill in the roster (`skill.c`, ~230
+entries) is actually implemented with a real handler, real affects/
+durations where warranted, and a cooldown where warranted. Audit findings
+(full report given in chat, not duplicated here):
+
+- **Placeholder-only spells** (cast/pray fall through to "...but nothing
+  happens yet"): blindness, slumber, fear, curse, paralyze/paralyze limb,
+  invisibility, teleport, summon, word of recall, telepathy, dispel
+  magic/invisible, identify, materialize, farlook, scribe, bind, silence.
+  Root cause: `include/affect.h`'s `AFFECT_*` enum has no blind/sleep/
+  paralyze/fear/curse/invisible entry to even apply -- needs the enum
+  extended before any of these can get a real per-spell effect (same
+  "new subsystem needed first" shape the Stupidity affect took, see the
+  roster-import section above).
+- **Skill roster entries with literally no handler** (fall through to
+  "Command not found"), sorted by min_level ascending -- this is the
+  active work list, lowest level first per the user's instruction:
+  - Level 1: **backstab** (Thief) -- done 2026-07-27. **rescue**
+    (Warrior) -- done 2026-07-27. **trip** (Warrior) -- done 2026-07-27.
+    New `cmd_backstab.c`/`cmd_rescue.c`/`cmd_trip.c`, registered in
+    `cmd_table.c`/`cmd_internal.h`, same one-`skill_roll_success()`-roll
+    shape as bash/kick/disarm. `tests/smoke_test_skillcombat2.py` (7
+    checks) passes live against the rebuilt+restarted dev server.
+    **steal** (Thief) -- done 2026-07-27. `steal gold <target>` /
+    `steal <item> <target>`, reusing cmd_plant.c's Thief reverse-
+    pickpocket gate/chance shape in reverse (mutual `toggle pk` consent,
+    level-gap-scaled chance). New `cmd_steal.c`. `tests/smoke_test_steal.py`
+    (8 checks) passes live.
+    **sneak** (Thief) -- done 2026-07-27. Plain toggle (new `being_t.
+    sneaking` field, live in-memory only like `fighting`) that suppresses
+    your own arrival/departure room echo in cmd_move.c while moving;
+    broken outright the instant `fighting` gets set (cmd_attack.c/
+    cmd_backstab.c both clear it). Does NOT hide you from a stationary
+    room's person-listing -- that stays `hide`'s separate, higher-level
+    (31) job, not touched this pass. New `cmd_sneak.c`.
+    **grapple** (Warrior) -- done 2026-07-27. Reuses `being_set_wait()`
+    for the "restricting what they can do" part instead of a new
+    restrain flag -- a successful grapple locks up BOTH combatants (not
+    just the defender, unlike bash/trip's knockdown) for 3 rounds. New
+    `cmd_grapple.c`.
+    **berserk** (Warrior) -- done 2026-07-27. New plain flag/timer
+    `AFFECT_BERSERK` (affect.h/affect.c, 8 rounds): combat.c's parry
+    check now skips itself entirely against a berserking attacker, and
+    cmd_rescue.c refuses to let anyone rescue a berserking ally --
+    both roster-described effects wired at their natural call sites
+    rather than a new subsystem. New `cmd_berserk.c`.
+    **rally** (Warrior) -- done 2026-07-27. New stat-modifying
+    `AFFECT_RALLY` (+STRENGTH, standing in for "combat prowess" --
+    Tobin has no separate hitroll/damroll stat), reusing the
+    `being_apply_stat_affect()`/`affect_stat_target()` machinery the
+    Stupidity affect already built. Applies to every other PC/mob in the
+    room except the rallier's own current opponent (no team/faction
+    concept to test against instead) for 8 rounds. New `cmd_rally.c`.
+    `tests/smoke_test_skillcombat3.py` (12 checks covering all four)
+    passes live.
+    **garrotte** (Thief) -- done 2026-07-27. Real upstream needs a
+    dedicated TOOL_GARROTTE item (wears down, snaps after N uses) --
+    scoped down to a bare-handed opener (same "only works before either
+    side is fighting" shape as backstab) that applies
+    `AFFECT_DISEASE_GARROTTE` (already modeled in Tobin's affect system;
+    duration 90 matches cmd_drink.c's own table for the same disease)
+    instead of a one-time damage number. New `cmd_garrotte.c`.
+    **throatslit** (Thief) -- done 2026-07-27. Real upstream needs a
+    wielded piercing/slicing weapon and a separate willKill() instant-
+    death roll -- scoped down to the same opener shape as backstab, just
+    hitting harder (x6 vs x4) instead of a separate kill check. New
+    `cmd_throatslit.c`. `tests/smoke_test_thiefmurder.py` (6 checks)
+    passes live.
+    Remaining Level 1 entries **not yet started**: the whole Monk
+    basic-stance cluster (yoginsa, jirin, kubo, chi, oomlat, catfall,
+    catleap) -- real Sneezy meanings not yet looked up, needs a research
+    pass into `disc_monk.cc`'s real mechanics before scoping.
+  - Level 5+ (identified, not yet started, sorted ascending): cintai
+    (Monk, 5), shove/materialize (6), bodyslam (10), curse/slumber (13),
+    fear/identify (14), headbutt (15), telepathy (16), spin/invisibility/
+    dispel invisible (17), teleport/summon (19), slam/riposte/deathstroke/
+    dispel magic/springleap (20), blindness/word of recall (21), taunt/
+    paralyze limb (22), whirlwind/kneestrike/farlook/scribe/bind (25),
+    hide (31), paralyze (33), quivering palm (42), silence (48).
+- **Buff spells that conflate distinct effects**: sanctuary/armor/bless/
+  stone skin/barkskin/protection-from-* all currently reuse the identical
+  `AFFECT_SANCTUARY` buff rather than each having its own effect --
+  functional (not a stub), but a disclosed simplification worth a
+  separate pass once the placeholder-spell affects above get their own
+  enum entries.
+
 ## Buildable now (no blocked dependencies)
 
 Self-contained — no need for the object/mob systems. Keep working through
