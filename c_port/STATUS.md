@@ -107,6 +107,13 @@ completeness audit continued).**
   `cmd_headbutt.c`, registered as `headbutt` (full 4-letter prefix
   needed, "h"/"he"/"ho" already claimed). `tests/smoke_test_headbutt.py`
   (4 checks) passes live. Clean rebuild, restarted, no crash.
+- **telepathy** (Mage, 16): reaches every connected character world-wide
+  with a free-text message -- intercepted early in `cmd_cast.c` since
+  the generic spell-target parser only captures one trailing word,
+  which would mangle a multi-word message. Deliberately doesn't skip
+  sleeping listeners or honor `noshout` (mind-to-mind, not sound,
+  unlike `shout`). `tests/smoke_test_telepathy.py` (3 checks) passes
+  live. Clean rebuild, restarted, no crash.
 
 Previous update: 2026-07-27 — Session 83 (home): **Docs/systems persistence
 review, and its one real finding: tell history + `reply`.**

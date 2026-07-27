@@ -1490,7 +1490,21 @@ durations where warranted, and a cooldown where warranted. Audit findings
     `cmd_headbutt.c`, registered as `headbutt` (needs the full 4-letter
     prefix -- "h"/"he"/"ho" are already claimed by hit/help/hold).
     `tests/smoke_test_headbutt.py` (4 checks) passes live.
-    Not yet started: telepathy (16), spin/
+    **telepathy** (Mage, 16) -- done 2026-07-27. Real upstream
+    (disc_mage_spirit.cc's telepathy()) reaches every connected
+    character in the WORLD with a free-text message. Intercepted in
+    `cmd_cast.c` BEFORE the generic `find_spell_and_target()` parse --
+    that helper only ever captures a single trailing word as a
+    "target" (every other spell in this roster targets a being or, for
+    identify, one named item), which would mangle a multi-word message
+    into a bogus failed spell-name lookup. Deliberately does NOT skip a
+    sleeping listener or honor the `noshout` toggle the way `shout`
+    (cmd_shout.c) does -- telepathy is mind-to-mind, not sound, a
+    disclosed difference from shout's own scope, not a missed check.
+    Not ported: garble/drunk-speech distortion (no such mechanic
+    exists) and the 5-Move cost. `tests/smoke_test_telepathy.py`
+    (3 checks) passes live.
+    Not yet started: spin/
     invisibility/dispel invisible (17), teleport/summon (19), slam/
     riposte/deathstroke/dispel magic/springleap (20), blindness/word of
     recall (21), taunt/paralyze limb (22), whirlwind/kneestrike/

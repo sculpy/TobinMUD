@@ -609,6 +609,67 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* `telepathy <message>` (spell/skill functional-completeness audit
+     * continued, level-5+ list, 2026-07-27). Intercepted here, BEFORE
+     * find_spell_and_target() below, because that helper only ever
+     * captures a single trailing word as the "target" (see its own
+     * comment) -- every other spell in this roster targets a being or
+     * (identify) a single named item, but telepathy's own "target" is a
+     * free-text message that can contain any number of words, which
+     * would otherwise get mangled into a bogus multi-word "spell name"
+     * lookup that always fails. Real upstream (disc_mage_spirit.cc's
+     * telepathy()) reaches every connected character in the WORLD --
+     * unlike `shout` (cmd_shout.c), it does NOT skip a sleeping
+     * listener or honor the `noshout` toggle (telepathy is mind-to-
+     * mind, not sound), a deliberate, disclosed difference from shout's
+     * own scope, not a missed check. Garble/drunk-speech distortion
+     * (Tobin has no such mechanic to port either) and the 5-Move cost
+     * are the two other real pieces dropped. */
+    if (strncasecmp(args, "telepathy", 9) == 0 && (args[9] == ' ' || args[9] == '\0')) {
+        const skill_def_t *tsk = find_spell(ch->char_class, "telepathy", imm);
+        if (!tsk) {
+            descriptor_send(d, "You don't know a spell by that name.\r\n");
+            return true;
+        }
+        if (!imm && ch->progress.level < tsk->min_level) {
+            char lvlmsg[96];
+            snprintf(lvlmsg, sizeof(lvlmsg), "You aren't experienced enough to cast %s yet (level %d).\r\n",
+                     tsk->name, tsk->min_level);
+            descriptor_send(d, lvlmsg);
+            return true;
+        }
+        if (!imm && tsk->tier == SKILL_TIER_CLASS && ch->progress.basic_disc_pct <= 0) {
+            descriptor_send(d, "You haven't practiced your Basic discipline yet -- visit a guildmaster.\r\n");
+            return true;
+        }
+        obj_t *tcomp = find_keyword_item(ch, "component");
+        if (!tcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        const char *tmsg = args + 9;
+        while (*tmsg == ' ')
+            tmsg++;
+        if (!*tmsg) {
+            descriptor_send(d, "Telepathy is a nice spell, but you need to send some sort of message!\r\n");
+            consume_component(d, tcomp);
+            return true;
+        }
+        char tout[400];
+        snprintf(tout, sizeof(tout), "You telepathically send the message, \"%s\"\r\n", tmsg);
+        descriptor_send(d, tout);
+        for (descriptor_t *it = g_descriptors; it; it = it->next) {
+            if (!it->character || it->character == ch)
+                continue;
+            snprintf(tout, sizeof(tout),
+                     "Your mind is flooded with a telepathic message from %s: \"%s\"\r\n",
+                     being_display_name(ch), tmsg);
+            descriptor_notify_comm(it, tout);
+        }
+        consume_component(d, tcomp);
+        return true;
+    }
+
     char target_buf[64];
     const char *target_name;
     const skill_def_t *sk = find_spell_and_target(ch->char_class, args, imm, target_buf, sizeof(target_buf), &target_name);

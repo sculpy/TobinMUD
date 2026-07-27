@@ -899,3 +899,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'headbutt is live -- a level 15 audit item', '`headbutt <target>` (Warrior) is a straightforward skull-first strike for real damage. The original version of this move changed its target depending on how tall the attacker was compared to their foe -- Tobin has no notion of height, so this always goes for the head.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'telepathy is live -- a level 16 audit item', '`cast telepathy <message>` (Mage) sends a thought straight into every mind in the world at once, no matter where anyone is or whether they''re even awake -- unlike shouting, telepathy does not care about sleep or distance.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
