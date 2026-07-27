@@ -93,10 +93,20 @@ completeness audit continued).**
   `AFFECT_FEAR` flag/timer checked by `cmd_attack.c`, plus an immediate
   flee reusing `cmd_flee.c`'s own logic on the victim's descriptor.
   identify targets an OBJECT, not a being -- handled entirely
-  separately in `cmd_cast.c` (every other spell targets a being), reveals
-  category-specific stats (weapon dice/armor AC/container capacity) for
-  a carried item. `tests/smoke_test_fear_identify.py` (6 checks) passes
-  live. Clean rebuild, restarted, no crash.
+  separately in `cmd_cast.c`. Found live: Tobin already has a real,
+  correct, ungated `identify` command (earlier audit pass) -- a first
+  pass here duplicated its display logic from scratch and got weapon
+  damage wrong (val[0]/val[1] aren't real dice, per cmd_identify.c's
+  own header comment); fixed by delegating to the real command instead,
+  `cast identify` just adds the component gate on top. `tests/smoke_
+  test_fear_identify.py` (6 checks) passes live. Clean rebuild,
+  restarted, no crash.
+- **headbutt** (Warrior, 15): Tobin-scale slice (no height mechanic --
+  Tobin has no height stat) -- one skill roll striking LIMB_HEAD, no
+  knockdown, matching the real version's own Move cost. New
+  `cmd_headbutt.c`, registered as `headbutt` (full 4-letter prefix
+  needed, "h"/"he"/"ho" already claimed). `tests/smoke_test_headbutt.py`
+  (4 checks) passes live. Clean rebuild, restarted, no crash.
 
 Previous update: 2026-07-27 — Session 83 (home): **Docs/systems persistence
 review, and its one real finding: tell history + `reply`.**

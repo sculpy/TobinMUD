@@ -893,5 +893,9 @@ INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ON DUPLICATE KEY UPDATE `title` = `title`;
 
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
-('The TobinMUD Team', 'fear and identify are live -- level 14 audit items', '`cast fear <target>` (Mage) sends a foe running for their life and keeps them too shaken to fight back for a while afterward. `cast identify <item>` (Mage) reveals what something carried is really made of and worth in a fight -- a weapon''s true damage, a piece of armor''s real protection, a container''s true capacity.')
+('The TobinMUD Team', 'fear and identify are live -- level 14 audit items', '`cast fear <target>` (Mage) sends a foe running for their life and keeps them too shaken to fight back for a while afterward. `cast identify <item>` (Mage) reveals what something carried is really made of and worth in a fight -- a weapon''s real bonuses, a piece of armor''s real protection, a container''s true capacity -- the same detail the standalone `identify` command already showed everyone, now also reachable as a proper spell.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'headbutt is live -- a level 15 audit item', '`headbutt <target>` (Warrior) is a straightforward skull-first strike for real damage. The original version of this move changed its target depending on how tall the attacker was compared to their foe -- Tobin has no notion of height, so this always goes for the head.')
 ON DUPLICATE KEY UPDATE `title` = `title`;

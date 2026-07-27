@@ -194,7 +194,13 @@ try:
     cmd(sm, f"load obj {COMPONENT}"); recv_all(sm, 0.3)
     cmd(sm, "get pouch"); recv_all(sm, 0.3)
     out3 = strip(cmd(sm, "cast identify dagger"))
-    check("2d6" in out3, "identify reveals the weapon's real damage dice (2d6)")
+    # `cast identify` delegates to the real, already-correct `identify`
+    # command (cmd_identify.c) rather than re-deriving its own display --
+    # an earlier version of this test asserted a "2d6" dice readout that
+    # cmd_identify.c's own header comment explains is NOT how real weapon
+    # damage works (val[0]/val[1] are raw-import noise, not dice; real
+    # damage comes from the objaffect table via obj_load_combat_mods()).
+    check("Category:  weapon" in out3, "identify reveals the item's real category")
 
     announce_done("smoke_test_fear_identify")
     print("=== ALL CHECKS PASSED ===")

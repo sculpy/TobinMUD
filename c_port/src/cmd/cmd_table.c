@@ -215,6 +215,12 @@ static const cmd_entry_t COMMANDS[] = {
     { "help",    cmd_help,    "List available commands.",                           MORTAL_LEVEL_MIN },
     /* Non-weapon holdables only; a weapon refuses hold and points to wield. */
     { "hold",    cmd_hold,    "Hold a non-weapon item in a free hand (hold <item>).", MORTAL_LEVEL_MIN },
+    /* Must come AFTER hit/help/hold above -- "h"/"he"/"ho" are already
+     * spoken for by those three (matching is first-match-in-table-order
+     * by prefix, cmd_dispatch() below), so headbutt is only reachable via
+     * its own full 4-letter "head" prefix, which nothing else in the
+     * table starts with. */
+    { "headbutt", cmd_headbutt, "Slam your head into an opponent for real damage (Warrior, headbutt <target>).", MORTAL_LEVEL_MIN },
     /* SWAP: inventory before idea/immort, so bare "i" is an inventory
      * check -- always the more useful outcome than a no-op immort attempt.
      * idea needs "id", immort needs "im". */

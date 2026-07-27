@@ -1455,20 +1455,42 @@ durations where warranted, and a cooldown where warranted. Audit findings
     identify (disc_mage_alchemy.cc's identify()) TARGETS AN OBJECT, not
     a being -- every other spell in this roster resolves a being target
     via `combat_find_room_target()`, so identify is handled entirely
-    separately in `cmd_cast.c`, looked up via the same carried-item
-    `find_keyword_item()` helper components/symbols already use (ground
-    items can't be identified). Scoped down from the real version's
-    decay-time/volume/weight dump (Tobin objects don't carry those
-    fields) to the object's raw type name plus whatever category-
-    specific stat Tobin DOES track (weapon dice, armor AC, container
-    capacity -- see obj.h's val[] doc). `tests/smoke_test_fear_
-    identify.py` (6 checks) passes live -- fear's own immediate-flee
-    physical relocation is NOT asserted (cmd_flee.c's escape roll is
-    only ~2-in-3, and a failed roll leaves both sides `fighting` for
-    the rest of the test with no clean reset), verified by code review
-    instead, matching curse/slumber's own natural-expiry precedent for
-    not asserting every real-world side effect.
-    Not yet started: headbutt (15), telepathy (16), spin/
+    separately in `cmd_cast.c`. Found live while building it: Tobin
+    ALREADY has a real, correct, general-purpose `identify` command
+    (`cmd_identify.c`, from an earlier "Object manipulation depth" audit
+    pass) -- deliberately built as a plain, ungated command rather than
+    a spell, since Tobin's val[] payload has nothing real for "accuracy
+    scales with skill" to scale. A first pass here duplicated that
+    display logic from scratch and got it factually wrong (used
+    val[0]/val[1] as literal weapon damage dice -- cmd_identify.c's own
+    header comment explains why that's not how real weapon damage
+    works, verified against real seeded data). Fixed by delegating to
+    the real, already-correct command instead of re-deriving it --
+    `cast identify` just adds the spell-specific component gate on top
+    of the same logic every player can already reach via the bare
+    `identify` command. `tests/smoke_test_fear_identify.py` (6 checks)
+    passes live -- fear's own immediate-flee physical relocation is NOT
+    asserted (cmd_flee.c's escape roll is only ~2-in-3, and a failed
+    roll leaves both sides `fighting` for the rest of the test with no
+    clean reset), verified by code review instead, matching curse/
+    slumber's own natural-expiry precedent for not asserting every
+    real-world side effect.
+    **headbutt** (Warrior, 15) -- done 2026-07-27. Real upstream
+    (cmd/cmd_headbutt.cc's canHeadbutt()/headbutt()/headbuttHit()/
+    headbuttMiss()) is relative-HEIGHT-driven: picks a different body
+    region to strike (foot/leg/crotch/body/throat/jaw/skull) depending
+    on how the attacker's height compares to the victim's, and refuses
+    outright if the attacker is more than 25% shorter. Tobin has no
+    height stat, so the whole region-selection mechanic has no faithful
+    port -- scoped to the same "Tobin-scale slice" shape as chi/
+    bodyslam: one `skill_roll_success()` roll striking LIMB_HEAD
+    specifically, reusing the STR-flavored placeholder damage formula.
+    No knockdown (the real version doesn't knock anyone down either).
+    6 Vitality, matching the real version's own Move cost directly. New
+    `cmd_headbutt.c`, registered as `headbutt` (needs the full 4-letter
+    prefix -- "h"/"he"/"ho" are already claimed by hit/help/hold).
+    `tests/smoke_test_headbutt.py` (4 checks) passes live.
+    Not yet started: telepathy (16), spin/
     invisibility/dispel invisible (17), teleport/summon (19), slam/
     riposte/deathstroke/dispel magic/springleap (20), blindness/word of
     recall (21), taunt/paralyze limb (22), whirlwind/kneestrike/

@@ -650,65 +650,34 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * (2026-07-27): real upstream (disc_mage_alchemy.cc's identify())
          * targets an OBJECT, not a being -- every other spell in this
          * roster targets a being via combat_find_room_target(), so this
-         * is handled entirely separately rather than forcing it through
-         * that path (and returns before reaching the being-target
-         * resolution/task_cast() below). Scoped down from the real
-         * version's decay-time/volume/weight dump (Tobin objects don't
-         * carry those fields) to the object's raw type name plus
-         * whatever category-specific detail Tobin DOES track (weapon
-         * dice, armor AC, container capacity -- see obj.h's val[] doc),
-         * and only for an item the caster is carrying (reuses
-         * find_keyword_item() below, same "carried only" scope its
-         * component/symbol lookups already have -- an item lying on the
-         * ground can't be identified without picking it up first). */
-        if (!target_name) {
-            descriptor_send(d, "Identify what?\r\n");
-            return true;
-        }
-        /* Component gate FIRST, matching every other spell's own gate
-         * order (checked right after class/level/discipline, before any
-         * spell-specific target resolution) -- so "cast identify X"
-         * with no component in hand always reports the generic
-         * component message, same as it would for any other spell,
-         * rather than a special "you aren't carrying X" ambiguity. */
+         * is handled separately, before the being-target resolution/
+         * task_cast() below. Found live while building this: Tobin
+         * ALREADY has a real, correct, general-purpose `identify`
+         * command (cmd_identify.c, from an earlier "Object manipulation
+         * depth" audit pass) -- it was deliberately built as a plain,
+         * ungated command rather than a spell, since Tobin's val[]
+         * payload has nothing real for "accuracy scales with skill" to
+         * scale. An earlier version of this branch duplicated that
+         * display logic from scratch and got it factually wrong (real
+         * weapon damage does NOT come from val[0]/val[1] -- cmd_identify.c's
+         * own header comment documents exactly why, verified against
+         * real seeded data). Fixed by delegating to the real,
+         * already-correct command instead of re-deriving it -- `cast
+         * identify` just adds the spell-specific component gate on top
+         * of the same real logic every player can already reach via
+         * the bare `identify` command. */
         obj_t *idcomp = find_keyword_item(ch, "component");
         if (!idcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
         }
-        obj_t *item = find_keyword_item(ch, target_name);
-        if (!item) {
-            descriptor_send(d, "You aren't carrying that.\r\n");
+        if (!target_name) {
+            descriptor_send(d, "Identify what?\r\n");
             return true;
         }
-        char detail[96];
-        switch (item->category) {
-            case OBJ_CAT_WEAPON:
-                snprintf(detail, sizeof(detail), "a %s doing %dd%d damage",
-                         obj_type_name(item->raw_type), item->val[0], item->val[1]);
-                break;
-            case OBJ_CAT_ARMOR:
-                snprintf(detail, sizeof(detail), "a %s with an armor class bonus of %d",
-                         obj_type_name(item->raw_type), item->val[0]);
-                break;
-            case OBJ_CAT_CONTAINER:
-                snprintf(detail, sizeof(detail), "a %s holding up to %d pounds",
-                         obj_type_name(item->raw_type), item->val[0]);
-                break;
-            case OBJ_CAT_MAGIC_DEVICE:
-                snprintf(detail, sizeof(detail), "a %s with %d charge%s left",
-                         obj_type_name(item->raw_type), item->val[0], item->val[0] == 1 ? "" : "s");
-                break;
-            default:
-                snprintf(detail, sizeof(detail), "a kind of %s", obj_type_name(item->raw_type));
-                break;
-        }
-        char idmsg[320];
-        snprintf(idmsg, sizeof(idmsg), "You feel informed about %s...\r\nIt appears to be %s.\r\n",
-                 item->base.short_descr, detail);
-        descriptor_send(d, idmsg);
+        bool ok = cmd_identify(d, target_name);
         consume_component(d, idcomp);
-        return true;
+        return ok;
     }
 
     /* Defaults to self, same as always (heal/buff spells with no target
