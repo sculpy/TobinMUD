@@ -52,6 +52,8 @@ static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "Stupidity",
     "Berserk",
     "Rally",
+    "Curse",
+    "Sleep",
 };
 
 /* HP drained per damage sub-tick for AFFECT_POISON -- its own faster gate
@@ -210,6 +212,7 @@ static int *affect_stat_target(being_t *b, affect_type_t type) {
     switch (type) {
         case AFFECT_STUPIDITY: return &b->attrs.intelligence;
         case AFFECT_RALLY: return &b->attrs.strength;
+        case AFFECT_CURSE: return &b->attrs.dexterity;
         default: return NULL;
     }
 }
@@ -445,6 +448,27 @@ static void tick_being_affects(being_t *b, descriptor_t *d) {
                  * in affect_tick_run(), not mob_affect_tick_visit(). */
                 revert_polymorph(b);
                 return;
+            }
+            if (type == AFFECT_SLEEP && b->position == POSITION_SLEEPING) {
+                /* Wakes the being back up instead of just wearing off
+                 * quietly -- same "special-cased side effect on expiry"
+                 * shape as AFFECT_CHARMED/AFFECT_POLYMORPH above, just
+                 * without destroying/reverting anything. Guarded on
+                 * still-being-asleep in case they were woken early by
+                 * some other means (e.g. `wake`) -- don't stand someone
+                 * back up who already got up on their own. */
+                b->position = POSITION_STANDING;
+                if (d) {
+                    descriptor_send(d, "You wake up.\r\n");
+                } else if (b->base.roomp) {
+                    char namebuf[64], msg[96];
+                    being_display_name_cap(b, namebuf, sizeof(namebuf));
+                    snprintf(msg, sizeof(msg), "%s wakes up.\r\n", namebuf);
+                    descriptor_room_echo(b->base.roomp, NULL, msg);
+                }
+                b->affects[i].type = AFFECT_NONE;
+                b->affects[i].rounds_left = 0;
+                continue;
             }
             notify_wears_off(b, d, type);
             reverse_stat_modifier(b, i);

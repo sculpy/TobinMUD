@@ -1416,8 +1416,33 @@ durations where warranted, and a cooldown where warranted. Audit findings
     passes live -- one real test bug caught: check 4 originally reused
     the already-100%-seeded attacker instead of a fresh 0%-proficiency
     one, so the failure path was never actually exercised.
-    Not yet started: curse/slumber
-    (13), fear/identify (14), headbutt (15), telepathy (16), spin/
+    **curse** (Cleric, 13) + **slumber** (Mage, 13) -- done 2026-07-27,
+    the first items needing the AFFECT_* enum extension flagged above.
+    Real upstream curse (misc/magicutils.cc's genericCurse()) is a
+    hitroll penalty plus a worsened paralysis-immunity penalty; Tobin
+    has neither a separate hitroll stat nor a paralysis affect, so it
+    lands as a level-scaled DEXTERITY penalty (new AFFECT_CURSE,
+    affect.h) since combat_strike()'s to-hit roll is driven directly off
+    DEXTERITY -- same stat-modifying-affect shape as AFFECT_STUPIDITY/
+    AFFECT_RALLY. The "curses...an object" variant (an item that can't
+    be removed) has no Tobin equivalent, dropped. Real upstream slumber
+    (disc_mage_spirit.cc's slumber()/rawSleep()) puts the victim into
+    POSITION_SLEEPING for a timed duration with its own separate
+    luck-save resist roll, an optional Sleep Tag Staff branch, and a
+    crit-fail-hits-the-caster-instead branch; scoped to the core effect
+    (new AFFECT_SLEEP, special-cased in affect.c's tick_being_affects()
+    to auto-wake the target on expiry instead of the generic "wears
+    off" message, same dissolve/revert shape as AFFECT_CHARMED/
+    AFFECT_POLYMORPH) -- the outer cast-proficiency roll already stands
+    in for the real version's own success/luck-save pair, so no second
+    resist roll. Neither the Sleep Tag Staff nor the crit-fail branch
+    ported. `tests/smoke_test_curse_slumber.py` (8 checks) passes live
+    -- one real test bug caught: `make_char()` was passed a raw CLASS_*
+    value as the character-creation MENU choice (they don't share
+    numbering), which silently broke Mage creation; fixed by using
+    placeholder menu choices and setting the real class via a direct
+    SQL UPDATE afterward, same pattern shove/bodyslam's own tests use.
+    Not yet started: fear/identify (14), headbutt (15), telepathy (16), spin/
     invisibility/dispel invisible (17), teleport/summon (19), slam/
     riposte/deathstroke/dispel magic/springleap (20), blindness/word of
     recall (21), taunt/paralyze limb (22), whirlwind/kneestrike/

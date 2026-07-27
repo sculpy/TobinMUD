@@ -341,6 +341,42 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (strcasecmp(sk->name, "curse") == 0) {
+        /* Full spell/skill/prayer roster import continued, level-5+ list
+         * (2026-07-27): real upstream (misc/magicutils.cc's
+         * genericCurse()) is a hitroll penalty plus a worsened
+         * paralysis-immunity penalty -- Tobin has neither a separate
+         * hitroll stat nor a paralysis affect yet, so this lands as a
+         * level-scaled DEXTERITY penalty (AFFECT_CURSE, affect.h),
+         * standing in for the hitroll debuff since combat_strike()'s
+         * own to-hit roll is driven directly off DEXTERITY. "Curses a
+         * target or object" -- the object variant (an item that can't
+         * be removed once worn) has no Tobin equivalent, dropped. */
+        ch->last_heal_target = NULL;
+        if (!atk_target) {
+            descriptor_send(d, "Pray for that over whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int penalty = sk->min_level / 3;
+        if (penalty < 1)
+            penalty = 1;
+        if (penalty > 5)
+            penalty = 5;
+        being_apply_stat_affect(atk_target, AFFECT_CURSE, 100, -penalty);
+        snprintf(msg, sizeof(msg), "You pray for %s over %s -- a dark aura settles over them!\r\n",
+                 sk->name, being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s prays for %s over you -- a dark aura settles over you!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
+            descriptor_notify(atk_target->desc, msg);
+        }
     } else if (ci_contains(sk->name, "disease") || ci_contains(sk->name, "infect")) {
         ch->last_heal_target = NULL;
         if (!atk_target) {

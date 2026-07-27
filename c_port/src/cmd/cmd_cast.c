@@ -436,6 +436,44 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (ci_contains(sk->name, "slumber")) {
+        /* Full spell/skill/prayer roster import continued, level-5+ list
+         * (2026-07-27): real upstream (disc_mage_spirit.cc's slumber()/
+         * rawSleep()) puts the victim into POSITION_SLEEPING for a
+         * timed duration, with a separate luck-save resist roll on top
+         * of the normal cast-success check, plus an optional Sleep Tag
+         * Staff branch and a crit-fail-hits-the-caster-instead branch.
+         * Scoped to the core effect: this function only runs once the
+         * outer proficiency roll (task_cast()'s caller) already
+         * succeeded, so that stands in for the real version's
+         * bSuccess()/luck-save pair -- no second resist roll here.
+         * AFFECT_SLEEP (affect.h) auto-wakes atk_target on expiry.
+         * Deliberately NOT ported: the Sleep Tag Staff item (doesn't
+         * exist in Tobin) and the crit-fail-hits-caster branch. */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "You can't put an immortal to sleep.\r\n");
+            return;
+        }
+        if (atk_target->position == POSITION_SLEEPING) {
+            snprintf(msg, sizeof(msg), "%s is already asleep.\r\n", being_display_name(atk_target));
+            descriptor_send(d, msg);
+            return;
+        }
+        atk_target->position = POSITION_SLEEPING;
+        being_apply_affect(atk_target, AFFECT_SLEEP, 40 + sk->min_level);
+        snprintf(msg, sizeof(msg), "You cast %s at %s -- their eyes grow heavy and they collapse into sleep!\r\n",
+                 sk->name, being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts %s at you -- you can't fight the sudden urge to sleep!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
+            descriptor_notify(atk_target->desc, msg);
+        }
     } else if (ci_contains(sk->name, "conjure elemental") || strcasecmp(sk->name, "animal companion") == 0) {
         /* Pet/charm (Sneezy → Tobin feature audit): Mage's four
          * "conjure elemental air/earth/fire/water" spells already existed

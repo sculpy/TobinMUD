@@ -887,3 +887,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'bodyslam is live -- a level 10 audit item', '`bodyslam <target>` (Warrior) lifts a standing foe overhead and slams them down for real damage on success, knocking them sitting; on failure the Warrior is the one who ends up on the ground instead. The real upstream version is a much heavier function with weight comparisons and held-item restrictions -- this is a Tobin-scale slice of it, same spirit as bash and kick.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'curse and slumber are live -- level 13 audit items', '`pray curse <target>` (Cleric) settles a dark aura over a foe that weakens their coordination, making them easier to hit. `cast slumber <target>` (Mage) puts a foe to sleep outright, where they stay defenseless until it wears off and they wake back up on their own. Both are the first items off the audit that needed a real new status-effect type behind the scenes, not just a cosmetic message.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

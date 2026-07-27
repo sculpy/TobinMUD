@@ -158,6 +158,23 @@ typedef enum {
      * positive STRENGTH bonus instead of a penalty), applied to every
      * ally in the room by cmd_rally.c. */
     AFFECT_RALLY,
+    /* `curse` (Cleric, level 13, level-5+ audit list). Real upstream
+     * (misc/magicutils.cc's genericCurse()) is a hitroll penalty plus a
+     * worsened paralysis-immunity penalty -- Tobin has no separate
+     * hitroll stat or paralysis affect yet, so this lands as a
+     * level-scaled DEXTERITY penalty (affect_stat_target() below),
+     * standing in for the hitroll debuff since combat_strike()'s own
+     * to-hit roll is driven directly off DEXTERITY. See cmd_pray.c. */
+    AFFECT_CURSE,
+    /* `slumber` (Mage, level 13, level-5+ audit list). Real upstream
+     * (disc_mage_spirit.cc's slumber()/rawSleep()) puts the victim into
+     * POSITION_SLEEPING for a timed duration with a luck-save resist
+     * roll. Special-cased in affect.c's tick_being_affects(): applying
+     * it sets position to POSITION_SLEEPING immediately (cmd_cast.c);
+     * expiring it wakes the being back up (POSITION_STANDING) with its
+     * own message instead of the generic "wears off" line, same
+     * dissolve/revert shape as AFFECT_CHARMED/AFFECT_POLYMORPH. */
+    AFFECT_SLEEP,
     AFFECT_COUNT,
 } affect_type_t;
 

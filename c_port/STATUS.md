@@ -81,6 +81,14 @@ completeness audit continued).**
   knocks the victim down, failure knocks the attacker down instead. New
   `cmd_bodyslam.c`, `tests/smoke_test_bodyslam.py` (5 checks) passes
   live. Clean rebuild, restarted, no crash.
+- **curse** (Cleric, 13) + **slumber** (Mage, 13): first items needing
+  a real `AFFECT_*` extension. New `AFFECT_CURSE` (level-scaled
+  DEXTERITY penalty, standing in for the real hitroll debuff) and
+  `AFFECT_SLEEP` (POSITION_SLEEPING, auto-wakes on expiry via a new
+  special-case in affect.c's `tick_being_affects()`). curse wired into
+  `cmd_pray.c`, slumber into `cmd_cast.c`. `tests/smoke_test_curse_
+  slumber.py` (8 checks) passes live. Clean rebuild, restarted, no
+  crash.
 
 Previous update: 2026-07-27 — Session 83 (home): **Docs/systems persistence
 review, and its one real finding: tell history + `reply`.**
