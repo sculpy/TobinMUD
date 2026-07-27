@@ -4,10 +4,15 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
-/* `catchup`: replays the game messages that arrived while you were in an
- * editor (redit / hedit / addnews). Those messages are held instead of
- * interrupting the editor (descriptor_notify), and cleared here once read (or
- * automatically after five minutes -- see descriptor_held_expire). */
+/* `catchup`: replays the real COMMUNICATION (tell/say/shout/whisper/
+ * wiznet/the newbie channel) that arrived while you were in an editor
+ * (redit / hedit / addnews) -- user 2026-07-26: "catchup command should
+ * only record communications not theme messages". Ambient/flavor
+ * messages (room echoes, combat, mob AI, weather, ...) are simply
+ * dropped while editing instead, never held -- see descriptor.h's
+ * descriptor_notify() vs descriptor_notify_comm() split. Held messages
+ * are cleared here once read (or automatically after five minutes --
+ * see descriptor_held_expire). */
 bool cmd_catchup(descriptor_t *d, const char *args) {
     (void)args;
 

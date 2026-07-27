@@ -38,7 +38,7 @@ static void tell(being_t *b, const char *fmt, ...) {
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
-    descriptor_notify(b->desc, buf); /* held if the recipient is editing */
+    descriptor_notify(b->desc, buf); /* dropped, not held, if the recipient is editing -- combat is ambient, not communication */
 }
 
 /* A destroyed limb (0% HP) penalizes its owner's own offense (and, as of

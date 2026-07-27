@@ -67,7 +67,7 @@ bool cmd_whisper(descriptor_t *d, const char *args) {
     if (target->desc && !ignore_repo_is_ignored(target->player_id, ch->base.name)) {
         snprintf(out, sizeof(out), "<p>%s whispers to you, \"<z>%s<p>\"<z>\r\n",
                  ch->base.name, msg_text);
-        descriptor_notify(target->desc, out);
+        descriptor_notify_comm(target->desc, out);
     }
 
     /* Bystanders in the room see that a conversation happened, not what

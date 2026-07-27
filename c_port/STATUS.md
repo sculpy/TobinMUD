@@ -1,6 +1,52 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 80 (home): **Newbie equipment
+Last updated: 2026-07-26 — Session 81 (home): **Two more mid-session
+user requests: street sweeper/hauler/collector mobs that actually
+tidy up, and `catchup` restricted to real communication.**
+- **Surplus collection** (`mob_ai.c`'s new `mob_try_surplus_collect()`):
+  user "let the street sweepers and dirty refuse haulers get items
+  casually from the room and take them and drop them off in surplus
+  (room 563)", then "trash collectors too." Deliberately separate from
+  the existing `ACT_SCAVENGER` mechanic (which destroys loose
+  `OBJ_CAT_TRASH` outright) -- this one relocates ANY loose takeable
+  item to the real seeded Surplus donation room instead, keyed on the
+  mob's own name keyword ("sweeper"/"hauler", or "collector" AND
+  "trash" -- excludes tax collectors) rather than a flag, so both
+  mechanics can coexist on the same mob with no conflict. No real
+  pathfinding (same scope-down precedent as the lamplighter mob) --
+  picks up loose items in its current room (25%/tick), then
+  periodically teleport-delivers everything collected to room 563 and
+  back (15%/tick once carrying something), with room-visible messages
+  at both ends. Verified live: a spawned street sweeper picked up a
+  dropped rock and delivered it to Surplus -- which ALREADY had other
+  real donated items sitting there from ordinary background world
+  ticks before the test even ran, confirming the mechanic was already
+  working across the live world the moment it deployed.
+- **`catchup` communication-only** (`descriptor.c`/`.h`): user "catchup
+  command should only record communications not theme messages."
+  Every async message previously went through one `descriptor_notify()`
+  that held/replayed EVERYTHING (tells and says alongside mob AI,
+  combat, weather, every room-echo) for anyone mid-editor, since
+  `descriptor_room_echo()` -- the shared room-broadcast helper nearly
+  all ambient messages use -- calls it under the hood. Split in two:
+  `descriptor_notify()` now just DROPS a message outright while the
+  recipient is mid-editor (correct default for ambient/theme, zero
+  changes needed at ~55 existing call sites); new
+  `descriptor_notify_comm()` keeps the old hold-and-replay behavior,
+  switched in at the small set of genuine communication call sites:
+  tell, say, shout, whisper, wiznet, the newbie channel. Deliberately
+  left as ambient (not communication): `promote`'s notice, `group`'s
+  follow/join/split status lines, and the `system` broadcast (its own
+  doc comment already calls it "atmospheric") -- status/flavor, not
+  something you'd expect to catch up on like a missed conversation.
+  New `tests/smoke_test_catchup_comm.py` verifies live: a tell+say sent
+  while mid-editor both show up in `catchup` afterward; an ambient
+  "gets a rock" echo in the same window never shows up at all.
+  Regression-checked `smoke_test_notify.py` (one transient timing-flake
+  re-run, unrelated to this change, clean on retry).
+- Deployed via copyover, zero build warnings across both features.
+
+### Session 80 (home): **Newbie equipment
 suits: 6 class-based starter kits, `loadsuit`, and the Welfare
 Department social worker's gear reissue.**
 - User: "we need 6 sets of newbie equipment to load on the character

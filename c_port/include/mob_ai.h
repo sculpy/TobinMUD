@@ -35,6 +35,13 @@ struct room;
  *     picks up ANY loose object) to just trash specifically, matching the
  *     user's "clean up" framing rather than risking a cleaner mob eating
  *     real loot or a corpse's contents.
+ *   - Surplus collection (mob_ai.c's mob_try_surplus_collect(), user
+ *     2026-07-26): a DIFFERENT mechanic from the above, keyed by name
+ *     keyword ("sweeper"/"hauler"/"trash collector") rather than
+ *     ACT_SCAVENGER -- picks up ANY loose takeable item (not destroyed)
+ *     and periodically teleport-delivers everything it's collected to
+ *     the real seeded Surplus donation room (vnum 563), then teleports
+ *     back to keep working its usual room.
  *
  * Pulse-driven (main.c), same ~60s cadence as gametime_tick()/
  * zone_process_run(). */

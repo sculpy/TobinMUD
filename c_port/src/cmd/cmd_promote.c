@@ -79,7 +79,7 @@ bool cmd_promote(descriptor_t *d, const char *args) {
             snprintf(msg, sizeof(msg), "%s has %s you to level %d%s%s%s!\r\n",
                      self->base.name, level >= old_level ? "promoted" : "demoted",
                      level, title ? " (" : "", title ? title : "", title ? ")" : "");
-            descriptor_notify(target->desc, msg); /* held if they're mid-edit */
+            descriptor_notify(target->desc, msg); /* a status notice, not communication -- dropped, not held, if they're mid-edit */
         }
     }
     snprintf(msg, sizeof(msg), "%s is now level %d%s%s%s.%s\r\n",

@@ -210,7 +210,7 @@ bool cmd_say(descriptor_t *d, const char *args) {
             continue;
         snprintf(msg, sizeof(msg), "<c>%s says, \"<z>%s<c>\"<z>\r\n",
                  d->character->base.name, args);
-        descriptor_notify(other->desc, msg);
+        descriptor_notify_comm(other->desc, msg);
     }
 
     run_speech_triggers(d->character, r, args);

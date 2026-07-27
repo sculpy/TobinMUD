@@ -40,7 +40,7 @@ bool cmd_newbie(descriptor_t *d, const char *args) {
             continue;
         if (!(it->character->pflags & PLR_NEWBIE))
             continue;
-        descriptor_notify(it, other); /* held if the listener is mid-editor */
+        descriptor_notify_comm(it, other); /* held if the listener is mid-editor */
     }
     return true;
 }

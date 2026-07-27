@@ -165,8 +165,9 @@ static void social_send(descriptor_t *d, const char *tmpl, const being_t *actor,
     descriptor_send(d, buf);
 }
 
-/* Same, but via descriptor_notify (held if the recipient is mid-editor) --
- * for anyone who isn't the acting player themselves. */
+/* Same, but via descriptor_notify (dropped, not held, if the recipient
+ * is mid-editor -- a social/emote is ambient RP flavor, not real
+ * communication) -- for anyone who isn't the acting player themselves. */
 static void social_notify(descriptor_t *d, const char *tmpl, const being_t *actor, const being_t *target) {
     if (!tmpl[0])
         return;

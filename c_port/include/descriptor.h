@@ -742,11 +742,23 @@ void descriptor_trigedit_begin(descriptor_t *d, const char *target_type, int tar
  * combat announcements. Recipients in an editor have it held, not sent. */
 void descriptor_room_echo(struct room *r, being_t *except, const char *msg);
 
-/* Delivers an asynchronous game message: sent immediately if the connection
- * is free, or held (buffered for `catchup`) if it is in an editor. Async
- * senders (room echoes, combat, broadcasts) use this instead of
+/* Delivers an ambient/theme game message (room echoes, combat, mob AI,
+ * weather, object actions, ...): sent immediately if the connection is
+ * free, or silently DROPPED (not held/replayed) if it's in an editor --
+ * `catchup` only replays real communication (user 2026-07-26: "catchup
+ * command should only record communications not theme messages"), see
+ * descriptor_notify_comm() below for that. Async senders that aren't
+ * genuine player-to-player/immortal communication use this instead of
  * descriptor_send so nobody's editing is interrupted. */
 void descriptor_notify(descriptor_t *d, const char *msg);
+
+/* Delivers a real communication message (tell, say, shout, whisper,
+ * wiznet, the `system` broadcast, the newbie channel, direct group
+ * notices): sent immediately if the connection is free, or held
+ * (buffered for `catchup`) if it's in an editor. Use this, not the
+ * plain descriptor_notify() above, for anything that's genuinely
+ * player-to-player/immortal communication rather than ambient flavor. */
+void descriptor_notify_comm(descriptor_t *d, const char *msg);
 
 /* True while `d` is inside any editor (shared line editor or a menu-driven
  * one -- redit/edplayer/edzone). Exported so command handlers that

@@ -202,6 +202,142 @@ static void mob_try_scavenge(being_t *m) {
     obj_destroy(pick);
 }
 
+#define MOB_SURPLUS_COLLECT_CHANCE_PCT 25
+#define MOB_SURPLUS_DELIVER_CHANCE_PCT 15
+#define SURPLUS_ROOM_VNUM 563 /* real seeded room, "Surplus": "items you would
+                                * like to give to charity... take it and use it" */
+
+/* Case-insensitive substring check against a mob's raw space-separated
+ * keyword list (base.name) -- same spirit as cmd_object.c's
+ * obj_name_matches(), just a plain substring rather than a per-word
+ * prefix match (a mob's own name is short and fixed, unlike a player's
+ * free-typed search token, so there's no abbreviation to support here). */
+static bool name_has_keyword(const char *name, const char *keyword) {
+    size_t klen = strlen(keyword);
+    for (const char *p = name; *p; p++)
+        if (strncasecmp(p, keyword, klen) == 0)
+            return true;
+    return false;
+}
+
+static bool is_surplus_collector(const being_t *m) {
+    return name_has_keyword(m->base.name, "sweeper")
+        || name_has_keyword(m->base.name, "hauler")
+        || (name_has_keyword(m->base.name, "collector") && name_has_keyword(m->base.name, "trash"));
+}
+
+/* True if `o` is loose in `m`'s inventory -- not currently worn/held --
+ * same filter cmd_object.c's is_loose() applies for a player, duplicated
+ * here rather than shared (that one's static to cmd_object.c). Matters
+ * so a collector mob with actual worn gear of its own never picks THAT
+ * up as "collected" and carts it off to Surplus. */
+static bool mob_carrying_loose(const being_t *m, const obj_t *o) {
+    if (m->held[0] == o || m->held[1] == o)
+        return false;
+    for (int i = 0; i < LIMB_COUNT; i++)
+        if (m->equipment[i] == o)
+            return false;
+    return true;
+}
+
+/* User 2026-07-26: "let the street sweepers and dirty refuse haulers
+ * [and trash collectors] get items casually from the room and take them
+ * and drop them off in surplus (room 563)." A deliberately DIFFERENT
+ * mechanic from mob_try_scavenge()'s ACT_SCAVENGER/OBJ_CAT_TRASH-destroy
+ * above -- this one relocates any loose TAKEABLE item (not just trash)
+ * to the real seeded Surplus donation room instead of destroying
+ * anything, and is keyed on the mob's own real-world archetype by name
+ * keyword rather than the ACT_SCAVENGER flag, so a mob could have both
+ * behaviors at once and they simply coexist (actual junk gets swept
+ * away by one, anything usable gets donated by the other). No real
+ * pathfinding exists (same scope-down SPEC_PROC_LAMPLIGHTER's own doc
+ * comment already explains for a different mob) -- picks up whatever's
+ * in its CURRENT room, then teleports to 563 to drop off and back,
+ * rather than actually walking the distance. */
+static void mob_try_surplus_collect(being_t *m) {
+    if (!m->base.roomp || m->base.roomp->vnum == SURPLUS_ROOM_VNUM)
+        return;
+    if (!is_surplus_collector(m))
+        return;
+
+    bool carrying_any = false;
+    for (thing_t *t = m->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind == THING_OBJ && mob_carrying_loose(m, (obj_t *)t)) {
+            carrying_any = true;
+            break;
+        }
+    }
+
+    char capbuf[128], msg[256];
+
+    /* Already carrying something collected -- occasionally make the
+     * delivery run instead of picking up more. */
+    if (carrying_any && rand() % 100 < MOB_SURPLUS_DELIVER_CHANCE_PCT) {
+        room_t *from = m->base.roomp;
+        room_t *surplus = world_get_room(SURPLUS_ROOM_VNUM);
+        if (!surplus) {
+            surplus = room_repo_load(SURPLUS_ROOM_VNUM);
+            if (surplus)
+                world_register_room(surplus);
+        }
+        if (!surplus)
+            return;
+
+        snprintf(msg, sizeof(msg), "%s hurries off with an armful of odds and ends.\r\n",
+                 cap_first(m->base.short_descr, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(from, NULL, msg);
+
+        thing_set_room(&m->base, surplus);
+
+        int dropped = 0;
+        thing_t *t = m->base.stuff_head;
+        while (t) {
+            thing_t *next = t->stuff_next; /* thing_move_to() relinks t out of m's chain */
+            if (t->kind == THING_OBJ && mob_carrying_loose(m, (obj_t *)t)) {
+                thing_move_to(t, &surplus->base);
+                dropped++;
+            }
+            t = next;
+        }
+        if (dropped > 0) {
+            snprintf(msg, sizeof(msg), "%s arrives and leaves %s here for those in need.\r\n",
+                     cap_first(m->base.short_descr, capbuf, sizeof(capbuf)),
+                     dropped == 1 ? "an item" : "a few items");
+            descriptor_room_echo(surplus, NULL, msg);
+        }
+
+        thing_set_room(&m->base, from);
+        snprintf(msg, sizeof(msg), "%s returns, ready to tidy up again.\r\n",
+                 cap_first(m->base.short_descr, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(from, NULL, msg);
+        return;
+    }
+
+    if (rand() % 100 >= MOB_SURPLUS_COLLECT_CHANCE_PCT)
+        return;
+
+    obj_t *pick = NULL;
+    int count = 0;
+    for (thing_t *t = m->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        obj_t *o = (obj_t *)t;
+        if (!obj_takeable(o->wear_flag))
+            continue;
+        count++;
+        if (rand() % count == 0) /* reservoir sampling, same as mob_try_scavenge() above */
+            pick = o;
+    }
+    if (!pick)
+        return;
+
+    const char *label = pick->base.short_descr[0] ? pick->base.short_descr : pick->base.name;
+    snprintf(msg, sizeof(msg), "%s picks up %s.\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), label);
+    descriptor_room_echo(m->base.roomp, NULL, msg);
+    thing_move_to(&pick->base, &m->base);
+}
+
 /* Picks a fight for an ACT_AGGRESSIVE mob against a non-immortal PC in its
  * room. An UNALIGNED mob (mob_align == 0, the original/default behavior)
  * attacks anyone except a sufficiently good-aligned PC. An ALIGNED mob
@@ -401,6 +537,7 @@ static void mob_try_lamplighter(being_t *m) {
 static void mob_ai_visit(being_t *m) {
     mob_try_wander(m);
     mob_try_scavenge(m);
+    mob_try_surplus_collect(m);
     mob_try_aggress(m);
     mob_try_align_flavor(m);
     mob_try_lamplighter(m);

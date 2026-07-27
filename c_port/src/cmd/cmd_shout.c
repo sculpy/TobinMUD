@@ -44,7 +44,7 @@ bool cmd_shout(descriptor_t *d, const char *args) {
             continue;
         snprintf(msg, sizeof(msg), "<g>%s shouts, \"<z>%s<g>\"<z>\r\n",
                  ch->base.name, args);
-        descriptor_notify(it, msg);
+        descriptor_notify_comm(it, msg);
     }
     return true;
 }

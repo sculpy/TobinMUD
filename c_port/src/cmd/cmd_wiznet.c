@@ -51,7 +51,7 @@ bool cmd_wiznet(descriptor_t *d, const char *args) {
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
         if (!it->character || it->character->progress.level < min_level)
             continue;
-        descriptor_notify(it, msg);
+        descriptor_notify_comm(it, msg);
     }
     return true;
 }

@@ -204,11 +204,33 @@ static void descriptor_hold(descriptor_t *d, const char *msg) {
     d->held_count++;
 }
 
-void descriptor_notify(descriptor_t *d, const char *msg) {
+/* Real player-to-player/immortal communication (tell, say, shout,
+ * whisper, wiznet, the author-driven `system` broadcast, the newbie
+ * channel, direct group notices) -- held while the recipient is mid-
+ * editor and replayed via `catchup`, same "silence all messaging for
+ * editors" rule the project already established. This is the ONLY
+ * category `catchup` replays (user 2026-07-26: "catchup command should
+ * only record communications not theme messages") -- everything else
+ * uses the plain descriptor_notify() below, which no longer holds
+ * anything at all. */
+void descriptor_notify_comm(descriptor_t *d, const char *msg) {
     if (descriptor_in_editor(d))
         descriptor_hold(d, msg);
     else
         descriptor_send(d, msg);
+}
+
+/* Ambient/theme messages (room echoes, combat, mob AI, weather, object
+ * actions, ...) -- simply DROPPED while the recipient is mid-editor
+ * rather than held, so `catchup` doesn't fill up with things that were
+ * never actually said TO anyone (user 2026-07-26, see
+ * descriptor_notify_comm() above for the real-communication half of
+ * this split). Async senders that ARE genuine communication must use
+ * descriptor_notify_comm() instead. */
+void descriptor_notify(descriptor_t *d, const char *msg) {
+    if (descriptor_in_editor(d))
+        return;
+    descriptor_send(d, msg);
 }
 
 void game_log(log_type_t type, const char *fmt, ...) {
