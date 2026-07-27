@@ -1,6 +1,32 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-27 — Session 83 (home): **Docs/systems persistence
+Last updated: 2026-07-27 — Session 84 (work): **Work-box git/DB
+reconciliation + `chi` (Monk level-1 skill, spell/skill functional-
+completeness audit continued).**
+- (Note: Session 83's own level-1 skill batch -- backstab, rescue, trip,
+  steal, sneak, grapple, berserk, rally, garrotte, throatslit, yoginsa --
+  is written up in TODO.md's audit section, not duplicated here.)
+- **Work-box fix**: `git pull` was fine; separately, 5 tracked files
+  (`drug.h` + 4 smoke tests) were missing from disk on db.kullit.com, a
+  plain filesystem deletion outside git. Restored via `git checkout --`.
+  `fix-workbox.sh` had already succeeded underneath the confusion (DB
+  renamed `sneezy`->`tobin`, `player_drug` present). Clean rebuild +
+  restart + `smoke_test_drugs.py` (10/10) confirmed live. Flagged to
+  user (not touched): a raw `su` password sitting in `.bash_history`.
+- **`chi`** (Monk, level 1): TODO's guess that it folds into yoginsa's
+  meditation task was wrong -- real source (`misc/being.cc`'s
+  `doChi()`/`chiSelf`/`chiTarget`/`chiRoom`/`chiObject`) is a separate,
+  bigger skill: primarily an offensive chi-blast, plus a self mana-buff,
+  room AOE, and object effect. `skill.c`'s roster text was simply wrong
+  ("a mana-based healing touch") -- corrected. Scoped to `chi [<target>]`
+  only (single-target, WIS-scaled damage, usable fighting or not,
+  defaults to current opponent) -- self/room/object all key off mana,
+  which Tobin has none of; disclosed cut. Reuses
+  `combat_find_room_target()` (PK-consent + self-exclusion built in).
+  New `cmd_chi.c`. `tests/smoke_test_chi.py` (7 checks) passes live.
+  Clean rebuild, restarted, gdb-attached, no crash.
+
+Previous update: 2026-07-27 — Session 83 (home): **Docs/systems persistence
 review, and its one real finding: tell history + `reply`.**
 - Ran the long-queued "docs/systems review" TODO item as a background
   research pass (read-only, no code changes): swept `sneezymud-master/

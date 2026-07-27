@@ -1285,10 +1285,27 @@ durations where warranted, and a cooldown where warranted. Audit findings
     resources; no separate mana pool exists to touch), gated on
     sitting/resting and not fighting. New `cmd_yoginsa.c`.
     `tests/smoke_test_yoginsa.py` (4 checks) passes live.
-    Remaining: **chi** (likely folds into the same meditation task as
-    yoginsa per the real source -- worth confirming by reading
-    disc_monk_meditation.cc in full before building a second, separate
-    command); **jirin/kubo/oomlat** need a `combat.c` formula read-
+    **chi** (Monk) -- done 2026-07-27. The "folds into yoginsa's
+    meditation task" guess above was wrong -- reading
+    disc_monk_meditation.cc in full found no chi involvement at all;
+    `misc/being.cc`'s `TBeing::doChi()`/`chiSelf()`/`chiTarget()`/
+    `chiRoom()`/`chiObject()` is a real, separate, much bigger skill:
+    primarily an OFFENSIVE chi-blast against a target, plus a
+    self-buff (mana refill + temp cold immunity), a room-wide AOE
+    attack, and an object-targeted effect -- skill.c's own pre-existing
+    flavor text ("a mana-based healing touch") was simply wrong, fixed
+    to match. Scoped down to `chi [<target>]` only (single-target
+    attack, WIS-scaled damage, usable whether or not already fighting,
+    defaults to your current opponent like the real `doChi()`) --
+    self/room/object all key off mana, which Tobin doesn't have at all
+    (casting/praying is component-consumption-based instead), so
+    there's nothing to refill/spend/gate a cooldown on for those three;
+    cut, same disclosed-scope-cut spirit as drug.c's opium/frogslime.
+    Reuses `combat_find_room_target()` (PK-consent + linkdead exclusion
+    already built in, same as `attack`) rather than a new target-
+    resolution path. New `cmd_chi.c`. `tests/smoke_test_chi.py` (7
+    checks) passes live.
+    Remaining: **jirin/kubo/oomlat** need a `combat.c` formula read-
     through first (passive combat-math modifiers, not commands);
     **catfall/catleap** need confirming whether Tobin has fall damage at
     all before deciding if there's anything to port.

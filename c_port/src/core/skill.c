@@ -107,7 +107,7 @@ static const skill_def_t SKILLS[] = {
     { "yoginsa",         CLASS_MONK, SKILL_TIER_CLASS,   1, "Meditate to recover HP, movement, and mana." },
     { "jirin",           CLASS_MONK, SKILL_TIER_CLASS,   1, "Dodge, block, or deflect an incoming unarmed attack." },
     { "kubo",            CLASS_MONK, SKILL_TIER_CLASS,   1, "Your unarmed strikes scale with skill and level." },
-    { "chi",             CLASS_MONK, SKILL_TIER_CLASS,   1, "A mana-based healing touch, on yourself, another, or an object." },
+    { "chi",             CLASS_MONK, SKILL_TIER_CLASS,   1, "A chi-powered strike against a foe." },
     { "oomlat",          CLASS_MONK, SKILL_TIER_CLASS,   1, "A passive armor bonus while fighting unarmed." },
     { "catfall",         CLASS_MONK, SKILL_TIER_CLASS,   1, "Halves damage from a fall." },
     { "catleap",         CLASS_MONK, SKILL_TIER_CLASS,   1, "Leap and glide a direction, out of combat." },

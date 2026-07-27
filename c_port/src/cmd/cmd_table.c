@@ -129,6 +129,9 @@ static const cmd_entry_t COMMANDS[] = {
     { "garrotte", cmd_garrotte, "Strangle an unaware victim with a cord (Thief, garrotte <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
     { "throatslit", cmd_throatslit, "A lethal opening throat-slitting attack (Thief, throatslit <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
     { "yoginsa", cmd_yoginsa, "Meditate to recover HP and Vitality faster (Monk, must be sitting or resting).", MORTAL_LEVEL_MIN },
+    /* No existing "ch*" command -- unclaimed abbreviation, confirmed via
+     * cmd_abbrev_check.py before landing. */
+    { "chi",     cmd_chi,     "Unleash a chi-powered strike against a foe (Monk, chi [<target>]; defaults to your current opponent).", MORTAL_LEVEL_MIN },
     /* Money system v2. Placed AFTER "bash" (not strict alphabetical
      * order, same "ret"/"retu" precedent as retrieve/return) so the
      * far-more-frequently-typed combat skill keeps ownership of the "ba"
