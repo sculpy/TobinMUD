@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -95,6 +95,8 @@ static obj_t *find_light_target(being_t *ch, const char *raw, const char *scope)
     return o;
 }
 
+/* Display name for a light/fuel item in player-facing messages -- prefers
+ * short_descr, falling back to the raw keyword name. */
 static const char *light_label(const obj_t *o) {
     return o->base.short_descr[0] ? o->base.short_descr : o->base.name;
 }
@@ -113,6 +115,9 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
     return buf;
 }
 
+/* `light <item> [held|room]` -- lights an unlit OBJ_CAT_LIGHT item that
+ * still has fuel remaining (val[2] > 0). See the file's top comment for
+ * the val[] field layout and the original's obj_light.cc this mirrors. */
 bool cmd_light(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch) return true;
@@ -148,6 +153,7 @@ bool cmd_light(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `extinguish <item> [held|room]` -- puts out a currently-lit light item. */
 bool cmd_extinguish(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch) return true;
@@ -179,6 +185,11 @@ bool cmd_extinguish(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `refuel <light> <fuel> [held|room]` -- tops off an unlit, refuelable
+ * light item's val[2] (current burn) from a carried fuel item's val[0]
+ * (current fuel), transferring only as much as the light still has room
+ * for; the fuel item is destroyed once it's used up. Refuses a lit light
+ * ("might explode") same as the original TFuel::refuelMeFuel(). */
 bool cmd_refuel(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch) return true;

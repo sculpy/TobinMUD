@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -107,6 +107,10 @@ static bool do_container(descriptor_t *d, being_t *ch, obj_t *o, bool opening) {
     return true;
 }
 
+/* Shared implementation behind `open`/`close`: resolves the argument as a
+ * direction (a door, with the "door [<direction>]" alternate syntax
+ * handled below), or falls through to a carried/room container, then
+ * dispatches to the door or do_container() open/close logic accordingly. */
 static bool do_openclose(descriptor_t *d, const char *args, bool opening) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {

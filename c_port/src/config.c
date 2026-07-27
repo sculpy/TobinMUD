@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "config.h"
@@ -9,11 +9,15 @@
 static config_t g_config;
 static int g_loaded = 0;
 
+/* Reads env var `name`, falling back to `dflt` if it's unset or empty. */
 static const char *env_or(const char *name, const char *dflt) {
     const char *v = getenv(name);
     return (v && *v) ? v : dflt;
 }
 
+/* Returns the process-wide config, loading it from environment variables
+ * on the first call and caching it thereafter (see config.h for the full
+ * list of variables and their defaults). */
 const config_t *config_get(void) {
     if (!g_loaded) {
         g_config.db_host = env_or("TOBIN_DB_HOST", "localhost");

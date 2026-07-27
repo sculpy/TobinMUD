@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "body.h"
@@ -107,12 +107,22 @@ static const int LIMB_TO_COL[LIMB_COUNT] = {
     [LIMB_EX_RIGHT_FOOT] = 22, [LIMB_EX_LEFT_FOOT] = 23,
 };
 
+/* Display name for a body_type_t (BODY_NAMES[] above, upstream
+ * bodyNames[] with the missing BODY_WYVELIN entry filled in -- see the
+ * SLOT_CHANCE comment) -- falls back to BODY_HUMANOID for an
+ * out-of-range value rather than reading past the array. */
 const char *body_type_name(body_type_t bt) {
     if (bt < 0 || bt >= BODY_TYPE_COUNT)
         bt = BODY_HUMANOID;
     return BODY_NAMES[bt];
 }
 
+/* How much of body type `bt`'s overall equip-slot weight `limb` gets --
+ * 0 means this body shape doesn't have that limb at all
+ * (being_limbs_full_heal() uses exactly that to decide which limbs are
+ * "present"). Looks up the upstream SLOT_CHANCE table via LIMB_TO_COL,
+ * except LIMB_GENITALIA which has no upstream column and is synthesized
+ * from whether this body shape has a waist (see the inline comment). */
 int body_limb_weight(body_type_t bt, limb_t limb) {
     if (bt < 0 || bt >= BODY_TYPE_COUNT)
         bt = BODY_HUMANOID;
@@ -132,6 +142,11 @@ int body_limb_weight(body_type_t bt, limb_t limb) {
     return SLOT_CHANCE[bt][col];
 }
 
+/* For an arthropod-shaped body (insectoid/spider/centipede/ant), returns
+ * "leg" phrasing instead of the default "foot" limb_name() for the
+ * foot slots -- an insect's rearmost limb segments read as legs, not
+ * feet. Returns NULL (use the default name) for every other body type
+ * or limb. */
 const char *body_limb_name_override(body_type_t bt, limb_t limb) {
     bool arthropod = bt == BODY_INSECTOID || bt == BODY_SPIDER
         || bt == BODY_CENTIPEDE || bt == BODY_ANT;

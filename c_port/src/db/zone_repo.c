@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "zone_repo.h"
@@ -9,6 +9,9 @@
 
 #include "db.h"
 
+/* Loads every zone's summary row (name, enabled, vnum range, lifespan),
+ * zone_nr-sorted, up to max entries -- used at startup and by zone-listing
+ * commands. */
 int zone_repo_load_all(zone_t *out, int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -31,6 +34,7 @@ int zone_repo_load_all(zone_t *out, int max) {
     return n;
 }
 
+/* Loads a single zone's summary row by zone_nr. */
 bool zone_repo_load_one(int zone_nr, zone_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -53,6 +57,9 @@ bool zone_repo_load_one(int zone_nr, zone_t *out) {
     return found;
 }
 
+/* Updates an existing zone's editable fields (name, enabled, vnum range,
+ * lifespan) -- zones are created via the seed data/zedit's own creation
+ * flow, so this is a plain UPDATE, not an upsert. */
 bool zone_repo_save(const zone_t *z) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -65,6 +72,8 @@ bool zone_repo_save(const zone_t *z) {
     return ok;
 }
 
+/* Lists the character names of every player assigned as an owner/builder
+ * of a zone, name-sorted -- backs zone-ownership listing displays. */
 int zone_repo_load_owner_names(int zone_nr, char names[][64], int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -83,6 +92,7 @@ int zone_repo_load_owner_names(int zone_nr, char names[][64], int max) {
     return n;
 }
 
+/* True if player_id is currently assigned as an owner/builder of zone_nr. */
 bool zone_repo_is_assigned(int zone_nr, long player_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -94,6 +104,8 @@ bool zone_repo_is_assigned(int zone_nr, long player_id) {
     return found;
 }
 
+/* Assigns a player as an owner/builder of a zone. Re-assigning an already-
+ * assigned player is a harmless no-op via ON DUPLICATE KEY UPDATE. */
 bool zone_repo_assign(int zone_nr, long player_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -106,6 +118,7 @@ bool zone_repo_assign(int zone_nr, long player_id) {
     return ok;
 }
 
+/* Removes a player's owner/builder assignment from a zone. */
 bool zone_repo_unassign(int zone_nr, long player_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -116,6 +129,8 @@ bool zone_repo_unassign(int zone_nr, long player_id) {
     return ok;
 }
 
+/* Updates a zone's vnum range (bottom/top), independent of its other
+ * fields -- used when resizing a zone rather than editing its full record. */
 bool zone_repo_set_range(int zone_nr, int bottom, int top) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -141,6 +156,8 @@ bool zone_repo_insert_reset_cmd(int zone_nr, int cmd_no, char command, int if_fl
     return ok;
 }
 
+/* Loads a zone's reset command list (the scripted mob/obj spawn and reset
+ * instructions run on zone reset), cmd_no-ordered, up to max entries. */
 int zone_repo_load_resets(int zone_nr, zone_reset_cmd_t *out, int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

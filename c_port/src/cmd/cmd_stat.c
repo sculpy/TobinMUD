@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -97,6 +97,10 @@ static bool is_skipped_column(const char *table, const char *col) {
     return false;
 }
 
+/* Generic "<column>: <value>" dump of the current db row, driven by
+ * db_col_count()/db_col_name() rather than a hardcoded field list (see
+ * file-top comment) -- skips whatever is_skipped_column() says this
+ * table's caller already prints its own decoded line for. */
 static void dump_row(char *out, size_t out_sz, size_t *n, db_conn_t *db, const char *table) {
     unsigned int cols = db_col_count(db);
     for (unsigned int i = 0; i < cols && *n < out_sz; i++) {
@@ -176,6 +180,12 @@ static bool is_all_digits(const char *s) {
     return true;
 }
 
+/* `stat obj|mob|room <vnum|name>` / `stat player <name>` command -- see
+ * file-top comment for the full design (generic dump_row() output plus
+ * per-table decoded columns). Routes `player` to stat_player(); for
+ * obj/mob/room resolves a non-numeric argument to a vnum by name match,
+ * loads that one DB row, prints its decoded fields, then dump_row()s
+ * whatever's left, plus objaffect/roomexit detail sections below. */
 bool cmd_stat(descriptor_t *d, const char *args) {
     char cat[16] = "";
     char arg2[PLAYER_NAME_LEN] = "";

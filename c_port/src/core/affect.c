@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "affect.h"
@@ -135,16 +135,27 @@ const char *affect_name(affect_type_t type) {
     return AFFECT_NAMES[type];
 }
 
+/* True for any AFFECT_DISEASE_* value -- the contiguous COLD..EXTREME_PAIN
+ * range lets disease-only logic (HP drain ticks, cure pricing, immortal
+ * immunity checks) test membership with one range comparison instead of
+ * a switch over every disease name. */
 bool affect_is_disease(affect_type_t type) {
     return type >= AFFECT_DISEASE_COLD && type <= AFFECT_DISEASE_EXTREME_PAIN;
 }
 
+/* Gold cost to cure `type` at a hospital (cmd_shop.c) -- looks up
+ * AFFECT_CURE_PRICE[] with the same bounds check as affect_name(), and
+ * returns 0 for anything not in that table (a plain buff/debuff isn't
+ * something a hospital sells a cure for). */
 int affect_cure_price(affect_type_t type) {
     if (type < 0 || type >= AFFECT_COUNT)
         return 0;
     return AFFECT_CURE_PRICE[type];
 }
 
+/* Picks a uniformly random disease type from the AFFECT_DISEASE_COLD..
+ * EXTREME_PAIN range -- used wherever something infects a being with
+ * "a" disease rather than a specific named one. */
 affect_type_t affect_random_disease(void) {
     int span = AFFECT_DISEASE_EXTREME_PAIN - AFFECT_DISEASE_COLD + 1;
     return (affect_type_t)(AFFECT_DISEASE_COLD + rand() % span);
@@ -214,6 +225,13 @@ static void reverse_stat_modifier(being_t *b, int i) {
     b->affects[i].modifier = 0;
 }
 
+/* Like being_apply_affect() above, but for an affect that also nudges a
+ * stat (e.g. AFFECT_STUPIDITY draining intelligence) via
+ * affect_stat_target(). Refreshing an already-active instance reverses
+ * the old delta first so re-applying never stacks two copies of the
+ * modifier; the reversal is guaranteed to happen eventually by
+ * reverse_stat_modifier(), called from both being_remove_affect() and
+ * the natural-expiry path in tick_being_affects(). */
 void being_apply_stat_affect(struct being *b, affect_type_t type, int rounds, int modifier) {
     if (!b || type == AFFECT_NONE || rounds <= 0)
         return;
@@ -285,6 +303,9 @@ static void notify_flare(being_t *b, descriptor_t *d, affect_type_t type) {
     }
 }
 
+/* Poison's own flavor of notify_flare() above -- same PC-vs-mob branch,
+ * but a fixed phrasing since there's only ever the one poison affect
+ * (no name to interpolate). */
 static void notify_poison_burn(being_t *b, descriptor_t *d) {
     if (d) {
         descriptor_send(d, "The poison in your veins burns anew!\r\n");
@@ -354,6 +375,10 @@ static void revert_polymorph(being_t *b) {
     being_destroy(b);
 }
 
+/* Announces an affect's natural expiry -- same PC-vs-mob split as
+ * notify_flare(), called from tick_being_affects() once rounds_left
+ * hits zero for anything other than AFFECT_CHARMED/AFFECT_POLYMORPH
+ * (those two dissolve/revert instead of just wearing off quietly). */
 static void notify_wears_off(being_t *b, descriptor_t *d, affect_type_t type) {
     if (d) {
         char msg[64];
@@ -426,6 +451,9 @@ static void tick_being_affects(being_t *b, descriptor_t *d) {
     }
 }
 
+/* world_for_each_mob() callback for affect_tick_run() below -- ticks a
+ * mob's own affects with no descriptor to notify (see the skip check
+ * inside for why a possessed/polymorphed-into mob is excluded here). */
 static void mob_affect_tick_visit(being_t *m) {
     /* A mob with a live descriptor (possessed via cmd_possess.c, or
      * polymorphed into via AFFECT_POLYMORPH below) is ALREADY ticked by

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "trigger.h"
@@ -144,6 +144,12 @@ static void schedule_pending(const trigger_t *trig, int room_vnum, const trig_ct
 
 static long g_now_pulse = 0;
 
+/* Top-level entry point for firing a trigger: splits its script into lines
+ * and runs it from the top via trig_script_exec(). If the script hits a
+ * `wait`, the remaining lines (plus the full variable scope) are handed off
+ * to schedule_pending() to resume later rather than blocking here -- the
+ * game loop can't stall waiting on a mob's script. Called from wherever a
+ * trigger condition matches (command/speech/random ticks, etc). */
 void trigger_run(const trigger_t *trig, being_t *actor, room_t *room, const char *self_name) {
     if (!trig)
         return;
@@ -178,6 +184,13 @@ static const char *cap_mob_name(const char *short_descr, char *buf, size_t bufsz
     return buf[0] ? buf : NULL;
 }
 
+/* Periodic hook (registered with the pulse scheduler) that resumes any
+ * pending `wait`-paused trigger scripts whose resume_at_pulse has arrived.
+ * Re-derives room/self_name fresh (the mob/room may no longer be there, in
+ * which case the resume is dropped silently) since `actor` is deliberately
+ * not preserved across a wait -- see the pending_trigger_t doc comment
+ * above. A script that hits another `wait` mid-resume gets rescheduled the
+ * same way trigger_run() does. */
 void trigger_pending_tick(long pulse_num) {
     g_now_pulse = pulse_num;
     for (int i = 0; i < PENDING_MAX; i++) {
@@ -234,6 +247,10 @@ void trigger_pending_tick(long pulse_num) {
     }
 }
 
+/* Immediately fires every currently-pending waiting trigger, regardless of
+ * how much of their wait timer is left, by marking them all due "now" and
+ * running one tick. Used for things like a shutdown or zone reset where
+ * waiting for scripts to time out naturally isn't acceptable. */
 void trigger_pending_force_all(void) {
     for (int i = 0; i < PENDING_MAX; i++) {
         if (g_pending[i].active)
@@ -253,6 +270,9 @@ static int g_mob_random_count = 0;
 static int g_room_random_vnums[RANDOM_VNUM_SET_MAX];
 static int g_room_random_count = 0;
 
+/* Linear membership check against one of the g_mob_random_vnums /
+ * g_room_random_vnums arrays -- small, per-tick-refreshed sets, so a plain
+ * scan beats maintaining a hash/sorted structure. */
 static bool vnum_in_set(const int *set, int count, int vnum) {
     for (int i = 0; i < count; i++)
         if (set[i] == vnum)
@@ -260,6 +280,11 @@ static bool vnum_in_set(const int *set, int count, int vnum) {
     return false;
 }
 
+/* world_for_each_mob() visitor: if `m`'s vnum has a "random" trigger
+ * registered (per the gate set refreshed by trigger_random_tick()), rolls
+ * each one's chance_pct and fires it. Skipped entirely for vnums with no
+ * random trigger at all, which is the whole point of the gate set -- most
+ * mobs don't need this check every tick. */
 static void random_visit_mob(being_t *m) {
     if (m->base.kind != THING_MOB || !m->base.roomp)
         return;
@@ -277,6 +302,8 @@ static void random_visit_mob(being_t *m) {
     }
 }
 
+/* world_for_each_room() visitor -- same idea as random_visit_mob() above,
+ * for rooms with a "random" trigger. */
 static void random_visit_room(room_t *r) {
     if (!vnum_in_set(g_room_random_vnums, g_room_random_count, r->vnum))
         return;
@@ -290,6 +317,11 @@ static void random_visit_room(room_t *r) {
     }
 }
 
+/* Periodic hook (registered with the pulse scheduler) that drives "random"
+ * triggers: refreshes the mob/room vnum gate sets from the DB once, then
+ * visits every live mob and room to roll their random triggers. Refreshing
+ * once per call (instead of querying per mob/room) is the fix for a real
+ * perf bug -- see the gate set's doc comment above. */
 void trigger_random_tick(long pulse_num) {
     (void)pulse_num;
     g_mob_random_count = trigger_repo_random_vnums("mob", g_mob_random_vnums, RANDOM_VNUM_SET_MAX);

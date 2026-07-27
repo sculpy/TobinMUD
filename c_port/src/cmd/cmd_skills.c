@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -123,6 +123,10 @@ static void print_tier(descriptor_t *d, const being_t *ch, player_class_t cls, s
     (void)d;
 }
 
+/* `skills` command: prints the caller's class discipline percentages
+ * plus all three skill tiers via print_tier(). Immortals instead get
+ * every class's full roster dumped as fully known (see the comment
+ * just above on why that path needs its own oversized buffer). */
 bool cmd_skills(descriptor_t *d, const char *args) {
     (void)args;
     if (!d->character)

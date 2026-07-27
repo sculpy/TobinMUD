@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -47,11 +47,15 @@ static bool is_all_digits(const char *s) {
 static int g_count_target_vnum;
 static int g_count_result;
 
+/* world_for_each_mob() visitor: tallies mobs matching g_count_target_vnum
+ * into g_count_result. */
 static void count_mob_visit(being_t *m) {
     if (m->base.id == g_count_target_vnum)
         g_count_result++;
 }
 
+/* world_for_each_obj() visitor: tallies objects matching g_count_target_vnum
+ * into g_count_result. */
 static void count_obj_visit(obj_t *o) {
     if (o->vnum == g_count_target_vnum)
         g_count_result++;
@@ -84,6 +88,9 @@ static void warn_if_over_max_exist(descriptor_t *d, int vnum, int max_exist, boo
     descriptor_send(d, msg);
 }
 
+/* `load mob <vnum|name>`: resolves the mob prototype, spawns an instance
+ * into `ch`'s current room, announces it, and nudges the immortal if this
+ * pushes the world-wide count over the prototype's max_exist. */
 static void load_mob(descriptor_t *d, being_t *ch, const char *trimmed) {
     int vnum = is_all_digits(trimmed) ? atoi(trimmed) : mob_find_vnum_by_name(trimmed);
     if (vnum < 0) {
@@ -111,6 +118,10 @@ static void load_mob(descriptor_t *d, being_t *ch, const char *trimmed) {
         warn_if_over_max_exist(d, vnum, proto.max_exist, true);
 }
 
+/* `load obj <vnum|name>`: resolves the object prototype and spawns an
+ * instance straight into `ch`'s own inventory (see the 2026-07-22 note
+ * below on why not the room floor), then the same max_exist warning as
+ * load_mob() above. */
 static void load_obj(descriptor_t *d, being_t *ch, const char *trimmed) {
     int vnum = is_all_digits(trimmed) ? atoi(trimmed) : obj_find_vnum_by_name(trimmed);
     if (vnum < 0) {
@@ -146,6 +157,9 @@ static void load_obj(descriptor_t *d, being_t *ch, const char *trimmed) {
         warn_if_over_max_exist(d, vnum, proto.max_exist, false);
 }
 
+/* The `load` command: parses "<mob|obj> <vnum|name>" and dispatches to
+ * load_mob()/load_obj() -- see the file's top comment for the merged-
+ * command history and vnum-or-name lookup rule. */
 bool cmd_load(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {

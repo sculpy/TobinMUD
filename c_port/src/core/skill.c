@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "skill.h"
@@ -464,6 +464,9 @@ const char *skill_tier_label(player_class_t cls, skill_tier_t tier, char *buf, s
     return buf;
 }
 
+/* Looks up a skill definition by name, scoped to `cls` unless `any_class`
+ * is set (e.g. for immortal/admin lookups that shouldn't be class-gated).
+ * Returns NULL if no skill with that name is found in scope. */
 const skill_def_t *skill_find(player_class_t cls, const char *name, bool any_class) {
     int count = skill_count();
     for (int i = 0; i < count; i++) {
@@ -496,6 +499,8 @@ static int skill_ceiling(const being_t *ch, const skill_def_t *sk) {
  * level; one flat cooldown is a deliberate simplification. */
 #define SKILL_GAIN_COOLDOWN_SECS 30
 
+/* A character's current proficiency percent in `sk`, or 0 if they've never
+ * attempted it (no skill_repo row yet). */
 int skill_proficiency(const being_t *ch, const skill_def_t *sk) {
     skill_proficiency_t sp;
     if (!skill_repo_get(ch->player_id, sk->name, &sp))
@@ -503,6 +508,11 @@ int skill_proficiency(const being_t *ch, const skill_def_t *sk) {
     return sp.pct;
 }
 
+/* Learn-by-doing gain check: called after `ch` uses skill `sk`, this may
+ * raise their stored proficiency toward its discipline-percent ceiling
+ * (skill_ceiling()), gated by a cooldown and a headroom-shrinking chance
+ * curve softened by Wisdom. Returns the resulting (possibly unchanged)
+ * proficiency. First-ever use sets the floor with no roll. */
 int skill_learn_from_doing(being_t *ch, const skill_def_t *sk) {
     int ceiling = skill_ceiling(ch, sk);
     if (ceiling <= 0)
@@ -557,6 +567,9 @@ int skill_learn_from_doing(being_t *ch, const skill_def_t *sk) {
     return sp.pct;
 }
 
+/* Flat percent-chance success roll for a skill use, given its proficiency
+ * `pct` (0 always fails, 100+ always succeeds). Shared by any command that
+ * needs a plain "does this skill attempt succeed" check. */
 bool skill_roll_success(int pct) {
     if (pct >= 100)
         return true;

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -122,6 +122,8 @@ static int count_boards(const being_t *ch) {
     return n;
 }
 
+/* True if `s` is non-empty and every character is a digit -- used to tell
+ * a post-number argument (`read 3`) apart from a subject/keyword token. */
 static bool is_all_digits(const char *s) {
     if (!*s)
         return false;
@@ -131,6 +133,9 @@ static bool is_all_digits(const char *s) {
     return true;
 }
 
+/* Display name for a board in player-facing messages -- prefers the
+ * seeded short_descr (e.g. "the wiz board"), falling back to the raw
+ * keyword name when a board has none set. */
 static const char *board_label(const obj_t *board) {
     return board->base.short_descr[0] ? board->base.short_descr : board->base.name;
 }
@@ -210,6 +215,9 @@ static obj_t *resolve_board(descriptor_t *d, being_t *ch, const char *args, cons
     return board;
 }
 
+/* The `read` command: resolves which board (see resolve_board()), checks
+ * the per-board minimum level, then either lists every post's summary
+ * (bare `read`) or pages the full text of one post (`read <#>`). */
 bool cmd_read(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -273,6 +281,11 @@ bool cmd_read(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* The `write` command: resolves which board, checks the minimum level,
+ * then parses "<subject> <message>" and inserts the post directly via
+ * board_repo_post() -- see the file's top-of-file note on why this skips
+ * the original's separate note-writing step. Rejects "board" itself as a
+ * subject to avoid confusing it with the disambiguation keyword. */
 bool cmd_write(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "repair_repo.h"
@@ -28,6 +28,9 @@ int repair_ticket_create(long player_id, int shop_nr, int obj_vnum, const char *
     return id;
 }
 
+/* Shared row-to-struct mapper for repair_ticket_find() and
+ * repair_ticket_list_for_player() -- both select * from repair_ticket and
+ * need the same column set copied out, so this avoids duplicating it. */
 static void fill_ticket(db_conn_t *db, repair_ticket_t *out) {
     out->id = atoi(db_get(db, "id"));
     out->player_id = atol(db_get(db, "player_id"));
@@ -40,6 +43,9 @@ static void fill_ticket(db_conn_t *db, repair_ticket_t *out) {
     out->price = atoi(db_get(db, "price"));
 }
 
+/* Looks up a single repair ticket by id, scoped to the claiming player and
+ * shop -- the scoping prevents a player from redeeming/picking up a ticket
+ * that isn't theirs or belongs to a different repair shop. */
 bool repair_ticket_find(int id, long player_id, int shop_nr, repair_ticket_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -56,6 +62,7 @@ bool repair_ticket_find(int id, long player_id, int shop_nr, repair_ticket_t *ou
     return found;
 }
 
+/* Removes a repair ticket, e.g. once the repaired item has been picked up. */
 bool repair_ticket_delete(int id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -66,6 +73,8 @@ bool repair_ticket_delete(int id) {
     return ok;
 }
 
+/* Lists a player's outstanding repair tickets at a given shop, newest
+ * first, up to max entries -- backs the repair shop's "list" display. */
 int repair_ticket_list_for_player(long player_id, int shop_nr, repair_ticket_t *out, int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

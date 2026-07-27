@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -93,6 +93,10 @@ bool cmd_ride(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `dismount` command: tears down the bidirectional ch->mount/mount->rider
+ * link cmd_ride() set up, dropping both back to POSITION_STANDING.
+ * Refused mid-fight since being thrown off is meant to be an involuntary
+ * combat outcome, not something you can dodge by just dismounting. */
 bool cmd_dismount(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;

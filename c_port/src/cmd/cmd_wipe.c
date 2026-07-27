@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -66,6 +66,13 @@ static void wipe_online_victim(descriptor_t *victim_d) {
     descriptor_destroy(victim_d);
 }
 
+/* `wipe <name> <password>` / `wipe account <name> <password>` command --
+ * see file-top comment for the full destructive-power rationale.
+ * Validates the master wipe password from config, enforces the "target
+ * must be strictly below your level" rule (checking the account's
+ * highest-level character in account mode), tears down any online
+ * victim(s) via wipe_online_victim(), then deletes the player/account
+ * row outright (cascading through every dependent table). */
 bool cmd_wipe(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

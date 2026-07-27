@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "suit.h"
@@ -10,6 +10,11 @@
 #include "suit_repo.h"
 #include "thing.h"
 
+/* Instantiates every item in suit `suit_id` and drops them loose into
+ * `ch`'s inventory (not auto-equipped), saving the inventory afterward.
+ * Returns the count actually granted (protos that fail to create are
+ * silently skipped). Used for gearing a character up in one shot, e.g. a
+ * starting kit or an immortal reward suit. */
 int suit_grant(being_t *ch, int suit_id) {
     if (!ch || suit_id < 0)
         return 0;

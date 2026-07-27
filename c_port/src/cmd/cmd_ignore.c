@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -68,6 +68,8 @@ bool cmd_ignore(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `unignore <name>` -- removes one name from `ch`'s ignore list (see the
+ * file's top comment for what ignore blocks). */
 bool cmd_unignore(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

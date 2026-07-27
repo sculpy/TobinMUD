@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "obj_magic_repo.h"
@@ -9,6 +9,8 @@
 
 #include "db.h"
 
+/* Looks up a wand/staff-type object's associated spell name and max charge
+ * count by vnum. Returns false if the object has no obj_magic row. */
 bool obj_magic_repo_get(int vnum, char *spell_name, size_t spell_name_sz, int *max_charges) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

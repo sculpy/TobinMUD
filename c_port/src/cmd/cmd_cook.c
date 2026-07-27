@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -37,6 +37,9 @@ static bool keyword_matches(const char *keywords, const char *tok) {
     return false;
 }
 
+/* Matches a typed argument string against every known recipe's keyword
+ * list, word by word -- ALL typed words must match a keyword for the
+ * recipe to count. Returns the recipe's index, or -1 if none matched. */
 static int cook_find_recipe(const char *args) {
     for (int i = 0; i < COOK_RECIPE_COUNT; i++) {
         const cook_recipe_t *r = cook_recipe_at(i);
@@ -72,6 +75,8 @@ static obj_t *find_carried_vnum(const being_t *ch, int vnum) {
     return NULL;
 }
 
+/* First carried object of category OBJ_CAT_AMMO -- satisfies the
+ * COOK_ING_AMMO ingredient kind ("any ammo will do"). */
 static obj_t *find_carried_ammo(const being_t *ch) {
     for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
         if (t->kind != THING_OBJ)

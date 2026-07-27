@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -363,6 +363,10 @@ bool look_at_target(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* The `look` command: with an argument, describes a matching player/mob/
+ * object/exit in the room (look_at_target()); bare, renders the room
+ * itself -- name, description, exits, and contents, gated by the
+ * darkness/light check below before any of that is shown. */
 bool cmd_look(descriptor_t *d, const char *args) {
     if (!d->character || !d->character->base.roomp) {
         descriptor_send(d, "You are nowhere.\r\n");

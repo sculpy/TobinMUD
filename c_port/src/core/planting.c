@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "planting.h"
@@ -13,6 +13,9 @@
 #include "room.h"
 #include "thing.h"
 
+/* Cancels an in-progress planting attempt, telling `ch` and the room why
+ * (moved away, lost the seeds, etc.) and clearing all planting_* state on
+ * the being so planting_tick_run() stops acting on them. */
 static void abort_planting(descriptor_t *d, being_t *ch, const char *why) {
     char msg[256];
     snprintf(msg, sizeof(msg), "You stop planting seeds%s.\r\n", why);
@@ -38,6 +41,10 @@ static bool still_carrying(const being_t *ch, const struct obj *seed) {
     return false;
 }
 
+/* Periodic hook that advances every connected player's in-progress planting
+ * action by one tick (dig hole -> sow seeds -> cover hole), aborting it if
+ * the player wandered off, lost the seeds, or got pulled into combat; the
+ * final tick hands off to obj_plant_create() to actually spawn the plant. */
 void planting_tick_run(long pulse_num) {
     (void)pulse_num;
 

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -44,6 +44,10 @@ bool cmd_mortal(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `immort` -- reverses cmd_mortal() above: restores the stored true_level
+ * as the effective level. Gated on the STORED true level rather than the
+ * command table, so a genuine mortal sees the same "unknown command"
+ * response as if `immort` didn't exist (see file header). */
 bool cmd_immort(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;

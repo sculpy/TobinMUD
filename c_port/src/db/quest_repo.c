@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "quest_repo.h"
@@ -9,6 +9,7 @@
 
 #include "db.h"
 
+/* Returns a player's current stage in a quest (0 if not started/no row). */
 int quest_repo_get_stage(long player_id, const char *quest_name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -24,6 +25,8 @@ int quest_repo_get_stage(long player_id, const char *quest_name) {
     return stage;
 }
 
+/* Sets a player's stage in a quest. A stage <= 0 deletes the row entirely
+ * (treated as "not started") rather than storing a zero/negative value. */
 bool quest_repo_set_stage(long player_id, const char *quest_name, int stage) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -44,6 +47,8 @@ bool quest_repo_set_stage(long player_id, const char *quest_name, int stage) {
     return ok;
 }
 
+/* Lists every quest a player has actually started (stage > 0), name-sorted,
+ * up to max entries -- backs a player's quest-progress listing. */
 int quest_repo_list_player(long player_id, quest_entry_t *out, int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -65,6 +70,9 @@ int quest_repo_list_player(long player_id, quest_entry_t *out, int max) {
     return n;
 }
 
+/* Looks up the static description text for a given quest/stage pair from
+ * quest_def (the quest's authored content, as opposed to a player's
+ * per-player progress). */
 bool quest_repo_def_get(const char *quest_name, int stage, char *buf, size_t bufsz) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -82,6 +90,7 @@ bool quest_repo_def_get(const char *quest_name, int stage, char *buf, size_t buf
     return found;
 }
 
+/* Creates or updates a quest/stage's description text in quest_def. */
 bool quest_repo_def_set(const char *quest_name, int stage, const char *description) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

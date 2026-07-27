@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "alias_repo.h"
@@ -10,6 +10,10 @@
 
 #include "db.h"
 
+/* Creates or updates an alias (name -> expansion) for an account within a
+ * given tier. Enforces ALIAS_MAX_PER_TIER only when creating a genuinely
+ * new alias name; editing an existing one is always allowed even at the
+ * cap (see comment below). */
 bool alias_repo_set(long account_id, const char *tier, const char *name, const char *expansion) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -42,6 +46,8 @@ bool alias_repo_set(long account_id, const char *tier, const char *name, const c
     return ok;
 }
 
+/* Deletes one named alias in a tier. Confirms the row exists first so the
+ * caller can distinguish "removed" from "no such alias". */
 bool alias_repo_remove(long account_id, const char *tier, const char *name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -60,6 +66,8 @@ bool alias_repo_remove(long account_id, const char *tier, const char *name) {
     return ok;
 }
 
+/* Looks up a single alias's expansion text by name within a tier. Returns
+ * false if no such alias exists. */
 bool alias_repo_find(long account_id, const char *tier, const char *name, char *out, size_t outsz) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -77,6 +85,8 @@ bool alias_repo_find(long account_id, const char *tier, const char *name, char *
     return found;
 }
 
+/* Lists all aliases in a tier, name-sorted, up to max entries -- used by
+ * the "alias" command to show a player everything they have defined. */
 void alias_repo_list(long account_id, const char *tier, alias_entry_t *out, int max, int *count) {
     *count = 0;
 

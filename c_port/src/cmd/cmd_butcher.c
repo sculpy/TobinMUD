@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -29,6 +29,10 @@ static obj_t *find_corpse(const being_t *ch) {
     return NULL;
 }
 
+/* The `butcher` command: druid-skill carve of a mob corpse into raw meat
+ * (see cmd_skin.c for the parallel hide-yield mechanic). Requires the
+ * skill, an un-butchered mob corpse, and out-of-combat; a failed skill
+ * roll still marks the corpse butchered but spoils the meat. */
 bool cmd_butcher(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;

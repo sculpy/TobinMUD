@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "obj_plant.h"
@@ -44,6 +44,8 @@ static const plant_type_t PLANT_TYPES[PLANT_TYPE_COUNT] = {
     { 34216, 34215, 260, "gray grape vine",   "vine of <k>gray grapes<1>" },
 };
 
+/* Looks up which PLANT_TYPES entry a given seed item's vnum sows; returns
+ * false (leaving *out_type untouched) if seed_vnum isn't a known seed. */
 bool plant_type_for_seed_vnum(int seed_vnum, int *out_type) {
     for (int i = 0; i < PLANT_TYPE_COUNT; i++) {
         if (PLANT_TYPES[i].seed_vnum == seed_vnum) {
@@ -54,6 +56,8 @@ bool plant_type_for_seed_vnum(int seed_vnum, int *out_type) {
     return false;
 }
 
+/* Vnum of the fruit/harvest item a mature plant of `type` yields; 0 for an
+ * out-of-range type. */
 int plant_fruit_vnum(int type) {
     if (type < 0 || type >= PLANT_TYPE_COUNT)
         return 0;
@@ -74,6 +78,10 @@ static int plant_stage(const obj_t *o) {
     return stage > 3 ? 3 : stage;
 }
 
+/* Rewrites a plant object's keyword/short-desc/long-desc to match its
+ * current type and growth stage (dirt mound -> sprout -> small -> mature ->
+ * withered). Called after plant_age changes so the room always shows the
+ * right description without a separate "look" recompute path. */
 void obj_plant_refresh_desc(obj_t *o) {
     static const char *const KEYWORDS[5] = {
         "mound dirt", "sprout tiny", "plant small %s", "plant %s", "plant withered %s",
@@ -112,6 +120,9 @@ void obj_plant_refresh_desc(obj_t *o) {
     }
 }
 
+/* Spawns a fresh plant (starting life as a mound of dirt, age 0) in `room`
+ * and drops it on the floor -- the end result of the planting_tick_run()
+ * sow sequence in planting.c finishing its final tick. */
 void obj_plant_create(room_t *room, int type) {
     if (!room || type < 0 || type >= PLANT_TYPE_COUNT)
         return;
@@ -197,6 +208,9 @@ static void plant_growth_visit(obj_t *o) {
     descriptor_room_echo(r, NULL, msg);
 }
 
+/* Periodic hook (registered with the pulse scheduler) that ages every
+ * planted object in the world one step via plant_growth_visit(); this is
+ * the sole driver of plants sprouting, maturing, fruiting, and withering. */
 void obj_plant_growth_tick(long pulse_num) {
     (void)pulse_num;
     world_for_each_obj(plant_growth_visit);

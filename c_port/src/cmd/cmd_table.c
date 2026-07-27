@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd.h"
@@ -483,11 +483,23 @@ static const cmd_entry_t COMMANDS[] = {
 };
 #define NUM_COMMANDS (sizeof(COMMANDS) / sizeof(COMMANDS[0]))
 
+/* Read-only accessor for the static COMMANDS table above -- lets other
+ * files (e.g. `help`/`wizhelp` building their command lists) iterate the
+ * real dispatch table instead of keeping their own separate copy. */
 const cmd_entry_t *cmd_table_entries(int *count) {
     *count = (int)NUM_COMMANDS;
     return COMMANDS;
 }
 
+/* Top-level entry point for every line a connected socket sends while
+ * playing: strips a stray leading `@`, expands the `'`/`;` one-character
+ * shorthands for say/wiznet, handles the un-abbreviatable "quit!"
+ * literal, expands account-level aliases (recursing once on the
+ * expansion), enforces the wait-state lag gate, then walks COMMANDS in
+ * table order looking for the first entry both visible at the caller's
+ * level (see the ORDERING RULES block above the table -- position IS
+ * meaning here) and a prefix-match for what they typed. Falls back to
+ * socials, then to "Command not found" if nothing matched. */
 bool cmd_dispatch(descriptor_t *d, const char *line) {
     while (*line == ' ')
         line++;

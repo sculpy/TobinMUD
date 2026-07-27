@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "rules_repo.h"
@@ -8,6 +8,9 @@
 
 #include "db.h"
 
+/* Formats every rule's number and title (not the full body) into a single
+ * colorized text block, num-ascending -- backs the "rules" command's
+ * table-of-contents display. Returns false if there are no rules. */
 bool rules_repo_list(char *out, size_t size) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -32,6 +35,8 @@ bool rules_repo_list(char *out, size_t size) {
     return any;
 }
 
+/* Formats a single rule's full title and body into ready-to-send colorized
+ * text -- backs "rules <num>". Returns false if no such rule. */
 bool rules_repo_get(int num, char *out, size_t size) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -52,6 +57,7 @@ bool rules_repo_get(int num, char *out, size_t size) {
     return found;
 }
 
+/* Creates a rule at num, or replaces it in place if num already exists. */
 bool rules_repo_upsert(int num, const char *title, const char *body, const char *who) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

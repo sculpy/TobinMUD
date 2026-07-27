@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -36,6 +36,10 @@ static obj_t *find_corpse(const being_t *ch) {
     return NULL;
 }
 
+/* `skin` command -- see file-top comment for the full scope. Requires
+ * the "skin" skill and an un-skinned mob corpse, rolls the skill
+ * (consuming the corpse's CORPSE_SKINNED flag either way), and on
+ * success drops one weight-scaled hide pelt. */
 bool cmd_skin(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;

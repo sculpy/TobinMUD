@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "being.h"
@@ -20,6 +20,10 @@
 #include "obj.h"
 #include "room.h"
 
+/* Maps a stat token (full name or 3-letter abbreviation, either case) to
+ * the matching field inside `a`, so `set`/`stat`-style commands can look
+ * up "str"/"strength" etc. by user-typed text instead of a switch at
+ * every call site. Returns NULL for an unrecognized token. */
 int *attrs_field(attrs_t *a, const char *tok) {
     if (strcasecmp(tok, "str") == 0 || strcasecmp(tok, "strength") == 0) return &a->strength;
     if (strcasecmp(tok, "dex") == 0 || strcasecmp(tok, "dexterity") == 0) return &a->dexterity;
@@ -30,6 +34,11 @@ int *attrs_field(attrs_t *a, const char *tok) {
     return NULL;
 }
 
+/* Allocates and initializes a brand-new player character -- base attrs,
+ * starting HP/vit/hunger/thirst, and the humanoid body every PC uses.
+ * Used at character creation; an existing PC is loaded from the DB
+ * elsewhere (player_repo.c), not built through here. Caller owns the
+ * returned being_t and must eventually being_destroy() it. */
 being_t *being_create_pc(const char *name, long account_id, long player_id) {
     being_t *b = calloc(1, sizeof(*b));
     if (!b)
@@ -82,6 +91,13 @@ bool mob_class_mask_to_tobin(int mask, player_class_t *out) {
     }
 }
 
+/* Allocates and initializes a mob instance from its vnum prototype
+ * (mob_proto_load()) -- name/description/gender/class/race copied
+ * straight across, but attrs/HP are derived from level rather than
+ * copied from the original's incompatible 12-stat scale (see the
+ * comment on mob_attr below). Used by anything that spawns a mob:
+ * zone resets, being_summon_charmed_pet(), being_start_polymorph(), etc.
+ * Caller owns the returned being_t. */
 being_t *being_create_mob(int vnum) {
     mob_proto_t proto;
     if (!mob_proto_load(vnum, &proto))
@@ -136,6 +152,14 @@ being_t *being_create_mob(int vnum) {
     return b;
 }
 
+/* Tears down a being completely: scrubs every dangling reference to it
+ * from other live beings (fighting/last_heal_target/mount/rider, and a
+ * connected PC's own charmed pet independently fighting it), frees its
+ * carried/worn/held objects, leaves its group, unlinks it from its room,
+ * and frees the struct itself. Callers must not touch `b` again after
+ * this returns -- see the callers in affect.c (dissolve_charmed_pet(),
+ * revert_polymorph()) for the "safe to delete mid-iteration" pattern
+ * this is designed to support. */
 void being_destroy(being_t *b) {
     if (!b)
         return;
@@ -207,6 +231,10 @@ void being_destroy(being_t *b) {
     free(b);
 }
 
+/* True if `a` and `b` are in the same group -- same being, one leads the
+ * other, or both share the same leader. Groups here are a flat
+ * leader+followers[] structure (see being.h), not arbitrary graphs, so
+ * this is just three cheap pointer comparisons. */
 bool being_in_group(const being_t *a, const being_t *b) {
     if (!a || !b)
         return false;
@@ -219,6 +247,11 @@ bool being_in_group(const being_t *a, const being_t *b) {
     return a->master && a->master == b->master;
 }
 
+/* Fills `out` with every grouped member of self's group (leader first,
+ * then followers), up to `max` entries, and returns the count actually
+ * written -- the one place that flattens leader+followers[] into a
+ * plain list for callers like group-wide commands (xp splits, `who`
+ * group display, etc.) that just want to iterate members. */
 int being_group_members(const being_t *self, being_t **out, int max) {
     if (!self || !self->grouped || max <= 0)
         return 0;
@@ -235,6 +268,12 @@ int being_group_members(const being_t *self, being_t **out, int max) {
     return n;
 }
 
+/* Removes `b` from whatever group it's in, in either role: as a
+ * follower (unlinked from its master's followers[]) or as a leader
+ * (the group dissolves outright -- no succession, followers just
+ * become ungrouped individuals; see being.h's field comment for why).
+ * Called from being_destroy() so a dying/quitting member always leaves
+ * its group cleanly. */
 void being_leave_group(being_t *b) {
     if (!b)
         return;
@@ -263,6 +302,10 @@ void being_leave_group(being_t *b) {
     }
 }
 
+/* Finds `master`'s charmed pet, if it has one -- scans followers[] for
+ * the one carrying AFFECT_CHARMED (a charmed pet is stored as an
+ * ordinary follower, distinguished only by that affect). Returns NULL
+ * if there is none. */
 being_t *being_find_charmed_pet(const being_t *master) {
     if (!master)
         return NULL;
@@ -274,6 +317,12 @@ being_t *being_find_charmed_pet(const being_t *master) {
     return NULL;
 }
 
+/* Charm spell entry point: spawns the mob at `vnum` into master's room,
+ * attaches it as a follower, and slaps AFFECT_CHARMED on it for
+ * `duration_rounds` (its expiry in affect.c's dissolve_charmed_pet()
+ * dissolves the pet). Refuses if master already has a charmed pet
+ * (being_find_charmed_pet()) or has no free follower slot -- only one
+ * pet at a time, same as the followers[] cap. */
 being_t *being_summon_charmed_pet(being_t *master, int vnum, int duration_rounds) {
     if (!master || !master->base.roomp)
         return NULL;
@@ -301,6 +350,13 @@ being_t *being_summon_charmed_pet(being_t *master, int vnum, int duration_rounds
     return pet;
 }
 
+/* Polymorph spell entry point: swaps descriptor `d` onto a freshly
+ * created mob body at `vnum`, stashing the player's real being in
+ * d->possess_original so it can be restored later, and starts
+ * AFFECT_POLYMORPH ticking down (its expiry in affect.c's
+ * revert_polymorph() swaps back). Refuses if `d` is already possessing/
+ * polymorphed into something (possess_original already set) or has no
+ * character/room to polymorph from. */
 bool being_start_polymorph(descriptor_t *d, int vnum, int duration_rounds) {
     if (!d || !d->character || d->possess_original)
         return false;
@@ -321,10 +377,20 @@ bool being_start_polymorph(descriptor_t *d, int vnum, int duration_rounds) {
     return true;
 }
 
+/* True once `b`'s level reaches IMMORTAL_LEVEL_MIN -- the one check
+ * gating a long list of immortal-only behaviors (disease/poison
+ * immunity, no wait-state, always-lit vision, etc.) across the
+ * codebase, so it lives here rather than being reimplemented per call
+ * site. */
 bool being_is_immortal(const being_t *b) {
     return b && b->progress.level >= IMMORTAL_LEVEL_MIN;
 }
 
+/* Whether `ch` currently can't see in `r` for lack of light -- false for
+ * an immortal, an always-lit/indoor room, or daytime, and otherwise
+ * depends on whether `ch` is carrying an active light source
+ * (being_has_active_light() below). Drives look/move description
+ * suppression and any other "you can't see" gate. */
 bool room_is_dark_for(const struct room *r, const being_t *ch) {
     const room_t *room = (const room_t *)r;
     if (!room || !ch)
@@ -338,6 +404,10 @@ bool room_is_dark_for(const struct room *r, const being_t *ch) {
     return !being_has_active_light(ch);
 }
 
+/* True if `b` is carrying/wielding any object that's a lit light source
+ * (OBJ_CAT_LIGHT with fuel remaining in val[3]) -- scans the being's
+ * whole stuff_head chain since a light doesn't have to be wielded to
+ * count, just carried lit. Used by room_is_dark_for() above. */
 bool being_has_active_light(const being_t *b) {
     if (!b)
         return false;
@@ -351,6 +421,10 @@ bool being_has_active_light(const being_t *b) {
     return false;
 }
 
+/* Forces `name` into Capitalized-first-letter, lowercase-rest form
+ * in place -- used to tidy up player-typed names (character creation,
+ * immortal `set` commands) so display and DB lookups stay consistent
+ * regardless of how the player capitalized it when typing. */
 void being_normalize_name(char *name) {
     if (!name || !name[0])
         return;
@@ -359,6 +433,10 @@ void being_normalize_name(char *name) {
         name[i] = (char)tolower((unsigned char)name[i]);
 }
 
+/* Immortal rank title for `level` ("Immortal"/"God"/.../"Implementor"),
+ * or NULL for a mortal level -- used wherever an immortal's rank needs
+ * spelling out (e.g. `who`, `stat`), paired with being_rank_color()
+ * below for the matching display color. */
 const char *being_level_title(int level) {
     if (level < IMMORTAL_LEVEL_MIN)
         return NULL;
@@ -373,6 +451,10 @@ const char *being_level_title(int level) {
     return "Implementor"; /* 60+ */
 }
 
+/* Color code tier matching being_level_title()'s rank bands (higher
+ * immortal ranks get brighter/rarer colors), or "" for a mortal --
+ * pairs with being_level_title() wherever a rank needs both a label and
+ * a color, e.g. `who`. */
 const char *being_rank_color(int level) {
     if (level >= 59)
         return "<P>"; /* 59+ */
@@ -385,12 +467,19 @@ const char *being_rank_color(int level) {
     return ""; /* mortal */
 }
 
+/* Reads `b`'s current wait-state (pulses left before their next action
+ * is allowed), always 0 for an immortal regardless of what
+ * wait_pulses actually holds -- immortals are never rate-limited by
+ * combat/skill lag. */
 int being_get_wait(const being_t *b) {
     if (!b)
         return 0;
     return being_is_immortal(b) ? 0 : b->wait_pulses;
 }
 
+/* Sets `b`'s wait-state, but is a no-op for an immortal -- the write
+ * side of being_get_wait()'s immunity, so combat/skill code can call
+ * this unconditionally without special-casing immortals itself. */
 void being_set_wait(being_t *b, int pulses) {
     if (!b || being_is_immortal(b))
         return;
@@ -414,6 +503,13 @@ static double class_hp_scale(player_class_t c) {
     }
 }
 
+/* Recomputes `b`'s max HP from current constitution, level, and
+ * class/race (PC) or known class (mob) balance multipliers -- called
+ * whenever any of those inputs change (level up, stat change,
+ * `balance` command edits) so max_hp always reflects the current
+ * formula rather than being cached stale. See class_hp_scale() above
+ * and balance.c's class_balance_get()/race_balance_get() for the two
+ * multiplier sources this combines. */
 int being_calc_max_hp(const being_t *b) {
     if (!b)
         return 20;
@@ -433,6 +529,10 @@ int being_calc_max_hp(const being_t *b) {
     return 20 + con_bonus + (int)(b->progress.level * 5 * scale);
 }
 
+/* Recomputes `b`'s max vitality (the stamina-like pool skills/spells
+ * spend from) from constitution and level, same "recompute on demand"
+ * role as being_calc_max_hp() above but with its own flatter, class-
+ * independent formula. */
 int being_calc_max_vit(const being_t *b) {
     if (!b)
         return 50;
@@ -454,12 +554,20 @@ static const char *const POSITION_NAMES[] = {
     "Mounted", "Flying",
 };
 
+/* Display text for a position_t (POSITION_NAMES[] above, ported from
+ * the original's position_types[]) -- falls back to "Standing" for an
+ * out-of-range value rather than reading past the array. */
 const char *position_name(position_t p) {
     if (p < 0 || (size_t)p >= sizeof(POSITION_NAMES) / sizeof(POSITION_NAMES[0]))
         return "Standing";
     return POSITION_NAMES[p];
 }
 
+/* Reverse of position_name() above: matches a (possibly abbreviated)
+ * typed name against POSITION_NAMES[] by prefix, for commands that let
+ * an immortal set a position by typed word (e.g. `set position`).
+ * Refuses an ambiguous prefix (matches more than one name) rather than
+ * silently picking the first match. */
 bool position_from_name(const char *name, position_t *out) {
     size_t len = strlen(name);
     if (len == 0)
@@ -479,6 +587,11 @@ bool position_from_name(const char *name, position_t *out) {
     return true;
 }
 
+/* gender_name()/subject()/object()/possess()/reflexive() below are the
+ * pronoun family for a gender_t: display name, and the he/she/it,
+ * him/her/it, his/her/its, himself/herself/itself forms used when
+ * building a message about a being in the third person. All default to
+ * the neuter form for GENDER_NEUTER or anything unrecognized. */
 const char *gender_name(gender_t g) {
     switch (g) {
         case GENDER_MALE:   return "male";
@@ -528,12 +641,18 @@ static const char *const CLASS_NAMES[CLASS_COUNT] = {
     "Mage", "Cleric", "Warrior", "Thief", "Druid", "Monk",
 };
 
+/* Display name for a PC class (CLASS_NAMES[] above) -- falls back to
+ * "Mage" for an out-of-range value. */
 const char *class_name(player_class_t c) {
     if (c < 0 || c >= CLASS_COUNT)
         return "Mage";
     return CLASS_NAMES[c];
 }
 
+/* Display label for a mob's raw class bitmask -- "none" for no class,
+ * the mapped Tobin class name via mob_class_mask_to_tobin() where one
+ * exists, or "unmapped (mask N)" so an immortal looking at `stat` can
+ * still see the raw value for a class Tobin has no equivalent for. */
 const char *mob_class_label(int mask, char *buf, size_t bufsz) {
     if (mask == 0) {
         snprintf(buf, bufsz, "none");
@@ -591,6 +710,8 @@ static const char *const RACE_NAMES[RACE_COUNT] = {
     "Human", "Elf", "Ogre", "Dwarf", "Hobbit", "Gnome",
 };
 
+/* Display name for a PC race (RACE_NAMES[] above) -- falls back to
+ * "Human" for an out-of-range value. */
 const char *race_name(player_race_t r) {
     if (r < 0 || r >= RACE_COUNT)
         return "Human";
@@ -646,6 +767,11 @@ bool mob_race_is_rideable(int idx) {
     return idx == 47; /* HORSE */
 }
 
+/* True for a MOB_RACE_NAMES[] index that's a mundane real-world animal
+ * (see the "Mundane real-world creature races" comment on
+ * mob_race_is_rideable() just above for the exact inclusion/exclusion
+ * rationale) -- used to decide things like "animals don't carry
+ * wealth" (user 2026-07-19). */
 bool mob_race_is_animal(int idx) {
     switch (idx) {
         case 12:  /* INSECT */
@@ -738,6 +864,10 @@ void race_stat_bonus(player_race_t r, attrs_t *a) {
     }
 }
 
+/* Bucketed HP% description for `b` ("perfect", "hurt", "near death",
+ * etc.) -- the classic MUD `diagnose`/`look` health line, done as
+ * discrete tiers rather than a raw percentage so the game reads as
+ * flavor text instead of a spreadsheet. */
 const char *being_health_word(const being_t *b) {
     if (!b || b->progress.max_hp <= 0)
         return "unknown";
@@ -788,6 +918,8 @@ const char *alignment_word(int alignment) {
     return "demonic";
 }
 
+/* Display name for a limb_t (LIMB_NAMES[] above) -- falls back to
+ * "body" for an out-of-range value. */
 const char *limb_name(limb_t limb) {
     if (limb < 0 || limb >= LIMB_COUNT)
         return "body";
@@ -802,6 +934,12 @@ const char *limb_name(limb_t limb) {
  * level 1, rather than a first-swing coin flip. */
 #define LIMB_MIN_MAX_HP 15
 
+/* (Re)initializes every limb's hp/max_hp for `b`, splitting max_hp
+ * evenly across whichever limbs this body_type actually has (see the
+ * body-types comment inside for how "has" is decided) and applying the
+ * LIMB_MIN_MAX_HP floor above. Called on being creation and full heals
+ * so limb HP always tracks a fresh source of truth rather than being
+ * left stale after a max_hp change. */
 void being_limbs_full_heal(being_t *b) {
     if (!b)
         return;
@@ -828,12 +966,21 @@ void being_limbs_full_heal(being_t *b) {
     }
 }
 
+/* Whether `b`'s body actually includes `limb` -- driven by max_hp being
+ * >0 (being_limbs_full_heal() zeroes both hp and max_hp for a slot the
+ * current body_type doesn't have), so this doubles as the "is this a
+ * real limb for this body shape" check used throughout combat/equip
+ * code. */
 bool being_has_limb(const being_t *b, limb_t limb) {
     if (!b || limb < 0 || limb >= LIMB_COUNT)
         return false;
     return b->limbs[limb].max_hp > 0;
 }
 
+/* Applies `dmg` to both `b`'s overall HP and the specific limb's HP
+ * (clamped at 0) -- the shared damage-application point combat code
+ * uses whenever a hit lands on a particular limb, keeping the two
+ * pools in sync. */
 void being_hurt_limb(being_t *b, limb_t limb, int dmg) {
     if (!b || dmg <= 0 || limb < 0 || limb >= LIMB_COUNT)
         return;
@@ -843,6 +990,8 @@ void being_hurt_limb(being_t *b, limb_t limb, int dmg) {
         b->limbs[limb].hp = 0;
 }
 
+/* `limb`'s HP as a 0-100 percentage of its max, clamped -- feeds
+ * limb_status_text() below and any limb-condition display. */
 int being_limb_pct(const being_t *b, limb_t limb) {
     if (!b || limb < 0 || limb >= LIMB_COUNT || b->limbs[limb].max_hp <= 0)
         return 0;
@@ -854,6 +1003,9 @@ int being_limb_pct(const being_t *b, limb_t limb) {
     return pct;
 }
 
+/* Warning text for a limb at `pct` health, or NULL if it's healthy
+ * enough not to mention -- used to append a "your arm needs medical
+ * attention"-style note wherever a limb's condition is shown. */
 const char *limb_status_text(int pct) {
     if (pct <= 0)
         return "is destroyed and needs medical attention";
@@ -864,6 +1016,10 @@ const char *limb_status_text(int pct) {
     return NULL;
 }
 
+/* True if `b` has any present limb (being_has_limb()) currently at 0
+ * HP -- deliberately excludes the always-0/0 EX_* slots a body_type
+ * doesn't have, which are "absent," not "destroyed." Used to gate
+ * decapitation/dismemberment-driven effects and status displays. */
 bool being_has_destroyed_limb(const being_t *b) {
     if (!b)
         return false;
@@ -877,6 +1033,11 @@ bool being_has_destroyed_limb(const being_t *b) {
     return false;
 }
 
+/* Sums `b`'s effective armor class: every worn item's AC contribution
+ * (obj_armor_ac() per equipment slot), plus the gamewide class/race AC
+ * balance modifiers (same convention as being_calc_max_hp()), plus a
+ * flat mounted bonus. Lower is better, matching the rest of the AC
+ * scale. */
 int being_total_ac(const being_t *b) {
     if (!b)
         return 0;
@@ -920,6 +1081,11 @@ static void equip_line(char *out, size_t out_sz, size_t *n, const char *label,
                            cond ? " (" : "", cond ? cond : "", cond ? ")" : "");
 }
 
+/* Renders `b`'s full equipment listing (one line per present limb slot
+ * via equip_line() above, skipping genitalia and any limb this body
+ * doesn't have, then both hold slots in handedness order) into `out` --
+ * the shared implementation behind both `equipment` and `look <person>`
+ * (see the comment above equip_line() for why it moved here). */
 void being_render_equipment(const being_t *b, char *out, size_t out_sz, size_t *n) {
     if (!b)
         return;
@@ -936,12 +1102,22 @@ void being_render_equipment(const being_t *b, char *out, size_t out_sz, size_t *
         equip_line(out, out_sz, n, "secondary hold", b->held[secondary]);
 }
 
+/* The name to show for `b` in ordinary text: a mob's short_descr (its
+ * "a large rat"-style article-including description) or a PC's plain
+ * name. Not capitalized -- see being_display_name_cap() below for the
+ * capitalized, buffer-returning variant used at the start of a
+ * sentence. */
 const char *being_display_name(const being_t *b) {
     if (!b)
         return "";
     return (b->base.kind == THING_MOB) ? b->base.short_descr : b->base.name;
 }
 
+/* Same idea as being_display_name() above, but capitalizes the first
+ * real letter into `buf` and returns it -- used at the start of a
+ * sentence (e.g. "Grendel hits you"). Skips over any leading `<x>`
+ * color codes in a mob's short_descr so it capitalizes the actual
+ * first letter of the name, not a color tag character. */
 const char *being_display_name_cap(const being_t *b, char *buf, size_t bufsz) {
     if (!b || bufsz == 0)
         return "";
@@ -958,6 +1134,10 @@ const char *being_display_name_cap(const being_t *b, char *buf, size_t bufsz) {
     return buf;
 }
 
+/* Heals `b` by `amount`, applying it to both overall HP and every
+ * limb's HP (each clamped at its own max) -- the counterpart to
+ * being_hurt_limb() for restoring HP across the board rather than to
+ * one specific limb, e.g. a full heal spell or resting. */
 void being_heal(being_t *b, int amount) {
     if (!b || amount <= 0)
         return;
@@ -971,6 +1151,9 @@ void being_heal(being_t *b, int amount) {
     }
 }
 
+/* Restores `amount` of vitality to `b`, clamped at max_vit -- the vit
+ * counterpart to being_heal(), used by rest/regen and any effect that
+ * restores stamina rather than HP. */
 void being_heal_vit(being_t *b, int amount) {
     if (!b || amount <= 0)
         return;
@@ -979,6 +1162,9 @@ void being_heal_vit(being_t *b, int amount) {
         b->progress.vit = b->progress.max_vit;
 }
 
+/* Deducts `amount` of vitality from `b`, clamped at 0 -- the spend
+ * side of being_heal_vit(), used wherever a skill/spell costs vit to
+ * perform. */
 void being_spend_vit(being_t *b, int amount) {
     if (!b || amount <= 0)
         return;

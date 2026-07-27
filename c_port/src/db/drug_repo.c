@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "drug_repo.h"
@@ -8,6 +8,9 @@
 
 #include "db.h"
 
+/* Loads a player's per-drug usage history (first use, last use, total
+ * consumed) into the states array, indexed by drug_type_t. Rows for drug
+ * types the player has never used simply leave that slot untouched. */
 void drug_repo_load_all(long player_id, drug_state_t states[DRUG_COUNT]) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -29,6 +32,7 @@ void drug_repo_load_all(long player_id, drug_state_t states[DRUG_COUNT]) {
     db_close(db);
 }
 
+/* Upserts a player's usage state for a single drug type. */
 bool drug_repo_save(long player_id, drug_type_t type, const drug_state_t *st) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

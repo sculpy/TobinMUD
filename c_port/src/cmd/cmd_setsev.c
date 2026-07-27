@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -41,10 +41,16 @@ static const setsev_entry_t SETSEV_TYPES[] = {
 };
 #define NUM_SETSEV_TYPES (sizeof(SETSEV_TYPES) / sizeof(SETSEV_TYPES[0]))
 
+/* Name-gate for LOG_JESUS -- see file-top comment: only the immortal
+ * actually named Jesus can see or flip that one entry. */
 static bool is_jesus(const being_t *ch) {
     return strcasecmp(ch->base.name, "Jesus") == 0;
 }
 
+/* `setsev [type]` command -- see file-top comment for the full port
+ * rationale. No argument lists every log type with its on/off state
+ * (skipping LOG_JESUS unless the caller is Jesus); a prefix-matched
+ * type argument flips that type's bit in `ch->severity`. */
 bool cmd_setsev(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "obj.h"
@@ -25,6 +25,8 @@ static const char *const OBJ_CATEGORY_NAMES[OBJ_CAT_COUNT] = {
     "written", "trash", "other",
 };
 
+/* Display name for a Tobin obj_category_t (OBJ_CATEGORY_NAMES[] above)
+ * -- falls back to "other" for an out-of-range value. */
 const char *obj_category_name(obj_category_t cat) {
     if (cat < 0 || cat >= OBJ_CAT_COUNT)
         return "other";
@@ -119,6 +121,10 @@ static const obj_category_t ITEM_TYPE_CATEGORY[] = {
 };
 #define NUM_ITEM_TYPES (sizeof(ITEM_TYPE_CATEGORY) / sizeof(ITEM_TYPE_CATEGORY[0]))
 
+/* Collapses a raw upstream `obj.type` value into Tobin's obj_category_t
+ * via ITEM_TYPE_CATEGORY[] above -- the one place a newly loaded/created
+ * object's gameplay category gets decided (see obj_create_from_proto()
+ * below). Falls back to OBJ_CAT_OTHER for an out-of-range value. */
 obj_category_t category_for_item_type(int orig_item_type) {
     if (orig_item_type < 0 || (size_t)orig_item_type >= NUM_ITEM_TYPES)
         return OBJ_CAT_OTHER;
@@ -143,6 +149,9 @@ obj_category_t category_for_item_type(int orig_item_type) {
 #define WEAR_HOLD    16384
 #define WEAR_THROW   32768
 
+/* Whether an object with `wear_flag` can be picked up at all (the
+ * WEAR_TAKE bit) -- most objects have it, but a handful of fixed-in-
+ * place items (furniture, scenery) don't. */
 bool obj_takeable(int wear_flag) {
     return (wear_flag & WEAR_TAKE) != 0;
 }
@@ -156,6 +165,10 @@ static const char *const WEAR_FLAG_NAMES[16] = {
     "ARMS", "UNUSED", "BACK", "WAIST", "WRISTS", "UNUSED", "HOLD", "THROW",
 };
 
+/* Formats every set WEAR_* bit in `flags` as a "[ NAME ]"-joined string
+ * into `buf` (WEAR_FLAG_NAMES[] above), or "none" if nothing's set --
+ * same convention as mob_action_names() (mob_ai.c), used by `stat`/
+ * debug output to show an object's raw wear_flag in readable form. */
 const char *obj_wear_flag_names(int flags, char *buf, size_t size) {
     size_t n = 0;
     buf[0] = '\0';
@@ -194,6 +207,11 @@ static const char *const ITEM_TYPE_NAMES[NUM_ITEM_TYPES] = {
     "HARNESS", "SADDLEBAG", "WAGON", "MONEYPOUCH", "FRUIT",
 };
 
+/* Display name for the raw upstream `obj.type` value (ITEM_TYPE_NAMES[]
+ * above, the honest un-collapsed 77-entry enum) -- for `stat`, which
+ * wants to show the real seeded type, not the collapsed
+ * obj_category_t category_for_item_type() derives from it. Returns "?"
+ * for an out-of-range value. */
 const char *obj_type_name(int raw_type) {
     if (raw_type < 0 || (size_t)raw_type >= NUM_ITEM_TYPES)
         return "?";
@@ -217,6 +235,10 @@ static const char *const OBJ_ACTION_FLAG_NAMES[32] = {
     "NOT_USED3", "ATTACHED", "BURNING", "CHARRED", "NOLOCATE",
 };
 
+/* Formats every set action_flag bit in `flags` as a "[ NAME ]"-joined
+ * string into `buf` (OBJ_ACTION_FLAG_NAMES[] above), or "none" if
+ * nothing's set -- same convention as obj_wear_flag_names() above, for
+ * `stat`/debug display of an object's raw extraFlags bitmask. */
 const char *obj_action_flag_names(int flags, char *buf, size_t size) {
     size_t n = 0;
     buf[0] = '\0';
@@ -234,6 +256,11 @@ const char *obj_action_flag_names(int flags, char *buf, size_t size) {
     return buf;
 }
 
+/* obj_wear_flag_count()/name() and obj_action_flag_count()/name() below
+ * are the per-bit accessors behind obj_wear_flag_names()/
+ * obj_action_flag_names() above -- for a caller (e.g. an immortal edit
+ * menu toggling one flag at a time) that wants to iterate bits
+ * individually rather than get the whole joined string at once. */
 int obj_wear_flag_count(void) {
     return 16;
 }
@@ -254,6 +281,12 @@ const char *obj_action_flag_name(int bit) {
     return OBJ_ACTION_FLAG_NAMES[bit];
 }
 
+/* Picks which limb slot on `fitter` an object with `wear_flag` should
+ * go into when worn -- tries each wearable bit the object has in a
+ * fixed priority order, returning the first still-empty matching slot.
+ * Returns WEAR_SLOT_HELD for a holdable item, WEAR_SLOT_NO_ROOM if
+ * every matching slot is already full, or WEAR_SLOT_NOT_WEARABLE if
+ * the flag has no wearable bits (or `fitter` is NULL) at all. */
 int wear_slot_for_flag(int wear_flag, const struct being *fitter) {
     if (!fitter)
         return WEAR_SLOT_NOT_WEARABLE;
@@ -327,6 +360,13 @@ int wear_slot_for_flag(int wear_flag, const struct being *fitter) {
     return WEAR_SLOT_NOT_WEARABLE;
 }
 
+/* Allocates and initializes a new object instance from its vnum
+ * prototype (obj_proto_load()) -- copies name/description/wear_flag/
+ * vals/weight/etc. straight across, derives its obj_category_t via
+ * category_for_item_type(), and applies a material-tier structural
+ * bonus so a higher-tier material instance starts tougher (and fully
+ * undamaged) rather than copying the prototype's raw struct values
+ * verbatim. Caller owns the returned obj_t. */
 obj_t *obj_create_from_proto(int vnum) {
     obj_proto_t proto;
     if (!obj_proto_load(vnum, &proto))
@@ -394,6 +434,13 @@ obj_t *obj_create_from_proto(int vnum) {
     return o;
 }
 
+/* Allocates a temporary, no-prototype object (vnum 0, e.g. a corpse or
+ * a blood/pee puddle) built directly from the given text and category
+ * rather than loaded from a DB prototype -- takeable and non-decaying
+ * by default, with the caller expected to override wear_flag/
+ * decay_time right after creation for anything that shouldn't behave
+ * like an ordinary item (see the field comments below). Caller owns
+ * the returned obj_t. */
 obj_t *obj_create_ephemeral(const char *name, const char *short_descr,
                             const char *long_descr, obj_category_t category) {
     obj_t *o = calloc(1, sizeof(*o));
@@ -467,6 +514,11 @@ static char pool_noun_color(const char *noun, int size) {
     return size >= 4 ? bright : dim;
 }
 
+/* Rewrites pool `o`'s short_descr/long_descr from its current val[0]
+ * size tier and substance noun -- the shared render step both
+ * obj_grow_pool() (growing) and pool_decay_visit() (shrinking) call
+ * after changing val[0], so the two size/color helpers above only need
+ * one place that actually formats the text. */
 static void pool_set_descr(obj_t *o, const char *noun) {
     const char *phrase = pool_size_phrase(o->val[0]);
     char color = pool_noun_color(noun, o->val[0]);
@@ -525,6 +577,11 @@ static void pool_noun_from_descr(const char *short_descr, char *out, size_t outs
     snprintf(out, outsz, "%s", tmp);
 }
 
+/* Per-object visit for obj_decay_tick()'s puddle-aging pass below --
+ * shrinks one ground puddle/pool by one val[0] tier, destroying it
+ * outright once it bottoms out, or re-rendering its text at the
+ * smaller size otherwise (see pool_noun_from_descr() just above for how
+ * the substance noun is recovered without a dedicated field). */
 static void pool_decay_visit(obj_t *o) {
     if (o->category != OBJ_CAT_TRASH || !pool_keyword_matches(o->base.name, "puddle"))
         return;
@@ -552,6 +609,10 @@ void obj_pool_decay_tick(long pulse_num) {
     world_for_each_obj(pool_decay_visit);
 }
 
+/* Per-object visit for obj_light_burn_tick() below -- burns one unit of
+ * fuel (val[2]) off a lit light source (val[3] nonzero), extinguishing
+ * it (val[3]=0) once fuel hits 0. No-ops for anything that isn't a lit
+ * OBJ_CAT_LIGHT. */
 static void light_burn_visit(obj_t *o) {
     if (o->category != OBJ_CAT_LIGHT || !o->val[3])
         return;
@@ -572,10 +633,17 @@ static void light_burn_being(const being_t *b) {
             light_burn_visit((obj_t *)t);
 }
 
+/* world_for_each_mob() adapter for obj_light_burn_tick() below -- burns
+ * fuel on a mob's own carried/worn/held lights via light_burn_being(). */
 static void light_burn_mob_visit(being_t *m) {
     light_burn_being(m);
 }
 
+/* Runs on a timer (see main.c): burns fuel off every lit light source
+ * in the world -- room-floor lights, every connected player's carried
+ * lights, and every mob's carried lights -- via the three visit
+ * helpers above, since a light can be sitting in any of those three
+ * places, not just on the ground. */
 void obj_light_burn_tick(long pulse_num) {
     (void)pulse_num;
     world_for_each_obj(light_burn_visit); /* room-floor lights (lampposts, ...) */
@@ -619,11 +687,21 @@ static void decay_visit(obj_t *o) {
     obj_destroy(o);
 }
 
+/* Runs on a timer (see main.c): counts down decay_time on every
+ * room-floor object via decay_visit() above, destroying (with a room
+ * message) anything that reaches 0 -- objects carried by a being don't
+ * decay this way (see decay_visit()'s own comment on why only room
+ * objects are reachable here). */
 void obj_decay_tick(long pulse_num) {
     (void)pulse_num;
     world_for_each_obj(decay_visit);
 }
 
+/* Unlinks `o` from whatever it's currently sitting in (room, being's
+ * inventory, or another container) and frees it. Does NOT relocate its
+ * own contents if `o` is itself a container -- callers that need that
+ * (e.g. decay_visit() above) must move the contents out first, since
+ * this function has no opinion on where they should go. */
 void obj_destroy(obj_t *o) {
     if (!o)
         return;
@@ -688,6 +766,12 @@ int obj_armor_ac(const obj_t *o) {
     return ac;
 }
 
+/* Pre-colored condition word ("brand new" down to "destroyed") for
+ * `o`'s current cur_struct/max_struct ratio -- returns NULL for an
+ * object with no structure to track at all (max_struct<=0). Appended
+ * next to an item's name wherever its condition is shown (inventory,
+ * equipment listing). See the inline comment for why each threshold is
+ * a cross-multiplied fraction rather than a rounded percentage. */
 const char *obj_condition_word(const obj_t *o) {
     if (!o || o->max_struct <= 0)
         return NULL;
@@ -721,6 +805,12 @@ const char *obj_condition_word(const obj_t *o) {
     return "<r>destroyed<1>";
 }
 
+/* Applies (sign=+1) or reverses (sign=-1) `o`'s cached aff_str..aff_cha
+ * stat bonuses to `ch`, clamped into [1, ATTR_MAX] -- the stat half of
+ * obj_apply_equip_affects() below, factored out separately since
+ * obj_apply_equip_load_affects() needs just this half on reconnect
+ * (see its own doc comment for why HIT/MOVE must NOT be replayed
+ * there). No-ops entirely if `o` has no stat affects cached at all. */
 static void apply_equip_stat_affects(being_t *ch, const obj_t *o, int sign) {
     if (!o->aff_str && !o->aff_dex && !o->aff_con && !o->aff_intel
         && !o->aff_wis && !o->aff_cha)
@@ -741,6 +831,13 @@ static void apply_equip_stat_affects(being_t *ch, const obj_t *o, int sign) {
     }
 }
 
+/* Applies (sign=+1) or reverses (sign=-1) all of `o`'s equip-time
+ * bonuses to `ch`: stats via apply_equip_stat_affects() above, plus
+ * max_hp/hp and max_vit/vit from aff_hit/aff_move, each clamped so
+ * current never exceeds the (possibly just-changed) max and never
+ * drops below 0/1. The normal wear/remove path -- see
+ * obj_apply_equip_load_affects() below for the narrower reconnect-only
+ * variant. */
 void obj_apply_equip_affects(being_t *ch, const obj_t *o, int sign) {
     apply_equip_stat_affects(ch, o, sign);
 
@@ -784,6 +881,12 @@ void obj_apply_equip_load_affects(being_t *ch, const obj_t *o) {
     apply_equip_stat_affects(ch, o, 1);
 }
 
+/* Total weight of the objects currently inside `container` (its
+ * THING_OBJ children in the shared thing_t chain) -- see the misplaced
+ * copy of this comment above obj_apply_ground_token() for the original
+ * wording. Non-recursive: a container nested inside another counts
+ * only by its own weight here, matching how capacity is checked one
+ * level at a time. */
 double obj_contained_weight(const obj_t *container) {
     if (!container)
         return 0.0;

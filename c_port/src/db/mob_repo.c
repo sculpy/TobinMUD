@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "mob_repo.h"
@@ -9,6 +9,9 @@
 
 #include "db.h"
 
+/* Loads a mob prototype's full field set from the mob table by vnum --
+ * the counterpart to mob_proto_save() below, used to populate a mob_proto_t
+ * for medit and for instantiating mobs in the world. */
 bool mob_proto_load(int vnum, mob_proto_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -107,6 +110,8 @@ bool mob_proto_save(int vnum, const mob_proto_t *p) {
     return ok;
 }
 
+/* Inserts a new mob row at vnum with sane placeholder stats ("an
+ * unfinished mob"), for medit's create-new-mob flow to then fill in. */
 bool mob_proto_create_blank(int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -128,6 +133,9 @@ bool mob_proto_create_blank(int vnum) {
     return ok;
 }
 
+/* Finds the lowest vnum of any mob whose name contains the given substring
+ * -- used for name-based mob lookups (e.g. "goto mob <name>") where the
+ * caller doesn't know the vnum. Returns -1 if no match. */
 int mob_find_vnum_by_name(const char *name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -143,6 +151,9 @@ int mob_find_vnum_by_name(const char *name) {
     return vnum;
 }
 
+/* Fetches just a mob's spec_proc id without loading the whole prototype --
+ * used where a caller only needs to know which special procedure a mob
+ * runs. Returns -1 if the mob doesn't exist. */
 int mob_repo_get_spec_proc(int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

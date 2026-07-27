@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -16,6 +16,9 @@ static void persist_color(descriptor_t *d) {
         account_set_color(d->account.account_id, d->color_enabled);
 }
 
+/* The `color` command: toggles ANSI color for this connection and, via
+ * persist_color(), saves the choice to the account so it survives the
+ * next login. With no argument it just reports the current state. */
 bool cmd_color(descriptor_t *d, const char *args) {
     if (strcasecmp(args, "on") == 0) {
         d->color_enabled = true;

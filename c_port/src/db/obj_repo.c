@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "obj_repo.h"
@@ -11,6 +11,9 @@
 #include "log.h"
 #include "thing.h"
 
+/* Loads an object prototype's full field set from the obj table by vnum --
+ * the counterpart to obj_proto_save() below, used to populate an
+ * obj_proto_t for oedit and for instantiating objects in the world. */
 bool obj_proto_load(int vnum, obj_proto_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -52,6 +55,8 @@ bool obj_proto_load(int vnum, obj_proto_t *out) {
     return found;
 }
 
+/* Writes every obj_proto_t field back in one UPDATE, keyed by p->vnum --
+ * how oedit persists changes to an object prototype. */
 bool obj_proto_save(const obj_proto_t *p) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -95,6 +100,9 @@ bool obj_proto_create_blank(int vnum) {
     return ok;
 }
 
+/* Finds the lowest vnum of any object whose name contains the given
+ * substring -- used for name-based object lookups where the caller
+ * doesn't know the vnum. Returns -1 if no match. */
 int obj_find_vnum_by_name(const char *name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -110,6 +118,10 @@ int obj_find_vnum_by_name(const char *name) {
     return vnum;
 }
 
+/* Sums an object's hitroll/damroll bonuses from its objaffect rows
+ * (APPLY_HITROLL/APPLY_DAMROLL/APPLY_HITNDAM), for callers that just need
+ * combat mods without loading full stat affects (see
+ * obj_load_stat_affects() below for the broader version). */
 void obj_load_combat_mods(int vnum, int *hitroll, int *damroll) {
     *hitroll = 0;
     *damroll = 0;
@@ -177,6 +189,11 @@ static int slot_for_obj(const being_t *b, const obj_t *o) {
     return INV_SLOT_CARRIED;
 }
 
+/* Rebuilds a player's held/equipped/carried objects from their saved
+ * player_inventory rows: spawns each object from its prototype, restores
+ * per-instance state (cur_struct, depreciation, monogram), and places it
+ * into the right slot on b. Missing/removed vnums are skipped with a log
+ * rather than failing the whole load. */
 void player_inventory_load(long player_id, being_t *b) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -264,6 +281,10 @@ static bool inv_save_tree(db_conn_t *db, long player_id, const being_t *b,
     return ok;
 }
 
+/* Replaces a player's saved inventory wholesale: deletes the old rows and
+ * re-saves the current in-memory object tree (via inv_save_tree()) inside
+ * one transaction so a mid-save failure can't leave a half-written
+ * inventory. */
 bool player_inventory_save(long player_id, const being_t *b) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

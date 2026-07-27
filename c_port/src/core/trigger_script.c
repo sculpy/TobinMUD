@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "trigger_script.h"
@@ -31,6 +31,11 @@ int trig_script_split(const char *script_text, char *buf, size_t bufsz,
     return n;
 }
 
+/* Splits the leading whitespace-delimited word off `line` into `verb`
+ * (truncated to verbsz) and returns a pointer to the rest of the line past
+ * it, with any leading spaces skipped. The basic tokenizer every line of
+ * script text goes through first, since every line starts with either a
+ * control-flow keyword (if/while/set/...) or an action verb. */
 static const char *first_token(const char *line, char *verb, size_t verbsz) {
     while (*line == ' ')
         line++;
@@ -59,6 +64,10 @@ static trig_var_t *find_local(trig_ctx_t *ctx, const char *name) {
     return NULL;
 }
 
+/* Sets a local (script-scoped) variable, creating it in ctx->vars if it
+ * doesn't already exist. Silently drops the assignment if the scope is
+ * already full (TRIG_VAR_MAX) -- same typo-tolerant, never-crash posture as
+ * the rest of this interpreter. Backs the `set` command (do_set()). */
 static void var_set(trig_ctx_t *ctx, const char *name, const char *value) {
     trig_var_t *v = find_local(ctx, name);
     if (!v) {
@@ -70,6 +79,8 @@ static void var_set(trig_ctx_t *ctx, const char *name, const char *value) {
     snprintf(v->value, sizeof(v->value), "%s", value);
 }
 
+/* Removes a local variable by name, if it exists, via swap-with-last so the
+ * ctx->vars array stays dense. Backs the `unset` command (do_unset()). */
 static void var_unset(trig_ctx_t *ctx, const char *name) {
     for (int i = 0; i < ctx->var_count; i++) {
         if (strcasecmp(ctx->vars[i].name, name) == 0) {
@@ -164,6 +175,12 @@ static void trim(char *s) {
         s[--n] = '\0';
 }
 
+/* Evaluates a single boolean atom: strips surrounding whitespace and any
+ * leading `!` negations, then checks for a comparison operator (==, !=,
+ * <=, >=, <, >). If both sides parse fully as numbers the comparison is
+ * numeric; otherwise it falls back to a plain string comparison. An atom
+ * with no operator is truthy iff it's non-empty and not the literal "0" --
+ * the base case eval_bool()'s &&/|| splitting bottoms out to. */
 static bool eval_atom(const char *atom_in) {
     char atom[256];
     snprintf(atom, sizeof(atom), "%s", atom_in);
@@ -218,6 +235,11 @@ static bool eval_atom(const char *atom_in) {
     return neg ? !result : result;
 }
 
+/* Evaluates a full boolean expression for `if`/`while`/`elseif`: splits on
+ * `||` (lowest precedence) into OR-segments, each of which is split on
+ * `&&` and requires every side to be true, then eval_atom()'s each leaf.
+ * No parentheses/precedence beyond that -- deliberately flat, matching how
+ * real-world DG scripts are almost always written. */
 static bool eval_bool(const char *expr) {
     /* || first (lowest precedence): any true side wins. Split on the
      * literal two-char "||"/"&&" tokens (not strtok on a single '|'/'&',
@@ -260,6 +282,10 @@ static bool eval_bool(const char *expr) {
     return any_or;
 }
 
+/* Evaluates a simple numeric expression for `eval`: parses a leading
+ * integer, then repeatedly consumes a single-char operator (+ - * / %) and
+ * the next integer, applying strictly left-to-right with no operator
+ * precedence. Division/modulo by zero yields 0 rather than crashing. */
 static long eval_num(const char *expr) {
     /* Left-to-right, no precedence -- "a op b op c" evaluates strictly
      * left-to-right, same simplification DG's own eval effectively behaves
@@ -386,6 +412,7 @@ static void do_set(trig_ctx_t *ctx, const char *rawarg) {
     var_set(ctx, name, value);
 }
 
+/* Implements the `unset <name>` script command: removes a local variable. */
 static void do_unset(trig_ctx_t *ctx, const char *rawarg) {
     char name[TRIG_VAR_NAME_LEN];
     first_token(rawarg, name, sizeof(name));
@@ -393,6 +420,9 @@ static void do_unset(trig_ctx_t *ctx, const char *rawarg) {
         var_unset(ctx, name);
 }
 
+/* Implements the `eval <name> <expr>` script command: %-substitutes and
+ * numerically evaluates `expr` via eval_num(), then stores the result
+ * (formatted as a decimal string) into local variable `name`. */
 static void do_eval(trig_ctx_t *ctx, const char *rawarg) {
     char name[TRIG_VAR_NAME_LEN];
     const char *rest = first_token(rawarg, name, sizeof(name));
@@ -406,6 +436,9 @@ static void do_eval(trig_ctx_t *ctx, const char *rawarg) {
     var_set(ctx, name, value);
 }
 
+/* Implements the `global <name> <value>` script command: %-substitutes the
+ * value and persists it via trigger_global_set() (trigger_var_repo.c),
+ * unlike `set`'s ctx-local, non-persisted variables. */
 static void do_global(trig_ctx_t *ctx, const char *rawarg) {
     char name[TRIG_VAR_NAME_LEN];
     const char *rest = first_token(rawarg, name, sizeof(name));

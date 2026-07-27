@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "room.h"
@@ -39,6 +39,11 @@ static const char *const SECTOR_NAMES[MAX_SECTOR_TYPES] = {
     "DEAD WOODS",
 };
 
+/* Display name for a sectorTypeT value, e.g. "TEMPERATE FOREST"; "unknown"
+ * for anything out of range. Backing table for sector_color(),
+ * sector_move_cost(), room_can_plant(), and room_ground_type() below, which
+ * all classify terrain by substring-matching this name rather than
+ * switching on the raw enum. */
 const char *sector_name(int sector) {
     if (sector < 0 || sector >= MAX_SECTOR_TYPES)
         return "unknown";
@@ -98,10 +103,16 @@ int sector_move_cost(int sector) {
     return 1;
 }
 
+/* True for any sector whose name contains "UNDERWATER" (temperate/tropical
+ * underwater sectors) -- used to gate things like breathing/swim checks. */
 bool sector_is_underwater(int sector) {
     return strstr(sector_name(sector), "UNDERWATER") != NULL;
 }
 
+/* True if a room's sector/flags allow planting seeds -- excludes indoors,
+ * water/underwater, sky/astral, and solid-rock/lava/inside-mob sectors.
+ * Used by the `plant` command (see planting.c) to reject bad locations
+ * before starting the dig/sow/cover tick sequence. */
 bool room_can_plant(const struct room *r) {
     if (!r)
         return false;
@@ -153,6 +164,10 @@ static const char *const ROOM_FLAG_NAMES[22] = {
     "ON-FIRE", "FLOODED",
 };
 
+/* Formats every set bit of a room-flags bitmask into buf as bracketed,
+ * space-separated names (e.g. "[ ALWAYS-LIT ] [ INDOORS ]"), or "none" if
+ * no bits are set. Used by room-inspection/editor commands to show flags
+ * in the same style as the original room_bits[] display. */
 const char *room_flag_names(int flags, char *buf, size_t size) {
     size_t n = 0;
     buf[0] = '\0';
@@ -171,10 +186,13 @@ const char *room_flag_names(int flags, char *buf, size_t size) {
     return buf;
 }
 
+/* Number of defined ROOM_FLAG_NAMES bits -- lets callers (e.g. a redit flag
+ * toggle menu) iterate the full set without hardcoding 22 themselves. */
 int room_flag_count(void) {
     return 22;
 }
 
+/* Single flag name by bit index, or "?" if out of range. */
 const char *room_flag_name(int bit) {
     if (bit < 0 || bit >= 22)
         return "?";
@@ -187,10 +205,13 @@ static const char *const DOOR_TYPE_NAMES[MAX_DOOR_TYPES] = {
     "Drawbridge", "Rubble", "Panel", "Screen", "Hatch",
 };
 
+/* Number of defined door types, for editor menus that enumerate them. */
 int door_type_count(void) {
     return MAX_DOOR_TYPES;
 }
 
+/* Display name for a doorTypeT value (e.g. "Portcullis"), or "?" if out of
+ * range. */
 const char *door_type_name(int t) {
     if (t < 0 || t >= MAX_DOOR_TYPES)
         return "?";
@@ -203,16 +224,24 @@ static const char *const EXIT_COND_NAMES[MAX_EXIT_CONDITIONS] = {
     "Caved-In", "Magically-Warded", "Sloped-up", "Sloped-down", "Jammed",
 };
 
+/* Number of defined exit-condition bits, for editor menus that enumerate
+ * them. */
 int exit_cond_count(void) {
     return MAX_EXIT_CONDITIONS;
 }
 
+/* Single exit-condition name by bit index (e.g. "Locked"), or "?" if out of
+ * range. */
 const char *exit_cond_name(int bit) {
     if (bit < 0 || bit >= MAX_EXIT_CONDITIONS)
         return "?";
     return EXIT_COND_NAMES[bit];
 }
 
+/* Formats every set bit of an exit-condition bitmask into buf as
+ * space-separated names (e.g. "Closed Locked"), or "none" if no bits are
+ * set. Unlike room_flag_names() above, no per-flag brackets -- matches how
+ * exit conditions are displayed inline next to a direction. */
 const char *exit_cond_names(int flags, char *buf, size_t size) {
     size_t n = 0;
     buf[0] = '\0';
@@ -229,6 +258,9 @@ const char *exit_cond_names(int flags, char *buf, size_t size) {
     return buf;
 }
 
+/* Allocates and initializes a new room_t (name/description copied in,
+ * all exits set to "no exit"). Caller is responsible for linking it into
+ * the world's room table. */
 room_t *room_create(int vnum, const char *name, const char *description, int sector) {
     room_t *r = calloc(1, sizeof(*r));
     if (!r)
@@ -250,6 +282,8 @@ room_t *room_create(int vnum, const char *name, const char *description, int sec
     return r;
 }
 
+/* Frees a room_t allocated by room_create(). Does not unlink it from any
+ * world table or detach contained things -- callers must do that first. */
 void room_destroy(room_t *r) {
     free(r);
 }

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "zone.h"
@@ -394,6 +394,10 @@ static void zone_execute(int zone_nr, bool boot_time, int *out_mobs, int *out_ob
     if (out_objs) *out_objs = objs;
 }
 
+/* Runs a periodic (non-boot) reset of zone `zone_nr` on demand -- e.g. an
+ * immortal `zreset` command. Thin wrapper over zone_execute() with
+ * boot_time=false, so O rows (ground-clutter loads) are skipped, matching
+ * a normal periodic reset. */
 void zone_reset_now(int zone_nr, int *out_mobs, int *out_objs) {
     zone_execute(zone_nr, false, out_mobs, out_objs);
 }
@@ -409,6 +413,11 @@ typedef struct {
     thing_t *sample;
 } zonefile_group_t;
 
+/* Adds one seen (room-local) instance of `vnum` to `groups`, bumping the
+ * count if that vnum is already tracked or starting a new group (with
+ * `instance` recorded as the representative sample) otherwise. Backs
+ * zone_file_create()'s per-room scan, deduping repeated vnums into a
+ * single M/O row with the right load count. */
 static void zonefile_group_add(zonefile_group_t *groups, int *count, int vnum, thing_t *instance) {
     for (int i = 0; i < *count; i++) {
         if (groups[i].vnum == vnum) {
@@ -500,6 +509,13 @@ static void zonefile_emit_ground_children(int zone_nr, int *next_cmd_no, obj_t *
     }
 }
 
+/* `zonefile create` (see zone.h for the full design note): scans every room
+ * in zone `zone_nr`'s vnum range for mobs/objects that are physically
+ * present but NOT already represented by an existing reset row, and
+ * inserts new M/O (+ nested E/G/P) rows to capture them -- effectively
+ * "snapshot what's live in the world into the zone's reset script."
+ * Idempotent: zonefile_covered() skips anything already represented, so
+ * re-running this after a hand-edit only adds what's actually missing. */
 void zone_file_create(int zone_nr, int *out_mobs_added, int *out_objs_added) {
     int mobs_added = 0, objs_added = 0;
 
@@ -565,6 +581,10 @@ void zone_file_create(int zone_nr, int *out_mobs_added, int *out_objs_added) {
  * pull in just for one constant. */
 #define ZONE_UNRESTRICTED_LEVEL 55
 
+/* True if `ch` is allowed to edit zone `zone_nr`'s content: unzoned rooms
+ * (zone_nr < 0) are always editable, level-55+ builders bypass zone
+ * ownership entirely, and everyone else needs an explicit zone assignment
+ * (zone_repo_is_assigned()). Gates the various zedit-style commands. */
 bool zone_can_edit(const being_t *ch, int zone_nr) {
     if (!ch)
         return false;
@@ -575,6 +595,11 @@ bool zone_can_edit(const being_t *ch, int zone_nr) {
     return zone_repo_is_assigned(zone_nr, ch->player_id);
 }
 
+/* Runs every enabled zone's boot-time reset once at startup (O rows
+ * included, since this is boot_time=true), and initializes the in-memory
+ * age tracker (g_zone_ages) for every zone -- including disabled ones, so
+ * they still age correctly if re-enabled later. Logs a one-line summary of
+ * total mobs/objects loaded across the whole boot. */
 void zone_boot_all(void) {
     static zone_t zones[MAX_ZONES];
     int n = zone_repo_load_all(zones, MAX_ZONES);

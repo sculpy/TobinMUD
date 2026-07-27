@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "shop_repo.h"
@@ -11,6 +11,9 @@
 #include "mob_repo.h"
 #include "obj.h"
 
+/* Loads the shop keyed to a room (a mob's shopkeeper room), including
+ * pricing, keeper mob vnum, and the various canned failure/success
+ * messages a shopkeeper prints. Returns false if room_vnum has no shop. */
 bool shop_repo_find_by_room(int room_vnum, shop_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -41,6 +44,9 @@ bool shop_repo_find_by_room(int room_vnum, shop_t *out) {
     return found;
 }
 
+/* True if shop_nr's shoptype rows include an item type that maps to the
+ * given category (via category_for_item_type()) -- used to decide whether
+ * a shopkeeper will buy a particular object from a player. */
 bool shop_repo_buys_category(int shop_nr, int category) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -61,6 +67,9 @@ bool shop_repo_buys_category(int shop_nr, int category) {
     return buys;
 }
 
+/* True if the shop's keeper mob runs the doctor special procedure --
+ * identifies a hospital shop by its keeper's behavior rather than a
+ * dedicated shop column. */
 bool shop_repo_is_hospital(int shop_nr) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -74,6 +83,7 @@ bool shop_repo_is_hospital(int shop_nr) {
     return keeper >= 0 && mob_repo_get_spec_proc(keeper) == SPEC_PROC_DOCTOR;
 }
 
+/* True if the shop's own is_stable flag is set. */
 bool shop_repo_is_stable(int shop_nr) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -87,6 +97,7 @@ bool shop_repo_is_stable(int shop_nr) {
     return is_stable;
 }
 
+/* True if the shop's own is_repair flag is set. */
 bool shop_repo_is_repair(int shop_nr) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -100,6 +111,7 @@ bool shop_repo_is_repair(int shop_nr) {
     return is_repair;
 }
 
+/* True if the shop's own is_bank flag is set. */
 bool shop_repo_is_bank(int shop_nr) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -113,6 +125,9 @@ bool shop_repo_is_bank(int shop_nr) {
     return is_bank;
 }
 
+/* Lists the object vnums a shop keeps in perpetual stock (shopproducing
+ * rows), producing-order, up to max entries -- these are the items a
+ * shopkeeper always has available regardless of what's been bought/sold. */
 void shop_repo_producing(int shop_nr, int *out, int max, int *count) {
     *count = 0;
 

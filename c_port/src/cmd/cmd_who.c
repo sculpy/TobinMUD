@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -16,6 +16,9 @@
  * whether it's showing a title or a "Level: N" fallback. */
 #define WHO_LEVEL_FIELD_WIDTH 13
 
+/* Centers `text` within a field of `width` characters (padding with
+ * spaces on both sides), so every who-listing row's bracketed
+ * level/title field lines up regardless of that entry's actual length. */
 static void center_pad(char *out, size_t out_size, const char *text, int width) {
     int len = (int)strlen(text);
     if (len >= width) {
@@ -70,6 +73,8 @@ static bool ci_contains(const char *haystack, const char *needle) {
  * case-insensitive name substring. */
 typedef enum { WHO_ALL, WHO_IMMS, WHO_MORTS, WHO_NAME } who_filter_t;
 
+/* Applies one who_filter_t value against a candidate character -- the
+ * actual test behind each of the WHO_* cases above. */
 static bool who_matches(who_filter_t f, const char *needle, being_t *ch) {
     switch (f) {
         case WHO_IMMS:  return being_is_immortal(ch);
@@ -80,6 +85,11 @@ static bool who_matches(who_filter_t f, const char *needle, being_t *ch) {
     }
 }
 
+/* `who [imm|mort|<name>]` command: parses the optional filter argument,
+ * then lists every connected, non-linkdead character matching it (rank-
+ * colored level bracket, player title with <N> name-substitution, idle
+ * tag), followed by a server-health footer of active/linkdead/total
+ * player counts that ignores the filter. */
 bool cmd_who(descriptor_t *d, const char *args) {
     /* Parse an optional filter argument. Keywords "imm[ortals]"/"mort[als]"
      * scope by rank; anything else is treated as a name substring. */

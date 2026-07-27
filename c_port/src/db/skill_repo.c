@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "skill_repo.h"
@@ -8,6 +8,9 @@
 
 #include "db.h"
 
+/* Loads a player's proficiency (percent and last-gain timestamp) in a
+ * single named skill. Returns false if the player has no row for it (i.e.
+ * they've never practiced/used it). */
 bool skill_repo_get(long player_id, const char *skill_name, skill_proficiency_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -25,6 +28,7 @@ bool skill_repo_get(long player_id, const char *skill_name, skill_proficiency_t 
     return found;
 }
 
+/* Upserts a player's proficiency in a single named skill. */
 bool skill_repo_set(long player_id, const char *skill_name, int pct, long last_gain_at) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

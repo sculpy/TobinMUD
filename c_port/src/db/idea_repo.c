@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "idea_repo.h"
@@ -8,6 +8,8 @@
 
 #include "db.h"
 
+/* Records a new player-submitted suggestion from the in-game "idea"
+ * command. */
 bool idea_repo_add(const char *submitter, const char *body) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -21,6 +23,9 @@ bool idea_repo_add(const char *submitter, const char *body) {
     return ok;
 }
 
+/* Formats the most recent ideas (newest first, capped at limit) into a
+ * single colorized text block for immortals reviewing the idea queue.
+ * Returns false if there are none. */
 bool idea_repo_list(char *out, size_t size, int limit) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -49,6 +54,7 @@ bool idea_repo_list(char *out, size_t size, int limit) {
     return any;
 }
 
+/* Permanently removes an idea by id. */
 bool idea_repo_delete(int id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

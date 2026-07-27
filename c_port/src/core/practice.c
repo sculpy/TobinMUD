@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "practice.h"
@@ -13,10 +13,14 @@
  * so the level-up hot path never hits the DB. Default 1.0. */
 static double g_wisdom_practice_modifier = 1.0;
 
+/* Current gamewide wisdom->practice-points scalar (cached value, no DB hit). */
 double wisdom_practice_modifier(void) {
     return g_wisdom_practice_modifier;
 }
 
+/* Loads g_wisdom_practice_modifier from the game_config table at boot,
+ * leaving the 1.0 default in place if the row is missing or the DB is
+ * unreachable. */
 void wisdom_practice_load(void) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -30,6 +34,8 @@ void wisdom_practice_load(void) {
     db_close(db);
 }
 
+/* Updates the cached wisdom-practice modifier and persists it to
+ * game_config (upsert) so an immortal's `set` change survives a reboot. */
 void wisdom_practice_modifier_set(double value) {
     g_wisdom_practice_modifier = value;
     db_conn_t *db = db_open(DB_TOBIN);

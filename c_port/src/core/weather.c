@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "weather.h"
@@ -12,6 +12,7 @@
 
 static weather_t g_weather = WEATHER_CLEAR;
 
+/* Lowercase display name for a weather_t value (e.g. "stormy"). */
 const char *weather_name(weather_t w) {
     switch (w) {
         case WEATHER_CLEAR:  return "clear";
@@ -22,10 +23,13 @@ const char *weather_name(weather_t w) {
     }
 }
 
+/* The current gamewide weather state. */
 weather_t weather_current(void) {
     return g_weather;
 }
 
+/* Flavor-text hint at what the current weather might do next, e.g. for a
+ * `weather` command or a ranger/druid forecasting skill. */
 const char *weather_forecast_hint(void) {
     switch (g_weather) {
         case WEATHER_CLEAR:  return "It looks like it should stay clear for a while.";
@@ -36,6 +40,9 @@ const char *weather_forecast_hint(void) {
     }
 }
 
+/* Loads the persisted weather state from game_config at boot, leaving the
+ * WEATHER_CLEAR default in place if the row is missing, the DB is
+ * unreachable, or the stored value is out of range. */
 void weather_load(void) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -49,6 +56,8 @@ void weather_load(void) {
     db_close(db);
 }
 
+/* Persists the current weather state to game_config (upsert) so it
+ * survives a reboot instead of always resetting to clear. */
 static void weather_save(void) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -113,6 +122,11 @@ static weather_t weather_roll_next(weather_t current) {
     }
 }
 
+/* The room-broadcast line for a weather transition from `from` to `to`
+ * (e.g. "It begins to rain."), or NULL for a transition with no message
+ * (shouldn't normally happen since weather_tick_run() only calls this when
+ * the state actually changed, but every from/to pair isn't necessarily
+ * covered explicitly). */
 static const char *weather_change_message(weather_t from, weather_t to) {
     if (to == WEATHER_CLOUDY && from == WEATHER_CLEAR)
         return "\r\n<c>Clouds begin to gather overhead.<z>\r\n";
@@ -129,6 +143,9 @@ static const char *weather_change_message(weather_t from, weather_t to) {
     return NULL;
 }
 
+/* Periodic hook (registered with the pulse scheduler) that rolls the next
+ * weather state via weather_roll_next(), and if it actually changed,
+ * persists it and announces the transition to everyone outdoors. */
 void weather_tick_run(long pulse_num) {
     (void)pulse_num;
     weather_t next = weather_roll_next(g_weather);

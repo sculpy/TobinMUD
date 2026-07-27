@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "affect_repo.h"
@@ -8,6 +8,10 @@
 
 #include "db.h"
 
+/* Loads a player's saved active affects (spell effects with rounds
+ * remaining) into the fixed-size affects array, in whatever order the DB
+ * returns them. Leaves unfilled slots untouched -- callers should start
+ * from a zeroed/AFFECT_NONE array. */
 void affect_repo_load_all(long player_id, active_affect_t affects[MAX_ACTIVE_AFFECTS]) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -28,6 +32,11 @@ void affect_repo_load_all(long player_id, active_affect_t affects[MAX_ACTIVE_AFF
     db_close(db);
 }
 
+/* Replaces a player's saved active affects wholesale: deletes the old rows
+ * and inserts the current in-memory set, all inside one transaction so a
+ * mid-save failure can't leave the player with a half-written affect list.
+ * AFFECT_NONE slots and charm/polymorph affects (which belong to a
+ * temporary MOB body, not the player) are skipped. */
 bool affect_repo_save_all(long player_id, const active_affect_t affects[MAX_ACTIVE_AFFECTS]) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

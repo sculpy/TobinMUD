@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "bank.h"
@@ -13,6 +13,12 @@
  * day was already in progress when the server came up. */
 static long last_seen_day = -1;
 
+/* Runs on a timer (see main.c): once per in-game day (detected by
+ * comparing a packed year/month/day value against last_seen_day, not a
+ * fixed pulse count -- gametime can run at a different rate than real
+ * time), credits BANK_INTEREST_RATE interest to every player's bank_gold
+ * directly in the DB. The -1 sentinel above means boot always sets a
+ * baseline on its first call instead of crediting for a partial day. */
 void bank_interest_tick(long pulse_num) {
     (void)pulse_num;
 

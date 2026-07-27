@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -74,6 +74,10 @@ static const char *resource_pool_label(player_class_t c) {
     }
 }
 
+/* `score` command: renders the compact grid-style character sheet
+ * described in the file-top comment -- vitals, stats, and derived
+ * fields (age, resource-pool label, hunger/thirst words, injured limbs)
+ * pulled straight from the character's live attrs_t/progress_t. */
 bool cmd_score(descriptor_t *d, const char *args) {
     (void)args;
 

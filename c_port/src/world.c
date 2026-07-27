@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "world.h"
@@ -17,6 +17,10 @@ typedef struct room_entry {
 
 static room_entry_t *g_rooms = NULL;
 
+/* Registers a lazily-loaded room in the in-memory world (see world.h's
+ * top-of-file note on Phase 1's on-demand load model). Takes ownership
+ * of `r`; if a room with the same vnum is already registered, the old
+ * one is destroyed and replaced rather than duplicated. */
 void world_register_room(room_t *r) {
     if (!r)
         return;
@@ -37,6 +41,8 @@ void world_register_room(room_t *r) {
     g_rooms = e;
 }
 
+/* Returns the already-registered room for `vnum`, or NULL if it hasn't
+ * been loaded yet. */
 room_t *world_get_room(int vnum) {
     for (room_entry_t *e = g_rooms; e; e = e->next) {
         if (e->room->vnum == vnum)
@@ -45,6 +51,10 @@ room_t *world_get_room(int vnum) {
     return NULL;
 }
 
+/* Searches every registered room for a linkdead PC (desc == NULL) whose
+ * player_id matches, so a reconnect can resume the same live being_t
+ * instead of loading a fresh one from the DB. Returns NULL if that
+ * player isn't sitting linkdead anywhere. */
 being_t *world_find_linkdead_pc(long player_id) {
     for (room_entry_t *e = g_rooms; e; e = e->next) {
         for (thing_t *t = e->room->base.stuff_head; t; t = t->stuff_next) {
@@ -58,6 +68,10 @@ being_t *world_find_linkdead_pc(long player_id) {
     return NULL;
 }
 
+/* Force-removes every linkdead PC in every registered room -- backs
+ * `purge linkdead` (cmd_purge.c). Deliberately does NOT save first (see
+ * world.h): discards the body the same way it would eventually be
+ * discarded anyway. Returns how many were removed. */
 int world_purge_linkdead(void) {
     int count = 0;
     for (room_entry_t *e = g_rooms; e; e = e->next) {
@@ -77,6 +91,9 @@ int world_purge_linkdead(void) {
     return count;
 }
 
+/* Read-only count of linkdead PCs across every registered room -- same
+ * scope as world_purge_linkdead() but never removes anything. Used by
+ * `who` to report bodies left behind by lost connections. */
 int world_count_linkdead(void) {
     int count = 0;
     for (room_entry_t *e = g_rooms; e; e = e->next) {
@@ -91,6 +108,11 @@ int world_count_linkdead(void) {
     return count;
 }
 
+/* Force-removes every linkdead PC that's been linkdead at least
+ * max_age_seconds, force-saving each one (player_save()) first -- unlike
+ * world_purge_linkdead() above, since this runs unattended off a pulse
+ * rather than an immortal's on-demand command. Returns how many were
+ * removed. */
 int world_purge_stale_linkdead(int max_age_seconds) {
     int count = 0;
     time_t now = time(NULL);
@@ -112,11 +134,19 @@ int world_purge_stale_linkdead(int max_age_seconds) {
     return count;
 }
 
+/* Pulse callback (registered in main.c) that drives world_purge_stale_
+ * linkdead() using the configured threshold (TOBIN_LINKDEAD_PURGE_SECONDS,
+ * default 300s) instead of a hardcoded one, so a smoke test can shorten
+ * it. */
 void linkdead_purge_tick(long pulse_num) {
     (void)pulse_num;
     world_purge_stale_linkdead(config_get()->linkdead_purge_seconds);
 }
 
+/* Calls `visit(m)` for every mob in every registered room -- the
+ * iteration primitive mob_ai.c's pulse-driven wander/scavenge logic runs
+ * on each tick. Saves each next-pointer before calling visit(), since
+ * visit() may relocate the mob via thing_set_room() mid-walk. */
 void world_for_each_mob(void (*visit)(being_t *m)) {
     for (room_entry_t *e = g_rooms; e; e = e->next) {
         thing_t *t = e->room->base.stuff_head;
@@ -129,6 +159,10 @@ void world_for_each_mob(void (*visit)(being_t *m)) {
     }
 }
 
+/* Calls `visit(o)` for every object in every registered room -- used by
+ * obj.c's pool-decay pulse tick. Same safe-next-pointer iteration as
+ * world_for_each_mob(), since decaying a pool to 0 size destroys it
+ * mid-walk. */
 void world_for_each_obj(void (*visit)(obj_t *o)) {
     for (room_entry_t *e = g_rooms; e; e = e->next) {
         thing_t *t = e->room->base.stuff_head;
@@ -141,6 +175,8 @@ void world_for_each_obj(void (*visit)(obj_t *o)) {
     }
 }
 
+/* Calls `visit(r)` for every registered room -- used by trigger.c's
+ * random-tick pulse to roll each room's ambient "random" trigger. */
 void world_for_each_room(void (*visit)(room_t *r)) {
     room_entry_t *e = g_rooms;
     while (e) {

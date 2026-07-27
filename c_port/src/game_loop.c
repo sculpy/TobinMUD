@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "game_loop.h"
@@ -67,10 +67,18 @@ static int g_boot_pending_fd[MAX_BOOT_PENDING];
 static char g_boot_pending_ip[MAX_BOOT_PENDING][46];
 static int g_boot_pending_count = 0;
 
+/* Returns the live listening socket's fd (-1 before game_loop_run() sets
+ * it up) so cmd_copyover.c can write it into the recovery file for the
+ * next exec to inherit. */
 int game_loop_listen_fd(void) {
     return g_listen_fd;
 }
 
+/* Opens (or, for a copyover, adopts from the recovery file's "listen"
+ * line) the listening socket as early as possible in main()'s startup,
+ * well before game_loop_run() itself begins -- see game_loop.h for why.
+ * Resets all boot-phase state so it's safe to call once per process
+ * start. Returns false on a fatal bind/listen error. */
 bool game_loop_boot_open(int port, const char *copyover_file) {
     g_boot_ms.listen_fd = -1;
     g_boot_is_copyover = false;
@@ -104,6 +112,11 @@ bool game_loop_boot_open(int port, const char *copyover_file) {
     return true;
 }
 
+/* Called between each slow step of main()'s boot sequence to send
+ * `message` to anyone waiting: existing copyover connections (once) and
+ * any newly-accepted connection since the last call, which is held (fd
+ * only) until game_loop_run() hands it a real descriptor_t. Returns how
+ * many distinct sockets were pinged this call, for a boot-status log. */
 int game_loop_boot_poll(const char *message) {
     int notified = 0;
     size_t msg_len = strlen(message);
@@ -149,10 +162,18 @@ int game_loop_boot_poll(const char *message) {
     return notified;
 }
 
+/* Sets the same shutdown flag SIGINT triggers (see handle_sigint()
+ * below), so shutdown.c can request a clean stop from in-game code
+ * instead of a signal. The loop finishes its current iteration, then
+ * closes everything before game_loop_run() returns. */
 void game_loop_request_shutdown(void) {
     g_shutdown = 1;
 }
 
+/* SIGINT handler (Ctrl+C): just flips the shutdown flag rather than
+ * doing any real work here -- signal-handler context can't safely call
+ * most of what a clean shutdown needs, so the main loop notices the flag
+ * and does the actual teardown itself. */
 static void handle_sigint(int sig) {
     (void)sig;
     g_shutdown = 1;
@@ -207,6 +228,18 @@ static bool copyover_recover(const char *file, main_socket_t *ms) {
     return true;
 }
 
+/* The main select()-driven accept/read/pulse loop -- the heart of the
+ * server once boot has finished. Reuses the listening socket
+ * game_loop_boot_open() already set up (or adopts a copyover's, via
+ * copyover_recover()), hands off anyone who connected during the boot
+ * window, then loops: accept new connections, poll finished hostname
+ * lookups, service readable/writable descriptors, advance pulses for
+ * every boundary actually crossed since the last check (see
+ * MAX_PULSE_CATCHUP above), and issue one prompt per descriptor that
+ * needs one. Runs until game_loop_request_shutdown()/SIGINT sets the
+ * shutdown flag, then tears down every descriptor and the listening
+ * socket before returning. Returns 0 on clean shutdown, nonzero if the
+ * listening socket couldn't be set up. */
 int game_loop_run(int port, const char *copyover_file) {
     /* Reuse the socket game_loop_boot_open() already opened at the very
      * start of main() -- calling main_socket_open() again here (the old

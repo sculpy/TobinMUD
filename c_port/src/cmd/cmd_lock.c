@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -83,6 +83,10 @@ static obj_t *find_key(being_t *ch, int key_vnum) {
     return NULL;
 }
 
+/* Locks or unlocks a container object `o` -- checks it's closed and the
+ * caller carries the matching key vnum (see file header on the
+ * key-by-vnum matching rule), then flips CONT_LOCKED and reports the
+ * result. Shared by both cmd_lock() and cmd_unlock() via `locking`. */
 static bool do_container_lock(descriptor_t *d, being_t *ch, obj_t *o, bool locking) {
     const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
     int key_vnum = o->val[2];
@@ -141,6 +145,10 @@ static bool do_container_lock(descriptor_t *d, being_t *ch, obj_t *o, bool locki
     return true;
 }
 
+/* Locks or unlocks the door at exit `dir` of room `r` -- checks it's a
+ * real closed door with a matching carried key, then flips
+ * EXIT_COND_LOCKED, persists it via room_repo_save_exit(), and reports
+ * the result. Shared by both cmd_lock() and cmd_unlock() via `locking`. */
 static bool do_door_lock(descriptor_t *d, being_t *ch, room_t *r, int dir, bool locking) {
     if (r->exits[dir] < 0 || r->exit_door[dir] == 0) {
         descriptor_send(d, "There is no door there.\r\n");
@@ -200,6 +208,9 @@ static bool do_door_lock(descriptor_t *d, being_t *ch, room_t *r, int dir, bool 
     return true;
 }
 
+/* Shared implementation behind `lock`/`unlock`: resolves the argument as
+ * either a direction (a door) or a carried/room container, then dispatches
+ * to do_door_lock()/do_container_lock() accordingly. */
 static bool do_lockunlock(descriptor_t *d, const char *args, bool locking) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {

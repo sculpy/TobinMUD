@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "pulse.h"
@@ -25,6 +25,9 @@ typedef struct {
 static pulse_process_t g_processes[MAX_PULSE_PROCESSES];
 static int g_process_count = 0;
 
+/* Adds a tick function to the scheduler: `fn` fires every `trigger_pulse`
+ * pulses. Called once per subsystem at boot (main.c) to wire up things like
+ * regen, planting, and trigger processing without a central switch statement. */
 void pulse_register(int trigger_pulse, pulse_fn_t fn) {
     if (g_process_count >= MAX_PULSE_PROCESSES) {
         /* Previously a silent no-op -- a registration past the cap would
@@ -41,6 +44,8 @@ void pulse_register(int trigger_pulse, pulse_fn_t fn) {
     g_process_count++;
 }
 
+/* Called once per game pulse (main.c's heartbeat) to fire every registered
+ * process whose trigger interval divides evenly into pulse_num. */
 void pulse_scheduler_run(long pulse_num) {
     for (int i = 0; i < g_process_count; i++) {
         if (pulse_num % g_processes[i].trigger_pulse == 0)

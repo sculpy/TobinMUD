@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "bug_repo.h"
@@ -8,6 +8,7 @@
 
 #include "db.h"
 
+/* Records a new bug report from the in-game "bug" command. */
 bool bug_repo_add(const char *submitter, const char *body) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -21,6 +22,9 @@ bool bug_repo_add(const char *submitter, const char *body) {
     return ok;
 }
 
+/* Formats the most recent unresolved bug reports (newest first, capped at
+ * limit) into a single colorized, ready-to-send text block for immortals
+ * reviewing the bug queue. Returns false if there are none. */
 bool bug_repo_list(char *out, size_t size, int limit) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -49,6 +53,7 @@ bool bug_repo_list(char *out, size_t size, int limit) {
     return any;
 }
 
+/* Permanently removes a bug report by id. */
 bool bug_repo_delete(int id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -63,6 +68,8 @@ bool bug_repo_delete(int id) {
     return ok;
 }
 
+/* Marks an unresolved bug report as resolved, stamping resolved_at and
+ * storing an optional resolution note. */
 bool bug_repo_resolve(int id, const char *note) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

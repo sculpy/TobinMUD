@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "db.h"
@@ -27,11 +27,17 @@ struct db_conn {
     unsigned int col_count;
 };
 
+/* Maps a db_type_t to the configured schema name for that database
+ * (the immortal/admin DB vs. the main tobin DB). */
 static const char *db_name_for(db_type_t type) {
     const config_t *cfg = config_get();
     return (type == DB_IMMORTAL) ? cfg->db_name_immortal : cfg->db_name_tobin;
 }
 
+/* Returns the pooled MYSQL handle for type, (re)connecting first if it has
+ * never been opened or the existing connection has gone stale (mysql_ping
+ * fails). Callers never see raw connect/reconnect logic -- db_open() just
+ * asks the pool for a handle. */
 static MYSQL *pool_get(db_type_t type) {
     if (type < 0 || type >= DB_MAX)
         return NULL;
@@ -54,6 +60,8 @@ static MYSQL *pool_get(db_type_t type) {
     return g_pool[type];
 }
 
+/* Allocates a per-caller db_conn_t (result-set cursor state) wrapping the
+ * shared pooled connection for type. Must be paired with db_close(). */
 db_conn_t *db_open(db_type_t type) {
     db_conn_t *conn = calloc(1, sizeof(*conn));
     if (!conn)
@@ -62,6 +70,9 @@ db_conn_t *db_open(db_type_t type) {
     return conn;
 }
 
+/* Frees a db_conn_t and any pending result set. Does NOT close the
+ * underlying pooled MYSQL connection -- that lives in g_pool and is reused
+ * by the next db_open() for the same db_type_t. */
 void db_close(db_conn_t *conn) {
     if (!conn)
         return;
@@ -70,6 +81,8 @@ void db_close(db_conn_t *conn) {
     free(conn);
 }
 
+/* Closes every pooled connection and tears down the MySQL client library.
+ * Called once at process exit, not per-request. */
 void db_shutdown(void) {
     for (int i = 0; i < DB_MAX; i++) {
         if (g_pool[i]) {
@@ -92,6 +105,18 @@ static bool buf_append(char *buf, size_t bufsz, size_t *len, const char *s) {
     return true;
 }
 
+/* Core of the whole db layer: builds and runs a SQL statement from a
+ * printf-style template and stashes any result set on conn for the
+ * db_fetch_row()/db_get() family to walk afterward. Every *_repo.c function
+ * in this codebase goes through this one call. Format specifiers are
+ * deliberately narrow to keep query building safe:
+ *   %r - raw string, inserted verbatim (table/column names, literal SQL)
+ *   %s - string value, escaped via mysql_real_escape_string before insertion
+ *   %i - int, formatted decimal
+ *   %f - double, formatted decimal
+ *   %% - literal percent
+ * On success, any prior result on conn is freed and replaced with the new
+ * one (if the statement produced one) and conn->row_count is updated. */
 bool db_query(db_conn_t *conn, const char *fmt, ...) {
     if (!conn || !conn->db) {
         log_error("query failed: no database connection");
@@ -210,6 +235,9 @@ bool db_query(db_conn_t *conn, const char *fmt, ...) {
     return true;
 }
 
+/* Advances conn's cursor to the next row of the last query's result set.
+ * Returns false once rows are exhausted (or if there is no result set),
+ * so callers loop `while (db_fetch_row(conn)) { ... }`. */
 bool db_fetch_row(db_conn_t *conn) {
     if (!conn || !conn->res)
         return false;
@@ -217,6 +245,9 @@ bool db_fetch_row(db_conn_t *conn) {
     return conn->row != NULL;
 }
 
+/* Reads the current row's value for col_name by name (case-insensitive).
+ * Returns "" (never NULL) for a SQL NULL, a missing column, or no current
+ * row, so callers can pass the result straight to string functions. */
 const char *db_get(db_conn_t *conn, const char *col_name) {
     if (!conn || !conn->res || !conn->row)
         return "";
@@ -228,6 +259,8 @@ const char *db_get(db_conn_t *conn, const char *col_name) {
     return "";
 }
 
+/* Same as db_get() but by positional column index instead of name; used
+ * where callers iterate all columns (e.g. dumping a whole row). */
 const char *db_get_idx(db_conn_t *conn, unsigned int idx) {
     if (!conn || !conn->res || !conn->row || idx >= conn->col_count) {
         log_error("db_get_idx(%u) - invalid column index", idx);
@@ -236,42 +269,56 @@ const char *db_get_idx(db_conn_t *conn, unsigned int idx) {
     return conn->row[idx] ? conn->row[idx] : "";
 }
 
+/* Number of columns in the last query's result set (0 if none). */
 unsigned int db_col_count(db_conn_t *conn) {
     return conn ? conn->col_count : 0;
 }
 
+/* Column name at positional index idx, for callers that walk columns
+ * generically instead of asking for a name they already know. */
 const char *db_col_name(db_conn_t *conn, unsigned int idx) {
     if (!conn || idx >= conn->col_count)
         return "";
     return conn->col_names[idx];
 }
 
+/* True if the last query returned at least one row; lets callers do a
+ * quick existence check without looping db_fetch_row(). */
 bool db_has_results(db_conn_t *conn) {
     return conn && conn->res && mysql_num_rows(conn->res) > 0;
 }
 
+/* Rows affected by the last query (INSERT/UPDATE/DELETE row count), or -1
+ * if conn is invalid. */
 long db_row_count(db_conn_t *conn) {
     return conn ? conn->row_count : -1;
 }
 
+/* AUTO_INCREMENT id generated by the last INSERT on this connection; 0 if
+ * none or conn is invalid. */
 long db_last_insert_id(db_conn_t *conn) {
     return (conn && conn->db) ? (long)mysql_insert_id(conn->db) : 0;
 }
 
+/* Exposes mysql_real_escape_string() directly for callers that need to
+ * build SQL fragments db_query()'s %s specifier can't express. */
 unsigned long db_escape_string(db_conn_t *conn, char *to, const char *from, unsigned long length) {
     if (!conn || !conn->db)
         return 0;
     return mysql_real_escape_string(conn->db, to, from, length);
 }
 
+/* Starts a transaction on conn. */
 bool db_begin(db_conn_t *conn) {
     return db_query(conn, "begin");
 }
 
+/* Commits the current transaction on conn. */
 bool db_commit(db_conn_t *conn) {
     return db_query(conn, "commit");
 }
 
+/* Rolls back the current transaction on conn. */
 bool db_rollback(db_conn_t *conn) {
     return db_query(conn, "rollback");
 }

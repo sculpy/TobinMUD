@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "social_repo.h"
@@ -9,6 +9,9 @@
 
 #include "db.h"
 
+/* Shared row-to-struct mapper for social_repo_load_all() and
+ * social_repo_get() -- both select the same social columns and need the
+ * same copy-out logic. */
 static void row_to_social(db_conn_t *db, social_t *s) {
     snprintf(s->name, sizeof(s->name), "%s", db_get(db, "name"));
     s->hide = atoi(db_get(db, "hide")) != 0;
@@ -23,6 +26,9 @@ static void row_to_social(db_conn_t *db, social_t *s) {
     snprintf(s->others_auto, sizeof(s->others_auto), "%s", db_get(db, "others_auto"));
 }
 
+/* Loads every social command's definition, name-sorted, up to max entries
+ * -- used at startup/reload to build the in-memory social table the
+ * command parser dispatches against. */
 int social_repo_load_all(social_t *out, int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -40,6 +46,8 @@ int social_repo_load_all(social_t *out, int max) {
     return n;
 }
 
+/* Loads a single social's definition by exact name -- used by socedit to
+ * fetch one entry for editing. */
 bool social_repo_get(const char *name, social_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -59,6 +67,7 @@ bool social_repo_get(const char *name, social_t *out) {
     return found;
 }
 
+/* Creates or updates a social's full definition, keyed by name. */
 bool social_repo_save(const social_t *s) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -82,6 +91,7 @@ bool social_repo_save(const social_t *s) {
     return ok;
 }
 
+/* Renames a social command without touching its message text. */
 bool social_repo_rename(const char *old_name, const char *new_name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -93,6 +103,7 @@ bool social_repo_rename(const char *old_name, const char *new_name) {
     return ok;
 }
 
+/* Deletes a social command by name. */
 bool social_repo_delete(const char *name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

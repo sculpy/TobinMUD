@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "crash_handler.h"
@@ -73,6 +73,11 @@ static void crash_handler(int sig) {
     raise(sig);
 }
 
+/* Registers crash_handler() for the fatal signals a real crash would
+ * raise, records the boot time (for the "uptime" field in crash
+ * reports), and ensures CRASH_DIR exists. Also silences SIGPIPE globally
+ * -- see the comment above the signal(SIGPIPE, ...) call below for why.
+ * Call once during startup, before accepting connections. */
 void crash_handler_install(void) {
     g_boot_time = time(NULL);
     mkdir(CRASH_DIR, 0755); /* EEXIST is fine; log.c's LOG_DIR mkdir is the same idiom */

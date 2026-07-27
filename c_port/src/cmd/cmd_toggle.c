@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -254,6 +254,10 @@ static bool toggle_dispatch(descriptor_t *d, const char *args, bool game, const 
     return true;
 }
 
+/* `toggle [<name>]` command: the mortal-facing entry point into
+ * toggle_dispatch() for personal switches only (game=false) -- see
+ * file-top comment for why global switches are split into `gametog`
+ * below instead of living here too. */
 bool cmd_toggle(descriptor_t *d, const char *args) {
     if (!d->character)
         return true;

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "help_repo.h"
@@ -8,6 +8,9 @@
 
 #include "db.h"
 
+/* Looks up a help topic's body by its exact name (no prefix matching --
+ * see help_topic_find() below for the fuzzy version). Used where callers
+ * already know the canonical topic name, e.g. re-displaying after an edit. */
 bool help_topic_load_exact(const char *name, char *body, size_t body_size) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -55,6 +58,7 @@ bool help_topic_find(const char *name, char *resolved, size_t resolved_size,
     return found;
 }
 
+/* Creates or overwrites a help topic's body, recording who last edited it. */
 bool help_topic_save(const char *name, const char *body, const char *updated_by) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

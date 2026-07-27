@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -42,6 +42,10 @@ static being_t *find_bank(room_t *room, shop_t *shop) {
     return NULL;
 }
 
+/* The `bank` command: balance/deposit/withdraw against the player's single
+ * global bank_gold balance, routed through whatever bank keeper is standing
+ * in the room (see find_bank() above). No bank in the room bounces the
+ * player before any of the sub-verbs are parsed. */
 bool cmd_bank(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp)
@@ -113,6 +117,9 @@ bool cmd_bank(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* The `treasury` command: reports the crown's single visible tax-revenue
+ * pot (see the money-system-v2 note at the top of this file for why it's
+ * one shared treasury rather than per-shop ledgers). */
 bool cmd_treasury(descriptor_t *d, const char *args) {
     (void)args;
     char msg[96];

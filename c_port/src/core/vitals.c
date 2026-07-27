@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "vitals.h"
@@ -13,6 +13,11 @@
 #include "player_repo.h"
 #include "room.h"
 
+/* Periodic hook (registered with the pulse scheduler) that drains hunger
+ * and thirst for every connected, non-immortal player, applies starvation/
+ * dehydration chip damage once either hits zero, rolls underwater drowning
+ * damage (routed through combat_drown_pc() since this one can actually
+ * kill), and persists the resulting progress. */
 void vitals_tick_run(long pulse_num) {
     (void)pulse_num;
     for (descriptor_t *d = g_descriptors; d; d = d->next) {

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "descriptor.h"
@@ -38,6 +38,10 @@ descriptor_t *g_descriptors = NULL;
 enum { TN_IAC = 255, TN_WILL = 251, TN_WONT = 252, TN_DO = 253, TN_DONT = 254,
        TN_SB = 250, TN_SE = 240, TN_ECHO = 1, TN_SGA = 3 };
 
+/* Allocates and initializes a fresh descriptor for a newly-accepted socket:
+ * negotiates telnet echo/SGA, links it into g_descriptors, and sends the
+ * banner/keep art ending in the "Account name:" prompt (CONN_GET_ACCOUNT_NAME,
+ * the state machine's entry point). */
 descriptor_t *descriptor_create(int fd) {
     descriptor_t *d = calloc(1, sizeof(*d));
     if (!d)
@@ -193,6 +197,8 @@ bool descriptor_in_editor(const descriptor_t *d) {
         || d->page_len > 0; /* mid-pager -- same "no interruptions" treatment */
 }
 
+/* Appends `msg` to d's held-message backlog (see the section comment above),
+ * evicting the oldest entry first if the ring is already full. */
 static void descriptor_hold(descriptor_t *d, const char *msg) {
     if (d->held_count >= HELD_MSG_MAX) {
         /* Full -- drop the oldest to make room for the newest. */
@@ -233,6 +239,11 @@ void descriptor_notify(descriptor_t *d, const char *msg) {
     descriptor_send(d, msg);
 }
 
+/* Formats and records a tagged log line: always goes to the log file, and
+ * (unless LOG_SILENT) is echoed live to every online immortal whose
+ * severity bitmask has this type enabled -- except those mid-editor, whose
+ * screen must stay intact, and except everyone if `type` is a personalized
+ * type meant for one specific immortal only. */
 void game_log(log_type_t type, const char *fmt, ...) {
     char msg[512];
     va_list ap;
@@ -267,6 +278,7 @@ void game_log(log_type_t type, const char *fmt, ...) {
     }
 }
 
+/* See descriptor.h. */
 void descriptor_keepalive(long pulse_num) {
     (void)pulse_num;
     /* IAC NOP -- a telnet no-op. Keeps the TCP connection warm so idle
@@ -278,6 +290,7 @@ void descriptor_keepalive(long pulse_num) {
         descriptor_write(d, (const char *)nop, sizeof(nop));
 }
 
+/* See descriptor.h. */
 void descriptor_idle_timeout(long pulse_num) {
     (void)pulse_num;
     /* Deliberate idle-out (user spec): a playing MORTAL idle past the limit
@@ -298,6 +311,7 @@ void descriptor_idle_timeout(long pulse_num) {
     }
 }
 
+/* See descriptor.h. */
 void descriptor_held_expire(long pulse_num) {
     (void)pulse_num;
     long now = (long)time(NULL);
@@ -326,6 +340,8 @@ static void descriptor_editor_exit_notice(descriptor_t *d) {
     }
 }
 
+/* See descriptor.h. Walks the room's stuff list rather than iterating
+ * g_descriptors so only PCs actually standing in `r` are considered. */
 void descriptor_room_echo(struct room *r, being_t *except, const char *msg) {
     if (!r)
         return;
@@ -338,6 +354,11 @@ void descriptor_room_echo(struct room *r, being_t *except, const char *msg) {
     }
 }
 
+/* See descriptor.h. Tears down a connection: restores a possessed mob (if
+ * any) to its unpuppeted state, unlinks `d` from g_descriptors, parks a
+ * live character as linkdead (rather than destroying it) with a room
+ * announcement and PIO log line, unhooks any snoop relationship in either
+ * direction, then closes the socket and frees `d` itself. */
 void descriptor_destroy(descriptor_t *d) {
     if (!d)
         return;
@@ -449,6 +470,7 @@ void descriptor_destroy(descriptor_t *d) {
     free(d);
 }
 
+/* See descriptor.h. */
 const char *descriptor_display_host(const descriptor_t *d) {
     return d->hostname[0] ? d->hostname : d->ip;
 }
@@ -488,6 +510,7 @@ void descriptor_write(descriptor_t *d, const char *data, size_t len) {
     d->out_len += remain;
 }
 
+/* See descriptor.h. */
 bool descriptor_flush_output(descriptor_t *d) {
     if (d->out_len == 0)
         return true;
@@ -597,6 +620,7 @@ static void descriptor_page_next(descriptor_t *d) {
     }
 }
 
+/* See descriptor.h. */
 void descriptor_page_start(descriptor_t *d, const char *text, int page_size) {
     d->page_size = page_size > 0 ? page_size : 20;
     snprintf(d->page_buf, sizeof(d->page_buf), "%s", text);
@@ -605,6 +629,8 @@ void descriptor_page_start(descriptor_t *d, const char *text, int page_size) {
     descriptor_page_next(d);
 }
 
+/* States where the line being typed must not be echoed back to the client
+ * (account/character password entry) -- checked by drain_lines() below. */
 static bool is_password_state(conn_state_t s) {
     return s == CONN_GET_PASSWORD || s == CONN_GET_NEW_PASSWORD
         || s == CONN_CONFIRM_PASSWORD || s == CONN_CHAR_DELETE_PASSWORD
@@ -684,6 +710,9 @@ static bool drain_lines(descriptor_t *d) {
     return true;
 }
 
+/* See descriptor.h. Compacts already-consumed bytes off the front of
+ * d->raw, does one non-blocking read() to top it up, then hands whatever's
+ * available to drain_lines() for line extraction and dispatch. */
 bool descriptor_process_input(descriptor_t *d) {
     /* Compact already-consumed bytes off the front before reading more. */
     if (d->raw_pos > 0) {
@@ -710,6 +739,9 @@ bool descriptor_process_input(descriptor_t *d) {
     return drain_lines(d);
 }
 
+/* Total point-buy points spent so far across all six attributes (each point
+ * above ATTR_BASE counts as one) -- used by the CONN_CHAR_CREATE_ATTRS
+ * screen to show/enforce the remaining budget. */
 static int attrs_allocated(const attrs_t *a) {
     return (a->strength - ATTR_BASE) + (a->dexterity - ATTR_BASE) + (a->constitution - ATTR_BASE) +
            (a->intelligence - ATTR_BASE) + (a->wisdom - ATTR_BASE) + (a->charisma - ATTR_BASE);
@@ -805,6 +837,11 @@ static void show_char_list_box(descriptor_t *d) {
     send_boxed_menu(d, line_ptrs, d->char_count);
 }
 
+/* Refreshes d->char_list/char_levels/char_count from the DB and renders the
+ * CONN_ACCOUNT_MENU screen: the boxed letter-menu while the character list
+ * is still hidden, or the full numbered list (via show_char_list_box())
+ * once revealed. An account with no characters yet skips straight to its
+ * own "none yet" prompt. */
 static void show_account_menu(descriptor_t *d) {
     player_list_by_account(d->account.account_id, d->char_list, d->char_levels,
                            MAX_CHARS_PER_ACCOUNT, &d->char_count);
@@ -910,6 +947,9 @@ static const char *const ATTR_PICK_NAMES[6] = {
     "Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma",
 };
 
+/* CONN_CHAR_CREATE_ATTR_AMOUNT: asks "how much?" for the attribute picked
+ * by a bare number at the attr screen (d->new_char_attr_pick); the typed
+ * reply is applied by apply_attr_delta() back in CONN_CHAR_CREATE_ATTRS. */
 static void show_attr_amount_prompt(descriptor_t *d) {
     char msg[128];
     snprintf(msg, sizeof(msg), "\r\nEnter the adjustment for %s (-%d to +%d), or blank to cancel: ",
@@ -969,6 +1009,8 @@ static void show_options_screen(descriptor_t *d) {
     descriptor_send(d, "> ");
 }
 
+/* CONN_CHAR_CREATE_OPT_HAND / _OPT_GENDER / _OPT_APPEARANCE: the three
+ * numbered sub-menus reached from show_options_screen()'s options 1/2/4. */
 static void show_opt_hand_screen(descriptor_t *d) {
     static const char *const lines[] = {
         "<C>1)<z> Left",
@@ -1360,6 +1402,9 @@ static int redit_parse_dir(const char *tok) {
     return -1;
 }
 
+/* Renders the CONN_REDIT_MENU top-level screen for the current redit_work
+ * working copy: name, sector, flags, the numbered field menu, description,
+ * exit summary, and a "* unsaved changes *" marker when redit_dirty. */
 static void show_redit_menu(descriptor_t *d) {
     room_t *w = &d->redit_work;
     char flagbuf[256], exitbuf[640];
@@ -1404,6 +1449,9 @@ static void show_redit_menu(descriptor_t *d) {
     d->state = CONN_REDIT_MENU;
 }
 
+/* Renders the redit room-flags toggle submenu (CONN_REDIT_FLAGS): every
+ * known room flag bit numbered, with an [x]/[ ] marker read straight off
+ * the working copy. */
 static void show_redit_flags(descriptor_t *d) {
     char out[2048];
     size_t n = (size_t)snprintf(out, sizeof(out),
@@ -1424,6 +1472,8 @@ static void show_redit_flags(descriptor_t *d) {
     d->state = CONN_REDIT_FLAGS;
 }
 
+/* Renders the redit terrain/sector-type picker submenu (CONN_REDIT_TERRAIN),
+ * listing every sector type by number. */
 static void show_redit_terrain(descriptor_t *d) {
     char out[4096];
     size_t n = (size_t)snprintf(out, sizeof(out),
@@ -1442,6 +1492,9 @@ static void show_redit_terrain(descriptor_t *d) {
     d->state = CONN_REDIT_TERRAIN;
 }
 
+/* Renders the redit exits overview (CONN_REDIT_EXITS): every direction with
+ * its target/door/condition summary, or "(none)" if unset. Picking a
+ * direction here drops into show_redit_exit_menu()'s per-exit detail. */
 static void show_redit_exits(descriptor_t *d) {
     room_t *w = &d->redit_work;
     char out[1400];
@@ -1468,6 +1521,9 @@ static void show_redit_exits(descriptor_t *d) {
     d->state = CONN_REDIT_EXITS;
 }
 
+/* Renders one exit's detail submenu (CONN_REDIT_EXIT_MENU) for the direction
+ * in d->redit_exit_dir: target room, door type, conditions, and a remove
+ * option. */
 static void show_redit_exit_menu(descriptor_t *d) {
     room_t *w = &d->redit_work;
     int dir = d->redit_exit_dir;
@@ -1488,6 +1544,8 @@ static void show_redit_exit_menu(descriptor_t *d) {
     d->state = CONN_REDIT_EXIT_MENU;
 }
 
+/* Renders the door-type picker submenu (CONN_REDIT_EXIT_DOORTYPE) for the
+ * exit direction in d->redit_exit_dir. */
 static void show_redit_doortype(descriptor_t *d) {
     int dir = d->redit_exit_dir;
     char out[640];
@@ -1507,6 +1565,9 @@ static void show_redit_doortype(descriptor_t *d) {
     d->state = CONN_REDIT_EXIT_DOORTYPE;
 }
 
+/* Renders the exit-conditions toggle submenu (CONN_REDIT_EXIT_CONDITIONS)
+ * for the exit direction in d->redit_exit_dir, one [x]/[ ] bit per known
+ * condition flag. */
 static void show_redit_conditions(descriptor_t *d) {
     int dir = d->redit_exit_dir;
     int cond = d->redit_work.exit_cond[dir];
@@ -1647,6 +1708,10 @@ static void redit_apply_exits(descriptor_t *d, room_t *live) {
     }
 }
 
+/* Commits the redit working copy back to the live room + DB: scalars are
+ * applied first so any auto-created exit target inherits the new sector,
+ * then redit_apply_exits() reconciles the exit table. Clears redit_dirty on
+ * success. */
 static void redit_save(descriptor_t *d) {
     room_t *live = world_get_room(d->redit_work.vnum);
     if (!live) {
@@ -1669,6 +1734,10 @@ static void redit_save(descriptor_t *d) {
     }
 }
 
+/* Resets the redit working copy to a blank "unfinished room" (name,
+ * description, sector, flags, capacity, height, and every exit), marking it
+ * dirty -- the (C)lear room out menu option. Nothing is written to the DB
+ * until a subsequent (S)ave. */
 static void redit_clear(descriptor_t *d) {
     snprintf(d->redit_work.base.name, sizeof(d->redit_work.base.name), "%s",
              "An unfinished room");
@@ -1686,6 +1755,8 @@ static void redit_clear(descriptor_t *d) {
     d->redit_dirty = true;
 }
 
+/* Quits the room editor back to CONN_PLAYING, discarding any unsaved
+ * working-copy changes, and flushes any held messages that piled up. */
 static void redit_leave(descriptor_t *d) {
     d->state = CONN_PLAYING;
     d->redit_dirty = false;
@@ -1693,6 +1764,7 @@ static void redit_leave(descriptor_t *d) {
     descriptor_editor_exit_notice(d);
 }
 
+/* See descriptor.h. */
 bool descriptor_redit_begin(descriptor_t *d, int vnum) {
     room_t *live = redit_room_get(vnum);
     if (!live) {
@@ -1717,6 +1789,9 @@ bool descriptor_redit_begin(descriptor_t *d, int vnum) {
     return true;
 }
 
+/* Renders the CONN_EDPLAYER_MENU top-level screen for the edplayer_work
+ * snapshot: level/XP/HP, attributes, gender, title, load room, handedness,
+ * class, race, and an "* unsaved changes *" marker when edplayer_dirty. */
 static void show_edplayer_menu(descriptor_t *d) {
     being_t *w = &d->edplayer_work;
     char out[900];
@@ -1775,6 +1850,8 @@ static void edplayer_save(descriptor_t *d) {
     descriptor_send(d, "Player saved.\r\n");
 }
 
+/* Quits the player editor back to CONN_PLAYING, discarding any unsaved
+ * working-copy changes, and flushes any held messages that piled up. */
 static void edplayer_leave(descriptor_t *d) {
     d->state = CONN_PLAYING;
     d->edplayer_dirty = false;
@@ -1782,6 +1859,9 @@ static void edplayer_leave(descriptor_t *d) {
     descriptor_editor_exit_notice(d);
 }
 
+/* See descriptor.h. The loaded snapshot's desc/fighting pointers are
+ * scrubbed before copying into the working copy -- edplayer_work is never a
+ * live connection or combat participant of its own. */
 bool descriptor_edplayer_begin(descriptor_t *d, const char *name) {
     int load_room = -1;
     being_t *loaded = player_load_admin(name, &load_room);
@@ -1797,6 +1877,10 @@ bool descriptor_edplayer_begin(descriptor_t *d, const char *name) {
     return true;
 }
 
+/* Renders the CONN_EDZONE_MENU top-level screen for the edzone_work
+ * snapshot: name, enabled, lifespan, vnum range, and the assigned-builder
+ * list (queried fresh, not part of the working copy -- see the
+ * CONN_EDZONE_BUILDER enum comment), plus an "* unsaved changes *" marker. */
 static void show_edzone_menu(descriptor_t *d) {
     zone_t *w = &d->edzone_work;
     char owners[8][64];
@@ -1824,6 +1908,9 @@ static void show_edzone_menu(descriptor_t *d) {
     d->state = CONN_EDZONE_MENU;
 }
 
+/* Commits the edzone working copy's scalar properties back to the DB.
+ * Builder assignment isn't included -- it applies immediately, not through
+ * this Save (see the CONN_EDZONE_MENU enum comment). */
 static void edzone_save(descriptor_t *d) {
     if (!zone_repo_save(&d->edzone_work)) {
         descriptor_send(d, "Save failed -- the DB rejected part of it.\r\n");
@@ -1833,6 +1920,8 @@ static void edzone_save(descriptor_t *d) {
     descriptor_send(d, "Zone saved.\r\n");
 }
 
+/* Quits the zone editor back to CONN_PLAYING, discarding any unsaved
+ * working-copy changes, and flushes any held messages that piled up. */
 static void edzone_leave(descriptor_t *d) {
     d->state = CONN_PLAYING;
     d->edzone_dirty = false;
@@ -1840,6 +1929,7 @@ static void edzone_leave(descriptor_t *d) {
     descriptor_editor_exit_notice(d);
 }
 
+/* See descriptor.h. */
 bool descriptor_edzone_begin(descriptor_t *d, int zone_nr) {
     zone_t loaded;
     if (!zone_repo_load_one(zone_nr, &loaded))
@@ -1880,6 +1970,11 @@ static const char *oedit_val_hint(int type) {
     }
 }
 
+/* Renders the CONN_OEDIT_MENU top-level screen for the oedit_work snapshot:
+ * every editable field of the object prototype, numbered per the real
+ * upstream's own field order (see the CONN_OEDIT_MENU enum comment), with
+ * oedit_val_hint() annotating what val[0..3] mean for this item's type and
+ * an "* unsaved changes *" marker when oedit_dirty. */
 static void show_oedit_menu(descriptor_t *d) {
     obj_proto_t *w = &d->oedit_work;
     char wearbuf[256], actionbuf[512];
@@ -1916,6 +2011,8 @@ static void show_oedit_menu(descriptor_t *d) {
     d->state = CONN_OEDIT_MENU;
 }
 
+/* Renders the oedit "Extra flags" (obj action flag) toggle submenu
+ * (CONN_OEDIT_ACTION_FLAGS), one [x]/[ ] bit per known flag. */
 static void show_oedit_action_flags(descriptor_t *d) {
     char out[2048];
     size_t n = (size_t)snprintf(out, sizeof(out),
@@ -1936,6 +2033,8 @@ static void show_oedit_action_flags(descriptor_t *d) {
     d->state = CONN_OEDIT_ACTION_FLAGS;
 }
 
+/* Renders the oedit "Take flags" (obj wear flag) toggle submenu
+ * (CONN_OEDIT_WEAR_FLAGS), one [x]/[ ] bit per known flag. */
 static void show_oedit_wear_flags(descriptor_t *d) {
     char out[1024];
     size_t n = (size_t)snprintf(out, sizeof(out),
@@ -1956,6 +2055,7 @@ static void show_oedit_wear_flags(descriptor_t *d) {
     d->state = CONN_OEDIT_WEAR_FLAGS;
 }
 
+/* Commits the oedit working copy back to the DB via obj_proto_save(). */
 static void oedit_save(descriptor_t *d) {
     if (!obj_proto_save(&d->oedit_work)) {
         descriptor_send(d, "Save failed -- the DB rejected part of it.\r\n");
@@ -1965,6 +2065,8 @@ static void oedit_save(descriptor_t *d) {
     descriptor_send(d, "Object saved.\r\n");
 }
 
+/* Quits the object editor back to CONN_PLAYING, discarding any unsaved
+ * working-copy changes, and flushes any held messages that piled up. */
 static void oedit_leave(descriptor_t *d) {
     d->state = CONN_PLAYING;
     d->oedit_dirty = false;
@@ -1972,6 +2074,7 @@ static void oedit_leave(descriptor_t *d) {
     descriptor_editor_exit_notice(d);
 }
 
+/* See descriptor.h. */
 bool descriptor_oedit_begin(descriptor_t *d, int vnum) {
     obj_proto_t loaded;
     if (!obj_proto_load(vnum, &loaded)) {
@@ -2059,6 +2162,9 @@ static void medit_apply_characteristics(mob_proto_t *w) {
     w->cha = a.charisma;
 }
 
+/* Recomputes the working copy's derived Tobin characteristics (str/dex/etc.,
+ * via medit_apply_characteristics()) then commits it back to the DB via
+ * mob_proto_save(). */
 static void medit_save(descriptor_t *d) {
     medit_apply_characteristics(&d->medit_work);
     if (!mob_proto_save(d->medit_vnum, &d->medit_work)) {
@@ -2069,6 +2175,8 @@ static void medit_save(descriptor_t *d) {
     descriptor_send(d, "Mob saved.\r\n");
 }
 
+/* Quits the mob editor back to CONN_PLAYING, discarding any unsaved
+ * working-copy changes, and flushes any held messages that piled up. */
 static void medit_leave(descriptor_t *d) {
     d->state = CONN_PLAYING;
     d->medit_dirty = false;
@@ -2076,6 +2184,7 @@ static void medit_leave(descriptor_t *d) {
     descriptor_editor_exit_notice(d);
 }
 
+/* See descriptor.h. */
 bool descriptor_medit_begin(descriptor_t *d, int vnum) {
     mob_proto_t loaded;
     if (!mob_proto_load(vnum, &loaded)) {
@@ -2094,6 +2203,10 @@ bool descriptor_medit_begin(descriptor_t *d, int vnum) {
     return true;
 }
 
+/* Renders the CONN_BALANCE_MENU top-level screen for the balance_work
+ * snapshot (a class or race's balance_mod_t, per balance_is_class): HP/
+ * damage multipliers, to-hit/AC modifiers, and an "* unsaved changes *"
+ * marker when balance_dirty. */
 static void show_balance_menu(descriptor_t *d) {
     const char *kind = d->balance_is_class ? "class" : "race";
     const char *name = d->balance_is_class ? class_name((player_class_t)d->balance_index)
@@ -2111,6 +2224,10 @@ static void show_balance_menu(descriptor_t *d) {
     d->state = CONN_BALANCE_MENU;
 }
 
+/* Commits the balance working copy to the DB AND the live in-memory cache
+ * (class_balance_set()/race_balance_set(), not the raw *_save() functions
+ * directly, which would leave the cache stale -- see the CONN_BALANCE_MENU
+ * enum comment) so the new numbers apply gamewide immediately. */
 static void balance_save(descriptor_t *d) {
     bool ok = d->balance_is_class
         ? class_balance_set((player_class_t)d->balance_index, &d->balance_work)
@@ -2123,6 +2240,8 @@ static void balance_save(descriptor_t *d) {
     descriptor_send(d, "Balance saved -- applies gamewide immediately.\r\n");
 }
 
+/* Quits the balance editor back to CONN_PLAYING, discarding any unsaved
+ * working-copy changes, and flushes any held messages that piled up. */
 static void balance_leave(descriptor_t *d) {
     d->state = CONN_PLAYING;
     d->balance_dirty = false;
@@ -2130,6 +2249,7 @@ static void balance_leave(descriptor_t *d) {
     descriptor_editor_exit_notice(d);
 }
 
+/* See descriptor.h. */
 bool descriptor_balance_begin(descriptor_t *d, bool is_class, int index) {
     if (index < 0 || (is_class && index >= CLASS_COUNT) || (!is_class && index >= RACE_COUNT))
         return false;
@@ -2181,12 +2301,16 @@ static void show_edaccount_menu(descriptor_t *d) {
     d->state = CONN_EDACCOUNT_MENU;
 }
 
+/* Quits the account editor back to CONN_PLAYING and flushes any held
+ * messages that piled up. Nothing to discard -- every edaccount action
+ * commits immediately, so there's no working copy to abandon. */
 static void edaccount_leave(descriptor_t *d) {
     d->state = CONN_PLAYING;
     descriptor_send(d, "Leaving the account editor.\r\n");
     descriptor_editor_exit_notice(d);
 }
 
+/* See descriptor.h. */
 bool descriptor_edaccount_begin(descriptor_t *d, const char *name) {
     account_t acct;
     if (!account_load(name, &acct))
@@ -2208,6 +2332,11 @@ static const char *const EDSOCIAL_FIELD_LABELS[EDSOCIAL_FIELD_COUNT] = {
     "Self (self-target)", "Others (self-target)",
 };
 
+/* Maps a numbered field (1-8, matching EDSOCIAL_FIELD_LABELS) to a pointer
+ * to its message buffer inside `s`, so the generic CONN_EDSOCIAL_FIELD
+ * single-line prompt can read/overwrite whichever field is being edited
+ * without a field-by-field switch at every call site. NULL for an
+ * out-of-range field. */
 static char *edsocial_field_ptr(social_t *s, int field) {
     switch (field) {
         case 1: return s->self_no_arg;
@@ -2294,12 +2423,16 @@ static void show_edsocial_item(descriptor_t *d) {
     d->state = CONN_EDSOCIAL_ITEM;
 }
 
+/* Quits the social editor back to CONN_PLAYING and flushes any held
+ * messages that piled up. Nothing to discard -- every edsocial action
+ * commits immediately, so there's no working copy to abandon. */
 static void edsocial_leave(descriptor_t *d) {
     d->state = CONN_PLAYING;
     descriptor_send(d, "Leaving the social editor.\r\n");
     descriptor_editor_exit_notice(d);
 }
 
+/* See descriptor.h. */
 void descriptor_edsocial_begin(descriptor_t *d, const char *name) {
     social_t s;
     if (name && name[0] && social_repo_get(name, &s)) {
@@ -2321,6 +2454,9 @@ static const char *trigedit_valid_types(const char *target_type) {
     return "get, wear"; /* obj */
 }
 
+/* True if `trigger_type` is one of the types actually usable on
+ * `target_type` (room/mob/obj) -- the set trigedit_valid_types() above
+ * displays as a hint. Gates CONN_TRIGEDIT_NEW_TYPE's typed input. */
 static bool trigedit_type_valid(const char *target_type, const char *trigger_type) {
     if (strcasecmp(target_type, "room") == 0)
         return strcasecmp(trigger_type, "enter") == 0 || strcasecmp(trigger_type, "random") == 0;
@@ -2330,6 +2466,9 @@ static bool trigedit_type_valid(const char *target_type, const char *trigger_typ
     return strcasecmp(trigger_type, "get") == 0 || strcasecmp(trigger_type, "wear") == 0;
 }
 
+/* Renders the CONN_TRIGEDIT_LIST screen: every trigger already attached to
+ * trigedit_target_type/vnum, numbered, with its match text or (for
+ * "random") its chance percent shown inline. */
 static void show_trigedit_list(descriptor_t *d) {
     trigger_t trigs[32];
     int n = trigger_repo_list_for(d->trigedit_target_type, d->trigedit_target_vnum, trigs, 32);
@@ -2347,7 +2486,7 @@ static void show_trigedit_list(descriptor_t *d) {
         else if (strcasecmp(trigs[i].trigger_type, "random") == 0)
             snprintf(suffix, sizeof(suffix), " chance=%d%%", trigs[i].chance_pct);
         len += (size_t)snprintf(out + len, sizeof(out) - len,
-            "  <c>%2d)<z> <p>%-10s<z>%s [id %ld]\r\n", i + 1, trigs[i].trigger_type, suffix, trigs[i].id);
+            "  <c>%2d)<z> <p>%-10s<z>%s\r\n", i + 1, trigs[i].trigger_type, suffix);
     }
     if (len < sizeof(out))
         snprintf(out + len, sizeof(out) - len,
@@ -2356,6 +2495,16 @@ static void show_trigedit_list(descriptor_t *d) {
     d->state = CONN_TRIGEDIT_LIST;
 }
 
+/* Renders one trigger's detail view (CONN_TRIGEDIT_ITEM), re-read fresh
+ * from the DB by id (d->trig_edit_id) every time -- no working copy, since
+ * every field here commits immediately (see the CONN_TRIGEDIT_* enum
+ * comment). Falls back to the list if the trigger vanished underneath it.
+ * Shows the script body inline (user 2026-07-26: "need a chance to read
+ * the trigger") so a builder can read what's already there without having
+ * to open the script editor (option 3) first. Addressed by list position/
+ * vnum only in everything sent to the player -- the raw db id (d->
+ * trig_edit_id) stays purely an internal lookup key (user: "forget the
+ * use of id, use only vnums"). */
 static void show_trigedit_item(descriptor_t *d) {
     trigger_t t;
     if (!trigger_repo_get(d->trig_edit_id, &t)) {
@@ -2363,17 +2512,19 @@ static void show_trigedit_item(descriptor_t *d) {
         show_trigedit_list(d);
         return;
     }
-    char out[TRIGGER_MATCH_LEN + 320];
+    char out[TRIGGER_MATCH_LEN + TRIGGER_SCRIPT_MAX + 384];
     snprintf(out, sizeof(out),
-        "\r\n<c>Editing trigger #%ld:<z> %s on %s %d\r\n\r\n"
+        "\r\n<c>Editing %s trigger:<z> %s %d\r\n\r\n"
         "   <c>1)<z> <p>Match text/keyword<z>: %s\r\n"
         "   <c>2)<z> <p>Chance percent<z>:     %d\r\n"
         "   <c>3)<z> <p>Edit script<z>\r\n"
         "   <c>D)<z> <p>Delete this trigger<z>\r\n\r\n"
-        "   blank) back to list\r\ntrigedit-%ld> ",
-        t.id, t.trigger_type, t.target_type, t.target_vnum,
+        "<c>Current script:<z>\r\n%s\r\n"
+        "   blank) back to list\r\ntrigedit-item> ",
+        t.trigger_type, t.target_type, t.target_vnum,
         t.match_text[0] ? t.match_text : "(none)",
-        t.chance_pct, t.id);
+        t.chance_pct,
+        t.script[0] ? t.script : "  (empty)\r\n");
     descriptor_send(d, out);
     d->state = CONN_TRIGEDIT_ITEM;
 }
@@ -2416,12 +2567,21 @@ static void trigedit_arm_script_editor(descriptor_t *d, const char *existing) {
     d->state = CONN_TRIGEDIT_SCRIPT;
 }
 
+/* See descriptor.h. */
 void descriptor_trigedit_begin(descriptor_t *d, const char *target_type, int target_vnum) {
     snprintf(d->trigedit_target_type, sizeof(d->trigedit_target_type), "%s", target_type);
     d->trigedit_target_vnum = target_vnum;
     show_trigedit_list(d);
 }
 
+/* The top-level input dispatcher: called by drain_lines() once per complete
+ * typed line. Refreshes last_active, intercepts the localhost-only
+ * "@test ..." smoke-test announce hook regardless of state, then switches
+ * on d->state to route the line through the right stage of the login/
+ * character-creation state machine, the right menu-driven editor's CONN_*
+ * range, or (CONN_PLAYING) the shared line editor / pager / ordinary
+ * command dispatch. Returns false if handling this line means the
+ * connection should be torn down. */
 static bool handle_line(descriptor_t *d, const char *line) {
     d->last_active = (long)time(NULL); /* any input clears the (idle) flag */
 
@@ -5379,8 +5539,10 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_TRIGEDIT_MATCH: {
-            if (line[0])
-                trigger_repo_update_match(d->trig_edit_id, line);
+            if (line[0]) {
+                descriptor_send(d, trigger_repo_update_match(d->trig_edit_id, line)
+                    ? "Match text saved.\r\n" : "Saving the match text failed.\r\n");
+            }
             show_trigedit_item(d);
             return true;
         }
@@ -5389,10 +5551,12 @@ static bool handle_line(descriptor_t *d, const char *line) {
             if (line[0]) {
                 char *end;
                 long pct = strtol(line, &end, 10);
-                if (end != line && *end == '\0' && pct >= 1 && pct <= 100)
-                    trigger_repo_update_chance(d->trig_edit_id, (int)pct);
-                else
+                if (end != line && *end == '\0' && pct >= 1 && pct <= 100) {
+                    descriptor_send(d, trigger_repo_update_chance(d->trig_edit_id, (int)pct)
+                        ? "Chance percent saved.\r\n" : "Saving the chance percent failed.\r\n");
+                } else {
                     descriptor_send(d, "Chance percent must be a number from 1 to 100.\r\n");
+                }
             }
             show_trigedit_item(d);
             return true;

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -26,14 +26,17 @@
  * menu; see trigger.h for the fixed action vocabulary and
  * trigger_script.h for the DG Scripts-style language.
  *
- * Two other read-only/quick sub-forms share this entry point:
+ * One other read-only quick sub-form shares this entry point:
  *   edit trigger list <vnum>    -- shows every trigger on ANY target type
  *                                   at this vnum (room AND mob AND obj --
  *                                   no longer needs the target type, since
  *                                   a builder often doesn't remember which
  *                                   table a vnum belongs to at a glance)
- *   edit trigger delete <id>    -- unchanged: a quick one-shot delete by
- *                                   id, without opening the menu at all
+ *
+ * There is deliberately no `edit trigger delete <id>` quick form (removed
+ * 2026-07-26, user: "forget the use of id, use only vnums") -- deletion
+ * only happens from inside the menu (CONN_TRIGEDIT_ITEM's "D" option),
+ * which a builder reaches by vnum and list position, never a raw db id.
  */
 bool cmd_edtrigger(descriptor_t *d, const char *args) {
     if (!d->character || !d->character->base.roomp) {
@@ -43,20 +46,10 @@ bool cmd_edtrigger(descriptor_t *d, const char *args) {
 
     char usage[] =
         "Usage: edit trigger <room|mob|obj> <vnum>\r\n"
-        "       edit trigger list <vnum>\r\n"
-        "       edit trigger delete <id>\r\n";
+        "       edit trigger list <vnum>\r\n";
 
     char a[32], b[32];
     int got = sscanf(args, "%31s %31s", a, b);
-
-    if (got >= 2 && strcasecmp(a, "delete") == 0) {
-        long id = atol(b);
-        if (trigger_repo_delete(id))
-            descriptor_send(d, "Trigger deleted.\r\n");
-        else
-            descriptor_send(d, "No trigger has that id.\r\n");
-        return true;
-    }
 
     if (got >= 2 && strcasecmp(a, "list") == 0) {
         if (!isdigit((unsigned char)b[0])) {
@@ -74,8 +67,8 @@ bool cmd_edtrigger(descriptor_t *d, const char *args) {
             total += n;
             for (int i = 0; i < n && len < sizeof(out); i++) {
                 len += (size_t)snprintf(out + len, sizeof(out) - len,
-                    "#%ld %s %d %s%s%s%s\r\n",
-                    trigs[i].id, trigs[i].target_type, trigs[i].target_vnum, trigs[i].trigger_type,
+                    "%s %d %s%s%s%s\r\n",
+                    trigs[i].target_type, trigs[i].target_vnum, trigs[i].trigger_type,
                     trigs[i].match_text[0] ? " match=\"" : "",
                     trigs[i].match_text[0] ? trigs[i].match_text : "",
                     trigs[i].match_text[0] ? "\"" : "");

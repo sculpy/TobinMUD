@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -180,6 +180,11 @@ static void try_newbie_equipper(being_t *speaker, room_t *r, const char *said) {
     }
 }
 
+/* `say <message>` command -- see the file-top comment for the full
+ * broadcast-format rationale. Sends the colorized "You say" line to the
+ * speaker, "<Name> says" to every other PC in the room, then fires
+ * speech triggers, pet obedience, and the newbie-equipper spec-proc off
+ * the same spoken text. */
 bool cmd_say(descriptor_t *d, const char *args) {
     if (!d->character || !d->character->base.roomp) {
         descriptor_send(d, "You are nowhere.\r\n");

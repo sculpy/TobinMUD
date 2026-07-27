@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -38,6 +38,10 @@ static being_t *find_target_in_room(being_t *ch, const char *tok) {
     return NULL;
 }
 
+/* `follow <name>` -- attaches `ch` as a follower of `target` (master/
+ * follower link only, see the file's top comment on why this alone
+ * doesn't grant group benefits). Refuses a circular chain and switches
+ * cleanly off any existing master first. */
 bool cmd_follow(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -93,6 +97,9 @@ bool cmd_follow(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `stop` -- the follower's own side of ending a follow relationship
+ * (detaches from `ch->master` and clears `grouped`); the opposite
+ * direction from cmd_dismiss(), which is the master releasing a pet. */
 bool cmd_stop(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
@@ -155,6 +162,10 @@ bool cmd_dismiss(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `group` -- with no argument, shows the leader/follower listing and who's
+ * actually grouped in yet; otherwise the leader grants group benefits to
+ * one follower (or `group all`) by setting their `grouped` flag. Only the
+ * leader (someone with no master of their own) can grant it. */
 bool cmd_group(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)
@@ -240,6 +251,10 @@ bool cmd_group(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `split <amount>` -- the group leader divides gold evenly among every
+ * grouped member physically present in the room (Sneezy's same-room rule
+ * for shared rewards, applied to money here). Rounds down; leftover gold
+ * from an uneven split stays with the leader. */
 bool cmd_split(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {

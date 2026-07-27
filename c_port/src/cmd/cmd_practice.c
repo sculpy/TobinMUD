@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -183,6 +183,13 @@ static void practice_show_discipline(descriptor_t *d, being_t *ch, int tier, boo
     descriptor_page_start(d, out, 0);
 }
 
+/* `practice [<discipline> [<#>]]` command -- see file-top comment for the
+ * full split between the display and spend behaviors. With no argument,
+ * shows the caller's own tier percentages/practice points (plus a
+ * guildmaster hint if one is present). With a discipline but no count,
+ * delegates to practice_show_discipline() for the per-skill listing. With
+ * a count, requires the matching guildmaster in the room and actually
+ * spends practice points to raise that tier's percentage. */
 bool cmd_practice(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

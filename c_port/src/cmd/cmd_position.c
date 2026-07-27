@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -29,6 +29,8 @@ static void set_position(descriptor_t *d, position_t pos, const char *self,
     }
 }
 
+/* Shared guard for the position commands that can't be used mid-combat
+ * (sit/rest/sleep) -- stand and wake have their own separate checks. */
 static bool busy_fighting(descriptor_t *d) {
     if (d->character->fighting) {
         descriptor_send(d, "Maybe you should finish this fight first!\r\n");
@@ -37,6 +39,10 @@ static bool busy_fighting(descriptor_t *d) {
     return false;
 }
 
+/* `stand` command: gets the character back on their feet. Fighting
+ * characters are already considered standing (you can't sit/rest/sleep
+ * while fighting), so that case gets its own message rather than
+ * routing through busy_fighting(). */
 bool cmd_stand(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
@@ -55,6 +61,7 @@ bool cmd_stand(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `sit` command: drops the character to POSITION_SITTING. */
 bool cmd_sit(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
@@ -70,6 +77,8 @@ bool cmd_sit(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `rest` command: settles the character into POSITION_RESTING, which
+ * heals faster than standing/sitting (see regen.c). */
 bool cmd_rest(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
@@ -86,6 +95,9 @@ bool cmd_rest(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `sleep` command: puts the character into POSITION_SLEEPING. Sleeping
+ * characters can't see the room (cmd_look.c) but heal fastest of all
+ * the positions (regen.c). */
 bool cmd_sleep(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
@@ -102,6 +114,9 @@ bool cmd_sleep(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `wake` command: rouses a sleeping character back to POSITION_RESTING
+ * (not standing -- they still have to `stand` afterward). No-op with a
+ * message if they weren't asleep to begin with. */
 bool cmd_wake(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;

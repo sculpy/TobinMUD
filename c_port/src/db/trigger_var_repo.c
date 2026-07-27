@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "trigger_script.h"
@@ -31,6 +31,8 @@ bool trigger_global_get(const char *name, char *out, size_t outsz) {
     return found;
 }
 
+/* Upserts a global trigger variable's value (the write side of the pair
+ * described above). */
 bool trigger_global_set(const char *name, const char *value) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

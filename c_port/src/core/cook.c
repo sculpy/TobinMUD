@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cook.h"
@@ -118,12 +118,20 @@ static const cook_ing_row_t ROWS[] = {
 };
 #define ROW_COUNT (sizeof(ROWS) / sizeof(ROWS[0]))
 
+/* Looks up recipe `i` in RECIPES[] above by index, or NULL if out of
+ * range -- the `cook` command's own accessor into the verbatim-ported
+ * recipe table. */
 const cook_recipe_t *cook_recipe_at(int i) {
     if (i < 0 || i >= COOK_RECIPE_COUNT)
         return NULL;
     return &RECIPES[i];
 }
 
+/* Returns the full ROWS[] ingredient table above and, via `out_count`,
+ * how many rows it has -- the `cook` command scans this flat table
+ * (filtering by recipe index) to check/consume ingredients, since a
+ * recipe can have multiple alternative rows for the same slot (see the
+ * berry-alternatives comments above). */
 const cook_ing_row_t *cook_ingredient_rows(int *out_count) {
     if (out_count)
         *out_count = (int)ROW_COUNT;

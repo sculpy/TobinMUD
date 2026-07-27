@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "colorstring.h"
@@ -67,6 +67,9 @@ static const char ANSI_RESET[] = "\033[0m";
  * every other tag below), NOT left as literal text either way. */
 #define TOBIN_MUD_NAME "TobinMUD"
 
+/* Upper bound on translated output size for a source string of src_len
+ * bytes -- callers use this to size the dst buffer passed to
+ * colorstring_translate() before calling it. */
 size_t colorstring_translate_maxlen(size_t src_len) {
     /* Worst case is ~7/3 bytes per source byte (every "<X>" -> up to
      * "\033[1;31m") plus a possible trailing auto-reset; *7 is a
@@ -74,6 +77,11 @@ size_t colorstring_translate_maxlen(size_t src_len) {
     return src_len * 7 + sizeof(ANSI_RESET);
 }
 
+/* The port's replacement for the original colorString(): scans src for
+ * "<X>" tags and emits the matching ANSI escape (or strips the tag if
+ * color_on is false), copying everything else through unchanged. Meant
+ * to be called once per recipient at the single output choke-point, not
+ * scattered through content-producing code. */
 size_t colorstring_translate(const char *src, char *dst, size_t dst_size, bool color_on) {
     size_t len = strlen(src);
     size_t si = 0, di = 0;

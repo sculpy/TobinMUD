@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "shutdown.h"
@@ -21,6 +21,8 @@ static long g_remaining_seconds = -1;
  * by shutdown_schedule() itself, milestone or not. */
 static const long MILESTONES[] = {3600, 1800, 900, 600, 300, 120, 60, 30, 20, 15, 10, 5, 4, 3, 2, 1};
 
+/* True if `s` seconds remaining is one of the curated MILESTONES points
+ * that should get its own countdown announcement. */
 static bool is_milestone(long s) {
     for (size_t i = 0; i < sizeof(MILESTONES) / sizeof(MILESTONES[0]); i++)
         if (MILESTONES[i] == s)
@@ -28,6 +30,8 @@ static bool is_milestone(long s) {
     return false;
 }
 
+/* Sends `msg` to every connected descriptor -- the shared helper behind
+ * every shutdown-countdown announcement in this file. */
 static void broadcast(const char *msg) {
     for (descriptor_t *it = g_descriptors; it; it = it->next)
         descriptor_send(it, msg);
@@ -48,6 +52,9 @@ static void shutdown_execute(void) {
     game_loop_request_shutdown();
 }
 
+/* Starts (or immediately executes, if seconds == 0) a shutdown countdown,
+ * announcing it to everyone connected and logging who initiated it. Called
+ * by the `shutdown` immortal command. */
 void shutdown_schedule(int seconds, const char *initiator) {
     if (seconds < 0)
         seconds = 0;
@@ -68,6 +75,8 @@ void shutdown_schedule(int seconds, const char *initiator) {
     }
 }
 
+/* Cancels a pending shutdown countdown, if any, and announces the
+ * cancellation. Returns false (no-op) if nothing was pending. */
 bool shutdown_cancel(void) {
     if (g_remaining_seconds < 0)
         return false;
@@ -77,14 +86,20 @@ bool shutdown_cancel(void) {
     return true;
 }
 
+/* True while a shutdown countdown is running. */
 bool shutdown_is_pending(void) {
     return g_remaining_seconds >= 0;
 }
 
+/* Seconds left in the current countdown, or a negative value if none is
+ * pending. */
 int shutdown_seconds_remaining(void) {
     return (int)g_remaining_seconds;
 }
 
+/* Periodic hook (registered with the pulse scheduler, fires once/second)
+ * that counts a pending shutdown down, broadcasting at milestone points and
+ * executing the shutdown once it reaches zero. */
 void shutdown_pulse_tick(long pulse_num) {
     (void)pulse_num;
     if (g_remaining_seconds < 0)

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "account.h"
@@ -29,6 +29,8 @@ static void make_salt(char *out, size_t outsz) {
     out[pos] = '\0';
 }
 
+/* Looks up an account by login name (case-insensitive) and fills out.
+ * Returns false if no such account exists. */
 bool account_load(const char *name, account_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -49,6 +51,9 @@ bool account_load(const char *name, account_t *out) {
     return ok;
 }
 
+/* Same as account_load() but keyed by account_id instead of name -- used
+ * once a caller already has the id (e.g. from a loaded player row) and
+ * doesn't want a second name lookup. */
 bool account_load_by_id(long account_id, account_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -69,6 +74,9 @@ bool account_load_by_id(long account_id, account_t *out) {
     return ok;
 }
 
+/* Creates a brand-new account row: rejects a duplicate name, hashes
+ * plain_password with a fresh random salt (see the deviation note on
+ * make_salt() above), and fills out with the new account's id/name/hash. */
 bool account_create(const char *name, const char *plain_password, account_t *out) {
     account_t existing;
     if (account_load(name, &existing)) {
@@ -106,6 +114,9 @@ bool account_create(const char *name, const char *plain_password, account_t *out
     return ok;
 }
 
+/* Checks plain_password against acct's stored crypt hash by re-crypting
+ * with the hash's own salt and comparing. Pure in-memory check, no DB
+ * access. */
 bool account_verify_password(const account_t *acct, const char *plain_password) {
     if (!acct->passwd[0])
         return false;
@@ -113,6 +124,7 @@ bool account_verify_password(const account_t *acct, const char *plain_password) 
     return hash && strcmp(hash, acct->passwd) == 0;
 }
 
+/* Updates an account's ANSI color preference. */
 bool account_set_color(long account_id, bool color_on) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -125,6 +137,7 @@ bool account_set_color(long account_id, bool color_on) {
     return ok;
 }
 
+/* Updates an account's timezone offset (hours from server time). */
 bool account_set_timezone(long account_id, int hours) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -137,6 +150,8 @@ bool account_set_timezone(long account_id, int hours) {
     return ok;
 }
 
+/* Renames an account, rejecting the change if new_name is already taken by
+ * a different account. */
 bool account_set_name(long account_id, const char *new_name) {
     account_t existing;
     if (account_load(new_name, &existing) && existing.account_id != account_id) {
@@ -155,6 +170,8 @@ bool account_set_name(long account_id, const char *new_name) {
     return ok;
 }
 
+/* Changes an account's password: hashes plain_password with a fresh random
+ * salt and stores it. */
 bool account_set_password(long account_id, const char *plain_password) {
     char salt[32];
     make_salt(salt, sizeof(salt));
@@ -175,6 +192,8 @@ bool account_set_password(long account_id, const char *plain_password) {
     return ok;
 }
 
+/* Permanently removes an account row. Does not cascade-delete the
+ * account's players -- callers are responsible for that. */
 bool account_delete(long account_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

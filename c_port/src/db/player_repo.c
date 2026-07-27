@@ -1,5 +1,5 @@
 ﻿/*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "player_repo.h"
@@ -44,6 +44,13 @@ static void ensure_jesus_level(being_t *b) {
     }
 }
 
+/* Full character load for actually entering the game: creates a being_t
+ * from the player row, then pulls in attrs, progress, drugs, affects, and
+ * inventory from their respective repos, applies the rent-regen healing
+ * and limb full-heal fixups, and self-heals the Jesus-is-always-60
+ * safeguard. This is the "real" load path -- see player_load_admin() below
+ * for the lighter snapshot used by admin tools that must not attach live
+ * inventory. */
 being_t *player_load(const char *name, long account_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -178,6 +185,8 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
     return b;
 }
 
+/* Permanently deletes a player character, scoped to the owning account so
+ * one account can't delete another's character by name collision. */
 bool player_delete(const char *name, long account_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -196,6 +205,8 @@ bool player_delete(const char *name, long account_id) {
     return ok;
 }
 
+/* Lists an account's characters (name + level, defaulting to level 1 if
+ * no progress row yet) for the character-selection menu at login. */
 bool player_list_by_account(long account_id, char names[][PLAYER_NAME_LEN], int levels[], int max, int *count) {
     *count = 0;
 
@@ -221,6 +232,9 @@ bool player_list_by_account(long account_id, char names[][PLAYER_NAME_LEN], int 
     return ok;
 }
 
+/* Fetches just a character's saved load_room vnum, without loading the
+ * whole being -- used by the login flow to know where to place the player
+ * before the full player_load() runs. Returns -1 if not found. */
 int player_load_room(const char *name, long account_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -237,6 +251,9 @@ int player_load_room(const char *name, long account_id) {
     return room_vnum;
 }
 
+/* True if any character (in any account) already has this name -- player
+ * names are globally unique, so character creation checks this before
+ * allowing a new name. */
 bool player_name_exists(const char *name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -247,6 +264,7 @@ bool player_name_exists(const char *name) {
     return found;
 }
 
+/* Resolves a character name to its player id. Returns -1 if not found. */
 long player_id_for_name(const char *name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -258,6 +276,8 @@ long player_id_for_name(const char *name) {
     return id;
 }
 
+/* Resolves a character name to its owning account id. Returns -1 if not
+ * found. */
 long player_account_id_for_name(const char *name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -269,6 +289,8 @@ long player_account_id_for_name(const char *name) {
     return account_id;
 }
 
+/* Updates where a character logs back in next time (e.g. after `rent`,
+ * a recall, or a death respawn). */
 bool player_set_load_room(const char *name, long account_id, int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -281,6 +303,7 @@ bool player_set_load_room(const char *name, long account_id, int vnum) {
     return ok;
 }
 
+/* Sets (or clears, if title is empty) a character's displayed title. */
 bool player_set_title(const char *name, long account_id, const char *title) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -300,6 +323,9 @@ bool player_set_title(const char *name, long account_id, const char *title) {
     return ok;
 }
 
+/* Sets (or clears) a character's custom poofin message (shown to the room
+ * when the immortal appears via goto/teleport). Same NULL-clear-on-empty
+ * pattern as player_set_title() above. */
 bool player_set_poofin(const char *name, long account_id, const char *msg) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -317,6 +343,8 @@ bool player_set_poofin(const char *name, long account_id, const char *msg) {
     return ok;
 }
 
+/* Sets (or clears) a character's custom poofout message (shown to the room
+ * when the immortal leaves via goto/teleport). */
 bool player_set_poofout(const char *name, long account_id, const char *msg) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -334,6 +362,8 @@ bool player_set_poofout(const char *name, long account_id, const char *msg) {
     return ok;
 }
 
+/* Sets (or clears) a character's custom bamfin message (shown when they
+ * arrive via a `bamf`-style summon/recall effect). */
 bool player_set_bamfin(const char *name, long account_id, const char *msg) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -351,6 +381,8 @@ bool player_set_bamfin(const char *name, long account_id, const char *msg) {
     return ok;
 }
 
+/* Sets (or clears) a character's custom bamfout message (shown when they
+ * depart via a `bamf`-style summon/recall effect). */
 bool player_set_bamfout(const char *name, long account_id, const char *msg) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -368,6 +400,9 @@ bool player_set_bamfout(const char *name, long account_id, const char *msg) {
     return ok;
 }
 
+/* Loads a character's six core stats from player_attrs. Returns false if
+ * no row exists (player_load() falls back to ATTR_BASE defaults in that
+ * case). */
 bool player_attrs_load(long player_id, attrs_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -391,6 +426,7 @@ bool player_attrs_load(long player_id, attrs_t *out) {
     return found;
 }
 
+/* Upserts a character's six core stats. */
 bool player_attrs_save(long player_id, const attrs_t *attrs) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -410,6 +446,9 @@ bool player_attrs_save(long player_id, const attrs_t *attrs) {
     return ok;
 }
 
+/* Loads a character's level/xp/hp/gold/hunger-thirst/etc progress fields
+ * from player_progress. Returns false if no row exists (player_load()
+ * falls back to being_create_pc()'s defaults in that case). */
 bool player_progress_load(long player_id, progress_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -447,6 +486,10 @@ bool player_progress_load(long player_id, progress_t *out) {
     return found;
 }
 
+/* Upserts a character's full progress row (level, xp, hp, gold, hunger/
+ * thirst, etc). The main persistence point for anything that changes
+ * during play -- called from player_save() and various one-off updates
+ * like the rent-regen heal in player_load() above. */
 bool player_progress_save(long player_id, const progress_t *progress) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -471,6 +514,12 @@ bool player_progress_save(long player_id, const progress_t *progress) {
     return ok;
 }
 
+/* Lighter-weight load for admin tools (edplayer, cmd_set) that need a
+ * being_t snapshot of any character by name (not scoped to an account, and
+ * without the caller needing to already know the account_id). Deliberately
+ * skips player_inventory_load() -- see the comment below for why attaching
+ * live inventory objects to a throwaway snapshot is unsafe. Not the login
+ * path; use player_load() for that. */
 being_t *player_load_admin(const char *name, int *out_load_room) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -524,6 +573,8 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
     return b;
 }
 
+/* Admin-tool setters (cmd_set) that update a single player column by
+ * character name, without needing a loaded being_t or account_id. */
 bool player_set_gender_by_name(const char *name, gender_t gender) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -534,6 +585,8 @@ bool player_set_gender_by_name(const char *name, gender_t gender) {
     return ok;
 }
 
+/* Same admin-setter pattern as player_set_gender_by_name() above, for
+ * handedness. */
 bool player_set_handed_by_name(const char *name, int handed_right) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -544,6 +597,8 @@ bool player_set_handed_by_name(const char *name, int handed_right) {
     return ok;
 }
 
+/* Same admin-setter pattern as player_set_gender_by_name() above, for
+ * character class. */
 bool player_set_class_by_name(const char *name, player_class_t cls) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -554,6 +609,8 @@ bool player_set_class_by_name(const char *name, player_class_t cls) {
     return ok;
 }
 
+/* Same admin-setter pattern as player_set_gender_by_name() above, for
+ * race. */
 bool player_set_race_by_name(const char *name, player_race_t race) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -564,6 +621,8 @@ bool player_set_race_by_name(const char *name, player_race_t race) {
     return ok;
 }
 
+/* Same admin-setter pattern as player_set_gender_by_name() above, for
+ * the appearance description text. */
 bool player_set_appearance_by_name(const char *name, const char *appearance) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -574,6 +633,11 @@ bool player_set_appearance_by_name(const char *name, const char *appearance) {
     return ok;
 }
 
+/* Admin-tool level setter (cmd_set, "promote"-style edits). Unlike the
+ * other player_set_*_by_name() setters above, level lives in
+ * player_progress, not the player table, so this upserts a progress row
+ * (with the historical 100/100 HP defaults for a player_progress row that
+ * somehow doesn't exist yet) instead of a plain UPDATE. */
 bool player_set_level_by_name(const char *name, int level) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -601,6 +665,8 @@ bool player_set_level_by_name(const char *name, int level) {
     return ok;
 }
 
+/* Updates a player's saved prompt display flags (which pieces of info
+ * show up in their combat/status prompt). */
 bool player_set_prompt_flags(long player_id, int flags) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -611,6 +677,9 @@ bool player_set_prompt_flags(long player_id, int flags) {
     return ok;
 }
 
+/* Returns the highest news id a player has already seen, to compare
+ * against news_repo_max_id() and decide whether to flag "new news" at
+ * login. 0 if the player has never seen any (or the column is NULL). */
 long player_get_news_last_seen(long player_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -628,6 +697,8 @@ long player_get_news_last_seen(long player_id) {
     return last_seen;
 }
 
+/* Records the highest news id a player has now seen, e.g. after reading
+ * news at login. */
 bool player_set_news_last_seen(long player_id, long news_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -638,6 +709,8 @@ bool player_set_news_last_seen(long player_id, long news_id) {
     return ok;
 }
 
+/* Same as player_get_news_last_seen() above, but for the immortal-only
+ * wiznews feed. */
 long player_get_wiznews_last_seen(long player_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -655,6 +728,7 @@ long player_get_wiznews_last_seen(long player_id) {
     return last_seen;
 }
 
+/* Same as player_set_news_last_seen() above, but for wiznews. */
 bool player_set_wiznews_last_seen(long player_id, long news_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -665,6 +739,8 @@ bool player_set_wiznews_last_seen(long player_id, long news_id) {
     return ok;
 }
 
+/* Updates a player's saved pflags bitmask (e.g. channel toggles, the
+ * newbie flag set at creation). */
 bool player_set_pflags(long player_id, int flags) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -675,6 +751,11 @@ bool player_set_pflags(long player_id, int flags) {
     return ok;
 }
 
+/* Top-level "save this character" entry point: persists attrs, progress,
+ * inventory, and active affects in one call. Intentionally runs all four
+ * saves even if an earlier one fails (accumulating ok via `&&` after the
+ * call, not short-circuiting before it) so one failure doesn't skip saving
+ * everything else. */
 bool player_save(long player_id, const being_t *b) {
     bool ok = player_attrs_save(player_id, &b->attrs);
     ok = player_progress_save(player_id, &b->progress) && ok;

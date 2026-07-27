@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "mob_ai.h"
@@ -43,6 +43,11 @@ static const char *const ACT_NAMES[24] = {
     "HIT_BY_PK",
 };
 
+/* Formats every set ACT_* bit in `flags` as a "[ NAME ]"-joined string
+ * into `buf` (ACT_NAMES[] above), or "none" if nothing's set -- used by
+ * `stat`/immortal debug output to show a mob's raw actions bitmask in
+ * readable form; covers the full upstream bit range even though this
+ * file itself only reads three of them (see ACT_NAMES's own comment). */
 const char *mob_action_names(int flags, char *buf, size_t size) {
     size_t n = 0;
     buf[0] = '\0';
@@ -104,6 +109,12 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
     return buf;
 }
 
+/* Random chance per AI tick for an idle, non-charmed, non-ACT_SENTINEL
+ * mob to wander one room over -- picks a uniformly random open exit
+ * (skipping closed doors and ROOM_FLAG_NO_MOB destinations), announces
+ * the departure/arrival to both rooms, and moves it. No-ops for a
+ * fighting/non-standing mob, one with no room, or a charmed pet (see
+ * the comment inside for why pets never wander on their own). */
 static void mob_try_wander(being_t *m) {
     /* Pet/charm (Sneezy → Tobin feature audit): a charmed pet only ever
      * moves by following its master room-to-room (cmd_move.c's
@@ -220,6 +231,10 @@ static bool name_has_keyword(const char *name, const char *keyword) {
     return false;
 }
 
+/* Identifies a "surplus collector" mob by its raw keywords ("sweeper",
+ * "hauler", or "collector"+"trash" together) rather than a dedicated
+ * flag -- gates the surplus-collect/deliver AI below to just these
+ * specially-named mobs. */
 static bool is_surplus_collector(const being_t *m) {
     return name_has_keyword(m->base.name, "sweeper")
         || name_has_keyword(m->base.name, "hauler")
@@ -534,6 +549,11 @@ static void mob_try_lamplighter(being_t *m) {
     }
 }
 
+/* world_for_each_mob() callback for mob_ai_tick() below -- runs every
+ * one of this mob's independent AI behaviors in turn (wander, scavenge,
+ * surplus collect/deliver, aggress, alignment flavor, lamplighter).
+ * Combat follow-through for a charmed pet is deliberately NOT here --
+ * see the trailing comment for why that lives in combat.c instead. */
 static void mob_ai_visit(being_t *m) {
     mob_try_wander(m);
     mob_try_scavenge(m);
@@ -551,6 +571,10 @@ static void mob_ai_visit(being_t *m) {
      * randomly wanders, regardless of where the join logic lives. */
 }
 
+/* Runs on a timer (see main.c), roughly every ~60s: visits every mob in
+ * the world and lets it take its own independent AI action for this
+ * tick (mob_ai_visit() above). Deliberately slow-cadence -- combat
+ * itself resolves on a much faster pulse in combat.c, not here. */
 void mob_ai_tick(long pulse_num) {
     (void)pulse_num;
     world_for_each_mob(mob_ai_visit);

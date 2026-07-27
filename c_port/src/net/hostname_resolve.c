@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "hostname_resolve.h"
@@ -39,6 +39,10 @@ typedef struct {
     char ip[46];
 } resolve_args_t;
 
+/* Thread entry point for a single background reverse-DNS lookup, spawned
+ * by hostname_resolve_start(). Takes ownership of `arg` (frees it before
+ * returning either way) and, on success, stashes the resolved hostname
+ * in a free/oldest slot for hostname_resolve_poll() to pick up. */
 static void *resolve_thread_main(void *arg) {
     resolve_args_t *a = (resolve_args_t *)arg;
 
@@ -77,6 +81,9 @@ static void *resolve_thread_main(void *arg) {
     return NULL;
 }
 
+/* Kicks off a background reverse-DNS lookup for `ip`, tagged with `fd` so
+ * the result can be matched back to the right descriptor later. Best
+ * effort: silently does nothing if the thread can't be created. */
 void hostname_resolve_start(int fd, const char *ip) {
     if (!ip || !ip[0])
         return;
@@ -95,6 +102,8 @@ void hostname_resolve_start(int fd, const char *ip) {
     pthread_detach(tid);
 }
 
+/* Applies any completed lookups to their matching (still-connected, same
+ * fd+ip) descriptor's `hostname` field. Called once per game-loop tick. */
 void hostname_resolve_poll(void) {
     pthread_mutex_lock(&g_slots_lock);
     for (int i = 0; i < RESOLVE_SLOTS; i++) {

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -36,6 +36,9 @@ static obj_t *find_drug_item(const being_t *ch, const char *tok) {
     return NULL;
 }
 
+/* Capitalizes a possibly color-tagged label for the "<Item> is spent."
+ * message below (same leading-`<tag>`-skipping convention duplicated in
+ * several other cmd_*.c files). */
 static const char *cap_first(const char *label, char *buf, size_t bufsz) {
     snprintf(buf, bufsz, "%s", label);
     size_t i = 0;
@@ -46,6 +49,10 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
     return buf;
 }
 
+/* `smoke <item>` command -- see file-top comment for the drug-item
+ * val[] layout. Applies drug_smoke()'s effect, saves the drug state for
+ * PCs, then spends one charge off the item (destroying it once the
+ * last charge is gone). */
 bool cmd_smoke(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

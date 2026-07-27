@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -98,6 +98,8 @@ static bool pick_up_money(descriptor_t *d, being_t *ch, obj_t *o) {
     return true;
 }
 
+/* True if `o` is neither held in a hand nor worn in an equipment slot --
+ * "loose" inventory, the set `get`/`drop` normally operate on. */
 static bool is_loose(const being_t *ch, const obj_t *o) {
     if (ch->held[0] == o || ch->held[1] == o)
         return false;
@@ -216,6 +218,11 @@ static bool get_all_from_room(descriptor_t *d, being_t *ch, const char *name_fil
     return true;
 }
 
+/* The `get` command: `get <item>` picks up a loose item from the room
+ * floor (or a container, if a second argument names one), with `all`/
+ * `all.<name>`/`all <container>` bulk forms handled by get_all_from_room()
+ * above. A money-pile object is credited straight to gold instead of
+ * entering inventory -- see pick_up_money(). */
 bool cmd_get(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -441,6 +448,9 @@ bool cmd_put(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* The `drop` command: drops one loose carried item onto the room floor,
+ * or (`drop all`) every loose item at once -- worn/held items are exempt
+ * from `all` and must be `remove`d first, same as a single named drop. */
 bool cmd_drop(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -618,6 +628,9 @@ bool cmd_inventory(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* The `equipment` command: lists everything `ch` currently has worn/held,
+ * one line per slot -- see being_render_equipment() for the actual
+ * rendering, shared with `look <person>`. */
 bool cmd_equipment(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
@@ -635,6 +648,10 @@ bool cmd_equipment(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* The `wear` command: puts a carried item into its body equipment[] slot
+ * (armor, jewelry, etc). Weapons and other holdables are redirected to
+ * `wield`/`hold` instead -- see the WEAR_SLOT_HELD branch below and the
+ * do_hold_or_wield() comment further down for why they split off. */
 bool cmd_wear(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)
@@ -790,6 +807,9 @@ bool cmd_switch(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* The `remove` command: takes off a worn or held/wielded item, unapplying
+ * its stat affects if it was worn gear (see the inline comment below on
+ * why held/wielded items don't need that). */
 bool cmd_remove(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

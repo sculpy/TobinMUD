@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -84,6 +84,12 @@ static int effective_max_struct(const obj_t *o) {
 #define SELF_REPAIR_GOLD_PER_POINT 2
 #define SHOP_REPAIR_GOLD_PER_POINT 5
 
+/* `repair <item>` command: self-repair using the SKILL_REPAIR skill (see
+ * file-top comment for why Tobin has just the one skill instead of
+ * upstream's per-material set). Charges gold for makeshift materials
+ * regardless of success/failure, rolls the skill on success, and on a
+ * hit restores cur_struct to effective_max_struct() while bumping
+ * depreciation and stamping the item's monogram. */
 bool cmd_repair(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)
@@ -178,6 +184,10 @@ static being_t *find_repair_shop(room_t *room, shop_t *shop) {
     return NULL;
 }
 
+/* `submit <item>` command: hands an item over to a repair shop's keeper
+ * in exchange for a DB-backed ticket (repair_ticket_create()) instead of
+ * a real-time repair delay -- see file-top comment for why. The item is
+ * destroyed on submission and only comes back (fixed) via cmd_retrieve(). */
 bool cmd_submit(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp)
@@ -240,6 +250,11 @@ bool cmd_submit(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `retrieve <ticket#>` command: pays off a repair_ticket_t created by
+ * cmd_submit() and reconstitutes the object from its prototype (the
+ * original was destroyed on submission), carrying over the ticket's
+ * saved depreciation/monogram and applying one more point of
+ * depreciation for this repair. */
 bool cmd_retrieve(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp)
@@ -300,6 +315,9 @@ bool cmd_retrieve(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `tickets` command: lists the caller's outstanding repair_ticket_t rows
+ * at the current shop, so they can see what's waiting and its price
+ * before spending gold on cmd_retrieve(). */
 bool cmd_tickets(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;

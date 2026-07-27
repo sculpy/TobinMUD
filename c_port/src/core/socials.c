@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "socials.h"
@@ -22,14 +22,19 @@
 static social_t g_cache[SOCIAL_CACHE_MAX];
 static int g_cache_count = 0;
 
+/* Loads the full social table from the DB into g_cache at boot (or on
+ * reload) so social_try()'s per-command lookups never hit the DB. */
 void social_cache_load(void) {
     g_cache_count = social_repo_load_all(g_cache, SOCIAL_CACHE_MAX);
 }
 
+/* Number of socials currently loaded in the cache. */
 int social_cache_count(void) {
     return g_cache_count;
 }
 
+/* Cached social by cache index (not by name/verb), or NULL if out of range
+ * -- used by callers that iterate the whole set, e.g. an admin listing. */
 const social_t *social_cache_at(int index) {
     if (index < 0 || index >= g_cache_count)
         return NULL;
@@ -48,6 +53,8 @@ static const social_t *social_find(const char *verb) {
     return NULL;
 }
 
+/* Writes a comma-separated list of every social's verb into `out` -- backs
+ * the `socials` command's full listing. */
 void social_names(char *out, size_t size) {
     size_t n = 0;
     out[0] = '\0';
@@ -189,6 +196,12 @@ static void social_room_echo(room_t *r, being_t *exclude, const char *tmpl,
     descriptor_room_echo(r, exclude, buf);
 }
 
+/* Plays a social's no-target room message on behalf of `actor` without
+ * going through a descriptor/command line -- e.g. for mob AI or scripted
+ * triggers that want a being to "emote" a stock social. Only echoes to the
+ * room (no self message, since there may be no descriptor to send it to).
+ * Returns false if the verb isn't a known social or the actor can't act
+ * right now. */
 bool social_perform_for(being_t *actor, const char *verb) {
     const social_t *soc = social_find(verb);
     if (!soc || !actor || !actor->base.roomp)
@@ -200,6 +213,13 @@ bool social_perform_for(being_t *actor, const char *verb) {
     return true;
 }
 
+/* Main entry point for the social command dispatcher: resolves `verb`
+ * against the cache and, if found, plays out its no-arg, self/other-target,
+ * or (for the "point" special case) held-item message forms to the actor,
+ * target, and room. Returns false if `verb` isn't a recognized social at
+ * all (so the caller can fall through to "huh?"); returns true for every
+ * other outcome, including position-blocked or target-not-found, since
+ * those cases already sent their own message. */
 bool social_try(descriptor_t *d, const char *verb, const char *args) {
     const social_t *soc = social_find(verb);
     if (!soc)

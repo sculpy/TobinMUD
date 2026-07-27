@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -202,6 +202,11 @@ static const char *apply_field(being_t *w, int load_room, int *out_load_room,
            "gender, title, loadroom, handed, practices, basic, combat, advanced.\r\n";
 }
 
+/* `set <name> <field> <value>` command -- see file-top comment for how
+ * this differs from `edplayer`. Loads the target by name (online or
+ * off), delegates the actual field mutation to apply_field(), sends
+ * back its result, then syncs the change onto the target's live
+ * being_t if they happen to be connected right now. */
 bool cmd_set(descriptor_t *d, const char *args) {
     if (!d->character)
         return true;

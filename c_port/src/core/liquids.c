@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "liquids.h"
@@ -64,6 +64,9 @@ static const liquid_type_t LIQUID_TYPES[LIQUID_TYPE_COUNT] = {
     { "<g>isla verde<1>",                    5,  13 },  /* 34 ISLA_VERDE */
 };
 
+/* Looks up a liquid_type_t's data (LIQUID_TYPES[] above) by ordinal --
+ * falls back to LIQUID_TYPE_DEFAULT for an out-of-range value rather
+ * than reading past the array. */
 const liquid_type_t *liquid_info(int type) {
     if (type < 0 || type >= LIQUID_TYPE_COUNT)
         type = LIQUID_TYPE_DEFAULT;
@@ -90,6 +93,11 @@ static bool keyword_matches(const char *keywords, const char *tok, size_t tok_le
     return false;
 }
 
+/* Copies `type`'s display name into `out` with every `<x>` color tag
+ * stripped -- used wherever a liquid name needs to appear in plain
+ * text (e.g. built into a puddle's keyword list, see
+ * liquid_type_from_keywords() below) rather than with its display
+ * coloring baked in. */
 void liquid_bare_name(int type, char *out, size_t outsz) {
     const char *name = liquid_info(type)->name;
     size_t oi = 0;
@@ -104,6 +112,11 @@ void liquid_bare_name(int type, char *out, size_t outsz) {
     out[oi] = '\0';
 }
 
+/* Reverse of the puddle-naming convention: recovers a liquid_type_t
+ * ordinal from a puddle object's own "puddle pool <bare name>" keyword
+ * string (built by cmd_pour.c), by exact-matching the suffix against
+ * every type's liquid_bare_name(). Falls back to LIQUID_TYPE_DEFAULT if
+ * nothing matches (not a puddle, or an unrecognized liquid). */
 int liquid_type_from_keywords(const char *keywords) {
     /* cmd_pour.c always builds a puddle's keywords as exactly
      * "puddle pool <bare name>" -- an EXACT match against the trailing

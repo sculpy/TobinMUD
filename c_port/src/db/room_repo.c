@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "room_repo.h"
@@ -11,6 +11,8 @@
 
 #include "db.h"
 
+/* Loads a room by vnum, including all ten exits (roomexit rows, one per
+ * direction) -- the main entry point for bringing a room into memory. */
 room_t *room_repo_load(int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -53,6 +55,7 @@ room_t *room_repo_load(int vnum) {
     return r;
 }
 
+/* True if a room row exists for vnum. */
 bool room_repo_exists(int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -62,6 +65,8 @@ bool room_repo_exists(int vnum) {
     return found;
 }
 
+/* Finds the lowest unused room vnum in [bottom, top], for redit's
+ * create-new-room flow. Returns -1 if the whole range is already taken. */
 int room_repo_next_free_vnum(int bottom, int top) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -86,6 +91,7 @@ int room_repo_next_free_vnum(int bottom, int top) {
     return result;
 }
 
+/* Returns a room's zone number, or -1 if the room is unzoned/not found. */
 int room_repo_get_zone(int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -101,6 +107,9 @@ int room_repo_get_zone(int vnum) {
     return zone;
 }
 
+/* Creates or updates a room's own row (name, description, sector, flags,
+ * capacity, height) -- how redit persists room edits. Does not touch
+ * exits; see room_repo_save_exit() below for those. */
 bool room_repo_save(const room_t *r) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -122,6 +131,7 @@ bool room_repo_save(const room_t *r) {
     return ok;
 }
 
+/* Creates or updates one exit (direction dir) of room vnum. */
 bool room_repo_save_exit(int vnum, int dir, int dest, int door_type, int condition) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -138,6 +148,7 @@ bool room_repo_save_exit(int vnum, int dir, int dest, int door_type, int conditi
     return ok;
 }
 
+/* Removes one direction's exit from a room, e.g. when an editor deletes it. */
 bool room_repo_delete_exit(int vnum, int dir) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -172,6 +183,9 @@ static bool extra_desc_name_matches(const char *keywords, const char *tok) {
     return false;
 }
 
+/* Finds a room's extra description whose keyword list matches keyword (via
+ * extra_desc_name_matches() above) -- backs "look <keyword>" for a room's
+ * examine-able details. */
 bool room_repo_extra_desc(int vnum, const char *keyword, char *buf, size_t bufsz) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -192,6 +206,8 @@ bool room_repo_extra_desc(int vnum, const char *keyword, char *buf, size_t bufsz
     return found;
 }
 
+/* Lists the keyword names of every extra description on a room, sorted --
+ * used by redit to show what extra descs already exist. */
 int room_repo_extra_list(int vnum, char out[][ROOM_EXTRA_NAME_LEN], int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -207,6 +223,9 @@ int room_repo_extra_list(int vnum, char out[][ROOM_EXTRA_NAME_LEN], int max) {
     return n;
 }
 
+/* Loads a single extra description's body by its exact keyword name (as
+ * opposed to room_repo_extra_desc() above, which does per-word prefix
+ * matching) -- used by redit when editing a specific already-known entry. */
 bool room_repo_extra_get(int vnum, const char *name, char *buf, size_t bufsz) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -224,6 +243,7 @@ bool room_repo_extra_get(int vnum, const char *name, char *buf, size_t bufsz) {
     return found;
 }
 
+/* Creates or updates a room's extra description under the given keyword. */
 bool room_repo_extra_save(int vnum, const char *name, const char *description) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -238,6 +258,7 @@ bool room_repo_extra_save(int vnum, const char *name, const char *description) {
     return ok;
 }
 
+/* Renames an extra description's keyword without touching its body text. */
 bool room_repo_extra_rename(int vnum, const char *old_name, const char *new_name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -250,6 +271,7 @@ bool room_repo_extra_rename(int vnum, const char *old_name, const char *new_name
     return ok;
 }
 
+/* Deletes one named extra description from a room. */
 bool room_repo_extra_delete(int vnum, const char *name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -261,6 +283,8 @@ bool room_repo_extra_delete(int vnum, const char *name) {
     return ok;
 }
 
+/* Deletes every extra description on a room, e.g. before a room's description
+ * is entirely rewritten and its old extra descs no longer apply. */
 bool room_repo_extra_delete_all(int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

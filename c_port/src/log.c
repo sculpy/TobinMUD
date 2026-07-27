@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "log.h"
@@ -19,14 +19,20 @@ static char g_log_path[LOG_PATH_MAX] = "";
 
 static char g_current_test[128] = "";
 
+/* Tracks the name of whichever smoke test is currently running, set by
+ * the `@test <name>` / `@test done <name>` loopback hook (descriptor.c)
+ * and read back by the `test` command. NULL/empty clears it. */
 void log_test_set_running(const char *name) {
     snprintf(g_current_test, sizeof(g_current_test), "%s", name ? name : "");
 }
 
+/* Marks no smoke test as currently running -- called by the `@test done`
+ * hook once a test finishes. */
 void log_test_clear_running(void) {
     g_current_test[0] = '\0';
 }
 
+/* Name of the currently-running smoke test, or "" if none. */
 const char *log_test_current_name(void) {
     return g_current_test;
 }
@@ -53,6 +59,10 @@ static void log_prune_old(void) {
     closedir(dir);
 }
 
+/* Shared formatter behind log_info()/log_error(): timestamps the message
+ * and writes the same "[stamp] LEVEL: ..." line to the open log file (if
+ * any) and to `out` (stdout or stderr), flushing both immediately since
+ * a crash shouldn't lose the last few buffered lines. */
 static void log_line(FILE *out, const char *level, const char *fmt, va_list ap) {
     time_t now = time(NULL);
     struct tm tm_buf;
@@ -78,6 +88,7 @@ static void log_line(FILE *out, const char *level, const char *fmt, va_list ap) 
     fflush(out); /* stdout is fully buffered when redirected to a file/pipe */
 }
 
+/* Logs an informational line to stdout and the log file. */
 void log_info(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -85,6 +96,7 @@ void log_info(const char *fmt, ...) {
     va_end(ap);
 }
 
+/* Logs an error line to stderr and the log file. */
 void log_error(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
@@ -92,6 +104,8 @@ void log_error(const char *fmt, ...) {
     va_end(ap);
 }
 
+/* Display tag for a log type ("GAME", "PIO", ...), used for both the log
+ * file line and the [TAG] echoed to online immortals. */
 const char *log_type_name(log_type_t type) {
     switch (type) {
         case LOG_SILENT: return "SILENT";
@@ -108,10 +122,19 @@ const char *log_type_name(log_type_t type) {
     }
 }
 
+/* If `type` is a personalized log (currently just LOG_JESUS), the single
+ * immortal name it's scoped to; NULL for a general type that echoes to
+ * everyone. */
 const char *log_type_personal_name(log_type_t type) {
     return type == LOG_JESUS ? "Jesus" : NULL;
 }
 
+/* Opens (creating LOG_DIR if needed) the log file for today's calendar
+ * date, appending if it already exists so every reboot/copyover/rotate
+ * on the same day shares one file rather than fragmenting it. Also
+ * prunes logs older than LOG_RETENTION_DAYS. Called once at startup and
+ * again by log_rotate(). Returns false if the file couldn't be opened,
+ * in which case logging continues console-only. */
 bool log_open(void) {
     mkdir(LOG_DIR, 0755); /* EEXIST is fine */
     log_prune_old();
@@ -142,6 +165,10 @@ bool log_open(void) {
     return true;
 }
 
+/* Backs the in-game `log rotate` command. Since log files are already
+ * one-per-calendar-day, this just re-runs log_open() (re-opening today's
+ * file and pruning old ones) rather than starting a separate file, which
+ * would fragment the day's log. Returns false on failure. */
 bool log_rotate(void) {
     /* Daily log files (one <date>.log per calendar day) are managed
      * automatically, so a manual rotate just re-opens the current day's file
@@ -153,6 +180,7 @@ bool log_rotate(void) {
     return true;
 }
 
+/* Path of the currently open log file, or "" if none is open. */
 const char *log_current_path(void) {
     return g_log_path;
 }

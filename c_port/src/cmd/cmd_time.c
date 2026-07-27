@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -30,6 +30,10 @@ static const char *ordinal_suffix(int n) {
     }
 }
 
+/* `time [<offset>]` command -- see file-top comment for the full port
+ * rationale. With an argument, just re-sets the caller's account-level
+ * time_adjust timezone offset. With none, prints the mud clock/date via
+ * gametime.h plus a real-world clock line shifted by that offset. */
 bool cmd_time(descriptor_t *d, const char *args) {
     if (args && args[0]) {
         char *endptr = NULL;

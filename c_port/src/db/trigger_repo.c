@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "trigger_repo.h"
@@ -34,6 +34,10 @@ bool trigger_repo_add(const char *created_by, const char *target_type, int targe
     return ok;
 }
 
+/* Shared row-to-struct mapper for every trigger_repo query that selects the
+ * standard trigger column set -- avoids duplicating the same field-by-field
+ * copy in trigger_repo_load_for(), trigger_repo_list_for(), and
+ * trigger_repo_get() below. */
 static int fetch_rows(db_conn_t *db, trigger_t *out, int max) {
     int n = 0;
     while (n < max && db_fetch_row(db)) {
@@ -83,6 +87,10 @@ int trigger_repo_list_for(const char *target_type, int target_vnum,
     return n;
 }
 
+/* Lists the distinct target vnums that have at least one 'random'-type
+ * trigger attached, for target_type -- used to know which mobs/rooms/objs
+ * need to be considered for the random-trigger pulse without scanning
+ * every trigger row each time. */
 int trigger_repo_random_vnums(const char *target_type, int *out, int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -100,6 +108,8 @@ int trigger_repo_random_vnums(const char *target_type, int *out, int max) {
     return n;
 }
 
+/* Removes a trigger by id. Confirms it exists first so the caller can
+ * distinguish "removed" from "no such trigger". */
 bool trigger_repo_delete(long id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -112,6 +122,8 @@ bool trigger_repo_delete(long id) {
     return ok;
 }
 
+/* Loads a single trigger's full definition by id -- used when a trigger
+ * editor needs to fetch one specific trigger it already knows the id of. */
 bool trigger_repo_get(long id, trigger_t *out) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -126,6 +138,8 @@ bool trigger_repo_get(long id, trigger_t *out) {
     return found;
 }
 
+/* Updates just a trigger's script body, leaving its match/chance/target
+ * unchanged. Confirms the trigger exists first. */
 bool trigger_repo_update_script(long id, const char *script) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -139,6 +153,9 @@ bool trigger_repo_update_script(long id, const char *script) {
     return ok;
 }
 
+/* Updates just a trigger's match text (or clears it to NULL if empty),
+ * leaving its script/chance/target unchanged. Confirms the trigger exists
+ * first. */
 bool trigger_repo_update_match(long id, const char *match_text) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -156,6 +173,8 @@ bool trigger_repo_update_match(long id, const char *match_text) {
     return ok;
 }
 
+/* Updates just a trigger's fire chance percentage, leaving its script/
+ * match/target unchanged. Confirms the trigger exists first. */
 bool trigger_repo_update_chance(long id, int chance_pct) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

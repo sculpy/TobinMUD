@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -134,6 +134,10 @@ typedef struct {
 static goto_node_t g_goto_nodes[GOTO_HASH_SIZE];
 static int g_goto_queue[GOTO_HASH_SIZE];
 
+/* Open-addressed lookup into g_goto_nodes for `vnum` -- linear-probes
+ * from the multiplicative hash until it finds either that vnum's slot or
+ * the first empty one (vnum == -1), same open-addressing convention as
+ * any other fixed hash table in the codebase. */
 static unsigned goto_hash_slot(int vnum) {
     unsigned idx = ((unsigned)vnum * 2654435761u) & (GOTO_HASH_SIZE - 1);
     while (g_goto_nodes[idx].vnum != -1 && g_goto_nodes[idx].vnum != vnum)
@@ -219,6 +223,8 @@ static room_t *goto_bfs(int start_vnum, bool (*is_goal)(room_t *r),
     return goal;
 }
 
+/* Renders a goto_bfs() direction sequence as a comma-separated list of
+ * direction names ("north, east, up") for the player-facing message. */
 static void goto_format_directions(const int *dirs, int count, char *out, size_t outsz) {
     size_t n = 0;
     for (int i = 0; i < count && n < outsz; i++)
@@ -339,16 +345,20 @@ static bool goto_class_guildmaster(descriptor_t *d, const char *word, size_t wle
 
 static int g_goto_target_vnum;
 
+/* Matches the single fixed room set in g_goto_target_vnum -- the BFS goal
+ * predicate shared by goto_rent()/goto_surplus() below. */
 static bool goto_is_target_vnum(room_t *r) {
     return r->vnum == g_goto_target_vnum;
 }
 
+/* `goto rent` -- directions to the inn (room 557). */
 static bool goto_rent(descriptor_t *d) {
     g_goto_target_vnum = GOTO_RENT_ROOM_VNUM;
     return goto_send_directions(d, goto_is_target_vnum, "the inn",
         "You don't know how to get there from here.\r\n");
 }
 
+/* `goto surplus` -- directions to the surplus store (room 563). */
 static bool goto_surplus(descriptor_t *d) {
     g_goto_target_vnum = GOTO_SURPLUS_ROOM_VNUM;
     return goto_send_directions(d, goto_is_target_vnum, "the surplus store",
@@ -363,6 +373,7 @@ static bool goto_is_hospital_room(room_t *r) {
     return (r->room_flag & ROOM_FLAG_HOSPITAL) != 0;
 }
 
+/* `goto hospital` -- directions to the nearest hospital-flagged room. */
 static bool goto_hospital(descriptor_t *d) {
     return goto_send_directions(d, goto_is_hospital_room, "a hospital",
         "You don't know how to get to a hospital from here.\r\n");

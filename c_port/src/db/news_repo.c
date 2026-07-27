@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "news_repo.h"
@@ -9,6 +9,9 @@
 
 #include "db.h"
 
+/* Formats the most recent news (or wiznews, when wiz is true) items,
+ * newest first, into a single ready-to-send text block, up to limit items.
+ * Returns false if there are none. */
 bool news_repo_recent(bool wiz, char *out, size_t size, int limit) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -46,6 +49,8 @@ bool news_repo_recent(bool wiz, char *out, size_t size, int limit) {
     return any;
 }
 
+/* Creates a news (or wiznews) item, or edits it in place if title already
+ * exists (title is UNIQUE). */
 bool news_repo_upsert(bool wiz, const char *author, const char *title, const char *body) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -71,6 +76,7 @@ bool news_repo_upsert(bool wiz, const char *author, const char *title, const cha
     return ok;
 }
 
+/* Loads a single news (or wiznews) item's body by its exact title. */
 bool news_repo_load(bool wiz, const char *title, char *out_body, size_t size) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -91,6 +97,8 @@ bool news_repo_load(bool wiz, const char *title, char *out_body, size_t size) {
     return found;
 }
 
+/* Removes a news (or wiznews) item by title. Confirms it exists first so
+ * the caller can distinguish "removed" from "no such item". */
 bool news_repo_delete(bool wiz, const char *title) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -108,6 +116,9 @@ bool news_repo_delete(bool wiz, const char *title) {
     return ok;
 }
 
+/* Highest id currently in the news (or wiznews) table; used to detect
+ * whether a player has unread items by comparing against their last-seen
+ * id (see player_get_news_last_seen()/player_get_wiznews_last_seen()). */
 long news_repo_max_id(bool wiz) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

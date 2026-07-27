@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "material.h"
@@ -83,6 +83,8 @@ material_tier_t material_tier_for_id(int material) {
     }
 }
 
+/* Display name for a material_tier_t -- unknown/COMMON both fall
+ * through to "Common". */
 const char *material_tier_name(material_tier_t tier) {
     switch (tier) {
         case MATERIAL_TIER_FINE:       return "Fine";
@@ -94,6 +96,8 @@ const char *material_tier_name(material_tier_t tier) {
     }
 }
 
+/* Weapon damage multiplier for `tier` -- a rarer material hits harder;
+ * COMMON is the 1.0 baseline every other tier scales up from. */
 double material_tier_damage_mult(material_tier_t tier) {
     switch (tier) {
         case MATERIAL_TIER_FINE:       return 1.10;
@@ -111,6 +115,8 @@ double material_tier_ac_mult(material_tier_t tier) {
     return material_tier_damage_mult(tier);
 }
 
+/* Flat bonus to an item's structural integrity (durability) for `tier`
+ * -- a rarer material holds up better before breaking; 0 for COMMON. */
 int material_tier_struct_bonus(material_tier_t tier) {
     switch (tier) {
         case MATERIAL_TIER_FINE:       return 2;
@@ -122,6 +128,9 @@ int material_tier_struct_bonus(material_tier_t tier) {
     }
 }
 
+/* Gold-value multiplier for `tier` -- a rarer material's item is worth
+ * more (steeper curve than the damage/AC multipliers, since rarity
+ * should show up most in price); 1.0 baseline for COMMON. */
 double material_tier_value_mult(material_tier_t tier) {
     switch (tier) {
         case MATERIAL_TIER_FINE:       return 1.5;

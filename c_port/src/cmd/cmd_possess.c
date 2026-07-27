@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -37,6 +37,11 @@ static being_t *find_mob(room_t *room, const char *tok) {
     return NULL;
 }
 
+/* `possess <mob>` command: swaps the immortal's descriptor onto a mob
+ * in the room, saving the original character on `possess_original` so
+ * `return` can swap back. Refuses if already possessing something or
+ * if the target mob already has a descriptor attached (someone else is
+ * puppeting/playing it). */
 bool cmd_possess(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -77,6 +82,9 @@ bool cmd_possess(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `return` command: undoes cmd_possess(), swapping the descriptor back
+ * onto the immortal's own body. Also cleans up a polymorph-spawned
+ * temporary body (see comment below) so it doesn't linger ownerless. */
 bool cmd_return(descriptor_t *d, const char *args) {
     (void)args;
     if (!d->possess_original) {

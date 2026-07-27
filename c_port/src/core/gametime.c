@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "gametime.h"
@@ -54,6 +54,10 @@ static void gametime_save(void) {
     db_close(db);
 }
 
+/* Restores g_time from the game_config rows gametime_save() writes --
+ * called once at boot so the in-game clock resumes where it left off
+ * instead of always restarting at day 1, 8:00 AM. Any field with no
+ * saved row simply keeps its g_time initializer default. */
 void gametime_load(void) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -72,22 +76,33 @@ void gametime_load(void) {
     db_close(db);
 }
 
+/* Current in-game weekday index (0=Sunday..6=Saturday), derived
+ * arithmetically from month/day rather than tracked as its own field --
+ * feeds gametime_weekday_name() below for display. */
 int gametime_weekday(void) {
     return ((DAYS_PER_MONTH * g_time.month) + g_time.day + 1) % 7;
 }
 
+/* Display name for a 0-based month index (MONTH_NAMES[] above) --
+ * returns "?" for an out-of-range value. */
 const char *gametime_month_name(int month) {
     if (month < 0 || month >= MONTHS_PER_YEAR)
         return "?";
     return MONTH_NAMES[month];
 }
 
+/* Display name for a 0-based weekday index (WEEKDAY_NAMES[] above,
+ * matching gametime_weekday()'s numbering) -- returns "?" for an
+ * out-of-range value. */
 const char *gametime_weekday_name(int weekday) {
     if (weekday < 0 || weekday >= 7)
         return "?";
     return WEEKDAY_NAMES[weekday];
 }
 
+/* Formats `hour`:`minute` (24h) into a 12-hour "H:MM AM/PM" clock
+ * string in `buf` -- used wherever the in-game time needs a
+ * human-readable display (e.g. the `time` command). */
 const char *gametime_clock_string(int hour, int minute, char *buf, size_t bufsz) {
     int h12 = hour % 12;
     if (h12 == 0)
@@ -96,6 +111,9 @@ const char *gametime_clock_string(int hour, int minute, char *buf, size_t bufsz)
     return buf;
 }
 
+/* Whether the in-game clock currently reads as daytime (6:00 AM through
+ * 7:59 PM) -- feeds room_is_dark_for() (being.c) so darkness/light
+ * mechanics track the in-game clock, not just room flags. */
 bool gametime_is_daytime(void) {
     return g_time.hour >= 6 && g_time.hour < 20;
 }
@@ -111,6 +129,12 @@ static void gametime_announce(const char *msg) {
     }
 }
 
+/* Runs on a timer (see main.c): advances the in-game clock by 15
+ * minutes per call, cascading minute -> hour -> day -> month -> year as
+ * each unit rolls over, announcing noon/midnight/New Year to every
+ * connected player along the way (gametime_announce() above), and
+ * persisting the new time (gametime_save()) after every call so a
+ * server restart doesn't lose progress. */
 void gametime_tick(long pulse_num) {
     (void)pulse_num;
 

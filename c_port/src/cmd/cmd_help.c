@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -13,6 +13,8 @@
 #include "being.h"
 #include "help_repo.h"
 
+/* qsort() comparator for an array of `const char *` names -- case-insensitive
+ * alphabetical order, used to sort help-topic name listings. */
 static int cmp_name(const void *a, const void *b) {
     return strcasecmp(*(const char *const *)a, *(const char *const *)b);
 }

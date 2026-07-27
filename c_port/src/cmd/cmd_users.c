@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -38,6 +38,10 @@ static const char *state_name(const descriptor_t *d) {
     }
 }
 
+/* `users` command -- see file-top comment for the full rationale.
+ * Walks the live g_descriptors list and prints one row per connection
+ * (character name, account, host, state via state_name()) into a
+ * paged table. */
 bool cmd_users(descriptor_t *d, const char *args) {
     (void)args;
 

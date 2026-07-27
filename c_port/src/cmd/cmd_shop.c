@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -119,6 +119,9 @@ static int hospital_ailments(const being_t *ch, ailment_t *out, int max) {
     return n;
 }
 
+/* `list` at a hospital shop: shows the numbered ailment menu built by
+ * hospital_ailments(), with each row's gold price -- the hospital
+ * equivalent of an ordinary shop's product listing. */
 static void list_hospital(descriptor_t *d, being_t *ch, being_t *keeper) {
     ailment_t ailments[HOSPITAL_MAX_AILMENTS];
     int count = hospital_ailments(ch, ailments, HOSPITAL_MAX_AILMENTS);
@@ -147,6 +150,10 @@ static void list_hospital(descriptor_t *d, being_t *ch, being_t *keeper) {
     descriptor_page_start(d, out, 0);
 }
 
+/* `buy <#>` at a hospital shop: re-enumerates hospital_ailments() (same
+ * stable order list_hospital() just showed), charges gold for the
+ * chosen row, and either tops off the limb's HP or removes the disease/
+ * poison affect. */
 static void buy_hospital_cure(descriptor_t *d, being_t *ch, being_t *keeper, const shop_t *shop, const char *args) {
     ailment_t ailments[HOSPITAL_MAX_AILMENTS];
     int count = hospital_ailments(ch, ailments, HOSPITAL_MAX_AILMENTS);
@@ -211,6 +218,9 @@ static void buy_hospital_cure(descriptor_t *d, being_t *ch, being_t *keeper, con
 #define STABLE_HORSE_VNUM 558
 #define STABLE_HORSE_PRICE 100
 
+/* `list` at a stable: shows the (currently single-entry) horse menu --
+ * see the stable block comment above for why this is hardcoded to one
+ * item rather than driven by shopproducing. */
 static void list_stable(descriptor_t *d, being_t *ch, being_t *keeper) {
     (void)ch;
     char keeper_name[128];
@@ -225,6 +235,9 @@ static void list_stable(descriptor_t *d, being_t *ch, being_t *keeper) {
     descriptor_page_start(d, out, 0);
 }
 
+/* `buy <#>`/`buy horse` at a stable: charges STABLE_HORSE_PRICE and
+ * spawns a fresh plow-horse mob (STABLE_HORSE_VNUM) into the room for
+ * the buyer to `ride`. */
 static void buy_stable_horse(descriptor_t *d, being_t *ch, being_t *keeper, const shop_t *shop, const char *args) {
     char tok[16] = "";
     sscanf(args, "%15s", tok);

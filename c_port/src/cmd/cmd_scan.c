@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -101,6 +101,11 @@ static int scan_exit(db_conn_t *db, int vnum, int dir, int *cond) {
     return dest;
 }
 
+/* `scan [direction|name]` command -- see file-top comment for the full
+ * port rationale. Parses the optional argument as either a direction
+ * (scan just that way) or a name filter, then ray-casts outward via
+ * scan_exit() up to SCAN_MAX_RANGE rooms per exit, listing every visible
+ * (non-linkdead) PC/mob it finds with a distance word from SCAN_DIST[]. */
 bool cmd_scan(descriptor_t *d, const char *args) {
     being_t *me = d->character;
     if (!me || !me->base.roomp) {

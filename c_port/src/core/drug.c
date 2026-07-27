@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "drug.h"
@@ -39,6 +39,8 @@ static const drug_data_t DRUGS[DRUG_COUNT] = {
     [DRUG_FROGSLIME] = { "frogslime", 18, 0.8 },
 };
 
+/* Display name for a drug_type_t (DRUGS[] above) -- returns "" for an
+ * out-of-range value. */
 const char *drug_name(drug_type_t type) {
     if (type < 0 || type >= DRUG_COUNT)
         return "";
@@ -61,6 +63,10 @@ static void reverse_deltas(being_t *b, int *deltas) {
     memset(deltas, 0, sizeof(int) * 6);
 }
 
+/* Records `str..cha` into `deltas` (so reverse_deltas() above can undo
+ * exactly this later) and applies them to `b`'s attrs immediately --
+ * the write half of the apply/reverse pair every drug effect and
+ * withdrawal penalty in this file goes through. */
 static void apply_deltas(being_t *b, int *deltas, int str, int dex, int con, int intl, int wis, int cha) {
     deltas[0] = str;
     deltas[1] = dex;
@@ -76,6 +82,12 @@ static void apply_deltas(being_t *b, int *deltas, int str, int dex, int con, int
     b->attrs.charisma += cha;
 }
 
+/* Applies one dose of `type` to `b` -- consolidates onto any already-
+ * active dose of the same drug (reverse then reapply, never stacks),
+ * tracks usage stats for apply_withdrawal() below to work from later,
+ * and applies this drug's own per-type stat effect (see the switch's
+ * per-case comments for how each departs from or matches the real
+ * upstream effect). Returns the flavor message to show the smoker. */
 const char *drug_smoke(being_t *b, drug_type_t type) {
     if (!b || type < 0 || type >= DRUG_COUNT)
         return "Nothing happens.";
@@ -179,6 +191,11 @@ static void apply_withdrawal(being_t *b, drug_type_t type, long now) {
     }
 }
 
+/* Runs on a timer (see main.c): for every connected non-immortal PC and
+ * every drug type, counts down that dose's remaining effect (reversing
+ * its stat deltas once it expires) and recomputes withdrawal via
+ * apply_withdrawal() above. Immortals are skipped outright -- same
+ * immunity convention as affect.c's disease/poison ticks. */
 void drug_tick_run(long pulse_num) {
     (void)pulse_num;
     long now = (long)time(NULL);

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "tips_repo.h"
@@ -10,6 +10,8 @@
 #include "db.h"
 #include "descriptor.h"
 
+/* Adds a new newbie tip to the pool, e.g. via an immortal's "addtip"
+ * command. */
 bool tips_repo_add(const char *added_by, const char *body) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -22,6 +24,8 @@ bool tips_repo_add(const char *added_by, const char *body) {
     return ok;
 }
 
+/* Picks one random tip's body text -- what tips_pulse_tick() below sends
+ * to newbie players. */
 bool tips_repo_random(char *out, size_t size) {
     out[0] = '\0';
 
@@ -37,6 +41,9 @@ bool tips_repo_random(char *out, size_t size) {
     return ok;
 }
 
+/* Formats every tip (id + body), newest first, into a single colorized
+ * text block -- for immortals reviewing/managing the tip pool. Returns
+ * false if there are none. */
 bool tips_repo_list(char *out, size_t size) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -60,6 +67,7 @@ bool tips_repo_list(char *out, size_t size) {
     return any;
 }
 
+/* Permanently removes a tip by id. */
 bool tips_repo_delete(int id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -72,6 +80,10 @@ bool tips_repo_delete(int id) {
     return ok;
 }
 
+/* Periodic pulse handler that pushes a random tip to every connected
+ * newbie player who hasn't opted out (PLR_NOTIPS). Called on the main
+ * pulse loop, not a repo-style CRUD function -- pulse_num is unused but
+ * kept to match the standard pulse-handler signature. */
 void tips_pulse_tick(long pulse_num) {
     (void)pulse_num;
 

@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -59,6 +59,11 @@ static bool parse_vnum_range(const char *pattern, int *lo, int *hi) {
     return false;
 }
 
+/* `vnum <room|obj|mob> <pattern>` command -- see file-top comment for
+ * the full design. Parses the category and pattern, treats the pattern
+ * as a name substring unless parse_vnum_range() recognizes it as a bare
+ * vnum or range, queries the matching DB_TOBIN table, then (in range
+ * mode) also lists the unused vnum gaps within that range. */
 bool cmd_vnum(descriptor_t *d, const char *args) {
     char cat[16] = "";
     int consumed = 0;

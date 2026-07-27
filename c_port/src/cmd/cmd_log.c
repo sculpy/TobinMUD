@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -72,6 +72,8 @@ static void log_tail(descriptor_t *d, int want) {
     free(ring);
 }
 
+/* `log search <text>`: case-insensitive substring scan of the current log
+ * file, keeping (and printing) only the LOG_MATCH_MAX most recent hits. */
 static void log_search(descriptor_t *d, const char *needle) {
     FILE *f = fopen(log_current_path(), "r");
     if (!f) {
@@ -115,6 +117,8 @@ static void log_search(descriptor_t *d, const char *needle) {
     free(ring);
 }
 
+/* `log list`: pages every *.log file in LOG_DIR, marking which one is
+ * currently open for writing. */
 static void log_list(descriptor_t *d) {
     DIR *dir = opendir(LOG_DIR);
     if (!dir) {
@@ -142,6 +146,9 @@ static void log_list(descriptor_t *d) {
     descriptor_page_start(d, out, 0);
 }
 
+/* The `log` command: bare or `log <n>` tails the current log file;
+ * `search`/`rotate`/`list` dispatch to the helpers above. `rotate` is
+ * gated to a higher level than the rest -- see the inline comment below. */
 bool cmd_log(descriptor_t *d, const char *args) {
     if (!*args) {
         log_tail(d, LOG_TAIL_DEFAULT);

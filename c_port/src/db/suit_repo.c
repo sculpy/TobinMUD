@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "suit_repo.h"
@@ -9,6 +9,9 @@
 
 #include "db.h"
 
+/* Finds a suit whose name contains the given substring, for name-based
+ * suit lookup (e.g. an admin "suit <name>" command). Returns the suit id,
+ * or -1 with *out_class left at -1 if none matches. */
 int suit_repo_find_by_name(const char *name, int *out_class, char *out_name, int out_name_sz) {
     if (out_class)
         *out_class = -1;
@@ -34,6 +37,9 @@ int suit_repo_find_by_name(const char *name, int *out_class, char *out_name, int
     return found;
 }
 
+/* Finds the newbie equipment suit defined for a character class, used by
+ * player_create() to grant starting gear on first login. Returns -1 if no
+ * suit is defined for that class. */
 int suit_repo_find_for_class(int player_class) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -48,6 +54,8 @@ int suit_repo_find_for_class(int player_class) {
     return found;
 }
 
+/* Lists the object vnums that make up a suit -- used by suit_grant() to
+ * actually spawn and equip each item. */
 int suit_repo_load_items(int suit_id, int *vnums, int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

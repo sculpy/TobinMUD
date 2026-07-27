@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -59,6 +59,10 @@ static obj_t *find_item(const being_t *ch, const char *tok) {
     return NULL;
 }
 
+/* Rough damage roll for a magic item's spell, scaled by the underlying
+ * skill's min_level -- shared by the area-damage staff path and
+ * apply_item_effect()'s single-target damage branch so both scale the
+ * same way. */
 static int spell_damage_for_level(int min_level) {
     return 4 + min_level + (rand() % (min_level / 3 + 4));
 }
@@ -195,6 +199,13 @@ static void apply_item_effect(descriptor_t *d, being_t *ch, being_t *target,
     }
 }
 
+/* `use <item> [target]` command -- see file-top comment for the full
+ * scope. Validates the item is a scroll/wand/staff with a real
+ * obj_magic_repo spell row and (for wand/staff) remaining charges,
+ * resolves the target (room-wide for staves via use_area_damage(), a
+ * named/self/fighting-fallback target otherwise via
+ * apply_item_effect()), then consumes a charge or destroys a scroll
+ * outright. */
 bool cmd_use(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)

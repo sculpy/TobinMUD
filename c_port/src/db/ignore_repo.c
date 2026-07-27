@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "ignore_repo.h"
@@ -10,6 +10,9 @@
 
 #include "db.h"
 
+/* Adds a name to a player's ignore list, enforcing IGNORE_MAX_PER_PLAYER
+ * only when adding a genuinely new entry (re-adding an existing one is a
+ * harmless no-op via ON DUPLICATE KEY UPDATE). */
 bool ignore_repo_add(long player_id, const char *ignored_name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -39,6 +42,8 @@ bool ignore_repo_add(long player_id, const char *ignored_name) {
     return ok;
 }
 
+/* Removes a name from a player's ignore list. Confirms the entry exists
+ * first so the caller can distinguish "removed" from "wasn't ignored". */
 bool ignore_repo_remove(long player_id, const char *ignored_name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -57,6 +62,7 @@ bool ignore_repo_remove(long player_id, const char *ignored_name) {
     return ok;
 }
 
+/* True if player_id currently has name on their ignore list. */
 bool ignore_repo_is_ignored(long player_id, const char *name) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -71,6 +77,7 @@ bool ignore_repo_is_ignored(long player_id, const char *name) {
     return ignored;
 }
 
+/* Number of names currently on a player's ignore list. */
 int ignore_repo_count(long player_id) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
@@ -85,6 +92,8 @@ int ignore_repo_count(long player_id) {
     return n;
 }
 
+/* Lists all names on a player's ignore list, alphabetically, up to max
+ * entries -- backs the "ignore" command's listing display. */
 int ignore_repo_list(long player_id, char out[][IGNORE_NAME_LEN], int max) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

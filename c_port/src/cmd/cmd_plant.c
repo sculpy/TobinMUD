@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "cmd_internal.h"
@@ -43,6 +43,8 @@ static bool obj_name_matches(const char *keywords, const char *tok, size_t tok_l
     return false;
 }
 
+/* First carried object (no ordinal/loose-only filtering) matching `tok`
+ * by keyword -- the seed/item lookup shared by both `plant` branches. */
 static obj_t *find_carried(const being_t *ch, const char *tok) {
     size_t len = strlen(tok);
     for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
@@ -71,6 +73,11 @@ static being_t *find_in_room(const being_t *self, const char *tok) {
     return NULL;
 }
 
+/* `plant <seeds>` -- the seed-farming half of `plant` (see the file's top
+ * comment for the dispatch rule). Validates the seeds, room, and an
+ * 8-plant-per-room cap, then starts a 3-tick planting action tracked on
+ * `ch` -- the actual plant object is created once the ticks finish
+ * (see obj_plant.h/planting.h). */
 static void do_seed_plant(descriptor_t *d, being_t *ch, const char *seed_tok) {
     obj_t *seed = find_carried(ch, seed_tok);
     int type;
@@ -112,6 +119,12 @@ static void do_seed_plant(descriptor_t *d, being_t *ch, const char *seed_tok) {
     descriptor_room_echo(ch->base.roomp, ch, msg);
 }
 
+/* `plant <item> <victim>` -- the Thief reverse-pickpocket half of `plant`:
+ * slips a carried item onto another being's person. Gates on the "plant"
+ * skill, empty hands, out-of-combat, a valid non-immortal target, and (for
+ * PC victims) mutual PK consent, then rolls a level/sleeping-adjusted
+ * success chance -- a failed roll still plants the item but tips the
+ * victim off. */
 static void do_thief_plant(descriptor_t *d, being_t *ch, const char *obj_tok, const char *vict_tok) {
     /* Gated on the "plant" skill itself, not "steal" (the original's
      * genericCanPlantThief() oddly checks doesKnowSkill(SKILL_STEAL) even
@@ -193,6 +206,9 @@ static void do_thief_plant(descriptor_t *d, being_t *ch, const char *obj_tok, co
     }
 }
 
+/* The `plant` command: dispatches between seed farming and the Thief's
+ * reverse-pickpocket based purely on argument count, matching the
+ * original's own doPlant() (see the file's top comment). */
 bool cmd_plant(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {

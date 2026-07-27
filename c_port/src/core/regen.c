@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "regen.h"
@@ -27,6 +27,8 @@ static int regen_amount(const being_t *b) {
     return amount;
 }
 
+/* Periodic hook (registered with the pulse scheduler) that heals HP and
+ * vitality for every connected, non-fighting player by regen_amount(). */
 void regen_tick_run(long pulse_num) {
     (void)pulse_num;
     for (descriptor_t *d = g_descriptors; d; d = d->next) {

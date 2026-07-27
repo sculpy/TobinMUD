@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.1 - All rights reserved                         *
+ * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "combat.h"
@@ -669,6 +669,12 @@ static int group_recipients(being_t *winner, room_t *room, being_t **out, int ma
     out[0] = winner;
     return 1;
 }
+/* Ends a fight once `loser`'s HP hits 0 (or they're decapitated) --
+ * see the doc comment above (starting "No permadeath for a PC...") for
+ * the full rationale on PC vs. mob outcomes, XP/gold transfer, and the
+ * possessed/polymorphed-body special case handled first below. `slain`
+ * only picks which message flavor is shown; both paths end the fight
+ * the same way. */
 static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     /* A mob loser that's actually a connected player's body -- possessed
      * (cmd_possess.c) or polymorphed (AFFECT_POLYMORPH, being.c) -- needs
@@ -1055,6 +1061,11 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     }
 }
 
+/* Applies `dmg` from a skill/spell (as opposed to an ordinary melee
+ * strike) to `defender`'s `limb`, zeroing it for an immortal target,
+ * and triggers combat_defeat() if it drops them to 0 HP -- returns true
+ * if the defender died so the caller can stop processing further
+ * effects against a now-gone target. */
 bool combat_apply_skill_damage(being_t *attacker, being_t *defender, int dmg, limb_t limb) {
     if (being_is_immortal(defender))
         dmg = 0;
@@ -1152,6 +1163,13 @@ void combat_drown_pc(being_t *victim) {
         descriptor_leave_to_menu(victim->desc);
 }
 
+/* Runs on a timer (see main.c), once per combat round: resolves every
+ * connected PC's ongoing fight (each pair only once per pulse, via
+ * last_combat_pulse), mid-fight-persists both PCs' HP so a disconnect
+ * mid-fight can't undo damage by reloading stale HP, then resolves
+ * every charmed pet's own strike against whatever it's fighting (see
+ * the large comment below for why pets are handled in a separate pass
+ * here rather than through mob_ai's own slower pulse). */
 void combat_process_run(long pulse_num) {
     for (descriptor_t *d = g_descriptors; d; d = d->next) {
         being_t *a = d->character;
@@ -1283,6 +1301,13 @@ bool combat_pk_allowed(const being_t *self, const being_t *t) {
     return (self->pflags & PLR_PK_OPTIN) && (t->pflags & PLR_PK_OPTIN);
 }
 
+/* Resolves a typed target name to a being in self's room, for `kill`/
+ * `attack`-style commands -- handles the "N.name" ordinal prefix (see
+ * the comment inside for why that skips the usual exact-match rule),
+ * otherwise prefers an exact name match over the first prefix match in
+ * room order. Skips anything combat_pk_allowed() rejects and any
+ * linkdead PC (no descriptor), so both are simply untargetable rather
+ * than needing a separate check at every call site. */
 being_t *combat_find_room_target(being_t *self, const char *name) {
     if (!self || !self->base.roomp || !name || !*name)
         return NULL;
@@ -1348,6 +1373,11 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
     return prefix_match;
 }
 
+/* An immortal's instant kill (cmd_kill.c): zeroes target's HP and every
+ * limb outright, then runs the normal combat_defeat() pipeline with
+ * `slain` true -- bypasses combat_strike() entirely rather than
+ * simulating a lucky hit, since an immortal's kill command is meant to
+ * be unconditional. */
 void combat_instakill(being_t *attacker, being_t *target) {
     if (!attacker || !target)
         return;
@@ -1359,6 +1389,12 @@ void combat_instakill(being_t *attacker, being_t *target) {
     combat_defeat(target, attacker, true);
 }
 
+/* Immortal debug command (`hurtlimb`-style) to force `target`'s `limb`
+ * HP to an exact value for testing -- clamps to [0, max_hp], announces
+ * a status-tier crossing (and its blood-pool side effect) the same way
+ * a real strike would via combat_strike(), and returns whether that
+ * crossing was an instant-death major-limb loss, so the caller can
+ * follow up exactly like a normal hit would. */
 bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int hp) {
     if (!target || limb < 0 || limb >= LIMB_COUNT)
         return false;
