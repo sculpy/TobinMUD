@@ -576,3 +576,23 @@ UPDATE `mob` SET `body_type` = 50 WHERE `name` REGEXP '(^| )elephant'; -- ELEPHA
 UPDATE `mob` SET `body_type` = 39 WHERE `name` REGEXP '(^| )(pig|boar)($| )'; -- PIG
 UPDATE `mob` SET `body_type` = 41 WHERE `name` REGEXP '(^| )(horse|cow|ox|mule|donkey|deer)($| )'; -- FOUR_HOOF
 UPDATE `mob` SET `body_type` = 38 WHERE `name` REGEXP '(^| )(wolf|dog|cat|bear)($| )'; -- FOUR_LEG (generic quadruped)
+
+-- Tell audit trail (docs/systems review, 2026-07-26 -- sneezymud-master/
+-- docs/systems/important/communication-system.md: the original logs every
+-- `tell` to a `tellhistory` table, capped 25 rows/recipient, so an
+-- immortal investigating a harassment report has something to check.
+-- Tobin's `tell` had no history at all, in memory or DB -- a plain miss,
+-- not a documented scope-down. `reply` (tell to whoever last told you)
+-- does NOT need a DB row -- same as the original's `desc->last_teller`,
+-- it's purely a live descriptor field (descriptor.h), gone on disconnect.
+CREATE TABLE IF NOT EXISTS `tell_history` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `from_player_id` bigint(20) unsigned NOT NULL,
+  `to_player_id` bigint(20) unsigned NOT NULL,
+  `message` varchar(400) NOT NULL,
+  `sent_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `to_player_id` (`to_player_id`, `sent_at`),
+  CONSTRAINT `tell_history_from_fk` FOREIGN KEY (`from_player_id`) REFERENCES `player` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `tell_history_to_fk` FOREIGN KEY (`to_player_id`) REFERENCES `player` (`id`) ON DELETE CASCADE
+);

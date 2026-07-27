@@ -599,6 +599,14 @@ typedef struct descriptor {
      * 5 minutes with no input; any command resets it. */
     long last_active;
 
+    /* `reply` (cmd_reply.c, 2026-07-26 docs/systems review -- original's
+     * `desc->last_teller`): who most recently `tell`'d this descriptor,
+     * so `reply <message>` doesn't need the name retyped. Live descriptor
+     * state only, same as the original -- NOT persisted (empty after a
+     * fresh reconnect, matching what `tellhistory` alone can't recover:
+     * the original's own `last_teller` is exactly this transient). */
+    char last_teller[PLAYER_NAME_LEN];
+
     /* Held messages: while this connection is in an editor, asynchronous game
      * messages (says, combat, arrivals, broadcasts) are buffered here instead
      * of interrupting the editor. Reviewed with `catchup`; anything older than

@@ -229,6 +229,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "remove",  cmd_remove,  "Take off a worn or held item (remove <item>).",      MORTAL_LEVEL_MIN },
     { "rent",    cmd_rent,    "Store your belongings and leave the game safely.",   MORTAL_LEVEL_MIN },
     { "repair",  cmd_repair,  "Mend a damaged item yourself (Warrior, repair <item>).", MORTAL_LEVEL_MIN },
+    { "reply",   cmd_reply,   "Tell whoever last told you (reply <message>).",      MORTAL_LEVEL_MIN },
     { "rules",   cmd_rules,   "Read the game rules (rules, or rules <number>).",    MORTAL_LEVEL_MIN },
     /* Bulletin boards (user 2026-07-18). Placed after the whole r-block
      * above (not in strict alpha order, which would put it before "rest")

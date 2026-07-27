@@ -6249,8 +6249,38 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       any cron tick, so there's no double-launch.)
 - [x] Install a MUD client (Mudlet, for ANSI color) on the Windows machines.
       Done 2026-07-26 (user), all Windows machines.
-- [ ] **docs/systems review** — read `sneezymud-master/docs/systems` for how
-      the original stored things; apply the lessons. RULE: prefer the DB.
+- [x] **docs/systems review** — done 2026-07-27 (Session 83), as a
+      background research pass over all 60 files in `sneezymud-master/
+      docs/systems/{critical,important,informational}`, cross-referenced
+      against Tobin's real DB schema and `*_repo.c` save/load code (not
+      just doc prose). Narrowly scoped to the "prefer the DB" angle: what
+      does the original persist that Tobin only holds in memory? One
+      real, previously-undiscussed gap found and fixed (tell history +
+      `reply`, see the entry below). Traits (17 permanent character-
+      creation advantages/disadvantages, e.g. Cowardice/Nightvision) came
+      back UNSURE -- no trace anywhere in Tobin, never explicitly
+      discussed either way -- **user 2026-07-27: not needed, skip.**
+      Also flagged but not yet decided: a family of player toggle bits
+      the original has and Tobin doesn't (`AUTO_NOTELL`/`AUTO_AFK`/
+      `PLR_GODNOSHOUT` and similar) -- **queued as the user's explicit
+      next topic ("then we can go over toggles"), not started.** Two
+      near-misses turned out to be already-decided, not gaps: limb
+      injury not persisting long-term (STATUS.md ~line 4019) and
+      component/symbol charges being per-vnum not per-carried-item
+      (STATUS.md ~1988-1993 / TODO.md ~689-690). Full false-alarm list
+      (confirmed already covered) not reproduced here -- see Session 83
+      in STATUS.md if the exact list is ever needed again.
+- [x] **Tell history + `reply`** — done 2026-07-27 (Session 83), the one
+      confirmed finding from the docs/systems review above. New
+      `tell_history` table (`tobin_migrations.sql`) logs every `tell`
+      (capped 25 rows/recipient, matching the original's own cap);
+      `reply <message>` sends to whoever last told you, via a new
+      session-only `descriptor_t.last_teller` field (not persisted, same
+      as the original's `desc->last_teller`). `tests/smoke_test_reply.py`
+      (7 checks) verifies live, including the cap actually trimming via
+      30 real `tell`s through the live server. Regression-checked
+      `smoke_test_ignore.py`/`smoke_test_notify.py`/
+      `smoke_test_catchup_comm.py` (all clean).
 - [x] **Systems documentation** — done 2026-07-26. `c_port/doc/systems/README.md`:
       an orientation map (directory layout + what lives where, grouped by
       system: core data model, networking, persistence, combat/body,

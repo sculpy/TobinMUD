@@ -1,6 +1,49 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-26 — Session 82 (home): **Version bump + function
+Last updated: 2026-07-27 — Session 83 (home): **Docs/systems persistence
+review, and its one real finding: tell history + `reply`.**
+- Ran the long-queued "docs/systems review" TODO item as a background
+  research pass (read-only, no code changes): swept `sneezymud-master/
+  docs/systems/{critical,important,informational}` (60 files) hunting
+  specifically for state the original persists to a save file/DB that
+  Tobin's port only holds in memory -- the same shape of gap the
+  affect-persistence fix (Session 77) turned up. Cross-referenced every
+  candidate against `db/tobin/*.sql`/`tobin_migrations.sql` and the real
+  `*_repo.c` save/load code, not just doc prose.
+- Result: one real, previously-undiscussed gap (tell history), two
+  near-misses that turned out to already be deliberate documented
+  decisions (limb injury not persisting long-term; component charges
+  being per-vnum not per-carried-item), a long list of confirmed
+  false-alarms (most state already has a DB path), and several
+  UNSURE items flagged rather than guessed at -- the 17-trait
+  character-creation system (Cowardice/Nightvision/...) chief among
+  them, explicitly deferred: user "traits aren't needed."
+- **Tell history + `reply`** (user: "yes"): the original logs every
+  `tell` to a `tellhistory` table (capped 25 rows/recipient) and backs a
+  `reply` command off `desc->last_teller` -- Tobin's `cmd_tell.c` had
+  neither, a plain miss rather than a scope-down. New `tell_history`
+  table (`db/tobin/tobin_migrations.sql`) + `tell_history_repo.h/.c`
+  (`tell_history_add()`: insert then trim to the cap, same "insert then
+  trim" shape as other capped tables in this codebase); `cmd_tell.c` logs
+  every tell and sets the recipient's new `descriptor_t.last_teller`
+  field; new `cmd_reply.c` mirrors `cmd_tell.c`'s delivery exactly
+  (ignore check, history log, last_teller chain) but resolves its target
+  from `last_teller` instead of a typed name. `last_teller` is
+  deliberately NOT persisted -- same as the original's own
+  `desc->last_teller`, it's live descriptor state only, empty again
+  after a fresh reconnect.
+- New `tests/smoke_test_reply.py` (7 checks, including driving 30 real
+  `tell`s through the live server to confirm the cap actually trims via
+  the real code path, not a hand-written SQL substitute). Regression-
+  checked `smoke_test_ignore.py`/`smoke_test_notify.py`/
+  `smoke_test_catchup_comm.py` (all pass clean -- tell's ignore-check and
+  `descriptor_notify_comm()` usage are untouched). Deployed via
+  copyover, zero build warnings.
+- Next, per the user: go over the toggle-related UNSURE items from the
+  review (`AUTO_NOTELL`, `AUTO_AFK`, `PLR_GODNOSHOUT` and friends) --
+  not yet started.
+
+### Session 82 (home): **Version bump + function
 comment-header sweep, and trigger editor save/read UX fixes from live
 testing.**
 - **Version bump**: every `TobinMUD ver. 0.1` header comment across all

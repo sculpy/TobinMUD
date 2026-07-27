@@ -185,6 +185,7 @@ bool cmd_examine(descriptor_t *d, const char *args);
 bool cmd_sip(descriptor_t *d, const char *args);
 bool cmd_show(descriptor_t *d, const char *args);
 bool cmd_tell(descriptor_t *d, const char *args);
+bool cmd_reply(descriptor_t *d, const char *args);
 bool cmd_whisper(descriptor_t *d, const char *args);
 bool cmd_read(descriptor_t *d, const char *args);
 bool cmd_write(descriptor_t *d, const char *args);
