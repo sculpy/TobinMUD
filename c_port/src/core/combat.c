@@ -374,6 +374,29 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     if (weapon)
         obj_load_combat_mods(weapon->vnum, &weapon_hitroll, &weapon_damroll);
 
+    /* Kubo (Monk, spell/skill functional-completeness audit continued:
+     * skill.c's own "Your unarmed strikes scale with skill and level.").
+     * Real upstream folds kubo into several separate to-hit/damage
+     * combat.cc formulas at once (not individually traced, misc/
+     * combat.cc:1928/1933/5981/5985) -- ported as a single proficiency-
+     * scaled bonus that fills the exact gap a wielded weapon's own
+     * hitroll/damroll would otherwise cover (weapon_hitroll/weapon_
+     * damroll both stay 0 bare-handed with no kubo), gated on actually
+     * fighting bare-handed so it never stacks with a real weapon's own
+     * bonus. Learned-by-doing once per swing here, then reused below for
+     * both the to-hit and damage bonus -- calling skill_learn_from_doing()
+     * twice per round would be redundant, not double-counted (its own
+     * 30s gain cooldown prevents that either way), but one call keeps
+     * the intent obviously "used the skill once this swing." */
+    int kubo_bonus = 0;
+    if (!weapon && !being_is_immortal(attacker) && being_knows_skill(attacker, "kubo")) {
+        const skill_def_t *kubo_sk = skill_find(attacker->char_class, "kubo", false);
+        if (kubo_sk)
+            kubo_bonus = skill_learn_from_doing(attacker, kubo_sk);
+    }
+    weapon_hitroll += kubo_bonus / 8;
+    weapon_damroll += kubo_bonus / 20;
+
     int base_roll = rand() % 100;
     int modifier = (attacker->attrs.dexterity - defender->attrs.dexterity) / 4;
     modifier += weapon_hitroll;
@@ -407,6 +430,24 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * so it sits in the same rough magnitude as the other single
      * modifiers above rather than dominating them. */
     modifier -= being_total_ac(defender) / 2;
+
+    /* Oomlat (Monk, spell/skill functional-completeness audit continued:
+     * skill.c's own "A passive armor bonus while fighting unarmed.").
+     * Real upstream (misc/combat.cc:2787) scales the defender's own
+     * effective armor value up by `skill/250` before the normal AC-to-
+     * bonus conversion runs -- ported as an extra flat subtraction from
+     * the to-hit modifier here instead (Tobin's `being_total_ac()` is
+     * already a single summary number, not the original's raw 1000-point
+     * armor scale to multiply into), gated on the DEFENDER actually
+     * fighting bare-handed (no shield/weapon-hand tradeoff to balance
+     * against, matching the real comment's own "extra AC to balance the
+     * lack of a shield penalty" reasoning). */
+    if (!combat_wielded_weapon(defender) && !being_is_immortal(defender)
+        && being_knows_skill(defender, "oomlat")) {
+        const skill_def_t *oomlat_sk = skill_find(defender->char_class, "oomlat", false);
+        if (oomlat_sk)
+            modifier -= skill_learn_from_doing(defender, oomlat_sk) / 8;
+    }
 
     /* Gamewide to-hit modifier (user 2026-07-12's `balance` command) --
      * a PC's own class+race, or a guildmaster mob's known class (mobs
@@ -458,6 +499,27 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
                 tell(attacker, "%s parries your attack!\r\n", being_display_name(defender));
             if (!(defender->pflags & PLR_NOSPAM))
                 tell(defender, "You parry %s's attack!\r\n", being_display_name(attacker));
+            return false;
+        }
+    }
+
+    /* Jirin (Monk, spell/skill functional-completeness audit continued:
+     * skill.c's own "Dodge, block, or deflect an incoming unarmed
+     * attack."). Real upstream checks it via a bSuccess() roll inside
+     * disc_monk_mind_body.cc, described there as a passive reactive
+     * save -- its exact effect wasn't traced further, so this reuses
+     * parry's own proven shape (quartered proficiency roll, checked
+     * before the normal hit/miss roll, negates the attack outright)
+     * rather than guessing at a different one. Gated on the ATTACKER
+     * being unarmed, matching the roster's own "incoming unarmed
+     * attack" framing -- jirin doesn't help against a wielded weapon. */
+    if (!weapon && !being_is_immortal(defender) && being_knows_skill(defender, "jirin")) {
+        const skill_def_t *jirin_sk = skill_find(defender->char_class, "jirin", false);
+        if (jirin_sk && skill_roll_success(skill_learn_from_doing(defender, jirin_sk) / 4)) {
+            if (!(attacker->pflags & PLR_NOSPAM))
+                tell(attacker, "%s deflects your unarmed attack!\r\n", being_display_name(defender));
+            if (!(defender->pflags & PLR_NOSPAM))
+                tell(defender, "You deflect %s's unarmed attack!\r\n", being_display_name(attacker));
             return false;
         }
     }

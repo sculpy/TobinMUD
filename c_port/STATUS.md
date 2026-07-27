@@ -25,6 +25,12 @@ completeness audit continued).**
   `combat_find_room_target()` (PK-consent + self-exclusion built in).
   New `cmd_chi.c`. `tests/smoke_test_chi.py` (7 checks) passes live.
   Clean rebuild, restarted, gdb-attached, no crash.
+- **jirin/kubo/oomlat** (Monk passives, wired into `combat_strike()`
+  directly, not new commands): jirin = passive dodge vs. an unarmed
+  attacker (parry's own shape); kubo = unarmed to-hit+damage bonus;
+  oomlat = unarmed AC-style to-hit-denial bonus. All proficiency-scaled.
+  `tests/smoke_test_monkpassives.py` (3 checks) passes live. Clean
+  rebuild, restarted, no crash.
 
 Previous update: 2026-07-27 — Session 83 (home): **Docs/systems persistence
 review, and its one real finding: tell history + `reply`.**

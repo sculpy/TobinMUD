@@ -1305,10 +1305,18 @@ durations where warranted, and a cooldown where warranted. Audit findings
     already built in, same as `attack`) rather than a new target-
     resolution path. New `cmd_chi.c`. `tests/smoke_test_chi.py` (7
     checks) passes live.
-    Remaining: **jirin/kubo/oomlat** need a `combat.c` formula read-
-    through first (passive combat-math modifiers, not commands);
-    **catfall/catleap** need confirming whether Tobin has fall damage at
-    all before deciding if there's anything to port.
+    **jirin/kubo/oomlat** -- done 2026-07-27. Wired directly into
+    `combat_strike()` (not new commands): jirin is a passive dodge roll
+    vs. an unarmed attacker (same shape as the existing `parry` check);
+    kubo adds an unarmed to-hit+damage bonus (fills the same slot a
+    weapon's hitroll/damroll would); oomlat adds an unarmed AC-style
+    to-hit-denial bonus. All three proficiency-scaled, ~12 points at
+    100% (comparable to existing modifiers like `NON_STANDING_HIT_
+    BONUS`). `tests/smoke_test_monkpassives.py` (3 checks -- jirin
+    discrete, kubo/oomlat statistical via a fixed dex-mismatch baseline)
+    passes live.
+    Remaining: **catfall/catleap** need confirming whether Tobin has
+    fall damage at all before deciding if there's anything to port.
   - Level 5+ (identified, not yet started, sorted ascending): cintai
     (Monk, 5), shove/materialize (6), bodyslam (10), curse/slumber (13),
     fear/identify (14), headbutt (15), telepathy (16), spin/invisibility/
