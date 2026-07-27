@@ -6266,8 +6266,15 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       creature-body-TYPE hit-weighting table; class count is 6, not 8 --
       Ranger/Shaman fold into Druid rather than existing as separate
       classes).
-- [ ] **Function comment headers sweep** — a header comment per function (what
-      it's for + cross-refs to what it affects / depends on), then a habit.
+- [x] **Function comment headers sweep** — done 2026-07-26 (Session 82).
+      580 of 976 total function definitions were missing a header comment
+      across 116 files (found via a heuristic scan: does the line directly
+      above a top-level function definition end `*/`); backfilled all of
+      them via 7 parallel agents, one per src subtree, each matching its
+      file's existing comment tone/depth. Comment-only changes, zero build
+      warnings on a full clean rebuild. The "habit" half is already
+      standing practice (every new function gets one as files are
+      touched, going forward).
 - [x] **STATUS.md's "Module port status" table is stale** — audited and
       fixed 2026-07-19. Real count: 109 `cmd_*.c` handler files / 152
       registered verbs (was 11 at the old count). Retired the "N/66
