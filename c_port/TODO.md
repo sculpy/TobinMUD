@@ -1442,7 +1442,33 @@ durations where warranted, and a cooldown where warranted. Audit findings
     numbering), which silently broke Mage creation; fixed by using
     placeholder menu choices and setting the real class via a direct
     SQL UPDATE afterward, same pattern shove/bodyslam's own tests use.
-    Not yet started: fear/identify (14), headbutt (15), telepathy (16), spin/
+    **fear** (Mage, 14) + **identify** (Mage, 14) -- done 2026-07-27.
+    Real upstream fear (disc_mage_spirit.cc's fear()) forces an
+    immediate flee, then a lingering affect keeps compelling the victim
+    to keep running. New `AFFECT_FEAR` (plain flag/timer, no stat
+    modifier) checked by `cmd_attack.c` (a feared being can't initiate
+    an attack); the immediate flee reuses `cmd_flee.c`'s own logic
+    directly on the victim's descriptor (PC victims only -- a mob has
+    no descriptor to flee through). Not ported: the isLucky
+    resist-and-fizzle branch (the outer cast-proficiency roll already
+    stands in) and the crit-fail-fears-the-caster branch. Real upstream
+    identify (disc_mage_alchemy.cc's identify()) TARGETS AN OBJECT, not
+    a being -- every other spell in this roster resolves a being target
+    via `combat_find_room_target()`, so identify is handled entirely
+    separately in `cmd_cast.c`, looked up via the same carried-item
+    `find_keyword_item()` helper components/symbols already use (ground
+    items can't be identified). Scoped down from the real version's
+    decay-time/volume/weight dump (Tobin objects don't carry those
+    fields) to the object's raw type name plus whatever category-
+    specific stat Tobin DOES track (weapon dice, armor AC, container
+    capacity -- see obj.h's val[] doc). `tests/smoke_test_fear_
+    identify.py` (6 checks) passes live -- fear's own immediate-flee
+    physical relocation is NOT asserted (cmd_flee.c's escape roll is
+    only ~2-in-3, and a failed roll leaves both sides `fighting` for
+    the rest of the test with no clean reset), verified by code review
+    instead, matching curse/slumber's own natural-expiry precedent for
+    not asserting every real-world side effect.
+    Not yet started: headbutt (15), telepathy (16), spin/
     invisibility/dispel invisible (17), teleport/summon (19), slam/
     riposte/deathstroke/dispel magic/springleap (20), blindness/word of
     recall (21), taunt/paralyze limb (22), whirlwind/kneestrike/

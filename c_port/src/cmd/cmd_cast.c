@@ -436,6 +436,41 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (strcasecmp(sk->name, "fear") == 0) {
+        /* Full spell/skill/prayer roster import continued, level-5+ list
+         * (2026-07-27): real upstream (disc_mage_spirit.cc's fear())
+         * forces an immediate flee, then a lingering affect keeps
+         * compelling the victim to keep running whenever it next comes
+         * up. Scoped to: an immediate flee attempt (reusing cmd_flee.c's
+         * own logic directly on the victim's descriptor -- only possible
+         * for a PC victim, a mob has no descriptor of its own to flee
+         * through) plus AFFECT_FEAR (affect.h), a plain flag/timer
+         * checked by cmd_attack.c so a feared being can't turn around
+         * and swing back while it's active. Deliberately NOT ported: the
+         * "isLucky" resist-and-fizzle branch (the outer cast-proficiency
+         * roll already stands in for it) and the crit-fail-fears-the-
+         * caster-instead branch. */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        snprintf(msg, sizeof(msg), "You cast %s at %s -- they're afraid! Look at them run!\r\n",
+                 sk->name, being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts %s at you -- you are afraid of %s! Run for your life!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, tcapbuf);
+            descriptor_notify(atk_target->desc, msg);
+        }
+        being_apply_affect(atk_target, AFFECT_FEAR, 20 + sk->min_level);
+        if (atk_target->desc && atk_target->fighting)
+            cmd_flee(atk_target->desc, "");
     } else if (ci_contains(sk->name, "slumber")) {
         /* Full spell/skill/prayer roster import continued, level-5+ list
          * (2026-07-27): real upstream (disc_mage_spirit.cc's slumber()/
@@ -608,6 +643,72 @@ bool cmd_cast(descriptor_t *d, const char *args) {
             descriptor_send(d, "Master your Basic and Combat disciplines, and begin Advanced practice, before this.\r\n");
             return true;
         }
+    }
+
+    if (strcasecmp(sk->name, "identify") == 0) {
+        /* Full spell/skill/prayer roster import continued, level-5+ list
+         * (2026-07-27): real upstream (disc_mage_alchemy.cc's identify())
+         * targets an OBJECT, not a being -- every other spell in this
+         * roster targets a being via combat_find_room_target(), so this
+         * is handled entirely separately rather than forcing it through
+         * that path (and returns before reaching the being-target
+         * resolution/task_cast() below). Scoped down from the real
+         * version's decay-time/volume/weight dump (Tobin objects don't
+         * carry those fields) to the object's raw type name plus
+         * whatever category-specific detail Tobin DOES track (weapon
+         * dice, armor AC, container capacity -- see obj.h's val[] doc),
+         * and only for an item the caster is carrying (reuses
+         * find_keyword_item() below, same "carried only" scope its
+         * component/symbol lookups already have -- an item lying on the
+         * ground can't be identified without picking it up first). */
+        if (!target_name) {
+            descriptor_send(d, "Identify what?\r\n");
+            return true;
+        }
+        /* Component gate FIRST, matching every other spell's own gate
+         * order (checked right after class/level/discipline, before any
+         * spell-specific target resolution) -- so "cast identify X"
+         * with no component in hand always reports the generic
+         * component message, same as it would for any other spell,
+         * rather than a special "you aren't carrying X" ambiguity. */
+        obj_t *idcomp = find_keyword_item(ch, "component");
+        if (!idcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        obj_t *item = find_keyword_item(ch, target_name);
+        if (!item) {
+            descriptor_send(d, "You aren't carrying that.\r\n");
+            return true;
+        }
+        char detail[96];
+        switch (item->category) {
+            case OBJ_CAT_WEAPON:
+                snprintf(detail, sizeof(detail), "a %s doing %dd%d damage",
+                         obj_type_name(item->raw_type), item->val[0], item->val[1]);
+                break;
+            case OBJ_CAT_ARMOR:
+                snprintf(detail, sizeof(detail), "a %s with an armor class bonus of %d",
+                         obj_type_name(item->raw_type), item->val[0]);
+                break;
+            case OBJ_CAT_CONTAINER:
+                snprintf(detail, sizeof(detail), "a %s holding up to %d pounds",
+                         obj_type_name(item->raw_type), item->val[0]);
+                break;
+            case OBJ_CAT_MAGIC_DEVICE:
+                snprintf(detail, sizeof(detail), "a %s with %d charge%s left",
+                         obj_type_name(item->raw_type), item->val[0], item->val[0] == 1 ? "" : "s");
+                break;
+            default:
+                snprintf(detail, sizeof(detail), "a kind of %s", obj_type_name(item->raw_type));
+                break;
+        }
+        char idmsg[320];
+        snprintf(idmsg, sizeof(idmsg), "You feel informed about %s...\r\nIt appears to be %s.\r\n",
+                 item->base.short_descr, detail);
+        descriptor_send(d, idmsg);
+        consume_component(d, idcomp);
+        return true;
     }
 
     /* Defaults to self, same as always (heal/buff spells with no target

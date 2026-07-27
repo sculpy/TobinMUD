@@ -89,6 +89,14 @@ completeness audit continued).**
   `cmd_pray.c`, slumber into `cmd_cast.c`. `tests/smoke_test_curse_
   slumber.py` (8 checks) passes live. Clean rebuild, restarted, no
   crash.
+- **fear** (Mage, 14) + **identify** (Mage, 14): fear is a new
+  `AFFECT_FEAR` flag/timer checked by `cmd_attack.c`, plus an immediate
+  flee reusing `cmd_flee.c`'s own logic on the victim's descriptor.
+  identify targets an OBJECT, not a being -- handled entirely
+  separately in `cmd_cast.c` (every other spell targets a being), reveals
+  category-specific stats (weapon dice/armor AC/container capacity) for
+  a carried item. `tests/smoke_test_fear_identify.py` (6 checks) passes
+  live. Clean rebuild, restarted, no crash.
 
 Previous update: 2026-07-27 — Session 83 (home): **Docs/systems persistence
 review, and its one real finding: tell history + `reply`.**

@@ -175,6 +175,15 @@ typedef enum {
      * own message instead of the generic "wears off" line, same
      * dissolve/revert shape as AFFECT_CHARMED/AFFECT_POLYMORPH. */
     AFFECT_SLEEP,
+    /* `fear` (Mage, level 14, level-5+ audit list). Real upstream
+     * (disc_mage_spirit.cc's fear()) forces an immediate flee, then
+     * keeps compelling the victim to keep running while it lingers. A
+     * plain flag/timer affect, same shape as AFFECT_SANCTUARY/
+     * AFFECT_BERSERK -- no stat modifier. Checked by cmd_attack.c (a
+     * feared being can't initiate an attack) and applied/triggered by
+     * cmd_cast.c, which also reuses cmd_flee.c's own flee logic for the
+     * immediate "run for your life" moment on a PC victim. */
+    AFFECT_FEAR,
     AFFECT_COUNT,
 } affect_type_t;
 

@@ -891,3 +891,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'curse and slumber are live -- level 13 audit items', '`pray curse <target>` (Cleric) settles a dark aura over a foe that weakens their coordination, making them easier to hit. `cast slumber <target>` (Mage) puts a foe to sleep outright, where they stay defenseless until it wears off and they wake back up on their own. Both are the first items off the audit that needed a real new status-effect type behind the scenes, not just a cosmetic message.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'fear and identify are live -- level 14 audit items', '`cast fear <target>` (Mage) sends a foe running for their life and keeps them too shaken to fight back for a while afterward. `cast identify <item>` (Mage) reveals what something carried is really made of and worth in a fight -- a weapon''s true damage, a piece of armor''s real protection, a container''s true capacity.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 
+#include "affect.h"
 #include "combat.h"
 #include "pulse.h"
 
@@ -28,6 +29,14 @@ bool cmd_attack(descriptor_t *d, const char *args) {
 
     if (d->character->position == POSITION_SLEEPING) {
         descriptor_send(d, "You can't fight in your sleep!\r\n");
+        return true;
+    }
+
+    /* `fear` (level-5+ audit list) -- a feared being can't turn around
+     * and swing back while it's active, same "can't act" spirit as the
+     * sleeping check above. */
+    if (being_has_affect(d->character, AFFECT_FEAR)) {
+        descriptor_send(d, "You're too afraid to fight!\r\n");
         return true;
     }
 
