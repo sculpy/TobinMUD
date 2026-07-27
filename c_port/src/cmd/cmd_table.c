@@ -132,6 +132,8 @@ static const cmd_entry_t COMMANDS[] = {
     /* No existing "ch*" command -- unclaimed abbreviation, confirmed via
      * cmd_abbrev_check.py before landing. */
     { "chi",     cmd_chi,     "Unleash a chi-powered strike against a foe (Monk, chi [<target>]; defaults to your current opponent).", MORTAL_LEVEL_MIN },
+    /* No existing "ma*" command -- unclaimed abbreviation. */
+    { "materialize", cmd_materialize, "Conjure a named item out of thin air, for a price (Mage, materialize <item>).", MORTAL_LEVEL_MIN },
     /* Money system v2. Placed AFTER "bash" (not strict alphabetical
      * order, same "ret"/"retu" precedent as retrieve/return) so the
      * far-more-frequently-typed combat skill keeps ownership of the "ba"
@@ -294,6 +296,13 @@ static const cmd_entry_t COMMANDS[] = {
      * above) -- no collision to guard against. Implementor-only (60),
      * same tier as `exec`: ends the whole process. */
     { "shutdown", cmd_shutdown, "End the game gracefully, now or in N seconds (shutdown [seconds|cancel]).", SHUTDOWN_MIN_LEVEL },
+    /* "sh"/"sho" are already claimed by shout above -- "shov" is
+     * shove's own shortest unambiguous abbreviation, still short in
+     * practice. Placed AFTER shout/show/shutdown, not near berserk/
+     * rally (its fellow level-1-audit Warrior skills) -- table order
+     * decides abbreviation ownership here, and shout's own comment
+     * above already depends on staying first at "sho". */
+    { "shove",   cmd_shove,   "Push an opponent through an exit, knocking them off balance (Warrior, shove <target> <direction>).", MORTAL_LEVEL_MIN },
     /* SWAP: sit before sip, so "si" sits; sip must be typed in full. */
     { "sit",     cmd_sit,     "Sit down.",                                          MORTAL_LEVEL_MIN },
     { "sip",     cmd_sip,     "Taste a bit of a puddle, fountain, or carried container, low risk (sip <target>).", MORTAL_LEVEL_MIN },

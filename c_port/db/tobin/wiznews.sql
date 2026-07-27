@@ -879,3 +879,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'cintai gives Monks another passive to-hit edge', 'First item off the level-5+ list in the spell/skill functional-completeness audit: cintai is a passive to-hit bonus, wired directly into combat math like jirin/kubo/oomlat before it. The roster description called it unarmed-only, but the real source shows it applies to every attack a Monk makes, armed or not -- corrected to match.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'shove and materialize are live -- level 6 audit items', 'Two more items off the spell/skill functional-completeness audit, the first from the level-5+ list: `shove <target> <direction>` (Warrior) pushes someone through a real exit into the next room on success, or starts a fight on failure -- a real, deliberate upstream design, not a bug. `materialize <item>` (Mage) spends 100 gold trying to conjure a cheap-enough item out of thin air, searched against the real object catalog; the gold is gone either way, win or lose, matching the original spell exactly.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

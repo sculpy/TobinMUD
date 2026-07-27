@@ -62,6 +62,19 @@ completeness audit continued).**
   smaller effect (one run came back backwards) -- switched to a wider,
   more central mismatch (~30% baseline) for a reliable margin. Clean
   rebuild, restarted, no crash.
+- **shove** (Warrior, 6) + **materialize** (Mage, 6): first two real
+  commands off the level-5+ list. shove pushes a target through a real
+  exit on success, starts a fight on failure (real upstream design,
+  ported as-is) -- new `cmd_shove.c`, `tests/smoke_test_shove.py` (6
+  checks). materialize spends 100 gold to conjure a cheap-enough named
+  item off the real object prototype table, win or lose -- new
+  `cmd_materialize.c`, reusing `obj_find_vnum_by_name()`/`obj_proto_
+  load()` (`load obj`'s own lookup). Two real test bugs caught while
+  verifying: a name-search string with the wrong word order
+  (`obj_find_vnum_by_name()` is a literal substring match, not per-
+  keyword) and an SQL gold UPDATE issued after login that never reached
+  the live session. `tests/smoke_test_materialize.py` (9 checks).
+  Both pass live. Clean rebuild, restarted, no crash.
 
 Previous update: 2026-07-27 — Session 83 (home): **Docs/systems persistence
 review, and its one real finding: tell history + `reply`.**

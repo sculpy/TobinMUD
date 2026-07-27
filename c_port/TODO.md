@@ -1363,7 +1363,38 @@ durations where warranted, and a cooldown where warranted. Audit findings
     test uses; their clamped-edge (~6% baseline) design produced hit
     counts too low/noisy for cintai's smaller effect size (one run came
     back backwards, 15 vs 18, before recalibrating).
-    Not yet started: shove/materialize (6), bodyslam (10), curse/slumber
+    **shove** (Warrior, 6) -- done 2026-07-27. Real upstream
+    (disc/disc_dueling.cc's `doShove()`/`shove()`/`throwChar()`,
+    fuller peel-sneezymud clone): refuses while either side is
+    fighting, spends Move, DEX/level-scaled roll, and on success
+    physically pushes the victim through a real exit into the adjacent
+    room -- on FAILURE it starts a fight instead of just fizzling, a
+    deliberate real-game design (ported as-is). Spends 8 Vitality
+    (the middle of the real 5-10 roll). Deliberately NOT ported: the
+    real version's entire mount-vs-mount dismounting branch (refused
+    outright instead) and the counter-move skill interaction (Tobin's
+    own "counter move" roster entry has no handler yet either). New
+    `cmd_shove.c`. `tests/smoke_test_shove.py` (6 checks) passes live.
+    **materialize** (Mage, 6) -- done 2026-07-27. Real upstream
+    (disc/disc_alchemy.cc's `materialize()`/`castMaterialize()`): pay a
+    flat 100 gold, search the object PROTOTYPE table for a name match
+    cheap enough to conjure, then a skill roll decides whether it
+    actually manifests -- gold is spent either way (a gamble, not a
+    guaranteed purchase). Reused `obj_find_vnum_by_name()`/`obj_proto_
+    load()` (already backing `load obj <name>`) for the prototype
+    search. Simplified from the real version's 1-10 copies scaled by
+    price and its equip-into-a-free-hand logic, down to a flat one
+    copy into inventory (same "conjured items land in inventory"
+    precedent `load obj` already established for immortals). New
+    `cmd_materialize.c`. Two real test bugs caught while verifying, not
+    C bugs: (1) the search string's word order didn't match the seeded
+    item's name -- `obj_find_vnum_by_name()` is a literal substring
+    match, not per-keyword; (2) an SQL gold UPDATE issued after the
+    test character was already logged in never reached the live
+    session (same "SQL-then-relog, never SQL-then-quit!" trap
+    documented in smoke_test_skillcombat3.py). `tests/smoke_test_
+    materialize.py` (9 checks) passes live.
+    Not yet started: bodyslam (10), curse/slumber
     (13), fear/identify (14), headbutt (15), telepathy (16), spin/
     invisibility/dispel invisible (17), teleport/summon (19), slam/
     riposte/deathstroke/dispel magic/springleap (20), blindness/word of

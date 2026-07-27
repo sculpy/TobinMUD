@@ -35,6 +35,8 @@ bool cmd_garrotte(descriptor_t *d, const char *args);
 bool cmd_throatslit(descriptor_t *d, const char *args);
 bool cmd_yoginsa(descriptor_t *d, const char *args);
 bool cmd_chi(descriptor_t *d, const char *args);
+bool cmd_shove(descriptor_t *d, const char *args);
+bool cmd_materialize(descriptor_t *d, const char *args);
 bool cmd_disguise(descriptor_t *d, const char *args);
 bool cmd_repair(descriptor_t *d, const char *args);
 bool cmd_submit(descriptor_t *d, const char *args);
