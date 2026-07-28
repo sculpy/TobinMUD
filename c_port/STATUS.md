@@ -1,6 +1,20 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 95 (DO droplet, working directly on
+Last updated: 2026-07-28 — Session 96 (DO droplet, working directly on
+production port 4000): **TODO.md cleared to zero open items.**
+`mudstats` extended (account count, player count, live LOC via a
+`popen()` shell-out mirroring `cmd_exec.c`'s existing sanctioned
+pattern) per user request, verified live after rebuild+copyover (176
+accounts / 122 players / 50818 LOC). The other remaining open item
+("TobinMUD identity + DB rename... Work box still needs it") was closed
+as MOOT rather than actually finished there: Home and Work were both
+retired the same day this session started, when the user went DO-
+exclusive -- there's no longer a "Work box" to coordinate a rename with.
+Confirmed the droplet's live DB is already correctly named `tobin` (an
+empty, harmless leftover `sneezy` database also exists there, left
+alone). No other `- [ ]` items remain in TODO.md as of this write-up.
+
+Previous update: 2026-07-28 — Session 95 (DO droplet, working directly on
 production port 4000): **Mob class-and-level-appropriate spell-component/
 holy-symbol loading — Session 92's third queued request, now shipped.**
 - User: "Mage/Druid/Cleric mobs should load carrying class-and-level-

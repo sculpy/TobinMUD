@@ -6228,19 +6228,18 @@ already tracked — pointers, not duplicates):
 
 ## Small near-term gameplay follow-ups
 
-- [ ] **`mudstats` should also show account count, player (character)
-      count, and lines of code in the codebase** — user 2026-07-28.
-      `cmd_mudstats.c` currently only counts room/mob/obj rows
-      (`mud_count()`, a literal per-table `select count(*)`) -- extend
-      with `select count(*) from account` and `select count(*) from
-      player` the same way. Lines of code has no existing helper;
-      simplest faithful approach is shelling out to something like
-      `find src include -name '*.c' -o -name '*.h' | xargs wc -l`
-      at request time (cheap, no caching needed) rather than trying to
-      maintain a running counter -- needs a real subprocess/popen call
-      Tobin doesn't currently do anywhere else in cmd_*.c, worth
-      checking there's a sanctioned pattern (or precedent for shelling
-      out) before adding one.
+- [x] **`mudstats` should also show account count, player (character)
+      count, and lines of code in the codebase** — user 2026-07-28, done
+      same session. `mud_count()` (cmd_mudstats.c) extended with
+      `account`/`player` branches (same literal `select count(*)`
+      pattern). Lines-of-code has no existing helper -- added
+      `mud_count_loc()`, a `popen()` shell-out (`find src include -name
+      '*.c' -o -name '*.h' | xargs wc -l | tail -1`), same sanctioned
+      pattern `cmd_exec.c` already uses elsewhere, run fresh on every
+      call rather than cached (cheap, and the source tree only changes
+      between deploys). Verified live on production port 4000 after a
+      rebuild + `copyover` (176 accounts / 122 players / 50818 LOC at
+      the time of this write-up).
 - [x] **BUG (RESOLVED, not a server bug): a freshly created character
       can land in the wrong room / lose immortal status on login** —
       root-caused 2026-07-28 (Session 94, dedicated fresh-eyes look
@@ -6846,19 +6845,23 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       body.cc for every slot including the new ones). PART_* flags
       (per-limb capability bits like CAN_HOLD/ATTACK/LEAF_NODE from the
       original) remain out of scope -- no Tobin mechanic reads them yet.
-- [ ] **TobinMUD identity + DB rename** — rename DB `sneezy` → `tobin`
+- [x] **TobinMUD identity + DB rename** — rename DB `sneezy` → `tobin`
       (init-db.sh, config defaults, docs); rebrand credited as "Derivative of
       SneezyMUD and DikuMUD". Wide but mechanical; coordinate on all boxes.
       **2026-07-26: code side done + Home VM live-renamed and verified, see
-      STATUS.md Session 73 for the full runbook. Work box (db.kullit.com)
-      still needs the identical live rename -- wasn't reachable from that
-      session (no network route + missing deploy key on that machine).
-      Code's already pushed (`main`); Work's side is just pull + rebuild +
-      the same backup/RENAME TABLE/restart sequence Home used.** Rebrand
-      credit sentence in README.md was left alone (out of scope, prose-only).
-      **Also still needed on Work once it's reachable: the `player_drug`
-      schema-catchup below was only ever run on Home — re-run
-      `db/apply-tobin-schema.sh` on Work too once the rename lands there.**
+      STATUS.md Session 73 for the full runbook.** The remaining "Work box
+      (db.kullit.com) still needs the identical live rename" follow-up is
+      now MOOT, not actually done there: Home and Work were both retired
+      2026-07-28 when the user consolidated everything onto the DO droplet
+      exclusively (159.223.121.98) -- there is no longer a separate "Work"
+      box to coordinate with. Confirmed the droplet's own live DB is
+      already named `tobin` and `db.h`'s `DB_TOBIN` connects to it
+      correctly (176 accounts / 122 players live, per `mudstats`, same
+      session). An empty, unused `sneezy` database also exists on the
+      droplet (0 tables) -- harmless leftover cruft from initial box setup,
+      left alone rather than dropped (a destructive DB operation, out of
+      scope for a docs cleanup pass). Rebrand credit sentence in README.md
+      was left alone (out of scope, prose-only).
 
 - [x] **`player_drug` table missing from live production DB** — user-flagged
       2026-07-26 (found incidentally during the colorization deploy above).

@@ -963,3 +963,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Spellcasting mobs now carry what they need to cast', 'Mage and Druid mobs now spawn holding a pouch of spell components, and Cleric mobs spawn holding a holy symbol (better materials at higher levels, wooden up through mithril) -- without this, a mob''s own cast/pray attempts always failed for lacking the same component/symbol a player would need. Applies to every mob that spawns from now on, world-wide.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'mudstats now shows accounts, characters, and codebase size', '`mudstats` reports account count and player-character count alongside the existing room/mob/object counts, plus a live line-of-code total for the codebase itself.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
