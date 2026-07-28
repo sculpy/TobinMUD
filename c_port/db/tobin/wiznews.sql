@@ -959,3 +959,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'taunt and paralyze limb are live -- level 22 audit items', '`taunt` (Warrior) pulls a mob''s attention off whoever it''s currently fighting and onto you instead -- a straightforward aggro pull, since Tobin has no multi-attacker mob AI for the real game''s subtler version of this to hook into. `pray paralyze limb` (Cleric) leaves one of a target''s arms or legs unresponsive until someone cures it -- no cure exists yet, so treat it as permanent for now. Also shipped this session: yoginsa (Monk) meditates automatically again instead of needing to be re-cast every time, a fallen enemy''s gold now lands in a lootable pile on their corpse instead of vanishing straight into your pocket (a bug meant it never actually dropped for a monster kill -- fixed), and the combat countdown in your prompt now shows tenths of a second.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Spellcasting mobs now carry what they need to cast', 'Mage and Druid mobs now spawn holding a pouch of spell components, and Cleric mobs spawn holding a holy symbol (better materials at higher levels, wooden up through mithril) -- without this, a mob''s own cast/pray attempts always failed for lacking the same component/symbol a player would need. Applies to every mob that spawns from now on, world-wide.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

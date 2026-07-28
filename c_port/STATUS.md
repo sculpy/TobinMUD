@@ -1,6 +1,45 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 94 (DO droplet, working directly on
+Last updated: 2026-07-28 — Session 95 (DO droplet, working directly on
+production port 4000): **Mob class-and-level-appropriate spell-component/
+holy-symbol loading — Session 92's third queued request, now shipped.**
+- User: "Mage/Druid/Cleric mobs should load carrying class-and-level-
+  appropriate spell components (Cleric mobs specifically: holy symbols of
+  their level)" -- without this, a spawned spellcasting mob could never
+  actually pass `cmd_cast.c`'s/`cmd_pray.c`'s shared `find_keyword_item()`
+  component gate, so it could never cast/pray at all.
+- New `being_grant_class_casting_supplies()` (being.c), called once from
+  `being_create_mob()` right after the mob's class/level are set --
+  applies uniformly across every spawn path (zone resets, `load mob`,
+  charmed-pet summon, polymorph), not just one call site.
+- That component gate has no real caster-level -> component-tier mapping
+  of its own (any matching "component"/"symbol"-keyword item anywhere in
+  inventory satisfies it, regardless of level) -- confirmed by reading
+  `find_keyword_item()` directly. So "level-appropriate" is cosmetic-only
+  by design, matching the gate it's satisfying: Mage/Druid mobs get a
+  generic existing vnum 965881 "pouch of spell components" (there's no
+  per-material tier ladder for components in the seed data to mirror);
+  Cleric mobs get a holy symbol picked off the real seed data's own
+  15-tier wooden(vnum 500) -> mithril(vnum 514) ladder, roughly one tier
+  every 4 levels.
+- New `tests/smoke_test_mob_casting_supplies.py` (12 checks) -- spawns a
+  Mage, a Druid, a low-level Cleric, a high-level Cleric, and a Warrior
+  (negative control) mob fixture each, instakills each one, and inspects
+  the resulting lootable corpse. Passes live against production port
+  4000. Caught and fixed one authoring mistake along the way: `look in
+  corpse` isn't real syntax (a container's contents show via bare `look
+  corpse`), and multiple corpses in the same sandbox room needed a bare
+  `purge` between fixtures to avoid ambiguous keyword matches.
+- Deploy note: this is the first code change made directly against the
+  DO droplet's own checkout+build since going DO-exclusive. Rebuilding
+  the binary (`make`) does NOT reload the already-running production
+  process by itself -- confirmed the hard way (an initial smoke-test run
+  failed with an empty corpse) before realizing a `copyover` was still
+  needed after every rebuild, exactly as CLAUDE.md's "Where am I?"
+  section already says. Worth remembering explicitly for next session:
+  **`make` (or `cmake --build`) then `copyover`, always, never just one.**
+
+Previous update: 2026-07-28 — Session 94 (DO droplet, working directly on
 production port 4000 -- no more throwaway preview instances): **Root-
 caused the multi-session "wrong room / lost immortal status on login"
 bug. Not a server defect.**
