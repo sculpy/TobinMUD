@@ -14,11 +14,13 @@
 #include "cmd.h"
 #include "combat.h"
 #include "obj.h"
+#include "obj_magic_repo.h"
 #include "pulse.h"
 #include "room.h"
 #include "room_repo.h"
 #include "skill.h"
 #include "thing.h"
+#include "weather.h"
 #include "world.h"
 
 /* `cast <spell>` -- Mage/Druid spellcasting (user 2026-07-11: "druids and
@@ -509,6 +511,53 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
         /* Real room-wide effect (breadth work) -- previously fell into
          * the single-target branch below like everything else. */
         cast_area_damage(d, ch, sk);
+    } else if (strcasecmp(sk->name, "storm call") == 0) {
+        /* Level-23 audit batch (2026-07-28). Ported from Shaman's real
+         * `stormy skies` (disc_shaman_frog.cc's stormySkies()), renamed/
+         * reflavored for Druid same as the rest of Druid's Shaman-sourced
+         * damage spells (see the roster-import writeup above). Real
+         * upstream gates on RAINY/LIGHTNING/SNOWY weather AND the target
+         * being outdoors -- Tobin has no SNOWY sky state and no per-room
+         * weather (weather.h is one world-wide sky state), so this gates
+         * on WEATHER_RAINY/WEATHER_STORMY plus the caster's own room not
+         * being ROOM_FLAG_INDOORS (the same indoor check gametime.c's own
+         * darkness gate already uses). No half-damage luck-save or crit-
+         * success double-damage roll (same "no crit branch ported"
+         * precedent as every other spell audited this batch). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        weather_t w = weather_current();
+        bool bad_weather = w != WEATHER_RAINY && w != WEATHER_STORMY;
+        bool indoors = ch->base.roomp && (ch->base.roomp->room_flag & ROOM_FLAG_INDOORS);
+        if (bad_weather || indoors) {
+            descriptor_send(d, "You fail to call upon the weather to aid you!\r\n");
+            if (indoors)
+                descriptor_send(d, "You have to be outside to cast this spell!\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        const char *flavor = (w == WEATHER_STORMY) ? "a lightning bolt from the stormy skies"
+                                                    : "a driving bolt of rain";
+        snprintf(msg, sizeof(msg), "You call down %s, striking %s %s!\r\n",
+                 flavor, being_display_name(atk_target), intensity);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s calls down %s, striking you %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), flavor, intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
     } else if (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "bolt")
                || ci_contains(sk->desc, "beam") || ci_contains(sk->desc, "blast")
                || ci_contains(sk->desc, "strike") || ci_contains(sk->desc, "burst")
@@ -724,6 +773,28 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
         } else {
             snprintf(msg, sizeof(msg), "%s is already visible.\r\n", being_display_name(target));
             descriptor_send(d, msg);
+        }
+    } else if (strcasecmp(sk->name, "haste") == 0) {
+        /* Level-23 audit batch (2026-07-28). See AFFECT_HASTE's own
+         * doc comment (affect.h) for the mechanic and the disclosed
+         * scope-cut (single-target only, no group-wide no-target case,
+         * no crit-success duration doubling). */
+        being_apply_affect(target, AFFECT_HASTE, 60);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), "You cast %s -- you feel yourself moving with the greatest of ease!\r\n", sk->name);
+            descriptor_send(d, msg);
+            if (ch->base.roomp) {
+                char capbuf[128];
+                snprintf(msg, sizeof(msg), "%s has gained a bounce in %s step!\r\n",
+                         being_display_name_cap(ch, capbuf, sizeof(capbuf)), gender_possess(ch->gender));
+                descriptor_room_echo(ch->base.roomp, ch, msg);
+            }
+        } else {
+            snprintf(msg, sizeof(msg), "You cast %s on %s -- you've given them the speed of the wind!\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc)
+                descriptor_notify(target->desc, "You feel yourself moving with the greatest of ease!\r\n");
         }
     } else if (ci_contains(sk->name, "conjure elemental") || strcasecmp(sk->name, "animal companion") == 0) {
         /* Pet/charm (Sneezy → Tobin feature audit): Mage's four
@@ -955,6 +1026,77 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         bool ok = cmd_identify(d, target_name);
         consume_component(d, idcomp);
         return ok;
+    }
+
+    if (strcasecmp(sk->name, "copy") == 0) {
+        /* Level-23 audit batch (2026-07-28). Ported from Mage's real
+         * `copy` (disc_mage_alchemy.cc's TScroll::copyMe()) -- targets an
+         * OBJECT the caster is carrying, same "handled separately, before
+         * the being-target resolution below" precedent as `identify`
+         * above. Real upstream only ever works on a SCROLL (every other
+         * object type's copyMe() just fails with "That's not a scroll!"),
+         * and refuses unless the caster already knows every spell bound
+         * to it -- both checked here against Tobin's real obj_magic
+         * table (the same one `use`/cmd_use.c reads a scroll's spell
+         * from) and the same class+level "know this spell" gate `cast`
+         * itself already enforces on every other spell. Duplicates the
+         * exact vnum into the room the caster is standing in, matching
+         * the original's `*caster->roomp += *new_obj` placement (not
+         * straight into inventory) -- a decaying, worthless-if-sold
+         * (cost forced to 1, same "let's not make this a gold creating
+         * bug" comment as the original) copy, not a real duplication
+         * exploit. */
+        obj_t *ccomp = find_keyword_item(ch, "component");
+        if (!ccomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        if (!target_name) {
+            descriptor_send(d, "Copy what?\r\n");
+            return true;
+        }
+        obj_t *scroll = NULL;
+        size_t tlen = strlen(target_name);
+        for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind == THING_OBJ && thing_name_matches(t->name, target_name, tlen)) {
+                scroll = (obj_t *)t;
+                break;
+            }
+        }
+        if (!scroll) {
+            descriptor_send(d, "You aren't carrying that.\r\n");
+            return true;
+        }
+        if (scroll->category != OBJ_CAT_MAGIC_DEVICE || scroll->raw_type != 2) {
+            descriptor_send(d, "That's not a scroll!\r\n");
+            return true;
+        }
+        char spell_name[OBJ_MAGIC_SPELL_NAME_LEN];
+        int max_charges;
+        if (!obj_magic_repo_get(scroll->vnum, spell_name, sizeof(spell_name), &max_charges)) {
+            descriptor_send(d, "That's not a scroll!\r\n");
+            return true;
+        }
+        const skill_def_t *scroll_sk = skill_find(ch->char_class, spell_name, false);
+        if (!imm && (!scroll_sk || ch->progress.level < scroll_sk->min_level)) {
+            descriptor_send(d, "You can only copy scrolls of spells that you know.\r\n");
+            return true;
+        }
+        obj_t *dup = obj_create_from_proto(scroll->vnum);
+        if (!dup || !ch->base.roomp) {
+            descriptor_send(d, "You cast copy, but nothing happens.\r\n");
+            consume_component(d, ccomp);
+            return true;
+        }
+        dup->price = 1; /* not a gold-creation bug -- same original comment */
+        thing_move_to(&dup->base, &ch->base.roomp->base);
+        const char *label = scroll->base.short_descr[0] ? scroll->base.short_descr : scroll->base.name;
+        snprintf(msg, sizeof(msg), "In a flash of light, a copy of %s appears!\r\n", label);
+        descriptor_send(d, msg);
+        if (ch->base.roomp)
+            descriptor_room_echo(ch->base.roomp, ch, msg);
+        consume_component(d, ccomp);
+        return true;
     }
 
     /* Defaults to self, same as always (heal/buff spells with no target

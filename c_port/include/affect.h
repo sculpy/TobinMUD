@@ -219,6 +219,23 @@ typedef enum {
      * Tobin equivalent, same cut summon's own version of this check
      * already made). */
     AFFECT_BLIND,
+    /* `haste` (Mage, level 23, level-23 audit batch). Real upstream
+     * (disc_mage_spirit.cc's haste()/applyHaste()) is a plain flag/timer
+     * affect with no stat modifier of its own -- the actual speed comes
+     * from Tobin having nothing like it to hook into structurally, since
+     * combat here has no per-being "attacks per round" concept at all
+     * (every fighter gets exactly one combat_strike() per
+     * COMBAT_ROUND_PULSES, full stop). Ported as a genuine extra strike:
+     * combat_process_run() (combat.c) gives a hasted fighter one bonus
+     * combat_strike() against their opponent immediately after their
+     * normal one each round -- "extra speed and actions", literally.
+     * Single-target only (self by default, an ally if named), unlike the
+     * real spell's "no target = whole group" case -- same disclosed
+     * scope-cut as every other buff spell in this roster (meditate,
+     * invisibility, ...) being single-target. No crit-success duration/
+     * effect doubling either (same "no crit branch ported" precedent as
+     * fear/slumber/invisibility/blindness above). */
+    AFFECT_HASTE,
     AFFECT_COUNT,
 } affect_type_t;
 

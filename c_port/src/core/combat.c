@@ -1399,11 +1399,28 @@ void combat_process_run(long pulse_num) {
             combat_defeat(b, a, b_decapitated);
             continue;
         }
+        /* `haste` (AFFECT_HASTE, see affect.h's enum comment) -- a hasted
+         * fighter gets one bonus combat_strike() immediately after their
+         * normal one, same round. */
+        if (being_has_affect(a, AFFECT_HASTE)) {
+            b_decapitated = combat_strike(a, b);
+            if (b->progress.hp <= 0 || b_decapitated) {
+                combat_defeat(b, a, b_decapitated);
+                continue;
+            }
+        }
 
         bool a_decapitated = combat_strike(b, a);
         if (a->progress.hp <= 0 || a_decapitated) {
             combat_defeat(a, b, a_decapitated);
             continue;
+        }
+        if (being_has_affect(b, AFFECT_HASTE)) {
+            a_decapitated = combat_strike(b, a);
+            if (a->progress.hp <= 0 || a_decapitated) {
+                combat_defeat(a, b, a_decapitated);
+                continue;
+            }
         }
 
         /* Mid-fight persistence (TODO.md): HP was previously only saved at
