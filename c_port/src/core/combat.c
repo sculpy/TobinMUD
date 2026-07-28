@@ -1494,6 +1494,13 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
                 continue;
             if (t->kind == THING_PC && !((being_t *)t)->desc)
                 continue;
+            /* `invisibility` (level-17 audit item) -- untargetable by
+             * name for anyone but an immortal, same "can't be found
+             * here at all" shape as the linkdead check just above. No
+             * `detect invisibility` counter-check exists yet, so this
+             * is unconditional for every mortal viewer. */
+            if (being_has_affect((being_t *)t, AFFECT_INVISIBLE) && !being_is_immortal(self))
+                continue;
             if (!combat_pk_allowed(self, (being_t *)t))
                 continue;
             if (thing_name_matches(t->name, rest, name_len)) {
@@ -1524,6 +1531,10 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
          * linkdead char") can't be targeted by name at all -- invisible to
          * attack/kill, same as if they weren't there. */
         if (t->kind == THING_PC && !((being_t *)t)->desc)
+            continue;
+        /* `invisibility` (level-17 audit item) -- same gate as the
+         * ordinal branch above. */
+        if (being_has_affect((being_t *)t, AFFECT_INVISIBLE) && !being_is_immortal(self))
             continue;
         if (!combat_pk_allowed(self, (being_t *)t))
             continue;

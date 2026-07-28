@@ -171,6 +171,7 @@ shortdesc = f"a lady out for a stroll {_suffix}"
 make_mob(MOB1, keywords, shortdesc)
 check("You conjure" in cmd(s, f"load mob {MOB1}"), "the multi-keyword mob is loaded")
 check("You conjure" in cmd(s, f"load obj {SWORD}"), "the test sword is loaded")
+cmd(s, "drop sword")
 
 out = cmd(sv, "get sword")
 check("you get" in out.lower(), "the mortal attacker picks up the test sword")

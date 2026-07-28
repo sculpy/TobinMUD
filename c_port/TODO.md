@@ -1504,8 +1504,21 @@ durations where warranted, and a cooldown where warranted. Audit findings
     Not ported: garble/drunk-speech distortion (no such mechanic
     exists) and the 5-Move cost. `tests/smoke_test_telepathy.py`
     (3 checks) passes live.
-    Not yet started: spin/
-    invisibility/dispel invisible (17), teleport/summon (19), slam/
+    **invisibility** + **dispel invisible** (Mage, 17) -- done
+    2026-07-28. New `AFFECT_INVISIBLE` (affect.h): a plain flag/timer
+    affect, same shape as AFFECT_SANCTUARY/AFFECT_BERSERK -- no armor
+    bonus (real upstream's own -40 APPLY_ARMOR) and no crit-success/
+    crit-fail branches (same "no crit branch ported" precedent as
+    fear/slumber). Checked at `combat_find_room_target()` (untargetable
+    by name) and `cmd_look.c`'s room listing (doesn't show), both gated
+    on `!being_is_immortal(viewer)` so an immortal sees/targets right
+    through it -- no `detect invisibility` counter-check exists yet
+    (its own separate, higher roster entry). Object-target invisibility
+    (roster's "yourself or an OBJECT") not ported -- Tobin's object
+    `INVISIBLE` action-flag (obj.c) is display-only today, nothing in
+    `cmd_look.c` hides a flagged object from the room listing yet.
+    `tests/smoke_test_invisibility.py` (10 checks) passes live.
+    Not yet started: **spin** (17), teleport/summon (19), slam/
     riposte/deathstroke/dispel magic/springleap (20), blindness/word of
     recall (21), taunt/paralyze limb (22), whirlwind/kneestrike/
     farlook/scribe/bind (25), hide (31), paralyze (33), quivering palm

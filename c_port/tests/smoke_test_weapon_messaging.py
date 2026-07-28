@@ -206,6 +206,7 @@ recv_all(sv, timeout=1.0)
 make_mob(MOB2, f"wpndummy2{_suffix}")
 check("You conjure" in cmd(s, f"load mob {MOB2}"), "the second weapon-test dummy is loaded")
 check("You conjure" in cmd(s, f"load obj {SWORD}"), "the test sword is loaded")
+cmd(s, "drop sword")
 
 out = cmd(sv, "get sword")
 check("you get" in out.lower(), "the mortal attacker picks up the test sword")

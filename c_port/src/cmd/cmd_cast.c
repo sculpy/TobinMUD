@@ -536,6 +536,74 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (strcasecmp(sk->name, "invisibility") == 0) {
+        /* Spell/skill functional-completeness audit continued, level 17
+         * (2026-07-27): real upstream (disc_mage_spirit.cc's
+         * invisibility()) also grants a -40 armor bonus and doubles
+         * both duration and the bonus on a crit success -- scoped down
+         * to a plain flag/timer affect, same shape as AFFECT_SANCTUARY/
+         * AFFECT_BERSERK (no armor bonus, no crit branch). Targets a
+         * being like every other buff here (self by default, an ally
+         * if named) -- the roster's own "yourself or an OBJECT" framing
+         * for the object-target case isn't ported: Tobin's object
+         * "INVISIBLE" flag (obj.c's OBJ_ACTION_FLAG_NAMES) is display-
+         * only today, nothing in cmd_look.c's room listing actually
+         * hides a flagged object yet, so making one truly invisible
+         * would need new display plumbing beyond this pass's scope. */
+        being_apply_affect(target, AFFECT_INVISIBLE, 60);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), "You cast %s -- you shimmer and fade from view!\r\n", sk->name);
+            descriptor_send(d, msg);
+            if (ch->base.roomp) {
+                char capbuf[128];
+                snprintf(msg, sizeof(msg), "%s shimmers and fades from view!\r\n",
+                         being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+                descriptor_room_echo(ch->base.roomp, ch, msg);
+            }
+        } else {
+            snprintf(msg, sizeof(msg), "You cast %s over %s -- they shimmer and fade from view!\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc) {
+                char tcapbuf[128];
+                snprintf(msg, sizeof(msg), "%s casts %s over you -- you shimmer and fade from view!\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
+                descriptor_notify(target->desc, msg);
+            }
+        }
+    } else if (strcasecmp(sk->name, "dispel invisible") == 0) {
+        /* Its counter (level 17). Real upstream (dispelInvisible())
+         * gates on caster power vs. victim level and can crit-fail by
+         * accidentally dispelling the CASTER's own invisibility instead
+         * -- neither ported (same "no crit-fail branch" precedent as
+         * fear/slumber/invisibility above; the outer proficiency roll
+         * already stands in for the power-gate). Just strips
+         * AFFECT_INVISIBLE from `target` if present. */
+        if (being_has_affect(target, AFFECT_INVISIBLE)) {
+            being_remove_affect(target, AFFECT_INVISIBLE);
+            if (target == ch) {
+                snprintf(msg, sizeof(msg), "You cast %s -- you slowly become visible again.\r\n", sk->name);
+                descriptor_send(d, msg);
+                if (ch->base.roomp) {
+                    char capbuf[128];
+                    snprintf(msg, sizeof(msg), "%s slowly becomes visible again.\r\n",
+                             being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+                    descriptor_room_echo(ch->base.roomp, ch, msg);
+                }
+            } else {
+                snprintf(msg, sizeof(msg), "You cast %s at %s -- they slowly become visible again.\r\n",
+                         sk->name, being_display_name(target));
+                descriptor_send(d, msg);
+                if (target->desc) {
+                    descriptor_notify(target->desc, "You slowly become visible again.\r\n");
+                }
+            }
+        } else if (target == ch) {
+            descriptor_send(d, "You're already visible.\r\n");
+        } else {
+            snprintf(msg, sizeof(msg), "%s is already visible.\r\n", being_display_name(target));
+            descriptor_send(d, msg);
+        }
     } else if (ci_contains(sk->name, "conjure elemental") || strcasecmp(sk->name, "animal companion") == 0) {
         /* Pet/charm (Sneezy → Tobin feature audit): Mage's four
          * "conjure elemental air/earth/fire/water" spells already existed

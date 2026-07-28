@@ -215,6 +215,7 @@ check("aren't healing anyone" in out, "continue with no prior heal is refused")
 
 # --- 2: pray heal light with no target heals self; unaffected by this change ---
 check("You conjure" in cmd(s_imm, f"load obj {SYMBOL_BASE}"), "a holy symbol is loaded for the healer")
+cmd(s_imm, "drop symbol")
 out = cmd(sh, "get symbol")
 check("you get" in out.lower(), "the healer picks up a holy symbol")
 
@@ -223,6 +224,7 @@ check("You pray for heal light and feel restored" in out, "self-pray (no target)
 
 # --- 3: pray heal light <target> heals someone else ---
 check("You conjure" in cmd(s_imm, f"load obj {SYMBOL_BASE + 1}"), "a second holy symbol is loaded for the healer")
+cmd(s_imm, "drop symbol")
 out = cmd(sh, "get symbol")
 check("you get" in out.lower(), "the healer picks up a second holy symbol")
 
@@ -233,6 +235,7 @@ recv_all(sp, 0.3)  # drain the patient's private heal notification (not independ
 # --- 4: continue repeats the targeted heal until symbols run out ---
 for i in range(2, 6):
     check("You conjure" in cmd(s_imm, f"load obj {SYMBOL_BASE + i}"), f"holy symbol #{i+1} is loaded for the healer")
+    cmd(s_imm, "drop symbol")
     cmd(sh, "get symbol")
 
 out = cmd(sh, "continue")

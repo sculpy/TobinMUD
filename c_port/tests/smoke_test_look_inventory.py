@@ -169,18 +169,25 @@ sql(f"UPDATE player SET load_room={ROOM} WHERE name='{nameB}';")
 sB = relog(nameB, pwB)
 
 # --- A picks up a loose gem, wears a cap, carries an open bag with a
-# trinket inside, and carries a closed strongbox. ---
+# trinket inside, and carries a closed strongbox. `load obj` (2026-07-22)
+# drops each item straight into the loading immortal's OWN inventory,
+# not the room floor -- `si` drops each one before `sA` tries to `get` it. ---
 cmd(si, f"load obj {GEM}")
+cmd(si, "drop gem")
 cmd(sA, "get gem")
 cmd(si, f"load obj {CAP}")
+cmd(si, "drop cap")
 cmd(sA, "get cap")
 cmd(sA, "wear cap")
 cmd(si, f"load obj {BAG}")
+cmd(si, "drop bag")
 cmd(sA, "get bag")
 cmd(si, f"load obj {TRINKET}")
+cmd(si, "drop trinket")
 cmd(sA, "get trinket")
 cmd(sA, "put trinket bag")
 cmd(si, f"load obj {CHEST}")
+cmd(si, "drop strongbox")
 cmd(sA, "get strongbox")
 
 # --- 1: a mortal looking at A sees equipment but no carrying section ---

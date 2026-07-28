@@ -346,3 +346,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Skill Gains Are Announced', 'You will now be told the moment any skill or spell you practice actually improves -- no more wondering whether you got any better from all that use.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Vanish From Sight', 'Mages can now `cast invisibility` on themselves or an ally, fading from view and out of reach of anyone trying to target them by name -- only an immortal can still see or target someone who has turned invisible. `cast dispel invisible` turns them visible again.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

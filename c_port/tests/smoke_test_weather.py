@@ -181,6 +181,7 @@ check("pitch black" in out, "the same darkness gate applies to exits")
 # --- 3: a lit carried torch restores normal vision there ---
 cmd(si, f"goto {ROOM_OUTDOOR}")
 cmd(si, f"load obj {TORCH_VNUM}")
+cmd(si, "drop torch")
 cmd(sA, "get torch")
 cmd(sA, "light torch")
 out = cmd(sA, "look")

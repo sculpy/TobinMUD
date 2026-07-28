@@ -151,6 +151,7 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"VALUES ({ITEM1},'ring plain','a plain ring','A plain ring is lying here.',12,"
     f"{WEAR_TAKE},1);")
 check("You conjure" in cmd(s_imm, f"load obj {ITEM1}"), "the first ring is loaded")
+cmd(s_imm, "drop ring")
 check("you get" in cmd(s_mort1, "get ring").lower(), "victim 1 picks up the ring")
 
 out = cmd(s_imm, f"kill {mort1}")
@@ -186,6 +187,7 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"VALUES ({ITEM2},'amulet plain','a plain amulet','A plain amulet is lying here.',12,"
     f"{WEAR_TAKE},1);")
 check("You conjure" in cmd(s_imm, f"load obj {ITEM2}"), "the second amulet is loaded")
+cmd(s_imm, "drop amulet")
 check("you get" in cmd(s_mort2, "get amulet").lower(), "victim 2 picks up the amulet")
 
 out = cmd(s_imm, f"kill {mort2}")

@@ -153,6 +153,10 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"VALUES ({TUNIC},'tunic plain','a plain tunic','A plain tunic is lying here.',"
     f"12,{WEAR_TAKE | WEAR_BODY},1);")
 check("You conjure" in cmd(s_imm, f"load obj {TUNIC}"), "the tunic is loaded")
+# `load obj` (2026-07-22) drops it straight into the loading immortal's
+# OWN inventory, not the room floor -- drop it first so the mortal can
+# pick it back up off the ground.
+cmd(s_imm, "drop tunic")
 
 out = cmd(s_mort, "get tunic")
 check("you get" in out.lower(), "the mortal picks up the tunic")

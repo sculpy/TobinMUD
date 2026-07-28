@@ -919,3 +919,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Skill/spell proficiency gains are now announced', 'Every time a skill or spell''s proficiency actually ticks up a percent from using it, the player now gets a message saying so, instead of the gain happening silently in the background.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'invisibility and dispel invisible are live -- level 17 audit items', '`cast invisibility` (Mage) makes a caster or a named ally untargetable by name and invisible to the room listing for anyone but an immortal -- a new AFFECT_INVISIBLE, checked at both `combat_find_room_target()` and the room-listing code. `cast dispel invisible` strips it back off. Real upstream also grants a temporary armor bonus and doubles duration on a critical success; neither ported this pass, same "Tobin-scale slice" spirit as the rest of this audit list. No `detect invisibility` counter-check yet either -- that is its own separate, higher-level roster entry, not built this pass.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

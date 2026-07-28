@@ -9,6 +9,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "affect.h"
 #include "being.h"
 #include "obj.h"
 #include "room.h"
@@ -91,6 +92,14 @@ static int group_room_items(const room_t *r, const being_t *viewer, bool want_fi
     int groups = 0;
     for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
         if (t == &viewer->base)
+            continue;
+        /* `invisibility` (level-17 audit item) -- doesn't show in the
+         * room's person listing for anyone but an immortal viewer, same
+         * "immortals see everything" convention as the linkdead tag
+         * just below this function's own PC/mob rendering branch. */
+        if ((t->kind == THING_PC || t->kind == THING_MOB)
+            && being_has_affect((const being_t *)t, AFFECT_INVISIBLE)
+            && !being_is_immortal(viewer))
             continue;
         bool is_fixture = t->kind == THING_OBJ && !obj_takeable(((obj_t *)t)->wear_flag);
         if (is_fixture != want_fixture)

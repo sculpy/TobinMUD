@@ -1,6 +1,33 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-27 — Session 85 (home): **Post-pull review fixes:
+Last updated: 2026-07-28 — Session 86 (DO droplet): **Consolidated onto
+a single DigitalOcean box (Home VM retired); invisibility/dispel
+invisible (Mage, level 17 audit item).**
+- **Infrastructure**: Home VM (`192.168.254.200`) and the old Work box
+  are retired -- user is running everything, dev and live production
+  alike, from a DigitalOcean droplet (`159.223.121.98`, hostname
+  TobinMUD). Set up SSH key auth + passwordless `sudo` for `mud` there;
+  CLAUDE.md updated to match (single location, `make`/`cmake` both
+  work, deploys go through `copyover`, never a raw restart, since real
+  players can be connected). This droplet already had its own git
+  clone and a live `tobin_c` running production -- Session 85's fixes
+  were synced, built, and deployed there via `copyover` (user-run) as
+  part of this transition.
+- **invisibility + dispel invisible** (Mage, level 17 audit item): new
+  `AFFECT_INVISIBLE` (affect.h) -- a plain flag/timer affect, no armor
+  bonus (real upstream's own -40 APPLY_ARMOR) and no crit branches,
+  same "Tobin-scale slice" shape as fear/slumber. Checked at
+  `combat_find_room_target()` (untargetable by name) and `cmd_look.c`'s
+  room listing (doesn't show), both bypassed for an immortal viewer.
+  Object-target invisibility (the roster's "yourself or an object")
+  not ported -- Tobin's object `INVISIBLE` action-flag is display-only,
+  no room-listing code hides a flagged object yet. Built and verified
+  against a throwaway `TOBIN_PORT=4001` instance on the droplet
+  (same DB, doesn't touch the live production process on 4000) --
+  `tests/smoke_test_invisibility.py` (10 checks) passes live. Not yet
+  deployed to production port 4000 as of this write-up.
+
+Previous update: 2026-07-27 — Session 85 (home): **Post-pull review fixes:
 wake-vs-slumber, yoginsa auto-sit, meditate/penance wired + Druid
 meditate, proficiency-gain messages.**
 - **Reviewed** the 12 commits pulled this session (Session 84's `chi`

@@ -154,6 +154,7 @@ s_wit = login(witness_name, pw)
 recv_all(s_wit, timeout=0.3)
 
 check("You conjure" in cmd(s_imm, f"load obj {OBJ}"), "the trinket is loaded")
+cmd(s_imm, "drop trinket")
 check("you get" in cmd(s_mort, "get trinket").lower(), "the mortal picks up the trinket")
 out = cmd(s_mort, "inventory")
 check("trinket" in out.lower(), "the trinket is in the mortal's inventory before quitting")

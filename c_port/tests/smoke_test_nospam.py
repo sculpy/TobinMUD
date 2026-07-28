@@ -175,6 +175,7 @@ sql(f"INSERT INTO objaffect (vnum, type, mod1, mod2) VALUES ({SWORD}, 15, -1000,
 make_mob(MOB1, f"nospamdummy1{_suffix}")
 check("You conjure" in cmd(s, f"load mob {MOB1}"), "the first dummy is loaded")
 check("You conjure" in cmd(s, f"load obj {SWORD}"), "the clumsy club is loaded")
+cmd(s, "drop club")
 
 out = cmd(sv, "get club")
 check("you get" in out.lower(), "the mortal attacker picks up the clumsy club")

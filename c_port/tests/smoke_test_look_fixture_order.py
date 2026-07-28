@@ -143,6 +143,15 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"VALUES ({FIXTURE},'{fixture_name}','a {fixture_name}','A {fixture_name} stands here.',22,0,1);")
 check("You conjure" in cmd(s, f"load obj {FIXTURE}"), "the non-takeable fixture is loaded second")
 
+# `load obj` (2026-07-22) puts a conjured item straight into the loading
+# immortal's OWN inventory, not the room floor -- drop both so they
+# actually show up in the room listing this test checks. `drop` has no
+# takeable/wear_flag restriction of its own (that only gates whether
+# someone ELSE can pick an item back up), so dropping the non-takeable
+# fixture works fine here.
+cmd(s, "drop " + item_name)
+cmd(s, "drop " + fixture_name)
+
 out = cmd(s, "look")
 item_pos = out.find(item_name)
 fixture_pos = out.find(fixture_name)

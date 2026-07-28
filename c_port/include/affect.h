@@ -184,6 +184,23 @@ typedef enum {
      * cmd_cast.c, which also reuses cmd_flee.c's own flee logic for the
      * immediate "run for your life" moment on a PC victim. */
     AFFECT_FEAR,
+    /* `invisibility` (Mage, level 17) and `dispel invisible` (Mage,
+     * level 17, its counter). Real upstream (disc_mage_spirit.cc's
+     * invisibility()/dispelInvisible()) also grants a -40 armor bonus
+     * (APPLY_ARMOR) and doubles duration + armor on a crit success --
+     * scoped down to a plain flag/timer affect, same shape as
+     * AFFECT_SANCTUARY/AFFECT_BERSERK, no armor bonus and no crit
+     * branch (same "no crit-fail branch ported" precedent as fear/
+     * slumber above). Checked by combat_find_room_target() (an
+     * invisible being can't be targeted by name, mirroring the
+     * existing linkdead-untargetable gate) and cmd_look.c's room
+     * listing (an invisible being doesn't show in `look`'s person
+     * list) -- both skip the check entirely for an immortal viewer,
+     * same "immortals see everything" convention as the linkdead tag.
+     * No `detect invisibility` counter-check yet (that's its own
+     * separate, higher-level roster entry, not built this pass) --
+     * every mortal viewer is equally blind to it for now. */
+    AFFECT_INVISIBLE,
     AFFECT_COUNT,
 } affect_type_t;
 
