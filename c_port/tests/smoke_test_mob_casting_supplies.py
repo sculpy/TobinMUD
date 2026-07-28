@@ -204,12 +204,14 @@ mob_insert(MOB_WARRIOR, warrior_name, 4, 20)    # class 4 = Warrior
 
 def load_kill_and_loot(mob_name):
     """Spawns a mob fixture, instakills it, and returns the text of `look
-    in corpse` -- the corpse is a lootable container holding whatever the
+    corpse` -- the corpse is a lootable container holding whatever the
     mob was carrying/wearing at death (see smoke_test_corpse.py)."""
     check("You conjure" in cmd(s, f"load mob {mob_name}"), f"{mob_name} spawns")
     out = cmd(s, f"kill {mob_name}")
     check("slain" in out.lower(), f"the immortal instakills {mob_name}")
-    return cmd(s, "look in corpse")
+    corpse_out = cmd(s, "look corpse")
+    cmd(s, "purge")  # clears the corpse (and room) before the next mob's fixture
+    return corpse_out
 
 
 # --- 1: Mage mob carries a component-keyword item ---
