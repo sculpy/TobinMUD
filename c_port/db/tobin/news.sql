@@ -362,3 +362,19 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Blindness and a Way Home', 'Clerics can now `pray blindness` on a foe, leaving them unable to look at anything and swinging far less accurately until it wears off. Clerics -- and Druids, once experienced enough -- can also `pray word of recall` to pull themselves or a willing ally straight back to Center Square, though a few especially defended places refuse to let anyone leave that way.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Meditation Takes Care of Itself', 'Yoginsa no longer needs to be re-cast over and over -- once you start meditating, it keeps quietly restoring you tick after tick until you stop, get up, or get pulled into a fight.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Spoils Now Wait On The Body', 'Gold from a defeated foe no longer lands straight in your pocket -- it''s left behind in a lootable pile on their corpse, same as anything else they were carrying.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Finer Countdown', 'The recovery countdown that shows in your prompt while you''re still catching your breath from a swing now counts down in tenths of a second instead of whole ones.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Drawing Their Ire', 'Warriors can now `taunt` a foe to pull its attention off whoever it''s fighting and onto themselves instead. Clerics can also `pray paralyze limb` on a foe, leaving one of their arms or legs unresponsive until it''s healed.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

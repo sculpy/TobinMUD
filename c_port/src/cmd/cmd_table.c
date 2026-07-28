@@ -348,6 +348,8 @@ static const cmd_entry_t COMMANDS[] = {
      * dispatch loop's level filter skips them for a mortal caller
      * entirely -- see cmd_dispatch()'s own min_level-skip comment). */
     { "trip",    cmd_trip,    "Knock your opponent to the ground (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
+    /* Spell/skill functional-completeness audit continued, level 22. */
+    { "taunt",   cmd_taunt,   "Provoke a mob into attacking you instead of whoever it's fighting (Warrior, taunt <target>).", MORTAL_LEVEL_MIN },
     { "tell",    cmd_tell,    "Send a private message to anyone playing (tell <name> <message>).", MORTAL_LEVEL_MIN },
     { "tickets", cmd_tickets, "List your pending claim tickets at a repair shop.",  MORTAL_LEVEL_MIN },
     { "time",    cmd_time,    "Show the current mud clock, weekday, and date.",     MORTAL_LEVEL_MIN },

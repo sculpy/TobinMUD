@@ -955,3 +955,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'blindness and word of recall are live -- level 21 audit items', '`pray blindness` (Cleric) blinds a target -- they can''t look at anything, and swing less accurately while it lasts. `pray word of recall` (Cleric, and Druid at a higher level) pulls yourself or an ally straight back to Center Square from anywhere, refusing to work in a few especially defended rooms.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'taunt and paralyze limb are live -- level 22 audit items', '`taunt` (Warrior) pulls a mob''s attention off whoever it''s currently fighting and onto you instead -- a straightforward aggro pull, since Tobin has no multi-attacker mob AI for the real game''s subtler version of this to hook into. `pray paralyze limb` (Cleric) leaves one of a target''s arms or legs unresponsive until someone cures it -- no cure exists yet, so treat it as permanent for now. Also shipped this session: yoginsa (Monk) meditates automatically again instead of needing to be re-cast every time, a fallen enemy''s gold now lands in a lootable pile on their corpse instead of vanishing straight into your pocket (a bug meant it never actually dropped for a monster kill -- fixed), and the combat countdown in your prompt now shows tenths of a second.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

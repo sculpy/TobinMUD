@@ -1,6 +1,43 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 92 (DO droplet, from the dev machine):
+Last updated: 2026-07-28 — Session 93 (DO droplet, from the dev machine):
+**Level-22 audit batch: taunt, paralyze limb. Also shipped the three
+requests queued from Session 92: automatic yoginsa, gold-to-corpse on
+death, and a tenths-of-a-second prompt lockout display. Mob spell-
+component/holy-symbol loading is still queued, not started.**
+- **taunt** (Warrior): real upstream's own effect (a mob-AI "wimp
+  switch" resistance debuff) needs a multi-attacker mob-targeting
+  subsystem Tobin doesn't have -- ported instead as a direct aggro pull
+  (same fighting-pointer-swap shape as `rescue`, framed the opposite
+  way), matching the roster's own plain description. Mob targets only.
+  New `cmd_taunt.c`.
+- **paralyze limb** (Cleric): drives a randomly-picked SAFE limb (never
+  one of the four MAJOR/instant-death ones) to 0 hp, reusing the
+  existing "destroyed limb" state and `combat_debug_set_limb_hp()`
+  rather than adding a new per-limb status-flag system just for this.
+  Permanent until a cure exists (`restore limb`, Cleric 25, not yet
+  ported) -- matches real upstream's own permanence, just via a
+  different mechanism.
+- `tests/smoke_test_taunt_paralyzelimb.py` (12 checks) -- passes live.
+  Hit the same not-yet-root-caused room-placement-on-login bug during
+  development (see Session 92's entry below); worked around in the test
+  itself with `goto`/`transfer` to place every character deterministically
+  instead of depending on `load_room`.
+- **Session 92's three queued requests, now shipped**: yoginsa
+  (Monk/Warrior meditation) is a real automatic recurring task again
+  (new `meditate_tick_run()`, `meditate.c`/`meditate.h`) instead of a
+  single manual heal; a combat loser's gold now drops into their corpse
+  as a real lootable pile instead of a direct wallet credit (fixed a bug
+  found live-testing: the mob-kill gold amount was computed AFTER the
+  corpse's money-pile object had already been built, so mob kills never
+  actually dropped any -- moved the computation earlier); the prompt's
+  combat lockout countdown now reads in tenths of a second (`[1.9s]`,
+  `[1.8s]`, ...) instead of whole seconds, per explicit user request
+  mid-session.
+- Mob class-and-level-appropriate spell-component/holy-symbol loading
+  (Session 92's third queued request) is still NOT started.
+
+Previous update: 2026-07-28 — Session 92 (DO droplet, from the dev machine):
 **Level-21 audit batch: blindness, word of recall. New user requests
 queued: automatic yoginsa, corpse loot on death, class-appropriate mob
 spell components/holy symbols.**

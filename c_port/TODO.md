@@ -1629,9 +1629,48 @@ durations where warranted, and a cooldown where warranted. Audit findings
     squarely the *other* character (the actual caster) landing in
     Center Square instead of its own `load_room` on login, same bug,
     not a new one. No fix attempted here; out of scope for this batch.
-    Not yet started: taunt/paralyze limb (22), whirlwind/kneestrike/
-    farlook/scribe/bind (25), hide (31), paralyze (33), quivering palm
-    (42), silence (48).
+    **taunt** (Warrior, 22) -- done 2026-07-28. Real upstream
+    (disc_warrior_brawling.cc's doTaunt()) only works against a mob
+    already fighting YOU, and its whole effect is a temporary debuff to
+    that mob's "wimp switch" AI score (misc/ai_reactions.cc) -- making it
+    less likely to swap off you mid-fight. Tobin has no multi-attacker
+    mob-AI target-switching subsystem at all (`fighting` is a strict
+    mutual one-to-one pointer pair, being.h), so that mechanic doesn't
+    apply. Ported instead as a direct aggro PULL matching the roster's
+    own plain description ("Provoke a target into focusing their
+    aggression on you") -- same fighting-pointer-swap shape as
+    cmd_rescue.c, but framed the opposite way: steals a MOB's attention
+    off whoever/whatever it's currently fighting (ally or stranger) onto
+    the taunter, with no requirement the taunter was already involved.
+    Restricted to mob targets (aggro is a mob-AI concept; redirecting a
+    PC's fight without consent would be an unrequested PvP mechanic).
+    New `cmd_taunt.c`.
+    **paralyze limb** (Cleric, 22) -- done 2026-07-28. Real upstream
+    (disc_cleric_afflictions.cc's paralyzeLimb()) picks a random limb and
+    sets a PERMANENT PART_PARALYZED flag on it (can't wield/wear on an
+    arm, can't walk right on a leg) until a separate "restore limb" spell
+    (Cleric, 25, not yet ported) cures it. Tobin's limb_state_t is just
+    hp/max_hp, no per-limb status-flag system -- ported as a disclosed
+    approximation: drives a randomly-picked SAFE limb's hp straight to 0,
+    reusing the exact "destroyed" state combat already leaves a limb in
+    (same to-hit penalty, same score/limbs display) via
+    combat_debug_set_limb_hp() (combat.c) rather than duplicating it.
+    Deliberately restricted to arms/hands/legs/feet, never the four MAJOR
+    limbs (head/neck/waist/body, combat.c's is_major_limb()) whose
+    destruction is instant death -- would otherwise make a "paralyze"
+    spell an accidental save-or-die, which real upstream's own
+    pickRandomLimb() also avoids. No natural regen exists for a destroyed
+    limb (regen.c), so this is "permanent until cured" here too, even
+    without restore limb existing yet to actually cure it.
+    `tests/smoke_test_taunt_paralyzelimb.py` (12 checks) passes live --
+    hit the SAME room-placement-on-login flakiness documented above
+    during development (one of the four test characters landed in Center
+    Square instead of its sandbox room on a couple of runs); worked
+    around in the test itself with `goto`/`transfer` to force everyone
+    into the sandbox deterministically rather than depending on
+    `load_room`, since that's the same pre-existing bug, not a new one.
+    Not yet started: whirlwind/kneestrike/farlook/scribe/bind (25), hide
+    (31), paralyze (33), quivering palm (42), silence (48).
 - **Buff spells that conflate distinct effects**: sanctuary/armor/bless/
   stone skin/barkskin/protection-from-* all currently reuse the identical
   `AFFECT_SANCTUARY` buff rather than each having its own effect --

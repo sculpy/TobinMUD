@@ -503,6 +503,64 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
                      sk->name, being_display_name(target));
             descriptor_send(d, msg);
         }
+    } else if (strcasecmp(sk->name, "paralyze limb") == 0) {
+        /* Full spell/skill/prayer roster import continued, level-22 list
+         * (audit continued): real upstream (disc_cleric_afflictions.cc's
+         * paralyzeLimb()) picks a random limb and sets a PERMANENT
+         * PART_PARALYZED flag on it -- can't wield/wear on an arm slot,
+         * can't walk properly on a leg slot -- cured only by a separate
+         * "restore limb" spell (Cleric, level 25, not yet ported). Tobin
+         * has no separate limb-status-flag system (limb_state_t is just
+         * hp/max_hp, being.h) -- ported as a disclosed approximation:
+         * drives the picked limb's hp straight to 0, reusing the exact
+         * "destroyed" state combat already leaves a limb in (same
+         * to-hit-penalty consequence via being_has_destroyed_limb(),
+         * same score/limbs display), and reusing combat_debug_set_limb_hp()
+         * (combat.c) for the actual write + status-change messaging
+         * rather than duplicating it. No natural regen exists for a
+         * destroyed limb (regen.c), so this is "permanent until cured"
+         * here too, matching upstream, even without restore limb existing
+         * yet to actually cure it. Deliberately restricted to a small
+         * safe-slot list (arms/hands/legs/feet) rather than the full
+         * LIMB_REAL_COUNT range other spells here randomize over --
+         * head/neck/waist/body are MAJOR limbs (combat.c's
+         * is_major_limb()) whose destruction is instant death, which
+         * would make a "paralyze" spell an accidental save-or-die; real
+         * upstream's own pickRandomLimb() avoids vital slots the same
+         * way. Refuses if every safe slot on the target is already
+         * destroyed. */
+        ch->last_heal_target = NULL;
+        if (!atk_target) {
+            descriptor_send(d, "Pray for that over whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        static const limb_t PARALYZABLE_LIMBS[] = {
+            LIMB_LEFT_ARM, LIMB_RIGHT_ARM, LIMB_LEFT_HAND, LIMB_RIGHT_HAND,
+            LIMB_RIGHT_LEG, LIMB_LEFT_LEG, LIMB_LEFT_FOOT, LIMB_RIGHT_FOOT,
+        };
+        limb_t candidates[8];
+        int n_candidates = 0;
+        for (size_t i = 0; i < sizeof(PARALYZABLE_LIMBS) / sizeof(PARALYZABLE_LIMBS[0]); i++) {
+            limb_t l = PARALYZABLE_LIMBS[i];
+            if (being_has_limb(atk_target, l) && atk_target->limbs[l].hp > 0)
+                candidates[n_candidates++] = l;
+        }
+        if (n_candidates == 0) {
+            snprintf(msg, sizeof(msg), "%s has no limb left for you to paralyze!\r\n",
+                     being_display_name(atk_target));
+            descriptor_send(d, msg);
+            return;
+        }
+        limb_t limb = candidates[rand() % n_candidates];
+        combat_debug_set_limb_hp(ch, atk_target, limb, 0);
+        snprintf(msg, sizeof(msg), "You pray for %s over %s -- their %s goes limp and unresponsive!\r\n",
+                 sk->name, being_display_name(atk_target), limb_name(limb));
+        descriptor_send(d, msg);
     } else if (ci_contains(sk->name, "disease") || ci_contains(sk->name, "infect")) {
         ch->last_heal_target = NULL;
         if (!atk_target) {
