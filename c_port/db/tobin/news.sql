@@ -350,3 +350,11 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Vanish From Sight', 'Mages can now `cast invisibility` on themselves or an ally, fading from view and out of reach of anyone trying to target them by name -- only an immortal can still see or target someone who has turned invisible. `cast dispel invisible` turns them visible again.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Leveling and Toughness Rebalanced', 'The amount of experience needed to gain a level, and how much tougher each level makes you, have both been reworked to better match the game''s intended design. Hardier classes like Warriors will now feel noticeably tougher as they climb in level compared to a spellcaster of the same rank.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Corner of the World Now Stays Lit', 'A cluster of early rooms will now always stay lit, so you won''t need a light source or wait for daytime to see clearly there.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

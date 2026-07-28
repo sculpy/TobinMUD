@@ -192,9 +192,12 @@ check(start_max_hp > 0, f"recorded the fresh Warrior's starting max HP ({start_m
 
 mob_word = f"weakling{_suffix}"
 kills = 0
-needed_xp = 400  # progress_xp_for_level(2) = 2*2*100
+# progress_xp_for_level(2) = 37 (real upstream table, being.c's
+# XP_FOR_LEVEL[], wired in 2026-07-28 -- was the level^2*100 placeholder,
+# 400, when this test was first written).
+needed_xp = 37
 xp_per_kill = 50  # loser level (1) * 50
-kills_needed = -(-needed_xp // xp_per_kill)  # ceil division -> 8
+kills_needed = -(-needed_xp // xp_per_kill)  # ceil division -> 1
 
 for i in range(kills_needed):
     vnum = MOB_BASE + i

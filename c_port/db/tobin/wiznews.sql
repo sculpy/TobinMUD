@@ -927,3 +927,11 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'spin is live -- a level 17 Warrior audit item', '`spin <target>` grapples an opponent to the ground for damage, same shape as bodyslam/headbutt. Refuses while your primary hand is holding something, and refuses a flying target unless they are already fighting you. Real upstream also has a proficiency-graduated one/two-hand easing and separate countermove/focused-avoidance defenses; neither ported this pass, same "Tobin-scale slice" spirit as the rest of this audit list.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Real XP-to-level curve wired in; HP-per-level rebalanced by class', 'The old placeholder XP curve (level squared times 100) is replaced with real SneezyMUD''s own level 1-50 table, one shared curve for every class -- confirmed with the user that this matches how the real game actually works today (its own source comment says it deliberately unified what used to be separate per-class tables). Separately, how much max HP each class gains per level is now based on real SneezyMUD''s own per-class numbers (Warriors gain the most, Mages the least) instead of the old guessed multipliers. The `balance` command''s existing class/race HP multiplier still works the same as before, layered on top of these new base numbers.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'gdb was not actually installed on this droplet', 'Every "reattach gdb to catch crashes" step this session silently failed with a missing-command error, but an empty crash-log grep looked identical to "no crash happened" -- so it went unnoticed until a copyover-triggered reattach actually surfaced the failure. Installed now and confirmed genuinely attached. Worth checking that gdb itself is actually running (not just that its log is crash-free) the first time this is done on any new box.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

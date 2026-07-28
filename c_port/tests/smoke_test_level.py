@@ -9,7 +9,9 @@ progress_add_xp() levels a player up against.
 Covers:
   1. A fresh level-1 character sees "You have 0 experience and need
      <N> more experience to level," where N matches
-     progress_xp_for_level(2) (400, since the curve is level^2 * 100).
+     progress_xp_for_level(2) (37, the real upstream XP-to-level table
+     wired into being.c 2026-07-28 -- was 400 under the old level^2*100
+     placeholder when this test was first written).
   2. After SQL-granting experience partway to level 2, the "need" number
      shrinks by exactly the granted amount.
   3. A level-50 (MORTAL_LEVEL_MAX) character gets the "already at the
@@ -132,11 +134,14 @@ m = re.search(r"You have (\d+) experience and need (\d+) more experience to leve
 check(m, "level shows the 'have X, need Y' message")
 have, need = int(m.group(1)), int(m.group(2))
 check(have == 0, "a fresh character has 0 experience")
-check(have + need == 400, "need matches progress_xp_for_level(2) == 2*2*100 == 400")
+check(have + need == 37, "need matches progress_xp_for_level(2) == 37 (real upstream table)")
 
 # --- grant partial XP, need should shrink by exactly that much ---
+# Stays comfortably below progress_xp_for_level(2)=37 so the character
+# doesn't actually level up from the raw SQL grant (which bypasses
+# progress_add_xp()'s own level-up bookkeeping).
 cmd(s, "quit!"); s.close()
-sql(f"UPDATE player_progress SET experience=150 WHERE player_id="
+sql(f"UPDATE player_progress SET experience=20 WHERE player_id="
     f"(SELECT id FROM player WHERE name='{name}');")
 s = relog(name, pw)
 
@@ -144,8 +149,8 @@ out = strip(cmd(s, "level"))
 m = re.search(r"You have (\d+) experience and need (\d+) more experience to level\.", out)
 check(m, "level still shows the message after gaining experience")
 have2, need2 = int(m.group(1)), int(m.group(2))
-check(have2 == 150, "have reflects the granted experience")
-check(need2 == 250, "need shrank by exactly the granted amount (400-150=250)")
+check(have2 == 20, "have reflects the granted experience")
+check(need2 == 17, "need shrank by exactly the granted amount (37-20=17)")
 
 cmd(s, "quit!"); s.close()
 

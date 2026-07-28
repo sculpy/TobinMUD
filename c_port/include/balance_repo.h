@@ -18,7 +18,7 @@
  * seed migration hasn't run. */
 
 typedef struct {
-    float hp_mult;   /* multiplies class_hp_scale() in being_calc_max_hp() */
+    float hp_mult;   /* multiplies class_hp_per_level() in being_calc_max_hp() */
     float dmg_mult;  /* multiplies combat_strike()'s raw damage roll */
     int tohit_mod;   /* added to combat_strike()'s hit-roll modifier */
     int ac_mod;      /* added to being_total_ac() */

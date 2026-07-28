@@ -1,6 +1,66 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 88 (DO droplet, from the dev machine):
+Last updated: 2026-07-28 — Session 89 (DO droplet, from the dev machine):
+**Real XP-to-level table wired in; HP-per-level rebalanced per-class from
+real source; always-lit flag applied to rooms 100-249; gdb was never
+actually installed on the droplet.**
+- **XP-to-level curve**: `being.c`'s `progress_xp_for_level()` now uses
+  the real upstream table (misc/gaining.cc's `getExpClassLevel()`,
+  precomputed levels 1-50 in Session 87, never wired in until now) instead
+  of the placeholder `level^2*100`. User confirmed via AskUserQuestion:
+  ONE shared curve for every class -- real upstream's own code comment
+  says it deliberately replaced an older per-class-array system, and the
+  function takes no class parameter despite the name. Level 50's own
+  threshold is a hardcoded 1,000,000,000 (`MAX_MORT` special case in the
+  real source, not a continuation of the curve). Fixed 3 pre-existing
+  smoke tests that hardcoded the old placeholder's numbers:
+  `smoke_test_level.py` (need-to-level message), `smoke_test_levelup_hp.py`
+  (kills-needed-to-level-2 math), `smoke_test_death_xploss.py` (three
+  XP-loss-on-death assertions) -- all recalculated against the real
+  table and pass live.
+- **HP-per-level rebalance**: `class_hp_scale()`'s old placeholder
+  per-class ratios (Warrior 1.3x, Mage 0.8x, etc -- unsourced guesses)
+  replaced with real averages of misc/limits.cc's `hpGainForClass()`
+  (a random per-level roll in the real source: Warrior 6-11/avg 8.5,
+  Cleric 5-7/avg 6, Ranger 6-8/avg 7 -- reused for Druid, Tobin's closest
+  class match -- Thief 4-8/avg 6, Monk 4-7/avg 5.5, Mage 3-7/avg 5),
+  renamed `class_hp_per_level()` since it's now a real flat gain-per-level
+  number rather than a multiplier on an arbitrary "5". Tobin's flat `+20`
+  base HP and additive (not per-level-compounding) CON bonus are
+  unchanged -- the real source's own documented anchors (L1 Warrior = 25
+  HP, L50 Warrior = 500 HP) land close but not exact (computes to ~28 and
+  ~445) since real upstream's CON scaling is multiplicative PER LEVEL
+  (`getConHpModifier()`, 0.8x-1.25x), not ported this pass. The existing
+  `balance` command's `hp_mult`/`race_balance_get()` multipliers (user
+  2026-07-12) still layer on top unchanged -- the user's own explicit
+  ask was to ground the base numbers in source while keeping `balance`
+  as the live-adjustable knob for anything still off. Verified live:
+  a fresh Warrior's `smoke_test_levelup_hp.py` run showed 31 HP at
+  level 1 rising to 40 after one level-up (+9, matching the real 8.5
+  average).
+- **Always-lit room flag**: `UPDATE room SET room_flag = room_flag | 1
+  WHERE vnum BETWEEN 100 AND 249` applied directly against the production
+  DB (user request) -- 143 of 148 rooms newly flagged (5 already were).
+  Caveat: Tobin loads rooms from the DB lazily and caches them in memory
+  per-room once visited, with no reload command found -- any of those
+  rooms already visited by someone since the last copyover would need
+  another copyover/restart to pick up the new flag; anything not yet
+  visited this server session picks it up naturally on first load.
+- **gdb was never actually installed** on this droplet -- every
+  "re-attach gdb" this session (including the one right after Session
+  88's spin restart) silently failed with `nohup: failed to run command
+  'gdb': No such file or directory`, and `grep -i crash` on the resulting
+  log came back empty either way, which reads identically to "gdb
+  attached fine, no crash." Caught only when a copyover-triggered
+  re-attach attempt actually surfaced the log content. Installed via
+  `sudo dnf install -y gdb` (passwordless sudo already set up for `mud`);
+  confirmed genuinely attached (real PID, real breakpoint-wait state)
+  afterward. **Lesson**: don't infer "gdb attached" from an empty crash
+  grep alone -- check that the gdb process itself actually exists
+  (`pgrep -af gdb`) or that the log has real gdb startup output, the
+  first time it's used on any new box.
+
+Previous update: 2026-07-28 — Session 88 (DO droplet, from the dev machine):
 **spin (Warrior, level 17 audit item); SSH access to the droplet
 re-established from this Windows machine with a dedicated passphrase-free
 key; SYNC.md/ENVIRONMENT.md rewritten for the single-droplet setup.**

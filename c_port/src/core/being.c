@@ -496,15 +496,34 @@ void being_set_wait(being_t *b, int pulses) {
  * squishiest) without porting its per-level-roll mechanic -- Tobin has no
  * level-up event to hook a per-level roll into yet, so this just scales
  * the flat per-level term class_stat_bonus() doesn't otherwise touch. */
-static double class_hp_scale(player_class_t c) {
+/* Real per-level HP gain, by class (misc/limits.cc's hpGainForClass()):
+ * a random roll each level-up (Warrior 6-11, Cleric 5-7, Ranger 6-8,
+ * Thief 4-8, Monk 4-7, Mage 3-7) -- averaged here since Tobin recomputes
+ * max_hp on demand from level rather than accumulating random per-level
+ * rolls. Ranger has no Tobin class of its own; Druid reuses its number,
+ * matching the existing CLASS_DRUID<-mob.class(ranger) mapping
+ * (being_map_mob_class(), Session ~2026-07-12) elsewhere in this file.
+ * Replaces the old placeholder ratios (Warrior 1.3x/Mage 0.8x etc, an
+ * unsourced guess) applied to a flat "5 per level" -- this is now the
+ * real average gain itself, not a multiplier on an arbitrary base.
+ * User (2026-07-28): "hp assigned to new characters and hp gain per
+ * level need balancing" -- grounded in source; the `balance` command's
+ * own class_balance_get()->hp_mult (applied on top, unchanged below)
+ * stays the live-adjustable knob for anything these real averages still
+ * don't quite hit (e.g. a from-scratch Warrior computes to ~28 HP at
+ * level 1 and ~445 at level 50 against real upstream's own documented
+ * anchors of 25 and 500 -- the gap is real upstream's PER-LEVEL
+ * multiplicative CON scaling, getConHpModifier(), which this pass does
+ * NOT port; Tobin's con_bonus stays a flat one-time addition). */
+static double class_hp_per_level(player_class_t c) {
     switch (c) {
-        case CLASS_WARRIOR: return 1.3;
-        case CLASS_MONK:    return 1.15;
-        case CLASS_DRUID:   return 1.0;
-        case CLASS_CLERIC:  return 1.0;
-        case CLASS_THIEF:   return 0.9;
-        case CLASS_MAGE:    return 0.8;
-        default:            return 1.0;
+        case CLASS_WARRIOR: return 8.5;
+        case CLASS_CLERIC:  return 6.0;
+        case CLASS_DRUID:   return 7.0;
+        case CLASS_THIEF:   return 6.0;
+        case CLASS_MONK:    return 5.5;
+        case CLASS_MAGE:    return 5.0;
+        default:            return 5.0;
     }
 }
 
@@ -512,26 +531,28 @@ static double class_hp_scale(player_class_t c) {
  * class/race (PC) or known class (mob) balance multipliers -- called
  * whenever any of those inputs change (level up, stat change,
  * `balance` command edits) so max_hp always reflects the current
- * formula rather than being cached stale. See class_hp_scale() above
- * and balance.c's class_balance_get()/race_balance_get() for the two
- * multiplier sources this combines. */
+ * formula rather than being cached stale. See class_hp_per_level()
+ * above and balance.c's class_balance_get()/race_balance_get() for the
+ * two multiplier sources this combines. */
 int being_calc_max_hp(const being_t *b) {
     if (!b)
         return 20;
     int con_bonus = b->attrs.constitution - ATTR_BASE;
+    double per_level = 5.0;
     double scale = 1.0;
     /* Gamewide HP multiplier (user 2026-07-12's `balance` command) --
      * a PC's own class+race, or a guildmaster mob's known class (no
      * race applies to mobs). Neutral (1.0) until an immortal actually
      * balances that class/race, so this is a no-op by default. */
     if (b->base.kind == THING_PC) {
-        scale = class_hp_scale(b->char_class);
-        scale *= class_balance_get(b->char_class)->hp_mult;
+        per_level = class_hp_per_level(b->char_class);
+        scale = class_balance_get(b->char_class)->hp_mult;
         scale *= race_balance_get(b->race)->hp_mult;
     } else if (b->mob_class_known) {
+        per_level = class_hp_per_level(b->char_class);
         scale *= class_balance_get(b->char_class)->hp_mult;
     }
-    return 20 + con_bonus + (int)(b->progress.level * 5 * scale);
+    return 20 + con_bonus + (int)(b->progress.level * per_level * scale);
 }
 
 /* Recomputes `b`'s max vitality (the stamina-like pool skills/spells
@@ -1178,11 +1199,35 @@ void being_spend_vit(being_t *b, int amount) {
         b->progress.vit = 0;
 }
 
+/* Real upstream's XP-to-level curve (misc/gaining.cc's
+ * getExpClassLevel()), precomputed for levels 1-50 despite the
+ * misleading name -- its own code comment says it deliberately
+ * replaced an OLDER system that had "huge arrays for each [class]"
+ * with one shared formula, and `getExpClassLevel()` itself takes only
+ * a level, no class parameter. User confirmed (2026-07-28, AskUserQuestion):
+ * one shared curve for every class, matching real upstream, not a
+ * deliberate per-class deviation. Index 0 unused (levels are 1-based);
+ * index 50 is the real function's own explicit `MAX_MORT` special
+ * case (a hardcoded 1,000,000,000, not a continuation of the curve).
+ * Replaces the old level^2*100 placeholder. */
+static const long XP_FOR_LEVEL[MORTAL_LEVEL_MAX + 1] = {
+    0,                                          /* unused */
+    0, 37, 343, 1259, 3326, 7133, 13524, 23616, 39454, 62573,
+    95456, 141253, 205965, 293178, 409267, 562149, 767142, 1032166, 1371540, 1804231,
+    2366004, 3073778, 3961145, 5068722, 6475372, 8216430, 10363864, 13003924, 16303179, 20334005,
+    25245613, 31215707, 38584642, 47498296, 58258111, 71221052, 87064864, 106078633, 128858951, 156108600,
+    189148553, 228544934, 275457160, 331245615, 398546218, 478368861, 572934506, 684840683, 818869564, 1000000000,
+};
+
 /* Works out how much total experience is needed to REACH a given
  * level, so progress_add_xp() can tell when someone has earned enough
  * to level up. */
 long progress_xp_for_level(int level) {
-    return (long)level * (long)level * 100;
+    if (level <= 1)
+        return 0;
+    if (level >= MORTAL_LEVEL_MAX)
+        return XP_FOR_LEVEL[MORTAL_LEVEL_MAX];
+    return XP_FOR_LEVEL[level];
 }
 
 /* Adds `xp_gain` experience to `p` and levels it up as many times as

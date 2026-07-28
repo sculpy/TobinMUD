@@ -193,13 +193,13 @@ sA = make_char(nameA, pwA)
 cmd(sA, "quit!")
 sA.close()
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{nameA}';")
-set_level_xp(nameA, 5, 3500)  # xp_for_level(5)=2500, so 1000 banked past it
+set_level_xp(nameA, 5, 4326)  # xp_for_level(5)=3326 (real upstream table, wired 2026-07-28), so 1000 banked past it
 set_hp(nameA, 1, 1)
 sA = relog(nameA, pwA)
 cmd(si, f"goto {ROOM}")
 out = fight_mob_and_check(sA, nameA)
 check("You lose" in out and "experience" in out, "PvE death shows the XP-loss message")
-check(xp_of(nameA) == 2800, "PvE death with ample banked XP loses exactly 20% (3500 -> 2800)")
+check(xp_of(nameA) == 3461, "PvE death with ample banked XP loses exactly 20% (4326 -> 3461)")
 check(level_of(nameA) == 5, "the PvE death did not change level")
 
 # --- 2: PvE death with only a little banked XP is capped, never de-levels ---
@@ -208,11 +208,11 @@ sB = make_char(nameB, pwB)
 cmd(sB, "quit!")
 sB.close()
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{nameB}';")
-set_level_xp(nameB, 5, 2550)  # only 50 banked past the level-5 threshold (2500)
+set_level_xp(nameB, 5, 3376)  # only 50 banked past the level-5 threshold (3326)
 set_hp(nameB, 1, 1)
 sB = relog(nameB, pwB)
 out = fight_mob_and_check(sB, nameB)
-check(xp_of(nameB) == 2500, "a tiny banked-XP death is capped at exactly the level-5 threshold, not below")
+check(xp_of(nameB) == 3326, "a tiny banked-XP death is capped at exactly the level-5 threshold, not below")
 check(level_of(nameB) == 5, "the capped death did not de-level the character")
 
 # --- 3: PvP death (mutual toggle pk) with ample banked XP loses 20% / 10 ---
@@ -220,7 +220,7 @@ nameC, pwC = f"Xppkwin{_suffix}", "xppkwinpw1234"
 nameD, pwD = f"Xppklos{_suffix}", "xppklospw1234"
 sC = make_char(nameC, pwC); sC.close()
 sD = make_char(nameD, pwD); sD.close()
-set_level_xp(nameD, 5, 3500)  # same banked amount as scenario 1, for a clean 20%-vs-2% comparison
+set_level_xp(nameD, 5, 4326)  # same banked amount as scenario 1, for a clean 20%-vs-2% comparison
 set_hp(nameD, 1, 1)
 sC = relog(nameC, pwC)
 sD = relog(nameD, pwD)
@@ -231,7 +231,7 @@ for _ in range(10):
     if "slain" in out.lower() or "defeated" in out.lower():
         break
     out += recv_all(sC, 1.5)
-check(xp_of(nameD) == 3430, "PvP death loses 1/10th what the same banked XP would lose in PvE (3500 -> 3430)")
+check(xp_of(nameD) == 4240, "PvP death loses 1/10th what the same banked XP would lose in PvE (4326 -> 4240)")
 
 sA.close(); sB.close(); sC.close(); sD.close(); si.close()
 announce_done("smoke_test_death_xploss")
