@@ -1622,6 +1622,13 @@ durations where warranted, and a cooldown where warranted. Audit findings
     occasionally land in the wrong room on login); the underlying
     ROOM_FLAG_NO_ESCAPE gate itself reuses the identical pattern already
     verified working for `teleport`'s own version of this check.
+    Re-ran with debug prints (2026-07-28) to rule out a `goto`/timing
+    problem specifically: confirmed the immortal helper's `goto` into
+    the NO-ESCAPE room succeeds every time (both the goto output and a
+    follow-up `look` show it landing there correctly) -- the failure is
+    squarely the *other* character (the actual caster) landing in
+    Center Square instead of its own `load_room` on login, same bug,
+    not a new one. No fix attempted here; out of scope for this batch.
     Not yet started: taunt/paralyze limb (22), whirlwind/kneestrike/
     farlook/scribe/bind (25), hide (31), paralyze (33), quivering palm
     (42), silence (48).
@@ -6221,6 +6228,41 @@ already tracked — pointers, not duplicates):
       live, bug recurred on the next batch anyway). Worth a dedicated
       look with fresh eyes — this could affect real concurrent player
       logins during a busy period, not just test scripts.
+      **STRONG LEAD found 2026-07-28 (Session 92), likely explains most
+      or all of this**: account creation now has TWO prompts every
+      smoke test's `make_char()`-style helper has been missing --
+      "Enable ANSI color? (Y/n)" and a timezone-offset prompt, both
+      inserted right after the password-retype step, BEFORE the
+      account menu even appears. Every test this whole session (and
+      probably longer) has used a 10-step scripted sequence (`name,
+      "y", pw, pw, "new", name, race, class, "done", "done"`) that
+      predates these two prompts -- the literal "new" step gets
+      silently swallowed as the color answer instead of an account-menu
+      command, and the intended character-name step becomes the
+      timezone answer instead, cascading every later step out of
+      alignment. Confirmed empirically: a corrected 12-step sequence
+      (`name, "y", pw, pw, "n", "0", "new", name, race, class, "done",
+      "done"`) creates a character cleanly and reproducibly; the old
+      10-step one produces inconsistent, sometimes-broken results
+      depending on exactly how the misalignment happens to land (which
+      would explain why most test runs still "worked" while some
+      characters came out subtly wrong). NOT yet proven to be the full
+      explanation for the linkdead/room-placement symptom specifically,
+      and no test files have been updated for the corrected sequence
+      yet (out of scope to retrofit everything right now) -- but this
+      should be the first thing checked before spending more time on
+      the linkdead-matching theory above. **Contradicting data point,
+      same session**: a single character created with the FULL
+      corrected 12-step sequence, a valid letters-only name, no other
+      characters created nearby in time, STILL landed in room 100
+      (Center Square) instead of its real `load_room` on its SECOND
+      connection (the actual gameplay login, not creation) -- so the
+      color/timezone-prompt misalignment is not the sole cause either,
+      or "isolated single login always works" (this entry's own earlier
+      claim) was itself wrong/lucky. Genuinely still unresolved; treat
+      any test character's room placement as unverified until confirmed
+      with a `look` immediately after login, every time, until this is
+      actually fixed.
 - [x] **`quit!` drops all possessions on the ground, gold included** —
       done. User (2026-07-12): "after rent goes in quitting the game
       will drop all possessions on the ground where the quit command

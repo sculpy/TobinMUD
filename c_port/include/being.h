@@ -768,6 +768,23 @@ typedef struct being {
     int planting_type;
     struct room *planting_room;
 
+    /* `yoginsa` (Monk) background task (user 2026-07-28: "yoginsa should
+     * be automatic, a task" -- reverting this audit item's original
+     * single-action scope-down back toward the real upstream's own
+     * recurring `task_yoginsa()` shape, disc/disc_monk_meditation.cc,
+     * now that the pattern exists via planting.c above). Set true by
+     * cmd_yoginsa.c when meditation starts (auto-sitting a standing
+     * caster first, same as before); meditate_tick_run() (meditate.c)
+     * rolls a fresh heal every REGEN_PULSES tick while this stays true,
+     * same formula cmd_yoginsa.c's own single-shot version used.
+     * Cleared -- with a message -- the moment the being stops resting/
+     * sitting or starts fighting; also toggled off by typing the
+     * command again while already meditating. `cast meditate`/`pray
+     * penance` (Mage/Druid/Cleric) stay single-action, unaffected --
+     * the user's request was scoped to yoginsa specifically. Live
+     * in-memory only, same reconnect rule as `fighting`/`sneaking`. */
+    bool meditating;
+
     /* Pulses remaining before this character can act again (see pulse.h).
      * Mortals accumulate this from `being_set_wait()`; immortals always
      * read/write it as a no-op via being_get_wait()/being_set_wait(). */

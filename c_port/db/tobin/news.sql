@@ -358,3 +358,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Corner of the World Now Stays Lit', 'A cluster of early rooms will now always stay lit, so you won''t need a light source or wait for daytime to see clearly there.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Blindness and a Way Home', 'Clerics can now `pray blindness` on a foe, leaving them unable to look at anything and swinging far less accurately until it wears off. Clerics -- and Druids, once experienced enough -- can also `pray word of recall` to pull themselves or a willing ally straight back to Center Square, though a few especially defended places refuse to let anyone leave that way.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

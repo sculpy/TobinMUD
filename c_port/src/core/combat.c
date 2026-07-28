@@ -840,6 +840,15 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     winner->fighting = NULL;
 
     bool loser_is_pc = (loser->base.kind == THING_PC);
+    /* Gold-to-corpse (user 2026-07-28: "gold should be with the corpse,
+     * autoloot or player loot should take care of it" -- reverting both
+     * gold-drop paths below away from a direct wallet-to-wallet credit).
+     * Computed here, actually turned into a real OBJ_CAT_MONEY object
+     * once the corpse itself exists further down. No more group-split
+     * on the PvP path (see that block's own comment) -- physical loot
+     * is inherently first-whoever-loots-it now, same as any other item
+     * in the corpse, not a stat auto-distributed to a group. */
+    int corpse_gold = 0;
 
     if (loser_is_pc) {
         loser->progress.hp = loser->progress.max_hp / 2;
@@ -881,36 +890,44 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             }
         }
 
-        /* Split gold on kill (TODO.md, user: "also upon death get all
-         * gold from the victim and split it between all group members if
-         * groupped"). SOLO case only -- no group/party system exists yet
-         * to split across, so the winner simply takes everything; the
-         * "if grouped" split remains a separate, still-blocked item.
-         * PC-vs-PC only (a mob loser's gold-drop-to-killer is the
-         * separate, already-existing path below); same non-immortal-
-         * winner gate as that path. PK combat itself already requires
-         * both sides to have opted in (`toggle pk`), so this can only
-         * ever fire with mutual consent -- there's no non-consensual
-         * gold-loss path here. Winner's `progress.gold` change is picked
-         * up by the XP block's own player_progress_save() below (runs
-         * after this, on the same struct) rather than saving twice. */
+        /* Gold-on-a-PvP-kill (TODO.md, user: "also upon death get all
+         * gold from the victim..."; reworked 2026-07-28 per the user's
+         * follow-up -- gold now goes into the corpse as a real lootable
+         * money-pile object, same as any other item, instead of
+         * transferring straight into the killer's wallet). PC-vs-PC
+         * only (a mob loser's gold-drop is the separate path below);
+         * same non-immortal-winner gate as that path. PK combat itself
+         * already requires both sides to have opted in (`toggle pk`),
+         * so this can only ever fire with mutual consent. */
         if (winner->base.kind == THING_PC && !being_is_immortal(winner)
             && loser->progress.gold > 0) {
-            int stolen = loser->progress.gold;
+            corpse_gold = loser->progress.gold;
             loser->progress.gold = 0;
-            being_t *recipients[GROUP_MAX_FOLLOWERS + 1];
-            int n = group_recipients(winner, winner->base.roomp, recipients, GROUP_MAX_FOLLOWERS + 1);
-            int share = stolen / n;
-            for (int i = 0; i < n; i++) {
-                recipients[i]->progress.gold += share;
-                tell(recipients[i], "You loot %d gold from %s's body.\r\n",
-                     share, being_display_name(loser));
-            }
-            tell(loser, "%s loots %d gold from your body.\r\n",
-                 being_display_name(winner), stolen);
         }
 
         player_progress_save(loser->player_id, &loser->progress);
+    }
+
+    /* Gold drop (Money system, user 2026-07-17: "implement money and
+     * shops"; reworked 2026-07-28 per the user's follow-up -- a mob
+     * loser's gold now goes into the corpse as a real OBJ_CAT_MONEY
+     * object, same as the PvP path above, instead of a direct wallet
+     * credit). Same PC-winner-only, non-immortal gate as the XP award
+     * below; PCs never drop gold on death (no real PK economy to
+     * protect yet). A mundane animal-race mob (RODENT, FELINE, BEAR,
+     * DEER, BIRD, ...) never drops gold at all -- user 2026-07-19:
+     * "animal races should not have wealth, that doesnt make sense" --
+     * see mob_race_is_animal() (being.c). XP is unaffected; only the
+     * gold drop is gated. Computed here (not down by the corpse-
+     * population block) because that block already checks `corpse_gold`
+     * to build the coin-pile object -- computing it any later left mob
+     * kills with an empty corpse every time (found live-testing
+     * 2026-07-28: a mob configured with gold never actually dropped
+     * any). */
+    if (!loser_is_pc && winner->base.kind == THING_PC && !being_is_immortal(winner)
+        && !mob_race_is_animal(loser->mob_race)) {
+        int mob_level = loser->progress.level > 0 ? loser->progress.level : 1;
+        corpse_gold = mob_level * (1 + rand() % 5);
     }
 
     if (slain) {
@@ -1088,6 +1105,23 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
                 thing_move_to(t, corpse ? &corpse->base : &loser->base.roomp->base);
             t = next;
         }
+
+        /* Gold-to-corpse (see corpse_gold's own declaration comment
+         * above): a real OBJ_CAT_MONEY object, same category/pick-up
+         * mechanic cmd_object.c's pick_up_money() already gives the
+         * seeded "pile of gold" treasure props -- picking it up (by
+         * hand, or via the autoloot pass just below) credits the
+         * wallet and destroys the object, same as any other money pile. */
+        if (corpse_gold > 0 && corpse) {
+            obj_t *coins = obj_create_ephemeral("gold coins pile",
+                "a pile of gold coins", "A pile of gold coins is lying here.",
+                OBJ_CAT_MONEY);
+            if (coins) {
+                coins->val[0] = corpse_gold;
+                thing_move_to(&coins->base, &corpse->base);
+            }
+        }
+
         for (int i = 0; i < LIMB_COUNT; i++)
             loser->equipment[i] = NULL;
         for (int i = 0; i < 2; i++)
@@ -1107,40 +1141,25 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
             thing_t *ct = corpse->base.stuff_head;
             while (ct) {
                 thing_t *cnext = ct->stuff_next;
-                thing_move_to(ct, &winner->base);
+                obj_t *cobj = (obj_t *)ct;
+                if (ct->kind == THING_OBJ && cobj->category == OBJ_CAT_MONEY) {
+                    /* Same credit-and-destroy pick_up_money() (cmd_object.c)
+                     * does for a manual `get` -- autoloot doesn't route
+                     * through that function, so the money-object special
+                     * case is duplicated here. */
+                    winner->progress.gold += cobj->val[0];
+                    obj_destroy(cobj);
+                } else {
+                    thing_move_to(ct, &winner->base);
+                }
                 looted_any = true;
                 ct = cnext;
             }
             if (looted_any) {
                 tell(winner, "You automatically loot %s's corpse.\r\n", being_display_name(loser));
                 player_inventory_save(winner->player_id, winner);
+                player_progress_save(winner->player_id, &winner->progress);
             }
-        }
-    }
-
-    /* Gold drop (Money system, user 2026-07-17: "implement money and
-     * shops" -- TODO's own "Future: mobs drop them (economy)" note). A
-     * mob loser hands its killer a scaled amount of gold directly -- gold
-     * is a wallet stat (progress_t.gold), not a pickupable/lootable
-     * object, so there's no coin object to place in the corpse. Same PC-
-     * winner-only, non-immortal gate as the XP award above; PCs never
-     * drop gold on death (no real PK economy to protect yet, see the
-     * still-open "PK opt-in flag" TODO entry). A mundane animal-race mob
-     * (RODENT, FELINE, BEAR, DEER, BIRD, ...) never drops gold at all --
-     * user 2026-07-19: "animal races should not have wealth, that
-     * doesnt make sense" -- see mob_race_is_animal() (being.c). XP is
-     * unaffected; only the wallet-stat drop is gated. */
-    if (!loser_is_pc && winner->base.kind == THING_PC && !being_is_immortal(winner)
-        && !mob_race_is_animal(loser->mob_race)) {
-        int mob_level = loser->progress.level > 0 ? loser->progress.level : 1;
-        int gold_gain = mob_level * (1 + rand() % 5);
-        being_t *recipients[GROUP_MAX_FOLLOWERS + 1];
-        int n = group_recipients(winner, winner->base.roomp, recipients, GROUP_MAX_FOLLOWERS + 1);
-        int share = gold_gain / n;
-        for (int i = 0; i < n; i++) {
-            recipients[i]->progress.gold += share;
-            tell(recipients[i], "You find %d gold.\r\n", share);
-            player_progress_save(recipients[i]->player_id, &recipients[i]->progress);
         }
     }
 

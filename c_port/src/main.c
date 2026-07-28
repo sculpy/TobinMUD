@@ -20,6 +20,7 @@
 #include "bank.h"
 #include "gametime.h"
 #include "heartbeat.h"
+#include "meditate.h"
 #include "mob_ai.h"
 #include "multiplay.h"
 #include "log.h"
@@ -146,6 +147,7 @@ int main(int argc, char **argv) {
     pulse_register(6000, tips_pulse_tick);       /* ~10min: echo a random tip to newbie-flagged players */
     pulse_register(600, linkdead_purge_tick);    /* ~60s: force-save + destroy any PC linkdead 5+ minutes */
     pulse_register(30, planting_tick_run);       /* ~3s: advance in-progress `plant <seeds>` tasks */
+    pulse_register(REGEN_PULSES, meditate_tick_run); /* ~5s: advance an in-progress `yoginsa` meditation */
     pulse_register(600, obj_plant_growth_tick);  /* ~60s: age planted crops, occasionally yield fruit */
 
     int rc = game_loop_run(cfg->telnet_port, copyover_file);

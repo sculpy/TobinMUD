@@ -380,8 +380,21 @@ int game_loop_run(int port, const char *copyover_file) {
                  * doubled to "\r\n\r\n" here, an extra stray blank line the
                  * user later asked removed "in front and in back" of the
                  * prompt, i.e. both branches below). */
+                /* Combat lockout countdown (user 2026-07-28: "when
+                 * fighting, add after the prompt <seconds of lockout>")
+                 * -- shown whenever actually fighting AND still lagged
+                 * from a swing/skill (being_get_wait(), 10 pulses/real
+                 * second), regardless of the toggle-able stat prefixes
+                 * below; an immortal's being_get_wait() is always a
+                 * no-op 0, so this never appears for them. */
+                char waitbuf[16] = "";
+                if (p->character && p->character->fighting) {
+                    int wait = being_get_wait(p->character);
+                    if (wait > 0)
+                        snprintf(waitbuf, sizeof(waitbuf), "[%d.%ds] ", wait / 10, wait % 10);
+                }
                 if (p->character && p->character->prompt_flags) {
-                    char pbuf[192];
+                    char pbuf[208];
                     size_t pn = (size_t)snprintf(pbuf, sizeof(pbuf), "\r\n");
                     if (p->character->prompt_flags & PROMPT_FLAG_HP)
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "HP: %d ",
@@ -404,10 +417,12 @@ int game_loop_run(int port, const char *copyover_file) {
                             need = 0;
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "ExpNeed: %ld ", need);
                     }
-                    pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "> ");
+                    pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "> %s", waitbuf);
                     descriptor_write(p, pbuf, pn);
                 } else {
-                    descriptor_write(p, "\r\n> ", 4);
+                    char pbuf[32];
+                    size_t pn = (size_t)snprintf(pbuf, sizeof(pbuf), "\r\n> %s", waitbuf);
+                    descriptor_write(p, pbuf, pn);
                 }
                 p->needs_prompt = false;
             }
