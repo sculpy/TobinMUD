@@ -939,3 +939,15 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Editors no longer cut off long pastes', 'Pasting a long room description (or help topic, news, wiznews, rules, or trigger script body) into the line editor used to silently drop everything past a couple hundred characters on a single line, with no warning. The real limit on how much can arrive on one line has been raised well past what any real paste needs, and the final saved-text limit for all of those editors has also been quadrupled for headroom.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'teleport and summon are live -- level 19 audit items', '`cast teleport` (Mage) sends yourself, or a named target, to a genuinely random room in the world -- not a chosen destination, despite the old roster text implying otherwise. `pray summon` (Cleric) pulls a named player from anywhere in the world into your own room, refusing an immortal target outright and requiring mutual `toggle pk` consent for a mortal one. Both verified correct by hand; the automated test for these hit an unrelated, still-open engine issue (see the next entry) so it is not fully automated yet.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Open bug: a brand-new character can occasionally land in the wrong spot', 'Creating several characters in quick succession can occasionally cause one of them to show "Welcome back!" on its very first-ever login and land in the default starting room instead of its real intended room. Not yet root-caused -- flagged in TODO.md for a proper look. If you notice a fresh character somewhere unexpected, that''s this.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'springleap, slam, deathstroke, riposte, and dispel magic are live -- level 20 audit items', '`springleap` (Monk) springs you up from sitting or resting instantly. `slam` and `deathstroke` (Warrior) are two more heavy single-target strikes, the hardest-hitting yet -- deathstroke needs a wielded weapon. `riposte` (Warrior) is passive: a successful parry now has a chance to guarantee your very next swing lands. `cast dispel magic` (Mage) strips every active magical effect from yourself or a target -- a deliberate departure from the original spell (which only worked on enchanted items), reworked to actually do something useful in Tobin.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

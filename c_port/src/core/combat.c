@@ -201,7 +201,7 @@ static bool ci_contains(const char *haystack, const char *needle) {
  * than alternating with combat_strike()'s hand-swap bookkeeping (which only
  * ever affects damage, not which weapon gets named). NULL if nothing
  * weapon-category is held (bare-handed). */
-static obj_t *combat_wielded_weapon(const being_t *attacker) {
+obj_t *combat_wielded_weapon(const being_t *attacker) {
     int primary = attacker->handed_right ? 0 : 1;
     int secondary = attacker->handed_right ? 1 : 0;
     if (attacker->held[primary] && attacker->held[primary]->category == OBJ_CAT_WEAPON)
@@ -361,6 +361,14 @@ static void combat_maybe_damage_equipment(being_t *defender, limb_t limb, int dm
  * specifically) -- the caller must route that straight to
  * combat_defeat(). */
 static bool combat_strike(being_t *attacker, being_t *defender) {
+    /* Riposte (spell/skill functional-completeness audit continued,
+     * level 20) -- consumes a bonus set by an earlier successful parry
+     * (see the parry block below and being.h's riposte_ready doc
+     * comment). Read and cleared immediately so it can never linger
+     * into a later round. */
+    bool riposte_bonus = attacker->riposte_ready;
+    attacker->riposte_ready = false;
+
     /* Weapon-aware messaging + hit/dam bonuses (user, Session 43 continued:
      * "when in combat wielded items should modify messaging for example
      * wield sword, you slice instead of hit. This should apply to all
@@ -517,6 +525,22 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
                 tell(attacker, "%s parries your attack!\r\n", being_display_name(defender));
             if (!(defender->pflags & PLR_NOSPAM))
                 tell(defender, "You parry %s's attack!\r\n", being_display_name(attacker));
+
+            /* Riposte (level 20): real upstream's own 50% dice roll on
+             * top of a separate skill check, see being.h's riposte_ready
+             * comment for the full mechanism. */
+            if (!being_is_immortal(defender) && being_knows_skill(defender, "riposte")
+                && rand() % 100 < 50) {
+                const skill_def_t *riposte_sk = skill_find(defender->char_class, "riposte", false);
+                if (riposte_sk && skill_roll_success(skill_learn_from_doing(defender, riposte_sk))) {
+                    defender->riposte_ready = true;
+                    if (!(attacker->pflags & PLR_NOSPAM))
+                        tell(attacker, "%s uses their parry to execute a riposte!\r\n",
+                             being_display_name(defender));
+                    if (!(defender->pflags & PLR_NOSPAM))
+                        tell(defender, "You use your parry to execute a riposte!\r\n");
+                }
+            }
             return false;
         }
     }
@@ -547,7 +571,7 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         }
     }
 
-    if (hit_roll < 50) {
+    if (hit_roll < 50 && !riposte_bonus) {
         /* nospam (user 2026-07-11, ported from Sneezy's AUTO_NOSPAM): each
          * viewer's own toggle decides whether THEY see a miss -- the
          * attacker and defender are checked independently, same as the

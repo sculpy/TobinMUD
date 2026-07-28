@@ -1,6 +1,51 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 90 (DO droplet, from the dev machine):
+Last updated: 2026-07-28 — Session 91 (DO droplet, from the dev machine):
+**Level-20 audit batch: springleap, slam, deathstroke, riposte, dispel
+magic.**
+- **springleap** (Monk): ported faithfully, no scope cut needed at all.
+- **slam**/**deathstroke** (Warrior): real upstream's damage formulas
+  (a level-tiered %-max-HP scale for slam; a self-lockout timer plus
+  armor/hitroll affects for deathstroke) don't have clean Tobin
+  equivalents -- scoped to the shared STR-flavored placeholder at the
+  two heaviest multipliers used so far (x2.5, x3). Corrected slam's old
+  roster flavor text ("extra damage and a stun") -- real upstream has no
+  stun at all. deathstroke requires a wielded weapon
+  (`combat_wielded_weapon()`, promoted from `static` to shared via
+  combat.h so cmd_deathstroke.c can call it).
+- **riposte** (Warrior, passive): no command file, matching real
+  upstream's own shape (parry has none either) -- new transient
+  `being_t.riposte_ready` flag, set on a successful parry (50% + a
+  skill roll), consumed at the top of that being's own next
+  `combat_strike()` call to force the swing to land. The simplest
+  faithful analog of "one bonus attack" inside Tobin's fixed
+  one-strike-per-side-per-round shape, without recursively re-entering
+  `combat_strike()` (would risk a use-after-free if the recursive call's
+  damage killed a mob mid-function, since `combat_process_run()`'s own
+  post-call logic assumes both beings are still valid).
+- **dispel magic** (Mage): a DELIBERATE, disclosed deviation from the
+  real mechanic (see cmd_cast.c's own comment) -- real upstream is
+  entirely object-targeted, which Tobin has nothing to port onto (no
+  runtime per-object enchantment state). Implemented as a being-targeted
+  "strip every active affect" instead, self or a named target.
+- `tests/smoke_test_level20_warrior_mage.py` (8 checks) passes live.
+  Needed several fix-and-rerun cycles, all test-script bugs rather than
+  feature bugs: (1) springleap is Monk-only, first attempt used a
+  Warrior; (2) `load obj` needs immortal tier -- a mortal test character
+  can't use it directly, needed a dedicated immortal helper to load+drop
+  items (same established precedent other tests already use, just
+  missed here at first); (3) forgot to seed the SETUP spell's own
+  proficiency (`gills of flesh`, used only to give the dispel-magic
+  check something to strip) alongside dispel magic's own.
+- Also hit the same not-yet-root-caused room-placement/linkdead bug
+  (TODO.md) once during manual verification (a live SQL level edit to
+  an ALREADY-CONNECTED character doesn't reach that character's
+  in-memory `being_t` until they reconnect -- not the mystery bug
+  itself, just a related "don't mutate a live session's DB row and
+  expect it to take effect immediately" lesson, worth remembering
+  separately for future test-writing).
+
+Previous update: 2026-07-28 — Session 90 (DO droplet, from the dev machine):
 **Editor paste-truncation fix (real root cause: DESC_LINE_MAX, not the
 description buffers); teleport/summon (Mage/Cleric, 19) mostly done, one
 open smoke-test issue.**

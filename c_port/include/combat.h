@@ -27,6 +27,17 @@ being_t *combat_find_room_target(being_t *self, const char *name);
  * bypasses it. */
 bool combat_pk_allowed(const being_t *self, const being_t *t);
 
+/* The weapon-category item `attacker` is wielding (primary hand first,
+ * then off-hand), or NULL if bare-handed -- exported so `deathstroke`
+ * (cmd_deathstroke.c, level 20) can require a real wielded weapon the
+ * same way combat_strike()'s own messaging/mods lookup does. `struct
+ * obj *`, not `obj_t *` -- being.h only forward-declares `struct obj`
+ * (avoids a being.h<->obj.h include cycle), so this header can't name
+ * the typedef; callers that already have obj.h included (as
+ * cmd_deathstroke.c does) can still assign the result to an `obj_t *`
+ * freely, same type underneath. */
+struct obj *combat_wielded_weapon(const being_t *attacker);
+
 /* Immortal-only instant kill (see misc/offense.cc's doKill()/POWER_SLAY in
  * the original -- there it's gated by a wiz-power flag Tobin doesn't have;
  * here it's gated by being_is_immortal() at the call site in cmd_kill.c).

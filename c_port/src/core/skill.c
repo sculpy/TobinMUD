@@ -46,7 +46,7 @@ static const skill_def_t SKILLS[] = {
     { "spin",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   17, "A spinning grapple-style strike -- needs a free hand." },
     { "disarm",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   17, "Knock the weapon out of an opponent's hand." },
     { "advanced berserking",     CLASS_WARRIOR, SKILL_TIER_CLASS,   20, "An upgraded berserk with a stronger effect." },
-    { "slam",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   20, "A heavy shield-and-body slam for extra damage and a stun." },
+    { "slam",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   20, "A heavy shield-and-body slam for considerable extra damage." },
     { "riposte",                 CLASS_WARRIOR, SKILL_TIER_CLASS,   20, "A successful parry gives you a chance to counter-attack immediately." },
     { "deathstroke",             CLASS_WARRIOR, SKILL_TIER_CLASS,   20, "A heavy, finishing-style attack against a single target." },
     { "taunt",                   CLASS_WARRIOR, SKILL_TIER_CLASS,   22, "Provoke a target into focusing their aggression on you." },

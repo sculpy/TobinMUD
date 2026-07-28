@@ -348,6 +348,51 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                      sk->name, being_display_name(target));
             descriptor_send(d, msg);
         }
+    } else if (strcasecmp(sk->name, "dispel magic") == 0) {
+        /* Full spell/skill/prayer roster import continued, level-5+ list
+         * (audit continued): checked the real upstream first
+         * (disc_mage_alchemy.cc's `dispelMagic()`/`castDispelMagic()`)
+         * -- it turns out to be entirely OBJECT-targeted in the real
+         * game (strips an item's objaffect-style enchantment bonuses
+         * and its ITEM_MAGIC flag), never a being at all. Skill.c's own
+         * roster text ("Strips magical effects from a being or
+         * object") is only half right, same kind of guess this audit
+         * has corrected before -- but unlike those, this is a
+         * deliberate DEVIATION from the real mechanic rather than a
+         * flavor-text fix, disclosed here: Tobin has no runtime
+         * per-object enchantment state to strip (objaffect rows are
+         * permanent DB-defined weapon bonuses, not a temporary spell
+         * effect), so the real object-only mechanic has nothing to
+         * port onto. Beings, on the other hand, already have a real,
+         * removable affects[] runtime (curse/poison/disease/fear/
+         * stupidity/sanctuary/flying/... all live there) -- implemented
+         * as a being-targeted "strip every active affect" instead,
+         * self by default or a named target, functionally useful both
+         * offensively (strip an enemy's buffs) and supportively (clear
+         * an ally's curse/poison/disease/fear/stupidity all at once,
+         * where the single-purpose cure spells only handle one kind
+         * each). */
+        int cleared = 0;
+        for (int i = 0; i < MAX_ACTIVE_AFFECTS; i++) {
+            if (target->affects[i].type != AFFECT_NONE) {
+                being_remove_affect(target, target->affects[i].type);
+                cleared++;
+            }
+        }
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), cleared
+                     ? "You cast %s -- a wave of anti-magic washes over you, stripping every active effect!\r\n"
+                     : "You cast %s, but you have no active magical effects to strip.\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), cleared
+                     ? "You cast %s over %s -- a wave of anti-magic strips every active effect from them!\r\n"
+                     : "You cast %s over %s, but they have no active magical effects to strip.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc && cleared)
+                descriptor_notify(target->desc, "A wave of anti-magic washes over you, stripping every active effect!\r\n");
+        }
     } else if (strcasecmp(sk->name, "cure poison") == 0) {
         bool had = being_has_affect(target, AFFECT_POISON);
         if (had)

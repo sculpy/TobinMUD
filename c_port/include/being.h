@@ -657,6 +657,23 @@ typedef struct being {
      * job (a separate, higher-level roster entry), not sneak's. */
     bool sneaking;
 
+    /* Riposte (spell/skill functional-completeness audit continued,
+     * level 20: skill.c's own Warrior roster "A successful parry gives
+     * you a chance to counter-attack immediately."). Real upstream
+     * (misc/combat.cc:4348) sets a transient AFF_RIPOSTE flag on a
+     * successful parry (50% chance, gated on knowing SKILL_RIPOSTE and
+     * its own skill roll), consumed on the SAME being's own next attack
+     * this round to grant one bonus hit ("fx++" in hit()) -- ported the
+     * same shape here: set on a successful parry in combat_strike()'s
+     * parry branch, consumed at the top of the very next combat_strike()
+     * call where this being is the ATTACKER (forces that swing to land
+     * regardless of the normal to-hit roll, rather than a separate bonus
+     * strike or extra damage -- the simplest faithful analog of "one
+     * extra swing" inside Tobin's fixed one-strike-per-side-per-round
+     * shape). Live in-memory only, meaningless across a reconnect, same
+     * rule as sneaking above. */
+    bool riposte_ready;
+
     /* Group/party (Sneezy → Tobin feature audit, "Group / party system").
      * Live in-memory only, same "meaningless across a reconnect" rule as
      * `fighting` -- EXCEPT a disconnect deliberately does NOT clear these

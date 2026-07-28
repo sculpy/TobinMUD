@@ -325,10 +325,14 @@ static const cmd_entry_t COMMANDS[] = {
     { "skin",    cmd_skin,    "Strip a hide from a slain animal's corpse (Druid).", MORTAL_LEVEL_MIN },
     { "skills",  cmd_skills,  "List your class's skills/spells, known and locked.", MORTAL_LEVEL_MIN },
     { "sleep",   cmd_sleep,   "Lie down and sleep (heals fastest).",                MORTAL_LEVEL_MIN },
+    /* Must come AFTER sleep -- "sl" is already sleep's abbreviation;
+     * slam is only reachable via its own "sla"+ prefix. */
+    { "slam",    cmd_slam,    "A heavy shield-and-body slam for considerable extra damage (Warrior, slam <target>).", MORTAL_LEVEL_MIN },
     { "smoke",   cmd_smoke,   "Smoke a carried drug item (smoke <item>).",          MORTAL_LEVEL_MIN },
     /* "s"/"so" are south (movement head); socials needs "soc". */
     { "socials", cmd_socials, "List the socials you can use (smile, wave, ...).",   MORTAL_LEVEL_MIN },
     { "spin",    cmd_spin,    "A spinning grapple-style strike that needs a free hand (Warrior, spin <target>).", MORTAL_LEVEL_MIN },
+    { "springleap", cmd_springleap, "Spring instantly from sitting or resting to standing (Monk).", MORTAL_LEVEL_MIN },
     { "split",   cmd_split,   "Split gold evenly among your grouped members present (split <amount>).", MORTAL_LEVEL_MIN },
     { "stand",   cmd_stand,   "Stand up.",                                          MORTAL_LEVEL_MIN },
     { "stop",    cmd_stop,    "Stop following whoever you're following.",           MORTAL_LEVEL_MIN },
@@ -398,6 +402,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "bamfin",  cmd_bamfin,  "Set your custom `goto` arrival message (bamfin [msg]).",    IMMORTAL_LEVEL_MIN },
     { "bamfout", cmd_bamfout, "Set your custom `goto` departure message (bamfout [msg]).", IMMORTAL_LEVEL_MIN },
     { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected.", COPYOVER_MIN_LEVEL },
+    { "deathstroke", cmd_deathstroke, "A heavy, finishing-style attack against a single target (Warrior, deathstroke <target>).", MORTAL_LEVEL_MIN },
     { "delbug",  cmd_delbug,  "Delete a handled bug report by id.",                 DELBUG_MIN_LEVEL },
     { "delidea", cmd_delidea, "Delete a handled idea by id.",                       DELIDEA_MIN_LEVEL },
     /* Skill-based combat (Sneezy → Tobin feature audit) -- listed BEFORE

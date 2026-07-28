@@ -1543,10 +1543,65 @@ durations where warranted, and a cooldown where warranted. Audit findings
     refusal is verified by code review only (no DB-persisted affect row
     to seed without a live Mage `levitate` cast, same "not every side
     effect needs a live assertion" precedent as fear/slumber).
-    Not yet started: teleport/summon (19), slam/riposte/deathstroke/
-    dispel magic/springleap (20), blindness/word of recall (21),
-    taunt/paralyze limb (22), whirlwind/kneestrike/farlook/scribe/bind
-    (25), hide (31), paralyze (33), quivering palm (42), silence (48).
+    **teleport** (Mage, 19) -- done. Self or an offensive cast on a
+    room-local target, both sent to a genuinely RANDOM room (real
+    upstream, disc_mage_sorcery.cc's `teleport()`/`genericTeleport()` --
+    skill.c's old roster text "random or chosen location" was an
+    inaccurate guess, corrected to "random location"). Real destination
+    exclusions (DEATH/PRIVATE/HAVE-TO-WALK rooms) and a caster-room
+    NO-ESCAPE refusal ported via new `room_repo_random_teleport_vnum()`
+    and four new `ROOM_FLAG_*` bits. Not ported: the `isLucky`
+    resist-and-fizzle roll and the critical-failure caster-flung branch.
+    **summon** (Cleric, 19) -- done. World-wide online-character search
+    (reusing `transfer`'s lookup) pulls a named target into the caster's
+    room; refuses an immortal target outright (no caster-immortal
+    exception, matching real upstream exactly) and requires mutual
+    `toggle pk` consent for a mortal target (`combat_pk_allowed()`). Not
+    ported: the real `isNotPowerful()` discipline-tier power-gap gate
+    (no clean Tobin equivalent) and the real arena/have-to-walk/
+    fall-sector location refusals. New `cmd_pray.c` branch.
+    `tests/smoke_test_teleport_summon.py` (10 checks) -- verified correct
+    via isolated single-character manual testing; the test's own
+    multi-character batch setup intermittently trips a separate engine
+    bug (see "Small near-term gameplay follow-ups" section) not yet
+    understood, so the automated test itself isn't clean end-to-end.
+    **springleap** (Monk, 20) -- done, ported faithfully (real upstream,
+    disc/disc_monk_leverage.cc, needed no scope cut at all): refuses
+    unless resting or sitting, one roll, stands you up on success.
+    **slam** (Warrior, 20) -- done. Real upstream (cmd/cmd_slam.cc) has
+    no stun at all -- skill.c's old roster text ("extra damage and a
+    stun") was another inaccurate guess, corrected. Real damage formula
+    scales to a level-tiered percentage of the victim's max HP (not
+    ported, no clean Tobin equivalent); scoped to the shared STR-flavored
+    placeholder at x2.5, the heaviest scale used so far.
+    **deathstroke** (Warrior, 20) -- done. Requires a wielded weapon
+    (`combat_wielded_weapon()`, promoted from static to shared via
+    combat.h), x3 damage (heaviest yet). Not ported: the real self-lockout
+    timer, armor-penalty/hitroll-buff affects (no generic arbitrary-
+    modifier system), and the victim's own counterattack-if-they-also-
+    know-deathstroke chain.
+    **riposte** (Warrior, 20, passive) -- done. No `cmd_riposte.c` at
+    all, matching real upstream (`parry` has no player command either) --
+    a successful parry has a 50%-then-skill-roll chance to set a new
+    transient `being_t.riposte_ready` flag, consumed at the top of that
+    being's own next `combat_strike()` call to force that swing to land
+    (the simplest faithful analog of real upstream's literal bonus
+    attack, "fx++" in `hit()`, inside Tobin's fixed one-strike-per-side
+    shape).
+    **dispel magic** (Mage, 20) -- done, but a DELIBERATE DEVIATION from
+    the real mechanic, disclosed in cmd_cast.c's own comment: real
+    upstream (disc_mage_alchemy.cc) is entirely OBJECT-targeted (strips
+    an item's enchantment bonuses), which Tobin has nothing to port onto
+    (objaffect rows are permanent DB data, not a runtime dispellable
+    state). Implemented instead as a being-targeted "strip every active
+    affect" (self or a named target) -- useful both offensively and as a
+    one-shot cure-everything, unlike the single-purpose cure spells.
+    `tests/smoke_test_level20_warrior_mage.py` (8 checks) passes live for
+    all five items above (riposte verified by code review only -- no
+    deterministic way to force a parry+riposte proc).
+    Not yet started: blindness/word of recall (21), taunt/paralyze limb
+    (22), whirlwind/kneestrike/farlook/scribe/bind (25), hide (31),
+    paralyze (33), quivering palm (42), silence (48).
 - **Buff spells that conflate distinct effects**: sanctuary/armor/bless/
   stone skin/barkskin/protection-from-* all currently reuse the identical
   `AFFECT_SANCTUARY` buff rather than each having its own effect --
@@ -6104,6 +6159,19 @@ already tracked — pointers, not duplicates):
 
 ## Small near-term gameplay follow-ups
 
+- [ ] **`mudstats` should also show account count, player (character)
+      count, and lines of code in the codebase** — user 2026-07-28.
+      `cmd_mudstats.c` currently only counts room/mob/obj rows
+      (`mud_count()`, a literal per-table `select count(*)`) -- extend
+      with `select count(*) from account` and `select count(*) from
+      player` the same way. Lines of code has no existing helper;
+      simplest faithful approach is shelling out to something like
+      `find src include -name '*.c' -o -name '*.h' | xargs wc -l`
+      at request time (cheap, no caching needed) rather than trying to
+      maintain a running counter -- needs a real subprocess/popen call
+      Tobin doesn't currently do anywhere else in cmd_*.c, worth
+      checking there's a sanctioned pattern (or precedent for shelling
+      out) before adding one.
 - [ ] **BUG: a freshly created character can land in the wrong room /
       lose immortal status on login** — found 2026-07-28 (Session 90)
       while debugging `tests/smoke_test_teleport_summon.py`'s own
