@@ -11,11 +11,15 @@
 #include <strings.h>
 
 #include "affect.h"
+#include "cmd.h"
 #include "combat.h"
 #include "obj.h"
 #include "pulse.h"
+#include "room.h"
+#include "room_repo.h"
 #include "skill.h"
 #include "thing.h"
+#include "world.h"
 
 /* `cast <spell>` -- Mage/Druid spellcasting (user 2026-07-11: "druids and
  * mages should require components to cast with, so implement task_pray
@@ -272,7 +276,79 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
      * default), unaffected -- see cmd_pray.c's identical atk_target for
      * the full rationale. */
     being_t *atk_target = (target != ch) ? target : ch->fighting;
-    if (strcasecmp(sk->name, "cure poison") == 0) {
+    if (strcasecmp(sk->name, "teleport") == 0) {
+        /* Full spell/skill/prayer roster import continued, level-5+ list
+         * (audit continued): real upstream (disc_mage_sorcery.cc's
+         * teleport()/genericTeleport()) sends the target -- self by
+         * default, or another being if named -- to a genuinely RANDOM
+         * room in the whole world, not a chosen destination (skill.c's
+         * own roster text "random or chosen location" turned out to be
+         * an inaccurate guess, same shape as chi/jirin/cintai's earlier
+         * flavor-text corrections -- fixed to just "random location").
+         * `target` here (not atk_target) is used directly: no target
+         * means SELF-teleport, unlike every offensive spell in this file
+         * that falls back to the caster's current opponent. Ported: the
+         * NO-ESCAPE check on the CASTER's own room (real upstream checks
+         * this regardless of self/offensive cast) and the DEATH/PRIVATE/
+         * HAVE-TO-WALK exclusions on the destination (room_repo.h's new
+         * room_repo_random_teleport_vnum(), one DB query instead of the
+         * real client-side retry loop -- see that function's own doc
+         * comment for why). Not ported: the `isLucky` resist-and-fizzle
+         * roll on an offensive cast (the outer cast-proficiency roll
+         * already stands in for it, same precedent as `fear`) and the
+         * critical-failure branch that flings the CASTER instead. */
+        if (!ch->base.roomp) {
+            descriptor_send(d, "You aren't anywhere.\r\n");
+            return;
+        }
+        if (ch->base.roomp->room_flag & ROOM_FLAG_NO_ESCAPE) {
+            descriptor_send(d, "The defenses of this area are too strong.\r\n");
+            return;
+        }
+        if (target != ch && being_is_immortal(target)) {
+            snprintf(msg, sizeof(msg), "You can't do that to %s -- they're a god!\r\n",
+                     being_display_name(target));
+            descriptor_send(d, msg);
+            return;
+        }
+        int dest_vnum = room_repo_random_teleport_vnum();
+        room_t *dest = dest_vnum > 0 ? world_get_room(dest_vnum) : NULL;
+        if (!dest && dest_vnum > 0) {
+            dest = room_repo_load(dest_vnum);
+            if (dest)
+                world_register_room(dest);
+        }
+        if (!dest) {
+            descriptor_send(d, "You reach for the ether, but nothing happens.\r\n");
+            return;
+        }
+        room_t *old_room = target->base.roomp;
+        if (target->desc) {
+            descriptor_send(target->desc, "You shimmer out of existence!\r\n");
+        }
+        if (old_room) {
+            char departmsg[128];
+            snprintf(departmsg, sizeof(departmsg), "%s shimmers out of existence!\r\n",
+                     target->base.name);
+            descriptor_room_echo(old_room, target, departmsg);
+        }
+        thing_set_room(&target->base, dest);
+        char arrivemsg[128];
+        snprintf(arrivemsg, sizeof(arrivemsg), "%s shimmers into existence!\r\n", target->base.name);
+        descriptor_room_echo(dest, target, arrivemsg);
+        if (target->desc) {
+            descriptor_send(target->desc, "You shimmer into existence somewhere else entirely!\r\n");
+            cmd_dispatch(target->desc, "look");
+        }
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), "You cast %s -- reality wrenches and you're somewhere else!\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), "You cast %s at %s -- they vanish into thin air!\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+        }
+    } else if (strcasecmp(sk->name, "cure poison") == 0) {
         bool had = being_has_affect(target, AFFECT_POISON);
         if (had)
             being_remove_affect(target, AFFECT_POISON);

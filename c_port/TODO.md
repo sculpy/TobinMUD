@@ -6104,6 +6104,32 @@ already tracked — pointers, not duplicates):
 
 ## Small near-term gameplay follow-ups
 
+- [ ] **BUG: a freshly created character can land in the wrong room /
+      lose immortal status on login** — found 2026-07-28 (Session 90)
+      while debugging `tests/smoke_test_teleport_summon.py`'s own
+      multi-character batch setup. Repro: create several new characters
+      in a short window (several back-to-back `make_char()`/`relog()`
+      calls, matching this session's own smoke-test pattern). Some or
+      all can come up "Welcome back! You resume where you left off"
+      (the linkdead-resume message) on their FIRST-EVER login, landing
+      in the mortal default room (100, Center Square) instead of their
+      real `player.load_room`, and appear to not register as immortal
+      even with `player_progress.level` correctly at 51+ in the DB
+      (verified via a direct query at the exact moment of failure).
+      `world_find_linkdead_pc()` (world.c) matches strictly by
+      `player_id`, and player_ids were confirmed NOT colliding between
+      the fresh character and any nearby linkdead ghost in one isolated
+      repro, so the exact mechanism is still unclear — something in
+      `enter_world()`'s ordering (descriptor.c, the room-resolution +
+      immortal-redirect logic around `player_load_room()`/
+      `being_is_immortal()`) or the DB read path (`player_load()`/
+      `player_progress_load()`) is suspect. An isolated SINGLE character
+      login (no other characters created nearby in time) reliably works
+      correctly every time tested. `purge linkdead` run by an immortal
+      right before the affected logins does NOT reliably fix it (tried
+      live, bug recurred on the next batch anyway). Worth a dedicated
+      look with fresh eyes — this could affect real concurrent player
+      logins during a busy period, not just test scripts.
 - [x] **`quit!` drops all possessions on the ground, gold included** —
       done. User (2026-07-12): "after rent goes in quitting the game
       will drop all possessions on the ground where the quit command

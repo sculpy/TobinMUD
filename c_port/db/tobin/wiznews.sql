@@ -935,3 +935,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'gdb was not actually installed on this droplet', 'Every "reattach gdb to catch crashes" step this session silently failed with a missing-command error, but an empty crash-log grep looked identical to "no crash happened" -- so it went unnoticed until a copyover-triggered reattach actually surfaced the failure. Installed now and confirmed genuinely attached. Worth checking that gdb itself is actually running (not just that its log is crash-free) the first time this is done on any new box.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Editors no longer cut off long pastes', 'Pasting a long room description (or help topic, news, wiznews, rules, or trigger script body) into the line editor used to silently drop everything past a couple hundred characters on a single line, with no warning. The real limit on how much can arrive on one line has been raised well past what any real paste needs, and the final saved-text limit for all of those editors has also been quadrupled for headroom.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

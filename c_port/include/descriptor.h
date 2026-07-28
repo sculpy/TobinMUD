@@ -323,8 +323,19 @@ typedef enum {
     CONN_CLOSED
 } conn_state_t;
 
-#define DESC_RAW_BUF 1024
-#define DESC_LINE_MAX 256
+/* DESC_LINE_MAX is the REAL bottleneck for "my editor paste got cut off"
+ * (user 2026-07-28: pasting a room description truncated ~1/3 of the
+ * way in) -- drain_lines() (descriptor.c) silently drops any character
+ * past this many bytes on a single incoming line, with no warning, long
+ * before a paste ever reaches an editor's own accumulation buffer
+ * (edit_buf, HELP_BODY_MAX/ROOM_DESCRIPTION_MAX below -- those were
+ * already generous). A pasted multi-sentence paragraph routinely arrives
+ * as one long line if the client doesn't hard-wrap it. Quadrupled
+ * (256->1024) alongside DESC_RAW_BUF (which must stay comfortably above
+ * DESC_LINE_MAX -- it's the UNPARSED-bytes-across-reads buffer a long
+ * line has to fit inside before its terminating newline arrives). */
+#define DESC_RAW_BUF 4096
+#define DESC_LINE_MAX 1024
 
 /* Outgoing-data backlog (see descriptor_write()/descriptor_flush_output()
  * in descriptor.c). Bytes that don't fit in one write() -- a full or

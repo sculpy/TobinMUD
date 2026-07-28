@@ -11,6 +11,7 @@
 #include <strings.h>
 
 #include "affect.h"
+#include "cmd.h"
 #include "combat.h"
 #include "obj.h"
 #include "pulse.h"
@@ -589,6 +590,107 @@ bool cmd_pray(descriptor_t *d, const char *args) {
             descriptor_send(d, "Master your Basic and Combat disciplines, and begin Advanced practice, before this.\r\n");
             return true;
         }
+    }
+
+    /* `summon` (Cleric, level 19, audit continued): unlike every other
+     * prayer, its target isn't in the caster's own room -- the whole
+     * point is pulling someone from ELSEWHERE to you, so it's
+     * intercepted here, before the generic room-scoped target
+     * resolution below would wrongly refuse with "You don't see them
+     * here." Reuses `transfer`'s (cmd_transfer.c) own world-wide,
+     * online-only name search and relocation call, plus
+     * `combat_pk_allowed()` for mortal-vs-mortal consent -- the same
+     * convention every other hostile-capable prayer in this audit
+     * (poison/disease/curse/fear/slumber) already follows via
+     * `combat_find_room_target()`'s built-in gate, ported by hand here
+     * since that helper doesn't apply world-wide. Checked the real
+     * upstream first (disc/disc_cleric_hand_of_god.cc's `summon()`/
+     * `rawSummon()`): refuses an immortal target outright (no caster-
+     * immortal exception at that check either, ported faithfully), plus
+     * a `isNotPowerful()` discipline-tier power-gap gate this pass does
+     * NOT port -- no clean Tobin equivalent (Tobin has no per-discipline
+     * power-tier system), same "Tobin-scale slice" cut headbutt/bodyslam
+     * already made for their own real-only mechanics. Also not ported:
+     * the real `ROOM_ARENA`/`ROOM_HAVE_TO_WALK`/fall-sector location
+     * refusals and the critical-failure branch that flings the CASTER
+     * randomly instead (Tobin has no arena/have-to-walk room content
+     * yet to gate on). */
+    if (strcasecmp(sk->name, "summon") == 0) {
+        if (!target_name) {
+            descriptor_send(d, "Summon whom?\r\n");
+            return true;
+        }
+        being_t *summ_target = NULL;
+        size_t len = strlen(target_name);
+        for (descriptor_t *it = g_descriptors; it; it = it->next) {
+            if (it->character && it->character->base.roomp
+                && strncasecmp(it->character->base.name, target_name, len) == 0) {
+                summ_target = it->character;
+                break;
+            }
+        }
+        if (!summ_target) {
+            char msg[128];
+            snprintf(msg, sizeof(msg), "No one named '%s' is in the game.\r\n", target_name);
+            descriptor_send(d, msg);
+            return true;
+        }
+        if (summ_target == ch) {
+            descriptor_send(d, "You can't summon yourself.\r\n");
+            return true;
+        }
+        if (being_is_immortal(summ_target)) {
+            descriptor_send(d, "Summoning the gods can be hazardous to your health...\r\n");
+            return true;
+        }
+        if (!imm && !combat_pk_allowed(ch, summ_target)) {
+            descriptor_send(d, "They haven't consented to that kind of magic (toggle pk).\r\n");
+            return true;
+        }
+        if (summ_target->base.roomp == ch->base.roomp) {
+            char msg[128];
+            snprintf(msg, sizeof(msg), "%s is already here.\r\n", being_display_name(summ_target));
+            descriptor_send(d, msg);
+            return true;
+        }
+
+        obj_t *summ_symbol = find_keyword_item(ch, "symbol");
+        if (!summ_symbol) {
+            descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
+            return true;
+        }
+
+        if (imm || skill_roll_success(skill_learn_from_doing(ch, sk))) {
+            room_t *old_room = summ_target->base.roomp;
+            char depart_msg[128];
+            snprintf(depart_msg, sizeof(depart_msg), "%s vanishes through the cosmic ether!\r\n",
+                     summ_target->base.name);
+            descriptor_room_echo(old_room, summ_target, depart_msg);
+
+            thing_set_room(&summ_target->base, ch->base.roomp);
+
+            char arrive_msg[128];
+            snprintf(arrive_msg, sizeof(arrive_msg), "%s arrives through the cosmic ether!\r\n",
+                     summ_target->base.name);
+            descriptor_room_echo(ch->base.roomp, summ_target, arrive_msg);
+
+            if (summ_target->desc) {
+                descriptor_send(summ_target->desc,
+                                 "You feel a tug and are transferred through the cosmic ether!\r\n");
+                cmd_dispatch(summ_target->desc, "look");
+            }
+
+            char msg[128];
+            snprintf(msg, sizeof(msg), "You pray for %s -- %s appears before you!\r\n",
+                     sk->name, being_display_name(summ_target));
+            descriptor_send(d, msg);
+        } else {
+            char msg[128];
+            snprintf(msg, sizeof(msg), "You fumble the prayer for %s -- nothing happens.\r\n", sk->name);
+            descriptor_send(d, msg);
+        }
+        consume_symbol(d, summ_symbol);
+        return true;
     }
 
     /* Defaults to self, same as always (heal/buff prayers with no

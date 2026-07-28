@@ -20,6 +20,16 @@ room_t *room_repo_load(int vnum);
 /* True if a room row with this vnum exists. */
 bool room_repo_exists(int vnum);
 
+/* Picks one random vnum >= 100 from the whole `room` table, excluding
+ * anything flagged DEATH/PRIVATE/HAVE-TO-WALK (ROOM_FLAG_* in room.h) --
+ * one DB-side `ORDER BY RAND() LIMIT 1` rather than a client-side retry
+ * loop over guessed vnums (real upstream's genericTeleport() does the
+ * latter, `misc/magicutils.cc`, since it only has an in-memory room
+ * table to pick from; Tobin's rooms live in the DB, so a single query
+ * is simpler and can't loop forever). Used by `teleport` (Mage 19,
+ * cmd_cast.c). Returns -1 if no eligible room exists at all. */
+int room_repo_random_teleport_vnum(void);
+
 /* The lowest unused vnum in [bottom, top] (one query, not a per-vnum
  * exists() loop -- walks the sorted list of vnums already in range and
  * returns the first gap, or the vnum right after the last one used if

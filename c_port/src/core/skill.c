@@ -259,7 +259,7 @@ static const skill_def_t SKILLS[] = {
     { "flaming sword",    CLASS_MAGE, SKILL_TIER_CLASS, 19, "Imbues a weapon strike with fire damage." },
     { "sand blast",       CLASS_MAGE, SKILL_TIER_CLASS, 19, "An area-effect burst of earthen damage." },
     { "ice storm",        CLASS_MAGE, SKILL_TIER_CLASS, 19, "An area-effect burst of cold damage." },
-    { "teleport",         CLASS_MAGE, SKILL_TIER_CLASS, 19, "Teleports you to a random or chosen location." },
+    { "teleport",         CLASS_MAGE, SKILL_TIER_CLASS, 19, "Teleports yourself, or a target, to a random location." },
     { "dispel magic",     CLASS_MAGE, SKILL_TIER_CLASS, 20, "Strips magical effects from a being or object." },
     { "conjure elemental air", CLASS_MAGE, SKILL_TIER_CLASS, 12, "Summons an air elemental ally." },
     { "ensorcer",         CLASS_MAGE, SKILL_TIER_CLASS, 15, "Charms or dominates a target." },

@@ -13,7 +13,13 @@
 /* C replacement for the TRoom slice of misc/thing.h + the `room` DB table
  * (db/tobin/room.sql). Phase 1 keeps only the fields needed for `look`. */
 
-#define ROOM_DESCRIPTION_MAX 4096
+/* Quadrupled 2026-07-28 (user: paste-in-editor headroom for long
+ * descriptions) -- see descriptor.h's DESC_LINE_MAX comment for the
+ * REAL bottleneck this was paired with (a much smaller per-line input
+ * cap was silently dropping pasted text long before this storage limit
+ * ever mattered). Shared with HELP_BODY_MAX (help_repo.h) -- the two
+ * must stay equal, see descriptor.h's edit_buf comment. */
+#define ROOM_DESCRIPTION_MAX 16384
 /* The original dirTypeT's full set, IN ITS ORDER: north(0), east(1),
  * south(2), west(3), up(4), down(5), northeast(6), northwest(7),
  * southeast(8), southwest(9) -- confirmed against constants.cc's rev_dirs
@@ -112,6 +118,17 @@ const char *room_flag_name(int bit);
  * bit position verbatim. Named here since cmd_goto.c's `goto hospital`
  * landmark search needs to test it directly. */
 #define ROOM_FLAG_HOSPITAL (1 << 16)
+
+/* Bits 1/6/9/13 of ROOM_FLAG_NAMES (room.c) -- DEATH/NO-ESCAPE/PRIVATE/
+ * HAVE-TO-WALK, matching the upstream bit positions verbatim. Named here
+ * for the spell/skill functional-completeness audit's `teleport` (Mage,
+ * 19, cmd_cast.c): real upstream's genericTeleport() excludes a random
+ * destination room flagged DEATH/PRIVATE/HAVE-TO-WALK, and refuses to
+ * even attempt the spell if the CASTER's own room is flagged NO-ESCAPE. */
+#define ROOM_FLAG_DEATH (1 << 1)
+#define ROOM_FLAG_NO_ESCAPE (1 << 6)
+#define ROOM_FLAG_PRIVATE (1 << 9)
+#define ROOM_FLAG_HAVE_TO_WALK (1 << 13)
 
 /* Sector-based ground-surface word (Sneezy's TRoom::describeGroundType(),
  * misc/create_rooms.cc) -- "street", "road", "water", "mud", "sand",

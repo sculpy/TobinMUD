@@ -1,6 +1,65 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 89 (DO droplet, from the dev machine):
+Last updated: 2026-07-28 — Session 90 (DO droplet, from the dev machine):
+**Editor paste-truncation fix (real root cause: DESC_LINE_MAX, not the
+description buffers); teleport/summon (Mage/Cleric, 19) mostly done, one
+open smoke-test issue.**
+- **Editor paste truncation, fixed**: user reported `edit room description`
+  cutting off a pasted description about 1/3 of the way in. Diagnosed
+  live: NOT the description storage buffer (`ROOM_DESCRIPTION_MAX`,
+  already 4096) -- the real bottleneck is `descriptor.h`'s
+  `DESC_LINE_MAX` (256), which `drain_lines()` (descriptor.c) uses to
+  silently DROP any character past that many bytes on a single incoming
+  line, no warning, before a paste ever reaches an editor's own
+  accumulation buffer. A pasted multi-sentence paragraph routinely
+  arrives as one long line. Fixed: `DESC_LINE_MAX` 256->1024,
+  `DESC_RAW_BUF` 1024->4096 (must stay comfortably above `DESC_LINE_MAX`
+  -- it's the unparsed-bytes-across-reads buffer a long line has to fit
+  inside before its newline arrives), plus quadrupled the FINAL storage
+  buffers per the user's own request applied to "all editors for long
+  descriptions": `ROOM_DESCRIPTION_MAX`/`HELP_BODY_MAX` 4096->16384
+  (shared by room/help/news/wiznews/rules/trigger-script bodies via the
+  common `edit_buf`). Confirmed working live by the user directly in
+  the room editor. DB `TEXT` columns were never the limit (up to 65535
+  bytes already); `db_query()`'s own escape/query buffers (65536/65537)
+  have ample headroom for the new 16KB max plus SQL-escaping overhead.
+- **teleport** (Mage, 19) + **summon** (Cleric, 19): new `cmd_cast.c`
+  teleport branch (self or an offensive cast on a room-local target,
+  both sent to a genuinely RANDOM room -- real upstream, not a "chosen
+  location" as skill.c's old roster flavor text guessed, now corrected)
+  and `cmd_pray.c` summon branch (world-wide target search + pull into
+  caster's room, reusing `transfer`'s online-character lookup and
+  `combat_pk_allowed()` for mortal-vs-mortal consent). New
+  `room_repo_random_teleport_vnum()` (room_repo.c/.h) plus four new
+  `ROOM_FLAG_*` bits (DEATH/NO_ESCAPE/PRIVATE/HAVE_TO_WALK, room.h) for
+  the real destination-exclusion/caster-room checks. Verified correct
+  via isolated single-character manual tests (self-teleport relocates,
+  offensive-teleport relocates the target only, NO-ESCAPE room refuses,
+  immortal target refused, all 6 summon gates/success). **Not yet
+  clean**: `tests/smoke_test_teleport_summon.py`'s own multi-character
+  batch run hits a separate, real engine bug under investigation below
+  -- the smoke test itself isn't passing end-to-end yet, though the
+  feature code is verified correct by hand. Not committed/pushed yet.
+- **Found, not yet root-caused: `world_find_linkdead_pc()` misattributes
+  a linkdead ghost to an unrelated fresh login under some condition not
+  yet isolated.** Repro: create several new characters in a short
+  window (matches this session's own smoke-test pattern, several
+  `make_char()`/`relog()` calls in quick succession) -- some or all can
+  come up "Welcome back! You resume where you left off," landing in the
+  mortal default room (100, Center Square) instead of their real
+  `load_room`, despite the DB row being verified correct at that exact
+  moment via a direct query. `world_find_linkdead_pc()` matches strictly
+  by `player_id` (world.c) and player_ids were confirmed NOT colliding
+  between the fresh character and any nearby linkdead ghost in one
+  isolated repro, so the exact mechanism is still unclear -- something
+  in `enter_world()`'s ordering (descriptor.c) or the DB read path is
+  suspect. Workaround that reliably clears it: `purge linkdead` run by
+  an immortal before the affected logins. Likely a real, separate,
+  worth-fixing engine bug -- not investigated further this session past
+  confirming the workaround, given time spent; worth a dedicated look
+  next session with fresh eyes.
+
+Previous update: 2026-07-28 — Session 89 (DO droplet, from the dev machine):
 **Real XP-to-level table wired in; HP-per-level rebalanced per-class from
 real source; always-lit flag applied to rooms 100-249; gdb was never
 actually installed on the droplet.**

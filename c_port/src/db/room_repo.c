@@ -91,6 +91,24 @@ int room_repo_next_free_vnum(int bottom, int top) {
     return result;
 }
 
+/* Picks one random vnum >= 100, excluding DEATH/PRIVATE/HAVE-TO-WALK
+ * rooms -- see room_repo.h's doc comment. */
+int room_repo_random_teleport_vnum(void) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+    int vnum = -1;
+    if (db_query(db,
+        "select vnum from room where vnum >= 100 and (room_flag & %i) = 0 "
+        "order by rand() limit 1",
+        ROOM_FLAG_DEATH | ROOM_FLAG_PRIVATE | ROOM_FLAG_HAVE_TO_WALK)
+        && db_fetch_row(db)) {
+        vnum = atoi(db_get(db, "vnum"));
+    }
+    db_close(db);
+    return vnum;
+}
+
 /* Returns a room's zone number, or -1 if the room is unzoned/not found. */
 int room_repo_get_zone(int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);

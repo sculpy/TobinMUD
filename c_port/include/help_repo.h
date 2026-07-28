@@ -14,7 +14,11 @@
  * content in MariaDB like everything else. */
 
 #define HELP_TOPIC_NAME_LEN 32
-#define HELP_BODY_MAX 4096
+/* Quadrupled 2026-07-28 alongside ROOM_DESCRIPTION_MAX (room.h) -- the
+ * two must stay equal, see descriptor.h's edit_buf comment; this is the
+ * shared line-editor accumulation buffer for room/help/news/wiznews/
+ * rules/trigger-script bodies alike. */
+#define HELP_BODY_MAX 16384
 
 /* Exact-name lookup (used by hedit to preload). Returns false if the topic
  * doesn't exist; body gets the stored text ('\n' line endings --
