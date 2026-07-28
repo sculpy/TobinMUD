@@ -1091,10 +1091,10 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         dup->price = 1; /* not a gold-creation bug -- same original comment */
         thing_move_to(&dup->base, &ch->base.roomp->base);
         const char *label = scroll->base.short_descr[0] ? scroll->base.short_descr : scroll->base.name;
-        snprintf(msg, sizeof(msg), "In a flash of light, a copy of %s appears!\r\n", label);
-        descriptor_send(d, msg);
-        if (ch->base.roomp)
-            descriptor_room_echo(ch->base.roomp, ch, msg);
+        char copymsg[224];
+        snprintf(copymsg, sizeof(copymsg), "In a flash of light, a copy of %s appears!\r\n", label);
+        descriptor_send(d, copymsg);
+        descriptor_room_echo(ch->base.roomp, ch, copymsg);
         consume_component(d, ccomp);
         return true;
     }
