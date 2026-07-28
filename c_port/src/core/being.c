@@ -96,6 +96,45 @@ bool mob_class_mask_to_tobin(int mask, player_class_t *out) {
     }
 }
 
+/* Class-appropriate spellcasting supplies (user 2026-07-28 audit-batch
+ * request, queued in Session 92, "Mage/Druid/Cleric mobs should load
+ * carrying class-and-level-appropriate spell components"): Mage/Druid
+ * mobs need any "component"-keyword item and Cleric mobs need any
+ * "symbol"-keyword item to satisfy cmd_cast.c's/cmd_pray.c's shared
+ * find_keyword_item() gate -- without this, a spawned spellcasting mob
+ * could never actually cast/pray at all. That gate has no real
+ * caster-level -> component-tier mapping of its own (any matching
+ * keyword item anywhere in inventory works, see cmd_cast.c/cmd_pray.c),
+ * so the "level-appropriate" part here is cosmetic only: Cleric mobs get
+ * a holy symbol material picked off the real seed data's existing
+ * 15-tier wooden(vnum 500) -> mithril(vnum 514) ladder, roughly one tier
+ * every 4 levels. Mage/Druid mobs just get a generic "pouch of spell
+ * components" (vnum 965881) -- there's no equivalent per-material tier
+ * ladder for components in the seed data to mirror. */
+static void being_grant_class_casting_supplies(being_t *b) {
+    if (!b->mob_class_known)
+        return;
+
+    int vnum;
+    if (b->char_class == CLASS_MAGE || b->char_class == CLASS_DRUID) {
+        vnum = 965881; /* "a pouch of spell components" */
+    } else if (b->char_class == CLASS_CLERIC) {
+        int tier = b->progress.level / 4;
+        if (tier > 14) tier = 14;
+        vnum = 500 + tier; /* wooden (novice) ... mithril (level 56+) */
+    } else {
+        return;
+    }
+
+    obj_t *o = obj_create_from_proto(vnum);
+    if (!o)
+        return;
+    o->decay_time = -1; /* persistent starting gear, not ephemeral loot -- see
+                            zone.c's zone_cmd_load_obj_ground() doc comment for
+                            why zone-spawned/starting content overrides decay */
+    thing_move_to(&o->base, &b->base);
+}
+
 /* Allocates and initializes a mob instance from its vnum prototype
  * (mob_proto_load()) -- name/description/gender/class/race copied
  * straight across, but attrs/HP are derived from level rather than
@@ -130,6 +169,7 @@ being_t *being_create_mob(int vnum) {
                                         which reads it to decide which limbs
                                         this mob actually has */
     b->mob_class_known = mob_class_mask_to_tobin(proto.class_mask, &b->char_class);
+    being_grant_class_casting_supplies(b);
 
     /* Placeholder attrs/HP formulas (see STATUS.md's Mobiles decision row):
      * the original's 12-stat mob columns are a completely different, wider
