@@ -201,6 +201,24 @@ typedef enum {
      * separate, higher-level roster entry, not built this pass) --
      * every mortal viewer is equally blind to it for now. */
     AFFECT_INVISIBLE,
+    /* `blindness` (Cleric, level 21). Real upstream (disc_cleric_
+     * afflictions.cc's blindness()) is checked all over the codebase
+     * (look, movement, combat crit rolls, ...) -- scoped down to the
+     * two cheapest, most visible spots: cmd_look.c refuses the room
+     * description entirely (matching real cmd_look.cc's own AFF_BLIND
+     * check almost verbatim, "You can't see a damn thing -- you're
+     * blinded!"), and combat_strike() adds a flat to-hit penalty when
+     * the ATTACKER is blinded (same shape as the existing DESTROYED_
+     * LIMB_HIT_PENALTY modifier, not a literal port of any specific
+     * real formula -- the real effect on to-hit isn't a single traced
+     * number, just "checked in several places"). Plain flag/timer, no
+     * stat modifier. Not ported: the TRUE_SIGHT/CLARITY immunity
+     * (neither affect exists in Tobin), the already-blind refusal
+     * (Tobin doesn't need it -- being_apply_affect() just refreshes
+     * the duration), and the isNotPowerful() power-gap gate (no clean
+     * Tobin equivalent, same cut summon's own version of this check
+     * already made). */
+    AFFECT_BLIND,
     AFFECT_COUNT,
 } affect_type_t;
 

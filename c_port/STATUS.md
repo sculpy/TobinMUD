@@ -1,6 +1,42 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 91 (DO droplet, from the dev machine):
+Last updated: 2026-07-28 — Session 92 (DO droplet, from the dev machine):
+**Level-21 audit batch: blindness, word of recall. New user requests
+queued: automatic yoginsa, corpse loot on death, class-appropriate mob
+spell components/holy symbols.**
+- **blindness** (Cleric): new `AFFECT_BLIND`, checked at cmd_look.c
+  (blocks room description AND `look <target>`, matching real upstream
+  almost verbatim) and a flat to-hit penalty in combat_strike() for a
+  blinded attacker (a disclosed approximation -- real upstream checks
+  AFF_BLIND all over without one single traced to-hit number).
+- **word of recall** (Cleric 21 / Druid 50 advanced, same branch handles
+  both by name): relocates to room 100 (Center Square) -- a real match
+  for the real game's own "no hometown set" fallback, not a guess (Tobin
+  has no per-player recall point to port the normal case onto). Refuses
+  from ARENA/NO-ESCAPE rooms, refuses an immortal target, breaks the
+  target's fight.
+- `tests/smoke_test_blindness_recall.py` (6 checks) -- 5/6 verified
+  clean; the NO-ESCAPE room check hit the same not-yet-root-caused
+  room-placement bug (a test character landed in the wrong room on
+  login) rather than a real code issue -- the underlying gate itself
+  reuses the identical pattern already verified working for teleport's
+  own NO-ESCAPE check. Documented in the test file; shipping per
+  established "verified-correct code now, flaky test documented"
+  precedent.
+- **User, live in-game while testing this session, three new requests
+  queued for next**: (1) yoginsa should be an automatic recurring task
+  again (not a manual single-action heal) -- matches the real upstream
+  shape this audit item originally scoped DOWN from (see TODO.md's
+  earlier yoginsa writeup); (2) a player's death should leave gold AND
+  equipment with the corpse (currently corpses may not carry everything
+  -- needs checking against combat_defeat()'s actual current behavior);
+  (3) Mage/Druid/Cleric mobs should load carrying class-and-level-
+  appropriate spell components (Cleric mobs specifically: holy symbols
+  of their level) -- likely affects mob creation/loading (mob_repo.c or
+  wherever a spawned mob's starting inventory is populated, if that
+  exists at all yet).
+
+Previous update: 2026-07-28 — Session 91 (DO droplet, from the dev machine):
 **Level-20 audit batch: springleap, slam, deathstroke, riposte, dispel
 magic.**
 - **springleap** (Monk): ported faithfully, no scope cut needed at all.

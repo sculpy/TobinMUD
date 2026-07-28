@@ -14,9 +14,13 @@
 #include "cmd.h"
 #include "combat.h"
 #include "obj.h"
+#include "player_repo.h"
 #include "pulse.h"
+#include "room.h"
+#include "room_repo.h"
 #include "skill.h"
 #include "thing.h"
+#include "world.h"
 
 /* `pray <spell> [target]` -- Cleric spellcasting (user 2026-07-11:
  * "clerics should require a holy symbol to pray successfully...
@@ -406,6 +410,98 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
             snprintf(msg, sizeof(msg), "%s prays for %s over you -- a dark aura settles over you!\r\n",
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
             descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "blindness") == 0) {
+        /* Full spell/skill/prayer roster import continued, level-5+ list
+         * (audit continued): real upstream (disc_cleric_afflictions.cc's
+         * blindness()) blocks look/movement/combat crit rolls in several
+         * places (see the new AFFECT_BLIND's own header comment in
+         * affect.h for the two spots ported: cmd_look.c's room
+         * description and a flat to-hit penalty in combat_strike()).
+         * Plain flag/timer, no stat modifier. Not ported: the
+         * TRUE_SIGHT/CLARITY immunity check (neither affect exists in
+         * Tobin) and the isNotPowerful() power-gap gate. */
+        ch->last_heal_target = NULL;
+        if (!atk_target) {
+            descriptor_send(d, "Pray for that over whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        being_apply_affect(atk_target, AFFECT_BLIND, 20 + sk->min_level);
+        snprintf(msg, sizeof(msg), "You pray for %s over %s -- their eyes go white and unseeing!\r\n",
+                 sk->name, being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s prays for %s over you -- everything goes dark!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "word of recall") == 0) {
+        /* Full spell/skill/prayer roster import continued, level-5+ list
+         * (audit continued): real upstream (disc_cleric_hand_of_god.cc's
+         * wordOfRecall()) sends the target -- self by default, or an
+         * ally if named -- to their own personal "hometown" recall
+         * point, or a hardcoded fallback room if none is set. Tobin has
+         * no per-player hometown/recall-point concept to port, so this
+         * always uses that same fallback (`DEFAULT_LOAD_ROOM_MORTAL`,
+         * player_repo.h -- room 100, "Center Square", the real game's
+         * own "Room::CS" fallback verbatim) -- a real match for the
+         * "no hometown set" case, not a guess. Ported: refuses to recall
+         * OUT OF an ARENA/NO-ESCAPE room, refuses an immortal target,
+         * and breaks the target's current fight (matching real
+         * upstream's own explicit `stopFighting()` call). Not ported:
+         * the real "murderer" (AFFECT_PLAYERKILL) refusal -- Tobin has
+         * no PK-murder-flag system -- and the critical-failure branch
+         * that flings the victim to a random room instead. */
+        if (ch->base.roomp && (ch->base.roomp->room_flag & (ROOM_FLAG_ARENA | ROOM_FLAG_NO_ESCAPE))) {
+            descriptor_send(d, "You can't recall from here!\r\n");
+            return;
+        }
+        if (target != ch && being_is_immortal(target)) {
+            descriptor_send(d, "I don't think that is a good idea...\r\n");
+            return;
+        }
+        room_t *dest = world_get_room(DEFAULT_LOAD_ROOM_MORTAL);
+        if (!dest) {
+            dest = room_repo_load(DEFAULT_LOAD_ROOM_MORTAL);
+            if (dest)
+                world_register_room(dest);
+        }
+        if (!dest) {
+            descriptor_send(d, "You are completely lost.\r\n");
+            return;
+        }
+        target->fighting = NULL;
+        room_t *old_room = target->base.roomp;
+        if (target->desc)
+            descriptor_send(target->desc, "You hear a small \"pop\" as you disappear.\r\n");
+        if (old_room) {
+            char departmsg[128];
+            snprintf(departmsg, sizeof(departmsg), "You hear a small \"pop\" as %s disappears.\r\n",
+                     target->base.name);
+            descriptor_room_echo(old_room, target, departmsg);
+        }
+        thing_set_room(&target->base, dest);
+        char arrivemsg[128];
+        snprintf(arrivemsg, sizeof(arrivemsg), "You hear a small \"pop\" as %s appears in the middle of the room.\r\n",
+                 target->base.name);
+        descriptor_room_echo(dest, target, arrivemsg);
+        if (target->desc) {
+            descriptor_send(target->desc, "You are exhausted from interplanar travel.\r\n");
+            cmd_dispatch(target->desc, "look");
+        }
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), "You pray for %s -- reality wrenches and you're pulled home!\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), "You pray for %s over %s -- they vanish, pulled home!\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
         }
     } else if (ci_contains(sk->name, "disease") || ci_contains(sk->name, "infect")) {
         ch->last_heal_target = NULL;

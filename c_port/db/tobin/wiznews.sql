@@ -951,3 +951,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'springleap, slam, deathstroke, riposte, and dispel magic are live -- level 20 audit items', '`springleap` (Monk) springs you up from sitting or resting instantly. `slam` and `deathstroke` (Warrior) are two more heavy single-target strikes, the hardest-hitting yet -- deathstroke needs a wielded weapon. `riposte` (Warrior) is passive: a successful parry now has a chance to guarantee your very next swing lands. `cast dispel magic` (Mage) strips every active magical effect from yourself or a target -- a deliberate departure from the original spell (which only worked on enchanted items), reworked to actually do something useful in Tobin.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'blindness and word of recall are live -- level 21 audit items', '`pray blindness` (Cleric) blinds a target -- they can''t look at anything, and swing less accurately while it lasts. `pray word of recall` (Cleric, and Druid at a higher level) pulls yourself or an ally straight back to Center Square from anywhere, refusing to work in a few especially defended rooms.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -428,6 +428,13 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     modifier += weapon_hitroll;
     if (being_has_destroyed_limb(attacker))
         modifier -= DESTROYED_LIMB_HIT_PENALTY;
+    /* Blindness (Cleric, level 21, audit continued): a blinded attacker
+     * swings far less accurately. Real upstream checks AFF_BLIND in
+     * several places without one single traced to-hit formula -- this
+     * is a disclosed approximation, not a literal port, reusing the
+     * same flat-penalty shape as the destroyed-limb modifier above. */
+    if (being_has_affect(attacker, AFFECT_BLIND))
+        modifier -= DESTROYED_LIMB_HIT_PENALTY;
     /* Meaningful limb damage (TODO.md, user: "make individual limb hits
      * actually hurt"): the mirror image of the attacker-side penalty just
      * above -- a destroyed limb doesn't just throw off YOUR swing, it

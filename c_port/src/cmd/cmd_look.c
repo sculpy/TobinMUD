@@ -385,6 +385,17 @@ bool cmd_look(descriptor_t *d, const char *args) {
         descriptor_send(d, "You can't see anything -- you're fast asleep!\r\n");
         return true;
     }
+    /* Blindness (Cleric, level 21, audit continued) -- matches real
+     * upstream's own cmd_look.cc check almost verbatim. Blocks BOTH the
+     * bare room look and `look <target>` below (unlike the darkness
+     * check further down, which deliberately only blocks the room
+     * description) -- blind means blind, not "can't see the room but
+     * can still make out a person's face." Immortals immune, same
+     * convention as every other affect gate. */
+    if (!being_is_immortal(d->character) && being_has_affect(d->character, AFFECT_BLIND)) {
+        descriptor_send(d, "You can't see a damn thing -- you're blinded!\r\n");
+        return true;
+    }
 
     /* `look <name>` describes a player in the room; bare `look` shows it. */
     while (*args == ' ')

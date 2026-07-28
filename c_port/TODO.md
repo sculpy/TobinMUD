@@ -1599,9 +1599,32 @@ durations where warranted, and a cooldown where warranted. Audit findings
     `tests/smoke_test_level20_warrior_mage.py` (8 checks) passes live for
     all five items above (riposte verified by code review only -- no
     deterministic way to force a parry+riposte proc).
-    Not yet started: blindness/word of recall (21), taunt/paralyze limb
-    (22), whirlwind/kneestrike/farlook/scribe/bind (25), hide (31),
-    paralyze (33), quivering palm (42), silence (48).
+    **blindness** (Cleric, 21) -- done. New `AFFECT_BLIND` (affect.h):
+    a plain flag/timer checked at two of the real upstream's many gate
+    points (cmd_look.c blocks the room description AND `look <target>`
+    entirely, matching real cmd_look.cc almost verbatim; combat_strike()
+    adds a flat to-hit penalty when the ATTACKER is blinded, a disclosed
+    approximation since the real to-hit effect isn't one single traced
+    formula). Not ported: TRUE_SIGHT/CLARITY immunity (neither exists in
+    Tobin) and the isNotPowerful() power-gap gate.
+    **word of recall** (Cleric 21, also Druid 50 advanced -- same name,
+    same branch handles both) -- done. Self or a named target relocates
+    to `DEFAULT_LOAD_ROOM_MORTAL` (room 100, Center Square) -- a real
+    match for real upstream's own "no hometown set" fallback (`Room::
+    CS`), not a guess; Tobin has no per-player recall-point concept to
+    port the normal case. Refuses to recall FROM an ARENA/NO-ESCAPE
+    room, refuses an immortal target, breaks the target's current fight.
+    Not ported: the real "murderer" (AFFECT_PLAYERKILL) refusal -- no
+    such system in Tobin -- and the critical-failure random-fling branch.
+    `tests/smoke_test_blindness_recall.py` (6 checks) -- the NO-ESCAPE
+    room check is intermittently affected by the same not-yet-root-
+    caused room-placement bug documented above (a test character can
+    occasionally land in the wrong room on login); the underlying
+    ROOM_FLAG_NO_ESCAPE gate itself reuses the identical pattern already
+    verified working for `teleport`'s own version of this check.
+    Not yet started: taunt/paralyze limb (22), whirlwind/kneestrike/
+    farlook/scribe/bind (25), hide (31), paralyze (33), quivering palm
+    (42), silence (48).
 - **Buff spells that conflate distinct effects**: sanctuary/armor/bless/
   stone skin/barkskin/protection-from-* all currently reuse the identical
   `AFFECT_SANCTUARY` buff rather than each having its own effect --

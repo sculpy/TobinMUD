@@ -130,6 +130,12 @@ const char *room_flag_name(int bit);
 #define ROOM_FLAG_PRIVATE (1 << 9)
 #define ROOM_FLAG_HAVE_TO_WALK (1 << 13)
 
+/* Bit 14 of ROOM_FLAG_NAMES (room.c) -- ARENA, matching the upstream bit
+ * position verbatim. Named here for `word of recall` (Cleric, 21,
+ * cmd_pray.c): real upstream refuses to recall out of an arena or
+ * NO-ESCAPE room. */
+#define ROOM_FLAG_ARENA (1 << 14)
+
 /* Sector-based ground-surface word (Sneezy's TRoom::describeGroundType(),
  * misc/create_rooms.cc) -- "street", "road", "water", "mud", "sand",
  * "floor" (indoors), or "ground" (default). Backs the `$$g`/`$g` token in
