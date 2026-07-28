@@ -132,7 +132,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "rally",   cmd_rally,   "Let out a battlecry that boosts nearby allies' combat prowess (Warrior).", MORTAL_LEVEL_MIN },
     { "garrotte", cmd_garrotte, "Strangle an unaware victim with a cord (Thief, garrotte <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
     { "throatslit", cmd_throatslit, "A lethal opening throat-slitting attack (Thief, throatslit <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
-    { "yoginsa", cmd_yoginsa, "Meditate to recover HP and Vitality faster (Monk, must be sitting or resting).", MORTAL_LEVEL_MIN },
+    { "yoginsa", cmd_yoginsa, "Meditate to recover HP and Vitality faster (Monk, sits you down automatically).", MORTAL_LEVEL_MIN },
     /* No existing "ch*" command -- unclaimed abbreviation, confirmed via
      * cmd_abbrev_check.py before landing. */
     { "chi",     cmd_chi,     "Unleash a chi-powered strike against a foe (Monk, chi [<target>]; defaults to your current opponent).", MORTAL_LEVEL_MIN },

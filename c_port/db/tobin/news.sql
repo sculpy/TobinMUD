@@ -338,3 +338,11 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Watch Your Step -- Falling Is Now Dangerous', 'Wandering into open sky with nothing but air underfoot will now send you plummeting, and the landing can genuinely hurt or even kill you depending on how far you fall. Monks trained in catfall land much softer. Monks trained in catleap can now leap across open space in any direction, gliding safely over ground they normally could not cross.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Meditation Skills Now Actually Do Something', 'Meditate (Mage, Druid) and penance (Cleric) now genuinely restore your vitality when used, same as yoginsa always has for Monks -- Druids also get their own meditate for the first time. Yoginsa itself will now sit you down automatically if you were standing, instead of making you sit first yourself.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Skill Gains Are Announced', 'You will now be told the moment any skill or spell you practice actually improves -- no more wondering whether you got any better from all that use.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -27,9 +27,11 @@
  * Vitality) rather than the original's three (Tobin has no separate
  * mana pool at all, see being.h's progress_t). No chained secondary
  * cures ported -- those all gate on "wohlin meditation", which doesn't
- * exist in this roster. Must be resting or sitting, matching the
- * original's own "meditation" framing (not usable while standing or
- * fighting). */
+ * exist in this roster. Must be resting or sitting -- a standing
+ * character is sat down automatically (user 2026-07-27: typing
+ * yoginsa/meditate should just start meditating, not bounce off a
+ * "go sit first" refusal), matching cmd_sit's own message/echo shape
+ * so the auto-sit reads exactly like the player typed `sit` themselves. */
 bool cmd_yoginsa(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
@@ -48,8 +50,19 @@ bool cmd_yoginsa(descriptor_t *d, const char *args) {
         return true;
     }
     if (ch->position != POSITION_RESTING && ch->position != POSITION_SITTING) {
-        descriptor_send(d, "You need to be sitting or resting to meditate.\r\n");
-        return true;
+        if (ch->position != POSITION_STANDING) {
+            /* Sleeping/mounted/etc -- no automatic path to a meditating
+             * posture from here, same refusal the old code gave everyone. */
+            descriptor_send(d, "You need to be sitting or resting to meditate.\r\n");
+            return true;
+        }
+        ch->position = POSITION_SITTING;
+        descriptor_send(d, "You sit down.\r\n");
+        if (ch->base.roomp) {
+            char msg[160];
+            snprintf(msg, sizeof(msg), "%s sits down.\r\n", ch->base.name);
+            descriptor_room_echo(ch->base.roomp, ch, msg);
+        }
     }
 
     const skill_def_t *sk = skill_find(ch->char_class, "yoginsa", imm);

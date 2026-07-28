@@ -260,7 +260,11 @@ out = cmd_paged(sc, "practice cleric")
 check("Basic discipline:" in out, "`practice <yourclass>` shows the same listing as `practice basic`")
 
 # --- 8: per-skill proficiency actually gates pray success ---
+# `load obj` (2026-07-22) drops it straight into the loading immortal's
+# OWN inventory, not the room floor -- drop it first so the cleric can
+# pick it back up off the ground, same as any other real item hand-off.
 check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "a holy symbol is loaded")
+cmd(s_imm, "drop symbol")
 out = cmd(sc, "get symbol")
 check("you get" in out.lower(), "the cleric picks up a holy symbol")
 
@@ -274,6 +278,7 @@ check("You pray for heal light" in out, "a spell forced to 100% proficiency succ
 fumbles = 0
 for _ in range(8):
     check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "a fresh holy symbol is loaded")
+    cmd(s_imm, "drop symbol")
     cmd(sc, "get symbol")
     out = cmd(sc, "pray heal full")
     if "fumble" in out:

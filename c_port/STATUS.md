@@ -1,6 +1,54 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-27 — Session 84 (work): **Work-box git/DB
+Last updated: 2026-07-27 — Session 85 (home): **Post-pull review fixes:
+wake-vs-slumber, yoginsa auto-sit, meditate/penance wired + Druid
+meditate, proficiency-gain messages.**
+- **Reviewed** the 12 commits pulled this session (Session 84's `chi`
+  through `telepathy`, level-1 through 16 audit items) via a background
+  code-review pass. No use-after-free/overflow/double-count bugs found,
+  but two real ones did turn up.
+- **Fixed: `wake` defeated `slumber`.** `cmd_wake()` (`cmd_position.c`)
+  only ever checked `position == POSITION_SLEEPING`, with no idea
+  `AFFECT_SLEEP` (Session 84's `slumber`) existed -- a slumbered player
+  could just type `wake` and stand right back up, making the whole spell
+  a no-op. Now refuses outright ("You can't fight off the magical urge to
+  sleep!") while that affect is still active.
+- **`yoginsa` now auto-sits** (user: "should automatically sit and start
+  the task of yoginsa/meditate") -- used to flatly refuse if you were
+  standing; now sits you down itself (same message/room-echo shape as
+  `sit`) and runs the meditation roll in the same command.
+- **`meditate` (Mage) wired for real; Druid gets its own `meditate`;
+  `penance` (Cleric) wired to match** (user: "meditate is a mage skill",
+  "also applies to druids", "and penance is the same"). Both shipped in
+  the original roster import doing nothing but consuming their
+  component/symbol -- their flavor text described mechanics Tobin has no
+  equivalent for (a separate mana pool; a "divine favor" resource).
+  Realigned all three with `yoginsa`'s own shape instead: a real Vitality
+  restore (self by default, or an ally you name), same formula
+  (`8 + level/2`). Druid had no meditate-equivalent in the roster at all
+  before this -- added (dispatches through the same `cast` path Mage
+  uses, matched by skill name). `skill_help.sql`'s three entries
+  (`meditate`, `penance`, `yoginsa`) updated to match, since none of them
+  had been kept in sync with their own commands shipping.
+- **Skill/spell proficiency gains are now announced** (user: "an increase
+  message sent to the player whenever they increase proficiency by 1%
+  for every skill/spell"): `skill_learn_from_doing()` (`skill.c`) sends
+  "You have become better at `<skill>`! (N%)" the moment a gain-check
+  actually raises stored proficiency, silent for a mob (no `desc`) and
+  silent when the roll doesn't land or the ceiling's already been hit.
+- New `tests/smoke_test_meditate_wake_proficiency.py` covers all four
+  fixes/features against one shared cast of Mage/Cleric/Druid/Monk/victim
+  characters. Casters run as level-51 immortals (bypasses the separate
+  learn-by-doing cast/pray success roll, same reason
+  `smoke_test_curse_slumber.py`'s own casters are level 51) except the
+  Monk, kept a genuine mortal specifically so the proficiency-gain check
+  exercises the real, non-bypassed roll.
+- `news.sql`/`wiznews.sql` entries added for all of the above.
+- Not yet done: clean rebuild + live smoke-test run on the build box (SSH
+  build not available directly from this session) -- do that before
+  calling this session closed.
+
+Previous update: 2026-07-27 — Session 84 (work): **Work-box git/DB
 reconciliation + `chi` (Monk level-1 skill, spell/skill functional-
 completeness audit continued).**
 - (Note: Session 83's own level-1 skill batch -- backstab, rescue, trip,

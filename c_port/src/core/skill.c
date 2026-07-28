@@ -11,6 +11,7 @@
 #include <strings.h>
 #include <time.h>
 
+#include "descriptor.h"
 #include "skill_repo.h"
 
 /* Ported from SneezyMUD's real discArray[] (misc/spell_info.cc), trimmed
@@ -150,7 +151,7 @@ static const skill_def_t SKILLS[] = {
     { "bless",            CLASS_CLERIC, SKILL_TIER_CLASS,  1, "A blessing that improves hit and damage rolls." },
     { "attune",           CLASS_CLERIC, SKILL_TIER_CLASS,  1, "Bind a holy symbol to your faction." },
     { "devotion",         CLASS_CLERIC, SKILL_TIER_CLASS,  1, "Passive prayer-point regeneration." },
-    { "penance",          CLASS_CLERIC, SKILL_TIER_CLASS,  1, "A background discipline governing how fast you gain divine favor." },
+    { "penance",          CLASS_CLERIC, SKILL_TIER_CLASS,  1, "A meditative discipline that helps you recover vitality faster." },
     { "clot",             CLASS_CLERIC, SKILL_TIER_CLASS,  2, "Stops a victim's bleeding." },
     { "create food",      CLASS_CLERIC, SKILL_TIER_CLASS, 3, "Conjures food from nothing." },
     { "create water",     CLASS_CLERIC, SKILL_TIER_CLASS, 3, "Fills a container with water." },
@@ -220,7 +221,7 @@ static const skill_def_t SKILLS[] = {
     { "ranged proficiency",   CLASS_MAGE, SKILL_TIER_COMBAT, 25, "Basic proficiency with ranged weapons." },
     { "wizardry",         CLASS_MAGE, SKILL_TIER_CLASS,  1, "The core skill of casting itself." },
     { "mana",             CLASS_MAGE, SKILL_TIER_CLASS,  1, "Governs the size of your mana pool." },
-    { "meditate",         CLASS_MAGE, SKILL_TIER_CLASS,  1, "Rest to recover mana faster." },
+    { "meditate",         CLASS_MAGE, SKILL_TIER_CLASS,  1, "A meditative discipline that helps you recover vitality faster." },
     { "gust",             CLASS_MAGE, SKILL_TIER_CLASS,  1, "A bolt of wind damage." },
     { "sling shot",       CLASS_MAGE, SKILL_TIER_CLASS,  1, "A bolt of earthen damage." },
     { "gusher",           CLASS_MAGE, SKILL_TIER_CLASS,  1, "A bolt of water damage." },
@@ -344,6 +345,12 @@ static const skill_def_t SKILLS[] = {
     { "entangling roots",  CLASS_DRUID, SKILL_TIER_CLASS,  1, "Roots erupt underfoot, tripping and damaging a target -- only works outdoors." },
     { "heal light",        CLASS_DRUID, SKILL_TIER_CLASS,  1, "A minor healing touch." },
     { "harm light",        CLASS_DRUID, SKILL_TIER_CLASS,  1, "A minor bolt of natural energy." },
+    /* Roster gap noted during the meditate/penance pass (user 2026-07-27):
+     * Mage has "meditate" and Cleric has "penance", both a level-1
+     * meditative-recovery discipline -- Druid had no equivalent at all.
+     * Same name as Mage's since it's dispatched through the shared
+     * cast/Druid path (task_cast() matches by sk->name, see cmd_cast.c). */
+    { "meditate",          CLASS_DRUID, SKILL_TIER_CLASS,  1, "A meditative discipline that helps you recover vitality faster." },
     { "bramble drain",     CLASS_DRUID, SKILL_TIER_CLASS,  3, "A thorned vine that drains a small amount of life to you." },
     { "beast soother",     CLASS_DRUID, SKILL_TIER_CLASS,  5, "Calms a hostile or hunting animal." },
     { "clot",              CLASS_DRUID, SKILL_TIER_CLASS,  5, "Stops a victim's bleeding." },
@@ -558,9 +565,20 @@ int skill_learn_from_doing(being_t *ch, const skill_def_t *sk) {
         chance = 15;
 
     if (rand() % 1000 < chance) {
+        int before = sp.pct;
         sp.pct++;
         if (sp.pct > ceiling)
             sp.pct = ceiling;
+        /* Player-visible feedback for every real proficiency gain (user
+         * 2026-07-27) -- `before` guards the already-at-ceiling edge case
+         * (sp.pct clamped back down to `before`, no actual gain to
+         * announce). Silent for a mob (ch->desc is NULL for one). */
+        if (sp.pct > before && ch->desc) {
+            char msg[128];
+            snprintf(msg, sizeof(msg), "<c>You have become better at %s! (%d%%)<z>\r\n",
+                     sk->name, sp.pct);
+            descriptor_send(ch->desc, msg);
+        }
     }
     sp.last_gain_at = now;
     skill_repo_set(ch->player_id, sk->name, sp.pct, sp.last_gain_at);

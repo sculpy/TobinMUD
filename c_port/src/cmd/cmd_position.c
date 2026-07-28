@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 
+#include "affect.h"
 #include "being.h"
 
 /* Body positions: sit / stand / rest / sleep / wake. Each sets being.position
@@ -124,6 +125,14 @@ bool cmd_wake(descriptor_t *d, const char *args) {
         return true;
     if (ch->position != POSITION_SLEEPING) {
         descriptor_send(d, "You are already awake.\r\n");
+        return true;
+    }
+    /* `slumber` (AFFECT_SLEEP, cmd_cast.c) is a forced sleep, not the
+     * voluntary kind -- without this check `wake` would let a slumbered
+     * player instantly stand back up, making the whole spell a no-op.
+     * Ordinary sleep (no AFFECT_SLEEP) still wakes normally. */
+    if (being_has_affect(ch, AFFECT_SLEEP)) {
+        descriptor_send(d, "You can't fight off the magical urge to sleep!\r\n");
         return true;
     }
     set_position(d, POSITION_RESTING, "You wake and sit up.\r\n",

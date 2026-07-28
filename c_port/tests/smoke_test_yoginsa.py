@@ -169,7 +169,8 @@ out = strip(cmd(s2, "yoginsa"))
 check("won't settle" in out.lower(), "0%-proficiency yoginsa fails")
 s2.close()
 
-# refused while standing
+# auto-sits while standing (user 2026-07-27: yoginsa/meditate should
+# automatically sit and start the task, instead of refusing outright)
 name3, pw3 = f"Yogs{_suffix}", "yogspw12345"
 s0 = make_char(name3, pw3)
 cmd(s0, "quit!"); s0.close()
@@ -179,7 +180,8 @@ set_basic_disc(name3, 100)
 s3 = relog(name3, pw3)
 seed_proficiency(name3, "yoginsa", 100)
 out = strip(cmd(s3, "yoginsa"))
-check("sitting or resting" in out.lower(), "yoginsa refused while standing")
+check("you sit down" in out.lower(), "yoginsa auto-sits instead of refusing while standing")
+check("inner harmonies" in out.lower(), "the meditation roll still runs right after sitting")
 s3.close()
 
 announce_done("smoke_test_yoginsa")

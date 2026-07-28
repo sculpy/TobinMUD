@@ -903,3 +903,19 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'telepathy is live -- a level 16 audit item', '`cast telepathy <message>` (Mage) sends a thought straight into every mind in the world at once, no matter where anyone is or whether they''re even awake -- unlike shouting, telepathy does not care about sleep or distance.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fixed: slumber could be shrugged off with `wake`', '`cast slumber <target>` puts a foe to sleep via a real forced-sleep affect, but the pre-existing `wake` command had no idea that affect existed -- it just checked "are you in the sleeping position" and stood the target right back up, making the whole spell a no-op against anyone who knew to type `wake`. `wake` now refuses while that affect is still active, so a slumbered target actually stays down until it wears off.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'yoginsa now sits you down automatically', '`yoginsa` (Monk) used to refuse outright if you were standing, forcing a separate `sit` first. It now sits you down itself and gets straight into meditating in the same command.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'meditate and penance are live; Druid gets its own meditate', '`cast meditate <target>` (Mage, Druid) and `pray penance <target>` (Cleric) both shipped with the original roster import doing nothing but consuming their component/symbol -- their old flavor text (mana regen, "divine favor") described mechanics Tobin has no equivalent for. Realigned all three with yoginsa''s own shape: a real Vitality restore, yourself by default or an ally you name. Druid had no meditate-equivalent at all before this -- added.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Skill/spell proficiency gains are now announced', 'Every time a skill or spell''s proficiency actually ticks up a percent from using it, the player now gets a message saying so, instead of the gain happening silently in the background.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

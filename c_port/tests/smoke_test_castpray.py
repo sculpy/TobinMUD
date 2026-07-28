@@ -190,6 +190,10 @@ out = cmd(sm, "cast nosuchspellzzz")
 check("don't know a spell" in out, "an unknown spell name is rejected")
 
 check("You conjure" in cmd(s_imm, f"load obj {COMPONENT}"), "the component pouch is loaded")
+# `load obj` (2026-07-22) drops it straight into the loading immortal's
+# OWN inventory, not the room floor -- drop it first so the mage can pick
+# it back up off the ground, same as any other real item hand-off.
+cmd(s_imm, "drop pouch")
 out = cmd(sm, "get pouch")
 check("you get" in out.lower(), "the mage picks up the component pouch")
 
@@ -223,6 +227,7 @@ out = cmd(sc, "pray heal light")
 check("need a holy symbol" in out, "praying without a holy symbol is refused")
 
 check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "the holy symbol is loaded")
+cmd(s_imm, "drop symbol")
 out = cmd(sc, "get symbol")
 check("you get" in out.lower(), "the cleric picks up the holy symbol")
 

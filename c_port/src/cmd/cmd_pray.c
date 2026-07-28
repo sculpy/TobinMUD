@@ -254,6 +254,35 @@ static void pray_apply_heal(descriptor_t *d, being_t *ch, being_t *target, const
     }
 }
 
+/* `penance` (Cleric, level 1, roster gap/flavor-text pass 2026-07-27):
+ * same correction as cmd_cast.c's "meditate" branch -- the roster's own
+ * "background discipline governing how fast you gain divine favor"
+ * framing had no real Tobin mechanic to hook (no separate divine-favor
+ * resource), so it shipped "Not yet wired to a real effect". Realigned
+ * with meditate/yoginsa's own shape instead: a single-action Vitality
+ * restore, since the user identified all three as "the same" discipline
+ * across classes. Same target-defaults-to-self, ally-restores-them-
+ * instead shape as pray_apply_heal() just above. */
+static void pray_apply_penance(descriptor_t *d, being_t *ch, being_t *target, const char *spell_name) {
+    int amount = 8 + ch->progress.level / 2;
+    being_heal_vit(target, amount);
+    char msg[192];
+    if (target == ch) {
+        snprintf(msg, sizeof(msg), "You pray for %s and feel your vitality return! (+%d Vit)\r\n", spell_name, amount);
+        descriptor_send(d, msg);
+    } else {
+        char tcapbuf[128];
+        snprintf(msg, sizeof(msg), "You pray for %s, and %s looks refreshed! (+%d Vit)\r\n",
+                 spell_name, being_display_name(target), amount);
+        descriptor_send(d, msg);
+        if (target->desc) {
+            snprintf(msg, sizeof(msg), "%s prays for %s, refreshing your vitality! (+%d Vit)\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), spell_name, amount);
+            descriptor_notify(target->desc, msg);
+        }
+    }
+}
+
 /* Works out what a successful prayer actually does, expanded 2026-07-18
  * (user: "implement spell/skill affects... make each work from sneezy
  * code") beyond the original heal/sanctuary/damage-only v1 -- see
@@ -399,6 +428,8 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, affect_name(dis));
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (strcasecmp(sk->name, "penance") == 0) {
+        pray_apply_penance(d, ch, target, sk->name);
     } else if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")) {
         pray_apply_heal(d, ch, target, sk->name);
         ch->last_heal_target = target;

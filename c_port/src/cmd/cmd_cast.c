@@ -312,6 +312,33 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc && cured)
                 descriptor_notify(target->desc, "Your sickness lifts!\r\n");
         }
+    } else if (strcasecmp(sk->name, "meditate") == 0) {
+        /* `meditate` (Mage/Druid, level 1, roster gap/flavor-text pass
+         * 2026-07-27): the skill_help.sql entry that shipped with the
+         * roster import said "Rest to recover mana faster" and was left
+         * "Not yet wired to a real effect" -- Tobin has no mana pool at
+         * all (see yoginsa's own header comment in cmd_yoginsa.c), so
+         * there was never a real resource for it to refill. Corrected and
+         * wired the same way yoginsa itself was: a single-action Vitality
+         * restore, same "meditative discipline" framing, same formula.
+         * Same shape as the heal branch just above -- target defaults to
+         * self, an explicit ally target restores their Vitality instead. */
+        int amount = 8 + ch->progress.level / 2;
+        being_heal_vit(target, amount);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), "You cast %s and feel your vitality return! (+%d Vit)\r\n", sk->name, amount);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), "You cast %s, and %s looks refreshed! (+%d Vit)\r\n",
+                     sk->name, being_display_name(target), amount);
+            descriptor_send(d, msg);
+            if (target->desc) {
+                char tcapbuf[128];
+                snprintf(msg, sizeof(msg), "%s casts %s, refreshing your vitality! (+%d Vit)\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, amount);
+                descriptor_notify(target->desc, msg);
+            }
+        }
     } else if (ci_contains(sk->desc, "heal")) {
         int amount = 8 + ch->progress.level / 2;
         being_heal(target, amount);
