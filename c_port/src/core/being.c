@@ -65,6 +65,11 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
     b->progress.vit = b->progress.max_vit;
     b->progress.hunger = 100;
     b->progress.thirst = 100;
+    /* A starting stipend (user 2026-07-28: "let all players start with
+     * 7 pracs to spend") -- separate from practice_points_for_level()'s
+     * own per-level-up award, so a brand-new character isn't stuck at
+     * 0% Basic discipline until they actually gain a level. */
+    b->progress.practice_points = 7;
     b->progress.birth_time = (long)time(NULL);
     b->severity = LOG_SEVERITY_DEFAULT;
 

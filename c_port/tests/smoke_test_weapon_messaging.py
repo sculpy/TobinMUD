@@ -190,7 +190,13 @@ for _ in range(6):
     out = recv_all(sv, timeout=0.5)
     # The mob's display name ("a weapon test dummy") is multi-word, so
     # \w+ can't span it -- .+? (lazy) matches the whole name instead.
-    if re.search(r"You hit .+?'s .+? for \d+ damage!", out):
+    # Stale regex fixed (2026-07-28): the real message has no damage
+    # NUMBER at all for a mortal viewer (removed 2026-07-12, per
+    # combat.c's own "You %s %s's %s %s!" format -- verb, name, limb,
+    # a qualitative describe_dam() intensity phrase, then "!", not a
+    # period) -- this regex used to look for "for \d+ damage!", which
+    # the real message has never actually produced since that change.
+    if re.search(r"You hit .+?'s [^\r\n]+!", out):
         found_bare_hit = True
         print("=== bare-handed hit message ===")
         print(out)
@@ -224,6 +230,12 @@ found_big_damage = False
 # The absurd hitroll/damroll bonuses can kill the dummy in the very first
 # combat round, which may resolve fast enough to land in this same initial
 # response -- check it (and each subsequent chunk) as it comes in.
+# Stale regex fixed (2026-07-28): the real message has no damage NUMBER
+# at all for a mortal viewer (removed 2026-07-12) -- combat.c's own
+# describe_dam() reports a qualitative intensity phrase instead, so the
+# damroll-bonus check below looks for its top-tier cutting-specific
+# phrase ("into shreds", the max-damage case for a "slice"/"chop" verb)
+# rather than an exact number that was never actually being produced.
 chunks = [out]
 for _ in range(6):
     time.sleep(1.5)
@@ -232,21 +244,19 @@ for _ in range(6):
         chunks.append(chunk)
     check("You miss" not in chunk, "the hitroll bonus (1000) means this attacker never misses")
     combined = "".join(chunks)
-    m = re.search(r"You slice .+?'s .+? for (\d+) damage!", combined)
-    if m:
+    if re.search(r"You slice .+?'s [^\r\n]+!", combined):
         found_slice = True
-        dmg = int(m.group(1))
-        print(f"=== slice message, damage={dmg} ===")
+        print("=== slice message ===")
         print(combined)
-        check(dmg > 50, "the damroll bonus (500) pushes damage far past the un-bonused baseline (~1-11)")
+    if "into shreds" in combined:
         found_big_damage = True
     if "slain" in combined.lower() or "defeated" in combined.lower():
         break
-    if found_slice:
+    if found_slice and found_big_damage:
         break
 
 check(found_slice, "wielding a sword-keyword weapon changes the verb to 'slice'")
-check(found_big_damage, "the damroll bonus was actually applied to the hit")
+check(found_big_damage, "the damroll bonus (500) pushes damage to the top intensity tier ('into shreds')")
 
 s.close()
 sv.close()

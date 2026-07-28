@@ -1,6 +1,85 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 86 (DO droplet): **Consolidated onto
+Last updated: 2026-07-28 — Session 87 (DO droplet): **New-character
+practice stipend; fixed 3 unrelated pre-existing test bugs; a
+self-inflicted production CWD incident, fixed.**
+- **New-character practice stipend** (user: "let all players start
+  with 7 pracs to spend"): `being_create_pc()` now sets
+  `progress.practice_points = 7` at creation, separate from
+  `practice_points_for_level()`'s own per-level-up award -- a brand-new
+  character no longer sits at 0% Basic discipline forever until their
+  first level-up. `smoke_test_practice.py`'s own zero-point UX checks
+  (bare `practice`'s "0" display, `practice basic 1`'s refusal) updated
+  to explicitly zero the stipend back out first, since that's what they
+  were actually testing.
+- **Fixed 3 unrelated pre-existing test bugs**, found and root-caused
+  live against a throwaway `TOBIN_PORT=4001` instance (production never
+  touched):
+  - `smoke_test_continue.py`: THREE separate stacked bugs, each
+    masking the next. (1) `set_level()`'s raw SQL level-40 jump never
+    ran the per-level practice-point award, so the healer had 0 points
+    -- granted 100 directly via SQL instead (`set <name> practices`
+    needs level 58+, above this test's own level-51 immortal). (2) The
+    file's own `make_guildmaster()` hardcoded `level=1`, well below
+    `GUILD_LEVEL_BASIC` (51) that `find_guildmaster()` (cmd_practice.c)
+    actually matches on -- `practice basic 1` could never find the
+    guildmaster at all, even standing next to it. Fixed to default to
+    51, matching `smoke_test_practice.py`'s own helper. (3) The bare
+    `practice basic` loop (no count) only ever showed the listing, never
+    spent a point -- changed to `practice basic 1`. (4) Once the
+    healer could finally practice, `pray heal light <target>` still
+    couldn't find the patient ("You don't see them here.") --
+    `cmd_pray.c`'s target resolution goes through
+    `combat_find_room_target()`, gated on mutual PK consent same as any
+    attack command; this test never toggled PK for either mortal
+    character. (5) `pray`/`cast` also gate on a SEPARATE per-skill
+    learn-by-doing proficiency roll on top of the discipline-percentage
+    gate -- a fresh "heal light" attempt starts at 1% (~99% fumble
+    chance), so real proficiency needed seeding via SQL too.
+  - `smoke_test_mob_display_name.py` / `smoke_test_weapon_messaging.py`:
+    both asserted a stale hit-message format (`"for \d+ damage!"` /
+    ending in a literal period) that predates the 2026-07-12 change
+    removing the damage NUMBER from a mortal viewer's combat messages
+    (`combat.c`'s real format is `"You %s %s's %s %s!"` -- verb, name,
+    limb, a qualitative `describe_dam()` intensity phrase, ending `!`).
+    Regexes fixed to match the real format; the damroll-bonus check in
+    `weapon_messaging.py` now looks for the top intensity tier ("into
+    shreds") instead of a damage number that was never actually there.
+- **Self-inflicted incident, fixed**: `rm -rf build && make` (this
+  session's own clean-rebuild step, run directly against the droplet)
+  deleted the directory that was the LIVE PRODUCTION process's current
+  working directory -- the process kept running fine on already-open
+  file handles (including its own log file), but any FRESH relative-path
+  lookup broke, which is what `log list` surfaced ("No log directory
+  exists yet."). `execl()` (used by `copyover`) doesn't reset CWD, so a
+  copyover would NOT have fixed this -- required a real cold restart
+  (confirmed with the user first, since a real connection was live at
+  the time). Restarted clean; CWD verified sane
+  (`/proc/<pid>/cwd` resolves, not `(deleted)`); the reconnecting
+  player picked back up normally. **Lesson for next session**: never
+  `rm -rf build` directly against the box currently running live
+  production without restarting that exact process afterward, even if
+  the build itself succeeds cleanly.
+- **Started, not finished**: user asked to reformulate Tobin's
+  placeholder `progress_xp_for_level()` (`level^2 * 100`) using
+  SneezyMUD's own real formula (`misc/gaining.cc`'s
+  `getExpClassLevel()`, built on `cmd_low.cc`'s `mob_exp()`/
+  `kills_to_level()`/`get_doubling_level()`/`get_perc_level()`). Ported
+  the full algorithm faithfully in a throwaway Python script (not
+  committed) and precomputed the real level 1-50 table:
+  0, 37, 343, 1259, 3326, 7133, 13524, 23616, 39454, 62573, 95456,
+  141253, 205965, 293178, 409267, 562149, 767142, 1032166, 1371540,
+  1804231, 2366004, 3073778, 3961145, 5068722, 6475372, 8216430,
+  10363864, 13003924, 16303179, 20334005, 25245613, 31215707, 38584642,
+  47498296, 58258111, 71221052, 87064864, 106078633, 128858951,
+  156108600, 189148553, 228544934, 275457160, 331245615, 398546218,
+  478368861, 572934506, 684840683, 818869564, 1000000000 (level 50,
+  matching the real function's own explicit MAX_MORT cap). Not yet
+  wired into `being.c`'s `progress_xp_for_level()` -- next session:
+  hardcode this table (or the algorithm, if a live per-class variant
+  is wanted later) and rebuild/test.
+
+Previous update: 2026-07-28 — Session 86 (DO droplet): **Consolidated onto
 a single DigitalOcean box (Home VM retired); invisibility/dispel
 invisible (Mage, level 17 audit item).**
 - **Infrastructure**: Home VM (`192.168.254.200`) and the old Work box

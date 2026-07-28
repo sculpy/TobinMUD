@@ -195,6 +195,13 @@ sql(f"UPDATE player SET load_room={ROOM} WHERE name='{cleric_name}';")
 cmd(sc, "quit!")
 sc.close()
 set_level(cleric_name, 40)
+# Every new character now starts with a 7-point stipend (being_create_pc(),
+# user 2026-07-28) -- zero it back out here since section 1/4 below
+# specifically test the zero-practice-points UX (bare `practice`'s "0"
+# display, `practice basic 1`'s "no practice points" refusal), not the
+# stipend itself.
+sql(f"UPDATE player_progress SET practice_points=0 WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{cleric_name}');")
 sc = socket.create_connection((host, port), timeout=5)
 recv_all(sc)
 send_line(sc, cleric_name); recv_all(sc)

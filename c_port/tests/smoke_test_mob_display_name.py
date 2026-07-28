@@ -189,9 +189,12 @@ for _ in range(6):
     chunk = recv_all(sv, timeout=0.5)
     chunks.append(chunk)
     check("lady stroll walk" not in chunk, "no combat message leaks the raw keyword list")
-    # No damage number for a mortal viewer (user 2026-07-12) -- the line
-    # now just ends right after the limb name.
-    if re.search(rf"You slice {re.escape(shortdesc)}'s .+?\.", chunk):
+    # No damage number for a mortal viewer (user 2026-07-12). Stale
+    # regex fixed (2026-07-28): the real line is combat.c's own
+    # "You %s %s's %s %s!" (verb, name, limb, a qualitative
+    # describe_dam() intensity phrase) -- it ends with "!", never a
+    # period, so this never actually matched anything.
+    if re.search(rf"You slice {re.escape(shortdesc)}'s [^\r\n]+!", chunk):
         found_hit = True
     if "slain" in chunk.lower() or "defeated" in chunk.lower():
         break

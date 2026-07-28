@@ -114,14 +114,27 @@ def make_char(name, pw, class_choice):
     return s
 
 
-def make_guildmaster(vnum, keyword, class_mask):
+def set_skill_pct(name, skill_name, pct):
+    sql(f"INSERT INTO player_skill (player_id, skill_name, pct, last_gain_at) "
+        f"SELECT id, '{skill_name}', {pct}, 0 FROM player WHERE name='{name}' "
+        f"ON DUPLICATE KEY UPDATE pct={pct}, last_gain_at=0;")
+
+
+def make_guildmaster(vnum, keyword, class_mask, level=51):
+    # `level` identifies the guildmaster's TIER to find_guildmaster()
+    # (cmd_practice.c: 51=Basic, 80=Combat, 100=Advanced) -- this helper
+    # used to hardcode `1`, well below GUILD_LEVEL_BASIC (51), so
+    # `practice basic <n>` could never actually find this mob at all
+    # ("You don't see a Basic guildmaster of your discipline here.",
+    # even standing right next to it). Fixed to default to Basic (51),
+    # matching smoke_test_practice.py's own make_guildmaster() precedent.
     sql(f"INSERT INTO mob (vnum,name,short_desc,long_desc,description,actions,affects,"
         f"faction,fact_perc,letter,attacks,class,level,tohit,ac,hpbonus,damage_level,"
         f"damage_precision,gold,race,weight,height,str,bra,con,dex,agi,intel,wis,foc,"
         f"per,cha,kar,spe,pos,def_position,sex,spec_proc,skin,vision,can_be_seen,max_exist) "
         f"VALUES ({vnum},'guildmaster {keyword}','a guildmaster of {keyword}',"
         f"'A guildmaster of {keyword} stands here.',"
-        f"'desc',0,0,0,0,'A',1.0,{class_mask},1,0,0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
+        f"'desc',0,0,0,0,'A',1.0,{class_mask},{level},0,0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
         f"10,10,1,0,0,0,1,1);")
 
 
@@ -171,6 +184,17 @@ sql(f"UPDATE player SET load_room={ROOM} WHERE name='{healer_name}';")
 cmd(sh, "quit!")
 sh.close()
 set_level(healer_name, 40)  # mortal, above "heal light"'s min_level (1)
+# Practice points are only ever awarded at the moment of an actual
+# level-up (practice_points_for_level(), practice.c) -- set_level()'s
+# raw SQL jump to 40 never ran that award loop retroactively, so the
+# healer would otherwise have only the fresh-character stipend (7,
+# being_create_pc()) to spend below. Grant more directly via SQL
+# instead (same "raw SQL, must happen before the reconnect below"
+# shape set_level()/the patient's hp bump already use) -- the in-game
+# `set <name> practices <n>` command needs SET_MIN_LEVEL (58), above
+# this test's own level-51 immortal.
+sql(f"UPDATE player_progress SET practice_points=100 WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{healer_name}');")
 
 patient_name = f"Conpat{_suffix}"
 sp = make_char(patient_name, pw, "2")
@@ -205,9 +229,37 @@ send_line(sp, pw); recv_all(sp)
 send_line(sp, "1"); recv_all(sp)
 cmd(sp, "color off")
 
-# Give the healer Basic discipline (practice at the Cleric guildmaster).
+# `pray <spell> <target>`'s target resolution goes through
+# combat_find_room_target() same as any attack command (cmd_pray.c) --
+# gated on mutual PK consent between two non-immortal mortals, same as
+# every other test that targets a different player. Missing here before
+# (this test never targeted another PLAYER with a spell until section 3
+# below was added), which is why "pray heal light <target>" couldn't
+# find the patient at all ("You don't see them here.").
+cmd(sh, "toggle pk")
+cmd(sp, "toggle pk")
+
+# Give the healer Basic discipline (practice at the Cleric guildmaster) --
+# practice_points were already granted via SQL above, before the reconnect.
+# Bare `practice basic` (no count) only shows the listing -- it never
+# actually spends a point, same as smoke_test_practice.py's own
+# `practice basic 1` precedent. This loop was silently a no-op before
+# (10 iterations of the listing, never any real spend).
 for _ in range(10):
-    cmd(sh, "practice basic")
+    cmd(sh, "practice basic 1")
+
+# `pray`/`cast` gate their own dispatch behind a SEPARATE per-skill
+# learn-by-doing proficiency roll (skill_roll_success(skill_learn_from_
+# doing(...)), cmd_pray.c/cmd_cast.c) on top of the discipline-percentage
+# ACCESS gate just spent above -- a fresh attempt at "heal light" starts
+# at 1% (skill.c's own floor), a ~1% chance to succeed, which is exactly
+# why the self-pray/target-pray/continue checks below were failing
+# ("You fumble the prayer... nothing happens"). Seed real proficiency
+# once here (matching smoke_test_practice.py's own set_skill_pct()
+# precedent) -- 100% covers every heal light cast for the rest of this
+# test, `continue`'s repeats included, since a skill already at its
+# ceiling always re-checks true regardless of the 30s gain cooldown.
+set_skill_pct(healer_name, "heal light", 100)
 
 # --- 1: continue with nothing to continue is refused ---
 out = cmd(sh, "continue")
