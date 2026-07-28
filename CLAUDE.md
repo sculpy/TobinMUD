@@ -11,29 +11,33 @@ seed doesn't have) lives in **`c_port/db/`** — see `c_port/db/README.md`.
 decisions (locked), module status, and a per-session log. Update it at the
 end of every session. [c_port/TODO.md](c_port/TODO.md) tracks what's next.
 
-## Where am I? (ask the user if unstated)
+## Where am I?
 
-- **Home**: work from this tree; build/test on the VirtualBox VM
-  `MUDServer` — Fedora 44, `ssh mud@192.168.254.200` (key auth set up),
-  tree mirrored at `~/NewMUD/`, MariaDB local to the VM, server on port
-  4000, logs in `~/NewMUD/c_port/logs/`.
-- **Work**: box is db.kullit.com (10.0.0.12), user `mud` (key auth set up),
-  same `~/NewMUD/` layout; MariaDB local, server on port 4000.
-- **Sync between locations is git**: private repo
-  `github.com/sculpy/NewMUD` (repo root = this whole tree). Commit+push
-  when leaving, pull on arrival. **Migrated 2026-07-09 from the old
-  `sculpy/tobin-mud`** (which is now frozen; NewMUD contains its full
-  history plus everything since). The build boxes authenticate to NewMUD
-  over per-box **read-only GitHub deploy keys** (`~/.ssh/newmud_deploy`,
-  scoped via each repo's `core.sshCommand`), since they hold no GitHub
-  login. The Linux boxes' copies can also be updated by `tar cf - ... |
-  ssh ... tar xf -` from here for quick pre-commit test builds.
-  **Full sync + deploy procedure: [SYNC.md](SYNC.md).**
+**Single location now (2026-07-27+): the DigitalOcean droplet.** The
+former Home VM (`192.168.254.200`) and Work box (db.kullit.com) are
+retired — user is disabling the Home VM and consolidating everything,
+dev and production alike, onto DO. Don't ask "Home or Work" anymore.
 
-## Build / run / test (on the Linux box, via ssh)
+- **DO droplet**: `159.223.121.98`, hostname `TobinMUD`, user `mud`
+  (key auth set up, passwordless `sudo`), tree at `~/NewMUD/`, MariaDB
+  local, **this is the live production server** — `tobin_c` runs here
+  for real players, port 4000. Deploy changes via `copyover`
+  (below), never a raw kill+restart, unless the user explicitly says
+  no one's connected.
+- Both `cmake` and a plain `Makefile` work here (`cmake --version` ->
+  4.3.0 present); either build path is fine.
+- **Sync is git**: private repo `github.com/sculpy/NewMUD` (repo root =
+  this whole tree). Commit+push when leaving, pull on arrival. The
+  droplet's copy can also be updated by `tar cf - ... | ssh ... tar xf -`
+  from here for a quick pre-commit test build, same as before.
+  **Full sync + deploy procedure: [SYNC.md](SYNC.md)** (written for the
+  old two-box setup — the git/tar mechanics still apply, just one box now).
+
+## Build / run / test (on the droplet, via ssh)
 
 ```
-cd ~/NewMUD/c_port && cmake --build build     # zero warnings expected
+cd ~/NewMUD/c_port && make -j4                # or: cmake --build build
+                                               # zero warnings expected
 TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=tobin \
   setsid nohup ./build/tobin_c > ~/NewMUD/tobin_c.log 2>&1 < /dev/null &
 for f in tests/smoke_test*.py; do python3 "$f"; done   # full suite
