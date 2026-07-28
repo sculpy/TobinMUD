@@ -328,6 +328,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "smoke",   cmd_smoke,   "Smoke a carried drug item (smoke <item>).",          MORTAL_LEVEL_MIN },
     /* "s"/"so" are south (movement head); socials needs "soc". */
     { "socials", cmd_socials, "List the socials you can use (smile, wave, ...).",   MORTAL_LEVEL_MIN },
+    { "spin",    cmd_spin,    "A spinning grapple-style strike that needs a free hand (Warrior, spin <target>).", MORTAL_LEVEL_MIN },
     { "split",   cmd_split,   "Split gold evenly among your grouped members present (split <amount>).", MORTAL_LEVEL_MIN },
     { "stand",   cmd_stand,   "Stand up.",                                          MORTAL_LEVEL_MIN },
     { "stop",    cmd_stop,    "Stop following whoever you're following.",           MORTAL_LEVEL_MIN },

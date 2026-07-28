@@ -18,12 +18,12 @@ former Home VM (`192.168.254.200`) and Work box (db.kullit.com) are
 retired — user is disabling the Home VM and consolidating everything,
 dev and production alike, onto DO. Don't ask "Home or Work" anymore.
 
-- **DO droplet**: `159.223.121.98`, hostname `TobinMUD`, user `mud`
-  (key auth set up, passwordless `sudo`), tree at `~/NewMUD/`, MariaDB
-  local, **this is the live production server** — `tobin_c` runs here
-  for real players, port 4000. Deploy changes via `copyover`
-  (below), never a raw kill+restart, unless the user explicitly says
-  no one's connected.
+- **DO droplet**: `tobinmud.com` (DNS live, A record → `159.223.121.98`),
+  hostname `TobinMUD`, user `mud` (key auth set up, passwordless `sudo`),
+  tree at `~/NewMUD/`, MariaDB local, **this is the live production
+  server** — `tobin_c` runs here for real players, telnet `tobinmud.com:4000`
+  (bare IP still works too). Deploy changes via `copyover` (below), never
+  a raw kill+restart, unless the user explicitly says no one's connected.
 - Both `cmake` and a plain `Makefile` work here (`cmake --version` ->
   4.3.0 present); either build path is fine.
 - **Sync is git**: private repo `github.com/sculpy/NewMUD` (repo root =

@@ -1,6 +1,52 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 87 (DO droplet): **New-character
+Last updated: 2026-07-28 — Session 88 (DO droplet, from the dev machine):
+**spin (Warrior, level 17 audit item); SSH access to the droplet
+re-established from this Windows machine with a dedicated passphrase-free
+key; SYNC.md/ENVIRONMENT.md rewritten for the single-droplet setup.**
+- **spin** (Warrior, 17): new `cmd_spin.c`, same "Tobin-scale slice"
+  shape as bodyslam/headbutt -- one `skill_roll_success()` roll, no
+  countermove/focused-avoidance defenses. Two real-upstream checks
+  ported cheaply since Tobin already had the mechanic: refuses a flying
+  target not already fighting you, and requires the primary hand empty
+  (matching the roster's own "needs a free hand" flavor). See TODO.md
+  for the full scope-cut writeup. `tests/smoke_test_spin.py` (8 checks)
+  passes live against production (port 4000 -- this droplet has no
+  preview instance, so audit work now tests directly against production
+  with the user's live connection present; confirmed with the user
+  before any restart).
+- **SSH access re-established** from this Windows dev machine: the
+  existing `id_ed25519` key is passphrase-protected, which silently
+  breaks non-interactive (`BatchMode`) signing -- OpenSSH accepts the
+  key cryptographically ("Server accepts key") but then can't decrypt it
+  to actually sign, and gives up rather than prompting. Generated a
+  fresh dedicated key `~/.ssh/id_ed25519_tobinmud` (no passphrase, same
+  pattern as the old `id_ed25519_kullit`), registered in `mud`'s
+  `authorized_keys` on the droplet. Confirmed working end-to-end.
+- **SYNC.md/ENVIRONMENT.md rewritten** for the single-droplet setup --
+  both fully described the retired two-box Home/Work workflow; now
+  reflect one dev machine + one droplet (`tobinmud.com`, DNS live),
+  droplet doubling as build/test/production. CLAUDE.md updated to
+  reference the domain alongside the bare IP.
+- **House-rule update**: this droplet runs ONLY port 4000 (no preview/
+  test instance the way the old rebuilt Home VM briefly had) -- smoke
+  tests and sweeps run directly against live production. **Always ask
+  the user before any restart/copyover** when they might be connected
+  (this session's user stayed connected throughout and asked to be
+  consulted first, rather than assuming a restart is safe from an empty
+  `ss -tnp` check alone).
+- **Noted, not yet applied**: user has enabled the `multiplay` global
+  toggle (`cmd_multiplay.c`, 59+) so one account can run multiple
+  characters at once, and mentioned smoke-test cleanup could delete the
+  whole `account` row instead of per-table deletes -- confirmed `player.
+  account_id` cascades (`ON DELETE CASCADE`) down through player_progress/
+  player_attrs/player_inventory (player_skill not yet confirmed). Worth
+  simplifying future smoke tests' cleanup blocks to `DELETE FROM account
+  WHERE name LIKE '...'` once confirmed end-to-end; existing tests
+  (including this session's) still use the older per-table delete
+  pattern and don't need retrofitting.
+
+Previous update: 2026-07-28 — Session 87 (DO droplet): **New-character
 practice stipend; fixed 3 unrelated pre-existing test bugs; a
 self-inflicted production CWD incident, fixed.**
 - **New-character practice stipend** (user: "let all players start

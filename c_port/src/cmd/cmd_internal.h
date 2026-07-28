@@ -64,6 +64,7 @@ bool cmd_hurtlimb(descriptor_t *d, const char *args);
 bool cmd_aitick(descriptor_t *d, const char *args);
 bool cmd_flee(descriptor_t *d, const char *args);
 bool cmd_headbutt(descriptor_t *d, const char *args);
+bool cmd_spin(descriptor_t *d, const char *args);
 bool cmd_say(descriptor_t *d, const char *args);
 bool cmd_shout(descriptor_t *d, const char *args);
 bool cmd_sign(descriptor_t *d, const char *args);

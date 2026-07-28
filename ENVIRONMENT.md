@@ -1,11 +1,15 @@
-# TobinMUD — Working in Two Locations (Home ⇄ Work)
+# TobinMUD — Setting Up the Droplet From Scratch
 
-How to move development between the **home** setup and the **work** setup, and
-how to stand up the work environment from nothing. Follow the parts in order.
+How to stand up the DigitalOcean droplet environment if it's ever rebuilt.
+The **current** droplet (`tobinmud.com`, DNS live → `159.223.121.98`,
+hostname `TobinMUD`, user `mud`, key auth + passwordless `sudo`) is already
+set up — this doc is the recovery/rebuild procedure, not a daily workflow.
+For day-to-day sync see [SYNC.md](SYNC.md); for project rules and the
+build/deploy commands, see [CLAUDE.md](CLAUDE.md).
 
 Golden rule: **GitHub is the only thing that travels.** Code moves by
 `git push` / `git pull` (or a fresh `git clone`) — never by copying working
-directories around. Each machine's database is local and stays put.
+directories around. The droplet's MariaDB is local and stays put.
 
 ---
 
@@ -13,55 +17,45 @@ directories around. Each machine's database is local and stays put.
 
 | Piece | What it is | Where it lives |
 |---|---|---|
-| **NewMUD repo** | The game (`c_port/`) + Tobin's schema. Source of truth. Migrated 2026-07-09 from the now-frozen `sculpy/tobin-mud`; build boxes auth via read-only deploy keys — see [SYNC.md](SYNC.md). | https://github.com/sculpy/NewMUD.git — branch `main` |
-| **Upstream SneezyMUD reference** | 45 MB of original code + the base world/DB seed. **Gitignored** (`sneezymud-master/`), so it is **not** in the repo — fetch it per location. | https://github.com/sneezymud/sneezymud.git |
-| **Dev box** | Where you run Claude Code and edit. Windows. | Home: `E:\New MUD` · Work: wherever you clone it |
-| **Game server** | Linux box (Fedora 44): MariaDB + the built `tobin_c` binary. | Home: `mud@192.168.254.200:~/NewMUD/c_port` · Work: `mud@db.kullit.com` (internal `10.0.0.12`) `:~/NewMUD/c_port` (to create) |
-
-> The work box currently only has a `root` login and also runs `talker.c` —
-> Part 3 creates the `mud` user alongside it. Use `db.kullit.com` or `10.0.0.12`
-> interchangeably for SSH.
+| **NewMUD repo** | The game (`c_port/`) + Tobin's schema. Source of truth. | https://github.com/sculpy/NewMUD.git — branch `main` |
+| **Upstream SneezyMUD reference** | Original code + base world/DB seed. **Gitignored** (`sneezymud-master/`), not in the repo — fetch it separately. | https://github.com/sneezymud/sneezymud.git |
+| **Dev box** | Where you run Claude Code and edit. Windows. | `C:\Users\jhines\NewMUD\` |
+| **Droplet** | Build, test, AND live production. DigitalOcean, `tobinmud.com`. | `mud@tobinmud.com:~/NewMUD` |
 
 Key facts that make the commands below work:
 - The server runs as OS user **`mud`** and talks to MariaDB as `mud@localhost`
-  over the **unix socket** (no password). So `mariadb tobin` "just works" when
+  over the **unix socket** (no password). `mariadb tobin` "just works" when
   logged in as `mud`.
 - Databases: **`tobin`** (the game) and **`immortal`** (immortal world copy).
 - Default runtime config needs no env vars (host `localhost`, DB `tobin`,
   telnet port `4000`). Overridable: `TOBIN_DB_HOST` / `TOBIN_DB_USER` /
   `TOBIN_DB_PASS` / `TOBIN_DB_NAME` / `TOBIN_PORT`.
-- The server path is **`~/NewMUD/c_port`** (note: `NewMUD`, no space — unlike
-  the Windows `E:\New MUD`). Keep this exact so all commands match.
+- Server path: **`~/NewMUD/c_port`**.
+- DNS: `tobinmud.com` A record → the droplet's IP. Players telnet to
+  `tobinmud.com:4000` (bare IP still works too).
 
 ---
 
-## PART 1 — Before you leave home (5 seconds, do not skip)
-
-On the **home dev box** (`E:\New MUD`), push everything up:
+## PART 1 — Before you leave the dev machine (5 seconds, do not skip)
 
 ```sh
 git add -A
-git commit -m "wip: end of home session"
+git commit -m "..."
 git push origin main
 ```
 
-That is the entire hand-off. The home VM's database (accounts, test
-characters) stays home — you don't need it at work; a fresh DB is rebuilt from
-the seed in Part 3.
-
 ---
 
-## PART 2 — First time at work: the dev box
+## PART 2 — Dev machine setup (one-time)
 
-1. **Install git** if it isn't there: https://git-scm.com/download/win
-   (or in a terminal: `winget install --id Git.Git -e`).
-2. **Clone the repo** and open it in Claude Code:
+1. **Install git**: https://git-scm.com/download/win (or `winget install
+   --id Git.Git -e`).
+2. **Clone the repo**:
    ```sh
    git clone https://github.com/sculpy/NewMUD.git
    ```
-3. *(Optional but recommended)* Fetch the upstream reference **into** the repo
-   as `sneezymud-master` so Claude can read original SneezyMUD code. It's
-   gitignored, so it will never be committed:
+3. *(Optional but recommended)* Fetch the upstream reference into the repo
+   as `sneezymud-master` (gitignored, never committed):
    ```sh
    cd NewMUD
    git clone https://github.com/sneezymud/sneezymud.git sneezymud-master
@@ -69,22 +63,23 @@ the seed in Part 3.
 
 ---
 
-## PART 3 — First time at work: the game server (`db.kullit.com`)
+## PART 3 — Rebuilding the droplet from nothing
 
-Run these **on `db.kullit.com`**, in order.
+Only needed if the current droplet is ever lost/replaced. Run these **on
+the new droplet**, in order.
 
-### 3a. Create the `mud` user  *(as a sudo-capable login)*
+### 3a. Create the `mud` user *(as a sudo-capable login)*
 ```sh
 sudo useradd -m -s /bin/bash mud
-sudo passwd mud                     # set a password
-# Optional: let your own account become mud easily, and add an SSH key:
+sudo passwd mud
 sudo mkdir -p /home/mud/.ssh && sudo chown mud:mud /home/mud/.ssh
-# (paste your public key into /home/mud/.ssh/authorized_keys, chmod 600)
+# paste your public key into /home/mud/.ssh/authorized_keys, chmod 600
+# grant passwordless sudo for mud (visudo -> mud ALL=(ALL) NOPASSWD:ALL, or scope it)
 ```
 
-### 3b. Install the toolchain + database  *(as sudo)*
-The C connector **dev headers** are required to build (`mariadb-connector-c-devel`
-/ `libmariadb-dev`) — easy to forget.
+### 3b. Install the toolchain + database *(as sudo)*
+The C connector **dev headers** are required to build
+(`mariadb-connector-c-devel` / `libmariadb-dev`).
 
 Fedora / RHEL:
 ```sh
@@ -97,66 +92,77 @@ sudo apt update && sudo apt install -y build-essential cmake git \
     mariadb-server libmariadb-dev python3
 ```
 
-### 3c. Start (and enable) MariaDB  *(as sudo)*
+### 3c. Start (and enable) MariaDB *(as sudo)*
 ```sh
 sudo systemctl enable --now mariadb
 ```
 
 ### 3d. Get the code as the `mud` user
 ```sh
-sudo -iu mud                        # become mud
+sudo -iu mud
 git clone https://github.com/sculpy/NewMUD.git ~/NewMUD
 git clone https://github.com/sneezymud/sneezymud.git ~/NewMUD/sneezymud-master
-git -C ~/NewMUD config core.autocrlf input   # keep LF endings clean
+git -C ~/NewMUD config core.autocrlf input
 ```
-> Both locations keep the tree at `~/NewMUD`, so the server path is
-> `~/NewMUD/c_port` everywhere and every deploy command is identical.
+
+Set up the read-only deploy key (the droplet has no interactive GitHub
+login):
+```sh
+ssh-keygen -t ed25519 -f ~/.ssh/newmud_deploy -N '' -C "$(hostname)-newmud-deploy"
+cat ~/.ssh/newmud_deploy.pub
+git -C ~/NewMUD remote set-url origin git@github.com:sculpy/NewMUD.git
+git -C ~/NewMUD config core.sshCommand \
+  "ssh -i ~/.ssh/newmud_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+```
+Register the public key: GitHub → NewMUD → Settings → Deploy keys, or
+```sh
+gh repo deploy-key add newmud_deploy.pub --repo sculpy/NewMUD --title "<box name> (read-only)"
+```
 
 ### 3e. Seed the databases
-The seed script uses `sudo` for the CREATE DATABASE / CREATE USER steps, so run
-it from a **sudo-capable** shell and pass `mud` as the DB user it should grant.
-Then apply Tobin's own tables **as `mud`**.
-
 ```sh
-# creates + fills fresh `tobin` and `immortal`, and grants mud@localhost:
-~/NewMUD/sneezymud-master/db/init-db.sh mud
-
-# Tobin-specific tables + idempotent migrations on top (defaults to `tobin`):
-~/NewMUD/c_port/db/apply-tobin-schema.sh
+~/NewMUD/sneezymud-master/db/init-db.sh mud     # fresh tobin + immortal, grants mud@localhost
+~/NewMUD/c_port/db/apply-tobin-schema.sh        # Tobin tables + idempotent migrations
 ```
-Both are safe to re-run. `apply-tobin-schema.sh` is also the **"apply new
-migrations after a pull"** step for later.
+Both safe to re-run. `apply-tobin-schema.sh` is also the "apply new
+migrations after a pull" step going forward.
 
-### 3f. Build  *(as mud)*
+### 3f. Build *(as mud)*
 ```sh
 cd ~/NewMUD/c_port
 cmake -S . -B build
 cmake --build build                 # must be zero-warning
 ```
 
-### 3g. First run  *(as mud)*
+### 3g. First run *(as mud)*
 ```sh
 cd ~/NewMUD/c_port
 setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &
 pgrep -x tobin_c && echo "up on :4000"
 ```
 
-### 3h. Auto-restart via cron  *(as mud — mirrors home)*
+### 3h. Auto-restart via cron *(as mud)*
 ```sh
 crontab -e
-# add this line (restarts within a minute if it ever dies):
-* * * * * pgrep -x "tobin_c" >/dev/null || (cd /home/mud/NewMUD/c_port && ./build/tobin_c >> tobin_c.log 2>&1)
+# * * * * * /home/mud/NewMUD/c_port/watchdog.sh
 ```
-Deploys always `pkill; sleep 1; restart` within the same minute, so the cron
-tick never double-launches.
+`watchdog.sh` `cd`s to its own directory, appends to `tobin_c.log`, and
+takes a `flock` on `/tmp/tobin_watchdog.lock` so only one restart ever runs.
 
-### 3i. Open the firewall for telnet 4000 (if clients connect remotely)
+### 3i. Open the firewall for telnet 4000
 ```sh
 sudo firewall-cmd --add-port=4000/tcp --permanent && sudo firewall-cmd --reload   # Fedora/RHEL
 # or: sudo ufw allow 4000/tcp                                                     # Debian/Ubuntu
 ```
+Also open in the DigitalOcean cloud firewall if one is attached to the
+droplet.
 
-### 3j. Prove it works
+### 3j. DNS
+Point `tobinmud.com`'s A record at the droplet's public IP with your
+registrar/DNS provider. (Already done for the current droplet — DNS is
+live and the domain resolves.)
+
+### 3k. Prove it works
 ```sh
 cd ~/NewMUD/c_port
 bash tests/sweep.sh                  # expect "SUMMARY: N passed, 0 failed"
@@ -164,48 +170,11 @@ bash tests/sweep.sh                  # expect "SUMMARY: N passed, 0 failed"
 
 ---
 
-## PART 4 — The daily deploy loop (at either location)
+## PART 4 — The daily deploy loop
 
-Edit on the dev box → push → update the server → rebuild → migrate → restart.
-Because the server is a **git clone**, syncing it is just `git pull` (no scp,
-no CRLF fixups — `.gitattributes` keeps `.sh`/`.sql`/`.py` as LF):
-
-```sh
-# 1. Dev box: commit + push your work
-git add -A && git commit -m "..." && git push origin main
-
-# 2. Server: pull, rebuild, apply any schema changes, restart
-ssh mud@db.kullit.com          # (or mud@192.168.254.200 at home)
-cd ~/NewMUD && git pull
-cd c_port && cmake --build build          # zero-warning
-./db/apply-tobin-schema.sh                 # picks up new/changed migrations (idempotent)
-mariadb tobin < db/tobin/help_topic.sql    # only if help text changed (ON DUP KEY = no-op otherwise)
-pkill -x tobin_c; sleep 1
-setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &
-```
-
-Rules that bit us before:
-- **Never rebuild/restart while a sweep is running** — the restart freeze makes
-  unrelated smoke tests flake. Let the sweep finish first.
-- New schema files under `c_port/db/tobin/` are auto-picked-up by
-  `apply-tobin-schema.sh`; standalone seed edits (help/news/rules bodies) that
-  use `ON DUPLICATE KEY UPDATE name=name` need an explicit `mariadb ... < file`
-  to actually change existing rows.
-
-> **The home VM is currently updated by scp, not a git clone.** If you want it
-> on the same clean `git pull` model as work, once: `cd ~ && git clone
-> https://github.com/sculpy/NewMUD.git NewMUD2`, seed/build it, verify, then
-> swap it in for `~/NewMUD`. Until then, home deploys copy changed files with
-> scp and strip CRLF (`sed -i 's/\r$//'` on `.sql`/`.py`) before building.
-
----
-
-## PART 5 — Leaving work / resuming at home
-
-- **Before leaving work:** Part 1 again from the work dev box (`git push`).
-- **Back home:** on the home dev box `git pull`, then deploy to the home VM
-  (Part 4). The home VM's DB still has your data — only re-seed (Part 3e) if you
-  want a clean slate.
+See [SYNC.md](SYNC.md)'s "Deploy sequence" section — it's the day-to-day
+version of PART 3's build/migrate/restart steps, plus the `copyover`-vs-
+cold-restart rule and the gdb-attach habit.
 
 ---
 
@@ -214,12 +183,11 @@ Rules that bit us before:
 ```
 Repo:            https://github.com/sculpy/NewMUD.git   (branch main)
 Upstream ref:    https://github.com/sneezymud/sneezymud.git → sneezymud-master/  (gitignored, per-location)
-Home server:     mud@192.168.254.200:~/NewMUD/c_port
-Work server:     mud@db.kullit.com:~/NewMUD/c_port
+Droplet:         mud@tobinmud.com:~/NewMUD/c_port   (also live production)
 Databases:       MariaDB `tobin` + `immortal`, unix_socket auth as OS user mud
 Seed a DB:       sneezymud-master/db/init-db.sh mud   &&   c_port/db/apply-tobin-schema.sh
-Build:           cd ~/NewMUD/c_port && cmake -S . -B build && cmake --build build
+Build:           cd ~/NewMUD/c_port && cmake -S . -B build && cmake --build build   (or: make -j4)
 Run:             cd ~/NewMUD/c_port && setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &
-Telnet port:     4000
+Telnet:          tobinmud.com:4000  (or 159.223.121.98:4000)
 Sweep:           cd ~/NewMUD/c_port && bash tests/sweep.sh
 ```

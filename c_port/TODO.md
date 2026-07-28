@@ -1518,11 +1518,35 @@ durations where warranted, and a cooldown where warranted. Audit findings
     `INVISIBLE` action-flag (obj.c) is display-only today, nothing in
     `cmd_look.c` hides a flagged object from the room listing yet.
     `tests/smoke_test_invisibility.py` (10 checks) passes live.
-    Not yet started: **spin** (17), teleport/summon (19), slam/
-    riposte/deathstroke/dispel magic/springleap (20), blindness/word of
-    recall (21), taunt/paralyze limb (22), whirlwind/kneestrike/
-    farlook/scribe/bind (25), hide (31), paralyze (33), quivering palm
-    (42), silence (48).
+    **spin** (Warrior, 17) -- done 2026-07-28. Real upstream
+    (cmd/cmd_spin.cc's `canSpin()`/`spin()`/`spinHit()`/`spinMiss()`) is
+    another heavy function: a flying-victim difficulty roll (flavor only
+    -- still lets the spin proceed either way), a graduated held-item
+    restriction that eases with proficiency, a Monk counter-move defense
+    plus a separate focused-avoidance defense roll, and on a hit either
+    `knockOffMount()` or `crashLanding()` depending on mount state.
+    Scoped down, same "Tobin-scale slice" shape as bodyslam/headbutt: one
+    `skill_roll_success()` roll (no countermove/focused-avoidance defense
+    rolls), reusing `combat_apply_skill_damage()`'s STR-flavored formula
+    at bash's baseline (not bodyslam's x2). Two checks DID port cheaply
+    since Tobin already has the underlying mechanic: refuses a flying
+    target outright unless already fighting you (`being_has_affect(target,
+    AFFECT_FLYING)`), and requires the primary hand empty (`ch->held[0]`),
+    matching skill.c's own roster flavor "needs a free hand" more simply
+    than the real graduated one/two-hand easing. Same knockdown-on-hit/
+    knockdown-on-miss shape bodyslam uses as a stand-in for
+    `crashLanding()`. 6 Vitality, matching the real 6-Move `SPIN_COST`
+    directly. Not ported: mount dismounting (refused outright while
+    either side is mounted, same scope cut bodyslam/shove already made)
+    and the proficiency-graduated held-item easing. New `cmd_spin.c`.
+    `tests/smoke_test_spin.py` (8 checks) passes live; the flying-target
+    refusal is verified by code review only (no DB-persisted affect row
+    to seed without a live Mage `levitate` cast, same "not every side
+    effect needs a live assertion" precedent as fear/slumber).
+    Not yet started: teleport/summon (19), slam/riposte/deathstroke/
+    dispel magic/springleap (20), blindness/word of recall (21),
+    taunt/paralyze limb (22), whirlwind/kneestrike/farlook/scribe/bind
+    (25), hide (31), paralyze (33), quivering palm (42), silence (48).
 - **Buff spells that conflate distinct effects**: sanctuary/armor/bless/
   stone skin/barkskin/protection-from-* all currently reuse the identical
   `AFFECT_SANCTUARY` buff rather than each having its own effect --

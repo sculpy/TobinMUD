@@ -923,3 +923,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'invisibility and dispel invisible are live -- level 17 audit items', '`cast invisibility` (Mage) makes a caster or a named ally untargetable by name and invisible to the room listing for anyone but an immortal -- a new AFFECT_INVISIBLE, checked at both `combat_find_room_target()` and the room-listing code. `cast dispel invisible` strips it back off. Real upstream also grants a temporary armor bonus and doubles duration on a critical success; neither ported this pass, same "Tobin-scale slice" spirit as the rest of this audit list. No `detect invisibility` counter-check yet either -- that is its own separate, higher-level roster entry, not built this pass.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'spin is live -- a level 17 Warrior audit item', '`spin <target>` grapples an opponent to the ground for damage, same shape as bodyslam/headbutt. Refuses while your primary hand is holding something, and refuses a flying target unless they are already fighting you. Real upstream also has a proficiency-graduated one/two-hand easing and separate countermove/focused-avoidance defenses; neither ported this pass, same "Tobin-scale slice" spirit as the rest of this audit list.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
