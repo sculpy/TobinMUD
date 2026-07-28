@@ -6241,9 +6241,61 @@ already tracked — pointers, not duplicates):
       Tobin doesn't currently do anywhere else in cmd_*.c, worth
       checking there's a sanctioned pattern (or precedent for shelling
       out) before adding one.
-- [ ] **BUG: a freshly created character can land in the wrong room /
-      lose immortal status on login** — found 2026-07-28 (Session 90)
-      while debugging `tests/smoke_test_teleport_summon.py`'s own
+- [x] **BUG (RESOLVED, not a server bug): a freshly created character
+      can land in the wrong room / lose immortal status on login** —
+      root-caused 2026-07-28 (Session 94, dedicated fresh-eyes look
+      requested by the user specifically because this had gone
+      unresolved across 3 sessions). **Not a server defect.** Confirmed
+      with a clean, deterministic, twice-reproduced isolated repro
+      (`repro_login_bug2.py`, not committed — throwaway):
+      - **Case A** (matches almost every smoke test's own `make_char()`
+        pattern: create a character, then `s.close()` the raw socket
+        instead of `quit!`ing): the character is left LINKDEAD in its
+        creation-time room (`desc == NULL`, still a live being_t in the
+        world) -- exactly per the linkdead system's own intended design
+        (`descriptor_destroy()`'s doc comment: stay in the room until
+        reconnect). A subsequent `UPDATE player SET load_room=...` is
+        then SILENTLY IGNORED on the next login: `enter_world()`
+        (descriptor.c) checks `world_find_linkdead_pc()` FIRST and, if
+        found, resumes in THAT room (correctly shows "Welcome back! You
+        resume where you left off") -- `player_load_room()` is never
+        even consulted. This is exactly what the DOC COMMENT on
+        `enter_world()` already explains ("resume in THAT room instead
+        of the load room... only the room carries over, not stale
+        in-memory state") and is EXACTLY the same root cause a much
+        earlier, unrelated fix already worked around in one specific
+        spot by using `transfer` instead of a raw SQL `load_room` edit
+        (see the "`continue` command..." entry search hit above) --
+        that earlier fix was never connected to this broader "BUG:"
+        entry across 3 sessions of re-discovering the same symptom.
+      - **Case B** (control): the identical sequence, but with a proper
+        `quit!` before the SQL `load_room` edit, works perfectly --
+        correct "Welcome, ...!" message, lands exactly in the intended
+        room. `quit!` cleanly removes the being_t from the world
+        instead of leaving a linkdead ghost, so the next login is a
+        genuinely fresh `player_load()` + `player_load_room()` call,
+        no linkdead-resume shortcut to collide with.
+      - The "appears to not register as immortal" half of the original
+        symptom was NOT independently reproduced this session and is
+        most likely the SAME root cause manifesting differently (e.g.
+        a test asserting level/room together right after a batch of
+        raw-socket-closed characters, where the room mismatch alone was
+        enough to make the whole check look like a broader failure) --
+        not a separate bug, given `enter_world()`'s own doc comment
+        confirms level/attrs DO get freshly reloaded from the DB even
+        while resuming a linkdead body (only the ROOM is intentionally
+        carried over from the old body, not the whole being_t).
+      **Convention going forward** (not retrofitted everywhere this
+      session -- out of scope to touch every affected test file at
+      once): any test that needs to SQL-edit a character's `load_room`
+      (or otherwise depends on a truly fresh world-entry) after an
+      initial `make_char()`-style creation MUST either have that helper
+      call `quit!` before closing the socket, or use `transfer`/`goto`
+      instead of relying on `load_room` at all -- same fix the
+      `continue`-command session already applied in its own one spot.
+      Original repro notes preserved below for context/history --
+      found 2026-07-28 (Session 90) while debugging
+      `tests/smoke_test_teleport_summon.py`'s own
       multi-character batch setup. Repro: create several new characters
       in a short window (several back-to-back `make_char()`/`relog()`
       calls, matching this session's own smoke-test pattern). Some or

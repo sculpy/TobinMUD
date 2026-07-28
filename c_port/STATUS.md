@@ -1,6 +1,42 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 93 (DO droplet, from the dev machine):
+Last updated: 2026-07-28 — Session 94 (DO droplet, working directly on
+production port 4000 -- no more throwaway preview instances): **Root-
+caused the multi-session "wrong room / lost immortal status on login"
+bug. Not a server defect.**
+- User asked for a dedicated fresh-eyes look at TODO.md's open "BUG: a
+  freshly created character can land in the wrong room / lose immortal
+  status on login" entry, unresolved across Sessions 90/92/93.
+- **Conclusively root-caused, twice reproduced, isolated**: it's a TEST-
+  AUTHORING pattern colliding with intentional design, not a server bug.
+  Almost every smoke test's `make_char()` helper creates a character
+  then `s.close()`s the raw socket instead of `quit!`ing -- this
+  correctly (by the linkdead system's own design) leaves the character
+  LINKDEAD in its creation-time room rather than removing them from the
+  world. A later `UPDATE player SET load_room=...` (the common pattern
+  for moving a freshly-created test character into a sandbox room) is
+  then SILENTLY IGNORED on the next login: `enter_world()` checks for a
+  linkdead body FIRST and, if found, resumes in THAT room ("Welcome
+  back! You resume where you left off") without ever consulting
+  `player_load_room()` -- exactly what `enter_world()`'s own doc comment
+  already explains. Confirmed with a clean before/after repro: the exact
+  same sequence with a proper `quit!` inserted before the SQL edit works
+  perfectly every time. This is the SAME root cause an earlier, unrelated
+  session already worked around in one specific spot (using `transfer`
+  instead of a raw `load_room` edit) -- just never connected to this
+  broader "BUG:" entry across 3 sessions of re-discovering the same
+  symptom from scratch. TODO.md's entry closed out with the full
+  writeup and the going-forward convention (quit! or transfer/goto, not
+  a bare SQL load_room edit, for any test needing a truly fresh world
+  entry) -- not retrofitted across every affected test file this
+  session, out of scope for a single pass.
+- No code changes this session -- purely an investigation/diagnosis
+  pass. Verified live against production port 4000 directly (user:
+  "work on port 4000 no more preview") using disposable, cleaned-up
+  test characters, same as every other live-verification this project
+  already does.
+
+Previous update: 2026-07-28 — Session 93 (DO droplet, from the dev machine):
 **Level-22 audit batch: taunt, paralyze limb. Also shipped the three
 requests queued from Session 92: automatic yoginsa, gold-to-corpse on
 death, and a tenths-of-a-second prompt lockout display. Mob spell-
