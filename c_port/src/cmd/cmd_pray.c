@@ -583,6 +583,121 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, affect_name(dis));
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (strcasecmp(sk->name, "restore limb") == 0) {
+        /* `restore limb` (Cleric, level 25, level-25 audit batch). The
+         * real counter to `paralyze limb` (level 22, above) -- that
+         * branch's own doc comment flagged this as "not yet ported".
+         * Finds the target's first DESTROYED limb (hp==0, max_hp>0,
+         * being_has_destroyed_limb()) and restores it to full via the
+         * same combat_debug_set_limb_hp() write paralyze limb used to
+         * break it, undoing both that spell's effect and any ordinary
+         * combat limb-destruction. */
+        ch->last_heal_target = NULL;
+        limb_t restore_limb = LIMB_REAL_COUNT;
+        for (int i = 0; i < LIMB_REAL_COUNT; i++) {
+            if (being_has_limb(target, (limb_t)i) && target->limbs[i].hp <= 0) {
+                restore_limb = (limb_t)i;
+                break;
+            }
+        }
+        if (restore_limb == LIMB_REAL_COUNT) {
+            snprintf(msg, sizeof(msg), "%s has no destroyed limbs to restore.\r\n",
+                     target == ch ? "You" : being_display_name(target));
+            descriptor_send(d, msg);
+            return;
+        }
+        combat_debug_set_limb_hp(ch, target, restore_limb, target->limbs[restore_limb].max_hp);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), "You pray for %s -- your %s knits back together!\r\n",
+                     sk->name, limb_name(restore_limb));
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), "You pray for %s over %s -- their %s knits back together!\r\n",
+                     sk->name, being_display_name(target), limb_name(restore_limb));
+            descriptor_send(d, msg);
+            if (target->desc) {
+                char tcapbuf[128];
+                snprintf(msg, sizeof(msg), "%s prays for %s -- your %s knits back together!\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, limb_name(restore_limb));
+                descriptor_notify(target->desc, msg);
+            }
+        }
+    } else if (strcasecmp(sk->name, "knit bone") == 0) {
+        /* `knit bone` (Cleric, level 25). Roster text: "Repairs a broken
+         * bone" -- narrower than the general `cure disease` (which strips
+         * every active disease): only removes AFFECT_DISEASE_BROKEN_BONE
+         * specifically, same real disease affect `drink`'s puddle-poison
+         * roll and the hospital's cure already use. */
+        bool had_break = being_has_affect(target, AFFECT_DISEASE_BROKEN_BONE);
+        if (had_break)
+            being_remove_affect(target, AFFECT_DISEASE_BROKEN_BONE);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), had_break
+                     ? "You pray for %s -- your broken bone knits back together!\r\n"
+                     : "You pray for %s, but you have no broken bones to mend.\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), had_break
+                     ? "You pray for %s over %s -- their broken bone knits back together!\r\n"
+                     : "You pray for %s over %s, but they have no broken bones to mend.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc && had_break)
+                descriptor_notify(target->desc, "Your broken bone knits back together!\r\n");
+        }
+    } else if (strcasecmp(sk->name, "bleed") == 0) {
+        /* `bleed` (Cleric, level 25). "Opens a wound that bleeds over
+         * time" -- reuses the existing AFFECT_DISEASE_BLEEDING damage-
+         * over-time affect (affect_tick_run()'s periodic HP drain) rather
+         * than a random disease roll like the generic disease/infect
+         * branch above, since this spell names a SPECIFIC affliction. */
+        ch->last_heal_target = NULL;
+        if (!atk_target) {
+            descriptor_send(d, "Pray for that over whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        being_apply_affect(atk_target, AFFECT_DISEASE_BLEEDING, 40);
+        snprintf(msg, sizeof(msg), "You pray for %s, opening a bleeding wound on %s!\r\n",
+                 sk->name, being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s prays for %s, opening a bleeding wound on you!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "heroes' feast") == 0) {
+        /* `heroes' feast` (Cleric, level 25). "A feast that buffs
+         * everyone who partakes" -- scoped to "every other PC/mob in the
+         * room", same room-wide-ally shape `rally` (cmd_rally.c) already
+         * established for the first such skill in the roster. A feast is
+         * naturally a healing effect (real upstream's own heroesFeast()
+         * restores HP/move/mana to the whole group) -- reuses
+         * pray_apply_heal() per recipient rather than inventing a new
+         * buff mechanic. Immortals in the room are skipped, same reason
+         * rally skips them (a heal is meaningless against their own
+         * always-full HP). */
+        int recipients = 0;
+        if (ch->base.roomp) {
+            for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+                if (t->kind != THING_PC && t->kind != THING_MOB)
+                    continue;
+                being_t *ally = (being_t *)t;
+                if (being_is_immortal(ally))
+                    continue;
+                pray_apply_heal(d, ch, ally, sk->name);
+                recipients++;
+            }
+        }
+        snprintf(msg, sizeof(msg), recipients
+                 ? "You lay out a heroes' feast -- everyone present eats their fill and feels restored!\r\n"
+                 : "You lay out a heroes' feast, but no one is here to partake.\r\n");
+        descriptor_send(d, msg);
     } else if (strcasecmp(sk->name, "penance") == 0) {
         pray_apply_penance(d, ch, target, sk->name);
     } else if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")) {
