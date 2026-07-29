@@ -145,15 +145,44 @@ send_line(recvr, "1"); recv_all(recvr)
 cmd(recvr, "color off")
 check("GivePour Sandbox" in cmd(recvr, "look"), "the recipient lands directly in the same sandbox room")
 
+# An immortal loads/drops a fixture item for the giver to pick up --
+# NOT relying on default starting gear, since `quit!` spills a
+# character's belongings onto the floor of whatever room they quit in
+# ("Your belongings spill onto the ground as you leave!", see
+# smoke_test_quit_drop.py) -- both giver and recvr above just went
+# through exactly that quit!-then-reconnect cycle (needed to place them
+# in the sandbox room without triggering the linkdead/load_room bug --
+# see TODO.md's writeup), so neither has any of their starting suit
+# gear left by this point.
+imm_name, imm_pw = f"Givepimm{_suffix}", "givepourimmpw123"
+si = make_char(imm_name, imm_pw)
+cmd(si, "quit!")
+si.close()
+sql(f"UPDATE player_progress SET level=51 WHERE player_id=(SELECT id FROM player WHERE name='{imm_name}');")
+sql(f"UPDATE player SET load_room={ROOM} WHERE name='{imm_name}';")
+imm = socket.create_connection((host, port), timeout=5)
+recv_all(imm)
+send_line(imm, imm_name); recv_all(imm)
+send_line(imm, imm_pw); recv_all(imm)
+send_line(imm, "1"); recv_all(imm)
+cmd(imm, "color off")
+
+GIVEITEM = ROOM + 900000  # collision-safe fixture vnum in the 900000+ sandbox range
+sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
+    f"VALUES ({GIVEITEM},'trinket giveaway test','a test trinket','A test trinket lies here.',8,0,1);")
+check("You conjure" in cmd(imm, f"load obj {GIVEITEM}"), "immortal loads a fixture trinket for the giver")
+check("You drop" in cmd(imm, "drop trinket"), "immortal drops the trinket")
+check("You get" in cmd(giver, "get trinket"), "giver picks up the trinket")
+
 # --- 1: give <item> <person> ---
 out = cmd(giver, "inventory")
-check("torch" in out.lower(), "the giver has a starting torch to give away")
-out = cmd(giver, f"give torch {recv_name}")
+check("trinket" in out.lower(), "the giver is carrying the trinket to give away")
+out = cmd(giver, f"give trinket {recv_name}")
 check("you give" in out.lower(), "give confirms the item hand-off")
 out = cmd(giver, "inventory")
-check("torch" not in out.lower(), "the torch left the giver's inventory")
+check("trinket" not in out.lower(), "the trinket left the giver's inventory")
 out = cmd(recvr, "inventory")
-check("torch" in out.lower(), "the torch landed in the recipient's inventory")
+check("trinket" in out.lower(), "the trinket landed in the recipient's inventory")
 
 # --- 2: give <amount> gold <person> ---
 sql(f"UPDATE player_progress SET gold=100 WHERE player_id=(SELECT id FROM player WHERE name='{giver_name}');")
@@ -176,22 +205,10 @@ cmd(giver, "flee", 2.0)
 recv_all(giver, timeout=2.0)
 recv_all(recvr, timeout=2.0)
 # --- 5/6: pour transfer between two carried containers ---
-# `load obj` is immortal-only and lands straight in the LOADING
-# immortal's own inventory (not the room floor) -- an immortal drops
+# Reuses the same immortal helper (`imm`) from the give-fixture setup
+# above -- `load obj` is immortal-only and lands straight in the
+# LOADING immortal's own inventory (not the room floor), so it drops
 # both containers for the giver to pick up.
-imm_name, imm_pw = f"Givepimm{_suffix}", "givepourimmpw123"
-si = make_char(imm_name, imm_pw)
-cmd(si, "quit!")
-si.close()
-sql(f"UPDATE player_progress SET level=51 WHERE player_id=(SELECT id FROM player WHERE name='{imm_name}');")
-sql(f"UPDATE player SET load_room={ROOM} WHERE name='{imm_name}';")
-imm = socket.create_connection((host, port), timeout=5)
-recv_all(imm)
-send_line(imm, imm_name); recv_all(imm)
-send_line(imm, imm_pw); recv_all(imm)
-send_line(imm, "1"); recv_all(imm)
-cmd(imm, "color off")
-
 check("You conjure" in cmd(imm, f"load obj {WATERSKIN}"), "immortal loads a waterskin for the giver")
 check("You drop" in cmd(imm, "drop waterskin"), "immortal drops the waterskin")
 check("You conjure" in cmd(imm, f"load obj {WINESKIN}"), "immortal loads a wineskin for the giver")
