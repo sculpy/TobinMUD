@@ -1379,9 +1379,10 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         }
         descriptor_send(d, "You conjure up a large cloud which shimmers slightly before revealing...\r\n");
         char farmsg[192];
-        snprintf(farmsg, sizeof(farmsg), "<c>%s<z>\r\n%s\r\n",
-                 fartarget->base.roomp->base.name, fartarget->base.roomp->description);
+        snprintf(farmsg, sizeof(farmsg), "<c>%s<z>\r\n", fartarget->base.roomp->base.name);
         descriptor_send(d, farmsg);
+        descriptor_send(d, fartarget->base.roomp->description);
+        descriptor_send(d, "\r\n");
         consume_component(d, fcomp);
         return true;
     }
