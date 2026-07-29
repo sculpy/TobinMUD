@@ -971,3 +971,11 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'copy, haste, and storm call are live -- level 23 audit items', '`cast copy` (Mage) duplicates a scroll you''re carrying, as long as you already know the spell bound to it. `cast haste` (Mage) makes you (or an ally) genuinely faster in a fight -- a real bonus attack every round, not just a stat bump. `cast storm call` (Druid) calls down lightning or hail on a foe, but only works outdoors during rain or a real storm.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New: give, and pour can now fill another container', 'You can now `give` a carried item or gold to someone else in the room. `pour` also got smarter: pouring one container into another transfers the liquid between them, instead of only ever being able to dump it on the ground.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fixed: look in/inside a container now works', '`look in <container>` and `look inside <container>` used to always fail with "You don''t see that here" -- fixed. Both now show the container''s contents, same as plain `look <container>` already did.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

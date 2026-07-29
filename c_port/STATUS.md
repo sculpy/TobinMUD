@@ -1,6 +1,77 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28/29 — Session 97 (DO droplet, working directly on
+Last updated: 2026-07-29 — Session 98 (DO droplet, production port 4000):
+**Object manipulation audit continued: new `give` command, `pour`
+container-to-container transfer; live user bug fix: `look in/inside
+<container>`.**
+- User asked for a fresh Sneezy-vs-Tobin comparison of "object
+  manipulation" beyond the earlier narrow sacrifice/junk/identify pass
+  (TODO.md). Delegated the comparison research to an Explore agent
+  (real upstream source at `sneezymud-master/code/code/misc/
+  inventory.cc` etc. vs. Tobin's `cmd_object.c`/`cmd_pour.c`/etc.) --
+  found two real gaps: no `give` command at all, and `pour` only ever
+  dumped a container onto the ground, never transferred between two
+  containers the way real `doPour()` does. (`push`/`pull` were also
+  flagged as missing but gated on spec-proc content Tobin doesn't have
+  yet -- left out of scope, not started.)
+- **`give <item> <person>` / `give <amount> gold <person>`** (new
+  `cmd_give()`, cmd_object.c) -- ported from real `TBeing::doGive()`.
+  Deliberately does NOT reuse `combat_find_room_target()` (combat.c)
+  for resolving the recipient -- that function's `combat_pk_allowed()`
+  gate exists to stop involuntary PvP targeting and would have wrongly
+  blocked a friendly hand-off between two PCs who never `toggle pk`ed;
+  a new small `find_give_target()` mirrors its linkdead-exclusion/
+  exact-then-prefix matching shape without the PK check. Refuses
+  mid-fight on either side. Not ported: multi-item "give all.sword"/
+  "give 3.sword" bunching, mob shop-response/spec-proc hooks (no
+  shop-logging/spec-proc dispatch exists to hook into), solo/group-quest
+  refusal checks (neither system exists in Tobin).
+- **`pour <container> <container2>`** (cmd_pour.c) -- transfers liquid
+  between two carried containers, refusing to mix two different
+  liquids (same "pour it out first" precedent `fill`'s own mixing
+  check already set). Bare `pour <container>` (dump onto the ground)
+  is unchanged.
+- **`look in <container>` / `look inside <container>`** (cmd_look.c) --
+  a live bug the user hit directly while playing: the leading
+  preposition was never stripped, so `look_at_target()` searched for
+  something literally named "in" and always failed with "You don't see
+  that here." Fixed by skipping a leading "in "/"inside " token before
+  falling through to the existing bare-`look <container>` contents
+  display. Verified live immediately after the fix (both phrasings
+  correctly show a container's contents now, matching the pre-existing
+  bare form).
+- New `tests/smoke_test_give_pour_transfer.py` -- all `give`-side
+  checks (item hand-off, gold hand-off, refuse-when-absent, refuse-
+  mid-fight) and the `pour` mixing-refusal check verified passing live,
+  repeatedly, across several runs. The final pour-transfer-succeeds
+  check could not be confirmed by the automated script itself: building
+  this surfaced a real, NOT-yet-root-caused intermittent hang where a
+  fresh account login/reconnect on one socket never gets a response
+  while OTHER sockets are already connected and idle in the same test
+  process -- reproduced repeatedly, got further into the script on
+  different runs (sometimes past mid-fight, sometimes not), never
+  produced a clean error, always just silently stops responding to that
+  one connection. Worth a dedicated investigation next session (likely
+  in `descriptor.c`'s connection-accept/select-loop handling under
+  concurrent load) -- flagging here rather than burying it, since it
+  could affect real players connecting close together in time, not
+  just this test harness. The `pour` transfer CODE itself was read
+  through carefully and mirrors `fill`'s own proven capacity/mixing
+  logic almost exactly, so it's believed correct, just not automatically
+  re-verified end-to-end this session.
+- Also root-caused (as pure test-authoring bugs, not server bugs) two
+  more flaky-test traps found while building this: (1) `quit!` spills a
+  character's belongings onto the floor of whatever room they quit in
+  ("Your belongings spill onto the ground as you leave!") -- a test
+  that quits a fresh PC and expects their starting suit gear to still
+  be in inventory on reconnect will always find it empty; (2) a raw SQL
+  edit to a CURRENTLY-CONNECTED character's row (e.g. bumping gold)
+  does nothing to their live in-memory state, and worse, a `quit!`
+  issued AFTER that edit re-persists the stale in-memory value right
+  back over it -- the edit must happen strictly after the quit
+  completes, never before.
+
+Previous update: 2026-07-28/29 — Session 97 (DO droplet, working directly on
 production port 4000): **Level-23 spell/skill audit batch: copy, haste,
 storm call.** `cure disease` (Druid, also level 23) was already done in
 an earlier session.
