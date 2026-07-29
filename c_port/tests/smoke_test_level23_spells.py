@@ -277,19 +277,24 @@ while time.time() < deadline:
         break
 
 # Combat messages (combat.c's tell() calls) have no fixed verb ("slice"/
-# "stab"/"hit"/...), but a fixed SHAPE per direction: mage's own attack on
-# the dummy always reads "You <verb> a l23dummy...'s <limb> <intensity>!"
-# or "You miss a l23dummy...!" (attacker-perspective, always starts with
-# "You"); the dummy's counter-attack always reads "A l23dummy... <verb>
-# your <limb> <intensity>!" or "A l23dummy... misses you!" (always starts
-# with the dummy's own capitalized short_desc). Classifying by line start
-# is verb-agnostic and immune to describe_dam()'s wording.
+# "stab"/"hit"/...), but a fixed SHAPE per direction: the fighter's own
+# attack on the dummy always reads "You <verb> a l23dummy...'s <limb>
+# <intensity>!" or "You miss a l23dummy...!"; the dummy's counter-attack
+# always reads "A l23dummy... <verb> your <limb> <intensity>!" or "A
+# l23dummy... misses you!" -- both contain "your "/"misses you" literally.
+# A THIRD line shape also starts with the dummy's name -- the limb-status-
+# change broadcast to the ATTACKER ("A l23dummy...'s arm is destroyed!",
+# combat.c's tick_being_affects()-adjacent status block) -- which is a
+# side effect of the FIGHTER'S OWN hit, not a counter-attack, and must be
+# excluded (it starts the same way but has neither "your " nor "misses
+# you") or the ratio reads falsely close to 1:1 instead of the real ~2:1.
 lines = [ln.strip() for ln in all_out.split("\r\n") if ln.strip()]
 my_strikes = sum(1 for ln in lines if ln.lower().startswith("you miss")
                   or (ln.lower().startswith("you ") and "'s " in ln.lower()))
-their_strikes = sum(1 for ln in lines if ln.lower().startswith(f"a {dummy_name.lower()}"))
-check(my_strikes > their_strikes,
-      f"hasted fighter lands noticeably more of their own strikes than the dummy's ({my_strikes} vs {their_strikes})")
+their_strikes = sum(1 for ln in lines if ln.lower().startswith(f"a {dummy_name.lower()}")
+                     and ("misses you" in ln.lower() or "your " in ln.lower()))
+check(their_strikes > 0 and my_strikes >= 1.5 * their_strikes,
+      f"hasted fighter lands roughly double the dummy's strikes, not just slightly more ({my_strikes} vs {their_strikes})")
 
 cmd(mage, "purge")  # mage is still the immortal in ROOM_OUT (purge is 51+, fighter is mortal)
 
