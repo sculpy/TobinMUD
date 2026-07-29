@@ -1,6 +1,68 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-29 — Session 99 (DO droplet, production port 4000):
+Last updated: 2026-07-29 — Session 100 (DO droplet, production port 4000):
+**Level-25 audit batch, castable half: 12 new spells/prayers across
+Mage/Cleric/Druid, real SneezyMUD cast-time messages pulled from the
+bundled upstream source where they exist.** Level 25 turned out to be
+the single largest roster level yet (~45 entries across every class) --
+scoped this session to the `cast`/`pray` half; the ~20 Warrior/Thief/
+Monk physical combat skills (whirlwind, disarm, chop, feign death, ...)
+are a separate, comparably-sized follow-up (see below).
+- **Mage**: `farlook` (global name lookup + remote room description,
+  reusing cmd_tell.c/cmd_transfer.c's global-lookup-by-name-prefix
+  pattern -- combat_find_room_target() is room-scoped only, so this
+  needed its own path), `detect invisibility` (real functional wiring:
+  new `AFFECT_DETECT_INVISIBLE` lets the caster bypass `AFFECT_INVISIBLE`
+  in combat_find_room_target()/cmd_look.c -- closes a gap `invisibility`'s
+  own doc comment flagged since level 17), `detect magic` (flavor-only,
+  no per-object magic-aura marker exists to reveal), `bind` (new
+  `AFFECT_BIND`, a real movement-blocking affect checked by
+  do_move()/cmd_move.c), `trail seek` (flavor-only, no `track` subsystem
+  exists yet to empower), `animate` (reuses the existing charmed-pet
+  machinery with a real seeded construct mob, vnum 27 "stone golem"),
+  `scribe` (Tobin-original -- no real SPELL_SCRIBE in the upstream source;
+  new `obj_magic_repo_find_scroll_for_spell()` reverse-lookup produces a
+  copy of whatever real seeded scroll is already bound to a spell the
+  caster knows; needed its own free-text pre-parse like `telepathy`
+  since `find_spell_and_target()` only ever captures a single trailing
+  word and most spell names are multi-word), `charge stave`
+  (Tobin-original -- refills a carried staff's val[0] current charges
+  back to val[1] max), `flaming flesh` (folded into the existing
+  ward/AFFECT_SANCTUARY branch -- turned out to be a pure armor buff in
+  the real source despite the roster's own "damaging attackers" flavor
+  text, another flavor-text correction). `acid blast`/`protection from
+  air|fire|water|energy`/`stone skin` needed no new code -- already
+  covered by existing generic damage/resistance branches.
+- **Cleric**: `restore limb` (the real counter to `paralyze limb`, level
+  22 -- that branch's own doc comment flagged this as "not yet ported";
+  finds the target's first destroyed limb and restores it via
+  combat_debug_set_limb_hp()), `knit bone` (narrower than `cure disease`
+  -- removes only AFFECT_DISEASE_BROKEN_BONE), `bleed` (applies the
+  existing AFFECT_DISEASE_BLEEDING DOT affect directly instead of a
+  random disease roll), `heroes' feast` (room-wide heal to every
+  non-immortal PC/mob present, same room-iteration shape `rally`
+  established). `sanctuary`/`pillar of salt` needed no new code --
+  already covered by existing generic branches.
+- **Druid**: `refresh` folded into the existing `meditate`/Vitality-
+  restore branch (Vitality is Tobin's real movement-point stand-in, see
+  that branch's own doc comment). `heal critical` needed no new code --
+  already covered by the generic heal branch.
+- **Ranged proficiency** (Cleric/Mage/Druid, level 25): left as an inert
+  roster placeholder -- no ranged-weapon subsystem (throw/shoot command,
+  weapon-type distinction) exists anywhere in Tobin to hook a
+  proficiency bonus into; building one would be its own separate,
+  large-scope feature, not a level-25-sized task.
+- Verified live via a new `tests/smoke_test_level25_spells.py` (all
+  checks pass). Two real test-script bugs found and fixed along the way,
+  both worth remembering: character/account names can't contain digits
+  (`isalpha()` gate, descriptor.c -- caught out an earlier session too,
+  see the level-23 writeup) and `pray` takes NO "for" (`pray <spell>
+  [target]`, not `pray for <spell> [target]` -- the literal word "for"
+  silently broke every multi-word spell-name lookup in the first draft
+  of this test). Built, deployed via `copyover`, `wiznews.sql` entry
+  added.
+
+Previous update: 2026-07-29 — Session 99 (DO droplet, production port 4000):
 **Level-24 spell audit batch: `enhance weapon` (Mage).** The other two
 level-24 roster entries (`conjure elemental water`, Druid `animal
 companion`) were already covered by the existing conjure/pet-companion

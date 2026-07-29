@@ -983,3 +983,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'enhance weapon is live -- level 24 audit item', '`cast enhance weapon` (Mage) gives you or an ally a temporary edge in combat, making your blows land more true for a while. The real spell was meant to be a permanent weapon enchant; landed here as a timed buff instead since there''s no way yet to permanently mark a single weapon apart from every other copy of the same item.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A dozen new spells and prayers are live -- level 25 audit batch', 'Mage: `cast farlook` scries a remote location, `cast detect invisibility` lets you see and target the invisible, `cast detect magic` and `cast trail seek` are new flavor effects, `cast bind` webs a foe in place so they can''t move, `cast animate` calls a stone golem to your side, `cast scribe <spell>` inscribes a scroll from nothing, `cast charge stave` refills a staff''s charges, and `cast flaming flesh` wreathes you in protective fire. Cleric: `pray restore limb` heals a destroyed limb (the real cure for `pray paralyze limb`), `pray knit bone` mends a broken bone, `pray bleed` opens a wound on a foe, and `pray heroes'' feast` heals everyone in the room. Druid: `cast refresh` restores movement. The rest of level 25 -- a big batch of Warrior/Thief/Monk fighting techniques -- is still in progress.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
