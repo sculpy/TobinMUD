@@ -116,6 +116,18 @@ bool cmd_shove(descriptor_t *d, const char *args) {
                   + (ch->progress.level - target->progress.level);
     bool success = imm || !sk || skill_roll_success(skill_learn_from_doing(ch, sk) + modifier);
 
+    /* `counter move` (Monk, level 25, level-25 audit batch: "Resist
+     * being shoved or thrown out of position."). This function's own
+     * doc comment flagged the interaction as unported since counter
+     * move had no handler at all yet -- same passive-defensive-save
+     * shape as `weapon retention`/`brawl avoidance` elsewhere in this
+     * audit. */
+    if (success && !being_is_immortal(target) && being_knows_skill(target, "counter move")) {
+        const skill_def_t *counter_sk = skill_find(target->char_class, "counter move", false);
+        if (counter_sk && skill_roll_success(skill_learn_from_doing(target, counter_sk)))
+            success = false;
+    }
+
     if (!success) {
         char msg[160], capbuf[128];
         snprintf(msg, sizeof(msg), "You try to shove %s to no avail!\r\n", being_display_name(target));

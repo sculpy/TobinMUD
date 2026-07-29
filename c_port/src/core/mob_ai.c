@@ -377,6 +377,13 @@ static void mob_try_aggress(being_t *m) {
         being_t *pc = (being_t *)t;
         if (!pc->desc || being_is_immortal(pc) || pc->fighting)
             continue;
+        /* `feign death` (Monk, level 25, level-25 audit batch: "Play
+         * dead to avoid detection or attack."). A feigning PC (see
+         * cmd_feigndeath.c's own `feigning` flag) is skipped by
+         * aggressive-mob targeting -- the real "avoid attack" half of
+         * the roster text. */
+        if (pc->feigning)
+            continue;
 
         if (m->mob_align == 0) {
             if (pc->progress.alignment >= AGGRESS_GOOD_IMMUNITY_THRESHOLD)

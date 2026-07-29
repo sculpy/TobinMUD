@@ -785,6 +785,15 @@ typedef struct being {
      * in-memory only, same reconnect rule as `fighting`/`sneaking`. */
     bool meditating;
 
+    /* `feign death` (Monk, level 25, level-25 audit batch: "Play dead to
+     * avoid detection or attack."). Set by cmd_feigndeath.c; checked by
+     * mob_ai.c's mob_try_aggress() to skip a feigning PC when an
+     * aggressive mob picks a new target. Cleared by moving, fighting, or
+     * typing the command again -- same "live in-memory only, no
+     * reconnect persistence" convention as `meditating`/`fighting`
+     * above. */
+    bool feigning;
+
     /* Pulses remaining before this character can act again (see pulse.h).
      * Mortals accumulate this from `being_set_wait()`; immortals always
      * read/write it as a no-op via being_get_wait()/being_set_wait(). */

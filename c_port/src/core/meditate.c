@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "meditate.h"
 
+#include "affect.h"
 #include "being.h"
 #include "descriptor.h"
 #include "skill.h"
@@ -42,5 +43,31 @@ void meditate_tick_run(long pulse_num) {
         being_heal(ch, heal);
         being_heal_vit(ch, heal);
         descriptor_send(d, "<g>Meditating refreshes your inner harmonies!<z>\r\n");
+
+        /* `wohlin meditation` (Monk, level 25, level-25 audit batch:
+         * "While meditating, unlocks bonus self-cure effects."). This is
+         * the "chained secondary cures (self-salve, cure poison,
+         * sterilize, cure disease)" cmd_yoginsa.c's own doc comment
+         * flagged as blocked on this skill not existing yet -- it now
+         * does. Scoped to poison + every disease (Tobin's real cure
+         * targets, same affect.h range this whole audit already reuses
+         * for `cure poison`/`cure disease`), rolled once per meditation
+         * tick alongside the HP/Vitality heal above, not a separate
+         * command. */
+        if (being_knows_skill(ch, "wohlin meditation")) {
+            bool cured_something = false;
+            if (being_has_affect(ch, AFFECT_POISON)) {
+                being_remove_affect(ch, AFFECT_POISON);
+                cured_something = true;
+            }
+            for (int i = 0; i < MAX_ACTIVE_AFFECTS; i++) {
+                if (affect_is_disease(ch->affects[i].type)) {
+                    being_remove_affect(ch, ch->affects[i].type);
+                    cured_something = true;
+                }
+            }
+            if (cured_something)
+                descriptor_send(d, "<g>Your meditation burns away poison and sickness alike!<z>\r\n");
+        }
     }
 }

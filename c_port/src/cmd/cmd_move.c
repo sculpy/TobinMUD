@@ -100,6 +100,8 @@ static bool do_move(descriptor_t *d, int dir) {
         descriptor_send(d, "You are in no position to move -- try standing up first.\r\n");
         return true;
     }
+    /* `feign death` (level-25 audit batch) -- moving breaks the act. */
+    ch->feigning = false;
     if (being_has_affect(ch, AFFECT_BIND)) {
         /* `bind` (Mage, level 25, level-25 audit batch) -- see
          * AFFECT_BIND's own doc comment (affect.h). */

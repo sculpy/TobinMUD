@@ -433,8 +433,15 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * several places without one single traced to-hit formula -- this
      * is a disclosed approximation, not a literal port, reusing the
      * same flat-penalty shape as the destroyed-limb modifier above. */
-    if (being_has_affect(attacker, AFFECT_BLIND))
-        modifier -= DESTROYED_LIMB_HIT_PENALTY;
+    if (being_has_affect(attacker, AFFECT_BLIND)) {
+        /* `blindfighting` (Monk, level 25, level-25 audit batch:
+         * "Reduces the penalty for fighting while blinded."). Halves the
+         * flat penalty above rather than removing it outright -- a
+         * skilled blind fighter is still worse off than a sighted one,
+         * just not as crippled. */
+        modifier -= being_knows_skill(attacker, "blindfighting")
+                     ? DESTROYED_LIMB_HIT_PENALTY / 2 : DESTROYED_LIMB_HIT_PENALTY;
+    }
     /* Meaningful limb damage (TODO.md, user: "make individual limb hits
      * actually hurt"): the mirror image of the attacker-side penalty just
      * above -- a destroyed limb doesn't just throw off YOUR swing, it
@@ -595,6 +602,15 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
 
     int dmg = 1 + (attacker->attrs.strength - ATTR_BASE) / 4 + (rand() % 6) + weapon_damroll;
 
+    /* `iron fist` (Monk, level 25, level-25 audit batch: "Bonus
+     * strength-based damage while your hands are bare."). Doubles the
+     * STR-derived term of the base formula above -- only while
+     * genuinely bare-handed (no weapon), matching the roster text
+     * exactly rather than a flat bonus that would also apply while
+     * armed. */
+    if (!weapon && being_knows_skill(attacker, "iron fist"))
+        dmg += (attacker->attrs.strength - ATTR_BASE) / 4;
+
     /* Handedness (Session 21): strikes alternate hands; the primary hand
      * hits harder (+1), the off-hand weaker (-1). Which hand is primary
      * comes from handed_right chosen at creation. Weapon depth (user
@@ -681,6 +697,19 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         dmg = 0;
 
     limb_t limb = pick_weighted_limb((body_type_t)defender->body_type);
+    /* `critical hitting` (Monk, level 25, level-25 audit batch:
+     * "Improves your access to the harshest critical-hit outcomes.").
+     * Tobin's own crit mechanic (this function's own doc comment) is
+     * "a hit that crosses a limb's HP to 0%" -- no separate crit-chance
+     * roll to boost. Ported instead as a second weighted-limb draw,
+     * kept only if it landed on a MAJOR limb (is_major_limb() above) --
+     * a real, if modest, lean toward the harsher critical outcomes the
+     * roster text describes, without adding a whole new RNG layer. */
+    if (attacker->base.kind == THING_PC && being_knows_skill(attacker, "critical hitting")) {
+        limb_t reroll = pick_weighted_limb((body_type_t)defender->body_type);
+        if (is_major_limb(reroll))
+            limb = reroll;
+    }
     int pct_before = being_limb_pct(defender, limb);
     int limb_hp_before = defender->limbs[limb].hp; /* pre-hit capacity, for describe_dam() below */
     being_hurt_limb(defender, limb, dmg);
@@ -1409,6 +1438,29 @@ void combat_process_run(long pulse_num) {
                 continue;
             }
         }
+        /* `chain attack`, `blur`, and `advanced kicking` (Monk, level 25,
+         * level-25 audit batch: "A chance at a bonus follow-up strike
+         * each round." / "A chance at an extra unarmed attack each round
+         * while empty-handed." / "More of your unarmed strikes land as
+         * kicks, boosting extra-attack odds."). Tobin's simplified model
+         * treats all three the same way (no separate "combo counter",
+         * "empty-handed stance", or "kick vs. punch" state to tell them
+         * apart) -- a genuine bonus
+         * combat_strike(), same mechanic haste's own AFFECT_HASTE uses
+         * above, but CHANCE-gated per round (skill_roll_success()) and
+         * BAREHANDED-only, rather than a timed affect, matching each
+         * skill's own "a chance" wording instead of haste's guaranteed
+         * "every round" bonus. */
+        if (!combat_wielded_weapon(a)
+            && (being_knows_skill(a, "chain attack") || being_knows_skill(a, "blur")
+                || being_knows_skill(a, "advanced kicking"))
+            && skill_roll_success(50)) {
+            b_decapitated = combat_strike(a, b);
+            if (b->progress.hp <= 0 || b_decapitated) {
+                combat_defeat(b, a, b_decapitated);
+                continue;
+            }
+        }
 
         bool a_decapitated = combat_strike(b, a);
         if (a->progress.hp <= 0 || a_decapitated) {
@@ -1416,6 +1468,18 @@ void combat_process_run(long pulse_num) {
             continue;
         }
         if (being_has_affect(b, AFFECT_HASTE)) {
+            a_decapitated = combat_strike(b, a);
+            if (a->progress.hp <= 0 || a_decapitated) {
+                combat_defeat(a, b, a_decapitated);
+                continue;
+            }
+        }
+        /* `chain attack`/`blur`, `b`'s side -- see the identical block
+         * above for `a`'s side. */
+        if (!combat_wielded_weapon(b)
+            && (being_knows_skill(b, "chain attack") || being_knows_skill(b, "blur")
+                || being_knows_skill(b, "advanced kicking"))
+            && skill_roll_success(50)) {
             a_decapitated = combat_strike(b, a);
             if (a->progress.hp <= 0 || a_decapitated) {
                 combat_defeat(a, b, a_decapitated);

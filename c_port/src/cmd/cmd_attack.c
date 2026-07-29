@@ -32,6 +32,10 @@ bool cmd_attack(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* `feign death` (level-25 audit batch) -- attacking breaks the act,
+     * same as the being.h doc comment promises. */
+    d->character->feigning = false;
+
     /* `fear` (level-5+ audit list) -- a feared being can't turn around
      * and swing back while it's active, same "can't act" spirit as the
      * sleeping check above. */
