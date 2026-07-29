@@ -233,6 +233,24 @@ static obj_t *find_obj_here(thing_t *chain, const char *tok, size_t len, int ord
  * prefix, ordinal defaults to 1) reproduces the old always-first-match
  * behavior exactly -- no behavior change for existing muscle memory. */
 bool look_at_target(descriptor_t *d, const char *args) {
+    /* `look in <container>` / `look inside <container>` (user bug report,
+     * 2026-07-29) -- classic Diku phrasing for exactly what bare `look
+     * <container>` already does below (shows contents if it IS a
+     * container). The preposition was never stripped, so "look in bag"
+     * tried to find something literally named "in" and always failed
+     * with "You don't see that here." -- skip a leading "in"/"inside"
+     * token (only when a second word follows it; a lone "look in" with
+     * nothing after it falls through unchanged rather than becoming a
+     * confusing zero-argument case). */
+    while (*args == ' ')
+        args++;
+    if ((strncasecmp(args, "in ", 3) == 0 && args[3])
+        || (strncasecmp(args, "inside ", 7) == 0 && args[7])) {
+        args += (args[2] == ' ') ? 3 : 7;
+        while (*args == ' ')
+            args++;
+    }
+
     char raw[64];
     if (sscanf(args, "%63s", raw) != 1)
         return false;
