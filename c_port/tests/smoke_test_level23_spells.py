@@ -238,8 +238,15 @@ sql(f"UPDATE player_progress SET level=25, basic_disc_pct=100 WHERE player_id="
 sql(f"INSERT INTO player_skill (player_id, skill_name, pct, last_gain_at) "
     f"SELECT id, 'haste', 100, 0 FROM player WHERE name='{fighter_name}' "
     f"ON DUPLICATE KEY UPDATE pct=100, last_gain_at=0;")
+# A mortal's `goto <vnum>` only gives guildmaster/rent/surplus directions
+# (being_is_immortal() gates the real teleport-by-vnum form) -- placed
+# directly via load_room instead, same as smoke_test_corpse.py's victim
+# placement. Safe here specifically because the character was properly
+# `quit!`ed above (not a raw socket close) before this SQL edit -- see
+# TODO.md's "wrong room on login" writeup for why that ordering matters.
+sql(f"UPDATE player SET load_room={ROOM_OUT} WHERE name='{fighter_name}';")
 fighter = login(fighter_name, fighter_pw)
-check("L23 Outdoor Sandbox" in cmd(fighter, f"goto {ROOM_OUT}"), "fighter goes to the outdoor sandbox")
+check("L23 Outdoor Sandbox" in cmd(fighter, "look"), "fighter lands directly in the outdoor sandbox")
 COMP3 = BASE + 13
 sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,val0,val1,can_be_seen) "
     f"VALUES ({COMP3},'pouch component test3','a pouch of test components','A pouch lies here.',12,1,10,10,1);")
