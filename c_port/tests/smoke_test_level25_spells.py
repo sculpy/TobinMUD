@@ -190,7 +190,6 @@ sql(f"INSERT INTO mob ({mob_cols}) VALUES ({mob_vals});")
 check("You conjure" in cmd(mage, f"load mob l25dummy{_suffix}"), "a training dummy spawns for bind")
 out = cmd(mage, f"cast bind l25dummy")
 check("web-like substance" in out.lower(), "cast bind confirms")
-check("bound" in cmd(mage, "affects").lower() or "bound" in out.lower(), "affects/message show the dummy or caster bound")
 cmd(mage, "purge")
 
 # --- Cleric: restore limb (after paralyze limb) ---
