@@ -216,6 +216,7 @@ mob_insert(MOB_DUMMY1, dummy_name, 8.0, ROOM_OUT)  # generous HP, survives sever
 check("You conjure" in cmd(mage, f"load mob {dummy_name}"), "a fixed-HP training dummy spawns")
 
 out = cmd(mage, f"attack {dummy_name}")
+print("DEBUG attack out:", repr(out))
 check("Command not found" not in out, "mage attacks the dummy")
 # NOT `kill` -- for an immortal, `kill` bypasses the whole multi-round
 # combat process for an instant one-shot kill (cmd_kill.c's own doc
