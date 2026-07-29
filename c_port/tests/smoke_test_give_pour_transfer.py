@@ -95,19 +95,27 @@ def sql(stmt):
 
 
 def make_char(name, pw, class_choice="1"):
+    print("DEBUG make_char: connecting", flush=True)
     s = socket.create_connection((host, port), timeout=5)
+    print("DEBUG make_char: connected", flush=True)
     recv_all(s)
     send_line(s, name); recv_all(s)
+    print("DEBUG make_char: name sent", flush=True)
     send_line(s, "y"); recv_all(s)
     send_line(s, pw); recv_all(s)
     send_line(s, pw); recv_all(s)
+    print("DEBUG make_char: pw sent", flush=True)
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
+    print("DEBUG make_char: charname sent", flush=True)
     send_line(s, "1"); recv_all(s)
     send_line(s, class_choice); recv_all(s)
+    print("DEBUG make_char: class sent", flush=True)
     send_line(s, "done"); recv_all(s)
     send_line(s, "done"); recv_all(s)
+    print("DEBUG make_char: done sent", flush=True)
     cmd(s, "color off")
+    print("DEBUG make_char: complete", flush=True)
     return s
 
 
