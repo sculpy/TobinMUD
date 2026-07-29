@@ -275,10 +275,6 @@ while time.time() < deadline:
     all_out += recv_all(fighter, timeout=1.0)
     if "have slain" in all_out.lower() or "have defeated" in all_out.lower():
         break
-print("RAW COMBAT LOG:")
-for ln in all_out.split("\r\n"):
-    if ln.strip():
-        print("  ", repr(ln))
 
 # Combat messages (combat.c's tell() calls) have no fixed verb ("slice"/
 # "stab"/"hit"/...), but a fixed SHAPE per direction: the fighter's own
@@ -292,7 +288,18 @@ for ln in all_out.split("\r\n"):
 # side effect of the FIGHTER'S OWN hit, not a counter-attack, and must be
 # excluded (it starts the same way but has neither "your " nor "misses
 # you") or the ratio reads falsely close to 1:1 instead of the real ~2:1.
-lines = [ln.strip() for ln in all_out.split("\r\n") if ln.strip()]
+def strip_prompt(ln):
+    # The bare "> " prompt has no trailing newline of its own, so it
+    # sometimes lands glued to the front of the NEXT async message in the
+    # same \r\n-split line (e.g. "> You miss a l23dummy...!") -- strip it
+    # (possibly repeated) before classifying, or a naive .startswith()
+    # check silently misses every prompt-glued line and undercounts.
+    while ln.startswith(">"):
+        ln = ln[1:].lstrip()
+    return ln
+
+
+lines = [strip_prompt(ln.strip()) for ln in all_out.split("\r\n") if ln.strip()]
 my_strikes = sum(1 for ln in lines if ln.lower().startswith("you miss")
                   or (ln.lower().startswith("you ") and "'s " in ln.lower()))
 their_strikes = sum(1 for ln in lines if ln.lower().startswith(f"a {dummy_name.lower()}")
