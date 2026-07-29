@@ -245,7 +245,17 @@ out = cmd(thief, "stabbing")
 check("stab" in out.lower(), "stabbing confirms")
 cmd(imm, "purge")
 
-# --- Monk: chop, hurl, feign death ---
+# --- Monk: feign death (tested first, while not yet fighting anyone --
+# `cmd_hurl.c`'s "no real exit" fallback below deliberately doesn't clear
+# the fighting pointer, same as `purge`ing a still-fought mob doesn't
+# either, so testing this AFTER combat would hit a stale "still
+# fighting" refusal that isn't what this check is about). ---
+out = cmd(monk, "feigndeath")
+check("play dead" in out.lower(), "feign death confirms")
+out = cmd(monk, "feigndeath")
+check("pick" in out.lower(), "feign death toggles back off")
+
+# --- Monk: chop, hurl ---
 DUMMY5 = BASE + 6
 DUMMY6 = BASE + 7
 mob_insert(DUMMY5, f"l25dummy5{_suffix}", 20.0)
@@ -261,11 +271,6 @@ check("Command not found" not in cmd(monk, "attack l25dummy6"), "monk attacks th
 out = cmd(monk, "hurl")
 check("hurl" in out.lower() or "leverage" in out.lower(), "hurl confirms")
 cmd(imm, "purge")
-
-out = cmd(monk, "feigndeath")
-check("play dead" in out.lower(), "feign death confirms")
-out = cmd(monk, "feigndeath")
-check("pick" in out.lower(), "feign death toggles back off")
 
 print("ALL CHECKS PASSED")
 announce_done("smoke_test_level25_skills")
