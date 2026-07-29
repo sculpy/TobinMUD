@@ -99,7 +99,8 @@ static int group_room_items(const room_t *r, const being_t *viewer, bool want_fi
          * just below this function's own PC/mob rendering branch. */
         if ((t->kind == THING_PC || t->kind == THING_MOB)
             && being_has_affect((const being_t *)t, AFFECT_INVISIBLE)
-            && !being_is_immortal(viewer))
+            && !being_is_immortal(viewer)
+            && !being_has_affect(viewer, AFFECT_DETECT_INVISIBLE))
             continue;
         bool is_fixture = t->kind == THING_OBJ && !obj_takeable(((obj_t *)t)->wear_flag);
         if (is_fixture != want_fixture)

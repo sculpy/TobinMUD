@@ -100,6 +100,12 @@ static bool do_move(descriptor_t *d, int dir) {
         descriptor_send(d, "You are in no position to move -- try standing up first.\r\n");
         return true;
     }
+    if (being_has_affect(ch, AFFECT_BIND)) {
+        /* `bind` (Mage, level 25, level-25 audit batch) -- see
+         * AFFECT_BIND's own doc comment (affect.h). */
+        descriptor_send(d, "You're stuck fast in a mass of sticky webbing!\r\n");
+        return true;
+    }
 
     room_t *from = ch->base.roomp;
     int dest = from->exits[dir];

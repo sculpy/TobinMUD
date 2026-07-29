@@ -482,7 +482,14 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
     } else if (ci_contains(sk->desc, "armor bonus") || ci_contains(sk->desc, "reduces incoming damage")
                || ci_contains(sk->desc, "resistance to") || ci_contains(sk->desc, "reflective shield")
                || ci_contains(sk->desc, "self-ward") || ci_contains(sk->name, "shield")
-               || ci_contains(sk->name, "stone skin") || ci_contains(sk->name, "barkskin")) {
+               || ci_contains(sk->name, "stone skin") || ci_contains(sk->name, "barkskin")
+               || ci_contains(sk->name, "flaming flesh")) {
+        /* `flaming flesh` (Mage, level 25, level-25 audit batch) folded in
+         * here: real upstream (disc_mage_fire.cc's flamingFlesh()) turned
+         * out to be a pure APPLY_ARMOR buff despite the roster's own
+         * "damaging attackers" flavor text -- no reflect-damage mechanic
+         * in the real spell at all, same kind of flavor-text correction
+         * this audit has made before (chi/jirin/cintai, teleport). */
         being_apply_affect(target, AFFECT_SANCTUARY, 12);
         if (target == ch) {
             snprintf(msg, sizeof(msg), "You cast %s -- a protective ward settles over you!\r\n", sk->name);
@@ -821,7 +828,94 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc)
                 descriptor_notify(target->desc, "Your weapon hand feels supernaturally sure!\r\n");
         }
-    } else if (ci_contains(sk->name, "conjure elemental") || strcasecmp(sk->name, "animal companion") == 0) {
+    } else if (strcasecmp(sk->name, "detect invisibility") == 0) {
+        /* Level-25 audit batch (2026-07-29). Real message from upstream
+         * (disc_mage_spirit.cc's detectInvisibility()): "Your eyes
+         * tingle." / "$n's eyes briefly glow yellow." See
+         * AFFECT_DETECT_INVISIBLE's own doc comment (affect.h) for the
+         * real functional wiring (combat_find_room_target()/cmd_look.c). */
+        being_apply_affect(target, AFFECT_DETECT_INVISIBLE, 100);
+        if (target == ch) {
+            descriptor_send(d, "Your eyes tingle.\r\n");
+            if (ch->base.roomp) {
+                char capbuf[128];
+                snprintf(msg, sizeof(msg), "%s's eyes briefly glow yellow.\r\n",
+                         being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+                descriptor_room_echo(ch->base.roomp, ch, msg);
+            }
+        } else {
+            snprintf(msg, sizeof(msg), "You cast %s on %s -- their eyes briefly glow yellow.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc)
+                descriptor_notify(target->desc, "Your eyes tingle.\r\n");
+        }
+    } else if (strcasecmp(sk->name, "detect magic") == 0) {
+        /* Level-25 audit batch. Real message (disc_mage_alchemy.cc's
+         * detectMagic()): "Your eyes tingle." / "$n's eyes twinkle for a
+         * brief moment." Flavor-only -- see AFFECT_DETECT_MAGIC's doc
+         * comment (affect.h) for why there's no functional backing yet. */
+        being_apply_affect(target, AFFECT_DETECT_MAGIC, 100);
+        if (target == ch) {
+            descriptor_send(d, "Your eyes tingle.\r\n");
+            if (ch->base.roomp) {
+                char capbuf[128];
+                snprintf(msg, sizeof(msg), "%s's eyes twinkle for a brief moment.\r\n",
+                         being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+                descriptor_room_echo(ch->base.roomp, ch, msg);
+            }
+        } else {
+            snprintf(msg, sizeof(msg), "You cast %s on %s -- their eyes twinkle for a brief moment.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc)
+                descriptor_notify(target->desc, "Your eyes tingle.\r\n");
+        }
+    } else if (strcasecmp(sk->name, "bind") == 0) {
+        /* Level-25 audit batch. Real message (disc_mage_sorcery.cc's
+         * bind()): "You trap $N in a mass of sticky, web-like substance!"
+         * See AFFECT_BIND's own doc comment (affect.h) for the real
+         * movement-blocking mechanic (do_move()/cmd_move.c). Offensive --
+         * falls back to ch->fighting like the damage branches below, same
+         * atk_target convention. */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        being_apply_affect(atk_target, AFFECT_BIND, 30);
+        snprintf(msg, sizeof(msg), "You trap %s in a mass of sticky, web-like substance!\r\n",
+                 being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc)
+            descriptor_notify(atk_target->desc, "You are trapped in a mass of sticky, web-like substance!\r\n");
+    } else if (strcasecmp(sk->name, "trail seek") == 0) {
+        /* Level-25 audit batch. Real message (disc_mage_earth.cc's
+         * trailSeek()): "You become much more attuned to your senses!" /
+         * "You whiff the aromas of many whom have passed through here."
+         * Real upstream empowers the caster's own `track` skill for the
+         * duration -- Tobin has no `track` command ported yet (Thief's
+         * own level-13 roster entry, also not built), so this lands as a
+         * flavor-only flag/timer affect with no functional hook, same
+         * "no subsystem to empower yet" precedent as detect magic above.
+         * No affect applied -- purely a one-off flavor message, nothing
+         * to time out later. */
+        if (target == ch) {
+            descriptor_send(d, "You become much more attuned to your senses! You whiff the aromas of many whom have passed through here.\r\n");
+            if (ch->base.roomp) {
+                char capbuf[128];
+                snprintf(msg, sizeof(msg), "%s's eyes glow with a faint blue light for a moment.\r\n",
+                         being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+                descriptor_room_echo(ch->base.roomp, ch, msg);
+            }
+        } else {
+            snprintf(msg, sizeof(msg), "You cast %s on %s -- you grant them the senses of a bloodhound!\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc)
+                descriptor_notify(target->desc, "You become much more attuned to your senses! You whiff the aromas of many whom have passed through here.\r\n");
+        }
+    } else if (ci_contains(sk->name, "conjure elemental") || strcasecmp(sk->name, "animal companion") == 0
+               || strcasecmp(sk->name, "animate") == 0) {
         /* Pet/charm (Sneezy → Tobin feature audit): Mage's four
          * "conjure elemental air/earth/fire/water" spells already existed
          * in the roster as CLASS-tier placeholders (real Sneezy names,
@@ -848,6 +942,17 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
         } else if (ci_contains(sk->name, "water")) {
             vnum = 17;
             flavor = "Water rushes together and takes the shape of a water elemental!";
+        } else if (strcasecmp(sk->name, "animate") == 0) {
+            /* Level-25 audit batch (2026-07-29). Real upstream
+             * (disc_mage_sorcery.cc's animate()) targets a nearby corpse
+             * or object and brings it to life -- Tobin has no corpse-
+             * reanimation subsystem, so this reuses the same charmed-pet
+             * machinery as the elementals above with a real seeded
+             * construct mob (vnum 27, "stone golem", real seeded `mob`
+             * table content, confirmed live) standing in for "an object
+             * animated to fight for you". */
+            vnum = 27;
+            flavor = "Stone and iron groan and shift, rising up to answer your call!";
         } else {
             vnum = 570;
             flavor = "A loyal beast pads silently out of the wild to your side!";
@@ -979,6 +1084,75 @@ bool cmd_cast(descriptor_t *d, const char *args) {
             descriptor_notify_comm(it, tout);
         }
         consume_component(d, tcomp);
+        return true;
+    }
+
+    /* `scribe <spell name>` (level-25 audit batch, 2026-07-29). Intercepted
+     * here, BEFORE find_spell_and_target() below, for the exact same
+     * reason `telepathy` is above: that helper only ever captures a
+     * single TRAILING word as the target (its own doc comment), but the
+     * spell name being scribed is frequently multi-word ("heal light",
+     * "cure poison", ...) -- letting it fall through would silently fail
+     * to parse anything but a single-word spell name. See
+     * obj_magic_repo_find_scroll_for_spell()'s doc comment for the
+     * mechanic itself (no real SPELL_SCRIBE in the upstream source to
+     * port from). */
+    if (strncasecmp(args, "scribe", 6) == 0 && (args[6] == ' ' || args[6] == '\0')) {
+        const skill_def_t *scribe_verb = find_spell(ch->char_class, "scribe", imm);
+        if (!scribe_verb) {
+            descriptor_send(d, "You don't know a spell by that name.\r\n");
+            return true;
+        }
+        if (!imm && ch->progress.level < scribe_verb->min_level) {
+            char lvlmsg[96];
+            snprintf(lvlmsg, sizeof(lvlmsg), "You aren't experienced enough to cast %s yet (level %d).\r\n",
+                     scribe_verb->name, scribe_verb->min_level);
+            descriptor_send(d, lvlmsg);
+            return true;
+        }
+        if (!imm && scribe_verb->tier == SKILL_TIER_ADVANCED &&
+            (ch->progress.basic_disc_pct < 100 || ch->progress.combat_disc_pct < 100
+             || ch->progress.advanced_disc_pct <= 0)) {
+            descriptor_send(d, "Master your Basic and Combat disciplines, and begin Advanced practice, before this.\r\n");
+            return true;
+        }
+        const char *spell_arg = args + 6;
+        while (*spell_arg == ' ')
+            spell_arg++;
+        if (!*spell_arg) {
+            descriptor_send(d, "Scribe which spell onto a scroll?\r\n");
+            return true;
+        }
+        obj_t *scomp = find_keyword_item(ch, "component");
+        if (!scomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        const skill_def_t *scribe_sk = find_spell(ch->char_class, spell_arg, imm);
+        if (!scribe_sk || (!imm && ch->progress.level < scribe_sk->min_level)) {
+            descriptor_send(d, "You don't know a spell by that name.\r\n");
+            return true;
+        }
+        int scroll_vnum;
+        if (!obj_magic_repo_find_scroll_for_spell(scribe_sk->name, &scroll_vnum)) {
+            descriptor_send(d, "You don't know how to inscribe that spell onto a scroll.\r\n");
+            return true;
+        }
+        obj_t *scribed = obj_create_from_proto(scroll_vnum);
+        if (!scribed || !ch->base.roomp) {
+            descriptor_send(d, "You cast scribe, but nothing happens.\r\n");
+            consume_component(d, scomp);
+            return true;
+        }
+        scribed->price = 1; /* not a gold-creation bug -- same precedent as `copy` */
+        thing_move_to(&scribed->base, &ch->base.roomp->base);
+        const char *slabel = scribed->base.short_descr[0] ? scribed->base.short_descr : scribed->base.name;
+        char scribemsg[224];
+        snprintf(scribemsg, sizeof(scribemsg), "You inscribe %s onto a fresh scroll -- %s appears!\r\n",
+                 scribe_sk->name, slabel);
+        descriptor_send(d, scribemsg);
+        descriptor_room_echo(ch->base.roomp, ch, scribemsg);
+        consume_component(d, scomp);
         return true;
     }
 
@@ -1121,6 +1295,94 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         descriptor_send(d, copymsg);
         descriptor_room_echo(ch->base.roomp, ch, copymsg);
         consume_component(d, ccomp);
+        return true;
+    }
+
+    if (strcasecmp(sk->name, "charge stave") == 0) {
+        /* Level-25 audit batch. No real SPELL_CHARGE exists in the
+         * bundled upstream source to port -- Tobin-original mechanic:
+         * refills a carried magic device's current charges (val[0], see
+         * obj.c's own doc comment on val[0]=current/val[1]=max) back to
+         * full. Object-target, before being-target resolution, same
+         * precedent as `copy`/`identify`/`scribe` above. Staff-specific
+         * per the roster's own "Charges a magical stave" text -- refuses
+         * a scroll (single-use, nothing to recharge) or wand (a
+         * deliberate scope-cut, not a bug: staves are the AREA-effect
+         * device tier, matching this being a level-25 ADVANCED spell). */
+        obj_t *chcomp = find_keyword_item(ch, "component");
+        if (!chcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        if (!target_name) {
+            descriptor_send(d, "Charge what stave?\r\n");
+            return true;
+        }
+        obj_t *stave = NULL;
+        size_t chlen = strlen(target_name);
+        for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind == THING_OBJ && thing_name_matches(t->name, target_name, chlen)) {
+                stave = (obj_t *)t;
+                break;
+            }
+        }
+        if (!stave) {
+            descriptor_send(d, "You aren't carrying that.\r\n");
+            return true;
+        }
+        if (stave->category != OBJ_CAT_MAGIC_DEVICE || stave->raw_type != 4) {
+            descriptor_send(d, "That's not a stave!\r\n");
+            return true;
+        }
+        stave->val[0] = stave->val[1];
+        char chargemsg[192];
+        const char *chlabel = stave->base.short_descr[0] ? stave->base.short_descr : stave->base.name;
+        snprintf(chargemsg, sizeof(chargemsg), "Arcane energy pours into %s, restoring its charges to full!\r\n", chlabel);
+        descriptor_send(d, chargemsg);
+        consume_component(d, chcomp);
+        return true;
+    }
+
+    if (strcasecmp(sk->name, "farlook") == 0) {
+        /* Level-25 audit batch. Real upstream (disc_mage_alchemy.cc's
+         * farlook()) scries a REMOTE room -- targets a being anywhere in
+         * the world, not just the caster's own room, unlike every other
+         * spell in this roster (combat_find_room_target() below is room-
+         * scoped only). Same global-lookup-by-name-prefix pattern
+         * cmd_tell.c/cmd_transfer.c already use for reaching anyone
+         * connected anywhere. Shows the target's room description to the
+         * caster without moving anyone -- not the real upstream's fuller
+         * "shows everyone in that room what THEY see too" broadcast (no
+         * clean Tobin equivalent without a temporary viewpoint-swap
+         * mechanism this v1 doesn't have). */
+        obj_t *fcomp = find_keyword_item(ch, "component");
+        if (!fcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        if (!target_name) {
+            descriptor_send(d, "Farlook whom?\r\n");
+            return true;
+        }
+        size_t flen = strlen(target_name);
+        being_t *fartarget = NULL;
+        for (descriptor_t *it = g_descriptors; it; it = it->next) {
+            if (it->character && it->character->base.roomp
+                && strncasecmp(it->character->base.name, target_name, flen) == 0) {
+                fartarget = it->character;
+                break;
+            }
+        }
+        if (!fartarget || !fartarget->base.roomp) {
+            descriptor_send(d, "You can't seem to locate them.\r\n");
+            return true;
+        }
+        descriptor_send(d, "You conjure up a large cloud which shimmers slightly before revealing...\r\n");
+        char farmsg[192];
+        snprintf(farmsg, sizeof(farmsg), "<c>%s<z>\r\n%s\r\n",
+                 fartarget->base.roomp->base.name, fartarget->base.roomp->description);
+        descriptor_send(d, farmsg);
+        consume_component(d, fcomp);
         return true;
     }
 

@@ -1566,7 +1566,8 @@ being_t *combat_find_room_target(being_t *self, const char *name) {
              * here at all" shape as the linkdead check just above. No
              * `detect invisibility` counter-check exists yet, so this
              * is unconditional for every mortal viewer. */
-            if (being_has_affect((being_t *)t, AFFECT_INVISIBLE) && !being_is_immortal(self))
+            if (being_has_affect((being_t *)t, AFFECT_INVISIBLE) && !being_is_immortal(self)
+                && !being_has_affect(self, AFFECT_DETECT_INVISIBLE))
                 continue;
             if (!combat_pk_allowed(self, (being_t *)t))
                 continue;

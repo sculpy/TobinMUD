@@ -20,4 +20,8 @@
  * vnum isn't a magic item at all. */
 bool obj_magic_repo_get(int vnum, char *spell_name, size_t spell_name_sz, int *max_charges);
 
+/* Reverse lookup for `scribe` (cmd_cast.c) -- see obj_magic_repo.c's own
+ * doc comment. */
+bool obj_magic_repo_find_scroll_for_spell(const char *spell_name, int *vnum_out);
+
 #endif

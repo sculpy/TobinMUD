@@ -247,6 +247,35 @@ typedef enum {
      * positive-direction twin of it via affect_stat_target(). Self by
      * default or a named ally, same single-target scope-cut as haste. */
     AFFECT_ENHANCE_WEAPON,
+    /* `detect invisibility` (Mage, level 25, level-25 audit batch). Real
+     * upstream (disc_mage_spirit.cc's detectInvisibility()) sets
+     * AFF_DETECT_INVISIBLE, which every invisible-being-visibility check
+     * across the codebase already conditions on. Tobin's own
+     * AFFECT_INVISIBLE gate (combat_find_room_target(), cmd_look.c) never
+     * had a counter-check -- explicitly flagged as future work in
+     * AFFECT_INVISIBLE's own doc comment above. This closes that loop: a
+     * viewer with this affect active can target/see an invisible being
+     * same as an immortal already could. Plain flag/timer, no stat
+     * modifier. */
+    AFFECT_DETECT_INVISIBLE,
+    /* `detect magic` (Mage, level 25). Real upstream (disc_mage_alchemy.cc's
+     * detectMagic()) sets AFF_DETECT_MAGIC, which lets a viewer see a
+     * magical-aura marker on items/beings elsewhere in the codebase --
+     * Tobin has no such per-object "this is magic" marker to reveal
+     * (objaffect rows are permanent DB data, not something to newly
+     * "detect"), so this lands as a flavor-only flag/timer affect, same
+     * "no functional backing yet" precedent as several other buffs in
+     * this roster. */
+    AFFECT_DETECT_MAGIC,
+    /* `bind` (Mage, level 25). Real upstream (disc_mage_sorcery.cc's
+     * bind()) is "$N traps $N in a mass of sticky, web-like substance" --
+     * ported as a genuine movement-blocking affect (checked by
+     * do_move()/cmd_move.c, refuses to leave the room while active), a
+     * real mechanic Tobin didn't have a use for yet. Plain flag/timer, no
+     * stat modifier -- the real spell's -25 AC penalty on the victim
+     * folds into no existing Tobin stat cleanly and is dropped, same "no
+     * separate hitroll/AC stat" precedent as curse/blindness. */
+    AFFECT_BIND,
     AFFECT_COUNT,
 } affect_type_t;
 
