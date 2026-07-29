@@ -51,12 +51,28 @@ container-to-container transfer; live user bug fix: `look in/inside
   process -- reproduced repeatedly, got further into the script on
   different runs (sometimes past mid-fight, sometimes not), never
   produced a clean error, always just silently stops responding to that
-  one connection. Worth a dedicated investigation next session (likely
-  in `descriptor.c`'s connection-accept/select-loop handling under
-  concurrent load) -- flagging here rather than burying it, since it
-  could affect real players connecting close together in time, not
-  just this test harness. The `pour` transfer CODE itself was read
-  through carefully and mirrors `fill`'s own proven capacity/mixing
+  one connection.
+  **Follow-up investigation same session**: dug further after initial
+  write-up. Confirmed it is NOT actually a "two connections at once"
+  bug -- reproduces just as reliably with a single connection, repeated
+  connect/quit/close cycles in a tight loop, no concurrency involved at
+  all. Also confirmed sockets are NOT the problem in the way first
+  suspected: `main_socket_accept()` (main_socket.c) correctly calls
+  `socket_set_nonblocking()` on every accepted client fd already, not
+  just the listening socket, so a naive "one blocking read froze the
+  whole single-threaded loop" theory doesn't hold either. Genuinely
+  NOT root-caused yet -- saved a clean, minimal, well-documented
+  reproduction script at `tests/tools/repro_connection_hang.py`
+  (10-iteration connect/send-name/close loop; hangs on some iteration,
+  not always the first) with a short list of concrete next places to
+  look (descriptor_process_input()'s partial-line buffering, the
+  select() loop's fd bookkeeping across rapid connect/disconnect
+  churn, hostname_resolve's off-thread interaction) rather than more
+  guessing. Flagging here rather than burying it, since it could
+  affect real players connecting close together in time, not just
+  this test harness -- a real, live-game-relevant bug, just not yet
+  solved. The `pour` transfer CODE itself was read through carefully
+  and mirrors `fill`'s own proven capacity/mixing
   logic almost exactly, so it's believed correct, just not automatically
   re-verified end-to-end this session.
 - Also root-caused (as pure test-authoring bugs, not server bugs) two
