@@ -194,34 +194,32 @@ cmd(mage, "purge")
 
 # --- Cleric: restore limb (after paralyze limb) ---
 check("L25 Outdoor Sandbox" in cmd(cleric, f"goto {ROOM_OUT}"), "cleric confirms room")
-out = cmd(cleric, "pray for paralyze limb self")
-print("paralyze limb self attempt:", repr(out[:150]))
 # `paralyze limb` is offensive (needs atk_target/an opponent) -- cast on a
-# dummy instead, then have the SAME cleric restore it (restore limb has no
+# dummy, then have the SAME cleric restore it (restore limb has no
 # offense requirement, works on anyone including self).
 sql(f"INSERT INTO mob ({mob_cols}) VALUES ({mob_vals.replace(str(DUMMY), str(DUMMY+1), 1)});")
 check("You conjure" in cmd(cleric, f"load mob l25dummy{_suffix}"), "a second training dummy spawns")
-out = cmd(cleric, f"pray for paralyze limb l25dummy")
+out = cmd(cleric, f"pray paralyze limb l25dummy")
 check("goes limp" in out.lower(), "paralyze limb lands on the dummy")
-out = cmd(cleric, f"pray for restore limb l25dummy")
+out = cmd(cleric, f"pray restore limb l25dummy")
 check("knits back together" in out.lower(), "restore limb repairs the paralyzed limb")
 cmd(cleric, "purge")
 
 # --- Cleric: knit bone (no-op path, since applying a real broken-bone
 # affect requires the disease roll -- just confirm the "no broken bones"
 # refusal path works, proving the branch is wired) ---
-out = cmd(cleric, "pray for knit bone")
+out = cmd(cleric, "pray knit bone")
 check("no broken bones" in out.lower(), "knit bone confirms the no-op refusal path")
 
 # --- Cleric: bleed (offensive) ---
 sql(f"INSERT INTO mob ({mob_cols}) VALUES ({mob_vals.replace(str(DUMMY), str(DUMMY+2), 1)});")
 check("You conjure" in cmd(cleric, f"load mob l25dummy{_suffix}"), "a third training dummy spawns")
-out = cmd(cleric, f"pray for bleed l25dummy")
+out = cmd(cleric, f"pray bleed l25dummy")
 check("bleeding wound" in out.lower(), "bleed opens a bleeding wound on the dummy")
 cmd(cleric, "purge")
 
 # --- Cleric: heroes' feast ---
-out = cmd(cleric, "pray for heroes' feast")
+out = cmd(cleric, "pray heroes' feast")
 check("heroes' feast" in out.lower(), "heroes' feast confirms")
 
 # --- Druid: refresh (vitality restore) ---
