@@ -859,6 +859,32 @@ bool cmd_remove(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* Finds a PC/mob in `ch`'s room by name/keyword, for `give`'s recipient --
+ * deliberately NOT combat_find_room_target() (combat.c), whose
+ * combat_pk_allowed() gate exists to stop one PC from being auto-targeted
+ * into a fight they haven't consented to (`toggle pk`) and would wrongly
+ * block a perfectly friendly item/gold hand-off between two PCs who
+ * never toggled PK at all. Same linkdead-exclusion and exact-name-first/
+ * prefix-fallback shape as that function otherwise, just without the PK
+ * check. */
+static being_t *find_give_target(being_t *ch, const char *name) {
+    size_t name_len = strlen(name);
+    being_t *prefix_match = NULL;
+    for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+        if (t == &ch->base)
+            continue;
+        if (t->kind != THING_PC && t->kind != THING_MOB)
+            continue;
+        if (t->kind == THING_PC && !((being_t *)t)->desc)
+            continue;
+        if (strcasecmp(t->name, name) == 0)
+            return (being_t *)t;
+        if (!prefix_match && thing_name_matches(t->name, name, name_len))
+            prefix_match = (being_t *)t;
+    }
+    return prefix_match;
+}
+
 /* `give <amount> gold <person>` / `give <item> <person>` -- object
  * manipulation audit continued (2026-07-29, a fresh Sneezy-vs-Tobin
  * comparison beyond the earlier narrow sacrifice/junk/identify pass):
@@ -898,7 +924,7 @@ bool cmd_give(descriptor_t *d, const char *args) {
             descriptor_send(d, "You don't have that much gold!\r\n");
             return true;
         }
-        being_t *vict = combat_find_room_target(ch, tok3);
+        being_t *vict = find_give_target(ch, tok3);
         if (!vict) {
             descriptor_send(d, "They aren't here.\r\n");
             return true;
@@ -941,7 +967,7 @@ bool cmd_give(descriptor_t *d, const char *args) {
         descriptor_send(d, "You aren't carrying that.\r\n");
         return true;
     }
-    being_t *vict = combat_find_room_target(ch, tok2);
+    being_t *vict = find_give_target(ch, tok2);
     if (!vict) {
         descriptor_send(d, "They aren't here.\r\n");
         return true;
