@@ -275,6 +275,10 @@ while time.time() < deadline:
     all_out += recv_all(fighter, timeout=1.0)
     if "have slain" in all_out.lower() or "have defeated" in all_out.lower():
         break
+print("RAW COMBAT LOG:")
+for ln in all_out.split("\r\n"):
+    if ln.strip():
+        print("  ", repr(ln))
 
 # Combat messages (combat.c's tell() calls) have no fixed verb ("slice"/
 # "stab"/"hit"/...), but a fixed SHAPE per direction: the fighter's own
