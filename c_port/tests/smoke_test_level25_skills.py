@@ -8,6 +8,12 @@ kicking, wohlin meditation). `voplat` ("makes unarmed damage magical")
 is left an inert placeholder -- no damage-type/immunity system exists
 to hook it into.
 
+Uses a separate IMMORTAL helper for goto/load mob/purge, and MORTAL
+fighters (level 25, kept well below IMMORTAL_LEVEL_MIN=51) for the
+actual skill commands -- `attack` instakills via combat_instakill() for
+an immortal (cmd_kill.c's bypass), same pitfall the level-23 haste test
+hit and documented.
+
     python3 tests/smoke_test_level25_skills.py [host] [port]
 """
 import socket
@@ -89,6 +95,11 @@ def set_level(name, level):
         f"(SELECT id FROM player WHERE name='{name}');")
 
 
+def set_full_discipline(name):
+    sql(f"UPDATE player_progress SET basic_disc_pct=100, combat_disc_pct=100, "
+        f"advanced_disc_pct=100 WHERE player_id=(SELECT id FROM player WHERE name='{name}');")
+
+
 def set_skill_pct(name, skill_name, pct=100):
     sql(f"INSERT INTO player_skill (player_id, skill_name, pct, last_gain_at) "
         f"SELECT id, '{skill_name}', {pct}, 0 FROM player WHERE name='{name}' "
@@ -137,97 +148,119 @@ def mob_insert(vnum, name, hpbonus):
     sql(f"INSERT INTO mob ({mob_cols}) VALUES ({mob_vals});")
 
 
+imm_name = f"L25skimm{_suffix}"
 warrior_name = f"Lwar{_suffix}"
 thief_name = f"Lthf{_suffix}"
 monk_name = f"Lmnk{_suffix}"
 pw = "l25skillpw123"
 
+# Immortal helper (level 58+) -- goto/load mob/purge only.
+s = socket.create_connection((host, port), timeout=5)
+make_char(s, imm_name, pw, 1)  # Mage
+cmd(s, "quit!")
+s.close()
+set_level(imm_name, 58)
+imm = login(imm_name, pw)
+
+# Mortal fighters -- quit!ed before their own SQL edits, same ordering
+# rule TODO.md/earlier sessions' writeups document (an SQL edit BEFORE
+# quit! gets silently clobbered by quit!'s own save of stale in-memory
+# state).
 s = socket.create_connection((host, port), timeout=5)
 make_char(s, warrior_name, pw, 3)  # Warrior
+cmd(s, "quit!")
 s.close()
-set_level(warrior_name, 51)
+set_level(warrior_name, 25)
+set_full_discipline(warrior_name)
 for sk in ("whirlwind", "kneestrike", "switch opponents", "trance of blades"):
     set_skill_pct(warrior_name, sk)
-warrior = login(warrior_name, pw)
 
 s = socket.create_connection((host, port), timeout=5)
 make_char(s, thief_name, pw, 4)  # Thief
+cmd(s, "quit!")
 s.close()
-set_level(thief_name, 51)
+set_level(thief_name, 25)
+set_full_discipline(thief_name)
 for sk in ("stabbing", "subterfuge"):
     set_skill_pct(thief_name, sk)
-thief = login(thief_name, pw)
 
 s = socket.create_connection((host, port), timeout=5)
 make_char(s, monk_name, pw, 6)  # Monk
+cmd(s, "quit!")
 s.close()
-set_level(monk_name, 51)
+set_level(monk_name, 25)
+set_full_discipline(monk_name)
 for sk in ("chop", "hurl", "feign death"):
     set_skill_pct(monk_name, sk)
-monk = login(monk_name, pw)
 
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
     f"VALUES ({ROOM_OUT},0,0,0,'L25 Skills Sandbox','A bare outdoor sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 
-check("L25 Skills Sandbox" in cmd(warrior, f"goto {ROOM_OUT}"), "warrior goes to the sandbox")
-check("L25 Skills Sandbox" in cmd(thief, f"goto {ROOM_OUT}"), "thief goes to the sandbox")
-check("L25 Skills Sandbox" in cmd(monk, f"goto {ROOM_OUT}"), "monk goes to the sandbox")
+# Mortals can't `goto` by vnum -- placed directly via load_room, same
+# convention smoke_test_level23_spells.py's fighter placement used.
+sql(f"UPDATE player SET load_room={ROOM_OUT} WHERE name IN "
+    f"('{warrior_name}', '{thief_name}', '{monk_name}');")
+
+warrior = login(warrior_name, pw)
+thief = login(thief_name, pw)
+monk = login(monk_name, pw)
+check("L25 Skills Sandbox" in cmd(warrior, "look"), "warrior lands directly in the sandbox")
+check("L25 Skills Sandbox" in cmd(thief, "look"), "thief lands directly in the sandbox")
+check("L25 Skills Sandbox" in cmd(monk, "look"), "monk lands directly in the sandbox")
+
+check("L25 Skills Sandbox" in cmd(imm, f"goto {ROOM_OUT}"), "immortal goes to the sandbox")
 
 # --- Warrior: whirlwind, kneestrike, switchopponents, trance ---
 DUMMY1 = BASE + 2
 DUMMY2 = BASE + 3
 mob_insert(DUMMY1, f"l25dummy1{_suffix}", 20.0)
 mob_insert(DUMMY2, f"l25dummy2{_suffix}", 20.0)
-check("You conjure" in cmd(warrior, f"load mob l25dummy1{_suffix}"), "first dummy spawns")
-check("You conjure" in cmd(warrior, f"load mob l25dummy2{_suffix}"), "second dummy spawns")
+check("You conjure" in cmd(imm, f"load mob l25dummy1{_suffix}"), "first dummy spawns")
+check("You conjure" in cmd(imm, f"load mob l25dummy2{_suffix}"), "second dummy spawns")
 
 check("Command not found" not in cmd(warrior, "attack l25dummy1"), "warrior attacks the first dummy")
 out = cmd(warrior, f"switchopponents l25dummy2")
 check("break off" in out.lower(), "switchopponents confirms")
-time.sleep(1.5)
 out = cmd(warrior, "kneestrike")
 check("knee" in out.lower(), "kneestrike confirms")
 out = cmd(warrior, "whirlwind")
 check("whirlwind" in out.lower(), "whirlwind confirms")
 out = cmd(warrior, "trance")
 check("trance" in out.lower(), "trance of blades confirms")
-cmd(warrior, "purge")
+cmd(imm, "purge")
 
 # --- Thief: stabbing, subterfuge ---
 DUMMY3 = BASE + 4
 DUMMY4 = BASE + 5
 mob_insert(DUMMY3, f"l25dummy3{_suffix}", 20.0)
 mob_insert(DUMMY4, f"l25dummy4{_suffix}", 20.0)
-check("You conjure" in cmd(thief, f"load mob l25dummy3{_suffix}"), "third dummy spawns")
-check("You conjure" in cmd(thief, f"load mob l25dummy4{_suffix}"), "fourth dummy spawns")
+check("You conjure" in cmd(imm, f"load mob l25dummy3{_suffix}"), "third dummy spawns")
+check("You conjure" in cmd(imm, f"load mob l25dummy4{_suffix}"), "fourth dummy spawns")
 check("Command not found" not in cmd(thief, "attack l25dummy3"), "thief attacks the third dummy")
 out = cmd(thief, f"subterfuge l25dummy4")
 check("slip" in out.lower() or "see through" in out.lower(), "subterfuge confirms")
 check("Command not found" not in cmd(thief, "attack l25dummy4"), "thief re-attacks after subterfuge")
-time.sleep(1.5)
 out = cmd(thief, "stabbing")
 check("stab" in out.lower(), "stabbing confirms")
-cmd(thief, "purge")
+cmd(imm, "purge")
 
 # --- Monk: chop, hurl, feign death ---
 DUMMY5 = BASE + 6
 DUMMY6 = BASE + 7
 mob_insert(DUMMY5, f"l25dummy5{_suffix}", 20.0)
 mob_insert(DUMMY6, f"l25dummy6{_suffix}", 20.0)
-check("You conjure" in cmd(monk, f"load mob l25dummy5{_suffix}"), "fifth dummy spawns")
+check("You conjure" in cmd(imm, f"load mob l25dummy5{_suffix}"), "fifth dummy spawns")
 check("Command not found" not in cmd(monk, "attack l25dummy5"), "monk attacks the fifth dummy")
-time.sleep(1.5)
 out = cmd(monk, "chop")
 check("chop" in out.lower(), "chop confirms")
-cmd(monk, "purge")
+cmd(imm, "purge")
 
-check("You conjure" in cmd(monk, f"load mob l25dummy6{_suffix}"), "sixth dummy spawns")
+check("You conjure" in cmd(imm, f"load mob l25dummy6{_suffix}"), "sixth dummy spawns")
 check("Command not found" not in cmd(monk, "attack l25dummy6"), "monk attacks the sixth dummy")
-time.sleep(1.5)
 out = cmd(monk, "hurl")
 check("hurl" in out.lower() or "leverage" in out.lower(), "hurl confirms")
-cmd(monk, "purge")
+cmd(imm, "purge")
 
 out = cmd(monk, "feigndeath")
 check("play dead" in out.lower(), "feign death confirms")
