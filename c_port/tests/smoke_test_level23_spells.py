@@ -249,8 +249,15 @@ fighter = login(fighter_name, fighter_pw)
 check("L23 Outdoor Sandbox" in cmd(fighter, "look"), "fighter lands directly in the outdoor sandbox")
 COMP3 = BASE + 13
 sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,val0,val1,can_be_seen) "
-    f"VALUES ({COMP3},'pouch component test3','a pouch of test components','A pouch lies here.',12,1,10,10,1);")
-check("You conjure" in cmd(fighter, f"load obj {COMP3}"), "fighter loads their own component pouch")
+    f"VALUES ({COMP3},'pouch component fightertest','a pouch of test components','A pouch lies here.',12,1,10,10,1);")
+# `load obj` is immortal-only, and puts the item in the LOADING
+# immortal's own inventory -- mage (still in ROOM_OUT) loads it and
+# drops it so the mortal fighter can `get` it. A distinct keyword
+# ("fightertest") avoids matching the earlier COMP1 pouch still in
+# mage's own inventory.
+check("You conjure" in cmd(mage, f"load obj {COMP3}"), "mage loads a component pouch for the fighter")
+check("You drop" in cmd(mage, "drop fightertest"), "mage drops the pouch for the fighter")
+check("You get" in cmd(fighter, "get fightertest"), "fighter picks up their component pouch")
 out = cmd(fighter, "cast haste")
 check("cast" in out.lower() and ("ease" in out.lower() or "haste" in out.lower()), "the mortal fighter casts haste on themselves")
 check("haste" in cmd(fighter, "affects").lower(), "the mortal fighter's own `affects` shows Haste active")
