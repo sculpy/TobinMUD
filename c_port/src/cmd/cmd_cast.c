@@ -435,7 +435,7 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc && cured)
                 descriptor_notify(target->desc, "Your sickness lifts!\r\n");
         }
-    } else if (strcasecmp(sk->name, "meditate") == 0) {
+    } else if (strcasecmp(sk->name, "meditate") == 0 || strcasecmp(sk->name, "refresh") == 0) {
         /* `meditate` (Mage/Druid, level 1, roster gap/flavor-text pass
          * 2026-07-27): the skill_help.sql entry that shipped with the
          * roster import said "Rest to recover mana faster" and was left
