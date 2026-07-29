@@ -215,8 +215,10 @@ check("aren't here" in out.lower() or "carrying that" in out.lower(),
 # --- 4: give refuses mid-fight ---
 cmd(giver, "toggle pk")
 cmd(recvr, "toggle pk")
-cmd(giver, f"attack {recv_name}", 2.0)
+atk_out = cmd(giver, f"attack {recv_name}", 2.0)
+print("DEBUG attack out:", repr(atk_out))
 out = cmd(giver, f"give 1 gold {recv_name}")
+print("DEBUG give-mid-fight out:", repr(out))
 check("not while" in out.lower(), "give refuses while the giver is fighting")
 cmd(giver, "flee", 2.0)
 recv_all(giver, timeout=2.0)
