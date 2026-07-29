@@ -1,7 +1,37 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-29 — Session 98 (DO droplet, production port 4000):
-**Object manipulation audit continued: new `give` command, `pour`
+Last updated: 2026-07-29 — Session 99 (DO droplet, production port 4000):
+**Level-24 spell audit batch: `enhance weapon` (Mage).** The other two
+level-24 roster entries (`conjure elemental water`, Druid `animal
+companion`) were already covered by the existing conjure/pet-companion
+branch in `cmd_cast.c` -- not new this session.
+- Roster text: "Permanently enchants a weapon." Checked feasibility of a
+  real permanent per-instance bonus first: Tobin's `objaffect` bonus
+  table is keyed by item VNUM (the shared prototype, `obj_repo.c`'s
+  `obj_repo_hitroll_bonus()`), not per-instance -- there's no runtime
+  slot to write a one-off permanent bonus onto a single weapon the real
+  spell would target, same architectural gap `dispel magic`'s own doc
+  comment already flagged for the opposite case (stripping). Asked the
+  user how to handle the deviation; **user chose a temporary buff**
+  (2026-07-29), same precedent as `curse`'s own "no separate hitroll
+  stat -- lands on DEXTERITY" deviation, just the positive-direction
+  twin of it.
+- New `AFFECT_ENHANCE_WEAPON` (affect.h/affect.c): a DEXTERITY (to-hit)
+  buff via the existing `affect_stat_target()`/`being_apply_stat_affect()`
+  machinery (same generic system `rally`/`curse`/`stupidity` already
+  use) -- no new subsystem needed. `cast enhance weapon` (cmd_cast.c):
+  self by default or a named ally (same single-target scope-cut as
+  `haste`), bonus `4 + level/10`, 60-round duration (haste's own
+  duration convention), 60s.
+- Verified live via a new `tests/smoke_test_level24_spells.py`: casts
+  and confirms, `affects` shows "Enhanced Weapon" active. Built,
+  deployed via `copyover` (needed `COPYOVER_MIN_LEVEL`=59, not 58 --
+  tripped over this the same way `SET_MIN_LEVEL`=58 caught out an
+  earlier session's `set` command use), test passed on the new binary.
+  `wiznews.sql` entry added.
+
+Previous update: 2026-07-29 — Session 98 (DO droplet, production port
+4000): **Object manipulation audit continued: new `give` command, `pour`
 container-to-container transfer; live user bug fix: `look in/inside
 <container>`.**
 - User asked for a fresh Sneezy-vs-Tobin comparison of "object

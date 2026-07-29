@@ -979,3 +979,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Fixed: look in/inside a container now works', '`look in <container>` and `look inside <container>` used to always fail with "You don''t see that here" -- fixed. Both now show the container''s contents, same as plain `look <container>` already did.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'enhance weapon is live -- level 24 audit item', '`cast enhance weapon` (Mage) gives you or an ally a temporary edge in combat, making your blows land more true for a while. The real spell was meant to be a permanent weapon enchant; landed here as a timed buff instead since there''s no way yet to permanently mark a single weapon apart from every other copy of the same item.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
