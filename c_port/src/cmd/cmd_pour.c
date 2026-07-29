@@ -58,7 +58,7 @@ static bool cmd_pour_transfer(descriptor_t *d, being_t *ch, obj_t *src, obj_t *d
 
     const char *src_label = src->base.short_descr[0] ? src->base.short_descr : src->base.name;
     const char *dst_label = dst->base.short_descr[0] ? dst->base.short_descr : dst->base.name;
-    char msg[320];
+    char msg[640];
     snprintf(msg, sizeof(msg), "You pour %s from %s into %s.\r\n",
              liquid_info(dst->val[2])->name, src_label, dst_label);
     descriptor_send(d, msg);
