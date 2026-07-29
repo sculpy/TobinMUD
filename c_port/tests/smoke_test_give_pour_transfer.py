@@ -177,6 +177,8 @@ check("You get" in cmd(giver, "get trinket"), "giver picks up the trinket")
 # --- 1: give <item> <person> ---
 out = cmd(giver, "inventory")
 check("trinket" in out.lower(), "the giver is carrying the trinket to give away")
+print("DEBUG room state before give:", repr(cmd(giver, "look")))
+print("DEBUG recv_name repr:", repr(recv_name))
 out = cmd(giver, f"give trinket {recv_name}")
 print("DEBUG give response:", repr(out))
 check("you give" in out.lower(), "give confirms the item hand-off")
