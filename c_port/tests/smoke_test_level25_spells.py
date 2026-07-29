@@ -110,11 +110,11 @@ def login(name, pw):
     return s
 
 
-mage_name = f"L25mg{_suffix}"
+mage_name = f"Lmg{_suffix}"
 mage_pw = "l25magepw123"
-cleric_name = f"L25cl{_suffix}"
+cleric_name = f"Lcl{_suffix}"
 cleric_pw = "l25clericpw123"
-druid_name = f"L25dr{_suffix}"
+druid_name = f"Ldrx{_suffix}"
 druid_pw = "l25druidpw123"
 
 s = socket.create_connection((host, port), timeout=5)
