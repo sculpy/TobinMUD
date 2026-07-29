@@ -796,6 +796,31 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc)
                 descriptor_notify(target->desc, "You feel yourself moving with the greatest of ease!\r\n");
         }
+    } else if (strcasecmp(sk->name, "enhance weapon") == 0) {
+        /* Level-24 audit batch (2026-07-29). See AFFECT_ENHANCE_WEAPON's
+         * doc comment (affect.h) for the "permanent" -> temporary-buff
+         * deviation and why: no per-instance objaffect slot to write a
+         * one-off weapon bonus onto. Same single-target/self-or-ally
+         * shape as haste, same bonus-scaling convention as rally
+         * (being_apply_stat_affect()). */
+        int bonus = 4 + ch->progress.level / 10;
+        being_apply_stat_affect(target, AFFECT_ENHANCE_WEAPON, 60, bonus);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), "You cast %s -- your weapon hand feels supernaturally sure!\r\n", sk->name);
+            descriptor_send(d, msg);
+            if (ch->base.roomp) {
+                char capbuf[128];
+                snprintf(msg, sizeof(msg), "%s's weapon hand glows with a brief, unnatural certainty!\r\n",
+                         being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+                descriptor_room_echo(ch->base.roomp, ch, msg);
+            }
+        } else {
+            snprintf(msg, sizeof(msg), "You cast %s on %s -- their weapon hand glows with a brief, unnatural certainty!\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc)
+                descriptor_notify(target->desc, "Your weapon hand feels supernaturally sure!\r\n");
+        }
     } else if (ci_contains(sk->name, "conjure elemental") || strcasecmp(sk->name, "animal companion") == 0) {
         /* Pet/charm (Sneezy → Tobin feature audit): Mage's four
          * "conjure elemental air/earth/fire/water" spells already existed

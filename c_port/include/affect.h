@@ -236,6 +236,17 @@ typedef enum {
      * effect doubling either (same "no crit branch ported" precedent as
      * fear/slumber/invisibility/blindness above). */
     AFFECT_HASTE,
+    /* `enhance weapon` (Mage, level 24, level-24 audit batch). Roster text
+     * says "Permanently enchants a weapon" -- Tobin's objaffect bonus table
+     * is keyed by item VNUM (the shared prototype), not per-instance
+     * (obj_repo.c's obj_repo_hitroll_bonus()), so there's no runtime slot to
+     * write a one-off permanent bonus onto a single weapon the way the real
+     * spell would. Deviated (user approved 2026-07-29) to a temporary
+     * to-hit buff instead, same shape/precedent as AFFECT_CURSE's own
+     * "no separate hitroll stat -- lands on DEXTERITY" deviation, just the
+     * positive-direction twin of it via affect_stat_target(). Self by
+     * default or a named ally, same single-target scope-cut as haste. */
+    AFFECT_ENHANCE_WEAPON,
     AFFECT_COUNT,
 } affect_type_t;
 
