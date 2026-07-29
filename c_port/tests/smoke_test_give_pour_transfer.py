@@ -205,6 +205,7 @@ cmd(giver, "color off")
 check("GivePour Sandbox" in cmd(giver, "look"), "the giver reconnects into the sandbox room with their new gold")
 
 out = cmd(giver, f"give 40 gold {recv_name}")
+print("DEBUG give gold response 2:", repr(out))
 check("you give 40 gold" in out.lower(), "give gold confirms the amount")
 
 # --- 3: give refuses when the target isn't here ---
