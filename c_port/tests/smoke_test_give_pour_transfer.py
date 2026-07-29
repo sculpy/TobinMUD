@@ -229,8 +229,8 @@ check("aren't here" in out.lower() or "carrying that" in out.lower(),
 # few real combat rounds could burn through, so a flaky death mid-check
 # (and the resulting forced disconnect) doesn't derail the rest of the
 # test. `set` needs SET_MIN_LEVEL (58); imm was already bumped to that.
-print("DEBUG set giver hp:", repr(cmd(imm, f"set {giver_name} hp 2000 2000")))
-print("DEBUG set recv hp:", repr(cmd(imm, f"set {recv_name} hp 2000 2000")))
+cmd(imm, f"set {giver_name} hp 2000 2000")
+cmd(imm, f"set {recv_name} hp 2000 2000")
 cmd(giver, "toggle pk")
 cmd(recvr, "toggle pk")
 # A short recv timeout for the `attack` confirmation only -- `fighting`
@@ -261,9 +261,7 @@ check("You conjure" in cmd(imm, f"load obj {WATERSKIN}"), "immortal loads a wate
 check("You drop" in cmd(imm, "drop waterskin"), "immortal drops the waterskin")
 check("You conjure" in cmd(imm, f"load obj {WINESKIN}"), "immortal loads a wineskin for the giver")
 check("You drop" in cmd(imm, "drop wineskin"), "immortal drops the wineskin")
-out = cmd(giver, "get waterskin")
-print("DEBUG get waterskin out:", repr(out))
-check("You get" in out, "giver picks up the waterskin")
+check("You get" in cmd(giver, "get waterskin"), "giver picks up the waterskin")
 check("You get" in cmd(giver, "get wineskin"), "giver picks up the wineskin")
 
 # Both start full (waterskin=water, wineskin=wine) -- pouring water INTO
