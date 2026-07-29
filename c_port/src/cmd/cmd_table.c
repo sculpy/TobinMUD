@@ -128,6 +128,10 @@ static const cmd_entry_t COMMANDS[] = {
      * ("sn"/"gr"/"be"/"ra" are all otherwise unclaimed). */
     { "sneak",   cmd_sneak,   "Toggle moving quietly, suppressing your own arrival/departure notices (Thief/Warrior).", MORTAL_LEVEL_MIN },
     { "grapple", cmd_grapple, "Grab and hold your opponent, locking you both down a while (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
+    { "whirlwind", cmd_whirlwind, "A spinning attack that can strike every mob in the room (Warrior, must be fighting).", MORTAL_LEVEL_MIN },
+    { "kneestrike", cmd_kneestrike, "A knee strike against your opponent (Warrior, must be fighting, can't be crawling).", MORTAL_LEVEL_MIN },
+    { "switchopponents", cmd_switchopp, "Switch which opponent you're fighting (switchopponents <target>) -- not `switch`, which swaps your held items.", MORTAL_LEVEL_MIN },
+    { "trance", cmd_tranceblades, "Enter a defensive trance of blades, sharpening your reflexes.", MORTAL_LEVEL_MIN },
     { "berserk", cmd_berserk, "Fly into a berserk rage -- unparryable, but you can't be rescued either (Warrior).", MORTAL_LEVEL_MIN },
     { "rally",   cmd_rally,   "Let out a battlecry that boosts nearby allies' combat prowess (Warrior).", MORTAL_LEVEL_MIN },
     { "garrotte", cmd_garrotte, "Strangle an unaware victim with a cord (Thief, garrotte <target>; only works to start a fight).", MORTAL_LEVEL_MIN },

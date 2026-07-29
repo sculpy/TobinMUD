@@ -84,6 +84,21 @@ bool cmd_disarm(descriptor_t *d, const char *args) {
     const skill_def_t *sk = skill_find(ch->char_class, "disarm", imm);
     bool success = imm || !sk || skill_roll_success(skill_learn_from_doing(ch, sk));
 
+    /* `weapon retention` (Warrior, level 25, level-25 audit batch: "A
+     * passive chance to keep your grip on your weapon when disarmed or
+     * fumbling."). No active command of its own -- the real upstream
+     * lists it as one of several passive saves disarm's own multi-stage
+     * gauntlet checks (this file's own header comment already names it).
+     * A defender who knows it gets one extra skill_roll_success() roll
+     * to keep their weapon even after the attacker's disarm roll
+     * succeeds -- not stacked onto the attacker's roll, a genuinely
+     * separate defensive check. */
+    if (success && !being_is_immortal(target) && being_knows_skill(target, "weapon retention")) {
+        const skill_def_t *ret_sk = skill_find(target->char_class, "weapon retention", false);
+        if (ret_sk && skill_roll_success(skill_learn_from_doing(target, ret_sk)))
+            success = false;
+    }
+
     /* Attacker's lag -- Sneezy's LAG_2, lighter than bash/kick's LAG_3. */
     being_set_wait(ch, COMBAT_ROUND_PULSES);
 

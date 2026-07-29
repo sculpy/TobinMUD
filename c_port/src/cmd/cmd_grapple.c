@@ -43,6 +43,14 @@ bool cmd_grapple(descriptor_t *d, const char *args) {
     const skill_def_t *sk = skill_find(ch->char_class, "grapple", imm);
     bool success = imm || !sk || skill_roll_success(skill_learn_from_doing(ch, sk));
 
+    /* `brawl avoidance` (Warrior, level 25, level-25 audit batch) -- see
+     * cmd_trip.c's own copy of this same check for the full doc comment. */
+    if (success && !being_is_immortal(target) && being_knows_skill(target, "brawl avoidance")) {
+        const skill_def_t *avoid_sk = skill_find(target->char_class, "brawl avoidance", false);
+        if (avoid_sk && skill_roll_success(skill_learn_from_doing(target, avoid_sk)))
+            success = false;
+    }
+
     char msg[160];
     if (!success) {
         being_set_wait(ch, 2 * COMBAT_ROUND_PULSES);

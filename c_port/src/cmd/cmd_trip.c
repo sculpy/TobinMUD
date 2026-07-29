@@ -42,6 +42,17 @@ bool cmd_trip(descriptor_t *d, const char *args) {
     const skill_def_t *sk = skill_find(ch->char_class, "trip", imm);
     bool success = imm || !sk || skill_roll_success(skill_learn_from_doing(ch, sk));
 
+    /* `brawl avoidance` (Warrior, level 25, level-25 audit batch:
+     * "Passive resistance to grapple- and trip-style attacks."). Same
+     * passive-defensive-save shape as `weapon retention` (cmd_disarm.c) --
+     * a separate resist roll for the defender, checked here and in
+     * cmd_grapple.c, the two skills it names. */
+    if (success && !being_is_immortal(target) && being_knows_skill(target, "brawl avoidance")) {
+        const skill_def_t *avoid_sk = skill_find(target->char_class, "brawl avoidance", false);
+        if (avoid_sk && skill_roll_success(skill_learn_from_doing(target, avoid_sk)))
+            success = false;
+    }
+
     /* Same LAG_3-equivalent as bash (a full knockdown attempt, not the
      * lighter disarm-style LAG_2). */
     being_set_wait(ch, 2 * COMBAT_ROUND_PULSES);
