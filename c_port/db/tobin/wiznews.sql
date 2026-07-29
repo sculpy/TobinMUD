@@ -967,3 +967,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'mudstats now shows accounts, characters, and codebase size', '`mudstats` reports account count and player-character count alongside the existing room/mob/object counts, plus a live line-of-code total for the codebase itself.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'copy, haste, and storm call are live -- level 23 audit items', '`cast copy` (Mage) duplicates a scroll you''re carrying, as long as you already know the spell bound to it. `cast haste` (Mage) makes you (or an ally) genuinely faster in a fight -- a real bonus attack every round, not just a stat bump. `cast storm call` (Druid) calls down lightning or hail on a foe, but only works outdoors during rain or a real storm.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

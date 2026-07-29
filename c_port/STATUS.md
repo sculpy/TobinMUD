@@ -1,6 +1,65 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-28 — Session 96 (DO droplet, working directly on
+Last updated: 2026-07-28/29 — Session 97 (DO droplet, working directly on
+production port 4000): **Level-23 spell/skill audit batch: copy, haste,
+storm call.** `cure disease` (Druid, also level 23) was already done in
+an earlier session.
+- **copy** (Mage): ported from real `TScroll::copyMe()` -- duplicates a
+  scroll the caster is carrying, using Tobin's real `obj_magic` table
+  (the same one `use`/cmd_use.c already reads a scroll's bound spell
+  from) to check it's actually a scroll and that the caster knows the
+  spell it holds (class+level gate, same check `cast` itself already
+  enforces on every spell). Refuses non-scrolls outright ("That's not a
+  scroll!", matching the original's own message). Handled as an OBJECT-
+  target branch in cmd_cast.c, same "before the being-target resolution"
+  shape `identify` already established.
+- **haste** (Mage): new `AFFECT_HASTE` -- ported as a genuine extra
+  combat_strike() per round (`combat_process_run()`, combat.c) rather
+  than a plain stat buff, since Tobin's combat has no "attacks per
+  round" concept at all for a stat modifier to hook into. Single-target
+  only (self by default, an ally if named) -- the real spell's "no
+  target = whole group" case is a disclosed scope-cut, same as every
+  other buff spell in this roster.
+- **storm call** (Druid): ported from Shaman's real `stormy skies`
+  (renamed/reflavored, same convention as Druid's other Shaman-sourced
+  damage spells) -- weather-gated lightning/hail damage, refusing
+  outright unless the world weather is rainy/stormy AND the caster is
+  outdoors (not `ROOM_FLAG_INDOORS`). Tobin's weather is a single
+  world-wide sky state loaded once at boot (weather.h), not live-
+  pollable -- confirmed via SQL `game_config` edit + copyover during
+  testing that the success path works correctly when weather is
+  actually stormy, though the automated test itself only deterministically
+  covers the refusal path (weather had organically drifted to cloudy by
+  the time the final test run happened) -- same "verified-correct code
+  now, flaky-by-timing test documented" precedent as the blindness/
+  recall audit item.
+- New `tests/smoke_test_level23_spells.py` (11 checks, all passing
+  live) -- caught and fixed several real test-authoring bugs along the
+  way, not server bugs: (1) character names must be letters-only (no
+  digits) or account creation silently desyncs; (2) `load obj`/`load
+  mob` are immortal-only and put items in the LOADING immortal's own
+  inventory, not the room floor; (3) `attack` is table-mapped straight
+  to `cmd_kill` ("instant slay for immortals") -- an immortal has NO
+  multi-round physical-attack command at all, so verifying haste's
+  bonus-strike mechanic needed a genuine seeded-proficiency MORTAL
+  fighter, not an immortal; (4) the bare `> ` prompt has no trailing
+  newline of its own and can land glued to the front of the next async
+  combat message in the same `\r\n`-split line, silently breaking a
+  naive `.startswith()` classifier and making the real 2:1 haste ratio
+  read as a false ~1:1 -- confirmed the mechanic was correct all along
+  via a temporary server-side debug log (`has_haste=1` every single
+  round) before finding the real bug was in the test's own line
+  parsing, not the feature.
+- Deploy notes: every rebuild on the droplet still needs an explicit
+  `copyover` afterward (make alone never reloads the live process) --
+  reconfirmed the hard way multiple times this session; `/proc/<pid>/exe`
+  is NOT a reliable way to check whether a copyover actually landed
+  (it's a magic symlink that always reflects whatever's on disk RIGHT
+  NOW at that path, not what the running process actually loaded at
+  exec time) -- `strings <binary-or-/proc/pid/exe> | grep <a real
+  compiled string literal, never a comment>` is the reliable check.
+
+Previous update: 2026-07-28 — Session 96 (DO droplet, working directly on
 production port 4000): **TODO.md cleared to zero open items.**
 `mudstats` extended (account count, player count, live LOC via a
 `popen()` shell-out mirroring `cmd_exec.c`'s existing sanctioned
