@@ -223,6 +223,7 @@ cmd(recvr, "toggle pk")
 # mortals fighting for real.
 cmd(giver, f"attack {recv_name}", 0.3)
 out = cmd(giver, f"give 1 gold {recv_name}")
+print("DEBUG give-mid-fight out2:", repr(out))
 check("not while" in out.lower(), "give refuses while the giver is fighting")
 cmd(giver, "flee", 2.0)
 recv_all(giver, timeout=1.0)
