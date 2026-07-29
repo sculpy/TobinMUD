@@ -225,10 +225,18 @@ while time.time() < deadline:
     if "have slain" in all_out.lower() or "have defeated" in all_out.lower():
         break
 
-my_strikes = all_out.lower().count("you cause") + all_out.lower().count("you hit") \
-    + all_out.lower().count("you swing") + all_out.lower().count("you miss")
-their_strikes = all_out.lower().count("misses you") + all_out.lower().count("hits you") \
-    + all_out.lower().count("catches you")
+# Combat messages (combat.c's tell() calls) have no fixed verb ("slice"/
+# "stab"/"hit"/...), but a fixed SHAPE per direction: mage's own attack on
+# the dummy always reads "You <verb> a l23dummy...'s <limb> <intensity>!"
+# or "You miss a l23dummy...!" (attacker-perspective, always starts with
+# "You"); the dummy's counter-attack always reads "A l23dummy... <verb>
+# your <limb> <intensity>!" or "A l23dummy... misses you!" (always starts
+# with the dummy's own capitalized short_desc). Classifying by line start
+# is verb-agnostic and immune to describe_dam()'s wording.
+lines = [ln.strip() for ln in all_out.split("\r\n") if ln.strip()]
+my_strikes = sum(1 for ln in lines if ln.lower().startswith("you miss")
+                  or (ln.lower().startswith("you ") and "'s " in ln.lower()))
+their_strikes = sum(1 for ln in lines if ln.lower().startswith(f"a {dummy_name.lower()}"))
 check(my_strikes > their_strikes,
       f"hasted mage lands noticeably more of their own strikes than the dummy's ({my_strikes} vs {their_strikes})")
 
