@@ -185,10 +185,26 @@ out = cmd(recvr, "inventory")
 check("trinket" in out.lower(), "the trinket landed in the recipient's inventory")
 
 # --- 2: give <amount> gold <person> ---
+# A raw SQL edit to a CURRENTLY-CONNECTED character's row doesn't touch
+# their live in-memory progress_t -- only a fresh reconnect reloads it
+# from the DB (same "SQL edits need a real reconnect" rule the login-
+# room-bug root-cause writeup already documented, TODO.md). giver is
+# still connected from the item-give check above, so a plain SQL gold
+# bump alone would leave their live ch->progress.gold untouched --
+# reconnect to pick it up.
 sql(f"UPDATE player_progress SET gold=100 WHERE player_id=(SELECT id FROM player WHERE name='{giver_name}');")
 sql(f"UPDATE player_progress SET gold=0 WHERE player_id=(SELECT id FROM player WHERE name='{recv_name}');")
+cmd(giver, "quit!")
+giver.close()
+giver = socket.create_connection((host, port), timeout=5)
+recv_all(giver)
+send_line(giver, giver_name); recv_all(giver)
+send_line(giver, giver_pw); recv_all(giver)
+send_line(giver, "1"); recv_all(giver)
+cmd(giver, "color off")
+check("GivePour Sandbox" in cmd(giver, "look"), "the giver reconnects into the sandbox room with their new gold")
+
 out = cmd(giver, f"give 40 gold {recv_name}")
-print("DEBUG give gold response:", repr(out))
 check("you give 40 gold" in out.lower(), "give gold confirms the amount")
 
 # --- 3: give refuses when the target isn't here ---
