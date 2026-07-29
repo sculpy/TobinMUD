@@ -215,14 +215,18 @@ check("aren't here" in out.lower() or "carrying that" in out.lower(),
 # --- 4: give refuses mid-fight ---
 cmd(giver, "toggle pk")
 cmd(recvr, "toggle pk")
-atk_out = cmd(giver, f"attack {recv_name}", 2.0)
-print("DEBUG attack out:", repr(atk_out))
+# A short recv timeout for the `attack` confirmation only -- `fighting`
+# is set synchronously inside cmd_attack.c, but combat_process_run()
+# starts resolving real rounds ~1.2s later; waiting the usual 1-2s here
+# risks the whole fight (and the giver) being over before `give` is
+# even sent, since these are two freshly-created, thin-HP level-1
+# mortals fighting for real.
+cmd(giver, f"attack {recv_name}", 0.3)
 out = cmd(giver, f"give 1 gold {recv_name}")
-print("DEBUG give-mid-fight out:", repr(out))
 check("not while" in out.lower(), "give refuses while the giver is fighting")
 cmd(giver, "flee", 2.0)
-recv_all(giver, timeout=2.0)
-recv_all(recvr, timeout=2.0)
+recv_all(giver, timeout=1.0)
+recv_all(recvr, timeout=1.0)
 # --- 5/6: pour transfer between two carried containers ---
 # Reuses the same immortal helper (`imm`) from the give-fixture setup
 # above -- `load obj` is immortal-only and lands straight in the
