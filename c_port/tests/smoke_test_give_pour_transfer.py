@@ -217,8 +217,8 @@ check("aren't here" in out.lower() or "carrying that" in out.lower(),
 # few real combat rounds could burn through, so a flaky death mid-check
 # (and the resulting forced disconnect) doesn't derail the rest of the
 # test. `set` needs SET_MIN_LEVEL (58); imm was already bumped to that.
-cmd(imm, f"set {giver_name} hp 2000 2000")
-cmd(imm, f"set {recv_name} hp 2000 2000")
+print("DEBUG set giver hp:", repr(cmd(imm, f"set {giver_name} hp 2000 2000")))
+print("DEBUG set recv hp:", repr(cmd(imm, f"set {recv_name} hp 2000 2000")))
 cmd(giver, "toggle pk")
 cmd(recvr, "toggle pk")
 # A short recv timeout for the `attack` confirmation only -- `fighting`
