@@ -95,34 +95,19 @@ def sql(stmt):
 
 
 def make_char(name, pw, class_choice="1"):
-    print("DEBUG make_char: connecting", flush=True)
     s = socket.create_connection((host, port), timeout=5)
-    print("DEBUG make_char: connected", flush=True)
     recv_all(s)
     send_line(s, name); recv_all(s)
-    print("DEBUG make_char: name sent", flush=True)
     send_line(s, "y"); recv_all(s)
     send_line(s, pw); recv_all(s)
     send_line(s, pw); recv_all(s)
-    print("DEBUG make_char: pw sent", flush=True)
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
-    print("DEBUG make_char: charname sent", flush=True)
-    print("DEBUG make_char: sending race", flush=True)
-    send_line(s, "1")
-    print("DEBUG make_char: race sent, waiting for response", flush=True)
-    r = recv_all(s)
-    print("DEBUG make_char: race response:", repr(r), flush=True)
-    send_line(s, class_choice)
-    print("DEBUG make_char: class_choice sent, waiting for response", flush=True)
-    r2 = recv_all(s)
-    print("DEBUG make_char: class response:", repr(r2), flush=True)
-    print("DEBUG make_char: class sent", flush=True)
+    send_line(s, "1"); recv_all(s)
+    send_line(s, class_choice); recv_all(s)
     send_line(s, "done"); recv_all(s)
     send_line(s, "done"); recv_all(s)
-    print("DEBUG make_char: done sent", flush=True)
     cmd(s, "color off")
-    print("DEBUG make_char: complete", flush=True)
     return s
 
 
@@ -133,6 +118,25 @@ sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
 
 giver_name, giver_pw = f"Givera{_suffix}", "givepourpw123"
 recv_name, recv_pw = f"Recva{_suffix}", "givepourpw123"
+imm_name, imm_pw = f"Givepimm{_suffix}", "givepourimmpw123"
+
+# All three accounts are created ONE AT A TIME, fully finishing and
+# quitting each before the next one starts -- creating a brand-new
+# account/character while one or more OTHER connections are already
+# live in the world turned out to reliably hang the server's response
+# to the class-selection step (found live while building this test:
+# the immortal's creation used to run AFTER giver/recvr had already
+# reconnected and were sitting live in the room, and every run hung
+# indefinitely waiting for a class-selection response that never came
+# -- some real concurrency issue in account/character creation, not
+# yet root-caused further, worth a dedicated look separately). Fully
+# serializing creation sidesteps it; reconnecting an EXISTING account
+# afterward (not a brand-new one) has never shown the same hang.
+si = make_char(imm_name, imm_pw)
+cmd(si, "quit!")
+si.close()
+sql(f"UPDATE player_progress SET level=58 WHERE player_id=(SELECT id FROM player WHERE name='{imm_name}');")
+sql(f"UPDATE player SET load_room={ROOM} WHERE name='{imm_name}';")
 
 s1 = make_char(giver_name, giver_pw)
 cmd(s1, "quit!")
@@ -143,6 +147,13 @@ s2 = make_char(recv_name, recv_pw)
 cmd(s2, "quit!")
 s2.close()
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{recv_name}';")
+
+imm = socket.create_connection((host, port), timeout=5)
+recv_all(imm)
+send_line(imm, imm_name); recv_all(imm)
+send_line(imm, imm_pw); recv_all(imm)
+send_line(imm, "1"); recv_all(imm)
+cmd(imm, "color off")
 
 giver = socket.create_connection((host, port), timeout=5)
 recv_all(giver)
@@ -160,27 +171,13 @@ send_line(recvr, "1"); recv_all(recvr)
 cmd(recvr, "color off")
 check("GivePour Sandbox" in cmd(recvr, "look"), "the recipient lands directly in the same sandbox room")
 
-# An immortal loads/drops a fixture item for the giver to pick up --
-# NOT relying on default starting gear, since `quit!` spills a
-# character's belongings onto the floor of whatever room they quit in
-# ("Your belongings spill onto the ground as you leave!", see
-# smoke_test_quit_drop.py) -- both giver and recvr above just went
+# quit! spills a character's belongings onto the floor of whatever room
+# they quit in ("Your belongings spill onto the ground as you leave!",
+# see smoke_test_quit_drop.py) -- both giver and recvr above just went
 # through exactly that quit!-then-reconnect cycle (needed to place them
 # in the sandbox room without triggering the linkdead/load_room bug --
-# see TODO.md's writeup), so neither has any of their starting suit
-# gear left by this point.
-imm_name, imm_pw = f"Givepimm{_suffix}", "givepourimmpw123"
-si = make_char(imm_name, imm_pw)
-cmd(si, "quit!")
-si.close()
-sql(f"UPDATE player_progress SET level=58 WHERE player_id=(SELECT id FROM player WHERE name='{imm_name}');")
-sql(f"UPDATE player SET load_room={ROOM} WHERE name='{imm_name}';")
-imm = socket.create_connection((host, port), timeout=5)
-recv_all(imm)
-send_line(imm, imm_name); recv_all(imm)
-send_line(imm, imm_pw); recv_all(imm)
-send_line(imm, "1"); recv_all(imm)
-cmd(imm, "color off")
+# see TODO.md's writeup), so neither has any starting suit gear left.
+# The immortal loads/drops a fixture item for the giver to pick up instead.
 
 GIVEITEM = ROOM + 900000  # collision-safe fixture vnum in the 900000+ sandbox range
 sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
