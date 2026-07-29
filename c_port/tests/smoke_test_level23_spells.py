@@ -228,6 +228,7 @@ while time.time() < deadline:
     all_out += recv_all(mage, timeout=1.0)
     if "have slain" in all_out.lower() or "have defeated" in all_out.lower():
         break
+print("DEBUG all_out:", repr(all_out))
 
 # Combat messages (combat.c's tell() calls) have no fixed verb ("slice"/
 # "stab"/"hit"/...), but a fixed SHAPE per direction: mage's own attack on
