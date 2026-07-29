@@ -216,25 +216,51 @@ def mob_insert(vnum, name, hpbonus, room):
     sql(f"INSERT INTO mob ({mob_cols}) VALUES ({mob_vals});")
 
 
+# `attack` is table-mapped straight to cmd_kill.c (`{ "attack", cmd_kill,
+# "...instant slay for immortals.", ... }`, cmd_table.c) -- for an
+# IMMORTAL attacker there is no multi-round physical-combat command at
+# all, `attack`/`kill` both instakill outright via combat_instakill(),
+# never touching combat_process_run()'s round-by-round strike loop
+# where the haste bonus-strike mechanic actually lives. A genuine
+# mortal fighter is needed to observe it: a fresh Mage, kept below
+# IMMORTAL_LEVEL_MIN (51) but above haste's own min_level (23), with
+# `haste`'s own learn-by-doing proficiency seeded to 100% (player_skill,
+# same convention as smoke_test_continue.py's set_skill_pct()) so
+# casting it doesn't risk the real ~1%-first-attempt fumble roll.
+fighter_name = f"Lfighter{_suffix}"
+fighter_pw = "l23fighterpw123"
+sf = socket.create_connection((host, port), timeout=5)
+make_char(sf, fighter_name, fighter_pw, 1)  # Mage
+cmd(sf, "quit!")
+sf.close()
+sql(f"UPDATE player_progress SET level=25, basic_disc_pct=100 WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{fighter_name}');")
+sql(f"INSERT INTO player_skill (player_id, skill_name, pct, last_gain_at) "
+    f"SELECT id, 'haste', 100, 0 FROM player WHERE name='{fighter_name}' "
+    f"ON DUPLICATE KEY UPDATE pct=100, last_gain_at=0;")
+fighter = login(fighter_name, fighter_pw)
+check("L23 Outdoor Sandbox" in cmd(fighter, f"goto {ROOM_OUT}"), "fighter goes to the outdoor sandbox")
+COMP3 = BASE + 13
+sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,val0,val1,can_be_seen) "
+    f"VALUES ({COMP3},'pouch component test3','a pouch of test components','A pouch lies here.',12,1,10,10,1);")
+check("You conjure" in cmd(fighter, f"load obj {COMP3}"), "fighter loads their own component pouch")
+out = cmd(fighter, "cast haste")
+check("cast" in out.lower() and ("ease" in out.lower() or "haste" in out.lower()), "the mortal fighter casts haste on themselves")
+check("haste" in cmd(fighter, "affects").lower(), "the mortal fighter's own `affects` shows Haste active")
+
 dummy_name = f"l23dummy{_suffix}"
 mob_insert(MOB_DUMMY1, dummy_name, 8.0, ROOM_OUT)  # generous HP, survives several rounds
-check("You conjure" in cmd(mage, f"load mob {dummy_name}"), "a fixed-HP training dummy spawns")
+check("You conjure" in cmd(fighter, f"load mob {dummy_name}"), "a fixed-HP training dummy spawns")
 
-out = cmd(mage, f"attack {dummy_name}")
-print("DEBUG attack response:", repr(out))
-check("Command not found" not in out, "mage attacks the dummy")
-# NOT `kill` -- for an immortal, `kill` bypasses the whole multi-round
-# combat process for an instant one-shot kill (cmd_kill.c's own doc
-# comment) and would never exercise combat_process_run()'s round-by-
-# round strike loop at all, defeating the whole point of this check.
+out = cmd(fighter, f"attack {dummy_name}")
+check("Command not found" not in out, "the hasted fighter attacks the dummy")
 
 all_out = ""
-deadline = time.time() + 12
+deadline = time.time() + 15
 while time.time() < deadline:
-    all_out += recv_all(mage, timeout=1.0)
+    all_out += recv_all(fighter, timeout=1.0)
     if "have slain" in all_out.lower() or "have defeated" in all_out.lower():
         break
-print("DEBUG all_out:", repr(all_out))
 
 # Combat messages (combat.c's tell() calls) have no fixed verb ("slice"/
 # "stab"/"hit"/...), but a fixed SHAPE per direction: mage's own attack on
@@ -249,9 +275,9 @@ my_strikes = sum(1 for ln in lines if ln.lower().startswith("you miss")
                   or (ln.lower().startswith("you ") and "'s " in ln.lower()))
 their_strikes = sum(1 for ln in lines if ln.lower().startswith(f"a {dummy_name.lower()}"))
 check(my_strikes > their_strikes,
-      f"hasted mage lands noticeably more of their own strikes than the dummy's ({my_strikes} vs {their_strikes})")
+      f"hasted fighter lands noticeably more of their own strikes than the dummy's ({my_strikes} vs {their_strikes})")
 
-cmd(mage, "purge")
+cmd(mage, "purge")  # mage is still the immortal in ROOM_OUT (purge is 51+, fighter is mortal)
 
 # --- 5/6/7: storm call, gated on world weather + indoors/outdoors ---
 # Weather is a single WORLD-WIDE sky state loaded once at boot
