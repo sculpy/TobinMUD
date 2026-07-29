@@ -1399,6 +1399,7 @@ void combat_process_run(long pulse_num) {
             combat_defeat(b, a, b_decapitated);
             continue;
         }
+        log_info("DEBUGHASTE a=%s has_haste=%d", a->base.name, being_has_affect(a, AFFECT_HASTE));
         /* `haste` (AFFECT_HASTE, see affect.h's enum comment) -- a hasted
          * fighter gets one bonus combat_strike() immediately after their
          * normal one, same round. */
