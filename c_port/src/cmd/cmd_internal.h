@@ -35,6 +35,8 @@ bool cmd_whirlwind(descriptor_t *d, const char *args);
 bool cmd_kneestrike(descriptor_t *d, const char *args);
 bool cmd_switchopp(descriptor_t *d, const char *args);
 bool cmd_tranceblades(descriptor_t *d, const char *args);
+bool cmd_stabbing(descriptor_t *d, const char *args);
+bool cmd_subterfuge(descriptor_t *d, const char *args);
 bool cmd_berserk(descriptor_t *d, const char *args);
 bool cmd_rally(descriptor_t *d, const char *args);
 bool cmd_garrotte(descriptor_t *d, const char *args);
