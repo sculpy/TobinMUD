@@ -166,11 +166,12 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,val0,val1,c
     f"VALUES ({COMP1},'pouch component test','a pouch of test components','A pouch lies here.',12,1,10,10,1);")
 
 check("You conjure" in cmd(mage, f"load obj {COMP1}"), "mage loads a component pouch")
-check("You get" in cmd(mage, f"get pouch"), "mage picks up the component pouch")
+# `load obj` (2026-07-22 behavior change) puts the conjured item directly
+# into the LOADING IMMORTAL'S OWN inventory, not the room floor -- no
+# `get` needed (or possible; there's nothing on the floor to get).
 
 # --- 1: copy duplicates a real seeded scroll (vnum 90002, "heal light") ---
 check("You conjure" in cmd(mage, "load obj 90002"), "mage loads the real seeded healing scroll")
-check("You get" in cmd(mage, "get scroll"), "mage picks up the scroll")
 out = cmd(mage, "cast copy scroll", 2.0)
 check("copy of" in out.lower() and "appears" in out.lower(), "cast copy announces a duplicate appearing")
 room_out = cmd(mage, "look")
@@ -182,7 +183,6 @@ NOTASCROLL = BASE + 12
 sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
     f"VALUES ({NOTASCROLL},'plain test rock','a plain test rock','A rock lies here.',8,0,1);")
 check("You conjure" in cmd(mage, f"load obj {NOTASCROLL}"), "mage loads a non-scroll fixture")
-check("You get" in cmd(mage, "get rock"), "mage picks up the rock")
 out = cmd(mage, "cast copy rock")
 check("not a scroll" in out.lower(), "cast copy refuses a non-scroll item")
 
@@ -248,7 +248,6 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,val0,val1,c
 
 cmd(druid, f"goto {ROOM_OUT}")
 check("You conjure" in cmd(druid, f"load obj {COMP2}"), "druid loads their own component pouch")
-check("You get" in cmd(druid, "get pouch"), "druid picks up their component pouch")
 
 if "clear" in weather_out.lower() or "cloudy" in weather_out.lower():
     mob_insert(MOB_DUMMY2, f"l23weather{_suffix}", 5.0, ROOM_OUT)
