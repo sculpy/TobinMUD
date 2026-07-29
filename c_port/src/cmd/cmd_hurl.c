@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "being.h"
+#include "cmd.h"
 #include "combat.h"
 #include "pulse.h"
 #include "room.h"
