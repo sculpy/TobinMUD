@@ -169,12 +169,10 @@ cmd(imm, "color off")
 
 GIVEITEM = ROOM + 900000  # collision-safe fixture vnum in the 900000+ sandbox range
 sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
-    f"VALUES ({GIVEITEM},'trinket giveaway test','a test trinket','A test trinket lies here.',8,0,1);")
+    f"VALUES ({GIVEITEM},'trinket giveaway test','a test trinket','A test trinket lies here.',12,1,1);")
 check("You conjure" in cmd(imm, f"load obj {GIVEITEM}"), "immortal loads a fixture trinket for the giver")
 check("You drop" in cmd(imm, "drop trinket"), "immortal drops the trinket")
-out = cmd(giver, "get trinket")
-print("DEBUG get trinket response:", repr(out))
-check("You get" in out, "giver picks up the trinket")
+check("You get" in cmd(giver, "get trinket"), "giver picks up the trinket")
 
 # --- 1: give <item> <person> ---
 out = cmd(giver, "inventory")
