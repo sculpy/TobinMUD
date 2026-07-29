@@ -10,9 +10,11 @@
 #include <strings.h>
 
 #include "being.h"
+#include "combat.h"
 #include "log.h"
 #include "obj.h"
 #include "obj_repo.h"
+#include "player_repo.h"
 #include "room.h"
 #include "thing.h"
 #include "trigger.h"
@@ -853,5 +855,119 @@ bool cmd_remove(descriptor_t *d, const char *args) {
         snprintf(msg, sizeof(msg), "%s removes %s.\r\n", ch->base.name, label);
         descriptor_room_echo(ch->base.roomp, ch, msg);
     }
+    return true;
+}
+
+/* `give <amount> gold <person>` / `give <item> <person>` -- object
+ * manipulation audit continued (2026-07-29, a fresh Sneezy-vs-Tobin
+ * comparison beyond the earlier narrow sacrifice/junk/identify pass):
+ * real upstream `TBeing::doGive()` (misc/inventory.cc) was the one
+ * gap found with no matching Tobin command at all. Ported at Tobin
+ * scale: one item (or "all" of your gold) to one recipient present in
+ * the room, PC or mob alike -- not ported: multi-item "give all.sword"/
+ * "give 3.sword" bunching (getabunch(), the same N-at-once idea `drop
+ * all` already covers differently), mob shop-response/spec-proc hooks
+ * (checkResponses()/checkSpec(), no shop-logging or spec-proc dispatch
+ * exists here to hook into), the solo-quest/group-quest refusal checks
+ * (neither system exists in Tobin), and the hasHands()/no-hands refusal
+ * (Tobin has no such capability flag). Refuses mid-fight on either side,
+ * same real-upstream check, since accepting a hand-off during combat
+ * makes no sense either way. */
+bool cmd_give(descriptor_t *d, const char *args) {
+    being_t *ch = d->character;
+    if (!ch || !ch->base.roomp) {
+        descriptor_send(d, "You are nowhere.\r\n");
+        return true;
+    }
+    if (ch->fighting) {
+        descriptor_send(d, "Not while fighting.\r\n");
+        return true;
+    }
+
+    char tok1[64], tok2[64], tok3[64];
+    int n = sscanf(args, "%63s %63s %63s", tok1, tok2, tok3);
+
+    if (n == 3 && strcasecmp(tok2, "gold") == 0) {
+        int amount = atoi(tok1);
+        if (amount <= 0) {
+            descriptor_send(d, "Sorry, you can't do that!\r\n");
+            return true;
+        }
+        if (ch->progress.gold < amount) {
+            descriptor_send(d, "You don't have that much gold!\r\n");
+            return true;
+        }
+        being_t *vict = combat_find_room_target(ch, tok3);
+        if (!vict) {
+            descriptor_send(d, "They aren't here.\r\n");
+            return true;
+        }
+        if (vict->fighting) {
+            char msg[192];
+            snprintf(msg, sizeof(msg), "Not while %s is fighting.\r\n", being_display_name(vict));
+            descriptor_send(d, msg);
+            return true;
+        }
+
+        ch->progress.gold -= amount;
+        vict->progress.gold += amount;
+        if (ch->base.kind == THING_PC)
+            player_progress_save(ch->player_id, &ch->progress);
+        if (vict->base.kind == THING_PC)
+            player_progress_save(vict->player_id, &vict->progress);
+
+        char msg[192], capbuf[128];
+        snprintf(msg, sizeof(msg), "You give %d gold to %s.\r\n", amount, being_display_name(vict));
+        descriptor_send(d, msg);
+        if (vict->desc) {
+            snprintf(msg, sizeof(msg), "%s gives you %d gold.\r\n",
+                     being_display_name_cap(ch, capbuf, sizeof(capbuf)), amount);
+            descriptor_notify(vict->desc, msg);
+        }
+        snprintf(msg, sizeof(msg), "%s gives some gold to %s.\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)), being_display_name(vict));
+        descriptor_room_echo(ch->base.roomp, ch, msg);
+        return true;
+    }
+
+    if (n < 2) {
+        descriptor_send(d, "Give what to whom?\r\n");
+        return true;
+    }
+
+    obj_t *item = find_obj(ch->base.stuff_head, tok1, ch);
+    if (!item) {
+        descriptor_send(d, "You aren't carrying that.\r\n");
+        return true;
+    }
+    being_t *vict = combat_find_room_target(ch, tok2);
+    if (!vict) {
+        descriptor_send(d, "They aren't here.\r\n");
+        return true;
+    }
+    if (vict->fighting) {
+        char msg[192];
+        snprintf(msg, sizeof(msg), "Not while %s is fighting.\r\n", being_display_name(vict));
+        descriptor_send(d, msg);
+        return true;
+    }
+
+    thing_move_to(&item->base, &vict->base);
+    player_inventory_save(ch->player_id, ch);
+    if (vict->base.kind == THING_PC)
+        player_inventory_save(vict->player_id, vict);
+
+    char msg[256], capbuf[128];
+    const char *label = item->base.short_descr[0] ? item->base.short_descr : item->base.name;
+    snprintf(msg, sizeof(msg), "You give %s to %s.\r\n", label, being_display_name(vict));
+    descriptor_send(d, msg);
+    if (vict->desc) {
+        snprintf(msg, sizeof(msg), "%s gives you %s.\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)), label);
+        descriptor_notify(vict->desc, msg);
+    }
+    snprintf(msg, sizeof(msg), "%s gives %s to %s.\r\n",
+             being_display_name_cap(ch, capbuf, sizeof(capbuf)), label, being_display_name(vict));
+    descriptor_room_echo(ch->base.roomp, ch, msg);
     return true;
 }

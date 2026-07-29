@@ -207,6 +207,7 @@ static const cmd_entry_t COMMANDS[] = {
      * goto's vnum/player teleport still have "go" -- nothing else starts
      * with "go". */
     { "get",     cmd_get,     "Pick up an item, or take one from a container (get <item> [container]).", MORTAL_LEVEL_MIN },
+    { "give",    cmd_give,    "Hand a carried item, or gold, to someone else here (give <item>|<amount> gold <person>).", MORTAL_LEVEL_MIN },
     { "goto",    cmd_goto,    "Directions to your guildmaster/the inn/the surplus store (goto guildmaster|rent|surplus), or teleport to a room by vnum (immortal).", MORTAL_LEVEL_MIN },
     { "group",   cmd_group,   "List/manage your group (group [<name>|all]) -- leader only to add.", MORTAL_LEVEL_MIN },
     /* SWAP: hit before help, so "h" stays a combat verb; help needs "he",
@@ -498,7 +499,7 @@ static const cmd_entry_t COMMANDS[] = {
      * the table needs a prefix that short ("poofin"/"poofout" already need
      * "poof", "possess" needs "pos", both longer than "pou" would ever
      * collide with). */
-    { "pour",    cmd_pour,    "Empty a drink container onto the ground (pour <container>).", MORTAL_LEVEL_MIN },
+    { "pour",    cmd_pour,    "Empty a drink container onto the ground, or into another one (pour <container> [<container2>]).", MORTAL_LEVEL_MIN },
     /* MORTAL_LEVEL_MIN, not immortal-only (2026-07-26, Transformation):
      * `cast polymorph` sets the exact same d->possess_original swap
      * `possess` does, so an ordinary mage needs to be able to run
