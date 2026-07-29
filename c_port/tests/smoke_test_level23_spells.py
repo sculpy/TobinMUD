@@ -264,7 +264,7 @@ check("haste" in cmd(fighter, "affects").lower(), "the mortal fighter's own `aff
 
 dummy_name = f"l23dummy{_suffix}"
 mob_insert(MOB_DUMMY1, dummy_name, 8.0, ROOM_OUT)  # generous HP, survives several rounds
-check("You conjure" in cmd(fighter, f"load mob {dummy_name}"), "a fixed-HP training dummy spawns")
+check("You conjure" in cmd(mage, f"load mob {dummy_name}"), "a fixed-HP training dummy spawns")
 
 out = cmd(fighter, f"attack {dummy_name}")
 check("Command not found" not in out, "the hasted fighter attacks the dummy")
