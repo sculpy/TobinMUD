@@ -148,7 +148,7 @@ def mob_insert(vnum, name, hpbonus):
     sql(f"INSERT INTO mob ({mob_cols}) VALUES ({mob_vals});")
 
 
-imm_name = f"L25skimm{_suffix}"
+imm_name = f"Lskimm{_suffix}"
 warrior_name = f"Lwar{_suffix}"
 thief_name = f"Lthf{_suffix}"
 monk_name = f"Lmnk{_suffix}"
