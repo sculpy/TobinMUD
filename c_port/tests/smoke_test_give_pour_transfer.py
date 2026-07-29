@@ -243,7 +243,9 @@ check("You conjure" in cmd(imm, f"load obj {WATERSKIN}"), "immortal loads a wate
 check("You drop" in cmd(imm, "drop waterskin"), "immortal drops the waterskin")
 check("You conjure" in cmd(imm, f"load obj {WINESKIN}"), "immortal loads a wineskin for the giver")
 check("You drop" in cmd(imm, "drop wineskin"), "immortal drops the wineskin")
-check("You get" in cmd(giver, "get waterskin"), "giver picks up the waterskin")
+out = cmd(giver, "get waterskin")
+print("DEBUG get waterskin out:", repr(out))
+check("You get" in out, "giver picks up the waterskin")
 check("You get" in cmd(giver, "get wineskin"), "giver picks up the wineskin")
 
 # Both start full (waterskin=water, wineskin=wine) -- pouring water INTO
