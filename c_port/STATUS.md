@@ -1,6 +1,70 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-29 — Session 100 (DO droplet, production port 4000):
+Last updated: 2026-07-29 — Session 101 (DO droplet, production port 4000):
+**Level-25 audit batch, physical-skills half: ~20 new Warrior/Thief/
+Monk combat skills, closing out the largest single roster level in the
+whole audit.** Completes the level-25 batch Session 100 started (the
+castable Mage/Cleric/Druid half).
+- **Warrior**: `whirlwind` (new cmd_whirlwind.c -- hits every mob in the
+  room plus the caster's own current opponent; PCs excluded unless
+  already the caster's opponent, same no-unconsented-PvP precedent
+  `taunt` established), `kneestrike`/`chop` (plain bonus-damage attacks,
+  refuses while crawling), `switchopponents` (new verb -- `switch` was
+  already taken by the held-item-swap command; cleanly breaks the old
+  fight and opens a new one, mob targets only), `trance of blades`
+  (reuses AFFECT_SANCTUARY, same "one shared ward buff" precedent every
+  Mage/Druid protective spell already uses; the "at the cost of
+  offense" half is dropped, disclosed one-directional scope-cut), `weapon
+  retention` and `brawl avoidance` (passive defensive-save hooks added
+  directly into cmd_disarm.c/cmd_trip.c/cmd_grapple.c -- no new command,
+  a second skill_roll_success() roll for the DEFENDER after the
+  attacker's own roll succeeds).
+- **Thief**: `stabbing` (bonus-damage attack -- Tobin has no weapon-type
+  system to gate a "piercing weapon" requirement on, same "ranged
+  proficiency" scope-cut precedent), `subterfuge` (new cmd_subterfuge.c
+  -- the mirror of `taunt`: redirects the caster's own mob opponent's
+  aggro onto a different named target in the room instead of pulling it
+  onto the caster). `disarm trap` needed no new code -- already fully
+  implemented (cmd_trap.c).
+- **Monk** (the largest single-skill roster entry in the whole audit --
+  12 items): `chop`/`hurl` (bonus-damage attacks; hurl also relocates
+  the target through a real, unblocked room exit if one exists, same
+  "physically relocate via thing_set_room() or flavor-only bounce off
+  the wall" shape cmd_shove.c already established), `feign death` (new
+  `being_t.feigning` flag, checked by mob_ai.c's mob_try_aggress() so a
+  feigning PC is skipped when an aggressive mob picks a new target;
+  cleared by moving or attacking), `counter move` (passive hook in
+  cmd_shove.c -- that file's own doc comment had already flagged exactly
+  where this belonged), `iron fist` (doubles the STR-derived term of
+  combat.c's base melee damage formula while genuinely bare-handed),
+  `blindfighting` (halves, rather than removes, the existing AFFECT_BLIND
+  to-hit penalty), `critical hitting` (a second weighted-limb draw,
+  kept only if it lands on a MAJOR limb -- a real lean toward harsher
+  outcomes without a whole new crit-roll layer), `chain attack`/`blur`/
+  `advanced kicking` (all three folded into one mechanic: a chance-gated
+  bonus combat_strike() while barehanded, same shape haste's own
+  guaranteed bonus strike uses but skill_roll_success()-gated instead of
+  a timed affect -- Tobin has no "combo counter"/"empty-handed stance"/
+  "kick vs. punch" state to tell the three skills apart mechanically),
+  `wohlin meditation` (meditate.c's own per-tick heal now also strips
+  poison and every active disease while meditating -- the exact
+  "chained secondary cures" cmd_yoginsa.c's doc comment had flagged as
+  blocked on this skill not existing yet). `voplat` ("makes unarmed
+  damage magical") is left an inert roster placeholder -- no damage-
+  type/immunity system exists anywhere in Tobin to hook it into.
+- Verified live via a new `tests/smoke_test_level25_skills.py`. Hit the
+  same "level 51 = immortal, `attack` instakills" pitfall the level-23
+  haste test already documented -- fixed by using mortal (level 25)
+  fighters plus a separate immortal helper for setup/teardown, same
+  split that test established. Also found (not fixed this session,
+  flagged separately as a spawned follow-up task): `purge` doesn't clear
+  a survivor's `fighting` pointer when their opponent is purged,
+  leaving a dangling reference -- a real pre-existing bug, not
+  introduced here, caught by feign death's own "can't feign while
+  fighting" refusal firing against an already-purged target.
+- Built, deployed via `copyover`, `wiznews.sql` entry added.
+
+Previous update: 2026-07-29 — Session 100 (DO droplet, production port 4000):
 **Level-25 audit batch, castable half: 12 new spells/prayers across
 Mage/Cleric/Druid, real SneezyMUD cast-time messages pulled from the
 bundled upstream source where they exist.** Level 25 turned out to be
