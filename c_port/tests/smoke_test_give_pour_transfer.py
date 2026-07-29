@@ -188,6 +188,7 @@ check("trinket" in out.lower(), "the trinket landed in the recipient's inventory
 sql(f"UPDATE player_progress SET gold=100 WHERE player_id=(SELECT id FROM player WHERE name='{giver_name}');")
 sql(f"UPDATE player_progress SET gold=0 WHERE player_id=(SELECT id FROM player WHERE name='{recv_name}');")
 out = cmd(giver, f"give 40 gold {recv_name}")
+print("DEBUG give gold response:", repr(out))
 check("you give 40 gold" in out.lower(), "give gold confirms the amount")
 
 # --- 3: give refuses when the target isn't here ---
