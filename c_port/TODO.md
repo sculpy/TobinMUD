@@ -234,8 +234,15 @@ ask only when genuinely ambiguous. Full list, in the order given:
       human-barred item refuses a human but fits a dwarf, a dwarf-barred
       weapon refuses `wield`, and the new oedit submenu actually
       persists a toggled bit to the DB.
-- [ ] **`uptime` command** (time since last reboot/copyover) — not
-      started.
+- [x] **`uptime` command** (time since last reboot/copyover) — done
+      2026-08-02. New `tobin_boot_time()` (main.c/game_loop.h): a static
+      `time_t` set unconditionally near the top of `main()`, so both a
+      cold boot AND a copyover successor each stamp their own fresh
+      value. New `cmd_uptime.c` follows the classic DIKU/CircleMUD "Up
+      since <date>, Y days, H hours, M minutes, S seconds" shape (no
+      SneezyMUD equivalent found to port verbatim). `MORTAL_LEVEL_MIN`,
+      same tier as `time`/`weather`. Verified live with a new
+      `tests/smoke_test_uptime.py` right after a fresh copyover.
 - [ ] **Object editor: item-type flag listing/picker** — not started.
 - [ ] **Newbie equipment system expansion**: auto-grant suit on first
       login (may already partly exist, see 2026-07-26 suit work below —

@@ -1,6 +1,25 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 110 (DO droplet, production port
+Last updated: 2026-08-02 — Session 111 (DO droplet, production port
+4000): **`uptime` command.** Eleventh item off the 2026-07-30
+autonomous-backlog list. New `tobin_boot_time()` (main.c/game_loop.h):
+a static `time_t` set unconditionally near the top of `main()`, so both
+a cold boot and a copyover successor each stamp their own fresh value --
+neither preserves any other in-memory world state either, so "uptime"
+here means "time since this process generation last started", exactly
+what a copyover visibly resets. New `cmd_uptime.c` follows the classic
+DIKU/CircleMUD "Up since <date>, Y days, H hours, M minutes, S
+seconds" shape -- no SneezyMUD equivalent was found to port verbatim.
+`MORTAL_LEVEL_MIN`, same tier as `time`/`weather` (informational, not
+a builder/immortal tool). Verified live with a new
+`tests/smoke_test_uptime.py` immediately after a fresh copyover
+(confirms a small, sane elapsed-time reading). Incidentally confirmed
+during this session's copyover that gdb, once attached, survives a
+copyover's `execve()` transparently without needing to be
+re-attached -- it only needs re-attaching after a genuine cold
+restart (a real pid change), not every copyover.
+
+Previous update: 2026-08-02 — Session 110 (DO droplet, production port
 4000): **Object anti-race flags.** Tenth item off the 2026-07-30
 autonomous-backlog list -- a Tobin-only design (SneezyMUD only
 restricts wear by class, action_flag's ANTI_CLERIC/etc bits, not

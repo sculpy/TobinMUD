@@ -410,3 +410,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Some Gear Just Isn''t Made For Your Kind', 'A few items in the world are built for a specific race and won''t fit anyone else -- try to wear, wield, or hold one that''s not made for you and you''ll be turned away with a clear reason why.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New `uptime` Command', '`uptime` shows when the server last came back up (a fresh boot or a copyover) and how long it''s been running since then.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
