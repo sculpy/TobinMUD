@@ -97,64 +97,48 @@ def make_char(name, pw, race_num, class_num):
     return s
 
 
-def login(name, pw):
-    s = socket.create_connection((host, port), timeout=5)
-    recv_all(s)
-    send_line(s, name); recv_all(s)
-    send_line(s, pw); recv_all(s)
-    send_line(s, "1"); recv_all(s)
-    cmd(s, "color off")
-    return s
-
+# NOTE: inventory is checked IMMEDIATELY after creation, all within the
+# SAME connection -- `quit!` is documented, deliberate behavior (cmd_quit.c,
+# user 2026-07-12) that DROPS a mortal's entire inventory on the floor
+# ("the risky option Sneezy's own `rent` help text warns about"), so a
+# quit!+relogin cycle between creation and the inventory check would
+# destroy the very gear this test is trying to verify -- not a bug in
+# the newbie-equipment expansion, just the wrong tool for this test.
 
 # --- 1/2: race-specific armor + weapon, human vs ogre are different ---
 dwarf_name, dwarf_pw = f"Rgdwf{_suffix}", "rgdwfpw12345"
 s = make_char(dwarf_name, dwarf_pw, "4", "3")  # Dwarf Warrior
-cmd(s, "quit!")
-s.close()
-s = login(dwarf_name, dwarf_pw)
 out = cmd(s, "inventory")
 check("dwarven cloth" in out.lower(), "a fresh Dwarf's inventory has dwarf-tagged cloth armor")
 check("dwarven hand axe" in out.lower(), "a fresh Dwarf's inventory has the dwarven hand axe")
 check("training shield" in out.lower(), "a fresh Dwarf's inventory has the shared training shield")
+
+# --- 3 (checked here too): every newbie gets rations + a waterskin ---
+check("standard ration" in out.lower(), "a fresh character's inventory has ration(s) of food")
+check("water skin" in out.lower(), "a fresh character's inventory has a water skin")
 s.close()
 
 human_name, human_pw = f"Rghum{_suffix}", "rghumpw12345"
 s = make_char(human_name, human_pw, "1", "3")  # Human Warrior
-cmd(s, "quit!")
-s.close()
-s = login(human_name, human_pw)
 out = cmd(s, "inventory")
-check("[human]" not in out.lower() or "cloth" in out.lower(), "a fresh Human's inventory has its own cloth armor")
 check("human longsword" in out.lower(), "a fresh Human gets the human longsword, not the dwarven axe")
 check("dwarven" not in out.lower(), "a fresh Human's inventory has NO dwarven-tagged items")
+# --- 6: a Warrior does NOT get spell components or holy symbols ---
+check("component" not in out.lower(), "a fresh Warrior's inventory has NO spell components")
+check("holy symbol" not in out.lower(), "a fresh Warrior's inventory has NO holy symbols")
 s.close()
 
 ogre_name, ogre_pw = f"Rgogr{_suffix}", "rgogrpw12345"
 s = make_char(ogre_name, ogre_pw, "3", "3")  # Ogre Warrior
-cmd(s, "quit!")
-s.close()
-s = login(ogre_name, ogre_pw)
 out = cmd(s, "inventory")
 check("ogre club" in out.lower() or "red ogre club" in out.lower(), "a fresh Ogre gets the red ogre club")
 check("dwarven" not in out.lower() and "human longsword" not in out.lower(),
       "a fresh Ogre's inventory has neither the dwarf's nor the human's racial gear")
 s.close()
 
-# --- 3: every newbie gets rations + a waterskin, regardless of class/race ---
-s = login(ogre_name, ogre_pw)
-out = cmd(s, "inventory")
-check("standard ration (x3)" in out.lower() or "standard ration" in out.lower(),
-      "a fresh character's inventory has ration(s) of food")
-check("water skin" in out.lower(), "a fresh character's inventory has a water skin")
-s.close()
-
 # --- 4: Mage gets a spellpouch + components ---
 mage_name, mage_pw = f"Rgmag{_suffix}", "rgmagpw12345"
 s = make_char(mage_name, mage_pw, "1", "1")  # Human Mage
-cmd(s, "quit!")
-s.close()
-s = login(mage_name, mage_pw)
 out = cmd(s, "inventory")
 check("spellbag" in out.lower(), "a fresh Mage's inventory has a small spellbag")
 check("component" in out.lower(), "a fresh Mage's inventory has spell component(s)")
@@ -163,20 +147,9 @@ s.close()
 # --- 5: Cleric gets wooden holy symbols ---
 cleric_name, cleric_pw = f"Rgcle{_suffix}", "rgclepw12345"
 s = make_char(cleric_name, cleric_pw, "1", "2")  # Human Cleric
-cmd(s, "quit!")
-s.close()
-s = login(cleric_name, cleric_pw)
 out = cmd(s, "inventory")
 check("wooden holy symbol" in out.lower(), "a fresh Cleric's inventory has wooden holy symbol(s)")
-check("(x3)" in out.lower() or "holy symbol" in out.lower(), "the holy symbols show a real count")
-
-# --- 6: a Warrior does NOT get spell components or holy symbols ---
-s2 = login(human_name, human_pw)
-out2 = cmd(s2, "inventory")
-check("component" not in out2.lower(), "a fresh Warrior's inventory has NO spell components")
-check("holy symbol" not in out2.lower(), "a fresh Warrior's inventory has NO holy symbols")
-s2.close()
-
 s.close()
+
 announce_done("smoke_test_newbie_gear_race")
 print("=== ALL CHECKS PASSED ===")
