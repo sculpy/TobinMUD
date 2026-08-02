@@ -214,10 +214,28 @@ ask only when genuinely ambiguous. Full list, in the order given:
       `tests/smoke_test_newbie_item_drop.py`: a plain item survives a
       normal drop, an empty NEWBIE item explodes and is gone from both
       the room and inventory, a non-empty NEWBIE container survives.
-- [ ] **Menu-driven loadsuit editor** (configurable per-wear-location
-      quantities: wrists, fingers, hands, feet, arms, legs) — not started.
-      Builds on the existing `suit`/`suit_item` tables + `cmd_loadsuit.c`
-      (2026-07-26).
+- [x] **Menu-driven loadsuit editor** (configurable per-wear-location
+      quantities: wrists, fingers, hands, feet, arms, legs) — done
+      2026-08-02. New `edit suit [name]` (56+, `cmd_edsuit.c`) --
+      previously suits could only be populated by hand-written SQL. No
+      name lists every suit; a name opens a menu on the first substring
+      match, or auto-creates a new empty one if nothing matches (same
+      "auto-create if missing" precedent as `oedit`/`medit`). New
+      `CONN_EDSUIT_*` state machine (descriptor.c/.h) follows
+      `CONN_TRIGEDIT_*`'s shape (a variable-length list of child rows,
+      every field commits immediately, no batched Save) rather than
+      `CONN_OEDIT_*`'s. The actual per-wear-location-quantity feature:
+      `suit_item` got a new `quantity` column (default 1, every
+      existing row unchanged) -- a suit can now grant more than one of
+      the same item (two wrist bands, two boots, ...), where the old
+      `(suit_id, obj_vnum)` primary key meant an item was either in the
+      suit once or not at all. `suit_grant()` now expands each row by
+      its own quantity. Verified live with a new
+      `tests/smoke_test_edsuit.py` (creation, adding items including a
+      quantity >1, `loadsuit` granting the right counts, editing an
+      existing quantity, deleting an item, setting/clearing the class
+      restriction) plus a clean re-run of the pre-existing
+      `tests/smoke_test_newbie_gear.py` -- zero regressions.
 - [x] **Object anti-race flags** (`ANTI_HUMAN`/`ANTI_DWARF`/`ANTI_OGRE`/
       `ANTI_ELF`/`ANTI_GNOME`/`ANTI_HOBBIT`) — done 2026-08-02. Tobin-only
       design (SneezyMUD only restricts wear by class, not race). New

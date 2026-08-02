@@ -1,6 +1,50 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 112 (DO droplet, production port
+Last updated: 2026-08-02 — Session 113 (DO droplet, production port
+4000): **Menu-driven loadsuit editor (`edit suit`).** Thirteenth item
+off the 2026-07-30 autonomous-backlog list. New `edit suit [name]`
+(56+, `cmd_edsuit.c`) -- suits could only be populated by hand-written
+SQL before this. No name lists every suit (id/name/class/item
+count/description); a name opens a menu on the first substring match,
+or auto-creates a brand-new empty suit if nothing matches (same
+"auto-create if missing" precedent `oedit`/`medit` already
+established). New `CONN_EDSUIT_*` state machine (descriptor.c/.h)
+deliberately follows `CONN_TRIGEDIT_*`'s shape -- a variable-length
+list of child rows under one parent, every field commits immediately
+via new `suit_repo.h` CRUD functions, no working copy or separate Save
+step -- rather than `CONN_OEDIT_*`'s "many scalar fields, batched Save"
+shape, since a suit's real content (its item list) is structurally
+closer to a trigger list than to an object prototype. Addressed by
+list position in what's shown to the player, but by `obj_vnum`
+(`suit_item`'s own natural key) internally, never a raw db id -- same
+"no raw ids in the UI" spirit `CONN_TRIGEDIT_*` already established.
+The actual per-wear-location-quantity feature this unlocks:
+`suit_item` got a new `quantity` column (migration, default 1 so every
+existing row means exactly what it always did) -- a suit can now grant
+MORE than one of the same item (two wrist bands, two boots, ...),
+where the old `(suit_id, obj_vnum)` primary key meant an item was
+either in the suit once or not at all. `suit_grant()` (suit.c) now
+expands each row by its own quantity, instantiating that many separate
+`obj_t` instances (verified: a suit with a quantity-2 wrist band
+actually lands 2 real objects in the recipient's inventory, stacking
+as "(x2)" in `inventory`, not 1). Hit one real bug during
+development: a stray `*/` inside a C comment (in the phrase
+"CONN_OEDIT_*/CONN_MEDIT_*") prematurely closed the block comment and
+broke the build with a wall of parse errors -- caught immediately by
+the zero-warning build gate, fixed by rewording. Also caught and fixed
+a test-script bug of its own: typing a command like `loadsuit` while
+still inside the suit editor's own menu state gets silently swallowed
+as menu input rather than reaching the normal command dispatcher --
+first test draft didn't send a blank line to exit the editor first,
+so `loadsuit`'s own test assertion failed until that was fixed.
+Verified live with a new `tests/smoke_test_edsuit.py` (creation,
+adding items including a quantity >1, `loadsuit` granting the right
+item COUNTS not just vnums, editing an existing quantity, deleting an
+item, setting/clearing the class restriction) plus a clean re-run of
+the pre-existing `tests/smoke_test_newbie_gear.py` -- zero
+regressions.
+
+Previous update: 2026-08-02 — Session 112 (DO droplet, production port
 4000): **Object editor: item-type flag listing/picker.** Twelfth item
 off the 2026-07-30 autonomous-backlog list. New
 `show_oedit_type_picker()` (descriptor.c): `oedit` menu item 3 ("Item
