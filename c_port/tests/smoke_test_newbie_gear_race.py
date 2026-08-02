@@ -124,7 +124,7 @@ out = cmd(s, "inventory")
 check("human longsword" in out.lower(), "a fresh Human gets the human longsword, not the dwarven axe")
 check("dwarven" not in out.lower(), "a fresh Human's inventory has NO dwarven-tagged items")
 # --- 6: a Warrior does NOT get spell components or holy symbols ---
-check("component" not in out.lower(), "a fresh Warrior's inventory has NO spell components")
+check("lasso" not in out.lower(), "a fresh Warrior's inventory has NO spell components")
 check("holy symbol" not in out.lower(), "a fresh Warrior's inventory has NO holy symbols")
 s.close()
 
@@ -141,7 +141,11 @@ mage_name, mage_pw = f"Rgmag{_suffix}", "rgmagpw12345"
 s = make_char(mage_name, mage_pw, "1", "1")  # Human Mage
 out = cmd(s, "inventory")
 check("spellbag" in out.lower(), "a fresh Mage's inventory has a small spellbag")
-check("component" in out.lower(), "a fresh Mage's inventory has spell component(s)")
+# Displayed inventory shows each item's short_desc ("a tiny lasso made of
+# basilisk hair", vnum 200), not its internal "component" keyword -- check
+# for the real seeded item names, not the word "component" itself.
+check("lasso" in out.lower() or "cat's breath" in out.lower() or "vaporous quartz" in out.lower(),
+      "a fresh Mage's inventory has spell component(s)")
 s.close()
 
 # --- 5: Cleric gets wooden holy symbols ---
