@@ -80,6 +80,16 @@ typedef struct obj {
                                   migration -- translated to a Tobin limb_t
                                   (or the held[] slots) only at wear time, see
                                   wear_slot_for_flag(). */
+    int action_flag;          /* stored VERBATIM from the DB's extraFlags
+                                  bitmask (OBJ_ACTION_FLAG_NAMES[], obj.c) --
+                                  copied onto the runtime instance at
+                                  obj_create_from_proto() (NEWBIE-item-drop
+                                  feature, TODO.md priority item, 2026-08-02)
+                                  so gameplay code (e.g. cmd_drop's
+                                  ITEM_NEWBIE check) doesn't have to re-query
+                                  the prototype row; previously this bitmask
+                                  only existed on obj_proto_t for oedit/stat
+                                  display, never on the live obj_t. */
     /* Generic 4-int payload; meaning depends on `category` (placeholder
      * formulas, same precedent as the XP curve / regen rate -- revisit per
      * category as real gameplay lands):
@@ -444,9 +454,16 @@ const char *obj_type_name(int raw_type);
 /* Decodes `action_flag`'s bits (the original's extraFlags bitmask, 32
  * bits) into a readable "[ GLOW ] [ MAGIC ] ..." run, same bracket-per-
  * flag convention as obj_wear_flag_names()/room.h's room_flag_names().
- * Currently loaded-but-unused by Tobin gameplay code (like mob.faction),
- * but `stat` should still show a seeded value honestly. */
+ * Most bits are still loaded-but-unused by Tobin gameplay code (like
+ * mob.faction), but `stat` should still show a seeded value honestly.
+ * ITEM_NEWBIE below is the one bit gameplay actually acts on. */
 const char *obj_action_flag_names(int flags, char *buf, size_t size);
+
+/* Bit 24 of action_flag (OBJ_ACTION_FLAG_NAMES[24] == "NEWBIE") -- a
+ * newbie-issue item that's meant to vanish once dropped rather than
+ * linger on a room floor (NEWBIE-item-drop feature, TODO.md priority
+ * item, 2026-08-02): see cmd_drop's ITEM_NEWBIE check. */
+#define ITEM_NEWBIE (1 << 24)
 
 /* Per-bit accessors for `oedit`'s Take Flags / Extra Flags toggle
  * submenus (cmd_edobject.c) -- same "count + name(index)" shape as

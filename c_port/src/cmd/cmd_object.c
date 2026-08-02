@@ -454,6 +454,26 @@ bool cmd_put(descriptor_t *d, const char *args) {
 /* The `drop` command: drops one loose carried item onto the room floor,
  * or (`drop all`) every loose item at once -- worn/held items are exempt
  * from `all` and must be `remove`d first, same as a single named drop. */
+/* Drops one item to the floor, then checks the NEWBIE-item-disappears
+ * rule (NEWBIE-item-drop feature, TODO.md priority item, 2026-08-02) --
+ * ported from SneezyMUD's own `drop` (misc/inventory.cc): an
+ * ITEM_NEWBIE-flagged item explodes in a flash of white light rather
+ * than sitting on the floor, but only if it's empty (a newbie-issue
+ * BAG full of real loot shouldn't vanish along with its contents).
+ * Returns true if the item disappeared (already destroyed -- caller
+ * must not touch `o` again). */
+static bool drop_one_item_check_newbie(being_t *ch, obj_t *o) {
+    if (!(o->action_flag & ITEM_NEWBIE) || o->base.stuff_head)
+        return false;
+
+    char msg[256];
+    const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+    snprintf(msg, sizeof(msg), "The %s explodes in a flash of white light!\r\n", label);
+    descriptor_room_echo(ch->base.roomp, NULL, msg);
+    obj_destroy(o);
+    return true;
+}
+
 bool cmd_drop(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -488,6 +508,7 @@ bool cmd_drop(descriptor_t *d, const char *args) {
                 descriptor_send(d, msg);
                 snprintf(msg, sizeof(msg), "%s drops %s.\r\n", ch->base.name, label);
                 descriptor_room_echo(ch->base.roomp, ch, msg);
+                drop_one_item_check_newbie(ch, o);
                 dropped++;
             }
             t = next;
@@ -516,6 +537,7 @@ bool cmd_drop(descriptor_t *d, const char *args) {
     descriptor_send(d, msg);
     snprintf(msg, sizeof(msg), "%s drops %s.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, msg);
+    drop_one_item_check_newbie(ch, o);
     return true;
 }
 

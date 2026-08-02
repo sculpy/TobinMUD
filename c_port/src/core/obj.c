@@ -386,6 +386,7 @@ obj_t *obj_create_from_proto(int vnum) {
     o->category = category_for_item_type(proto.type);
     o->raw_type = proto.type;
     o->wear_flag = proto.wear_flag;
+    o->action_flag = proto.action_flag;
     for (int i = 0; i < 4; i++)
         o->val[i] = proto.val[i];
     o->weight = proto.weight;
