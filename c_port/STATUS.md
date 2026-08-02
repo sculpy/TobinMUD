@@ -1,6 +1,25 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 111 (DO droplet, production port
+Last updated: 2026-08-02 — Session 112 (DO droplet, production port
+4000): **Object editor: item-type flag listing/picker.** Twelfth item
+off the 2026-07-30 autonomous-backlog list. New
+`show_oedit_type_picker()` (descriptor.c): `oedit` menu item 3 ("Item
+type") now lists every raw itemTypeT name and number (`obj_type_name()`/
+new `obj_item_type_count()`, obj.c/obj.h) before prompting, two per
+line, same layout as the Extra/Take/Anti-race flags toggle submenus --
+previously it just took a raw number blind, and its error message
+literally told builders to go check `stat`/`vnum` on some other object
+first to figure out a valid number. An invalid entry now redisplays
+the full list with a short correction instead of that old bare error
+message. No new `CONN_OEDIT_*` state was needed -- `CONN_OEDIT_TYPE`'s
+existing number-entry flow is unchanged, only what's shown before/after
+it changed. Verified live with a new
+`tests/smoke_test_oedit_item_type_picker.py`: the listing shows real
+type names (not just numbers), a pick sticks, an out-of-range number
+is rejected with the list redisplayed, and Quit-without-Save leaves
+the DB row untouched.
+
+Previous update: 2026-08-02 — Session 111 (DO droplet, production port
 4000): **`uptime` command.** Eleventh item off the 2026-07-30
 autonomous-backlog list. New `tobin_boot_time()` (main.c/game_loop.h):
 a static `time_t` set unconditionally near the top of `main()`, so both

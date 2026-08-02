@@ -243,7 +243,19 @@ ask only when genuinely ambiguous. Full list, in the order given:
       SneezyMUD equivalent found to port verbatim). `MORTAL_LEVEL_MIN`,
       same tier as `time`/`weather`. Verified live with a new
       `tests/smoke_test_uptime.py` right after a fresh copyover.
-- [ ] **Object editor: item-type flag listing/picker** — not started.
+- [x] **Object editor: item-type flag listing/picker** — done
+      2026-08-02. New `show_oedit_type_picker()` (descriptor.c): oedit
+      menu item 3 ("Item type") now lists every raw itemTypeT name and
+      number (`obj_type_name()`/new `obj_item_type_count()`, obj.c/
+      obj.h) before prompting, same two-per-line layout as the Extra/
+      Take/Anti-race flags toggle submenus -- previously it just took a
+      raw number blind, with an error message telling builders to go
+      check `stat`/`vnum` on some other object first. An invalid entry
+      now redisplays the full list with a short correction instead of
+      that old bare error. No new `CONN_OEDIT_*` state needed --
+      `CONN_OEDIT_TYPE`'s existing number-entry flow is unchanged, only
+      what's shown before/after it. Verified live with a new
+      `tests/smoke_test_oedit_item_type_picker.py`.
 - [ ] **Newbie equipment system expansion**: auto-grant suit on first
       login (may already partly exist, see 2026-07-26 suit work below —
       verify), Welfare Dept. (room 570) replacement-suit request (already
