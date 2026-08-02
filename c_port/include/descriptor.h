@@ -328,7 +328,7 @@ typedef enum {
     /* Menu-driven loadsuit editor (`edit suit [name]`, TODO.md priority
      * item, 2026-08-02) -- structurally closer to CONN_TRIGEDIT_* (a
      * variable-length list of child rows under one parent) than
-     * CONN_OEDIT_*/CONN_MEDIT_*'s "many scalar fields, batched Save"
+     * CONN_OEDIT_/CONN_MEDIT_'s "many scalar fields, batched Save"
      * shape, so it follows THAT precedent instead: every field commits
      * immediately via suit_repo.h's CRUD functions, no working copy, no
      * separate Save step. Addressed by list position in what's SENT to
