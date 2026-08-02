@@ -1,6 +1,27 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 107 (DO droplet, production port
+Last updated: 2026-08-02 — Session 108 (DO droplet, production port
+4000): **`wear all` command.** Eighth item off the 2026-07-30
+autonomous-backlog list. `cmd_wear()`'s per-item logic split into a
+static `wear_one_item(d, ch, o, announce)` helper shared by the
+existing single-item `wear <item>` path and the new `wear all` path;
+`wear all` walks the caller's `stuff_head` chain once and calls the
+helper for every carried object with `announce=false`, so anything
+that can't be worn there (a holdable weapon, an already-filled slot, a
+genuinely unwearable item) is silently skipped rather than spamming a
+failure line per item -- matches SneezyMUD's own `wear all` syntax,
+confirmed against `lib/help/wear` in the reference tree. Worn items
+stay on the same inventory chain either way (`is_loose()` filters them
+out of the `inventory` listing at display time, not a real unlink), so
+a plain forward walk during the loop is safe -- nothing gets missed or
+double-visited. Help topic `wear` updated with the `wear all` syntax
+line. Verified live with a new `tests/smoke_test_wear_all.py`: an
+empty-inventory `wear all` reports "nothing to wear"; three armor
+pieces across three distinct body slots (head/body/feet) all equip
+from a single `wear all`; a held-only weapon in the same inventory is
+silently skipped and remains sitting in inventory, unequipped.
+
+Previous update: 2026-08-02 — Session 107 (DO droplet, production port
 4000): **Blood/limb-damage generation rates reduced by 50%.** Seventh
 item off the 2026-07-30 autonomous-backlog list. New
 `being_hurt_limb_only()` (being.c/h): applies HALF of a hit's damage to

@@ -398,3 +398,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Fights Are Less Gruesome Now', 'Limbs hold up better in a fight than they used to -- they take damage at half the pace of your overall health now, so a wound has to build up longer before it turns serious, and blood pools form less often as a result. Overall combat -- how hard you hit, how fast a fight ends -- hasn''t changed at all.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Wear Everything At Once', '`wear all` now equips every wearable item you''re carrying in one go, instead of typing `wear` over and over for each piece. Anything that can''t be worn (a weapon that needs `wield`, a slot you''ve already filled) is just quietly skipped.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

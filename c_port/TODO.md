@@ -179,8 +179,22 @@ ask only when genuinely ambiguous. Full list, in the order given:
       All 3 existing limb regression tests (`smoke_test_limbs.py`,
       `smoke_test_limbs_cmd.py`, `smoke_test_limb_severity.py`)
       re-verified passing with zero regressions.
-- [ ] **`wear all`** (equip every wearable item in inventory) — not
-      started.
+- [x] **`wear all`** (equip every wearable item in inventory) — done
+      2026-08-02. `cmd_wear()`'s per-item logic split into a static
+      `wear_one_item(d, ch, o, announce)` helper; `wear all` walks
+      `ch->base.stuff_head` once and calls it for every `THING_OBJ`,
+      passing `announce=false` so unwearable/held/slot-full items are
+      silently skipped instead of spamming failure messages (matches
+      SneezyMUD's own `wear all` syntax — confirmed via
+      `lib/help/wear` in the reference tree). Worn items stay on the
+      same chain (`is_loose()` filters them out of `inventory` display,
+      not a real unlink), so a plain forward walk during the loop is
+      safe. Help topic `wear` updated with the new syntax line.
+      Verified live with a new `tests/smoke_test_wear_all.py`: three
+      armor slots (head/body/feet) all equip from one `wear all`, a
+      held-only weapon in the same inventory is silently skipped and
+      stays put, and an empty-inventory `wear all` reports "nothing to
+      wear" rather than silence.
 - [ ] **NEWBIE-flagged items vanish when dropped** (room/player messages)
       — not started.
 - [ ] **Menu-driven loadsuit editor** (configurable per-wear-location

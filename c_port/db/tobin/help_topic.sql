@@ -204,7 +204,7 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('drop', 'Usage: drop <item>\n\nPuts down a carried item on the floor of the room you''re in. Only\nworks on loose carried items -- `remove` a worn or held item first.', 'seed'),
 ('inventory', 'Usage: inventory\n\nLists everything you are carrying loose (not worn or held -- see\n`equipment` for that).', 'seed'),
 ('equipment', 'Usage: equipment\n\nLists everything you are wearing and holding, by body part, plus your\nprimary and secondary hold. Genitalia isn''t listed here -- it can''t be\nworn (see `help limbs`).', 'seed'),
-('wear', 'Usage: wear <item>\n\nPuts on a carried item into its body slot (head, body, legs, and so\non). Refuses if you''re already wearing something there, or if the\nitem isn''t wearable there at all -- a holdable item (weapon or\notherwise) isn''t worn this way; see `hold`/`wield` instead.', 'seed'),
+('wear', 'Usage: wear <item>\n       wear all\n\nPuts on a carried item into its body slot (head, body, legs, and so\non). Refuses if you''re already wearing something there, or if the\nitem isn''t wearable there at all -- a holdable item (weapon or\notherwise) isn''t worn this way; see `hold`/`wield` instead.\n`wear all` equips everything you''re carrying that fits an open slot,\nquietly skipping anything that doesn''t.', 'seed'),
 ('remove', 'Usage: remove <item>\n\nTakes off a worn item or lays down a held one, returning it to your\ncarried inventory.', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
