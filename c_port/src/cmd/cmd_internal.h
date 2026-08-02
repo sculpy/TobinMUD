@@ -107,6 +107,7 @@ bool cmd_mortal(descriptor_t *d, const char *args);
 bool cmd_immort(descriptor_t *d, const char *args);
 bool cmd_prompt(descriptor_t *d, const char *args);
 bool cmd_time(descriptor_t *d, const char *args);
+bool cmd_uptime(descriptor_t *d, const char *args);
 bool cmd_title(descriptor_t *d, const char *args);
 bool cmd_save(descriptor_t *d, const char *args);
 bool cmd_rent(descriptor_t *d, const char *args);

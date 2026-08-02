@@ -471,6 +471,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
     { "unignore", cmd_unignore, "Stop blocking someone's tells/whispers (unignore <name>).", MORTAL_LEVEL_MIN },
     { "unlock",  cmd_unlock,  "Unlock a locked door or container (unlock <direction|container>).", MORTAL_LEVEL_MIN },
+    { "uptime",  cmd_uptime,  "Show how long the server has been running since the last boot/copyover.", MORTAL_LEVEL_MIN },
     /* Must precede "users" (below, immortal tier) in table order -- both
      * start with "use", and dispatch's strncmp scan takes the first match,
      * so typing "use" exactly has to hit this entry, not fall through to

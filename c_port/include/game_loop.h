@@ -6,6 +6,7 @@
 #define TOBIN_GAME_LOOP_H
 
 #include <stdbool.h>
+#include <time.h>
 
 /* Opens a listening socket on `port` and runs the select()-driven
  * accept/read loop until interrupted (SIGINT). Returns 0 on clean
@@ -60,5 +61,13 @@ void game_loop_request_shutdown(void);
  * points at the deleted old inode and a copyover would relaunch the OLD
  * code -- the path resolves to whatever is freshly built there instead. */
 const char *tobin_binary_path(void);
+
+/* Wall-clock time this server generation started (main.c, set once near
+ * the top of main() -- unconditionally, so both a cold boot AND a
+ * copyover successor each get their own fresh timestamp, since neither
+ * preserves any other in-memory state either; see zone.h's "copyover
+ * doesn't survive world state" doc). Backs the `uptime` command
+ * (`uptime` command, TODO.md priority item, 2026-08-02). */
+time_t tobin_boot_time(void);
 
 #endif

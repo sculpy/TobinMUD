@@ -41,12 +41,18 @@
 #include "zone.h"
 
 static char g_binary_path[PATH_MAX];
+static time_t g_boot_time;
 
 /* Reports the full path to the running server binary, so `copyover`
  * (a reboot that keeps everyone connected) knows exactly which file to
  * re-launch. */
 const char *tobin_binary_path(void) {
     return g_binary_path[0] ? g_binary_path : "/proc/self/exe";
+}
+
+/* See game_loop.h. */
+time_t tobin_boot_time(void) {
+    return g_boot_time;
 }
 
 /* The program's starting point: sets up logging and the database
@@ -77,6 +83,9 @@ int main(int argc, char **argv) {
     crash_handler_install();
 
     srand((unsigned int)time(NULL));
+    g_boot_time = time(NULL); /* this generation's own start -- unconditional,
+                                  so a copyover successor gets a fresh stamp
+                                  too, see game_loop.h's tobin_boot_time() doc */
 
     /* Open the listening socket (or, for a copyover, adopt the inherited
      * one) as early as possible -- BEFORE the DB probe / world-load work

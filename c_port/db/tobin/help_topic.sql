@@ -1034,3 +1034,8 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('sacrifice', 'Usage: sacrifice <corpse>\n\nDruid ritual (Basic, level 1). Ritually sacrifices a corpse in the\nroom to the loa -- consumed either way, but on success restores some\nof your Move (vitality). Scoped down from the original''s full multi-\nround ritual (no totem item required, one action instead of several).\n\nRelated: skin butcher', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- New topic: `uptime` (uptime command, TODO.md priority item, 2026-08-02).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('uptime', 'Usage: uptime\n\nShows when the server last booted (or last copyover-reset) and how\nlong it has been running since then.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
