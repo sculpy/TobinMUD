@@ -651,48 +651,36 @@ bool cmd_equipment(descriptor_t *d, const char *args) {
     return true;
 }
 
-/* The `wear` command: puts a carried item into its body equipment[] slot
- * (armor, jewelry, etc). Weapons and other holdables are redirected to
- * `wield`/`hold` instead -- see the WEAR_SLOT_HELD branch below and the
- * do_hold_or_wield() comment further down for why they split off. */
-bool cmd_wear(descriptor_t *d, const char *args) {
-    being_t *ch = d->character;
-    if (!ch)
-        return true;
-
-    char tok[64];
-    if (sscanf(args, "%63s", tok) != 1) {
-        descriptor_send(d, "Usage: wear <item>\r\n");
-        return true;
-    }
-
-    obj_t *o = find_obj(ch->base.stuff_head, tok, ch);
-    if (!o) {
-        descriptor_send(d, "You aren't carrying that.\r\n");
-        return true;
-    }
-
+/* Wears a single already-located item onto its body equipment[] slot.
+ * Shared by `wear <item>` and `wear all` (the latter calls this once per
+ * carried item, so failure messages are only sent when `announce` is set --
+ * `wear all` silently skips items that don't fit rather than spamming). */
+static bool wear_one_item(descriptor_t *d, being_t *ch, obj_t *o, bool announce) {
     int slot = wear_slot_for_flag(o->wear_flag, ch);
     const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
     char msg[256];
 
     if (slot == WEAR_SLOT_NOT_WEARABLE) {
-        descriptor_send(d, "You can't wear that.\r\n");
-        return true;
+        if (announce)
+            descriptor_send(d, "You can't wear that.\r\n");
+        return false;
     }
     if (slot == WEAR_SLOT_NO_ROOM) {
-        descriptor_send(d, "You're already wearing something there.\r\n");
-        return true;
+        if (announce)
+            descriptor_send(d, "You're already wearing something there.\r\n");
+        return false;
     }
     /* Holdables split off `wear` entirely (user 2026-07-09): a weapon must
      * be `wield`ed, anything else holdable uses `hold` -- `wear` only
      * covers the body-slot (equipment[]) case from here down. */
     if (slot == WEAR_SLOT_HELD) {
-        const char *verb = o->category == OBJ_CAT_WEAPON ? "wield" : "hold";
-        snprintf(msg, sizeof(msg), "That isn't something you wear -- try `%s %s` instead.\r\n",
-                 verb, tok);
-        descriptor_send(d, msg);
-        return true;
+        if (announce) {
+            const char *verb = o->category == OBJ_CAT_WEAPON ? "wield" : "hold";
+            snprintf(msg, sizeof(msg), "That isn't something you wear -- try `%s %s` instead.\r\n",
+                     verb, o->base.name);
+            descriptor_send(d, msg);
+        }
+        return false;
     }
 
     ch->equipment[slot] = o;
@@ -711,6 +699,51 @@ bool cmd_wear(descriptor_t *d, const char *args) {
         for (int i = 0; i < n; i++)
             trigger_run(&trigs[i], ch, ch->base.roomp, NULL);
     }
+    return true;
+}
+
+/* The `wear` command: puts a carried item into its body equipment[] slot
+ * (armor, jewelry, etc). Weapons and other holdables are redirected to
+ * `wield`/`hold` instead -- see the WEAR_SLOT_HELD branch below and the
+ * do_hold_or_wield() comment further down for why they split off.
+ * `wear all` (SneezyMUD canonical syntax) wears everything carried that
+ * fits an open body slot, one item at a time, silently skipping anything
+ * unwearable/held/already-occupied. */
+bool cmd_wear(descriptor_t *d, const char *args) {
+    being_t *ch = d->character;
+    if (!ch)
+        return true;
+
+    char tok[64];
+    if (sscanf(args, "%63s", tok) != 1) {
+        descriptor_send(d, "Usage: wear <item>\r\n");
+        return true;
+    }
+
+    if (strcasecmp(tok, "all") == 0) {
+        int worn = 0;
+        /* Snapshot the chain up front: wear_one_item() doesn't unlink the
+         * object from stuff_head (worn items stay in inventory, just also
+         * referenced from equipment[]), so a plain forward walk is safe. */
+        for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_OBJ)
+                continue;
+            obj_t *o = (obj_t *)t;
+            if (wear_one_item(d, ch, o, false))
+                worn++;
+        }
+        if (worn == 0)
+            descriptor_send(d, "You have nothing to wear.\r\n");
+        return true;
+    }
+
+    obj_t *o = find_obj(ch->base.stuff_head, tok, ch);
+    if (!o) {
+        descriptor_send(d, "You aren't carrying that.\r\n");
+        return true;
+    }
+
+    wear_one_item(d, ch, o, true);
     return true;
 }
 
