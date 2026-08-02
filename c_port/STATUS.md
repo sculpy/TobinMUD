@@ -1,6 +1,30 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 108 (DO droplet, production port
+Last updated: 2026-08-02 — Session 109 (DO droplet, production port
+4000): **NEWBIE-flagged items disappear on drop.** Ninth item off the
+2026-07-30 autonomous-backlog list. New `action_flag` field on the
+runtime `obj_t` (obj.h/obj.c), populated at `obj_create_from_proto()`
+time -- previously the extraFlags bitmask only existed on
+`obj_proto_t` (oedit/stat display), never on a live gameplay instance.
+New `ITEM_NEWBIE` (1<<24, obj.h) matches SneezyMUD's own bit
+(`misc/obj.h`, confirmed against the reference source). `cmd_drop.c`'s
+new `drop_one_item_check_newbie()` runs after every drop (`drop
+<item>` and `drop all`): if the dropped item is ITEM_NEWBIE-flagged AND
+empty (no container contents), it explodes in a flash of white light
+(the exact message ported from SneezyMUD's `misc/inventory.cc`),
+echoed to the whole room including the dropper, then is destroyed --
+a non-empty NEWBIE container (loot inside) is deliberately left alone
+so real loot doesn't vanish with the newbie-issue bag carrying it.
+Upstream's room-vnum-range exclusion (`in_room > 80 && !=
+Room::DONATION`) was NOT ported -- Tobin has no equivalent documented
+"immortal void"/donation-room vnum convention, so guessing a threshold
+would be inventing behavior rather than porting it. Verified live with
+a new `tests/smoke_test_newbie_item_drop.py`: a plain item survives a
+normal drop unaffected; an empty NEWBIE item explodes and disappears
+from both the room floor and (pre-drop) inventory; a non-empty NEWBIE
+container survives a drop intact.
+
+Previous update: 2026-08-02 — Session 108 (DO droplet, production port
 4000): **`wear all` command.** Eighth item off the 2026-07-30
 autonomous-backlog list. `cmd_wear()`'s per-item logic split into a
 static `wear_one_item(d, ch, o, announce)` helper shared by the

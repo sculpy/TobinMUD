@@ -195,8 +195,25 @@ ask only when genuinely ambiguous. Full list, in the order given:
       held-only weapon in the same inventory is silently skipped and
       stays put, and an empty-inventory `wear all` reports "nothing to
       wear" rather than silence.
-- [ ] **NEWBIE-flagged items vanish when dropped** (room/player messages)
-      — not started.
+- [x] **NEWBIE-flagged items vanish when dropped** (room/player messages)
+      — done 2026-08-02. New `action_flag` field on the runtime `obj_t`
+      (obj.h/obj.c), copied from the prototype at
+      `obj_create_from_proto()` time -- previously this extraFlags
+      bitmask only existed on `obj_proto_t` for oedit/stat display, never
+      on the live instance. New `ITEM_NEWBIE` bit (1<<24, matches
+      SneezyMUD's own `misc/obj.h`). `cmd_drop.c`'s new
+      `drop_one_item_check_newbie()` runs after every drop (`drop
+      <item>` and `drop all`): an empty ITEM_NEWBIE item explodes in a
+      flash of white light (verbatim message from SneezyMUD's
+      `misc/inventory.cc`), echoed to the whole room, then destroyed; a
+      NEWBIE container WITH contents (loot inside) is deliberately left
+      alone. Did not port upstream's room-vnum-range exclusion -- no
+      Tobin equivalent of that "immortal void"/donation-room concept
+      exists to port faithfully. Help topic `wear` untouched (this is a
+      `drop`-side behavior, no syntax change). Verified live with a new
+      `tests/smoke_test_newbie_item_drop.py`: a plain item survives a
+      normal drop, an empty NEWBIE item explodes and is gone from both
+      the room and inventory, a non-empty NEWBIE container survives.
 - [ ] **Menu-driven loadsuit editor** (configurable per-wear-location
       quantities: wrists, fingers, hands, feet, arms, legs) — not started.
       Builds on the existing `suit`/`suit_item` tables + `cmd_loadsuit.c`

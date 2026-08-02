@@ -402,3 +402,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Wear Everything At Once', '`wear all` now equips every wearable item you''re carrying in one go, instead of typing `wear` over and over for each piece. Anything that can''t be worn (a weapon that needs `wield`, a slot you''ve already filled) is just quietly skipped.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Newbie Gear Doesn''t Litter The Ground Anymore', 'Starting equipment issued to new characters is meant to get you on your feet, not to be sold or hoarded. If you drop a piece of it (and it''s not stuffed full of something else), it now vanishes in a flash of white light instead of sitting on the floor.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
