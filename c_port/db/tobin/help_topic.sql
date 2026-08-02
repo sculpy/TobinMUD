@@ -1039,3 +1039,20 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('uptime', 'Usage: uptime\n\nShows when the server last booted (or last copyover-reset) and how\nlong it has been running since then.', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Menu-driven loadsuit editor (`edit suit`, TODO.md priority item,
+-- 2026-08-02).
+UPDATE `help_topic` SET `body` = REPLACE(`body`,
+  'edit rules <n> <title>    (59+) write a numbered game rule',
+  'edit rules <n> <title>    (59+) write a numbered game rule\n  edit suit [name]          (56+) menu-driven newbie-suit editor --\n                                  see `help suit`')
+WHERE `name` = 'edit';
+
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('suit', 'Usage: edit suit [name]\n\nSenior immortal (56+) only: menu-driven editor for the named equipment\nsuits `loadsuit` grants (auto-issued to new characters, or loaded on\ndemand with `loadsuit <suit name> [target]`). With no name, lists every\nsuit defined. With a name, opens the menu on the first match -- or, if\nnothing matches, creates a brand-new empty suit under that exact name\nand opens it.\n\nFrom the menu: a number opens that item''s detail view (change its\nquantity, or delete it); A adds a new item by obj vnum, prompting for\na quantity (blank = 1) -- this is how a suit gives someone MORE than\none of the same item, e.g. two wrist bands or two boots for two feet;\nC sets which class the suit is restricted to (or clears it); D sets\nthe suit''s description. Every change here commits immediately, there\nis no separate Save step.\n\nRelated: loadsuit', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `loadsuit` had no help topic at all -- added alongside `edit suit`
+-- above since the new topic now cross-references it.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('loadsuit', 'Usage: loadsuit <suit name> [target]\n\nSenior immortal (56+) only: instantiates every item in a named\nequipment suit and gives them loose into inventory (not auto-equipped)\n-- to yourself with no target, or to a mob/PC in the room by name.\nSuit name matches by substring, same as most other named lookups.\nSuits are defined/edited with `edit suit`.\n\nRelated: edit suit', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
