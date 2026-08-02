@@ -218,8 +218,22 @@ ask only when genuinely ambiguous. Full list, in the order given:
       quantities: wrists, fingers, hands, feet, arms, legs) — not started.
       Builds on the existing `suit`/`suit_item` tables + `cmd_loadsuit.c`
       (2026-07-26).
-- [ ] **Object anti-race flags** (`ANTI_HUMAN`/`ANTI_DWARF`/`ANTI_OGRE`/
-      `ANTI_ELF`/`ANTI_GNOME`/`ANTI_HOBBIT`) — not started.
+- [x] **Object anti-race flags** (`ANTI_HUMAN`/`ANTI_DWARF`/`ANTI_OGRE`/
+      `ANTI_ELF`/`ANTI_GNOME`/`ANTI_HOBBIT`) — done 2026-08-02. Tobin-only
+      design (SneezyMUD only restricts wear by class, not race). New
+      dedicated `anti_race_flag` column/field (obj_repo.h/obj.h/obj.c) --
+      NOT folded into `action_flag`, whose 32 bits are already fully
+      assigned verbatim from upstream. Six bits map 1:1 onto
+      `player_race_t`'s declaration order, so `obj_race_forbidden(o,
+      race)` is a plain shift-and-test. Enforced in `cmd_object.c`'s
+      `wear_one_item()` (wear) and `do_hold_or_wield()` (hold/wield),
+      checked before slot logic. Exposed in `oedit` as a new "18)
+      Anti-race flags" toggle submenu (same [x]/[ ] pattern as the
+      existing Extra/Take flags submenus); `stat obj` decodes it too.
+      Verified live with a new `tests/smoke_test_anti_race.py`: a
+      human-barred item refuses a human but fits a dwarf, a dwarf-barred
+      weapon refuses `wield`, and the new oedit submenu actually
+      persists a toggled bit to the DB.
 - [ ] **`uptime` command** (time since last reboot/copyover) — not
       started.
 - [ ] **Object editor: item-type flag listing/picker** — not started.

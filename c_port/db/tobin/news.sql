@@ -406,3 +406,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Newbie Gear Doesn''t Litter The Ground Anymore', 'Starting equipment issued to new characters is meant to get you on your feet, not to be sold or hoarded. If you drop a piece of it (and it''s not stuffed full of something else), it now vanishes in a flash of white light instead of sitting on the floor.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Some Gear Just Isn''t Made For Your Kind', 'A few items in the world are built for a specific race and won''t fit anyone else -- try to wear, wield, or hold one that''s not made for you and you''ll be turned away with a clear reason why.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

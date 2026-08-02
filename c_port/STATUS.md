@@ -1,6 +1,31 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 109 (DO droplet, production port
+Last updated: 2026-08-02 — Session 110 (DO droplet, production port
+4000): **Object anti-race flags.** Tenth item off the 2026-07-30
+autonomous-backlog list -- a Tobin-only design (SneezyMUD only
+restricts wear by class, action_flag's ANTI_CLERIC/etc bits, not
+race). New dedicated `anti_race_flag` column/field
+(obj_repo.h/obj.h/obj.c/tobin_migrations.sql) rather than overloading
+`action_flag` (already fully assigned, all 32 bits verbatim from
+upstream). Six bits (`ANTI_RACE_HUMAN`/`ELF`/`OGRE`/`DWARF`/`HOBBIT`/
+`GNOME`) map 1:1 onto `player_race_t`'s own declaration order, so
+`obj_race_forbidden(o, race)` is a plain shift-and-test. Enforced in
+`cmd_object.c`'s `wear_one_item()` (the `wear`/`wear all` path) and
+`do_hold_or_wield()` (`hold`/`wield`), checked before slot logic so a
+race-barred item never occupies or reports a slot it was never allowed
+into. Exposed to builders as a new "18) Anti-race flags" toggle
+submenu in `oedit` (`CONN_OEDIT_ANTI_RACE_FLAGS`, descriptor.c/.h) --
+same `[x]`/`[ ]` toggle-by-number pattern the existing Extra/Take
+flags submenus already use, so this isn't SQL-only. `stat obj` decodes
+it into the same bracket-joined display as `action_flag`/`wear_flag`.
+Verified live with a new `tests/smoke_test_anti_race.py`: a
+human-barred item refuses a human character but is wearable by a
+dwarf (no bit set for dwarf on that item), a dwarf-barred weapon
+refuses `wield` for a dwarf, and the new oedit submenu actually
+persists a toggled bit to the DB (`anti_race_flag=32` for GNOME after
+toggling bit 5 and saving).
+
+Previous update: 2026-08-02 — Session 109 (DO droplet, production port
 4000): **NEWBIE-flagged items disappear on drop.** Ninth item off the
 2026-07-30 autonomous-backlog list. New `action_flag` field on the
 runtime `obj_t` (obj.h/obj.c), populated at `obj_create_from_proto()`
