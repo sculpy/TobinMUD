@@ -33,6 +33,35 @@ Deployed live via a temp SQL-promoted level-59 test account running
 prior sessions). One real player connection was active at deploy time;
 confirmed via `ss -tn | grep :4000` before proceeding, per the
 never-raw-restart-with-players-connected rule.
+**Live incident, same session**: the first version of the reclaim logic
+called `descriptor_destroy()` directly on the stale connection from
+inside `enter_world()` -- which runs mid-iteration of
+`game_loop_run()`'s own per-descriptor `while` loop. That loop caches
+`next = d->next` before touching each descriptor specifically so `d` can
+safely destroy itself; freeing a DIFFERENT descriptor the same way
+corrupted that cached `next` whenever it aliased the freed node. Caught
+live via gdb: a real SIGSEGV in `game_loop_run()` dereferencing a
+dangling `next`, which took production down for several minutes (the
+watchdog cron hadn't picked it up yet by the time it was noticed;
+cold-restarted manually per CLAUDE.md's "server down" exception). Fixed
+with deferred destruction: a new `descriptor_t.pending_destroy` flag is
+set instead of destroying synchronously; `character` is cleared
+immediately (so the eventual deferred destroy's link-drop/detach block
+is a safe no-op) and the stale `being_t` is destroyed right away
+(unrelated to the descriptor list, no crash risk of its own).
+`game_loop_run()` now checks the flag at the very top of its own loop
+body, before touching `next`, the same "cache next first" pattern that
+already makes self-destruction safe -- and destroys it there instead.
+Verified: 3x repeated reproduction of the exact crash scenario against
+live production post-fix, process stayed alive throughout.
+A full regression sweep was started as routine follow-up to a core
+connection/game-loop change, then stopped short on user instruction
+("no full sweep") -- `tests/sweep.sh` costs ~2.5 hours (215+ smoke test
+files as of this session, corrected up from an earlier stale ~85-minute/
+~100-file estimate in project memory, now fixed) and wasn't warranted
+here given the targeted 3x live reproduction already confirming
+stability. Droplet git working tree reconciled (`git reset --hard
+origin/main`) after the tar-sync pre-commit test builds this session.
 
 Previous update: 2026-07-29 — Session 101 (DO droplet, production port 4000):
 **Level-25 audit batch, physical-skills half: ~20 new Warrior/Thief/

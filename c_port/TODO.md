@@ -21,7 +21,11 @@ ask only when genuinely ambiguous. Full list, in the order given:
 
 - [x] **Prevent duplicate character sessions** — done 2026-07-30 (Session
       102). See STATUS.md for the full writeup. `world_find_active_pc()` +
-      `enter_world()` reclaim logic.
+      `enter_world()` reclaim logic. Caused a real live SIGSEGV mid-session
+      (unsafe synchronous descriptor destruction inside the game loop's own
+      iteration) -- fixed via deferred destruction (`pending_destroy`),
+      verified 3x against live production, no regressions found in the
+      (necessarily partial, not a full sweep) verification done.
 - [ ] **Persisted game statistics** (rooms, mobs, objects, accounts,
       characters survive reboot/copyover, display correctly) — not
       started.
