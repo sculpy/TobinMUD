@@ -1,6 +1,44 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 113 (DO droplet, production port
+Last updated: 2026-08-02 — Session 114 (DO droplet, production port
+4000): **Newbie equipment system expansion.** Fourteenth and final item
+off the 2026-07-30 autonomous-backlog list -- the list is now fully
+closed out. Auto-grant-on-login, the Welfare Dept. reissue, and
+loadsuit's expandable-DB-system design all already worked (re-verified,
+not re-implemented). New work: a SECOND, independent suit grant by
+race, alongside the existing per-class grant -- new `race` column on
+`suit`, new `suit_repo_find_for_race()`, and `player_create()`
+(player_repo.c) now grants both. Six new race suits
+(`newbie_gear_race.sql`) wire up the 11-piece cloth armor set + racial
+weapon + shared training shield already pre-seeded at vnums
+36930-37002 (user-supplied ranges -- the elf range as given,
+36974-37984, was a typo overlapping gnome's and hobbit's own ranges;
+corrected to 36974-36984, the only range consistent with every other
+race's own "11 armor pieces" pattern, flagged to the user at the time).
+`SUIT_MAX_ITEMS` bumped 8 → 16 (a race suit needs 13 rows, the old cap
+wasn't enough). Every class suit also gained 3x ration (vnum 403) + 1x
+waterskin (410) for every newbie, using the new per-item quantity
+column from the loadsuit-editor work rather than three separate rows;
+Mage/Druid additionally got a small spellbag (321) + 3 spell
+components (200/201/202) -- verified against cmd_cast.c's
+`find_keyword_item(ch, "component")` that consumption only checks for
+the keyword, not a class-specific match, so the same three items work
+for both classes despite their "component mage" name tag; Cleric
+additionally got 3x wooden holy symbol (500). Verified live with a new
+`tests/smoke_test_newbie_gear_race.py` (race-specific gear differs
+correctly between Dwarf/Human/Ogre, universal rations+waterskin, Mage
+spellpouch+components, Cleric holy symbols, a Warrior control case
+getting neither) plus a clean re-run of the pre-existing
+`tests/smoke_test_newbie_gear.py` -- zero regressions. Hit and
+documented one test-methodology pitfall: `quit!` is deliberate,
+pre-existing behavior that drops a mortal's entire inventory on the
+floor (cmd_quit.c) -- an early test draft checked inventory after a
+quit!+relogin cycle (a pattern copied from unrelated tests that needed
+it for room placement) and destroyed the very gear under test before
+it could be checked; fixed by checking inventory immediately after
+character creation instead, within the same connection.
+
+Previous update: 2026-08-02 — Session 113 (DO droplet, production port
 4000): **Menu-driven loadsuit editor (`edit suit`).** Thirteenth item
 off the 2026-07-30 autonomous-backlog list. New `edit suit [name]`
 (56+, `cmd_edsuit.c`) -- suits could only be populated by hand-written

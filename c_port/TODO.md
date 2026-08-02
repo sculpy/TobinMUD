@@ -274,12 +274,31 @@ ask only when genuinely ambiguous. Full list, in the order given:
       `CONN_OEDIT_TYPE`'s existing number-entry flow is unchanged, only
       what's shown before/after it. Verified live with a new
       `tests/smoke_test_oedit_item_type_picker.py`.
-- [ ] **Newbie equipment system expansion**: auto-grant suit on first
-      login (may already partly exist, see 2026-07-26 suit work below —
-      verify), Welfare Dept. (room 570) replacement-suit request (already
-      done 2026-07-26 — verify still matches spec), loadsuit as an
-      expandable DB system (already the case — verify it covers the new
-      per-wear-location quantity requirement above once that lands).
+- [x] **Newbie equipment system expansion** — done 2026-08-02. Auto-
+      grant suit on login: already worked (2026-07-26), unchanged.
+      Welfare Dept. reissue: already worked, re-verified still passing.
+      loadsuit as an expandable DB system: already the case, and now
+      covers the per-wear-location quantity requirement (the loadsuit-
+      editor item above). New work this pass: a SECOND, independent
+      suit grant by race, alongside the existing per-class one -- new
+      `race` column on `suit`, new `suit_repo_find_for_race()`, six new
+      race suits (human_race/elf_race/ogre_race/dwarf_race/
+      hobbit_race/gnome_race) wiring up the pre-seeded 11-piece cloth
+      armor set + racial weapon + shared training shield at vnums
+      36930-37002 (user-supplied ranges -- the elf range as originally
+      given, 36974-37984, was a typo overlapping gnome/hobbit; corrected
+      to 36974-36984, the only range matching every other race's own
+      11-item pattern). `SUIT_MAX_ITEMS` bumped 8 → 16 (a race suit
+      needs 13 rows). Every class suit also gained 3x ration + 1x
+      waterskin (using the new per-item quantity column); Mage/Druid
+      additionally got a spellbag + 3 spell components (verified
+      `find_keyword_item(ch, "component")` in cmd_cast.c only checks
+      the keyword, not a class-specific match, so the same components
+      work for both classes); Cleric additionally got 3x wooden holy
+      symbol. Verified live with a new
+      `tests/smoke_test_newbie_gear_race.py` plus a clean re-run of the
+      pre-existing `tests/smoke_test_newbie_gear.py` — zero
+      regressions.
 
 ## Recently closed (2026-07-20, home)
 

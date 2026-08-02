@@ -414,3 +414,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New `uptime` Command', '`uptime` shows when the server last came back up (a fresh boot or a copyover) and how long it''s been running since then.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New Characters Start With More', 'Fresh characters now arrive with a full starting outfit for their race (a matching set of clothing plus a racial weapon and a training shield), on top of their class''s own gear. Everyone also starts with a few rations of food and a small waterskin. Mages and Druids begin with a spellpouch stocked with real spell components, and Clerics start carrying a few wooden holy symbols.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
