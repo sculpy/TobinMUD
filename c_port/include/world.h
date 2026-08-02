@@ -27,6 +27,11 @@ room_t *world_get_room(int vnum);
  * same live being_t instead of loading a fresh one from the DB. */
 being_t *world_find_linkdead_pc(long player_id);
 
+/* Searches every registered room for any PC with a matching player_id,
+ * whether linkdead or actively connected (desc != NULL). Returns NULL if
+ * no such PC exists. Used at login to prevent duplicate character instances. */
+being_t *world_find_active_pc(long player_id);
+
 /* Force-removes every linkdead PC (base.kind == THING_PC, desc == NULL) in
  * every registered room -- `purge linkdead` (cmd_purge.c). Deliberately does
  * NOT save first: a linkdead body's in-memory state is never eagerly

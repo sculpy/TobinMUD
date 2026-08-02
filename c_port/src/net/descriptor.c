@@ -1174,6 +1174,20 @@ static void enter_world(descriptor_t *d, being_t *b) {
         }
     }
 
+    /* Duplicate character instance gate: prevent the same character
+     * (player_id) from being logged in twice simultaneously, even on
+     * different accounts (a data corruption scenario). If the character is
+     * already active elsewhere, we disconnect the old connection and take
+     * over, matching SneezyMUD's own reclaim behavior. */
+    being_t *existing = world_find_active_pc(b->player_id);
+    if (existing && existing->desc) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "Your connection has been taken over from another location.\r\n");
+        descriptor_send(existing->desc, msg);
+        existing->desc->character = NULL;
+        existing->desc = NULL;
+    }
+
     b->desc = d;
     d->character = b;
 
