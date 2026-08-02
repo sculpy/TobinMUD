@@ -163,9 +163,11 @@ check("you drop" in out.lower() and "explodes" not in out.lower(),
 check("plain rock" in cmd(sv, "look").lower(), "the plain rock is still on the floor after dropping")
 
 # --- 2: a NEWBIE item explodes in a flash of white light on drop ---
+# `load` puts the item straight into the loader's own inventory (dropping
+# it would explode it immediately, even for the immortal setting this up)
+# -- `give` it to the mortal directly instead of routing through the floor.
 check("You conjure" in cmd(s, f"load obj {NEWBIE_ITEM}"), "the newbie cloak is loaded")
-cmd(s, "drop cloak")
-check("you get" in cmd(sv, "get cloak").lower(), "the mortal picks up the newbie cloak")
+check("you give" in cmd(s, f"give cloak {mort_name}").lower(), "the immortal hands the cloak to the mortal")
 out = cmd(sv, "drop cloak")
 check("you drop" in out.lower(), "the drop message still shows")
 check("explodes in a flash of white light" in out.lower(), "the newbie cloak explodes on drop")
@@ -174,10 +176,9 @@ check("newbie cloak" not in cmd(sv, "inventory").lower(), "the newbie cloak is g
 
 # --- 3: a NEWBIE container WITH contents does NOT explode (loot inside) ---
 check("You conjure" in cmd(s, f"load obj {NEWBIE_BAG}"), "the newbie sack is loaded")
-cmd(s, "drop sack")
 check("You conjure" in cmd(s, f"load obj {FILLER_ITEM}"), "the filler pebble is loaded")
 cmd(s, "put pebble sack")
-check("you get" in cmd(sv, "get sack").lower(), "the mortal picks up the non-empty newbie sack")
+check("you give" in cmd(s, f"give sack {mort_name}").lower(), "the immortal hands the non-empty sack to the mortal")
 out = cmd(sv, "drop sack")
 check("explodes" not in out.lower(), "a non-empty NEWBIE container does NOT explode on drop")
 check("newbie sack" in cmd(sv, "look").lower(), "the non-empty newbie sack is still on the floor")
