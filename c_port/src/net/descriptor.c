@@ -2046,6 +2046,34 @@ static void show_oedit_menu(descriptor_t *d) {
     d->state = CONN_OEDIT_MENU;
 }
 
+/* Renders the oedit "Item type" picker (CONN_OEDIT_TYPE) -- a full
+ * numbered listing of every raw itemTypeT name (obj_type_name()/
+ * obj_item_type_count(), obj.c), two per line, so a builder can browse
+ * and pick rather than guess a number blind (Object editor: item-type
+ * flag listing/picker, TODO.md priority item, 2026-08-02 -- previously
+ * this prompt just took a raw number with no listing at all, the error
+ * message even told builders to go check `stat`/`vnum` on some other
+ * object first). */
+static void show_oedit_type_picker(descriptor_t *d) {
+    char out[2560];
+    size_t n = (size_t)snprintf(out, sizeof(out),
+        "\r\nItem types for %d (currently #%d, %s) -- enter a number, blank to cancel:\r\n",
+        d->oedit_work.vnum, d->oedit_work.type, obj_type_name(d->oedit_work.type));
+    int count = obj_item_type_count();
+    for (int t = 0; t < count; t++) {
+        n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
+            "  <c>%2d<z> %-16s%s", t, obj_type_name(t), (t % 2 == 1) ? "\r\n" : "");
+        if (n >= sizeof(out))
+            break;
+    }
+    if (count % 2 != 0 && n < sizeof(out))
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "\r\n");
+    if (n < sizeof(out))
+        snprintf(out + n, sizeof(out) - n, "type> ");
+    descriptor_send(d, out);
+    d->state = CONN_OEDIT_TYPE;
+}
+
 /* Renders the oedit "Extra flags" (obj action flag) toggle submenu
  * (CONN_OEDIT_ACTION_FLAGS), one [x]/[ ] bit per known flag. */
 static void show_oedit_action_flags(descriptor_t *d) {
@@ -4321,8 +4349,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                         d->state = CONN_OEDIT_SHORT_DESC;
                         break;
                     case 3:
-                        descriptor_send(d, "\r\nEnter new item type number (blank to cancel): ");
-                        d->state = CONN_OEDIT_TYPE;
+                        show_oedit_type_picker(d);
                         break;
                     case 4:
                         descriptor_send(d, "\r\nEnter new long description (blank to cancel): ");
@@ -4444,12 +4471,14 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 if (end != line && v >= 0 && strcmp(obj_type_name((int)v), "?") != 0) {
                     d->oedit_work.type = (int)v;
                     d->oedit_dirty = true;
+                    show_oedit_menu(d);
                 } else {
-                    descriptor_send(d, "Not a recognized item type number -- "
-                        "check `stat`/`vnum` on a similar real object first.\r\n");
+                    descriptor_send(d, "Pick a type number from the list, or blank to cancel.\r\n");
+                    show_oedit_type_picker(d);
                 }
+            } else {
+                show_oedit_menu(d);
             }
-            show_oedit_menu(d);
             return true;
         }
 

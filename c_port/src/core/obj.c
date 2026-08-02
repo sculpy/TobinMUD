@@ -218,6 +218,10 @@ const char *obj_type_name(int raw_type) {
     return ITEM_TYPE_NAMES[raw_type];
 }
 
+int obj_item_type_count(void) {
+    return (int)NUM_ITEM_TYPES;
+}
+
 /* The original's extraFlags bitmask (misc/obj.h, 32 bits, ITEM_GLOW=bit0
  * .. ITEM_NOLOCATE=bit31) -- Tobin's DB column is `action_flag`. A
  * handful of bits were never assigned upstream (27, "NOT_USED3") or

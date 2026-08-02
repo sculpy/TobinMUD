@@ -462,6 +462,13 @@ const char *obj_wear_flag_names(int flags, char *buf, size_t size);
  * range values render as "?". */
 const char *obj_type_name(int raw_type);
 
+/* Total count of raw itemTypeT entries obj_type_name() knows (77) -- for
+ * `oedit`'s item-type picker (Object editor: item-type flag listing/
+ * picker, TODO.md priority item, 2026-08-02) to iterate every valid
+ * number when listing them out, same "count + name(index)" shape as
+ * obj_wear_flag_count()/obj_action_flag_count() below. */
+int obj_item_type_count(void);
+
 /* Decodes `action_flag`'s bits (the original's extraFlags bitmask, 32
  * bits) into a readable "[ GLOW ] [ MAGIC ] ..." run, same bracket-per-
  * flag convention as obj_wear_flag_names()/room.h's room_flag_names().
