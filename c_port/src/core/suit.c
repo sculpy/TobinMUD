@@ -20,18 +20,26 @@ int suit_grant(being_t *ch, int suit_id) {
         return 0;
 
     int vnums[SUIT_MAX_ITEMS];
-    int n = suit_repo_load_items(suit_id, vnums, SUIT_MAX_ITEMS);
+    int qtys[SUIT_MAX_ITEMS];
+    int n = suit_repo_load_items_qty(suit_id, vnums, qtys, SUIT_MAX_ITEMS);
 
     int granted = 0;
     for (int i = 0; i < n; i++) {
-        obj_t *o = obj_create_from_proto(vnums[i]);
-        if (!o)
-            continue;
-        /* Loose in inventory, not auto-equipped -- user 2026-07-26:
-         * "they can hold the items themselves, just load into
-         * inventory." Same landing spot `get`/`load` already use. */
-        thing_move_to(&o->base, &ch->base);
-        granted++;
+        /* Per-wear-location quantities (Menu-driven loadsuit editor,
+         * TODO.md priority item, 2026-08-02) -- a suit_item row's
+         * quantity can be >1 (two wrist bands, two boots, ...), so each
+         * one is instantiated as its OWN separate obj_t, same as loading
+         * the same vnum twice by hand would produce. */
+        for (int q = 0; q < qtys[i]; q++) {
+            obj_t *o = obj_create_from_proto(vnums[i]);
+            if (!o)
+                continue;
+            /* Loose in inventory, not auto-equipped -- user 2026-07-26:
+             * "they can hold the items themselves, just load into
+             * inventory." Same landing spot `get`/`load` already use. */
+            thing_move_to(&o->base, &ch->base);
+            granted++;
+        }
     }
 
     if (granted > 0)

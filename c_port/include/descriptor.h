@@ -17,6 +17,7 @@
 #include "room.h"
 #include "room_repo.h"
 #include "social_repo.h"
+#include "suit_repo.h"
 #include "trigger_repo.h"
 #include "zone_repo.h"
 
@@ -324,6 +325,26 @@ typedef enum {
     CONN_MEDIT_SKIN,
     CONN_MEDIT_ALIGN,
     CONN_MEDIT_QUIT_CONFIRM,
+    /* Menu-driven loadsuit editor (`edit suit [name]`, TODO.md priority
+     * item, 2026-08-02) -- structurally closer to CONN_TRIGEDIT_* (a
+     * variable-length list of child rows under one parent) than
+     * CONN_OEDIT_*/CONN_MEDIT_*'s "many scalar fields, batched Save"
+     * shape, so it follows THAT precedent instead: every field commits
+     * immediately via suit_repo.h's CRUD functions, no working copy, no
+     * separate Save step. Addressed by list position in what's SENT to
+     * the player, but by obj_vnum (suit_item's own natural key, not a
+     * synthetic row id) in what the state machine actually tracks --
+     * same "no raw db ids in the UI" spirit CONN_TRIGEDIT_* already
+     * established. See descriptor_edsuit_begin() and the CONN_EDSUIT_*
+     * cases in descriptor.c. */
+    CONN_EDSUIT_LIST,
+    CONN_EDSUIT_ITEM,
+    CONN_EDSUIT_ITEM_QTY,
+    CONN_EDSUIT_ITEM_DELETE_CONFIRM,
+    CONN_EDSUIT_ADD_VNUM,
+    CONN_EDSUIT_ADD_QTY,
+    CONN_EDSUIT_CLASS,
+    CONN_EDSUIT_DESC,
     CONN_PLAYING,
     CONN_CLOSED
 } conn_state_t;
@@ -503,6 +524,18 @@ typedef struct descriptor {
      * value). */
     char trigedit_target_type[8];
     int trigedit_target_vnum;
+
+    /* CONN_EDSUIT_* scratch (menu-driven loadsuit editor, TODO.md priority
+     * item, 2026-08-02) -- edsuit_id is set once at descriptor_
+     * edsuit_begin() and stays fixed for the whole editing session;
+     * edsuit_item_vnum tracks which item's detail view is current
+     * (CONN_EDSUIT_ITEM/_ITEM_QTY/_ITEM_DELETE_CONFIRM); edsuit_add_vnum
+     * carries the new item's vnum from CONN_EDSUIT_ADD_VNUM across to
+     * CONN_EDSUIT_ADD_QTY. No working-copy struct needed -- every field
+     * commits immediately via suit_repo.h, same as CONN_TRIGEDIT_*. */
+    int edsuit_id;
+    int edsuit_item_vnum;
+    int edsuit_add_vnum;
 
     /* Output pager (the `news` command): long output is buffered here and
      * released one page (page_size lines) at a time. While page_len > 0 the
@@ -786,6 +819,13 @@ void descriptor_edsocial_begin(descriptor_t *d, const char *name);
  * normal state -- there's nothing to fail on). Caller (cmd_edtrigger.c)
  * owns the level gate and the room-target zone_can_edit() check. */
 void descriptor_trigedit_begin(descriptor_t *d, const char *target_type, int target_vnum);
+
+/* Opens the menu-driven loadsuit editor on `suit_id` (`edit suit
+ * [name]`, TODO.md priority item, 2026-08-02), entering CONN_EDSUIT_LIST.
+ * Always succeeds (an empty item list is a valid, normal state -- same
+ * as an empty trigger list above). Caller (cmd_edsuit.c) owns the level
+ * gate and confirms `suit_id` is real (or has just created it) first. */
+void descriptor_edsuit_begin(descriptor_t *d, int suit_id);
 
 /* Sends `msg` to every connected player in room `r` except `except` (may
  * be NULL to include everyone). Shared by movement, quit/link-drop, and

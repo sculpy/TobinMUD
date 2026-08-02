@@ -194,6 +194,7 @@ bool descriptor_in_editor(const descriptor_t *d) {
         || (d->state >= CONN_EDSOCIAL_LIST && d->state <= CONN_EDSOCIAL_DELETE_CONFIRM)
         || (d->state >= CONN_TRIGEDIT_LIST && d->state <= CONN_TRIGEDIT_SCRIPT)
         || (d->state >= CONN_MEDIT_MENU && d->state <= CONN_MEDIT_QUIT_CONFIRM)
+        || (d->state >= CONN_EDSUIT_LIST && d->state <= CONN_EDSUIT_DESC)
         || d->page_len > 0; /* mid-pager -- same "no interruptions" treatment */
 }
 
@@ -2660,6 +2661,82 @@ void descriptor_trigedit_begin(descriptor_t *d, const char *target_type, int tar
     snprintf(d->trigedit_target_type, sizeof(d->trigedit_target_type), "%s", target_type);
     d->trigedit_target_vnum = target_vnum;
     show_trigedit_list(d);
+}
+
+/* Renders the CONN_EDSUIT_LIST screen: the suit's own scalar fields plus
+ * every suit_item row, numbered, each showing the item's real short
+ * description (not just its bare vnum) and its quantity -- same
+ * "numbered list + lettered commands" shape as show_trigedit_list()
+ * (menu-driven loadsuit editor, TODO.md priority item, 2026-08-02). */
+static void show_edsuit_list(descriptor_t *d) {
+    char name[32], description[128];
+    int class_restrict;
+    if (!suit_repo_get(d->edsuit_id, name, sizeof(name), &class_restrict, description, sizeof(description))) {
+        descriptor_send(d, "That suit no longer exists.\r\n");
+        d->state = CONN_PLAYING;
+        return;
+    }
+
+    int vnums[SUIT_MAX_ITEMS], qtys[SUIT_MAX_ITEMS];
+    int n = suit_repo_load_items_qty(d->edsuit_id, vnums, qtys, SUIT_MAX_ITEMS);
+
+    char out[3072];
+    size_t len = (size_t)snprintf(out, sizeof(out),
+        "\r\n<c>=== Suit:<z> %s <c>===<z>\r\n"
+        "  <p>Class<z>: %s\r\n  <p>Description<z>: %s\r\n\r\n",
+        name, class_restrict < 0 ? "any" : class_name((player_class_t)class_restrict), description);
+    if (n == 0 && len < sizeof(out))
+        len += (size_t)snprintf(out + len, sizeof(out) - len, "  (no items yet)\r\n");
+    for (int i = 0; i < n && len < sizeof(out); i++) {
+        obj_proto_t proto;
+        const char *label = obj_proto_load(vnums[i], &proto) ? proto.short_descr : "(unknown vnum)";
+        len += (size_t)snprintf(out + len, sizeof(out) - len,
+            "  <c>%2d)<z> <p>%-24s<z> vnum %-6d x%d\r\n", i + 1, label, vnums[i], qtys[i]);
+    }
+    if (len < sizeof(out))
+        snprintf(out + len, sizeof(out) - len,
+            "\r\n  <c>A)<z> <p>Add an item<z>    <c>C)<z> <p>Set class restriction<z>\r\n"
+            "  <c>D)<z> <p>Set description<z>  blank) quit\r\nedsuit> ");
+    descriptor_send(d, out);
+    d->state = CONN_EDSUIT_LIST;
+}
+
+/* Renders one suit_item's detail view (CONN_EDSUIT_ITEM), addressed by
+ * obj_vnum (d->edsuit_item_vnum) rather than a raw db row id -- same "no
+ * raw ids in the UI" spirit as show_trigedit_item(). Falls back to the
+ * list if the item vanished underneath it (deleted from another
+ * connection, an edge case but cheap to guard). */
+static void show_edsuit_item(descriptor_t *d) {
+    int vnums[SUIT_MAX_ITEMS], qtys[SUIT_MAX_ITEMS];
+    int n = suit_repo_load_items_qty(d->edsuit_id, vnums, qtys, SUIT_MAX_ITEMS);
+    int qty = -1;
+    for (int i = 0; i < n; i++)
+        if (vnums[i] == d->edsuit_item_vnum)
+            qty = qtys[i];
+    if (qty < 0) {
+        descriptor_send(d, "That item is no longer in the suit.\r\n");
+        show_edsuit_list(d);
+        return;
+    }
+
+    obj_proto_t proto;
+    const char *label = obj_proto_load(d->edsuit_item_vnum, &proto) ? proto.short_descr : "(unknown vnum)";
+
+    char out[384];
+    snprintf(out, sizeof(out),
+        "\r\n<c>Editing suit item:<z> %s (vnum %d)\r\n\r\n"
+        "   <c>1)<z> <p>Quantity<z>: %d\r\n"
+        "   <c>D)<z> <p>Delete this item<z>\r\n\r\n"
+        "   blank) back to list\r\nedsuit-item> ",
+        label, d->edsuit_item_vnum, qty);
+    descriptor_send(d, out);
+    d->state = CONN_EDSUIT_ITEM;
+}
+
+/* See descriptor.h. */
+void descriptor_edsuit_begin(descriptor_t *d, int suit_id) {
+    d->edsuit_id = suit_id;
+    show_edsuit_list(d);
 }
 
 /* The top-level input dispatcher: called by drain_lines() once per complete
@@ -5180,6 +5257,164 @@ static bool handle_line(descriptor_t *d, const char *line) {
             } else {
                 show_medit_menu(d);
             }
+            return true;
+        }
+
+        case CONN_EDSUIT_LIST: {
+            if (!line[0]) {
+                descriptor_send(d, "Done editing that suit.\r\n");
+                d->state = CONN_PLAYING;
+                return true;
+            }
+            if (isdigit((unsigned char)line[0])) {
+                int vnums[SUIT_MAX_ITEMS], qtys[SUIT_MAX_ITEMS];
+                int n = suit_repo_load_items_qty(d->edsuit_id, vnums, qtys, SUIT_MAX_ITEMS);
+                int idx = atoi(line) - 1;
+                if (idx < 0 || idx >= n) {
+                    descriptor_send(d, "Pick an item number from the list, A, C, D, or blank.\r\n");
+                    show_edsuit_list(d);
+                    return true;
+                }
+                d->edsuit_item_vnum = vnums[idx];
+                show_edsuit_item(d);
+                return true;
+            }
+            switch ((char)toupper((unsigned char)line[0])) {
+                case 'A':
+                    descriptor_send(d, "\r\nEnter the obj vnum to add (blank to cancel): ");
+                    d->state = CONN_EDSUIT_ADD_VNUM;
+                    break;
+                case 'C':
+                    descriptor_send(d,
+                        "\r\nEnter a class number (0=Mage 1=Cleric 2=Warrior 3=Thief 4=Druid "
+                        "5=Monk), or \"any\" to clear (blank to cancel): ");
+                    d->state = CONN_EDSUIT_CLASS;
+                    break;
+                case 'D':
+                    descriptor_send(d, "\r\nEnter new description (blank to cancel): ");
+                    d->state = CONN_EDSUIT_DESC;
+                    break;
+                default:
+                    descriptor_send(d, "Pick an item number from the list, A, C, D, or blank.\r\n");
+                    show_edsuit_list(d);
+                    break;
+            }
+            return true;
+        }
+
+        case CONN_EDSUIT_ITEM: {
+            if (!line[0]) {
+                show_edsuit_list(d);
+                return true;
+            }
+            if (line[1] == '\0' && line[0] == '1') {
+                descriptor_send(d, "\r\nEnter new quantity, 1 or more (blank to cancel): ");
+                d->state = CONN_EDSUIT_ITEM_QTY;
+                return true;
+            }
+            if (toupper((unsigned char)line[0]) == 'D' && line[1] == '\0') {
+                descriptor_send(d, "Delete this item from the suit? (yes/no): ");
+                d->state = CONN_EDSUIT_ITEM_DELETE_CONFIRM;
+                return true;
+            }
+            descriptor_send(d, "Pick 1, D, or blank to go back.\r\n");
+            show_edsuit_item(d);
+            return true;
+        }
+
+        case CONN_EDSUIT_ITEM_QTY: {
+            if (line[0]) {
+                char *end;
+                long qty = strtol(line, &end, 10);
+                if (end != line && qty >= 1) {
+                    suit_repo_set_item_qty(d->edsuit_id, d->edsuit_item_vnum, (int)qty);
+                } else {
+                    descriptor_send(d, "Quantity must be a whole number, 1 or more.\r\n");
+                }
+            }
+            show_edsuit_item(d);
+            return true;
+        }
+
+        case CONN_EDSUIT_ITEM_DELETE_CONFIRM: {
+            if (strcasecmp(line, "yes") == 0) {
+                suit_repo_delete_item(d->edsuit_id, d->edsuit_item_vnum);
+                descriptor_send(d, "Item removed from the suit.\r\n");
+                show_edsuit_list(d);
+            } else {
+                descriptor_send(d, "Cancelled.\r\n");
+                show_edsuit_item(d);
+            }
+            return true;
+        }
+
+        case CONN_EDSUIT_ADD_VNUM: {
+            if (!line[0]) {
+                show_edsuit_list(d);
+                return true;
+            }
+            char *end;
+            long vnum = strtol(line, &end, 10);
+            obj_proto_t proto;
+            if (end == line || vnum <= 0 || !obj_proto_load((int)vnum, &proto)) {
+                descriptor_send(d, "Not a recognized obj vnum -- check `stat obj`/`vnum obj` first.\r\n");
+                show_edsuit_list(d);
+                return true;
+            }
+            d->edsuit_add_vnum = (int)vnum;
+            char msg[192];
+            snprintf(msg, sizeof(msg), "\r\nAdding %s (vnum %ld) -- enter quantity, blank for 1: ",
+                     proto.short_descr, vnum);
+            descriptor_send(d, msg);
+            d->state = CONN_EDSUIT_ADD_QTY;
+            return true;
+        }
+
+        case CONN_EDSUIT_ADD_QTY: {
+            int qty = 1;
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end == line || v < 1) {
+                    descriptor_send(d, "Quantity must be a whole number, 1 or more -- item not added.\r\n");
+                    show_edsuit_list(d);
+                    return true;
+                }
+                qty = (int)v;
+            }
+            if (suit_repo_add_item(d->edsuit_id, d->edsuit_add_vnum, qty))
+                descriptor_send(d, "Item added.\r\n");
+            else
+                descriptor_send(d, "Failed to add that item -- check the vnum is real.\r\n");
+            show_edsuit_list(d);
+            return true;
+        }
+
+        case CONN_EDSUIT_CLASS: {
+            if (!line[0]) {
+                show_edsuit_list(d);
+                return true;
+            }
+            if (strcasecmp(line, "any") == 0) {
+                suit_repo_set_class(d->edsuit_id, -1);
+            } else {
+                char *end;
+                long c = strtol(line, &end, 10);
+                if (end == line || c < 0 || c >= CLASS_COUNT) {
+                    descriptor_send(d, "Not a recognized class number.\r\n");
+                    show_edsuit_list(d);
+                    return true;
+                }
+                suit_repo_set_class(d->edsuit_id, (int)c);
+            }
+            show_edsuit_list(d);
+            return true;
+        }
+
+        case CONN_EDSUIT_DESC: {
+            if (line[0])
+                suit_repo_set_description(d->edsuit_id, line);
+            show_edsuit_list(d);
             return true;
         }
 

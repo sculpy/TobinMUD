@@ -604,3 +604,13 @@ CREATE TABLE IF NOT EXISTS `tell_history` (
 -- ANTI_RACE_HUMAN etc / obj_race_forbidden().
 ALTER TABLE `obj`
   ADD COLUMN IF NOT EXISTS `anti_race_flag` int(11) NOT NULL DEFAULT 0;
+
+-- Menu-driven loadsuit editor (TODO.md priority item, 2026-08-02):
+-- per-wear-location quantities (two wrists, fingers, hands, feet, arms,
+-- legs) need a suit to carry MORE than one of the same obj vnum, which
+-- the original suit_item PRIMARY KEY (suit_id, obj_vnum) couldn't
+-- express at all (an item either was or wasn't in the suit, always
+-- exactly once). New `quantity` column, default 1 (every existing real
+-- suit_item row still means exactly what it always did).
+ALTER TABLE `suit_item`
+  ADD COLUMN IF NOT EXISTS `quantity` int(11) NOT NULL DEFAULT 1;

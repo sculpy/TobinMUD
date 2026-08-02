@@ -37,7 +37,7 @@ bool cmd_edit(descriptor_t *d, const char *args) {
     int n = sscanf(args, "%31s", noun);
     if (n != 1) {
         descriptor_send(d,
-            "Usage: edit <room|zone|object|mob|player|account|help|news|wiznews|rules|social|trigger> [args]\r\n");
+            "Usage: edit <room|zone|object|mob|player|account|help|news|wiznews|rules|social|trigger|suit> [args]\r\n");
         return true;
     }
 
@@ -107,8 +107,15 @@ bool cmd_edit(descriptor_t *d, const char *args) {
         }
         return cmd_edsocial(d, rest);
     }
+    if (strcasecmp(noun, "suit") == 0) {
+        if (level < LOADSUIT_MIN_LEVEL) {
+            descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+            return true;
+        }
+        return cmd_edsuit(d, rest);
+    }
 
     descriptor_send(d,
-        "Usage: edit <room|zone|object|mob|player|account|help|news|wiznews|rules|social> [args]\r\n");
+        "Usage: edit <room|zone|object|mob|player|account|help|news|wiznews|rules|social|suit> [args]\r\n");
     return true;
 }
