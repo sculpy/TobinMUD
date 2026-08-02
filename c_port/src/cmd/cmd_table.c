@@ -544,6 +544,10 @@ static const cmd_entry_t COMMANDS[] = {
     { "settrap", cmd_settrap, "Rig a trap on a closed door (Thief, settrap <direction>).", MORTAL_LEVEL_MIN },
     { "snoop",   cmd_snoop,   "Watch what a lower-level player sees and types.",    SNOOP_MIN_LEVEL },
     { "stat",    cmd_stat,    "See every field of an obj/mob/room prototype, or a player (stat <obj|mob|room> <vnum> | stat player <name>).", STAT_MIN_LEVEL },
+    /* Must follow "stat" above -- cmd_dispatch()'s "first name that
+     * STARTS WITH what was typed" rule means "stats" listed first would
+     * hijack the plain "stat" abbreviation. */
+    { "stats",   cmd_stats,   "Aggregate world statistics: rooms/mobiles/objects/accounts/characters, live from the DB.", STAT_MIN_LEVEL },
     { "system",  cmd_system,  "Broadcast an atmosphere line to everyone.",          IMMORTAL_LEVEL_MIN },
     { "test",    cmd_test,    "Show the currently-running smoke test, if any.",     TEST_MIN_LEVEL },
     { "tipedit", cmd_tipedit, "Add/list/delete tips (tipedit <text>|list|delete <id>).", TIPEDIT_MIN_LEVEL },

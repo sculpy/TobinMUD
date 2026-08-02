@@ -20,6 +20,13 @@ void world_register_room(room_t *r);
 /* Returns the registered room for `vnum`, or NULL if not yet loaded. */
 room_t *world_get_room(int vnum);
 
+/* Count of rooms currently loaded into memory (`stats` command,
+ * TODO.md priority item, user 2026-07-30) -- NOT the total seeded room
+ * count (that's a live `select count(*) from room`, see cmd_stats.c),
+ * just how many of those Tobin has lazily loaded so far this process
+ * (see this file's own top comment on lazy room loading). */
+int world_count_loaded_rooms(void);
+
 /* Searches every registered room for a linkdead PC (base.kind == THING_PC,
  * desc == NULL -- link-loss detaches rather than destroys, see
  * descriptor_destroy()) whose player_id matches. Returns NULL if that

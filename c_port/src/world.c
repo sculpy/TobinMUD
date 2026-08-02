@@ -51,6 +51,15 @@ room_t *world_get_room(int vnum) {
     return NULL;
 }
 
+/* Count of rooms currently loaded into memory (`stats` command) -- see
+ * world.h's doc comment. */
+int world_count_loaded_rooms(void) {
+    int count = 0;
+    for (room_entry_t *e = g_rooms; e; e = e->next)
+        count++;
+    return count;
+}
+
 /* Searches every registered room for a linkdead PC (desc == NULL) whose
  * player_id matches, so a reconnect can resume the same live being_t
  * instead of loading a fresh one from the DB. Returns NULL if that

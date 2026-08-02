@@ -26,9 +26,21 @@ ask only when genuinely ambiguous. Full list, in the order given:
       iteration) -- fixed via deferred destruction (`pending_destroy`),
       verified 3x against live production, no regressions found in the
       (necessarily partial, not a full sweep) verification done.
-- [ ] **Persisted game statistics** (rooms, mobs, objects, accounts,
-      characters survive reboot/copyover, display correctly) — not
-      started.
+- [x] **Persisted game statistics** — done 2026-08-02 (Session 103). New
+      `stats` command (level 55+, matching `stat`'s own gate; must be
+      registered AFTER `stat` in cmd_table.c or it hijacks that
+      abbreviation): rooms/mobiles/objects/accounts/characters, plus
+      currently-online/rooms-in-memory/linkdead counts. Checked
+      SneezyMUD's own `info numbers` first -- the real precedent counts
+      live in-process state (a static `AccountStats::player_num`, linked
+      lists) that does NOT survive a reboot, exactly the user's
+      complaint. Tobin has no boot-time world load and no persistent
+      in-memory counters to go stale, so every seeded-content count here
+      is a live `SELECT COUNT(*)` against the DB tables that actually
+      own the data -- correct by construction after any reboot/copyover,
+      no new persistence machinery needed. `tests/smoke_test_stats.py`
+      (7 checks, including cross-checking the command's numbers against
+      a direct SQL query) passes live.
 - [ ] **Copyover restores all runtime statistics/state** — not started.
 - [ ] **Door state sync** (open/close affects both sides) — not started.
 - [ ] **Group functionality rewrite** (leader/follower movement, `gt`

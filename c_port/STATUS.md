@@ -1,6 +1,32 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-30 — Session 102 (DO droplet, production port 4000):
+Last updated: 2026-08-02 — Session 103 (DO droplet, production port 4000):
+**Persisted game statistics: new `stats` command.** Second item off the
+2026-07-30 autonomous-backlog list. New `cmd_stats.c` (level 55+, same
+gate as `stat`; must be registered AFTER `stat` in cmd_table.c since
+cmd_dispatch()'s "first name that starts with what was typed" rule would
+otherwise let "stats" hijack the plain "stat" abbreviation). Checked
+SneezyMUD's own `info numbers` (misc/immortal.cc) first: the real
+precedent counts live in-process state (`AccountStats::player_num`, a
+static; linked-list walks) that does NOT survive a reboot -- exactly the
+gap the user's request was about. Tobin has no boot-time world load and
+no persistent in-memory counters to go stale in the first place, so
+every seeded-content count (rooms/mobiles/objects/accounts/characters)
+is a live `SELECT COUNT(*)` against the DB tables that actually own the
+data -- correct by construction immediately after any reboot or
+copyover, no new persistence layer needed. Also shows three live-process
+figures clearly separated from the persisted totals: currently online,
+rooms currently loaded into memory (new `world_count_loaded_rooms()`,
+world.c/h), and linkdead body count (reusing the existing
+`world_count_linkdead()`). `tests/smoke_test_stats.py` (7 checks,
+including cross-checking the command's own numbers against a direct SQL
+query) passes live. Deployed via copyover (2nd deploy this session --
+first attempt hit two build errors: missing `<stdlib.h>` for `atol()`,
+then a linker "multiple definition" error from a stray duplicate
+`src/cmd/world.c`/`world.h` accidentally created by an earlier scp typo
+this session -- both fixed, third build was clean).
+
+Previous update: 2026-07-30 — Session 102 (DO droplet, production port 4000):
 **Duplicate character session prevention.** User's autonomous-backlog
 priority list (2026-07-30): persisted stats, copyover restoration,
 duplicate sessions, door sync, group rewrite, command parser rewrite,

@@ -995,3 +995,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Fixed: duplicate character sessions', 'The existing multiplay gate only checked account_id across live connections -- it never actually checked whether the SAME character (player_id) was already loaded elsewhere, so a relogin (or two people racing the same login) could put two live copies of one character in the world at once. New `world_find_active_pc()` (world.c/h) finds any PC by player_id, active or linkdead; `enter_world()` (descriptor.c) now disconnects the stale connection and reclaims the character on the new one, matching SneezyMUD''s own reclaim-on-relogin behavior.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New `stats` command -- world statistics, always accurate', '`stats` (level 55+) shows total rooms/mobiles/objects/accounts/characters, plus how many are currently online/loaded/linkdead. Every seeded-content number is a live count straight from the database, so it can never go stale or reset wrong after a reboot or copyover the way an in-memory counter could.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
