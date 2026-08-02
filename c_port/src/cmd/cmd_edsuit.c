@@ -65,7 +65,7 @@ bool cmd_edsuit(descriptor_t *d, const char *args) {
             descriptor_send(d, "Couldn't create that suit -- the name may already be taken.\r\n");
             return true;
         }
-        char msg[96];
+        char msg[160];
         snprintf(msg, sizeof(msg), "No suit matched \"%s\" -- created a new empty one.\r\n", name);
         descriptor_send(d, msg);
     }

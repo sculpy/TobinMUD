@@ -5362,7 +5362,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 return true;
             }
             d->edsuit_add_vnum = (int)vnum;
-            char msg[192];
+            char msg[320];
             snprintf(msg, sizeof(msg), "\r\nAdding %s (vnum %ld) -- enter quantity, blank for 1: ",
                      proto.short_descr, vnum);
             descriptor_send(d, msg);
