@@ -167,6 +167,10 @@ out = cmd(s, "")
 check("item added" in out.lower(), "the torch is added with the default quantity")
 check("x1" in out.lower(), "the torch shows at quantity 1")
 
+cmd(s, "")  # leave the editor -- otherwise the next line (loadsuit) is
+            # swallowed by CONN_EDSUIT_LIST's own input handler instead
+            # of reaching the normal command dispatcher
+
 # --- 3: loadsuit actually grants the right counts ---
 mort_name = f"Suitmor{_suffix}"
 mort_pw = "suitmorpw123"
@@ -188,15 +192,20 @@ out = cmd(sv, "inventory")
 check("wrist band (x2)" in out.lower(), "the mortal's inventory actually shows 2 wrist bands stacked")
 check("small torch" in out.lower(), "the mortal's inventory shows the torch too")
 
+suit_id = sql_scalar(f"SELECT id FROM suit WHERE name='{suit_name}';")
+
 # --- 4: change the wrist band's quantity from inside the editor ---
+# (each "edit suit" re-invocation below requires being back at CONN_PLAYING
+# first -- typing it while still inside the editor's own menu state would
+# just be swallowed as menu input, not dispatched as a command)
 cmd(s, f"edit suit {suit_name}")
 out = cmd(s, "1")
 check("quantity" in out.lower(), "selecting item 1 opens its detail view")
 cmd(s, "1")
-out = cmd(s, "5")
-check("x5" in cmd(s, "").lower() or True, "(quantity change applied)")  # verified via SQL below
+cmd(s, "5")           # sets quantity, lands back on the item detail view
+cmd(s, "")            # item detail -> list
+cmd(s, "")            # list -> CONN_PLAYING (fully exits the editor)
 
-suit_id = sql_scalar(f"SELECT id FROM suit WHERE name='{suit_name}';")
 qty = sql_scalar(f"SELECT quantity FROM suit_item WHERE suit_id={suit_id} AND obj_vnum={ITEM_A};")
 check(qty == "5", f"the wrist band's quantity was updated to 5 in the DB, got {qty!r}")
 
@@ -207,22 +216,27 @@ check("delete this item" in out.lower(), "item 2's detail view offers Delete")
 cmd(s, "D")
 out = cmd(s, "yes")
 check("item removed" in out.lower(), "confirming yes removes the item")
+cmd(s, "")  # list -> CONN_PLAYING
+
 remaining = sql_scalar(f"SELECT COUNT(*) FROM suit_item WHERE suit_id={suit_id} AND obj_vnum={ITEM_B};")
 check(remaining == "0", "the torch row is actually gone from suit_item")
 
 # --- 6: set and clear the class restriction ---
 cmd(s, f"edit suit {suit_name}")
-out = cmd(s, "C")
-cmd(s, "2")  # Warrior
+cmd(s, "C")
+cmd(s, "2")   # Warrior
+cmd(s, "")    # list -> CONN_PLAYING
+
 cls = sql_scalar(f"SELECT class FROM suit WHERE id={suit_id};")
 check(cls == "2", f"the class restriction was set to 2 (Warrior), got {cls!r}")
+
 cmd(s, f"edit suit {suit_name}")
 cmd(s, "C")
 cmd(s, "any")
+cmd(s, "")  # list -> CONN_PLAYING
+
 cls = sql_scalar(f"SELECT class FROM suit WHERE id={suit_id};")
 check(cls is None or cls == "" or cls == "NULL", f"\"any\" clears the class restriction, got {cls!r}")
-
-cmd(s, "")  # leave the editor
 
 s.close()
 sv.close()
