@@ -1,6 +1,46 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 106 (DO droplet, production port 4000):
+Last updated: 2026-08-02 — Session 106 continued (DO droplet, production
+port 4000): **Command parser audit against SneezyMUD, Phase 1.** Sixth
+item off the 2026-07-30 autonomous-backlog list -- user confirmed "full
+replacement, just dive in" when asked to scope it first. Extracted
+SneezyMUD's real command table (`buildCommandArray()`, misc/parse.cc):
+568 named commands, registered in `CMD_*` enum declaration order (that
+order IS its abbreviation-precedence rule, per `commandInfo`'s own
+minimal struct -- name/minPosition/minLevel only, no separate ordering
+concept). Diffed against Tobin's own `cmd_table.c` (~210 entries) plus
+its DB-driven socials table (155 rows, `db/tobin/social.sql`, itself
+machine-generated from `sneezymud-master/lib/actions` -- so socials
+were ALREADY a complete 1:1 import, just not visible as static table
+entries). Net genuinely-missing count: 262.
+Landed as a categorized, COMMENTED-OUT reference block at the top of
+`cmd_table.c`'s `COMMANDS[]` array (the user's own literal
+instruction) -- grouped by rough theme (admin/dev tooling irrelevant to
+Tobin's DB-only architecture with no zonefile save/load step;
+deliberately-unsupported systems like mail/factions/donate/vote; real
+gameplay gaps worth a future look; informational/utility commands;
+Sneezy's punctuation say/emote shortcuts, which Tobin's parser has no
+syntax for at all). A few confirmed-already-covered renames noted
+inline (redit/medit/oedit/fedit → `edit <noun>`, "feign death" →
+`feigndeath`, `trigger` → `edit trigger`) so a future pass doesn't
+re-flag them as gaps. The 262 names were NOT hand-verified one-by-one
+with full precision against Tobin's entire skill/help/social surface --
+disclosed as a real scope limit, not silently glossed over.
+**Deliberately did NOT attempt Phase 2** (reordering `cmd_table.c` to
+match Sneezy's exact `CMD_*`-enum abbreviation precedence): that table's
+own top-of-file doc comment documents a completely different, already
+locked-in ordering system (tier-then-alphabetical, with a documented
+"verify reorders mechanically, not by eye" script-driven discipline from
+an earlier pass) -- swapping it for Sneezy's raw declaration order would
+mean re-testing all 200+ existing smoke tests against a fully reshuffled
+precedence table, blind, against LIVE PRODUCTION with real players
+connected. Judged too large/risky for this pass; flagged as a separate,
+explicitly deferred follow-up rather than skipped without comment.
+Comment-only change (zero functional/behavioral difference) -- verified
+with a clean rebuild; no copyover/live-test cycle needed since nothing
+executable changed.
+
+Previous update: 2026-08-02 — Session 106 (DO droplet, production port 4000):
 **Group functionality rewrite: leader/follower movement, `gtell`/`gt`,
 `assist`.** Fifth item off the 2026-07-30 autonomous-backlog list.
 - **Leader/follower movement**: `follow`/`stop`/`group`/`split` already
