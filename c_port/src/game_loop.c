@@ -333,6 +333,16 @@ int game_loop_run(int port, const char *copyover_file) {
         descriptor_t *d = g_descriptors;
         while (d) {
             descriptor_t *next = d->next;
+            /* Duplicate-session takeover (descriptor.h's `pending_destroy`
+             * doc comment has the full crash story): destroyed HERE,
+             * safely, with `next` already cached before touching `d` --
+             * never synchronously from inside enter_world(), which runs
+             * mid-iteration of this very loop for a DIFFERENT descriptor. */
+            if (d->pending_destroy) {
+                descriptor_destroy(d);
+                d = next;
+                continue;
+            }
             /* Flush any backed-up output before reading -- a descriptor
              * that's been unwritable for a while (backlog full) is
              * treated as dead, same as a failed read. */

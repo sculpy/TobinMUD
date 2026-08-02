@@ -1156,6 +1156,40 @@ static void enter_world(descriptor_t *d, being_t *b) {
         being_destroy(linkdead);
     }
 
+    /* Duplicate character instance gate (spell/skill... no -- TODO.md
+     * priority item, user 2026-07-30): the SAME character (player_id)
+     * logged in twice simultaneously, even across different accounts (a
+     * data-corruption scenario) -- prevented outright by reclaiming the
+     * old connection, matching SneezyMUD's own reclaim-on-relogin
+     * behavior. The linkdead case above already ran and would have
+     * destroyed+cleared a linkdead match, so anything found here by
+     * world_find_active_pc() is guaranteed to be a genuinely ACTIVE
+     * (desc != NULL) duplicate, never a stale linkdead body. `existing`
+     * is a DIFFERENT being_t than `b` (this call's own fresh DB load) --
+     * descriptor_destroy() properly closes/frees the old socket (same
+     * teardown a real link-loss gets: room announce, log, snoop
+     * unhooking) and leaves `existing` linkdead-but-alive, so it must be
+     * explicitly being_destroy()ed right after or it leaks forever
+     * (nothing will ever reconnect to IT specifically -- the new
+     * connection resumes via the fresh `b` instead). Its room is
+     * captured into `linkdead_room_vnum` first, same "resume where you
+     * left off" precedent the block above already established. Doesn't
+     * call descriptor_destroy() on the old descriptor directly -- see
+     * descriptor.h's `pending_destroy` doc comment for why that's unsafe
+     * from here (a real SIGSEGV caught live) and what actually tears it
+     * down instead (game_loop_run()). */
+    being_t *existing = world_find_active_pc(b->player_id);
+    if (existing && existing != b && existing->desc) {
+        descriptor_send(existing->desc,
+            "\r\nYour connection has been taken over from another location.\r\n");
+        if (existing->base.roomp)
+            linkdead_room_vnum = existing->base.roomp->vnum;
+        existing->desc->character = NULL; /* so the deferred destroy skips the link-drop/detach block */
+        existing->desc->pending_destroy = true;
+        existing->desc = NULL;
+        being_destroy(existing);
+    }
+
     /* Multiplay gate: unless the game flag is on, a MORTAL account may have
      * only one character in the world at a time. Immortals are exempt (they
      * can hold several connections). */
@@ -1172,20 +1206,6 @@ static void enter_world(descriptor_t *d, being_t *b) {
                 return;
             }
         }
-    }
-
-    /* Duplicate character instance gate: prevent the same character
-     * (player_id) from being logged in twice simultaneously, even on
-     * different accounts (a data corruption scenario). If the character is
-     * already active elsewhere, we disconnect the old connection and take
-     * over, matching SneezyMUD's own reclaim behavior. */
-    being_t *existing = world_find_active_pc(b->player_id);
-    if (existing && existing->desc) {
-        char msg[128];
-        snprintf(msg, sizeof(msg), "Your connection has been taken over from another location.\r\n");
-        descriptor_send(existing->desc, msg);
-        existing->desc->character = NULL;
-        existing->desc = NULL;
     }
 
     b->desc = d;

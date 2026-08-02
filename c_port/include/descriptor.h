@@ -355,6 +355,23 @@ typedef struct descriptor {
     int fd;
     conn_state_t state;
 
+    /* Duplicate-character-session takeover (TODO.md priority item, user
+     * 2026-07-30): set true when enter_world() reclaims this connection's
+     * character for a NEW login elsewhere. Deliberately NOT destroyed
+     * synchronously at that point -- enter_world() runs from inside
+     * descriptor_process_input(d2) for some OTHER descriptor d2, itself
+     * called from game_loop_run()'s per-descriptor while loop, which
+     * caches `next = d->next` before processing each entry precisely so
+     * that `d` can safely destroy ITSELF mid-iteration; freeing an
+     * unrelated descriptor's memory the same way corrupts THAT cached
+     * `next` if it happens to alias the freed node, a real SIGSEGV caught
+     * live (game_loop.c, `next` dangling after a same-tick
+     * descriptor_destroy() of a different descriptor). game_loop_run()'s
+     * own loop checks this flag and safely destroys the descriptor at
+     * the top of ITS OWN iteration instead, the same "cache next first"
+     * pattern that already makes self-destruction safe. */
+    bool pending_destroy;
+
     /* Peer address, captured at accept() (or inherited across a copyover
      * via the recovery file). Appears in log lines only -- immortal eyes
      * (the log command's gate); never in player-visible room messages. */
