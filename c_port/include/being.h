@@ -1047,6 +1047,17 @@ void being_limbs_full_heal(being_t *b);
  * negative to detect defeat). */
 void being_hurt_limb(being_t *b, limb_t limb, int dmg);
 
+/* Like being_hurt_limb(), but touches ONLY the limb's own HP -- b's overall
+ * progress.hp is left untouched (the caller is expected to have already
+ * applied that separately). TODO.md priority item, user 2026-07-30:
+ * "reduce blood and limb-damage generation rates by 50%" -- combat_strike()
+ * (combat.c) uses this to apply a limb its own HALVED share of a hit's
+ * damage while overall HP still takes the full amount, so limbs decay
+ * slower (and cross into a bloody status tier -- see combat_strike()'s own
+ * doc comment on obj_grow_pool() -- less often) without changing overall
+ * combat lethality/pacing at all. */
+void being_hurt_limb_only(being_t *b, limb_t limb, int dmg);
+
 /* Heals b's overall HP and every limb's HP by `amount` (each clamped at its
  * own max) -- used by the regen tick (src/core/regen.c). No-op for
  * amount <= 0. */

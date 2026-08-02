@@ -1056,6 +1056,14 @@ void being_hurt_limb(being_t *b, limb_t limb, int dmg) {
         b->limbs[limb].hp = 0;
 }
 
+void being_hurt_limb_only(being_t *b, limb_t limb, int dmg) {
+    if (!b || dmg <= 0 || limb < 0 || limb >= LIMB_COUNT)
+        return;
+    b->limbs[limb].hp -= dmg;
+    if (b->limbs[limb].hp < 0)
+        b->limbs[limb].hp = 0;
+}
+
 /* `limb`'s HP as a 0-100 percentage of its max, clamped -- feeds
  * limb_status_text() below and any limb-condition display. */
 int being_limb_pct(const being_t *b, limb_t limb) {

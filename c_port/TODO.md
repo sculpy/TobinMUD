@@ -158,7 +158,27 @@ ask only when genuinely ambiguous. Full list, in the order given:
       scoped, much larger follow-up. Comment-only change; verified with a
       clean rebuild, no live deploy/copyover needed (nothing executable
       changed).
-- [ ] **Reduce blood/limb-damage generation rates by 50%** — not started.
+- [x] **Reduce blood/limb-damage generation rates by 50%** — done
+      2026-08-02 (Session 107). New `being_hurt_limb_only()` (being.c/h)
+      applies HALF of a hit's damage to the specific limb, while overall
+      `progress.hp` still takes the FULL amount -- combat lethality/
+      pacing is completely unchanged, only limbs decay slower. Wired
+      into both real melee (`combat_strike()`) and skill damage
+      (`combat_apply_skill_damage()`), so the reduction is consistent
+      regardless of source. Blood pools spawn on a limb crossing into a
+      bad status tier (<20% of ITS max) -- halving how fast a limb gets
+      there naturally halves how often blood pools appear too, as a
+      direct consequence of the same root change, rather than a second,
+      separately-tuned probability stacked on top. `describe_dam()`'s
+      hit-severity text was also updated to use the halved value so the
+      message stays consistent with what the limb actually experienced.
+      Verified with a new `tests/smoke_test_limb_damage_rate.py`: 12
+      rounds of real combat between two mortals, summed implied limb-HP
+      loss across all 18 limbs came out to 0.48x the defender's overall
+      HP loss (right on the expected ~0.5, nowhere near the old ~1.0).
+      All 3 existing limb regression tests (`smoke_test_limbs.py`,
+      `smoke_test_limbs_cmd.py`, `smoke_test_limb_severity.py`)
+      re-verified passing with zero regressions.
 - [ ] **`wear all`** (equip every wearable item in inventory) — not
       started.
 - [ ] **NEWBIE-flagged items vanish when dropped** (room/player messages)

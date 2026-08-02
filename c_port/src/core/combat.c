@@ -712,7 +712,15 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     }
     int pct_before = being_limb_pct(defender, limb);
     int limb_hp_before = defender->limbs[limb].hp; /* pre-hit capacity, for describe_dam() below */
-    being_hurt_limb(defender, limb, dmg);
+    /* Blood/limb-damage generation rate (TODO.md priority item, user
+     * 2026-07-30): overall HP still takes the full `dmg` (combat
+     * lethality/pacing is untouched), but the SPECIFIC limb only takes
+     * half of it -- limbs decay slower relative to overall vitality, so
+     * they cross into a bloody status tier (and spawn the blood pool
+     * below) roughly half as often too, without a second, separate
+     * probability roll stacked on top. */
+    defender->progress.hp -= dmg;
+    being_hurt_limb_only(defender, limb, (dmg + 1) / 2);
     int pct_after = being_limb_pct(defender, limb);
     combat_maybe_damage_equipment(defender, limb, dmg);
 
@@ -741,7 +749,12 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * (ratio is against the limb's CURRENT pre-hit HP, not its max) --
      * escalating flavor as a fight wears a limb down, not a flat
      * word-per-damage-number mapping. */
-    const char *intensity = describe_dam(dmg, limb_hp_before, verb);
+    /* Uses the HALVED limb-only damage, not the full `dmg` -- the message's
+     * severity ratio (against limb_hp_before) must match what actually
+     * happened to THIS limb, now that it takes only half of a hit's
+     * overall damage (see this function's own limb-damage-rate comment
+     * above). */
+    const char *intensity = describe_dam((dmg + 1) / 2, limb_hp_before, verb);
     tell(attacker, "You %s %s's %s %s!\r\n", verb, being_display_name(defender), ln, intensity);
     tell(defender, "%s %s your %s %s!\r\n",
          being_display_name_cap(attacker, hit_capbuf, sizeof(hit_capbuf)), verb_3rd, ln, intensity);
@@ -1237,7 +1250,13 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
 bool combat_apply_skill_damage(being_t *attacker, being_t *defender, int dmg, limb_t limb) {
     if (being_is_immortal(defender))
         dmg = 0;
-    being_hurt_limb(defender, limb, dmg);
+    /* Same limb-damage-generation-rate halving as combat_strike()'s own
+     * melee path (TODO.md priority item, user 2026-07-30) -- overall HP
+     * still takes the full `dmg`, only the specific limb's own share is
+     * halved, kept consistent regardless of whether the damage came from
+     * an ordinary swing or a skill. */
+    defender->progress.hp -= dmg;
+    being_hurt_limb_only(defender, limb, (dmg + 1) / 2);
     if (defender->progress.hp <= 0) {
         combat_defeat(defender, attacker, false);
         return true;

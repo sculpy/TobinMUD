@@ -1,6 +1,35 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 106 continued (DO droplet, production
+Last updated: 2026-08-02 — Session 107 (DO droplet, production port
+4000): **Blood/limb-damage generation rates reduced by 50%.** Seventh
+item off the 2026-07-30 autonomous-backlog list. New
+`being_hurt_limb_only()` (being.c/h): applies HALF of a hit's damage to
+the specific limb, while overall `progress.hp` still takes the FULL
+amount -- combat lethality/pacing is completely unchanged, only limbs
+decay slower relative to overall vitality. Wired into both real melee
+(`combat_strike()`) and skill damage (`combat_apply_skill_damage()`),
+kept consistent regardless of source. A blood pool spawns on a limb
+crossing into a bad status tier (<20% of ITS OWN max_hp,
+`limb_status_text()`) -- halving how fast a limb gets there naturally
+halves how often blood pools appear too, as a direct downstream
+consequence of the SAME root change rather than a second, separately-
+tuned probability roll stacked on top (deliberately chosen over adding
+an independent coin-flip gate, to keep the two effects logically tied
+together the way the game already ties them). `describe_dam()`'s
+hit-severity text (the "hits you incredibly well!"-style qualitative
+description) was also updated to use the halved value, so the message
+stays consistent with what that limb actually experienced instead of
+overstating it against the full (unhalved) overall damage number.
+Verified with a new `tests/smoke_test_limb_damage_rate.py`: 12 rounds of
+real combat between two level-20 mortals, summed implied limb-HP loss
+across all 18 limbs (percentage delta * each limb's own deterministic
+max_hp share) came out to 0.48x the defender's overall HP loss --
+right on the expected ~0.5 ratio, nowhere near the old ~1.0. All 3
+existing limb regression tests (`smoke_test_limbs.py`,
+`smoke_test_limbs_cmd.py`, `smoke_test_limb_severity.py`) re-run and
+confirmed passing with zero regressions before this was called done.
+
+Previous update: 2026-08-02 — Session 106 continued (DO droplet, production
 port 4000): **Command parser audit against SneezyMUD, Phase 1.** Sixth
 item off the 2026-07-30 autonomous-backlog list -- user confirmed "full
 replacement, just dive in" when asked to scope it first. Extracted

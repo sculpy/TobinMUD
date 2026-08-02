@@ -394,3 +394,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Groups Move, Talk, And Fight Together Now', 'Followers now walk right along with the person they''re following instead of being left behind in the last room. A new `gtell` command (or its short form, `gt`) lets everyone in your group talk to each other no matter where they are. And `assist <name>` lets you jump into a groupmate''s fight and help them take down whoever they''re up against.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fights Are Less Gruesome Now', 'Limbs hold up better in a fight than they used to -- they take damage at half the pace of your overall health now, so a wound has to build up longer before it turns serious, and blood pools form less often as a result. Overall combat -- how hard you hit, how fast a fight ends -- hasn''t changed at all.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
