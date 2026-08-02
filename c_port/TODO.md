@@ -41,7 +41,36 @@ ask only when genuinely ambiguous. Full list, in the order given:
       no new persistence machinery needed. `tests/smoke_test_stats.py`
       (7 checks, including cross-checking the command's numbers against
       a direct SQL query) passes live.
-- [ ] **Copyover restores all runtime statistics/state** — not started.
+- [x] **Copyover restores all runtime statistics/state** — done
+      2026-08-02 (Session 104). Root cause verified live before fixing:
+      a copyover's exec() wipes the whole in-memory world -- every
+      loaded room's loose contents (dropped/loaded items, spawned mobs)
+      vanished, since only PLAYER connections/rooms were ever recorded
+      in the recovery file; the next visit reloads a room fresh from its
+      static DB prototype. `cmd_copyover.c` now also dumps every
+      currently-loaded room's top-level mobs (vnum + current HP/
+      position) and objects (vnum) into the recovery file;
+      `game_loop.c`'s `copyover_recover()` restores them. Scoped to
+      top-level room contents only -- not nested container/corpse
+      contents, not equipment worn by a mob, a real disclosed
+      limitation. **Real duplication bug caught and fixed during
+      verification** (not just assumed correct): `zone_boot_all()`
+      (main.c) already runs BEFORE the recovery code, re-placing every
+      zone's own permanent starting population -- restoring the dump
+      unconditionally double-placed those (a room's fixed "wizard
+      board"/"note dispenser" showed "(x2)" live). A world-wide
+      `max_exist` gate (mirroring zone.c's own duplicate-prevention
+      check) was tried first and found insufficient -- those specific
+      fixtures are capped at 9999, effectively uncapped for 1-2 extra
+      copies. Fixed instead with a room-LOCAL existence check
+      (`copyover_room_already_has()`): skip restoring a mob/obj if the
+      target room already has that exact vnum (zone_boot_all() beat the
+      recovery code to it), only restore genuine ad hoc drops zone reset
+      has no row for. Verified live end-to-end: a loaded mob + a dropped
+      object both survive a real copyover, and the room's own fixtures
+      no longer double. `tests/smoke_test_copyover_state.py` (7 checks,
+      destructive -- triggers real copyovers, not part of the
+      unattended sweep) passes live.
 - [ ] **Door state sync** (open/close affects both sides) — not started.
 - [ ] **Group functionality rewrite** (leader/follower movement, `gt`
       group-tell alias, `assist` in combat) — not started.

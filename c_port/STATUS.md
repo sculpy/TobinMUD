@@ -1,6 +1,44 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 103 (DO droplet, production port 4000):
+Last updated: 2026-08-02 — Session 104 (DO droplet, production port 4000):
+**Copyover now restores loose room mobs/objects, not just player
+connections.** Third item off the 2026-07-30 autonomous-backlog list.
+Root cause verified live BEFORE fixing (not guessed): a copyover's
+`exec()` wipes the whole in-memory world; only player connections+rooms
+were ever recorded in the recovery file, so a loaded/dropped item or a
+spawned mob in any currently-loaded room simply vanished the moment that
+room was next visited and reloaded fresh from its static DB prototype
+(confirmed with a real `load obj`+`drop`+copyover cycle -- the item was
+gone afterward). Fixed: `cmd_copyover.c` now dumps every currently-
+loaded room's top-level mob/object contents (mob vnum+HP+position, obj
+vnum) into the recovery file via `world_for_each_room()`;
+`game_loop.c`'s `copyover_recover()` re-creates them (`being_create_mob()`/
+`obj_create_from_proto()`) and places them back. Scoped to top-level
+room contents only -- nested container/corpse contents and mob-worn
+equipment are a disclosed, un-covered gap.
+**Real bug caught mid-verification, not just assumed correct**: the
+first version double-placed every zone-seeded fixture (a room's "wizard
+board"/"note dispenser" showed literal "(x2)" after a live copyover
+test) -- `zone_boot_all()` (main.c) already runs BEFORE
+`copyover_recover()` and re-places each zone's own permanent starting
+population fresh on every boot/copyover, so restoring the dump
+unconditionally duplicated it. First fix attempt mirrored zone.c's own
+world-wide `max_exist` duplicate-prevention gate -- didn't work, because
+those specific fixtures are capped at 9999 (effectively uncapped for a
+couple of extra copies). Actually fixed with a room-LOCAL existence
+check (`copyover_room_already_has()`): skip restoring a mob/obj if the
+target room already has that exact vnum by the time recovery runs
+(meaning `zone_boot_all()` already restocked it), only restore what zone
+reset has no row for at all. Verified with a clean single-copyover cycle
+(a freshly loaded mob + dropped object both survived, room fixtures
+correctly back to one copy each) after two messier back-to-back test
+copyovers had left the room in a genuinely duplicated state -- confirmed
+the fix is self-healing, not just non-duplicating going forward.
+`tests/smoke_test_copyover_state.py` (7 checks) passes live -- marked
+destructive (triggers real copyovers), excluded from the unattended
+sweep.
+
+Previous update: 2026-08-02 — Session 103 (DO droplet, production port 4000):
 **Persisted game statistics: new `stats` command.** Second item off the
 2026-07-30 autonomous-backlog list. New `cmd_stats.c` (level 55+, same
 gate as `stat`; must be registered AFTER `stat` in cmd_table.c since

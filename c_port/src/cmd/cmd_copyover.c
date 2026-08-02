@@ -10,8 +10,45 @@
 
 #include "game_loop.h"
 #include "log.h"
+#include "obj.h"
 #include "player_repo.h"
 #include "room.h"
+#include "thing.h"
+#include "world.h"
+
+/* Runtime-state persistence across copyover (TODO.md priority item, user
+ * 2026-07-30): a copyover's exec() wipes the whole in-memory world --
+ * every loaded room's dynamic contents (loose objects, spawned mobs)
+ * vanish, since only PLAYER connections/rooms are recorded in the
+ * recovery file; the next visit to a room reloads it fresh from its
+ * static DB prototype, discarding anything dropped/loaded/spawned into
+ * it since boot. Verified live before fixing (not guessed): a `load
+ * obj`+`drop` in a room, then a copyover, made the dropped item vanish.
+ * Scoped to top-level room contents only (not nested container/corpse
+ * contents, not equipment worn by a mob) -- a real, disclosed
+ * limitation, same "bounded scope" precedent every large item in this
+ * audit takes. Mob HP/position round-trips too; duplication against the
+ * PERIODIC zone-reset pass (zone.c's own `max_exist` world-wide count
+ * gate, zone_cmd_mob()/zone_cmd_place()) is already prevented by that
+ * existing gate, so restoring zone-seeded mobs/objects here is safe, not
+ * just player-dropped ones. `world_for_each_room()` has no user-data
+ * parameter, so `g_copyover_dump_file` is a short-lived, single-threaded,
+ * file-scope handle for the one dump pass below -- not a real global. */
+static FILE *g_copyover_dump_file = NULL;
+
+static void copyover_dump_room_contents(room_t *r) {
+    for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind == THING_MOB) {
+            being_t *m = (being_t *)t;
+            fprintf(g_copyover_dump_file, "mob %d %d %d %d\n",
+                    r->vnum, t->id, m->progress.hp, (int)m->position);
+        } else if (t->kind == THING_OBJ) {
+            obj_t *o = (obj_t *)t;
+            if (o->vnum > 0) /* skip ephemeral (vnum 0) items -- never DB-backed anyway */
+                fprintf(g_copyover_dump_file, "obj %d %d\n", r->vnum, o->vnum);
+        }
+    }
+}
 
 /* `copyover`: reboot the server in place without dropping a single
  * connection -- Erwin Andreasen's classic Diku "copyover/hotboot" trick,
@@ -98,6 +135,13 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
             fcntl(it->fd, F_SETFD, FD_CLOEXEC);
         }
     }
+
+    /* Dump loose room contents (mobs + top-level objects) -- see this
+     * file's own header comment on why, and the scoped-down limits. */
+    g_copyover_dump_file = f;
+    world_for_each_room(copyover_dump_room_contents);
+    g_copyover_dump_file = NULL;
+
     fclose(f);
 
     /* Flush anything still queued (descriptor_write(), descriptor.c) --

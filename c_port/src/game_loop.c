@@ -18,7 +18,11 @@
 #include "hostname_resolve.h"
 #include "log.h"
 #include "net.h"
+#include "obj.h"
 #include "pulse.h"
+#include "room.h"
+#include "thing.h"
+#include "world.h"
 
 /* 100,000 microseconds = 100ms = 1 pulse, matching the original's literal
  * OPT_USEC pulse unit (sys/socket.h). select()'s timeout doubles as the
@@ -179,6 +183,30 @@ static void handle_sigint(int sig) {
     g_shutdown = 1;
 }
 
+/* True if room `r` already contains a THING_MOB/THING_OBJ of `vnum`,
+ * gating the copyover mob/obj restore below. Needed because
+ * zone_boot_all() (main.c) already runs BEFORE game_loop_run() (and
+ * therefore before copyover_recover() below) -- it re-places every
+ * zone's own permanent starting population fresh on every boot/copyover,
+ * so restoring copyover.dat's dump UNCONDITIONALLY double-placed
+ * anything zone_boot_all() already restocked (caught live: a room's
+ * fixed "wizard board"/"note dispenser" showed "(x2)" after a real
+ * copyover test). A world-wide `max_exist` check (zone.c's own
+ * zone_world_count(), the first thing tried here) turned out NOT to
+ * catch this specific case -- these particular fixtures are capped at
+ * 9999 (effectively uncapped for 1-2 copies) -- so this checks the
+ * actual thing that matters instead: does the SPECIFIC ROOM this line
+ * targets already have one, exactly like zone.c's own per-room
+ * zone_count_in_room() gate for its 'O'/'M' rows uses. If the room
+ * already has one (zone_boot_all() beat this code to it), skip; if not
+ * (a genuine ad hoc drop zone_boot_all() has no row for), restore it. */
+static bool copyover_room_already_has(const room_t *r, thing_kind_t kind, int vnum) {
+    for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next)
+        if (t->kind == kind && t->id == vnum)
+            return true;
+    return false;
+}
+
 /* Adopts the listening socket and every player connection recorded in the
  * copyover recovery file (see cmd_copyover.c for the writer and the file
  * format). Returns false if the file can't be read/parsed -- the caller
@@ -199,11 +227,59 @@ static bool copyover_recover(const char *file, main_socket_t *ms) {
         return false;
     }
 
-    int restored = 0, dropped = 0;
+    int restored = 0, dropped = 0, mobs_restored = 0, objs_restored = 0;
     while (fgets(line, sizeof(line), f)) {
         int fd, room_vnum, color;
         long account_id;
         char peer_ip[46], char_name[64], account_name[80];
+
+        /* Loose room contents (mobs + top-level objects) -- see
+         * cmd_copyover.c's header comment for why these lines exist and
+         * the scoped-down limits (top-level only, no nested containers/
+         * equipment). Checked by prefix first so a "mob"/"obj" line
+         * never falls into the "conn" parse-failure/close-fd branch
+         * below, which would silently just drop it uncounted. */
+        int mob_room_vnum, mob_vnum, mob_hp, mob_position;
+        int obj_room_vnum, obj_vnum;
+        if (sscanf(line, "mob %d %d %d %d", &mob_room_vnum, &mob_vnum, &mob_hp, &mob_position) == 4) {
+            room_t *r = world_get_room(mob_room_vnum);
+            if (!r) {
+                r = room_repo_load(mob_room_vnum);
+                if (r)
+                    world_register_room(r);
+            }
+            if (r && copyover_room_already_has(r, THING_MOB, mob_vnum)) {
+                dropped++;
+                continue;
+            }
+            being_t *m = r ? being_create_mob(mob_vnum) : NULL;
+            if (m) {
+                m->progress.hp = mob_hp;
+                m->position = (position_t)mob_position;
+                thing_set_room(&m->base, r);
+                mobs_restored++;
+            }
+            continue;
+        }
+        if (sscanf(line, "obj %d %d", &obj_room_vnum, &obj_vnum) == 2) {
+            room_t *r = world_get_room(obj_room_vnum);
+            if (!r) {
+                r = room_repo_load(obj_room_vnum);
+                if (r)
+                    world_register_room(r);
+            }
+            if (r && copyover_room_already_has(r, THING_OBJ, obj_vnum)) {
+                dropped++;
+                continue;
+            }
+            obj_t *o = r ? obj_create_from_proto(obj_vnum) : NULL;
+            if (o) {
+                thing_set_room(&o->base, r);
+                objs_restored++;
+            }
+            continue;
+        }
+
         if (sscanf(line, "conn %d %ld %d %d %45s %63s %79[^\r\n]",
                    &fd, &account_id, &room_vnum, &color, peer_ip, char_name,
                    account_name) != 7) {
@@ -224,6 +300,8 @@ static bool copyover_recover(const char *file, main_socket_t *ms) {
     }
     fclose(f);
     unlink(file);
+    log_info("Copyover: restored %d mob(s), %d object(s) into their rooms.",
+              mobs_restored, objs_restored);
     log_info("Copyover recovery: %d connection(s) restored, %d dropped.", restored, dropped);
     return true;
 }

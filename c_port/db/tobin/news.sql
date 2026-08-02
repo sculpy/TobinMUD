@@ -382,3 +382,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'One Body, One Login', 'Logging back into a character that''s already active elsewhere no longer creates a second copy of them wandering the world -- the old connection is bumped, and the new one picks up right where they were.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The World Now Remembers Itself Through A Reboot', 'A copyover used to quietly reset every room to its original starting contents -- anything dropped, loaded, or otherwise left lying around would vanish the next time someone walked in. Loose items and creatures in rooms now survive a copyover along with everyone''s connections.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
