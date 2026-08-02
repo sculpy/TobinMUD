@@ -614,3 +614,13 @@ ALTER TABLE `obj`
 -- suit_item row still means exactly what it always did).
 ALTER TABLE `suit_item`
   ADD COLUMN IF NOT EXISTS `quantity` int(11) NOT NULL DEFAULT 1;
+
+-- Newbie equipment system expansion (TODO.md priority item, 2026-08-02):
+-- a second, independent suit dimension alongside the existing `class`
+-- column -- a fresh character now gets BOTH their class's suit (weapon/
+-- shield/rations/etc) AND their race's own suit (the 11-piece cloth
+-- armor set + racial weapon + shared training shield already seeded at
+-- vnums 36930-37002). NULL = not race-restricted, same convention as
+-- `class`.
+ALTER TABLE `suit`
+  ADD COLUMN IF NOT EXISTS `race` int(11) DEFAULT NULL;

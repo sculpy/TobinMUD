@@ -178,6 +178,15 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
             int suit_id = suit_repo_find_for_class((int)char_class);
             if (suit_id >= 0)
                 suit_grant(b, suit_id);
+            /* Newbie equipment system expansion (TODO.md priority item,
+             * 2026-08-02): a SECOND, independent suit grant by race --
+             * every character now also gets their race's own 11-piece
+             * starting armor set + racial weapon + shared training
+             * shield (newbie_gear_race.sql), on top of whatever their
+             * class suit already gave them. */
+            int race_suit_id = suit_repo_find_for_race((int)race);
+            if (race_suit_id >= 0)
+                suit_grant(b, race_suit_id);
         }
     }
 

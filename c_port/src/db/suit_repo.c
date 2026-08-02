@@ -55,6 +55,21 @@ int suit_repo_find_for_class(int player_class) {
     return found;
 }
 
+/* Finds the newbie equipment suit defined for a race -- see suit_repo.h. */
+int suit_repo_find_for_race(int player_race) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+
+    int found = -1;
+    if (db_query(db, "select id from suit where race=%i limit 1", player_race)
+        && db_fetch_row(db))
+        found = atoi(db_get(db, "id"));
+
+    db_close(db);
+    return found;
+}
+
 /* Loads suit_id's item vnums AND per-item quantities -- see suit_repo.h. */
 int suit_repo_load_items_qty(int suit_id, int *vnums, int *qtys, int max) {
     db_conn_t *db = db_open(DB_TOBIN);

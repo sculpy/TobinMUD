@@ -9,7 +9,11 @@
  * newbie equipment suits). Pure lookup layer; see suit.h for the actual
  * grant/auto-equip logic that consumes these. */
 
-#define SUIT_MAX_ITEMS 8 /* generous cap -- real suits are ~4 items */
+#define SUIT_MAX_ITEMS 16 /* bumped from 8 (Newbie equipment system
+                             expansion, TODO.md priority item, 2026-08-02):
+                             a per-race starting-gear suit needs 11 armor
+                             pieces + 1 racial weapon + 1 shared shield =
+                             13 rows, the old cap of 8 wasn't enough */
 
 /* Finds a suit by name (case-insensitive substring match, same spirit as
  * find_obj()'s keyword matching elsewhere) -- returns its numeric id, or
@@ -23,6 +27,14 @@ int suit_repo_find_by_name(const char *name, int *out_class, char *out_name, int
 /* Finds the suit whose `class` column equals `player_class` (a
  * player_class_t value), or -1 if no suit is defined for that class. */
 int suit_repo_find_for_class(int player_class);
+
+/* Finds the suit whose `race` column equals `player_race` (a
+ * player_race_t value), or -1 if no suit is defined for that race.
+ * Newbie equipment system expansion (TODO.md priority item,
+ * 2026-08-02) -- a second, independent suit grant alongside the
+ * existing per-CLASS one, so a fresh character gets both their
+ * class's weapon/shield AND their race's own starting armor set. */
+int suit_repo_find_for_race(int player_race);
 
 /* Loads suit_id's item vnums AND per-item quantities in parallel arrays
  * (capacity `max` each) -- Menu-driven loadsuit editor (TODO.md priority
