@@ -2011,10 +2011,11 @@ static const char *oedit_val_hint(int type) {
  * an "* unsaved changes *" marker when oedit_dirty. */
 static void show_oedit_menu(descriptor_t *d) {
     obj_proto_t *w = &d->oedit_work;
-    char wearbuf[256], actionbuf[512];
+    char wearbuf[256], actionbuf[512], antiracebuf[128];
     obj_wear_flag_names(w->wear_flag, wearbuf, sizeof(wearbuf));
     obj_action_flag_names(w->action_flag, actionbuf, sizeof(actionbuf));
-    char out[2304];
+    obj_anti_race_flag_names(w->anti_race_flag, antiracebuf, sizeof(antiracebuf));
+    char out[2432];
     snprintf(out, sizeof(out),
              "\r\n<c>Editing object:<z> %s (#%d)\r\n\r\n"
              "   <c>1)<z> <p>Name<z>: %s\r\n"
@@ -2029,7 +2030,7 @@ static void show_oedit_menu(descriptor_t *d) {
              "  <c>11)<z> <p>Decay time<z>: %d                  <c>12)<z> <p>Max struct points<z>: %d\r\n"
              "  <c>13)<z> <p>Struct points<z>: %d                <c>14)<z> <p>Material<z>: %d (%s)\r\n"
              "  <c>15)<z> <p>Can be seen<z>: %s                  <c>16)<z> <p>Special proc<z>: %d\r\n"
-             "  <c>17)<z> <p>Max exist<z>: %d\r\n\r\n"
+             "  <c>17)<z> <p>Max exist<z>: %d                    <c>18)<z> <p>Anti-race flags<z>: %s\r\n\r\n"
              "   <c>S)<z> <p>Save<z>    <c>Q)<z> <p>Quit<z>%s\r\n[oedit] ",
              w->name, w->vnum,
              w->name, w->short_descr, obj_type_name(w->type), w->type,
@@ -2039,7 +2040,7 @@ static void show_oedit_menu(descriptor_t *d) {
              w->decay_time, w->max_struct,
              w->cur_struct, w->material, material_tier_name(material_tier_for_id(w->material)),
              w->can_be_seen ? "yes" : "no", w->spec_proc,
-             w->max_exist,
+             w->max_exist, antiracebuf,
              d->oedit_dirty ? "\r\n   <c>* unsaved changes *<z>" : "");
     descriptor_send(d, out);
     d->state = CONN_OEDIT_MENU;
@@ -2087,6 +2088,31 @@ static void show_oedit_wear_flags(descriptor_t *d) {
     descriptor_send(d, out);
     descriptor_send(d, "flag> ");
     d->state = CONN_OEDIT_WEAR_FLAGS;
+}
+
+/* Renders the oedit "Anti-race flags" toggle submenu (CONN_OEDIT_
+ * ANTI_RACE_FLAGS, Object anti-race flags, TODO.md priority item,
+ * 2026-08-02), one [x]/[ ] bit per known race -- same pattern as
+ * show_oedit_wear_flags() just above, own field since this is a
+ * Tobin-only bitmask (obj.h) with no upstream column to share. */
+static void show_oedit_anti_race_flags(descriptor_t *d) {
+    char out[512];
+    size_t n = (size_t)snprintf(out, sizeof(out),
+        "\r\nAnti-race flags for %d -- toggle by number, blank to return:\r\n",
+        d->oedit_work.vnum);
+    for (int b = 0; b < obj_anti_race_flag_count(); b++) {
+        n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
+            "  <c>%2d<z> [%c] <p>%-14s<z>%s", b,
+            (d->oedit_work.anti_race_flag & (1 << b)) ? 'x' : ' ',
+            obj_anti_race_flag_name(b), (b % 2 == 1) ? "\r\n" : "");
+        if (n >= sizeof(out))
+            break;
+    }
+    if (obj_anti_race_flag_count() % 2 != 0 && n < sizeof(out))
+        snprintf(out + n, sizeof(out) - n, "\r\n");
+    descriptor_send(d, out);
+    descriptor_send(d, "flag> ");
+    d->state = CONN_OEDIT_ANTI_RACE_FLAGS;
 }
 
 /* Commits the oedit working copy back to the DB via obj_proto_save(). */
@@ -4352,8 +4378,11 @@ static bool handle_line(descriptor_t *d, const char *line) {
                         descriptor_send(d, "\r\nEnter new max exist, 0 for uncapped (blank to cancel): ");
                         d->state = CONN_OEDIT_MAX_EXIST;
                         break;
+                    case 18:
+                        show_oedit_anti_race_flags(d);
+                        break;
                     default:
-                        descriptor_send(d, "Pick a menu number (1-17), or S/Q.\r\n");
+                        descriptor_send(d, "Pick a menu number (1-18), or S/Q.\r\n");
                         show_oedit_menu(d);
                         break;
                 }
@@ -4374,7 +4403,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     }
                     break;
                 default:
-                    descriptor_send(d, "Pick a menu number (1-17), or S/Q.\r\n");
+                    descriptor_send(d, "Pick a menu number (1-18), or S/Q.\r\n");
                     show_oedit_menu(d);
                     break;
             }
@@ -4483,6 +4512,24 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 } else {
                     descriptor_send(d, "Pick a flag number, or blank to return.\r\n");
                     show_oedit_wear_flags(d);
+                }
+            } else {
+                show_oedit_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_OEDIT_ANTI_RACE_FLAGS: {
+            if (line[0]) {
+                char *end;
+                long bit = strtol(line, &end, 10);
+                if (end != line && bit >= 0 && bit < obj_anti_race_flag_count()) {
+                    d->oedit_work.anti_race_flag ^= (1 << bit);
+                    d->oedit_dirty = true;
+                    show_oedit_anti_race_flags(d);
+                } else {
+                    descriptor_send(d, "Pick a flag number, or blank to return.\r\n");
+                    show_oedit_anti_race_flags(d);
                 }
             } else {
                 show_oedit_menu(d);

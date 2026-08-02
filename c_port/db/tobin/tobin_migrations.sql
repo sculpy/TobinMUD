@@ -596,3 +596,11 @@ CREATE TABLE IF NOT EXISTS `tell_history` (
   CONSTRAINT `tell_history_from_fk` FOREIGN KEY (`from_player_id`) REFERENCES `player` (`id`) ON DELETE CASCADE,
   CONSTRAINT `tell_history_to_fk` FOREIGN KEY (`to_player_id`) REFERENCES `player` (`id`) ON DELETE CASCADE
 );
+
+-- Object anti-race flags (TODO.md priority item, 2026-08-02, user's own
+-- design -- SneezyMUD has no per-race wear restriction to port, only
+-- per-class action_flag bits, already fully assigned; this is a new
+-- dedicated column rather than overloading action_flag). See obj.h's
+-- ANTI_RACE_HUMAN etc / obj_race_forbidden().
+ALTER TABLE `obj`
+  ADD COLUMN IF NOT EXISTS `anti_race_flag` int(11) NOT NULL DEFAULT 0;

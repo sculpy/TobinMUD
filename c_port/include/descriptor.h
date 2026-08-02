@@ -227,6 +227,11 @@ typedef enum {
     CONN_OEDIT_CAN_BE_SEEN,
     CONN_OEDIT_SPEC_PROC,
     CONN_OEDIT_MAX_EXIST,
+    CONN_OEDIT_ANTI_RACE_FLAGS, /* Object anti-race flags, TODO.md priority
+                                   item, 2026-08-02 -- Tobin-only, no
+                                   upstream field, own submenu since
+                                   action_flag's 32 bits are already fully
+                                   assigned (see obj.h). */
     CONN_OEDIT_QUIT_CONFIRM,
     /* Menu-driven trigger manager (`edit trigger <room|mob|obj> <vnum>`,
      * 2026-07-25 redesign -- user: "should go into a menu driven editor

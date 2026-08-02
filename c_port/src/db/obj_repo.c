@@ -21,8 +21,8 @@ bool obj_proto_load(int vnum, obj_proto_t *out) {
 
     bool found = false;
     if (db_query(db,
-            "select name, short_desc, long_desc, type, action_flag, wear_flag, "
-            "val0, val1, val2, val3, weight, price, can_be_seen, max_struct, "
+            "select name, short_desc, long_desc, type, action_flag, anti_race_flag, "
+            "wear_flag, val0, val1, val2, val3, weight, price, can_be_seen, max_struct, "
             "cur_struct, volume, material, max_exist, decay, spec_proc "
             "from obj where vnum=%i",
             vnum)
@@ -33,6 +33,7 @@ bool obj_proto_load(int vnum, obj_proto_t *out) {
         snprintf(out->long_descr, sizeof(out->long_descr), "%s", db_get(db, "long_desc"));
         out->type = atoi(db_get(db, "type"));
         out->action_flag = atoi(db_get(db, "action_flag"));
+        out->anti_race_flag = atoi(db_get(db, "anti_race_flag"));
         out->wear_flag = atoi(db_get(db, "wear_flag"));
         out->val[0] = atoi(db_get(db, "val0"));
         out->val[1] = atoi(db_get(db, "val1"));
@@ -64,12 +65,12 @@ bool obj_proto_save(const obj_proto_t *p) {
 
     bool ok = db_query(db,
         "update obj set name='%s', short_desc='%s', long_desc='%s', type=%i, "
-        "action_flag=%i, wear_flag=%i, val0=%i, val1=%i, val2=%i, val3=%i, "
+        "action_flag=%i, anti_race_flag=%i, wear_flag=%i, val0=%i, val1=%i, val2=%i, val3=%i, "
         "weight=%f, price=%i, can_be_seen=%i, max_struct=%i, cur_struct=%i, "
         "volume=%i, material=%i, max_exist=%i, decay=%i, spec_proc=%i "
         "where vnum=%i",
         p->name, p->short_descr, p->long_descr, p->type,
-        p->action_flag, p->wear_flag, p->val[0], p->val[1], p->val[2], p->val[3],
+        p->action_flag, p->anti_race_flag, p->wear_flag, p->val[0], p->val[1], p->val[2], p->val[3],
         p->weight, p->price, p->can_be_seen ? 1 : 0, p->max_struct, p->cur_struct,
         p->volume, p->material, p->max_exist, p->decay_time, p->spec_proc,
         p->vnum);

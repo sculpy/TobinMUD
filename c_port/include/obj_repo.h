@@ -32,9 +32,13 @@ typedef struct {
     int type;          /* raw upstream itemTypeT value -- category_for_item_type() */
     int action_flag;   /* the original's extraFlags bitmask -- see obj.h's
                           * obj_action_flag_names()/obj_action_flag_name().
-                          * Loaded/edited (`oedit`) but not yet read by any
-                          * gameplay code, same "real seeded column, no
-                          * Tobin behavior yet" status as spec_proc below. */
+                          * Loaded/edited (`oedit`); ITEM_NEWBIE is read by
+                          * cmd_drop.c, the rest still display-only, same
+                          * "real seeded column, no Tobin behavior yet"
+                          * status as spec_proc below. */
+    int anti_race_flag; /* Tobin-only bitmask, no upstream column -- see
+                          * obj.h's ANTI_RACE_HUMAN etc/obj_race_forbidden().
+                          * New DB column (tobin_migrations.sql), default 0. */
     int wear_flag;
     int val[4];
     double weight;

@@ -682,6 +682,17 @@ static bool wear_one_item(descriptor_t *d, being_t *ch, obj_t *o, bool announce)
     const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
     char msg[256];
 
+    /* Object anti-race flags (TODO.md priority item, 2026-08-02): checked
+     * before slot logic so a race-barred item never occupies/reports a
+     * slot it was never going to be allowed into. */
+    if (obj_race_forbidden(o, ch->race)) {
+        if (announce) {
+            snprintf(msg, sizeof(msg), "Your race cannot wear %s.\r\n", label);
+            descriptor_send(d, msg);
+        }
+        return false;
+    }
+
     if (slot == WEAR_SLOT_NOT_WEARABLE) {
         if (announce)
             descriptor_send(d, "You can't wear that.\r\n");
@@ -797,6 +808,15 @@ static bool do_hold_or_wield(descriptor_t *d, const char *args, bool wielding) {
     int slot = wear_slot_for_flag(o->wear_flag, ch);
     const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
     char msg[256];
+
+    /* Object anti-race flags (TODO.md priority item, 2026-08-02) -- same
+     * check `wear` applies, ported here since hold/wield are `wear`'s
+     * split-off siblings for holdable items. */
+    if (obj_race_forbidden(o, ch->race)) {
+        snprintf(msg, sizeof(msg), "Your race cannot %s %s.\r\n", verb, label);
+        descriptor_send(d, msg);
+        return true;
+    }
 
     if (slot != WEAR_SLOT_HELD) {
         snprintf(msg, sizeof(msg), "You can't %s that.\r\n", verb);

@@ -80,6 +80,17 @@ typedef struct obj {
                                   migration -- translated to a Tobin limb_t
                                   (or the held[] slots) only at wear time, see
                                   wear_slot_for_flag(). */
+    int anti_race_flag;       /* NEW Tobin-only bitmask (Object anti-race
+                                  flags, TODO.md priority item, 2026-08-02) --
+                                  no SneezyMUD equivalent exists to port
+                                  (upstream only restricts wear by CLASS,
+                                  see action_flag's ANTI_CLERIC/ANTI_MAGE/
+                                  etc bits above), so this is a separate
+                                  dedicated field rather than overloading
+                                  action_flag (whose 32 bits are already
+                                  fully assigned verbatim). See
+                                  ANTI_RACE_HUMAN etc below and
+                                  obj_race_forbidden(). */
     int action_flag;          /* stored VERBATIM from the DB's extraFlags
                                   bitmask (OBJ_ACTION_FLAG_NAMES[], obj.c) --
                                   copied onto the runtime instance at
@@ -464,6 +475,30 @@ const char *obj_action_flag_names(int flags, char *buf, size_t size);
  * linger on a room floor (NEWBIE-item-drop feature, TODO.md priority
  * item, 2026-08-02): see cmd_drop's ITEM_NEWBIE check. */
 #define ITEM_NEWBIE (1 << 24)
+
+/* Object anti-race flags (TODO.md priority item, 2026-08-02, user's own
+ * design -- SneezyMUD has no per-race wear restriction to port, only
+ * per-class, see action_flag's ANTI_CLERIC/ANTI_MAGE/etc bits above).
+ * Stored in the new dedicated `anti_race_flag` column/field rather than
+ * action_flag (already fully assigned). Bit order matches player_race_t
+ * (being.h) so obj_race_forbidden() below is a direct `1 << race` shift. */
+#define ANTI_RACE_HUMAN  (1 << 0)
+#define ANTI_RACE_ELF    (1 << 1)
+#define ANTI_RACE_OGRE   (1 << 2)
+#define ANTI_RACE_DWARF  (1 << 3)
+#define ANTI_RACE_HOBBIT (1 << 4)
+#define ANTI_RACE_GNOME  (1 << 5)
+
+/* True iff `race` (a player_race_t) is barred from wearing/wielding/
+ * holding `o` by its anti_race_flag bitmask. */
+bool obj_race_forbidden(const struct obj *o, int race);
+
+/* Decodes `anti_race_flag`'s bits into a readable "[ HUMAN ] [ ELF ] ..."
+ * run (or "none"), same bracket-per-flag convention as
+ * obj_action_flag_names()/obj_wear_flag_names(). For `stat`/oedit. */
+const char *obj_anti_race_flag_names(int flags, char *buf, size_t size);
+int obj_anti_race_flag_count(void);
+const char *obj_anti_race_flag_name(int bit);
 
 /* Per-bit accessors for `oedit`'s Take Flags / Extra Flags toggle
  * submenus (cmd_edobject.c) -- same "count + name(index)" shape as

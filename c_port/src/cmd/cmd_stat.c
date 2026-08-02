@@ -75,7 +75,7 @@
 static bool is_skipped_column(const char *table, const char *col) {
     if (strcmp(table, "obj") == 0) {
         return strcasecmp(col, "wear_flag") == 0 || strcasecmp(col, "type") == 0
-            || strcasecmp(col, "action_flag") == 0;
+            || strcasecmp(col, "action_flag") == 0 || strcasecmp(col, "anti_race_flag") == 0;
     }
     if (strcmp(table, "mob") == 0) {
         static const char *const skip[] = {
@@ -254,6 +254,8 @@ bool cmd_stat(descriptor_t *d, const char *args) {
                               obj_wear_flag_names(atoi(db_get(db, "wear_flag")), flagbuf, sizeof(flagbuf)));
         n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "action_flag",
                               obj_action_flag_names(atoi(db_get(db, "action_flag")), flagbuf, sizeof(flagbuf)));
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "anti_race_flag",
+                              obj_anti_race_flag_names(atoi(db_get(db, "anti_race_flag")), flagbuf, sizeof(flagbuf)));
     } else if (strcmp(table, "room") == 0) {
         char flagbuf[256];
         n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "sector",

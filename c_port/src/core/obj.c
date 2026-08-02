@@ -281,6 +281,51 @@ const char *obj_action_flag_name(int bit) {
     return OBJ_ACTION_FLAG_NAMES[bit];
 }
 
+/* Object anti-race flags (TODO.md priority item, 2026-08-02) -- a
+ * Tobin-only bitmask, no upstream equivalent (see obj.h's own doc
+ * comment on why this is a separate field from action_flag). Bit order
+ * matches player_race_t (being.h) 1:1. */
+static const char *const OBJ_ANTI_RACE_FLAG_NAMES[6] = {
+    "HUMAN", "ELF", "OGRE", "DWARF", "HOBBIT", "GNOME",
+};
+
+const char *obj_anti_race_flag_names(int flags, char *buf, size_t size) {
+    size_t n = 0;
+    buf[0] = '\0';
+    unsigned int uflags = (unsigned int)flags;
+    for (int bit = 0; bit < 6; bit++) {
+        if (!(uflags & (1u << bit)))
+            continue;
+        n += (size_t)snprintf(buf + n, size > n ? size - n : 0, "%s[ %s ]",
+                              n > 0 ? " " : "", OBJ_ANTI_RACE_FLAG_NAMES[bit]);
+        if (n >= size)
+            break;
+    }
+    if (buf[0] == '\0')
+        snprintf(buf, size, "none");
+    return buf;
+}
+
+int obj_anti_race_flag_count(void) {
+    return 6;
+}
+
+const char *obj_anti_race_flag_name(int bit) {
+    if (bit < 0 || bit >= 6)
+        return "?";
+    return OBJ_ANTI_RACE_FLAG_NAMES[bit];
+}
+
+/* True iff `race` (a player_race_t) is barred from wearing/wielding/
+ * holding `o` -- checked by cmd_wear.c's wear_one_item()/
+ * do_hold_or_wield(). Bit order matches player_race_t exactly, so this
+ * is a direct shift-and-test, same convention as mob_race_is_animal(). */
+bool obj_race_forbidden(const obj_t *o, int race) {
+    if (race < 0 || race >= 6)
+        return false;
+    return (o->anti_race_flag & (1 << race)) != 0;
+}
+
 /* Picks which limb slot on `fitter` an object with `wear_flag` should
  * go into when worn -- tries each wearable bit the object has in a
  * fixed priority order, returning the first still-empty matching slot.
@@ -387,6 +432,7 @@ obj_t *obj_create_from_proto(int vnum) {
     o->raw_type = proto.type;
     o->wear_flag = proto.wear_flag;
     o->action_flag = proto.action_flag;
+    o->anti_race_flag = proto.anti_race_flag;
     for (int i = 0; i < 4; i++)
         o->val[i] = proto.val[i];
     o->weight = proto.weight;
