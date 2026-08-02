@@ -1,6 +1,34 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 104 (DO droplet, production port 4000):
+Last updated: 2026-08-02 — Session 105 (DO droplet, production port 4000):
+**Door state now syncs across both sides.** Fourth item off the
+2026-07-30 autonomous-backlog list -- and an explicit REVERSAL of an
+earlier documented decision, not a bug fix: the original door-mechanics
+session had deliberately made each exit's door state fully independent,
+matching `edroom`'s own auto-created-reverse-exit convention (a new
+reverse exit gets its own doorless bitmask, never copied from the
+forward exit). The user asked to change that. New `sync_reverse_door()`
+(`cmd_open.c`): after `open`/`close <direction>` updates the near side's
+`exit_cond`, it looks up the destination room (loading it via
+`room_repo_load()`/`world_register_room()` if it isn't already in
+memory, so the sync works even with nobody standing on the far side),
+and if that room's reverse-direction exit points back to the near room
+AND itself has a real `door_type` set, mirrors the CLOSED bit onto it
+too and persists it, then echoes the change to anyone actually standing
+there. A doorless reverse exit is left completely alone -- no door is
+ever forced onto a side that doesn't have one. LOCKED and SECRET are
+deliberately excluded from the sync: LOCKED is `cmd_lock.c`'s own
+separate concern (open/close never touches it on either side, so
+there's nothing to mirror), and SECRET is allowed to differ by design (a
+hidden panel on one side, an obvious door on the other).
+`tests/smoke_test_doors.py`'s own docstring/comment (which had asserted
+the OLD "not mirrored" behavior as a documented fact) was updated to
+match, and extended with a new scenario -- two sandbox rooms with a real
+door on BOTH sides -- confirming closing/opening from either room
+updates the other's DB row and blocks/allows movement from either
+direction. 24 checks total, all pass live.
+
+Previous update: 2026-08-02 — Session 104 (DO droplet, production port 4000):
 **Copyover now restores loose room mobs/objects, not just player
 connections.** Third item off the 2026-07-30 autonomous-backlog list.
 Root cause verified live BEFORE fixing (not guessed): a copyover's

@@ -14,17 +14,28 @@
 #include "room.h"
 #include "room_repo.h"
 #include "thing.h"
+#include "world.h"
 
 /* `open`/`close <direction>`: the door-type/condition data an exit already
- * carries (set via `edroom`) finally does something. Each exit's door is
- * independent, per-direction state (exit_door[dir]/exit_cond[dir]) --
- * matching how `edroom`'s own auto-created reverse exit already works
- * (no door, own condition bitmask, never mirrored from the forward exit).
- * Opening/closing one side does NOT affect the other side's exit; that's
- * a deliberate simplification consistent with the existing schema, not an
- * oversight -- see STATUS.md. Locked doors can only be opened once the
- * Locked bit is cleared -- via `edroom`'s toggle submenu, or for real, with
- * a key: see cmd_lock.c's `lock`/`unlock`. */
+ * carries (set via `edroom`) finally does something.
+ *
+ * **Door state now syncs across both sides** (TODO.md priority item,
+ * user 2026-07-30: "synchronize door states so opening/closing a door
+ * affects both sides" -- an explicit, deliberate reversal of an earlier
+ * documented decision, not a bug fix; see sync_reverse_door()'s own doc
+ * comment for the exact scope). Each exit still CARRIES its own
+ * independent door_type/exit_cond storage (`edroom`'s auto-created
+ * reverse exit still gets its own doorless bitmask by default, unchanged)
+ * -- only the CLOSED bit is actively kept in lockstep once BOTH sides
+ * genuinely have a door of their own, treating that as "the same
+ * physical door" viewed from two rooms. LOCKED and SECRET are
+ * deliberately NOT synced: LOCKED is cmd_lock.c's own separate concern
+ * (open/close never touches it on either side, so there's nothing of
+ * this file's own to mirror), and a door can be secret from one side but
+ * obvious from the other by design (a hidden panel, say), independent
+ * of open/closed state. Locked doors can only be opened once the Locked
+ * bit is cleared -- via `edroom`'s toggle submenu, or for real, with a
+ * key: see cmd_lock.c's `lock`/`unlock`. */
 
 static int parse_dir(const char *tok) {
     size_t len = strlen(tok);
@@ -107,6 +118,57 @@ static bool do_container(descriptor_t *d, being_t *ch, obj_t *o, bool opening) {
     return true;
 }
 
+/* If room `r`'s exit `dir` (leading to `r->exits[dir]`) has a genuine
+ * door on the OTHER side too -- the destination room's reverse-direction
+ * exit (REV_DIR[dir]) points back to `r->vnum` and itself has a door_type
+ * set -- mirrors the new CLOSED state onto that side and persists
+ * it, then echoes the change to anyone standing there. A missing reverse
+ * exit, a reverse exit pointing somewhere else, or a doorless reverse
+ * exit are all left completely alone (no door forced onto a side that
+ * doesn't have one) -- see this file's top comment for the SECRET-bit
+ * exclusion. Loads the destination room via room_repo_load() if it isn't
+ * already in memory (same "lazy load, register, fall through" pattern
+ * enter_world()/descriptor_copyover_adopt() already use elsewhere) so a
+ * door syncs correctly even if nobody's currently standing on the far
+ * side to have loaded it first. */
+static void sync_reverse_door(room_t *r, int dir, bool opening) {
+    int dest_vnum = r->exits[dir];
+    if (dest_vnum < 0)
+        return;
+
+    room_t *far = world_get_room(dest_vnum);
+    if (!far) {
+        far = room_repo_load(dest_vnum);
+        if (far)
+            world_register_room(far);
+    }
+    if (!far)
+        return;
+
+    int rev = REV_DIR[dir];
+    if (far->exits[rev] != r->vnum || far->exit_door[rev] == 0)
+        return;
+
+    /* Only the CLOSED bit -- exactly what the near side's own code above
+     * touches (LOCKED is cmd_lock.c's separate concern, never modified by
+     * open/close on either side). */
+    if (opening)
+        far->exit_cond[rev] &= ~EXIT_COND_CLOSED;
+    else
+        far->exit_cond[rev] |= EXIT_COND_CLOSED;
+
+    room_repo_save_exit(far->vnum, rev, far->exits[rev], far->exit_door[rev], far->exit_cond[rev]);
+
+    char door[16];
+    snprintf(door, sizeof(door), "%s", door_type_name(far->exit_door[rev]));
+    for (char *p = door; *p; p++)
+        *p = (char)tolower((unsigned char)*p);
+    char echo[128];
+    snprintf(echo, sizeof(echo), "The %s to the %s %s.\r\n",
+             door, DIR_NAMES[rev], opening ? "opens" : "closes");
+    descriptor_room_echo(far, NULL, echo);
+}
+
 /* Shared implementation behind `open`/`close`: resolves the argument as a
  * direction (a door, with the "door [<direction>]" alternate syntax
  * handled below), or falls through to a carried/room container, then
@@ -186,6 +248,7 @@ static bool do_openclose(descriptor_t *d, const char *args, bool opening) {
         }
 
         room_repo_save_exit(r->vnum, dir, r->exits[dir], r->exit_door[dir], r->exit_cond[dir]);
+        sync_reverse_door(r, dir, opening);
 
         /* door_type_name() returns its display form capitalized ("Door",
          * "Gate", ...); lowercase it for mid-sentence use here. */

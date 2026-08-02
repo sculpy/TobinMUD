@@ -71,7 +71,24 @@ ask only when genuinely ambiguous. Full list, in the order given:
       no longer double. `tests/smoke_test_copyover_state.py` (7 checks,
       destructive -- triggers real copyovers, not part of the
       unattended sweep) passes live.
-- [ ] **Door state sync** (open/close affects both sides) — not started.
+- [x] **Door state sync** — done 2026-08-02 (Session 105). Explicit
+      reversal of an earlier documented decision (STATUS.md, door
+      mechanics session): "Door state is per-exit, not mirrored to the
+      reverse exit" was a deliberate original design choice, not a bug
+      -- the user asked to change it 2026-07-30. New
+      `sync_reverse_door()` (cmd_open.c): when opening/closing a door,
+      if the destination room's reverse-direction exit points back and
+      ALSO has a real door_type set, mirrors the CLOSED bit onto that
+      side and persists it (loads the far room via `room_repo_load()`
+      if not already in memory, so it syncs even with nobody standing
+      there). A doorless reverse exit (edroom's own default for an
+      auto-created one) is left completely untouched -- no door forced
+      onto a side that doesn't have one. LOCKED and SECRET are
+      deliberately NOT synced (LOCKED is cmd_lock.c's own separate
+      concern, never touched by open/close on either side; a door can
+      be secret from one side but obvious from the other by design).
+      `tests/smoke_test_doors.py` extended with a real-door-both-sides
+      scenario (6 new checks, 24 total) -- passes live.
 - [ ] **Group functionality rewrite** (leader/follower movement, `gt`
       group-tell alias, `assist` in combat) — not started.
 - [ ] **Command parser rewrite to match SneezyMUD exactly** (import

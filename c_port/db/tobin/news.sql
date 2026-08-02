@@ -386,3 +386,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The World Now Remembers Itself Through A Reboot', 'A copyover used to quietly reset every room to its original starting contents -- anything dropped, loaded, or otherwise left lying around would vanish the next time someone walked in. Loose items and creatures in rooms now survive a copyover along with everyone''s connections.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Doors Open And Close From Both Sides Now', 'A door used to remember whether it was open or closed only from whichever side you last touched it -- the other side kept its own separate state entirely. Now, wherever a door genuinely exists on both sides, opening or closing it from either room affects the whole door.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

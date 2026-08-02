@@ -7,9 +7,12 @@ in cmd_move.c, and secret-exit hiding in cmd_look.c/cmd_exits.c):
   3. `open <dir>` / `close <dir>` work, persist to the DB, and reject
      sensible error cases (no exit that way, no door there, already
      open/closed).
-  4. Door state is per-exit/per-direction, NOT mirrored to the reverse
-     exit -- a deliberate simplification matching how edroom's own
-     auto-created reverse exits already work (see STATUS.md).
+  4. Door state SYNCS to the reverse exit once BOTH sides genuinely have
+     a door of their own (user 2026-07-30, an explicit reversal of the
+     earlier per-exit-independence decision -- see STATUS.md Session
+     104/105) -- but a doorless reverse exit (edroom's own default for an
+     auto-created reverse exit) is left completely alone, no door forced
+     onto it.
 
 All setup happens in SQL-bootstrapped sandbox rooms at high vnums
 (900000+); the seeded world is never touched.
@@ -203,6 +206,42 @@ check(cond == "1", "the Closed condition persisted to roomexit.condition_flag")
 # --- the secret exit is still walkable even though never listed ---
 out = cmd(s, "east")
 check("The Secret Room" in out, "the secret exit is still walkable if you know the direction")
+
+# --- door sync: BOTH sides have a real door -> opening/closing one
+# side affects the other (user 2026-07-30) ---
+SYNC_A, SYNC_B = BASE + 3, BASE + 4
+for vnum, desc in ((SYNC_A, "Sync Room A"), (SYNC_B, "Sync Room B")):
+    sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
+        f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
+        f"VALUES ({vnum},0,0,0,'{desc}','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
+# north from A: a real door, open
+sql(f"INSERT INTO roomexit (vnum,direction,name,description,type,condition_flag,"
+    f"lock_difficulty,weight,key_num,destination) VALUES "
+    f"({SYNC_A},0,'','',1,0,0,0,0,{SYNC_B});")
+# south from B back to A: ALSO a real door, open -- the "same physical door"
+sql(f"INSERT INTO roomexit (vnum,direction,name,description,type,condition_flag,"
+    f"lock_difficulty,weight,key_num,destination) VALUES "
+    f"({SYNC_B},2,'','',1,0,0,0,0,{SYNC_A});")
+
+cmd(s, f"goto {SYNC_A}")
+out = cmd(s, "close north")
+check("You close the door to the north" in out, "close north in room A succeeds")
+
+cond_b = query(f"SELECT condition_flag FROM roomexit WHERE vnum={SYNC_B} AND direction=2;")
+check(cond_b == "1", "closing from room A also marks room B's south exit Closed in the DB")
+
+cmd(s, f"goto {SYNC_B}")
+out = cmd(s, "south")
+check("The door is closed" in out, "room B's south door is ALSO closed -- movement blocked from either side")
+
+out = cmd(s, "open south")
+check("You open the door to the south" in out, "opening from room B succeeds")
+cond_a = query(f"SELECT condition_flag FROM roomexit WHERE vnum={SYNC_A} AND direction=0;")
+check(cond_a == "0", "opening from room B also marks room A's north exit open in the DB")
+
+cmd(s, f"goto {SYNC_A}")
+out = cmd(s, "north")
+check("Sync Room B" in out, "room A's door reopened too -- movement now succeeds from either side")
 
 s.close()
 announce_done("smoke_test_doors")
