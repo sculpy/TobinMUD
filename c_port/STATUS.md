@@ -1,6 +1,40 @@
 # Tobin C Port — Status
 
-Last updated: 2026-07-29 — Session 101 (DO droplet, production port 4000):
+Last updated: 2026-07-30 — Session 102 (DO droplet, production port 4000):
+**Duplicate character session prevention.** User's autonomous-backlog
+priority list (2026-07-30): persisted stats, copyover restoration,
+duplicate sessions, door sync, group rewrite, command parser rewrite,
+blood/limb damage reduction, wear all, newbie item drop, loadsuit editor,
+anti-race object flags, uptime command, object editor flag picker, newbie
+equipment system. Started with duplicate sessions (highest-impact
+stability fix). Root cause: `enter_world()`'s existing multiplay gate
+only checked `account_id` across live descriptors -- it never checked
+whether the SAME character (`player_id`) was already loaded elsewhere, so
+a relogin race (or a bug reconnecting mid-session) could produce two live
+`being_t` instances of one character simultaneously. New
+`world_find_active_pc()` (world.c/h, sibling to the existing
+`world_find_linkdead_pc()` but matching active OR linkdead) +
+`enter_world()` now disconnects the stale connection and reclaims the
+character on the new one, matching SneezyMUD's own reclaim-on-relogin
+behavior instead of allowing two instances. `news.sql`/`wiznews.sql`
+entries added (player-facing behavior change).
+**Environment correction this session**: the assistant initially tried to
+deploy to the retired Home VM (`192.168.254.200`, unreachable/timed out)
+before finding the real current single-location setup (DO droplet
+`tobinmud.com`, git-only sync, `~/NewMUD/c_port`) documented in
+CLAUDE.md/SYNC.md/ENVIRONMENT.md. A stale project-memory file
+(`tobin-c-port.md`, referencing the old two-box setup and old repo name)
+was corrected to match. Also reverted an uncommitted local drift in
+`CLAUDE.md` that had silently deleted the gdb-attach-habit and
+`edit <noun>` house rules with no documented rationale.
+Deployed live via a temp SQL-promoted level-59 test account running
+`copyover` (no stored immortal login exists for automation --
+`/tmp/do_copyover4.py` on the droplet is the established pattern from
+prior sessions). One real player connection was active at deploy time;
+confirmed via `ss -tn | grep :4000` before proceeding, per the
+never-raw-restart-with-players-connected rule.
+
+Previous update: 2026-07-29 — Session 101 (DO droplet, production port 4000):
 **Level-25 audit batch, physical-skills half: ~20 new Warrior/Thief/
 Monk combat skills, closing out the largest single roster level in the
 whole audit.** Completes the level-25 batch Session 100 started (the

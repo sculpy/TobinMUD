@@ -378,3 +378,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Drawing Their Ire', 'Warriors can now `taunt` a foe to pull its attention off whoever it''s fighting and onto themselves instead. Clerics can also `pray paralyze limb` on a foe, leaving one of their arms or legs unresponsive until it''s healed.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'One Body, One Login', 'Logging back into a character that''s already active elsewhere no longer creates a second copy of them wandering the world -- the old connection is bumped, and the new one picks up right where they were.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

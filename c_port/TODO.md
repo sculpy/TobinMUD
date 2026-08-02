@@ -13,6 +13,48 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
+## User batch 2026-07-30 — autonomous backlog pass, working these now
+
+User directive: work through TODO.md/STATUS.md autonomously, prioritizing
+high-impact gameplay/stability fixes, SneezyMUD as canonical reference,
+ask only when genuinely ambiguous. Full list, in the order given:
+
+- [x] **Prevent duplicate character sessions** — done 2026-07-30 (Session
+      102). See STATUS.md for the full writeup. `world_find_active_pc()` +
+      `enter_world()` reclaim logic.
+- [ ] **Persisted game statistics** (rooms, mobs, objects, accounts,
+      characters survive reboot/copyover, display correctly) — not
+      started.
+- [ ] **Copyover restores all runtime statistics/state** — not started.
+- [ ] **Door state sync** (open/close affects both sides) — not started.
+- [ ] **Group functionality rewrite** (leader/follower movement, `gt`
+      group-tell alias, `assist` in combat) — not started.
+- [ ] **Command parser rewrite to match SneezyMUD exactly** (import
+      equivalent commands, comment out unsupported ones, align naming) —
+      not started. Largest, riskiest item on this list — likely needs a
+      scoping conversation before starting (touches every command in the
+      game).
+- [ ] **Reduce blood/limb-damage generation rates by 50%** — not started.
+- [ ] **`wear all`** (equip every wearable item in inventory) — not
+      started.
+- [ ] **NEWBIE-flagged items vanish when dropped** (room/player messages)
+      — not started.
+- [ ] **Menu-driven loadsuit editor** (configurable per-wear-location
+      quantities: wrists, fingers, hands, feet, arms, legs) — not started.
+      Builds on the existing `suit`/`suit_item` tables + `cmd_loadsuit.c`
+      (2026-07-26).
+- [ ] **Object anti-race flags** (`ANTI_HUMAN`/`ANTI_DWARF`/`ANTI_OGRE`/
+      `ANTI_ELF`/`ANTI_GNOME`/`ANTI_HOBBIT`) — not started.
+- [ ] **`uptime` command** (time since last reboot/copyover) — not
+      started.
+- [ ] **Object editor: item-type flag listing/picker** — not started.
+- [ ] **Newbie equipment system expansion**: auto-grant suit on first
+      login (may already partly exist, see 2026-07-26 suit work below —
+      verify), Welfare Dept. (room 570) replacement-suit request (already
+      done 2026-07-26 — verify still matches spec), loadsuit as an
+      expandable DB system (already the case — verify it covers the new
+      per-wear-location quantity requirement above once that lands).
+
 ## Recently closed (2026-07-20, home)
 
 - [x] **Verify the Work box's `sneezy` DB has the Grimhaven → Tobin City
