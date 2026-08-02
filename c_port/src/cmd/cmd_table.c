@@ -103,6 +103,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* SWAP: attack before affects, so "a" still attacks mid-fight rather
      * than printing a buff list. affects needs "af". */
     { "attack",  cmd_kill,    "Attack a player or mobile (instant slay for immortals).", MORTAL_LEVEL_MIN },
+    { "assist",  cmd_assist,  "Join a groupmate's fight, attacking whoever they're fighting (assist <groupmate>).", MORTAL_LEVEL_MIN },
     { "affects", cmd_affects, "List your currently active buffs/debuffs.",          MORTAL_LEVEL_MIN },
     { "alias",   cmd_alias,   "Manage your command aliases (alias [<name> [<expansion>]] | alias remove <name>).", MORTAL_LEVEL_MIN },
     /* Skill-based combat (Sneezy → Tobin feature audit, Warrior). Extra
@@ -219,6 +220,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "give",    cmd_give,    "Hand a carried item, or gold, to someone else here (give <item>|<amount> gold <person>).", MORTAL_LEVEL_MIN },
     { "goto",    cmd_goto,    "Directions to your guildmaster/the inn/the surplus store (goto guildmaster|rent|surplus), or teleport to a room by vnum (immortal).", MORTAL_LEVEL_MIN },
     { "group",   cmd_group,   "List/manage your group (group [<name>|all]) -- leader only to add.", MORTAL_LEVEL_MIN },
+    { "gtell",   cmd_gtell,   "Send a message to everyone in your group, wherever they are (gtell <message>, or the 'gt' abbreviation).", MORTAL_LEVEL_MIN },
     /* SWAP: hit before help, so "h" stays a combat verb; help needs "he",
      * hold needs "ho". */
     { "hit",     cmd_hit,     "Attack a player or mobile via real combat, even for immortals (never instakill).", MORTAL_LEVEL_MIN },

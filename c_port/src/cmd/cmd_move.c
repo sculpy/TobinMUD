@@ -82,6 +82,61 @@ static void apply_poof_tokens(const char *tmpl, const char *dir_word, gender_t g
  * at the very top of COMMANDS[] so the single letters n/e/s/w/u/d always
  * mean movement ("s" is south, not say; "w" is west, not who). */
 
+/* Drags every standing, non-fighting follower of `leader` who was still
+ * physically in `from` along through the same exit `leader` just took --
+ * "proper leader/follower movement" (TODO.md priority item, user
+ * 2026-07-30). Checked SneezyMUD's own moveGroup() (misc/movement.cc)
+ * first: it's gated on plain `follow` (master/followers[]) alone, NOT on
+ * `grouped`/AFF_GROUP -- matching Tobin's own existing split (`follow`
+ * establishes the relationship, `group` only shares XP/gold, see
+ * cmd_group.c's file-top comment) -- so this reads master/followers[]
+ * directly and never touches `grouped`. Recurses into each follower's
+ * OWN followers (a chain, not just one level), same as the real
+ * moveGroup(). Skips: not physically in `from` anymore (wandered off, or
+ * a linkdead follower who never moves at all since their position never
+ * changes them out of `from` -- checked, doesn't cause a stuck-forever
+ * bug because `from` is a snapshot, not re-read after teleporting), mid-
+ * fight (matching the leader's OWN "no walking out of a fight" refusal),
+ * not standing/mounted (matching the leader's OWN position gate exactly,
+ * stricter than Sneezy's own `>= POSITION_CRAWLING` -- consistent with
+ * what Tobin already requires of the PRIMARY mover). Deliberately no vit
+ * cost charged to a dragged-along follower (a disclosed scope-cut --
+ * Sneezy's own version only ever spends a Shaman leader's lifeforce
+ * here, nothing follower-side either) and no door/trap/terrain
+ * re-checks (the leader already cleared all of those for this exit).
+ * `descriptor_dispatch()`-free by design: mob followers can't exist
+ * (only a PC can type `follow`; see cmd_follow.c), so every entry here
+ * always has a `desc`, but a raw `cmd_dispatch(desc, "look")` is used
+ * instead of assuming any particular caller-facing helper. */
+static void move_followers_along(being_t *leader, room_t *from, room_t *to) {
+    for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
+        being_t *f = leader->followers[i];
+        if (!f || f->base.roomp != from)
+            continue;
+        if (f->fighting)
+            continue;
+        if (f->position != POSITION_STANDING && f->position != POSITION_MOUNTED)
+            continue;
+
+        char msg[128];
+        snprintf(msg, sizeof(msg), "You follow %s.\r\n", being_display_name(leader));
+        if (f->desc)
+            descriptor_send(f->desc, msg);
+
+        thing_set_room(&f->base, to);
+
+        char arrive[96];
+        snprintf(arrive, sizeof(arrive), "%s has arrived.\r\n", f->base.name);
+        if (!f->sneaking)
+            descriptor_room_echo(to, f, arrive);
+
+        if (f->desc)
+            cmd_dispatch(f->desc, "look");
+
+        move_followers_along(f, from, to);
+    }
+}
+
 static bool do_move(descriptor_t *d, int dir) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -253,12 +308,10 @@ static bool do_move(descriptor_t *d, int dir) {
      * the mount block above -- unlike a mount, no indoor exception (a
      * pet isn't too big for a doorway). Silent on the pet's own arrival/
      * departure (no separate room echo either side) -- the master's own
-     * move messages already cover it, same choice `follow`'s own PC-
-     * following convention would make if it dragged followers at all
-     * (see being.h's `master`/`followers` field comment for why it
-     * currently doesn't -- a pet is the one exception, since letting a
-     * player's own controlled pet wander off on a room change would
-     * defeat the point of summoning one). */
+     * move messages already cover it, same choice human followers now
+     * make too (move_followers_along() below, called after the leader's
+     * own arrival echo so the room reads "leader arrives" then "follower
+     * follows" in natural order, not the other way around). */
     being_t *pet = being_find_charmed_pet(ch);
     if (pet)
         thing_set_room(&pet->base, to);
@@ -271,6 +324,11 @@ static bool do_move(descriptor_t *d, int dir) {
     }
     if (!ch->sneaking)
         descriptor_room_echo(to, ch, msg);
+
+    /* Leader/follower movement (TODO.md priority item, user 2026-07-30) --
+     * see move_followers_along()'s own doc comment above do_move() for
+     * the full design. */
+    move_followers_along(ch, from, to);
 
     run_room_and_greet_triggers(ch, to);
 

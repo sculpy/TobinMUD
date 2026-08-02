@@ -390,3 +390,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Doors Open And Close From Both Sides Now', 'A door used to remember whether it was open or closed only from whichever side you last touched it -- the other side kept its own separate state entirely. Now, wherever a door genuinely exists on both sides, opening or closing it from either room affects the whole door.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Groups Move, Talk, And Fight Together Now', 'Followers now walk right along with the person they''re following instead of being left behind in the last room. A new `gtell` command (or its short form, `gt`) lets everyone in your group talk to each other no matter where they are. And `assist <name>` lets you jump into a groupmate''s fight and help them take down whoever they''re up against.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

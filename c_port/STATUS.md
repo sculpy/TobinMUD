@@ -1,6 +1,57 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 105 (DO droplet, production port 4000):
+Last updated: 2026-08-02 — Session 106 (DO droplet, production port 4000):
+**Group functionality rewrite: leader/follower movement, `gtell`/`gt`,
+`assist`.** Fifth item off the 2026-07-30 autonomous-backlog list.
+- **Leader/follower movement**: `follow`/`stop`/`group`/`split` already
+  existed (an earlier Sneezy → Tobin feature-audit session), but
+  followers never actually moved with their leader -- a documented gap
+  (`cmd_move.c`'s own pet-follow-along comment explicitly flagged
+  "`follow`'s own PC-following convention would make [this choice] if
+  it dragged followers at all... see being.h's field comment for why it
+  currently doesn't"). New `move_followers_along()` (cmd_move.c),
+  recursive through follower chains, called right after the leader's own
+  arrival echo so room broadcasts read in natural order ("leader
+  arrives" then "follower follows"). Checked SneezyMUD's own
+  `moveGroup()` (misc/movement.cc) first: gated on plain `follow` alone,
+  not `grouped`/AFF_GROUP -- ported that exactly, matching Tobin's own
+  existing follow-vs-group-benefits split. Skips a follower who's
+  fighting or not standing/mounted, mirroring the leader's own move
+  gate exactly (stricter than Sneezy's own `>= POSITION_CRAWLING`, kept
+  consistent with what Tobin already demands of the primary mover). No
+  vit cost charged to the follower (disclosed scope-cut, matches
+  Sneezy's own version -- it only ever spends a Shaman leader's
+  lifeforce, nothing follower-side).
+- **`gtell`/`gt`**: new `cmd_gtell.c`. Broadcasts to
+  `being_group_members()` (leader + every member with `grouped` set) --
+  deliberately gated on `grouped`, not plain `follow`, since gtell (like
+  `split`) is a genuine group benefit rather than the follow
+  relationship itself. No ignore-list/PLR_NOTELL gating, unlike a direct
+  `tell` -- you're already in this channel by mutual group consent. `gt`
+  resolves via the same prefix-match every abbreviated command already
+  uses; no separate table entry needed (checked for collisions first --
+  none of the existing `g`-prefixed commands share the "gt" prefix).
+- **`assist`**: new `cmd_assist.c`. Checked
+  `combat_process_run()`'s existing pet-auto-assist mechanic first
+  (its own doc comment, combat.c) before assuming assist would need new
+  combat infrastructure -- it doesn't: Tobin's pairwise `being_t.fighting`
+  pointer already supports a genuine multi-attacker pile-on with zero
+  special-casing, since the per-descriptor loop keys purely off each
+  PC's own `->fighting` and never cross-checks that the target's own
+  `fighting` points back (that's exactly how a charmed pet already adds
+  bonus damage without displacing who its master's target is "primarily"
+  paired against). `assist <groupmate>` is therefore just "attack
+  whoever this groupmate is currently fighting" -- sets the assister's
+  own `fighting`, leaves the target's `fighting` pointer alone. Gated on
+  `being_in_group()`, matching the user's own "assist GROUPMATES"
+  wording and `gtell`'s identical membership choice.
+`tests/smoke_test_group_features.py` (9 checks: follow+group setup,
+gtell delivery via the `gt` abbreviation, follower drag-along movement
+with both the follower's own message and physical room presence
+verified, assist joining a shared fight with both participants'
+messages checked) passes live.
+
+Previous update: 2026-08-02 — Session 105 (DO droplet, production port 4000):
 **Door state now syncs across both sides.** Fourth item off the
 2026-07-30 autonomous-backlog list -- and an explicit REVERSAL of an
 earlier documented decision, not a bug fix: the original door-mechanics

@@ -89,8 +89,39 @@ ask only when genuinely ambiguous. Full list, in the order given:
       be secret from one side but obvious from the other by design).
       `tests/smoke_test_doors.py` extended with a real-door-both-sides
       scenario (6 new checks, 24 total) -- passes live.
-- [ ] **Group functionality rewrite** (leader/follower movement, `gt`
-      group-tell alias, `assist` in combat) — not started.
+- [x] **Group functionality rewrite** — done 2026-08-02 (Session 106).
+      Three sub-items:
+      - **Leader/follower movement**: new `move_followers_along()`
+        (cmd_move.c), recursive (follows chains, not just one level).
+        Gated on plain `follow` (master/followers[]) alone, NOT the
+        `grouped` flag -- matching both being.h's existing follow-vs-
+        group split (`follow` establishes the relationship, `group`
+        only shares XP/gold) and SneezyMUD's own `moveGroup()`
+        (misc/movement.cc), which is follow-gated too. Skips a follower
+        who's fighting or not standing/mounted, same gate the leader's
+        own move already enforces. No vit cost charged to a dragged-
+        along follower (disclosed scope-cut, matches Sneezy's own
+        version too).
+      - **`gtell`/`gt`**: new `cmd_gtell.c`, broadcasts to
+        `being_group_members()` (leader + every GROUPED follower) --
+        gated on `grouped` this time, since gtell genuinely is a shared
+        group benefit, not just a follow relationship. `gt` needs no
+        separate alias entry -- resolves via the same prefix-match
+        every other abbreviated command already uses.
+      - **`assist`**: new `cmd_assist.c`. Checked
+        `combat_process_run()`'s existing pet-auto-assist mechanic
+        first (its own doc comment) before assuming new combat
+        infrastructure was needed: Tobin's pairwise `fighting` pointer
+        already supports a genuine multi-attacker pile-on with ZERO
+        special-casing, since the per-descriptor combat loop keys
+        purely off each PC's own `->fighting`, never cross-checking
+        that the target's own `fighting` points back. `assist
+        <groupmate>` therefore just sets the assister's OWN `fighting`
+        at whatever the named groupmate is currently fighting -- the
+        target's `fighting` pointer is deliberately left untouched,
+        same one-sided precedent the pet mechanic already established.
+        Gated on `being_in_group()`.
+      `tests/smoke_test_group_features.py` (9 checks) passes live.
 - [ ] **Command parser rewrite to match SneezyMUD exactly** (import
       equivalent commands, comment out unsupported ones, align naming) —
       not started. Largest, riskiest item on this list — likely needs a

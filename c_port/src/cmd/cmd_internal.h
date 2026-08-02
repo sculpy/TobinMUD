@@ -214,6 +214,8 @@ bool cmd_consider(descriptor_t *d, const char *args);
 bool cmd_egotrip(descriptor_t *d, const char *args);
 bool cmd_stat(descriptor_t *d, const char *args);
 bool cmd_stats(descriptor_t *d, const char *args);
+bool cmd_gtell(descriptor_t *d, const char *args);
+bool cmd_assist(descriptor_t *d, const char *args);
 bool cmd_examine(descriptor_t *d, const char *args);
 bool cmd_sip(descriptor_t *d, const char *args);
 bool cmd_show(descriptor_t *d, const char *args);
