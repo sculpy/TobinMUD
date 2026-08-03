@@ -124,10 +124,10 @@ out = step(s, "'wh' should reach who", "wh")
 check("Who's online" in out, "'wh' abbreviates to who")
 
 out = step(s, "'sc' should reach score", "sc")
-check(char_name in out and "Strength" in out, "'sc' abbreviates to score")
+check(char_name in out and "Str:" in out, "'sc' abbreviates to score")
 
 out = step(s, "'sco' should also reach score", "sco")
-check("Strength" in out, "'sco' (longer prefix) also abbreviates to score")
+check("Str:" in out, "'sco' (longer prefix) also abbreviates to score")
 
 # 'qu' used to fail outright here (an earlier, quest-less build); it now
 # legitimately abbreviates to `quest` (Quest system audit item) instead

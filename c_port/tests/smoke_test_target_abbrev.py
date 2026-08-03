@@ -97,6 +97,7 @@ def make_player(name):
     send_line(s, "done")
     recv_all(s)
     send_line(s, "done"); recv_all(s)  # alignment: neutral
+    send_line(s, "toggle pk"); recv_all(s)  # PK opt-in required for PC-vs-PC attack
     return s
 
 
