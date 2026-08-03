@@ -8,6 +8,9 @@ requested forms:
 
   1. Bare `purge` (51+): clears the current room's mobs and objects, but
      never a PC standing in it.
+  1b. `purge <target>` (user, 2026-08-02: "add purge target to purge a
+      single target"): removes ONE named mob or object, leaving everything
+      else in the room alone; a bogus name is refused cleanly.
   2. `purge linkdead` is refused below level 58, even for a 51+ builder
      who can do the bare form.
   3. `purge linkdead` (58+): force-removes every linkdead PC in the game,
@@ -160,6 +163,39 @@ out = cmd(s, "look")
 check("purge test dummy" not in out.lower(), "the dummy is gone after a bare purge")
 check("trinket" not in out.lower(), "the trinket is gone after a bare purge")
 check("Purge Sandbox" in out, "the room itself (and the immortal in it) survives the purge")
+
+# --- 1b: purge <target> removes ONE named mob/object, leaves the rest ---
+MOB2 = ROOM + 3
+OBJ2 = ROOM + 4
+sql(f"INSERT INTO mob (vnum,name,short_desc,long_desc,description,actions,affects,"
+    f"faction,fact_perc,letter,attacks,class,level,tohit,ac,hpbonus,damage_level,"
+    f"damage_precision,gold,race,weight,height,str,bra,con,dex,agi,intel,wis,foc,"
+    f"per,cha,kar,spe,pos,def_position,sex,spec_proc,skin,vision,can_be_seen,max_exist) "
+    f"VALUES ({MOB2},'targetdummy{_suffix}','a target test dummy','A target test dummy stands here.',"
+    f"'A stuffed practice dummy.',0,0,0,0,'A',1.0,0,1,0,0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
+    f"10,10,1,0,0,0,1,1);")
+sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen) "
+    f"VALUES ({OBJ2},'gizmo','a small gizmo','A small gizmo is lying here.',12,{WEAR_TAKE},1);")
+
+check("You conjure" in cmd(s, f"load mob {MOB2}"), "a second test dummy mob is loaded")
+check("You conjure" in cmd(s, f"load obj {OBJ2}"), "a second test object is loaded")
+out = cmd(s, "look")
+check("target test dummy" in out.lower() and "gizmo is lying here" in out.lower(),
+      "both the target dummy and the gizmo are visible before targeted purge")
+
+out = cmd(s, "purge gizmo")
+check("you purge a small gizmo" in out.lower(), "purge <target> reports what it destroyed")
+out = cmd(s, "look")
+check("gizmo" not in out.lower(), "the gizmo is gone after purge <target>")
+check("target test dummy" in out.lower(), "the untargeted dummy survives purge <target>")
+
+out = cmd(s, f"purge nonexistent{_suffix}")
+check("nothing here matches" in out.lower(), "purge <bogus target> is refused cleanly")
+
+out = cmd(s, "purge targetdummy")
+check("you purge a target test dummy" in out.lower(), "purge <target> also removes a mob by name")
+out = cmd(s, "look")
+check("target test dummy" not in out.lower(), "the dummy is gone after being purge-targeted")
 
 # --- 2: purge linkdead is refused below level 58, even for this 51+ builder ---
 out = cmd(s, "purge linkdead")
