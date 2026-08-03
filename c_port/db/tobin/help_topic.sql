@@ -1075,3 +1075,22 @@ WHERE `name` = 'suit';
 UPDATE `help_topic` SET `body` =
   'Usage: loadsuit <suit id> [target]\n\nSenior immortal (56+) only: instantiates every item in the given\nequipment suit and gives them loose into inventory (not auto-equipped)\n-- to yourself with no target, or to a mob/PC in the room by name\n(your own name is a valid target too). Suit ids are listed by `edit\nsuit` with no argument. Suits are defined/edited with `edit suit`.\n\nRelated: edit suit'
 WHERE `name` = 'loadsuit';
+
+-- Room vnum on bug/idea reports (TODO.md priority item, 2026-08-02, user:
+-- "may help reproduce a bug for testing") -- rewriting the already-seeded
+-- rows in place, same reason as the loadsuit rewrite above (the original
+-- INSERTs are a no-op on conflict).
+UPDATE `help_topic` SET `body` =
+  'Usage: bug <description>\n\nReports a bug to the immortals -- your name, the date, and the room\nyou were standing in are all recorded with it (the room helps a\nbuilder reproduce it). Please be specific about what you did and what\nwent wrong. Immortals can type bug with no argument to list\noutstanding reports.\n\nRelated: delbug edbug'
+WHERE `name` = 'bug';
+
+UPDATE `help_topic` SET `body` =
+  'Usage: idea <description>\n\nSuggests a new feature to the immortals -- your name, the date, and\nthe room you were standing in are all recorded with it. Immortals can\ntype idea with no argument to list outstanding suggestions.\n\nRelated: delidea'
+WHERE `name` = 'idea';
+
+-- New `typo`/`deltypo` (user, 2026-08-02: "add a typo command in the same
+-- way" -- same shape as bug/idea, its own table).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('typo', 'Usage: typo <what''s misspelled/wrong, and where>\n\nReports a typo or other text problem to the immortals -- your name,\nthe date, and the room you were standing in are all recorded with it.\nImmortals can type typo with no argument to list outstanding reports.\n\nRelated: deltypo', 'seed'),
+('deltypo', 'Usage: deltypo <id>\n\nRemoves a typo report once it has been handled. The id is the number\nshown beside each report in `typo`.\n\nRelated: typo', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

@@ -121,6 +121,8 @@ bool cmd_delbug(descriptor_t *d, const char *args);
 bool cmd_edbug(descriptor_t *d, const char *args);
 bool cmd_idea(descriptor_t *d, const char *args);
 bool cmd_delidea(descriptor_t *d, const char *args);
+bool cmd_typo(descriptor_t *d, const char *args);
+bool cmd_deltypo(descriptor_t *d, const char *args);
 bool cmd_test(descriptor_t *d, const char *args);
 bool cmd_newbie(descriptor_t *d, const char *args);
 bool cmd_rules(descriptor_t *d, const char *args);
@@ -266,6 +268,10 @@ bool look_at_target(descriptor_t *d, const char *args);
 
 /* `delidea` removes a handled idea -- Administrator (59) and up. */
 #define DELIDEA_MIN_LEVEL 59
+
+/* `deltypo` removes a handled typo report -- Administrator (59) and up,
+ * same tier as delbug/delidea. */
+#define DELTYPO_MIN_LEVEL 59
 
 /* `test` shows the currently-running smoke test -- 58+ (user spec). */
 #define TEST_MIN_LEVEL 58

@@ -42,7 +42,8 @@ bool cmd_idea(descriptor_t *d, const char *args) {
         return true;
     }
 
-    if (idea_repo_add(ch->base.name, args)) {
+    int room_vnum = ch->base.roomp ? ch->base.roomp->vnum : 0;
+    if (idea_repo_add(ch->base.name, args, room_vnum)) {
         descriptor_send(d, "<g>Thank you -- your idea has been filed.<z>\r\n");
         game_log(LOG_IDEA, "%s filed an idea: %s", ch->base.name, args);
     } else {

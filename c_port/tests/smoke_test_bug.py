@@ -4,6 +4,8 @@
   2. Bare `bug` from a mortal shows usage; from an immortal lists reports.
   3. The filed report shows the submitter and appears in the immortal list.
   4. `delbug <id>` (59+) removes it; a mortal can't see delbug (Command not found).
+  5. The report's room vnum (TODO.md priority item, 2026-08-02: "may help
+     reproduce a bug for testing") appears in the listing.
 
     python3 tests/smoke_test_bug.py [host] [port]
 """
@@ -136,6 +138,7 @@ out = strip(cmd(si, "bug"))
 check("Bug reports" in out, "immortal bare bug shows the report list header")
 check(marker in out and nameM.capitalize() in out,
       "the report lists its text and the submitter's name")
+check("(room 100)" in out, "the report shows the room vnum the submitter was standing in")
 
 # find the id for our marker and delete it
 m = re.search(rf"#(\d+)[^\n]*{re.escape(marker)}", out)

@@ -624,3 +624,15 @@ ALTER TABLE `suit_item`
 -- `class`.
 ALTER TABLE `suit`
   ADD COLUMN IF NOT EXISTS `race` int(11) DEFAULT NULL;
+
+-- Room vnum on bug/idea/typo reports (TODO.md priority item, 2026-08-02,
+-- user: "may help reproduce a bug for testing") -- captures WHERE the
+-- reporting player was standing when they filed the report, so a builder
+-- chasing it down knows exactly which room to go look at instead of
+-- guessing from the free-text body alone. NULL for any report filed
+-- before this column existed, or if the reporter somehow had no room
+-- (shouldn't normally happen, but not worth hard-failing the report over).
+ALTER TABLE `bug`
+  ADD COLUMN IF NOT EXISTS `room_vnum` int DEFAULT NULL;
+ALTER TABLE `idea`
+  ADD COLUMN IF NOT EXISTS `room_vnum` int DEFAULT NULL;

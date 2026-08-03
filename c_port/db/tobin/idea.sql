@@ -9,5 +9,6 @@ CREATE TABLE IF NOT EXISTS `idea` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `submitter` varchar(64) NOT NULL DEFAULT '',
   `body` text NOT NULL,
+  `room_vnum` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

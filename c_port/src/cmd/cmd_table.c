@@ -469,6 +469,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "tips",    cmd_tips,    "Show a random gameplay tip.",                        MORTAL_LEVEL_MIN },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
     { "toggle",  cmd_toggle,  "View or flip on/off switches (color, hp, ...).",     MORTAL_LEVEL_MIN },
+    { "typo",    cmd_typo,    "Report a typo/text problem (typo <text>); immortals list them.", MORTAL_LEVEL_MIN },
     { "unignore", cmd_unignore, "Stop blocking someone's tells/whispers (unignore <name>).", MORTAL_LEVEL_MIN },
     { "unlock",  cmd_unlock,  "Unlock a locked door or container (unlock <direction|container>).", MORTAL_LEVEL_MIN },
     { "uptime",  cmd_uptime,  "Show how long the server has been running since the last boot/copyover.", MORTAL_LEVEL_MIN },
@@ -521,6 +522,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "deathstroke", cmd_deathstroke, "A heavy, finishing-style attack against a single target (Warrior, deathstroke <target>).", MORTAL_LEVEL_MIN },
     { "delbug",  cmd_delbug,  "Delete a handled bug report by id.",                 DELBUG_MIN_LEVEL },
     { "delidea", cmd_delidea, "Delete a handled idea by id.",                       DELIDEA_MIN_LEVEL },
+    { "deltypo", cmd_deltypo, "Delete a handled typo report by id.",                DELTYPO_MIN_LEVEL },
     /* Skill-based combat (Sneezy → Tobin feature audit) -- listed BEFORE
      * disarmtrap on purpose, taking over the shared "di"/"dis" short
      * abbreviation from it: a mid-fight command benefits far more from a

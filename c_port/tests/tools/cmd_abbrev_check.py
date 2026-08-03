@@ -51,6 +51,7 @@ LEVELS = {
     "DELBUG_MIN_LEVEL": 59,
     "EDBUG_MIN_LEVEL": 59,
     "DELIDEA_MIN_LEVEL": 59,
+    "DELTYPO_MIN_LEVEL": 59,
     "SNOOP_MIN_LEVEL": 59,
     "MULTIPLAY_MIN_LEVEL": 59,
     "EXEC_MIN_LEVEL": 60,
@@ -60,6 +61,7 @@ LEVELS = {
     "WIPE_MIN_LEVEL": 59,
     "SHUTDOWN_MIN_LEVEL": 60,
     "POSSESS_MIN_LEVEL": 59,
+    "LOADSUIT_MIN_LEVEL": 56,
 }
 
 # { "name", cmd_fn, "help text" | NULL, LEVEL_MACRO },

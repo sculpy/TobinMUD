@@ -24,6 +24,7 @@ typedef enum {
     LOG_COMBAT,      /* combat and deaths */
     LOG_BUG,         /* bug reports */
     LOG_IDEA,        /* player feature requests */
+    LOG_TYPO,        /* typo/text reports */
     LOG_DB,          /* database */
     LOG_EDIT,        /* in-game building/editing */
     LOG_JESUS,       /* personalized: only the immortal named "Jesus" sees it */

@@ -41,7 +41,8 @@ bool cmd_bug(descriptor_t *d, const char *args) {
         return true;
     }
 
-    if (bug_repo_add(ch->base.name, args)) {
+    int room_vnum = ch->base.roomp ? ch->base.roomp->vnum : 0;
+    if (bug_repo_add(ch->base.name, args, room_vnum)) {
         descriptor_send(d, "<g>Thank you -- your bug report has been filed.<z>\r\n");
         game_log(LOG_BUG, "%s filed a bug: %s", ch->base.name, args);
     } else {

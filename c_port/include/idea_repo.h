@@ -11,8 +11,9 @@
 /* Player feature requests, backed by the `idea` table (db/tobin/idea.sql).
  * Same shape as bug_repo.h. */
 
-/* Files an idea from `submitter`. Returns false on DB error. */
-bool idea_repo_add(const char *submitter, const char *body);
+/* Files an idea from `submitter`, standing in room `room_vnum` (0 or
+ * negative if unknown -- stored as NULL). Returns false on DB error. */
+bool idea_repo_add(const char *submitter, const char *body, int room_vnum);
 
 /* Renders up to `limit` ideas (newest first) into `out`, each with its id,
  * date, submitter, and text -- for the immortal `idea` listing. Returns

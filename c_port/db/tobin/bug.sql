@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS `bug` (
   `body` text NOT NULL,
   `resolved_at` timestamp NULL DEFAULT NULL,
   `resolution` text DEFAULT NULL,
+  `room_vnum` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

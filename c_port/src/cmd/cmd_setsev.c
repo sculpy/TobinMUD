@@ -34,6 +34,7 @@ static const setsev_entry_t SETSEV_TYPES[] = {
     { LOG_COMBAT, "combat", "Combat and deaths" },
     { LOG_BUG,    "bug",    "Bug reports" },
     { LOG_IDEA,   "idea",   "Player feature requests" },
+    { LOG_TYPO,   "typo",   "Typo/text reports" },
     { LOG_DB,     "db",     "Database events" },
     { LOG_EDIT,   "edit",   "In-game building/editing" },
     { LOG_TEST,   "test",   "Smoke-test announcements (@test hook)" },

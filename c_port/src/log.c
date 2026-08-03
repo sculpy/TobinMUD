@@ -113,6 +113,7 @@ const char *log_type_name(log_type_t type) {
         case LOG_COMBAT: return "COMBAT";
         case LOG_BUG:    return "BUG";
         case LOG_IDEA:   return "IDEA";
+        case LOG_TYPO:   return "TYPO";
         case LOG_DB:     return "DB";
         case LOG_EDIT:   return "EDIT";
         case LOG_JESUS:  return "JESUS";

@@ -10,8 +10,11 @@
 
 /* Player bug reports, backed by the `bug` table (db/tobin/bug.sql). */
 
-/* Files a bug report from `submitter`. Returns false on DB error. */
-bool bug_repo_add(const char *submitter, const char *body);
+/* Files a bug report from `submitter`, standing in room `room_vnum` (0 or
+ * negative if unknown/not applicable -- stored as NULL) -- so a builder
+ * chasing the report down knows where to go look. Returns false on DB
+ * error. */
+bool bug_repo_add(const char *submitter, const char *body, int room_vnum);
 
 /* Renders up to `limit` OUTSTANDING (unresolved) bug reports (newest first)
  * into `out`, each with its id, date, submitter, and text -- for the

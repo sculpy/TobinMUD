@@ -300,6 +300,41 @@ ask only when genuinely ambiguous. Full list, in the order given:
       pre-existing `tests/smoke_test_newbie_gear.py` — zero
       regressions.
 
+## User batch 2026-08-02 (session continuation) — logged, working these now
+
+- [x] **`loadsuit` bug fix + number-driven + suit deletion** — done
+      2026-08-02. User: "loadsuit doesnt work right. load suit human_race
+      jesus produces noone here by that name. loadsuit by name is quirky,
+      lets be number driven, and a way to delete a suit needs to be
+      implemented." Root cause: `cmd_loadsuit.c`'s target lookup reused
+      `combat_find_room_target()` (combat.c), which deliberately excludes
+      the caller (`if (t == &self->base) continue;`) since it exists for
+      combat targeting -- loadsuit has no such restriction. Fixed by
+      checking the caller's own name first (`thing_name_matches()`, same
+      prefix-match convention used elsewhere) before falling through to
+      `combat_find_room_target()` for anyone else. Also switched both
+      `loadsuit` and `edit suit` from fuzzy substring name-matching to a
+      strict numeric suit id (shown by `edit suit` with no argument) --
+      `suit_repo_find_by_name()` removed as dead code; `edit suit new
+      <name>` is now the explicit creation verb, replacing the old
+      "unmatched name auto-creates" behavior. New capability: `edit
+      suit`'s menu gained `X) Delete this suit` (new `suit_repo_delete()`,
+      new `CONN_EDSUIT_DELETE_CONFIRM` state distinct from the existing
+      per-item delete-confirm), relying on the existing `suit_item` FK's
+      `ON DELETE CASCADE`. Updated help topics (`edit`/`suit`/`loadsuit`)
+      and `tests/smoke_test_newbie_gear.py`/`tests/smoke_test_edsuit.py`
+      for the numeric interface, including a test reproducing the exact
+      reported bug and a new suit-deletion test case. Verified live:
+      all three suit-related smoke tests pass, zero regressions.
+- [ ] **Add room vnum to bug and idea reporting** — user: "may help
+      reproduce a bug for testing." `bug`/`idea` reports should capture
+      the reporting player's current room vnum alongside the existing
+      report text, so a builder chasing a report knows exactly where to
+      go look.
+- [ ] **`purge` a single target** — currently `purge` (if it exists) only
+      clears an entire room; add a targeted form that purges one named
+      mob/object instead of everything.
+
 ## Recently closed (2026-07-20, home)
 
 - [x] **Verify the Work box's `sneezy` DB has the Grimhaven → Tobin City
