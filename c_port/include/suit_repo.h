@@ -15,15 +15,6 @@
                              pieces + 1 racial weapon + 1 shared shield =
                              13 rows, the old cap of 8 wasn't enough */
 
-/* Finds a suit by name (case-insensitive substring match, same spirit as
- * find_obj()'s keyword matching elsewhere) -- returns its numeric id, or
- * -1 if nothing matches. `out_class` (if non-NULL) is set to the suit's
- * class restriction (a player_class_t value, being.h), or -1 if the suit
- * isn't restricted to any one class. `out_name` (if non-NULL, buffer size
- * `out_name_sz`) is set to the suit's real stored name, so a caller that
- * matched on an abbreviation can echo back the full name. */
-int suit_repo_find_by_name(const char *name, int *out_class, char *out_name, int out_name_sz);
-
 /* Finds the suit whose `class` column equals `player_class` (a
  * player_class_t value), or -1 if no suit is defined for that class. */
 int suit_repo_find_for_class(int player_class);
@@ -65,6 +56,13 @@ int suit_repo_list_all(suit_summary_t *out, int max);
 /* Loads one suit's own scalar fields by id -- true if found. */
 bool suit_repo_get(int suit_id, char *name, size_t name_sz,
                     int *out_class, char *description, size_t desc_sz);
+
+/* Deletes an entire suit and every one of its suit_item rows (the FK's
+ * ON DELETE CASCADE, suit.sql, handles the item rows automatically --
+ * this just needs to delete the parent). Returns true if the DELETE
+ * executed without a DB error. For `edit suit`'s menu "Delete this
+ * suit" option. */
+bool suit_repo_delete(int suit_id);
 
 /* Creates a brand-new, empty suit (no items yet, class unrestricted,
  * a placeholder description) -- returns its new id, or -1 on a name

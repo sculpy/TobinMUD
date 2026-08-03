@@ -345,6 +345,11 @@ typedef enum {
     CONN_EDSUIT_ADD_QTY,
     CONN_EDSUIT_CLASS,
     CONN_EDSUIT_DESC,
+    CONN_EDSUIT_DELETE_CONFIRM, /* whole-suit delete (user, 2026-08-02:
+                                   "a way to delete a suit needs to be
+                                   implemented") -- distinct from
+                                   CONN_EDSUIT_ITEM_DELETE_CONFIRM,
+                                   which only removes one item */
     CONN_PLAYING,
     CONN_CLOSED
 } conn_state_t;

@@ -1056,3 +1056,22 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('loadsuit', 'Usage: loadsuit <suit name> [target]\n\nSenior immortal (56+) only: instantiates every item in a named\nequipment suit and gives them loose into inventory (not auto-equipped)\n-- to yourself with no target, or to a mob/PC in the room by name.\nSuit name matches by substring, same as most other named lookups.\nSuits are defined/edited with `edit suit`.\n\nRelated: edit suit', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `loadsuit`/`edit suit` redesign (user, 2026-08-02: "loadsuit doesnt
+-- work right... lets be number driven, and a way to delete a suit
+-- needs to be implemented"). Both commands now take the numeric suit
+-- id `edit suit` (no argument) lists, instead of a fuzzy name match --
+-- rewriting the already-inserted rows in place, since the INSERTs
+-- above are a no-op on conflict (`name` = `name`).
+UPDATE `help_topic` SET `body` = REPLACE(`body`,
+  'edit suit [name]          (56+) menu-driven newbie-suit editor --\n                                  see `help suit`',
+  'edit suit [id]            (56+) menu-driven newbie-suit editor --\n                                  see `help suit`')
+WHERE `name` = 'edit';
+
+UPDATE `help_topic` SET `body` =
+  'Usage: edit suit [id]\n      edit suit new <name>\n\nSenior immortal (56+) only: menu-driven editor for the named equipment\nsuits `loadsuit` grants (auto-issued to new characters, or loaded on\ndemand with `loadsuit <suit id> [target]`). With no argument, lists\nevery suit defined along with its id. With an id, opens the menu for\nthat suit. `edit suit new <name>` creates a brand-new empty suit under\nthat name and opens it.\n\nFrom the menu: a number opens that item''s detail view (change its\nquantity, or delete it); A adds a new item by obj vnum, prompting for\na quantity (blank = 1) -- this is how a suit gives someone MORE than\none of the same item, e.g. two wrist bands or two boots for two feet;\nC sets which class the suit is restricted to (or clears it); D sets\nthe suit''s description; X deletes the ENTIRE suit (asks for\nconfirmation first, and cannot be undone). Every change here commits\nimmediately, there is no separate Save step.\n\nRelated: loadsuit'
+WHERE `name` = 'suit';
+
+UPDATE `help_topic` SET `body` =
+  'Usage: loadsuit <suit id> [target]\n\nSenior immortal (56+) only: instantiates every item in the given\nequipment suit and gives them loose into inventory (not auto-equipped)\n-- to yourself with no target, or to a mob/PC in the room by name\n(your own name is a valid target too). Suit ids are listed by `edit\nsuit` with no argument. Suits are defined/edited with `edit suit`.\n\nRelated: edit suit'
+WHERE `name` = 'loadsuit';

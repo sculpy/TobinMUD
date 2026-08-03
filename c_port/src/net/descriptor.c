@@ -194,7 +194,7 @@ bool descriptor_in_editor(const descriptor_t *d) {
         || (d->state >= CONN_EDSOCIAL_LIST && d->state <= CONN_EDSOCIAL_DELETE_CONFIRM)
         || (d->state >= CONN_TRIGEDIT_LIST && d->state <= CONN_TRIGEDIT_SCRIPT)
         || (d->state >= CONN_MEDIT_MENU && d->state <= CONN_MEDIT_QUIT_CONFIRM)
-        || (d->state >= CONN_EDSUIT_LIST && d->state <= CONN_EDSUIT_DESC)
+        || (d->state >= CONN_EDSUIT_LIST && d->state <= CONN_EDSUIT_DELETE_CONFIRM)
         || d->page_len > 0; /* mid-pager -- same "no interruptions" treatment */
 }
 
@@ -2696,7 +2696,8 @@ static void show_edsuit_list(descriptor_t *d) {
     if (len < sizeof(out))
         snprintf(out + len, sizeof(out) - len,
             "\r\n  <c>A)<z> <p>Add an item<z>    <c>C)<z> <p>Set class restriction<z>\r\n"
-            "  <c>D)<z> <p>Set description<z>  blank) quit\r\nedsuit> ");
+            "  <c>D)<z> <p>Set description<z>  <c>X)<z> <p>Delete this suit<z>\r\n"
+            "  blank) quit\r\nedsuit> ");
     descriptor_send(d, out);
     d->state = CONN_EDSUIT_LIST;
 }
@@ -5271,7 +5272,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 int n = suit_repo_load_items_qty(d->edsuit_id, vnums, qtys, SUIT_MAX_ITEMS);
                 int idx = atoi(line) - 1;
                 if (idx < 0 || idx >= n) {
-                    descriptor_send(d, "Pick an item number from the list, A, C, D, or blank.\r\n");
+                    descriptor_send(d, "Pick an item number from the list, A, C, D, X, or blank.\r\n");
                     show_edsuit_list(d);
                     return true;
                 }
@@ -5294,8 +5295,12 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     descriptor_send(d, "\r\nEnter new description (blank to cancel): ");
                     d->state = CONN_EDSUIT_DESC;
                     break;
+                case 'X':
+                    descriptor_send(d, "Delete this ENTIRE suit? This cannot be undone. (yes/no): ");
+                    d->state = CONN_EDSUIT_DELETE_CONFIRM;
+                    break;
                 default:
-                    descriptor_send(d, "Pick an item number from the list, A, C, D, or blank.\r\n");
+                    descriptor_send(d, "Pick an item number from the list, A, C, D, X, or blank.\r\n");
                     show_edsuit_list(d);
                     break;
             }
@@ -5344,6 +5349,18 @@ static bool handle_line(descriptor_t *d, const char *line) {
             } else {
                 descriptor_send(d, "Cancelled.\r\n");
                 show_edsuit_item(d);
+            }
+            return true;
+        }
+
+        case CONN_EDSUIT_DELETE_CONFIRM: {
+            if (strcasecmp(line, "yes") == 0) {
+                suit_repo_delete(d->edsuit_id);
+                descriptor_send(d, "Suit deleted.\r\n");
+                d->state = CONN_PLAYING;
+            } else {
+                descriptor_send(d, "Cancelled.\r\n");
+                show_edsuit_list(d);
             }
             return true;
         }
