@@ -3,16 +3,19 @@
 priority item, user 2026-08-02: "Menu-driven loadsuit editor,
 configurable per-wear-location quantities"). Covers:
 
-  1. `edit suit <new name>` auto-creates a brand-new empty suit.
+  1. `edit suit new <name>` creates a brand-new empty suit.
   2. Adding two DIFFERENT items with quantities, including a quantity
      greater than 1 (the actual per-wear-location-quantity feature --
      e.g. two wrist bands for two wrists).
-  3. `loadsuit` on that suit actually grants the right item COUNTS,
-     not just the right vnums (proves suit_grant() expands quantities,
-     not just "in the suit or not").
+  3. `loadsuit <id> <target>` (number-driven since 2026-08-02) on that
+     suit actually grants the right item COUNTS, not just the right
+     vnums (proves suit_grant() expands quantities, not just "in the
+     suit or not").
   4. Changing an existing item's quantity from inside the editor.
   5. Deleting an item removes it from the suit.
   6. Setting/clearing the class restriction.
+  7. `X` deletes the entire suit (with a yes/no confirm); it's gone
+     from both `edit suit`'s listing and the DB afterward.
 
     python3 tests/smoke_test_edsuit.py [host] [port]
 """
@@ -145,10 +148,12 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,weight,val0
 
 suit_name = f"testsuit{_suffix}"
 
-# --- 1: edit suit auto-creates a new suit ---
-out = cmd(s, f"edit suit {suit_name}")
-check("created a new empty one" in out.lower(), "a brand-new suit is auto-created")
+# --- 1: edit suit new <name> creates a new suit ---
+out = cmd(s, f"edit suit new {suit_name}")
+check("created a new empty suit" in out.lower(), "a brand-new suit is created")
 check("no items yet" in out.lower(), "the fresh suit starts with no items")
+
+suit_id = sql_scalar(f"SELECT id FROM suit WHERE name='{suit_name}';")
 
 # --- 2: add wrist band with quantity 2 (the per-wear-location feature) ---
 out = cmd(s, "A")
@@ -186,19 +191,17 @@ send_line(sv, mort_pw); recv_all(sv)
 send_line(sv, "1"); recv_all(sv)
 cmd(sv, "color off")
 
-out = cmd(s, f"loadsuit {suit_name} {mort_name}")
+out = cmd(s, f"loadsuit {suit_id} {mort_name}")
 check("3 items" in out.lower(), "loadsuit reports granting 3 items total (2 wrist bands + 1 torch)")
 out = cmd(sv, "inventory")
 check("wrist band (x2)" in out.lower(), "the mortal's inventory actually shows 2 wrist bands stacked")
 check("small torch" in out.lower(), "the mortal's inventory shows the torch too")
 
-suit_id = sql_scalar(f"SELECT id FROM suit WHERE name='{suit_name}';")
-
 # --- 4: change the wrist band's quantity from inside the editor ---
 # (each "edit suit" re-invocation below requires being back at CONN_PLAYING
 # first -- typing it while still inside the editor's own menu state would
 # just be swallowed as menu input, not dispatched as a command)
-cmd(s, f"edit suit {suit_name}")
+cmd(s, f"edit suit {suit_id}")
 out = cmd(s, "1")
 check("quantity" in out.lower(), "selecting item 1 opens its detail view")
 cmd(s, "1")
@@ -210,7 +213,7 @@ qty = sql_scalar(f"SELECT quantity FROM suit_item WHERE suit_id={suit_id} AND ob
 check(qty == "5", f"the wrist band's quantity was updated to 5 in the DB, got {qty!r}")
 
 # --- 5: delete the torch ---
-cmd(s, f"edit suit {suit_name}")
+cmd(s, f"edit suit {suit_id}")
 out = cmd(s, "2")
 check("delete this item" in out.lower(), "item 2's detail view offers Delete")
 cmd(s, "D")
@@ -222,7 +225,7 @@ remaining = sql_scalar(f"SELECT COUNT(*) FROM suit_item WHERE suit_id={suit_id} 
 check(remaining == "0", "the torch row is actually gone from suit_item")
 
 # --- 6: set and clear the class restriction ---
-cmd(s, f"edit suit {suit_name}")
+cmd(s, f"edit suit {suit_id}")
 cmd(s, "C")
 cmd(s, "2")   # Warrior
 cmd(s, "")    # list -> CONN_PLAYING
@@ -230,13 +233,30 @@ cmd(s, "")    # list -> CONN_PLAYING
 cls = sql_scalar(f"SELECT class FROM suit WHERE id={suit_id};")
 check(cls == "2", f"the class restriction was set to 2 (Warrior), got {cls!r}")
 
-cmd(s, f"edit suit {suit_name}")
+cmd(s, f"edit suit {suit_id}")
 cmd(s, "C")
 cmd(s, "any")
 cmd(s, "")  # list -> CONN_PLAYING
 
 cls = sql_scalar(f"SELECT class FROM suit WHERE id={suit_id};")
 check(cls is None or cls == "" or cls == "NULL", f"\"any\" clears the class restriction, got {cls!r}")
+
+# --- 7: X deletes the entire suit (user, 2026-08-02: "a way to delete a
+# suit needs to be implemented") ---
+out = cmd(s, f"edit suit {suit_id}")
+out = cmd(s, "X")
+check("delete this entire suit" in out.lower(), "X prompts for a delete confirmation")
+out = cmd(s, "yes")
+check("suit deleted" in out.lower(), "confirming yes deletes the suit")
+
+remaining = sql_scalar(f"SELECT COUNT(*) FROM suit WHERE id={suit_id};")
+check(remaining == "0", "the suit row is actually gone from the DB")
+remaining_items = sql_scalar(f"SELECT COUNT(*) FROM suit_item WHERE suit_id={suit_id};")
+check(remaining_items == "0", "the suit's items were cascade-deleted too")
+
+out = cmd(s, "edit suit")
+check(suit_name not in out, "the deleted suit no longer appears in `edit suit`'s listing")
+cmd(s, "")  # clear the listing's pager
 
 s.close()
 sv.close()

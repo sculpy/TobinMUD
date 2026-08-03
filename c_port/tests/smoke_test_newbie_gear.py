@@ -12,10 +12,11 @@ dispatch (mob vnum 90, room 570). Covers:
      warrior_newbie suit's 4 items (weapon, shield, torch, backpack),
      loose (not auto-equipped -- user: "they can hold the items
      themselves, just load into inventory").
-  2. `loadsuit <name>` (immortal) loads a suit onto the caller.
-  3. `loadsuit <name> <target>` loads it onto someone else in the room,
+  2. `loadsuit <id>` (immortal, number-driven since 2026-08-02) loads a
+     suit onto the caller.
+  3. `loadsuit <id> <target>` loads it onto someone else in the room,
      who gets their own notice.
-  4. `loadsuit <bogus name>` reports no match, doesn't crash.
+  4. `loadsuit <bogus id>` reports no match, doesn't crash.
   5. The Welfare Department social worker (room 570) reissues a lost
      suit when asked ("say gear"), matching the speaker's own class --
      and stays silent for unrelated speech.
@@ -95,6 +96,16 @@ def sql(stmt):
     subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
+def sql_query(stmt):
+    """Runs a SELECT and returns its single scalar result as a string --
+    for looking up a suit's numeric id by name (loadsuit is number-driven
+    since 2026-08-02, `edit suit` with no argument is how a builder
+    normally finds an id; this is that same lookup, done directly)."""
+    out = subprocess.run(["mariadb", "tobin", "-N", "-e", stmt],
+                          check=True, capture_output=True, text=True)
+    return out.stdout.strip()
+
+
 def make_char(name, pw, class_num):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
@@ -152,19 +163,31 @@ try:
     for s in (war, tgt):
         recv_all(s)
 
-    # --- 2/3: loadsuit onto self and onto a named target ---
-    out = cmd(imm, "loadsuit cleric_newbie")
+    # --- 2/3: loadsuit onto self and onto a named target, by numeric id
+    # (number-driven since 2026-08-02: "loadsuit by name is quirky, lets
+    # be number driven") ---
+    cleric_id = sql_query("SELECT id FROM suit WHERE name='cleric_newbie';")
+    druid_id = sql_query("SELECT id FROM suit WHERE name='druid_newbie';")
+
+    out = cmd(imm, f"loadsuit {cleric_id}")
     check("cleric_newbie" in out and "yourself" in out, "loadsuit onto self reports correctly")
-    out = cmd(imm, f"loadsuit druid_newbie {tgt_name}")
+    out = cmd(imm, f"loadsuit {druid_id} {tgt_name}")
     check("druid_newbie" in out and tgt_name in out, "loadsuit onto a named target reports correctly")
     tgt_out = recv_all(tgt, 1.0)
     check("outfits you" in tgt_out.lower(), "the target gets their own notice")
     tgt_inv = cmd(tgt, "inventory")
     check("sickle" in tgt_inv.lower(), "the target actually received the druid suit's weapon")
 
-    # --- 4: a bogus suit name doesn't crash, just reports no match ---
-    out = cmd(imm, "loadsuit not_a_real_suit_xyz")
-    check("no suit matches" in out.lower(), "a bogus suit name is refused cleanly")
+    # --- self-target by own name (the exact bug reported 2026-08-02:
+    # "load suit human_race jesus produces noone here by that name" --
+    # combat_find_room_target() excludes the caller, so loadsuit's own
+    # target lookup has to check for a self-name match first) ---
+    out = cmd(imm, f"loadsuit {cleric_id} {imm_name}")
+    check("yourself" in out, "loadsuit <id> <own name> targets self instead of failing")
+
+    # --- 4: a bogus suit id doesn't crash, just reports no match ---
+    out = cmd(imm, "loadsuit 999999")
+    check("no such suit id" in out.lower(), "a bogus suit id is refused cleanly")
 
     # --- 5: the Welfare Department social worker reissues on request ---
     mnk = make_char(mnk_name, mnk_pw, "6")
