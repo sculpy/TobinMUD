@@ -152,6 +152,9 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
 
 check("You conjure" in cmd(s, f"load mob {MOB}"), "the test dummy mob is loaded")
 check("You conjure" in cmd(s, f"load obj {OBJ}"), "the test trinket object is loaded")
+cmd(s, "drop trinket")  # `load obj` (2026-07-22) lands in the loader's own
+                        # inventory, not the room floor -- drop it so
+                        # `purge`'s room-contents sweep can see it
 out = cmd(s, "look")
 check(f"purge test dummy" in out.lower(), "the dummy is visible before purging")
 check("trinket is lying here" in out.lower(), "the trinket is visible before purging")
@@ -179,6 +182,7 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
 
 check("You conjure" in cmd(s, f"load mob {MOB2}"), "a second test dummy mob is loaded")
 check("You conjure" in cmd(s, f"load obj {OBJ2}"), "a second test object is loaded")
+cmd(s, "drop gizmo")  # same `load obj` inventory-landing note as above
 out = cmd(s, "look")
 check("target test dummy" in out.lower() and "gizmo is lying here" in out.lower(),
       "both the target dummy and the gizmo are visible before targeted purge")
