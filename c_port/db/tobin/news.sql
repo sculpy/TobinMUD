@@ -418,3 +418,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New Characters Start With More', 'Fresh characters now arrive with a full starting outfit for their race (a matching set of clothing plus a racial weapon and a training shield), on top of their class''s own gear. Everyone also starts with a few rations of food and a small waterskin. Mages and Druids begin with a spellpouch stocked with real spell components, and Clerics start carrying a few wooden holy symbols.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New `whittle` Command', 'Anyone can now whittle simple wooden items -- chairs, chests, boxes, rings, pipes, daggers, walking sticks, idols, and more -- from carried wood logs. You''ll need a weapon wielded and enough wood on hand; type `whittle` alone to see the full list of what you can make.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

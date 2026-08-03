@@ -336,6 +336,12 @@ static const cmd_entry_t COMMANDS[] = {
      * same tier as `exec`: ends the whole process. */
     { "shutdown", cmd_shutdown, "End the game gracefully, now or in N seconds (shutdown [seconds|cancel]).", SHUTDOWN_MIN_LEVEL },
     { "whisper", cmd_whisper, "Send a private message to someone in the room (whisper <name> <message>).", MORTAL_LEVEL_MIN },
+    /* Whittle profession (TODO.md "Deferred decisions" -- the second
+     * `task/` profession alongside cook). Placed after "who"/"whisper"
+     * so "wh" still abbreviates to who, matching cook's own precedent of
+     * living wherever it was added rather than at a strict Sneezy-order
+     * slot. */
+    { "whittle", cmd_whittle, "Carve a wooden item from carried wood logs (whittle <item>).", MORTAL_LEVEL_MIN },
     /* Mortal-level: the pager (e.g. `news`) holds messages for anyone, not
      * just immortals mid-editor, so anyone can have something to catch up
      * on. */

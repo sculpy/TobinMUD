@@ -1,6 +1,38 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-02 — Session 114 (DO droplet, production port
+Last updated: 2026-08-03 — Session 115 (DO droplet, production port
+4000): **Whittle profession + two stale-test fixes.** TODO.md's last
+open item ("Deferred decisions" -- Whittle, the second `task/`
+profession alongside Cook) was scoped and built this session. New
+`whittle <item>` (cmd_whittle.c, whittle.h/.c): requires a wielded
+OBJ_CAT_WEAPON and enough carried wood-log weight (real seeded vnums
+75-88, MAT_WOOD=5) for the chosen item, single-action like Cook --
+scoped down from the real task_whittle.h/.cc's multi-tick carve/
+scrape/smooth task and its whole TArrow/TBow bow-and-arrow durability
+subsystem, both genuinely unsupportable (no generic multi-tick task
+primitive, no ranged-weapon/ammo mechanics exist in Tobin at all),
+disclosed in whittle.h's own doc comment. 25 of the original's 27
+non-bow/arrow recipes kept (one CLASS_SHAMAN totem cut -- Tobin has no
+Shaman class); every result vnum confirmed live against the real
+seeded `obj` table before porting. `tests/smoke_test_whittle.py` (7
+checks) passes live. Deployed via in-game `copyover` (clean, zero
+warnings). News + help topic added (player-facing new command).
+Also found and fixed two unrelated stale tests while doing the
+targeted regression pass that led into this session: `smoke_test_
+parser_display.py` asserted the literal word "Strength" in `score`
+output, which has printed abbreviated `Str:` since a July session;
+`smoke_test_target_abbrev.py` never toggled `pk` before two mortals
+`attack` each other, a step that didn't exist when the test was
+written (PK opt-in shipped later) -- both fixed and reverified. A
+third stale-test bug turned up organically while verifying Whittle:
+`smoke_test_cook.py`'s own `inventory` check didn't drain a paginated
+response before sending the next command, and the 2026-08-02 newbie-
+gear-expansion sessions pushed a fresh immortal's starting inventory
+past the pager threshold -- the following `cook` command was silently
+swallowed as a "show more" keystroke. Fixed with a shared `cmd_paged()`
+helper added to both `smoke_test_cook.py` and `smoke_test_whittle.py`.
+
+Previous update: 2026-08-02 — Session 114 (DO droplet, production port
 4000): **Newbie equipment system expansion.** Fourteenth and final item
 off the 2026-07-30 autonomous-backlog list -- the list is now fully
 closed out. Auto-grant-on-login, the Welfare Dept. reissue, and

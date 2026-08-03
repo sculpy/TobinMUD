@@ -1029,6 +1029,13 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('cook', 'Usage: cook <recipe>\n\nCooks a known recipe from ingredients you''re carrying (and, for meat\nrecipes, a matching animal corpse on the ground). Type `cook` alone to\nsee the full recipe list. Nothing is consumed unless every ingredient\nfor the recipe is actually present.\n\nRelated: fill drink', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
 
+-- Whittle profession (Sneezy -> Tobin feature audit, TODO.md "Deferred
+-- decisions" -- task_whittle.h/.cc, scoped down: no bows/arrows/multi-
+-- tick task, see whittle.h's own doc comment).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('whittle', 'Usage: whittle <item>\n\nCarves a known wooden item from wood logs you''re carrying, provided\nyou have a weapon wielded in your primary hand. Type `whittle` alone\nto see the full list of what you can make. Nothing is consumed unless\nyou have enough wood on hand for the item.\n\nRelated: cook craft', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
 -- Full spell/skill/prayer roster import, Druid's 6 named Shaman
 -- spells (user 2026-07-26). Sacrifice.
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES

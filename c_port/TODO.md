@@ -146,18 +146,56 @@ ask only when genuinely ambiguous. Full list, in the order given:
       future session narrowing any one group into real work should
       re-check first.
       **Phase 2 (reordering to match Sneezy's exact abbreviation
-      precedence) deliberately NOT attempted.** Sneezy's own abbreviation
-      resolution is keyed on raw `CMD_*` enum declaration order
-      (misc/parse.h) -- a fundamentally different mechanism from
-      `cmd_table.c`'s own documented tier-then-alphabetical system (see
-      that file's own top comment, "ORDERING RULES"). A true full swap
-      would mean re-testing all 200+ existing smoke tests against a
-      completely reshuffled precedence table, blind, against LIVE
-      PRODUCTION with real players connected -- judged too risky to
-      attempt in one pass without it being a separate, deliberately
-      scoped, much larger follow-up. Comment-only change; verified with a
-      clean rebuild, no live deploy/copyover needed (nothing executable
-      changed).
+      precedence) done** 2026-08-02, user: "do the reorder." Extracted the
+      REAL precedence order directly from upstream source rather than
+      guessing: `searchForCommandNum()` (parse.cc) walks `commandArray[]`
+      in raw `CMD_*` enum DECLARATION order (parse.h) and returns the
+      first `is_abbrev()` match -- confirmed this is NOT the same as
+      `buildCommandArray()`'s own assignment-statement order (e.g.
+      `CMD_TROPHY` is assigned right after `CMD_SCORE` textually but
+      declared ~500 entries later in the enum). A script matched Tobin's
+      213 commands against the 568 real Sneezy names by exact string;
+      154 matched and were reordered to that real Sneezy index; the 59
+      Tobin-only commands (no upstream equivalent) kept their original
+      relative position, anchored just before whichever matched command
+      originally followed them, so Tobin-invented commands stayed near
+      their original thematic neighbors instead of scattering.
+      One mechanical safety invariant enforced on top of the merge: if a
+      Tobin-only name is a STRICT PREFIX of another command's name (e.g.
+      `set`/`settrap`, `quest`/`questdef`), the shorter name must stay
+      ahead of the longer one no matter what the merge produces --
+      otherwise typing a command's own complete, exact name could fail to
+      reach itself. The raw merge violated this for exactly those two
+      pairs; both were manually pulled back into the required order
+      (`settrap` moved to directly follow `set`, `questdef` to directly
+      follow `quest`).
+      Real, disclosed trade-off: this reorder supersedes the earlier
+      2026-07-12 "immortal commands sort lower so immortals don't fumble
+      into one by accident" rule for the narrow case of an AMBIGUOUS
+      abbreviation where both a mortal- and immortal-tier reading are
+      visible to the same (immortal) caller -- mortals are completely
+      unaffected either way, since `cmd_dispatch()`'s min_level gate skips
+      every entry above the caller's level BEFORE the name check even
+      runs, so an immortal-only command can never occupy a mortal's
+      abbreviation space regardless of table position.
+      Verified two ways before shipping: (1) a hard, non-negotiable
+      invariant -- zero commands fail to resolve to THEMSELVES when typed
+      in full, at every level they're visible (checked via
+      `tests/tools/cmd_abbrev_check.py`, extended with this pass's own
+      merge/verify scripts); (2) every remaining short-abbreviation change
+      (447 across all levels, ~34-51 per level) was generated via the
+      same mechanical old-vs-new diff and reviewed by hand -- all landed
+      on the intended, expected consequence of matching Sneezy's real
+      precedence (e.g. "g" now reaches `get` instead of `grapple`, "set"
+      still reaches `cmd_set` for an immortal instead of `settrap`), none
+      were accidental regressions. Per-entry "SWAP: X before Y" comments
+      surviving from the pre-reorder tier-alphabetical era are now
+      historical-only (flagged as such in the file's own top comment) --
+      they describe reasoning under an ordering scheme this table no
+      longer uses. Built with zero warnings; copyover'd; full
+      `tests/sweep.sh` run afterward given the blast radius (touches
+      dispatch for every command in the game), see STATUS.md for the
+      result.
 - [x] **Reduce blood/limb-damage generation rates by 50%** — done
       2026-08-02 (Session 107). New `being_hurt_limb_only()` (being.c/h)
       applies HALF of a hit's damage to the specific limb, while overall
@@ -4312,16 +4350,18 @@ already tracked — pointers, not duplicates):
       immortals (`cmd_wiznet.c`). `smoke_test_wizcomm.py`.
 - [x] **`system`** — done 2026-07-05: immortal-only global echo -- sender sees
       `system <msg>`, everyone else the bare `<msg>` (`cmd_system.c`).
-- [~] **Socials → DB + full Sneezy set + `edsocial` (55+)** — DB-port half
+- [x] **Socials → DB + full Sneezy set + `edsocial` (55+)** — DB-port half
       done 2026-07-20: socials moved from the compiled table to a `social`
       DB table (`social_repo.h/.c`), full ~155-verb set ported from
       `sneezymud-master/lib/actions` via `db/import-socials.py` (position-code
       translation verified against the original's `mapFileToPos()`, `$`-token
       grammar verified against `comm.cc`'s `act()`), targeting yourself now
       gets its own dedicated message instead of repeating the no-target one,
-      `socials` list is paged (4-column). `smoke_test_socials.py`. **Still
-      open:** `edsocial` (55+, menu-driven editor) to edit socials in game —
-      not started.
+      `socials` list is paged (4-column). `smoke_test_socials.py`. Editor
+      half (`edsocial`, 55+, menu-driven) shipped separately (see STATUS.md)
+      -- `src/cmd/cmd_edsocial.c`/`tests/smoke_test_edsocial.py` confirmed
+      present; this entry was just never marked done. Stale-checkbox fix,
+      no code change.
 
 ### User batch 2026-07-05 (late) — working these next
 
@@ -7381,11 +7421,29 @@ conversation and in `sneezymud-master`): `positionTypeT` (done), `prompt_mesg`
       `tests/smoke_test_cook.py` (7 checks: recipe listing, refusal
       without ingredients, real ingredient consumption, a VNUM-only
       recipe, and the new corpse-race path) all pass live.
-      **Whittle**: not yet started -- task_whittle.cc is a much bigger,
-      multi-stage timed-carving system (855 lines, difficulty tiers,
-      several real pulse-driven work stages) than cook's single-action
-      ingredient check; needs its own scoping pass before starting,
-      same "ask before building" precedent as every other large item.
+      **Whittle**: done 2026-08-03. Scoped down from the real
+      task_whittle.h/.cc (multi-tick carve/scrape/smooth task, plus a
+      whole TArrow/TBow weapon-durability subsystem for bows/arrows) to
+      match Cook's own single-action profession shape -- Tobin has
+      neither a generic multi-tick task primitive nor any ranged-
+      weapon/ammo mechanics to build the cut features on, both
+      disclosed in whittle.h's own doc comment. New `whittle <item>`
+      (cmd_whittle.c/whittle.h/whittle.c): requires a wielded
+      OBJ_CAT_WEAPON (the original's slash/pierce gate loosened --
+      Tobin's weapons carry no damage-type field to check that finely)
+      and enough carried wood-log weight (real seeded vnums 75-88,
+      MAT_WOOD) for the chosen item; 25 of the original's 27 non-bow/
+      arrow recipes kept (one CLASS_SHAMAN-gated totem cut, Tobin has
+      no Shaman class), every result vnum confirmed live against
+      Tobin's real seeded `obj` table first. `tests/smoke_test_whittle.py`
+      (7 checks) passes live. Also caught and fixed a real, unrelated
+      pre-existing bug while writing it: `smoke_test_cook.py`'s own
+      `inventory` check no longer drains a paginated response before
+      sending the next command -- newer starting-gear counts (the
+      2026-08-02 newbie-gear-expansion sessions) pushed a fresh
+      immortal's inventory listing past the pager threshold, so the
+      following `cook` command was silently swallowed as a "show more"
+      keystroke. Fixed with a `cmd_paged()` helper in both tests.
 - [x] Hospital mechanic for destroyed limbs — done 2026-07-18, see above.
 - [x] Whether the destroyed-limb hit penalty scales with count (flat -15 now)
       — **decided 2026-07-26 (user): stays flat.** No upstream SneezyMUD
