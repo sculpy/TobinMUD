@@ -326,14 +326,21 @@ ask only when genuinely ambiguous. Full list, in the order given:
       for the numeric interface, including a test reproducing the exact
       reported bug and a new suit-deletion test case. Verified live:
       all three suit-related smoke tests pass, zero regressions.
-- [ ] **Add room vnum to bug and idea reporting** — user: "may help
-      reproduce a bug for testing." `bug`/`idea` reports should capture
-      the reporting player's current room vnum alongside the existing
-      report text, so a builder chasing a report knows exactly where to
-      go look.
-- [ ] **`purge` a single target** — currently `purge` (if it exists) only
-      clears an entire room; add a targeted form that purges one named
-      mob/object instead of everything.
+- [x] **Add room vnum to bug and idea reporting** — done 2026-08-02. New
+      `room_vnum` column on both `bug` and `idea` (tobin_migrations.sql,
+      NULL for reports filed before this), captured from
+      `ch->base.roomp->vnum` at file time and shown in the immortal
+      listing as "(room NNNN)" when known.
+- [x] **`purge` a single target** — done 2026-08-02. New `purge <target>`
+      form (cmd_purge.c) destroys one named mob/object in the room
+      instead of clearing everything -- the one form from the original's
+      fuller purge that was actually requested. Same ordinal + prefix-
+      match convention as combat_find_room_target(), same "never a
+      player" rule as bare purge.
+- [x] **`typo`/`deltypo` commands** — done 2026-08-02, user: "add a typo
+      command in the same way" (as bug/idea). Third mirror of the
+      bug/idea shape (new `typo` table, typo_repo.c, cmd_typo.c), own
+      [TYPO] log type, room vnum included from the start.
 
 ## Recently closed (2026-07-20, home)
 
