@@ -39,8 +39,16 @@ missing prerequisite named, not silently skipped or faked.
   still get added as procs needing them come up.
 - Files fully done: 0 / 58
 - Functions ported: 3 / 325 (pre-existing: DOCTOR/LAMPLIGHTER/
-  NEWBIE_EQUIPPER) + 2 new this project (`SPEC_CHICKEN` Session 124,
-  `SPEC_BEGGAR` Session 127)
+  NEWBIE_EQUIPPER) + 4 new this project (`SPEC_CHICKEN` Session 124,
+  `SPEC_BEGGAR` Session 127, `SPEC_REPLICANT` -- ported in the droplet's
+  own parallel work, found already in mob_ai.c and only now reflected
+  here, no session number recorded -- and `SPEC_THIEF` Session 128).
+  Along the way, found and fixed a real live data bug: mob vnum 601 (the
+  seeded beggar, `SPEC_BEGGAR`'s own test subject) had its `spec_proc`
+  overwritten to 71 (`SPEC_REPLICANT`'s id) in the live DB, almost
+  certainly from an earlier ad hoc verification of replicant that
+  mutated a real seeded mob instead of a scratch one -- restored to 17,
+  `smoke_test_specproc_beggar.py` re-confirmed passing.
 
 ## IMPORTANT correction #2 (found 2026-08-03, Session 127): real ids come
 from the `mob_specials[]`/`objSpecials[]` ARRAY, not the sparse named-
@@ -239,11 +247,27 @@ original, or a helper function, not a real registered spec-proc)
         `throwChar` (x2), `ThrowerMob`, `Tyrannosaurus_swallower`,
         `frostGiant`, `banshee`, `corpseMuncher`, `grimhavenHooker`.
         **Re-verified via the array and found to actually be real** (id
-        in parens), previously wrongly `[-]`: `thief` (4),
-        `dagger_thrower` (15), `hobbitEmissary` (36), `replicant` (71),
-        `TicketGuy` (51) -- still unstarted `[ ]` (not ported, just no
-        longer miscategorized), each will need its own blocker/portability
-        check same as `beggar` got.
+        in parens), previously wrongly `[-]`: `thief` (4) -- **`[x]`
+        DONE, Session 128**, see below -- `dagger_thrower` (15),
+        `hobbitEmissary` (36), `replicant` (71) -- **`[x]` DONE**, ported
+        in the droplet's own parallel work (found already implemented in
+        mob_ai.c as `mob_spec_replicant_pulse()`, no session number on
+        record; on-pulse HP-below-max heal-and-spawn-a-copy, no blockers
+        hit) -- `TicketGuy` (51) -- still unstarted `[ ]` (not ported,
+        just no longer miscategorized), will need its own blocker/
+        portability check same as `beggar`/`thief`/`replicant` got.
+      - `SPEC_THIEF=4` (`thief`) — **`[x]` DONE, Session 128.** Fourth
+        proc ported under this project. On pulse, an awake standing
+        thief mob that isn't fighting has a 1-in-26 chance to silently
+        pickpocket a random loose (not worn/held) item from a non-
+        immortal, non-fighting PC in its room -- ported from upstream's
+        own `rob_blind()` helper (`mob_ai.c`'s `mob_spec_thief_pulse()`).
+        Genuinely blind, matching upstream: no message to anyone, on
+        success or failure. Real seeded mobs already carry
+        `spec_proc=4` (vnum 602 "thief" among others).
+        `tests/smoke_test_specproc_thief.py` (10 checks, including
+        confirming a worn item is never taken and an ordinary mob with
+        no matching spec_proc never fires) passes live.
       - `factionFaery`/`rumorMonger` — `[B]` faction system, rumor data
         files. `findMyHorse`/`randomHunt` (`TMonster::` methods feeding
         the Four Horsemen family above) — `[B]` pathfinding.

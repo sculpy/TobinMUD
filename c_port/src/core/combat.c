@@ -121,6 +121,35 @@ static bool is_major_limb(limb_t limb) {
     return limb == LIMB_HEAD || limb == LIMB_NECK || limb == LIMB_WAIST || limb == LIMB_BODY;
 }
 
+/* Weapon-category-flavored severing phrase (TODO.md, user 2026-08-04:
+ * "port the original SneezyMUD critical-hit combat messages"). Tobin's
+ * own crit mechanic (below) stays the scoped-down "limb HP crosses to
+ * 0%" trigger, not upstream's separate crit-chance roll/broken-bone
+ * system (crit_combat.cc's critBlunt()/critSlash()/critPierce(), ~2500
+ * lines of weapon-type-specific outcomes) -- porting that whole
+ * mechanic is out of scope, but the one-size-fits-all "is severed clean
+ * off!" wording regardless of weapon type wasn't a real port of
+ * anything, just Tobin's own placeholder. This reuses the SAME
+ * weapon_verb() category buckets combat_strike() already computes for
+ * its per-hit message (sword/axe/mace/dagger/spear/whip), with phrasing
+ * drawn from upstream's own critBlunt()/critSlash()/critPierce() wording
+ * for each bucket -- `verb` is one of weapon_verb()'s return values. */
+static const char *sever_verb_phrase(const char *verb) {
+    if (strcmp(verb, "slice") == 0)
+        return "is sliced clean off!";
+    if (strcmp(verb, "chop") == 0)
+        return "is hacked clean off in a spray of gore!";
+    if (strcmp(verb, "bludgeon") == 0)
+        return "is crushed and torn away!";
+    if (strcmp(verb, "stab") == 0)
+        return "is punctured through and comes free!";
+    if (strcmp(verb, "pierce") == 0)
+        return "is skewered clean through and torn loose!";
+    if (strcmp(verb, "lash") == 0)
+        return "is torn off in the lash's wake!";
+    return "is severed clean off!"; /* bare hands / unclassified weapon */
+}
+
 /* Sneezy-inspired critical hit (Session 42, user: "copy sneezys crit hit
  * system, complete with object creation upon decapitation"). No separate
  * crit-chance roll -- this port triggers purely on a limb's HP actually
@@ -132,8 +161,10 @@ static bool is_major_limb(limb_t limb) {
  * head/neck/waist/body, not just a decapitation specifically) is instant
  * death, reported back to the caller (combat_strike()'s return value) so
  * it can route through the existing combat_defeat() "slain" path rather
- * than duplicating it. */
-static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb) {
+ * than duplicating it. `verb` (weapon_verb()'s category, or "hit" if the
+ * caller has no weapon context, e.g. the hurtlimb debug path) selects the
+ * severing phrase's flavor via sever_verb_phrase() above. */
+static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb, const char *verb) {
     if (!defender->base.roomp)
         return;
 
@@ -169,9 +200,10 @@ static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb)
         thing_move_to(&part->base, &defender->base.roomp->base);
     }
 
-    tell(attacker, "%s's %s is severed clean off!\r\n",
-         being_display_name_cap(defender, sever_capbuf, sizeof(sever_capbuf)), ln);
-    tell(defender, "Your %s is severed clean off!\r\n", ln);
+    const char *phrase = sever_verb_phrase(verb);
+    tell(attacker, "%s's %s %s\r\n",
+         being_display_name_cap(defender, sever_capbuf, sizeof(sever_capbuf)), ln, phrase);
+    tell(defender, "Your %s %s\r\n", ln, phrase);
 
     /* "decapitating a neck should also remove the head" (user 2026-07-12)
      * -- the head has nothing left to hang onto once the neck is gone.
@@ -183,7 +215,7 @@ static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb)
         tell(attacker, "The blow takes %s's head clean off along with it!\r\n",
              being_display_name(defender));
         tell(defender, "Your head comes off along with your neck!\r\n");
-        combat_sever_limb(attacker, defender, LIMB_HEAD);
+        combat_sever_limb(attacker, defender, LIMB_HEAD, verb);
     }
 }
 
@@ -824,7 +856,7 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
 
     bool instadeath = false;
     if (pct_before > 0 && pct_after == 0 && defender->base.kind == THING_PC) {
-        combat_sever_limb(attacker, defender, limb);
+        combat_sever_limb(attacker, defender, limb, verb);
         if (is_major_limb(limb))
             instadeath = true;
     }
@@ -1869,7 +1901,7 @@ bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int 
 
     bool instadeath = false;
     if (pct_before > 0 && pct_after == 0 && target->base.kind == THING_PC) {
-        combat_sever_limb(actor, target, limb);
+        combat_sever_limb(actor, target, limb, "hit");
         if (is_major_limb(limb))
             instadeath = true;
     }

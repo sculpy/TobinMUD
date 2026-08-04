@@ -15,6 +15,7 @@
 #include "gametime.h"
 #include "obj.h"
 #include "obj_repo.h"
+#include "player_repo.h"
 #include "pulse.h"
 #include "room.h"
 #include "room_repo.h"
@@ -630,6 +631,68 @@ static void mob_spec_replicant_pulse(being_t *m) {
     m->progress.hp = m->progress.max_hp;
 }
 
+/* SPEC_THIEF (spec_mobs.cc's `thief`) -- id 4, one of the "wrongly
+ * marked [-] before the array-position correction" finds (SPEC_PROCS.md
+ * correction #2): no named constant in spec_mobs.h, but a real slot in
+ * `mob_specials[]`. On pulse, an awake standing thief mob that isn't
+ * fighting has a 1-in-26 chance (upstream `::number(0, 25)`, kept
+ * verbatim) to try pickpocketing a random non-immortal PC in its room
+ * that also isn't fighting -- ported from upstream's own `rob_blind()`
+ * helper (spec_mobs.cc): scans the victim's LOOSE (not worn/held, same
+ * is_loose() rule cmd_steal.c's own player-driven steal already uses)
+ * inventory, a 1-in-5 chance per item to actually consider it (upstream
+ * `::number(0, 4)`), first considered item gets silently moved into the
+ * thief's own inventory via thing_move_to() -- genuinely BLIND, unlike
+ * `cmd_steal.c`'s player-driven version: no message to anyone, on
+ * success OR if no item is found, matching upstream's own rob_blind()
+ * (which only messages the room for the hobbit-race flavor line this
+ * port skips, a disclosed simplification -- no hobbit-specific steal-
+ * skill floor either, Tobin's skill system doesn't gate this mob-driven
+ * path on a skill value the way a PC's `steal` does). No item-monogram
+ * check (upstream skips monogrammed items) -- Tobin has no monogram
+ * concept on objects. */
+static void mob_spec_thief_pulse(being_t *m) {
+    if (!m->base.roomp || m->position != POSITION_STANDING || m->fighting)
+        return;
+    if (rand() % 26 != 0)
+        return;
+
+    being_t *vict = NULL;
+    for (thing_t *t = m->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_PC)
+            continue;
+        being_t *pc = (being_t *)t;
+        if (pc->fighting || being_is_immortal(pc))
+            continue;
+        vict = pc;
+        break;
+    }
+    if (!vict)
+        return;
+
+    for (thing_t *t = vict->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        obj_t *o = (obj_t *)t;
+        bool loose = true;
+        for (int i = 0; i < 2 && loose; i++)
+            if (vict->held[i] == o)
+                loose = false;
+        for (int i = 0; i < LIMB_COUNT && loose; i++)
+            if (vict->equipment[i] == o)
+                loose = false;
+        if (!loose || rand() % 5 != 0)
+            continue;
+
+        thing_move_to(&o->base, &m->base);
+        if (vict->base.kind == THING_PC)
+            player_inventory_save(vict->player_id, vict);
+        return;
+    }
+}
+
+#define SPEC_THIEF 4
+
 /* The actual dispatch table -- add one `case` per newly-ported proc that
  * only needs the pulse hook. Procs needing other hooks (speech, etc)
  * get their own small dispatch function alongside this one, called from
@@ -642,6 +705,9 @@ static void mob_spec_dispatch_pulse(being_t *m) {
         break;
     case SPEC_REPLICANT:
         mob_spec_replicant_pulse(m);
+        break;
+    case SPEC_THIEF:
+        mob_spec_thief_pulse(m);
         break;
     default:
         break;

@@ -1,6 +1,71 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-04 — Session 128 (DO droplet, production port 4000):
+Last updated: 2026-08-04 — Session 129 (DO droplet, production port 4000):
+**Dangling `fighting` pointer fix (TODO.md), crit-hit weapon-flavored
+messages, SPEC_THIEF ported, and a spell/skill/spec-proc coverage audit
+logged to TODO.md.** Also folded in this session: a real git-history
+divergence between this session's local work and unpushed commits
+already sitting on the droplet (see the "single dev copy" note below).
+
+- `being_destroy()` (being.c) now sweeps `world_for_each_mob()` to clear
+  a MOB's own `->fighting` when it points at the being being destroyed,
+  not just a connected PC's -- an aggressive mob fighting a PC that then
+  `quit!`ed mid-fight was left with a dangling pointer (found via the
+  `feign death` edge case in TODO.md, Session 101). `tests/
+  smoke_test_purge_fighting.py` reproduces the exact gap; passes live.
+- Crit-hit messages: `combat.c`'s `sever_verb_phrase()` now flavors the
+  limb-severing message by weapon category (sliced/hacked/crushed/
+  punctured/skewered/torn, wording drawn from upstream's own
+  `critBlunt()`/`critSlash()`/`critPierce()`) instead of one hardcoded
+  "is severed clean off!" regardless of weapon -- Tobin's own crit
+  TRIGGER (limb HP crosses to 0%) stays unchanged, upstream's much
+  larger separate crit-chance-roll/broken-bone system is out of scope.
+  `tests/smoke_test_crit.py` (19 checks, generic path) passes live.
+- **SPEC_THIEF** (spec_mobs.cc's `thief`, id 4) ported -- fourth spec-proc
+  under the SPEC_PROCS.md project. On pulse, an awake standing non-
+  fighting thief mob has a 1-in-26 chance to silently pickpocket a
+  random loose item from a non-immortal PC in its room, ported from
+  upstream's own `rob_blind()`. `tests/smoke_test_specproc_thief.py`
+  (10 checks) passes live. Also found SPEC_PROCS.md was stale re:
+  `SPEC_REPLICANT` (already implemented in mob_ai.c from the droplet's
+  own parallel work, never reflected in the doc) -- fixed the doc, no
+  code change needed there.
+- **Real data bug found + fixed**: mob vnum 601 (the beggar,
+  `SPEC_BEGGAR`'s own test subject) had `spec_proc=71`
+  (`SPEC_REPLICANT`'s id) in the live DB instead of the correct 17 --
+  almost certainly an earlier ad hoc verification of replicant that
+  mutated a real seeded mob instead of a scratch one. Restored via a
+  direct `UPDATE` (explicit user approval, live-DB write);
+  `smoke_test_specproc_beggar.py` re-confirmed passing.
+- **Spell/skill/spec-proc coverage audit** (user: "unimplemented sneezy
+  spells and skills should all be listed in the to do list...as well as
+  all the special procs" / "I also want all skills and spells to have
+  effect to actually do something") -- three new checklists appended to
+  TODO.md: 56 missing spells, 105 missing skills (most of both totals
+  are classes Tobin doesn't implement at all -- Deikhan/Ranger/Shaman/
+  Psionicist, a class-scope decision not per-spell oversight), and a
+  spell/skill STUB audit (`cast`/`pray`'s generic dispatcher falls
+  through ~49 roster-listed, castable spells to a "nothing happens yet"
+  placeholder -- includes a secondary bug: the damage-keyword check
+  literal-matches "damage" and misses several spells whose own
+  description says "damages"/"damaging" instead). Not yet triaged into
+  session-sized work, just logged per the user's request.
+- **Single dev copy, enforced going forward**: this session found the
+  droplet had 2 substantial unpushed local commits (288 files, a full
+  homeland-creation-flow sweep across all 243 smoke tests + new shared
+  `tests/mud_test_utils.py`/`mud_creation.py` helpers + a session's worth
+  of gameplay work) that a separate Windows-checkout session never saw
+  before pushing its own overlapping work to origin/main -- real content
+  conflicts resulted (`mob_ai.c`, `skill.c`, `cmd_look.c`, 15+ test
+  files, both sides having independently reimplemented several of the
+  same recent features). Resolved by force-pushing the droplet's history
+  as authoritative and manually recreating the Windows session's one
+  genuinely new fix (the dangling-fighting-pointer patch) on top.
+  User directive: delete all local checkouts everywhere, droplet-only
+  development from now on -- `CLAUDE.md`'s "Where am I?" section updated
+  with an explicit rule and the incident writeup so it doesn't recur.
+
+Previous update: 2026-08-04 — Session 128 (DO droplet, production port 4000):
 **Swept all 243 `tests/smoke_test_*.py` for the 2026-08-03 homeland/
 territory creation-flow gap, added shared test helpers, and committed
 the whole accumulated backlog to git.** See the Session 128 entry below

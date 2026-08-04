@@ -13,13 +13,312 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
-## User batch 2026-08-04 — logged, working these now
+## User batch 2026-08-04 — done
 
-- [ ] **Crit hit messages reproduced from Sneezy** — user 2026-08-04: port
-      the original SneezyMUD critical-hit combat messages (not yet
-      checked against Tobin's current crit implementation in `combat.c`/
-      `smoke_test_crit.py` — need to diff against the real upstream
-      source for the exact message set before porting).
+- [x] **Crit hit messages reproduced from Sneezy** — done, Session 128.
+      Scoped down after checking the real upstream source
+      (`crit_combat.cc`, ~2800 lines): upstream's crit mechanic is a
+      whole separate crit-chance-roll/broken-bone system
+      (`critBlunt()`/`critSlash()`/`critPierce()`) Tobin doesn't have and
+      isn't porting -- Tobin's own crit trigger stays "a limb's HP
+      crosses to 0%" (Session 42). What upstream's own wording DID give:
+      weapon-category-flavored severing phrases instead of one hardcoded
+      "is severed clean off!" for every weapon. `combat.c`'s
+      `sever_verb_phrase()` now picks a phrase (sliced/hacked/crushed/
+      punctured/skewered/torn, drawn from upstream's own critBlunt/
+      critSlash/critPierce wording) keyed off the same `weapon_verb()`
+      category buckets `combat_strike()`'s per-hit message already
+      computes. Existing `tests/smoke_test_crit.py` (19 checks, generic/
+      bare-hand path) passes live; the weapon-flavored path was verified
+      by code review + a manual live check rather than a new committed
+      test (ran out of budget debugging an ad hoc sandbox-room/wield
+      setup issue in a throwaway verification script -- not a gap in the
+      feature itself, `sever_verb_phrase()` is a plain string switch).
+
+## Spell/skill/spec-proc coverage audit — logged 2026-08-04
+
+User 2026-08-04: "unimplemented sneezy spells and skills should all be
+listed in the to do list, as well as all the special procs" / "I also
+want all skills and spells to have effect to actually do something."
+Spec-procs were already tracked in [SPEC_PROCS.md](SPEC_PROCS.md); the
+three checklists below are new, from a fresh audit (Explore agent,
+Session 128) comparing `sneezymud-master/code/code/misc/spells.h`'s
+enum + `spell_info.cc`'s `discArray[]` (463 named entries) against
+Tobin's own `skill.c`'s `SKILLS[]` roster (283 unique names). Most of
+the "missing" totals are classes Tobin doesn't implement at all
+(Deikhan/Ranger/Shaman/Psionicist -- a class-scope decision, not
+per-spell oversight); Druid absorbed a reflavored subset of Ranger/
+Shaman. Not yet triaged into session-sized work items -- this is the
+raw checklist, pick from it as capacity allows.
+
+### Spell port status — 56 of 231 SneezyMUD spells not yet in Tobin
+
+#### Mage (3)
+- [ ] Death mist
+- [ ] Inferno
+- [ ] Protection from earth
+
+#### Cleric (1)
+- [ ] Sterilize
+
+#### Ranger (6) — no Ranger class in Tobin
+- [ ] Creeping doom
+- [ ] Living vines
+- [ ] Root control
+- [ ] Shapeshift
+- [ ] Sticks to snakes
+- [ ] Stormy skies
+
+#### Deikhan (2) — no Deikhan class in Tobin
+- [ ] Sterilize (Deikhan variant)
+- [ ] Synostodweomer
+
+#### Shaman (44) — no Shaman class in Tobin (Druid reused only 6 of these)
+- [ ] Aqualung
+- [ ] Aquatic blast
+- [ ] Boiling blood
+- [ ] Celerite
+- [ ] Chase spirits
+- [ ] Cheval
+- [ ] Chrism
+- [ ] Clarity
+- [ ] Cleanse
+- [ ] Control undead
+- [ ] Coronary
+- [ ] Create diamond golem
+- [ ] Create iron golem
+- [ ] Create rock golem
+- [ ] Create wood golem
+- [ ] Dancing bones
+- [ ] Death wave
+- [ ] Detect shadow
+- [ ] Distort
+- [ ] Djalla's protection
+- [ ] Embalm
+- [ ] Enliven
+- [ ] Enthrall demon
+- [ ] Enthrall ghast
+- [ ] Enthrall ghoul
+- [ ] Enthrall spectre
+- [ ] Flatulence
+- [ ] Healing grasp
+- [ ] Hypnosis
+- [ ] Intimidate
+- [ ] Legba's guidance
+- [ ] Lich touch
+- [ ] Life leech
+- [ ] Raze
+- [ ] Resurrection
+- [ ] Romble
+- [ ] Sense presence
+- [ ] Shadow walk
+- [ ] Shield of mists
+- [ ] Soul twister
+- [ ] Squish
+- [ ] Thornflesh
+- [ ] Vampiric touch
+- [ ] Voodoo
+
+### Skill port status — 105 of 232 SneezyMUD skills not yet in Tobin
+
+#### Warrior (5)
+- [ ] Advanced blacksmithing
+- [ ] Blacksmithing
+- [ ] Bloodlust
+- [ ] Debride
+- [ ] Stomp
+
+#### Cleric (1)
+- [ ] Cleric repair — Cleric has no repair skill at all in Tobin (Warrior/Mage do)
+
+#### Monk (2)
+- [ ] Oomlat Philosophy
+- [ ] Monk repair
+
+#### Thief (2)
+- [ ] Swindle
+- [ ] Thief repair
+
+#### Ranger (6) — no Ranger class in Tobin
+- [ ] Apply herbs
+- [ ] Beast charm
+- [ ] Beast summon
+- [ ] Befriend beast
+- [ ] Transfix
+- [ ] Transform limb
+
+#### Shaman (3) — no Shaman class in Tobin
+- [ ] Brew
+- [ ] Ritualism
+- [ ] Shaman repair
+
+#### Deikhan (24) — no Deikhan (paladin) class in Tobin
+- [ ] 2h specialization (Deikhan variant)
+- [ ] Advanced riding
+- [ ] Aura of absolution
+- [ ] Aura of might
+- [ ] Aura of regeneration
+- [ ] Aura of the guardian
+- [ ] Aura of vengeance
+- [ ] Bash (Deikhan variant)
+- [ ] Calm mount
+- [ ] Charge
+- [ ] Chivalry
+- [ ] Deikhan repair
+- [ ] Divine grace
+- [ ] Divine rescue
+- [ ] Guardians light
+- [ ] Lay hands
+- [ ] Orient mount
+- [ ] Ride domestic
+- [ ] Ride exotic
+- [ ] Ride non-domestic
+- [ ] Ride winged
+- [ ] Shock cavalry
+- [ ] Smite
+- [ ] Train mount
+
+#### Psionics (12) — no Psionicist class in Tobin
+- [ ] Dimensional fold
+- [ ] Kinetic wave
+- [ ] Mind focus
+- [ ] Mind preservation
+- [ ] Mind thrust
+- [ ] Psionic blast
+- [ ] Psionic drain
+- [ ] Psionic telepathy
+- [ ] Psychic crush
+- [ ] Telekinesis
+- [ ] Telepathic sight
+- [ ] Telepathic vision
+
+#### Generic / cross-class (50)
+- [ ] Advanced defense
+- [ ] Advanced offense
+- [ ] Alcoholism
+- [ ] Avian (language)
+- [ ] Bandage
+- [ ] Barehand specialization
+- [ ] Blunt specialization
+- [ ] Bullycroak (language)
+- [ ] Climbing
+- [ ] Common (language)
+- [ ] Cook
+- [ ] Defense
+- [ ] Dissect
+- [ ] Divine (fortune-telling; distinct from Mage's "divination" spell)
+- [ ] Encamp
+- [ ] Evaluate
+- [ ] Fast heal
+- [ ] Fast load
+- [ ] Fish burble (language)
+- [ ] Fishing
+- [ ] Fishlore
+- [ ] Focused avoidance
+- [ ] Gnoll jargon (language)
+- [ ] Gutter cant (language)
+- [ ] Hiking
+- [ ] Inevitability
+- [ ] Know animal (creature lore)
+- [ ] Know demon
+- [ ] Know giantkin
+- [ ] Know other
+- [ ] Know people
+- [ ] Know reptile
+- [ ] Know undead
+- [ ] Know veggie
+- [ ] Lumberjack
+- [ ] Mend
+- [ ] Offense
+- [ ] Pierce specialization
+- [ ] Ranged specialization
+- [ ] Read magic
+- [ ] Seekwater
+- [ ] Sharpen
+- [ ] Skinning (generic, non-Druid classes)
+- [ ] Slash specialization
+- [ ] Smooth
+- [ ] Swim
+- [ ] Tactics
+- [ ] Toughness
+- [ ] Troglodyte pidgin (language)
+- [ ] Trollish (language)
+- [ ] Whittle
+- [ ] Turn undead (command `turn` -- no display-name string upstream, real and missing regardless)
+
+### Spell/skill stub audit — roster-listed but mechanically no-op
+
+`cmd_cast.c` (Mage/Druid) and `cmd_pray.c` (Cleric) dispatch each spell by
+matching its own `name`/`desc` string against a fixed set of keyword
+branches; anything matching none of them falls through to a literal
+"nothing happens yet" placeholder. These are castable/practicable TODAY
+(pass class+level+component gating, appear in `skills`/`practice`) but
+hit that fallback -- their help text promises an effect that never fires.
+A secondary bug found along the way: the damage-keyword check is a
+literal substring match on "damage" (not "damag(e|es|ing)"), so several
+spells whose own description says "damages"/"damaging" ALSO silently
+miss the damage branch -- flagged inline below.
+
+#### Mage (`cmd_cast.c`) — ~32 stubs
+- [ ] Sorcerer's globe — promises a group defense buff, applies no affect.
+- [ ] Mage sight — promises infravision/true sight/detection bundle; no affect applied.
+- [ ] Flare — promises room lighting; no lighting state changes.
+- [ ] Hands of flame — promises a "fiery touch attack"; desc says "fiery" not "flame", misses the damage-keyword branch — zero damage dealt.
+- [ ] Illuminate — promises lighting an object; no effect.
+- [ ] Faerie fire — promises an easier-to-hit debuff; no affect applied.
+- [ ] Materialize — promises conjuring a named item; no item created.
+- [ ] Feathery descent — promises fall-damage softening; no affect applied.
+- [ ] Accelerate — promises a group haste-like buff (distinct from the separately-implemented "haste"); no affect applied.
+- [ ] Sense life — promises detecting nearby life; no detection performed.
+- [ ] Stealth — promises a quiet-movement group buff; no affect applied.
+- [ ] Faerie fog — promises obscuring the room; no room state changed.
+- [ ] Galvanize — promises charging an item with electricity; no item effect.
+- [ ] Powerstone — promises a mana-battery item; no item effect (also: no mana system exists to back it).
+- [ ] Ensorcer — promises charming/dominating a target; no charm/affect applied.
+- [ ] Falcon wings — promises a flight-like movement buff; no affect applied.
+- [ ] Mage repair — promises magically repairing equipment; no repair performed.
+- [ ] Calm — promises pacifying a target/stopping violence; no effect applied.
+- [ ] Shatter — promises a destructive attack; "attack" isn't a damage-keyword trigger — zero damage.
+- [ ] Infravision — promises dark-vision; no affect applied.
+- [ ] True sight — promises seeing through illusions; no affect applied.
+- [ ] Cloud of concealment — promises concealing mist; no room/affect state changed.
+- [ ] Watery grave — promises a drowning attack against a single target; "attack" not a damage keyword — zero damage despite the name.
+- [ ] Spontaneous generation — promises conjuring raw material by name; nothing created.
+- [ ] Garmul's tail — promises reduced mobility in water for target; no affect applied.
+- [ ] Immobilize — promises rooting a target in place; no affect applied.
+- [ ] Energy drain — desc says "damaging" not "damage", misses the damage branch — zero damage/drain despite the name.
+- [ ] Fumble — promises causing a target to fumble/disarm; no effect applied.
+- [ ] Suffocate — promises depriving a target of air; no effect applied.
+- [ ] Flight — promises a true-flight group buff; no affect applied.
+- [ ] Divination — promises revealing info about an object/being; no lookup performed.
+- [ ] Silence — promises muting a target's spellcasting; no affect applied.
+- [ ] Ethereal gate — promises opening a portal to a named location; no teleport/portal created.
+
+#### Druid (shares Mage's `cmd_cast.c` dispatcher) — 4 likely stubs
+- [ ] Entangling roots — desc says "damaging" not "damage", misses the branch — zero damage despite being the class's signature level-1 attack.
+- [ ] Bramble drain — promises draining life from target to self; no damage/heal-transfer applied.
+- [ ] Beast soother — promises calming a hostile/hunting animal; no effect applied.
+- [ ] Clot — promises stopping bleeding (shares name/desc with Cleric's below); no bleed-affect removal in this dispatcher.
+
+#### Cleric (`cmd_pray.c`) — ~13 likely stubs
+- [ ] Clot — pray.c's heal keyword set ("heal"/"cure" only) doesn't match "stop bleeding" — no bleed-affect removed.
+- [ ] Attune — promises binding a holy symbol to faction; no effect applied.
+- [ ] Devotion — promises passive prayer-point regen; no effect when invoked via `pray`.
+- [ ] Salve — desc has no "heal"/"cure" — zero healing despite being a basic heal-tier spell.
+- [ ] Remove curse — promises stripping a curse; no affect removed.
+- [ ] Refresh — promises restoring movement points; no restore applied (Mage/Druid's identically-named "refresh" IS implemented via cast.c's explicit branch; Cleric's copy is not).
+- [ ] Flamestrike — pray.c's damage keyword set (damage/bolt/strike only) misses "flame" — zero damage from this signature Cleric nuke.
+- [ ] Expel — promises expelling vermin/possession; no effect applied.
+- [ ] Numb — promises numbing a limb; no affect applied.
+- [ ] Second wind — promises restoring a victim's movement points; no effect applied.
+- [ ] Paralyze (full) — only "paralyze limb" has real handling; plain "paralyze" falls through with zero effect.
+- [ ] Earthquake — desc says "damages" not "damage" AND doesn't say "area-effect" — misses BOTH branches, a room-wide AoE nuke that deals zero damage to anyone.
+- [ ] Consecrate / Crusade / Portal / Astral walk / Bone breaker / Wither limb / Spontaneous combust / Create food / Create water — none match any generic keyword branch; all fall through.
+
+*(Scope caveat: this stub audit covers only the `cast`/`pray` generic
+dispatchers -- the ~40 non-spell skill commands, one file per Warrior/
+Thief/Monk skill, were spot-checked but not exhaustively audited for the
+same no-op pattern; worth a follow-up pass.)*
 
 ## User batch 2026-08-03 (later) — done
 
