@@ -19,6 +19,7 @@
 #include "mob_repo.h"
 #include "obj.h"
 #include "room.h"
+#include "world.h"
 
 /* Maps a stat token (full name or 3-letter abbreviation, either case) to
  * the matching field inside `a`, so `set`/`stat`-style commands can look
@@ -197,6 +198,21 @@ being_t *being_create_mob(int vnum) {
     return b;
 }
 
+/* world_for_each_mob() visitor for being_destroy() below -- clears a mob's
+ * own ->fighting if it points at g_destroy_target. Needed alongside the
+ * g_descriptors loop below because a MOB fighting the being being
+ * destroyed (not just a connected PC) has no descriptor of its own to
+ * catch it that way -- e.g. purging a PC or mob mid-fight against another
+ * mob left the other mob's `fighting` pointing at freed memory (TODO.md,
+ * found via a `feign death` edge case refusing against an already-purged
+ * target). */
+static being_t *g_destroy_target;
+
+static void clear_fighting_mob_visit(being_t *m) {
+    if (m->fighting == g_destroy_target)
+        m->fighting = NULL;
+}
+
 /* Tears down a being completely: scrubs every dangling reference to it
  * from other live beings (fighting/last_heal_target/mount/rider, and a
  * connected PC's own charmed pet independently fighting it), frees its
@@ -208,6 +224,9 @@ being_t *being_create_mob(int vnum) {
 void being_destroy(being_t *b) {
     if (!b)
         return;
+
+    g_destroy_target = b;
+    world_for_each_mob(clear_fighting_mob_visit);
 
     /* Clear any dangling reference from an opponent still fighting us --
      * otherwise the next combat round would dereference freed memory. */

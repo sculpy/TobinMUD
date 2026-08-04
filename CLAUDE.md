@@ -18,6 +18,26 @@ former Home VM (`192.168.254.200`) and Work box (db.kullit.com) are
 retired — user is disabling the Home VM and consolidating everything,
 dev and production alike, onto DO. Don't ask "Home or Work" anymore.
 
+**No local development copies, anywhere, ever (user, 2026-08-04).** All
+editing, building, testing, and running happens exclusively via `ssh` on
+the droplet — never in a local checkout on whatever machine Claude
+Code happens to be running from (Windows, laptop, etc.), even
+temporarily or "just to sync a file over." A local machine's `git`
+checkout of this repo (if one exists at all) is read-only reference,
+kept in sync by `git pull`, nothing more — if a session finds itself
+about to `Edit`/`Write` a source file outside the droplet, or accumulate
+real uncommitted work there, stop and do the edit over `ssh` instead.
+This was learned the hard way: a session that developed locally,
+committed, and pushed while genuinely substantial parallel work already
+existed as unpushed commits directly on the droplet produced a real,
+messy git divergence (real content conflicts across `mob_ai.c`,
+`skill.c`, `cmd_look.c`, and 15+ test files, both sides having
+independently reimplemented the same recent features) that had to be
+resolved by force-pushing the droplet's history as authoritative and
+manually recreating the local session's one genuinely new fix on top.
+The droplet is the one and only development copy — treat it that way
+from the first command of every session, not just at sync time.
+
 - **DO droplet**: `tobinmud.com` (DNS live, A record → `159.223.121.98`),
   hostname `TobinMUD`, user `mud` (key auth set up, passwordless `sudo`),
   tree at `~/NewMUD/`, MariaDB local, **this is the live production
