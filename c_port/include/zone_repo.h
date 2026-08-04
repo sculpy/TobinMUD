@@ -79,4 +79,15 @@ bool zone_repo_unassign(int zone_nr, long player_id);
  * for a zone already migrated in by Zones Part 1). */
 bool zone_repo_set_range(int zone_nr, int bottom, int top);
 
+/* Deletes every zone_reset row whose arg1 OR arg3 falls in [low, high] --
+ * `zone reclaim` (cmd_zone.c). zone_reset's arg columns are positional
+ * (their meaning depends on the row's own `command` letter: mob/obj load
+ * vnum in arg1, target room in arg3 for most command types), so this
+ * errs conservative and matches on either -- a real zone's authored
+ * reset script is never going to reference a high-vnum ad hoc test
+ * range this command is meant for, so a false-positive collision here
+ * is not a realistic concern in practice. Returns the count of rows
+ * deleted (0 on DB error or an empty range). */
+int zone_repo_delete_resets_referencing_range(int low, int high);
+
 #endif

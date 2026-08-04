@@ -80,4 +80,9 @@ bool trigger_repo_update_chance(long id, int chance_pct);
  * whether it had a random trigger). */
 int trigger_repo_random_vnums(const char *target_type, int *out, int max);
 
+/* Deletes every trigger (any target_type/trigger_type) whose target_vnum
+ * falls in [low, high] -- `zone reclaim` (cmd_zone.c). Returns the count
+ * of rows deleted (0 on DB error or an empty range). */
+int trigger_repo_delete_for_range(int low, int high);
+
 #endif

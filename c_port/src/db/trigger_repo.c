@@ -187,3 +187,15 @@ bool trigger_repo_update_chance(long id, int chance_pct) {
     db_close(db);
     return ok;
 }
+
+int trigger_repo_delete_for_range(int low, int high) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return 0;
+
+    db_query(db, "delete from `trigger` where target_vnum between %i and %i", low, high);
+    long n = db_row_count(db);
+
+    db_close(db);
+    return (int)n;
+}

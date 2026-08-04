@@ -222,3 +222,18 @@ int mob_repo_get_spec_proc(int vnum) {
     db_close(db);
     return spec_proc;
 }
+
+int mob_repo_delete_range(int low, int high) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return 0;
+
+    db_query(db, "delete from mob_extra where vnum between %i and %i", low, high);
+    db_query(db, "delete from mob_imm where vnum between %i and %i", low, high);
+    db_query(db, "delete from mobresponses where vnum between %i and %i", low, high);
+    db_query(db, "delete from mob where vnum between %i and %i", low, high);
+    long n = db_row_count(db);
+
+    db_close(db);
+    return (int)n;
+}

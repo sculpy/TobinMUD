@@ -8,6 +8,8 @@
 #include <string.h>
 #include <strings.h>
 
+#include <stdlib.h>
+
 #include "being.h"
 #include "log.h"
 #include "obj.h"
@@ -35,6 +37,27 @@
  * same "N.name" ordinal + prefix-match convention as combat_find_room_
  * target() (combat.c) so "2.rat" reaches the second rat if more than one
  * is present. */
+/* Destroys every loose mob/object in room `r` (never a player) --
+ * shared by bare `purge` (the current room) and `purge <low>-<high>`
+ * (every currently LOADED room in that vnum range) below, so the two
+ * forms can never drift on what "purge a room" actually does. */
+static int purge_room_contents(room_t *r) {
+    int destroyed = 0;
+    thing_t *t = r->base.stuff_head;
+    while (t) {
+        thing_t *next = t->stuff_next; /* obj_destroy()/being_destroy() free t -- save next first */
+        if (t->kind == THING_OBJ) {
+            obj_destroy((obj_t *)t);
+            destroyed++;
+        } else if (t->kind == THING_MOB) {
+            being_destroy((being_t *)t);
+            destroyed++;
+        }
+        t = next;
+    }
+    return destroyed;
+}
+
 bool cmd_purge(descriptor_t *d, const char *args) {
     if (!d->character || !d->character->base.roomp) {
         descriptor_send(d, "You are nowhere.\r\n");
@@ -43,6 +66,65 @@ bool cmd_purge(descriptor_t *d, const char *args) {
 
     while (*args == ' ')
         args++;
+
+    /* `purge <low>-<high>` (user, 2026-08-04: asked for a one-shot way to
+     * clean up the ad hoc test-sandbox rooms/mobs left behind by
+     * smoke-test runs, e.g. TODO.md's "leftover-mob accumulation" follow-
+     * up -- those tests bootstrap sandbox rooms in high vnum ranges like
+     * 900000+ and mostly clean up after themselves, but an interrupted
+     * run leaves the room (and whatever's loose in it) live forever,
+     * getting re-dumped/restored by every future copyover. 59+ (one tier
+     * above `purge linkdead`'s 58 -- user, 2026-08-04) since a mistyped
+     * range could sweep real zone content, not just test rooms. Only
+     * touches rooms already LOADED in memory (world_get_room(), no lazy
+     * room_repo_load()) -- an unloaded room by definition has nothing
+     * loose in it worth purging, and loading one just to find that out
+     * would only add to the very room-bloat problem this exists to fix. */
+    {
+        const char *dash = strchr(args, '-');
+        if (dash && dash != args) {
+            char lowbuf[16];
+            size_t lowlen = (size_t)(dash - args);
+            bool all_digits = lowlen > 0 && lowlen < sizeof(lowbuf);
+            for (size_t i = 0; all_digits && i < lowlen; i++)
+                if (args[i] < '0' || args[i] > '9')
+                    all_digits = false;
+            for (const char *p = dash + 1; all_digits && *p; p++)
+                if (*p < '0' || *p > '9')
+                    all_digits = false;
+            if (all_digits && dash[1] != '\0') {
+                if (d->character->progress.level < PURGE_RANGE_MIN_LEVEL) {
+                    descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+                    return true;
+                }
+                snprintf(lowbuf, sizeof(lowbuf), "%.*s", (int)lowlen, args);
+                int low = atoi(lowbuf);
+                int high = atoi(dash + 1);
+                if (low > high) {
+                    int tmp = low; low = high; high = tmp;
+                }
+                int rooms_hit = 0, things_destroyed = 0;
+                for (int v = low; v <= high; v++) {
+                    room_t *r = world_get_room(v);
+                    if (!r)
+                        continue;
+                    int n = purge_room_contents(r);
+                    if (n > 0) {
+                        rooms_hit++;
+                        things_destroyed += n;
+                    }
+                }
+                char msg[128];
+                snprintf(msg, sizeof(msg), "Purged %d thing(s) across %d loaded room(s) in range %d-%d.\r\n",
+                         things_destroyed, rooms_hit, low, high);
+                descriptor_send(d, msg);
+                game_log(LOG_EDIT, "%s purged range %d-%d (%d thing(s), %d room(s)). [%s]",
+                         d->character->base.name, low, high, things_destroyed, rooms_hit,
+                         descriptor_display_host(d));
+                return true;
+            }
+        }
+    }
 
     if (strcasecmp(args, "linkdead") == 0 || strcasecmp(args, "ldead") == 0) {
         if (d->character->progress.level < PURGE_LINKDEAD_MIN_LEVEL) {
@@ -98,19 +180,7 @@ bool cmd_purge(descriptor_t *d, const char *args) {
         return true;
     }
 
-    int destroyed = 0;
-    thing_t *t = room->base.stuff_head;
-    while (t) {
-        thing_t *next = t->stuff_next; /* obj_destroy()/being_destroy() free t -- save next first */
-        if (t->kind == THING_OBJ) {
-            obj_destroy((obj_t *)t);
-            destroyed++;
-        } else if (t->kind == THING_MOB) {
-            being_destroy((being_t *)t);
-            destroyed++;
-        }
-        t = next;
-    }
+    int destroyed = purge_room_contents(room);
 
     char msg[96];
     snprintf(msg, sizeof(msg), "The room shudders -- %d thing(s) vanish.\r\n", destroyed);

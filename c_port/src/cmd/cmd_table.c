@@ -331,7 +331,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "promote", cmd_promote, "Set a player's level (up to your own).",             PROMOTE_MIN_LEVEL },
     /* Bare `purge` clears the room; `purge linkdead` (58+, checked inside
      * cmd_purge itself) sweeps the whole game. */
-    { "purge",   cmd_purge,   "Clear this room's mobs/objects, or purge linkdead (58+).", PURGE_MIN_LEVEL },
+    { "purge",   cmd_purge,   "Clear this room's mobs/objects, purge linkdead (58+), or purge a vnum range (59+).", PURGE_MIN_LEVEL },
     /* "shu" is already unambiguous ("sh"/"sho" still resolve to shout,
      * above) -- no collision to guard against. Implementor-only (60),
      * same tier as `exec`: ends the whole process. */

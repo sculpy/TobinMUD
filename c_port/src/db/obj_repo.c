@@ -370,3 +370,18 @@ bool player_inventory_save(long player_id, const being_t *b) {
     db_close(db);
     return ok;
 }
+
+int obj_repo_delete_range(int low, int high) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return 0;
+
+    db_query(db, "delete from objaffect where vnum between %i and %i", low, high);
+    db_query(db, "delete from objextra where vnum between %i and %i", low, high);
+    db_query(db, "delete from obj_magic where vnum between %i and %i", low, high);
+    db_query(db, "delete from obj where vnum between %i and %i", low, high);
+    long n = db_row_count(db);
+
+    db_close(db);
+    return (int)n;
+}

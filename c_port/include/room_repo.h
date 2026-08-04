@@ -120,4 +120,11 @@ bool room_repo_extra_delete(int vnum, const char *name);
  * TODO.md). True even if there were none. */
 bool room_repo_extra_delete_all(int vnum);
 
+/* Deletes every room row (and its roomexit/roomextra rows) with vnum in
+ * [low, high] -- `zone reclaim` (cmd_zone.c). Returns the count of `room`
+ * rows deleted (0 on DB error or an empty range). DB-only: does not touch
+ * anything currently loaded in server memory -- see cmd_zone.c's own
+ * doc comment on why that's the caller's job, not this function's. */
+int room_repo_delete_range(int low, int high);
+
 #endif

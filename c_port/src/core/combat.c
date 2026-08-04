@@ -925,6 +925,11 @@ static void combat_award_hit_xp(being_t *attacker, being_t *victim, int dmg) {
         return;
     if (victim->progress.max_hp <= 0)
         return;
+    /* PK is XP-neutral for both sides (user, 2026-08-04) -- a PC attacker
+     * landing hits on another PC earns nothing, matching the loss side's
+     * own PC-vs-PC skip in combat_defeat() below. */
+    if (victim->base.kind == THING_PC)
+        return;
 
     long total_xp = (long)(victim->progress.level > 0 ? victim->progress.level : 1) * 50;
 
@@ -1053,22 +1058,21 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
          * separate mob-XP curve: never lose more than the XP banked PAST
          * the current level's own threshold (progress_xp_for_level()), so
          * a death can never de-level anyone, only eat into progress
-         * toward the next one. PvP (a PC winner) divides the result by
-         * 10, same reduction Sneezy applies -- PK combat already requires
-         * mutual `toggle pk` opt-in, so this is a consensual penalty, not
-         * a punitive one; a MOB winner (the ordinary "died to a monster"
-         * case) gets the full penalty. Immortals never lose XP (they're
+         * toward the next one. PvP (a PC winner) is now XP-neutral --
+         * user, 2026-08-04: "Player PK should neither gain nor lose
+         * experience" -- superseding the old /10-reduced-penalty
+         * behavior; a MOB winner (the ordinary "died to a monster" case)
+         * still gets the full penalty. Immortals never lose XP (they're
          * already past the mortal ladder, same "immortals don't need XP"
          * precedent as the winner-XP block below). */
-        if (!being_is_immortal(loser) && loser->progress.experience > 0) {
+        if (!being_is_immortal(loser) && loser->progress.experience > 0
+            && winner->base.kind != THING_PC) {
             long base_loss = loser->progress.experience / 5;
             long level_floor = progress_xp_for_level(loser->progress.level);
             long max_loss = loser->progress.experience - level_floor;
             if (max_loss < 0)
                 max_loss = 0;
             long xp_loss = base_loss < max_loss ? base_loss : max_loss;
-            if (winner->base.kind == THING_PC)
-                xp_loss /= 10;
             if (xp_loss > 0) {
                 loser->progress.experience -= xp_loss;
                 tell(loser, "You lose %ld experience point%s.\r\n", xp_loss, xp_loss == 1 ? "" : "s");

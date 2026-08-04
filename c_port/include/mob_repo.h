@@ -134,6 +134,13 @@ int mob_find_vnum_by_name(const char *name);
  * no original spec-proc behavior is executed. */
 int mob_repo_get_spec_proc(int vnum);
 
+/* Deletes every mob prototype row (and its mob_extra/mob_imm/
+ * mobresponses rows) with vnum in [low, high] -- `zone reclaim`
+ * (cmd_zone.c). Returns the count of `mob` rows deleted (0 on DB error
+ * or an empty range). DB-only, same caveat as room_repo_delete_range()
+ * (room_repo.h). */
+int mob_repo_delete_range(int low, int high);
+
 /* Opt-in per-vnum prototype cache for mob_proto_load(), OFF by default --
  * with it inactive, mob_proto_load() hits the DB every single call,
  * exactly as before this existed. Activate only around a bounded,

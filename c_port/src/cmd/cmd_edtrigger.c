@@ -10,6 +10,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "log.h"
 #include "room_repo.h"
 #include "trigger_repo.h"
 #include "zone.h"
@@ -46,10 +47,39 @@ bool cmd_edtrigger(descriptor_t *d, const char *args) {
 
     char usage[] =
         "Usage: edit trigger <room|mob|obj> <vnum>\r\n"
-        "       edit trigger list <vnum>\r\n";
+        "       edit trigger list <vnum>\r\n"
+        "       edit trigger reclaim <low vnum>-<high vnum>  (59+)\r\n";
 
     char a[32], b[32];
     int got = sscanf(args, "%31s %31s", a, b);
+
+    /* `edit trigger reclaim <low>-<high>` -- trigger-only counterpart to
+     * `edit room reclaim` (cmd_edroom.c, see its doc comment); no live
+     * in-memory purge needed here (trigger_repo_load_for() always hits
+     * the DB fresh when an event fires, nothing caches a trigger row in
+     * memory), just deletes matching rows via
+     * trigger_repo_delete_for_range(). */
+    if (got >= 2 && strcasecmp(a, "reclaim") == 0) {
+        if (d->character->progress.level < EDTRIGGER_RECLAIM_MIN_LEVEL) {
+            descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+            return true;
+        }
+        int low, high;
+        if (sscanf(b, "%d-%d", &low, &high) != 2) {
+            descriptor_send(d, "Usage: edit trigger reclaim <low vnum>-<high vnum>\r\n");
+            return true;
+        }
+        if (low > high) {
+            int tmp = low; low = high; high = tmp;
+        }
+        int triggers_deleted = trigger_repo_delete_for_range(low, high);
+        char msg[96];
+        snprintf(msg, sizeof(msg), "Reclaimed range %d-%d: %d trigger(s) deleted.\r\n", low, high, triggers_deleted);
+        descriptor_send(d, msg);
+        game_log(LOG_EDIT, "%s reclaimed trigger range %d-%d (%d trigger(s)). [%s]",
+                 d->character->base.name, low, high, triggers_deleted, descriptor_display_host(d));
+        return true;
+    }
 
     if (got >= 2 && strcasecmp(a, "list") == 0) {
         if (!isdigit((unsigned char)b[0])) {

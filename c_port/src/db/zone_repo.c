@@ -182,3 +182,16 @@ int zone_repo_load_resets(int zone_nr, zone_reset_cmd_t *out, int max) {
     db_close(db);
     return n;
 }
+
+int zone_repo_delete_resets_referencing_range(int low, int high) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return 0;
+
+    db_query(db, "delete from zone_reset where (arg1 between %i and %i) or (arg3 between %i and %i)",
+             low, high, low, high);
+    long n = db_row_count(db);
+
+    db_close(db);
+    return (int)n;
+}

@@ -7,9 +7,15 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 
+#include "being.h"
+#include "log.h"
+#include "obj.h"
 #include "room.h"
 #include "room_repo.h"
+#include "thing.h"
+#include "world.h"
 #include "zone.h"
 
 /* `edit room [<vnum>]` (formerly the standalone `edroom`, folded into the
@@ -27,10 +33,79 @@
  * CON_REDITING menu mode (misc/create_rooms.cc). Gate: BUILD_MIN_LEVEL,
  * enforced by the command table (via `edit`'s own gate, since room/zone
  * share BUILD_MIN_LEVEL with the dispatcher itself). */
+/* `edit room reclaim <low>-<high>` (user, 2026-08-04: "room reclaim for
+ * just rooms" -- splitting `zone reclaim`'s all-at-once room+obj+mob
+ * sweep, cmd_zone.c, into a per-noun form under each editor's own `edit
+ * <noun>` entry point). Deletes only room/roomexit/roomextra rows in
+ * range (room_repo_delete_range()) -- objects and mobs in the same range
+ * are untouched, use `edit object reclaim`/`edit mob reclaim` for those.
+ * Same 59+ gate and other-player-in-range refusal as `zone reclaim`. */
+static bool edroom_reclaim(descriptor_t *d, const char *rangearg) {
+    if (d->character->progress.level < EDROOM_RECLAIM_MIN_LEVEL) {
+        descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+        return true;
+    }
+    int low, high;
+    if (sscanf(rangearg, "%d-%d", &low, &high) != 2) {
+        descriptor_send(d, "Usage: edit room reclaim <low vnum>-<high vnum>\r\n");
+        return true;
+    }
+    if (low > high) {
+        int tmp = low; low = high; high = tmp;
+    }
+
+    for (int v = low; v <= high; v++) {
+        room_t *r = world_get_room(v);
+        if (!r)
+            continue;
+        for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind == THING_PC && t != &d->character->base) {
+                descriptor_send(d, "A player is currently standing in a room within that range -- refused.\r\n");
+                return true;
+            }
+        }
+    }
+
+    int things_purged = 0;
+    for (int v = low; v <= high; v++) {
+        room_t *r = world_get_room(v);
+        if (!r)
+            continue;
+        thing_t *t = r->base.stuff_head;
+        while (t) {
+            thing_t *next = t->stuff_next;
+            if (t->kind == THING_OBJ) {
+                obj_destroy((obj_t *)t);
+                things_purged++;
+            } else if (t->kind == THING_MOB) {
+                being_destroy((being_t *)t);
+                things_purged++;
+            }
+            t = next;
+        }
+    }
+
+    int rooms_deleted = room_repo_delete_range(low, high);
+    char msg[128];
+    snprintf(msg, sizeof(msg), "Reclaimed range %d-%d: %d room(s) deleted; %d loose thing(s) purged from live memory.\r\n",
+             low, high, rooms_deleted, things_purged);
+    descriptor_send(d, msg);
+    game_log(LOG_EDIT, "%s reclaimed room range %d-%d (%d room(s)). [%s]",
+             d->character->base.name, low, high, rooms_deleted, descriptor_display_host(d));
+    return true;
+}
+
 bool cmd_edroom(descriptor_t *d, const char *args) {
     if (!d->character) {
         descriptor_send(d, "You are nowhere.\r\n");
         return true;
+    }
+
+    if (strncasecmp(args, "reclaim", 7) == 0 && (args[7] == ' ' || args[7] == '\0')) {
+        const char *rest = args + 7;
+        while (*rest == ' ')
+            rest++;
+        return edroom_reclaim(d, rest);
     }
 
     int vnum;

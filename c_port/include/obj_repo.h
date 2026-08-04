@@ -143,4 +143,10 @@ void player_inventory_load(long player_id, being_t *b);
  * player_attrs_save/player_progress_save are. */
 bool player_inventory_save(long player_id, const being_t *b);
 
+/* Deletes every obj prototype row (and its objaffect/objextra/obj_magic
+ * rows) with vnum in [low, high] -- `zone reclaim` (cmd_zone.c). Returns
+ * the count of `obj` rows deleted (0 on DB error or an empty range).
+ * DB-only, same caveat as room_repo_delete_range() above. */
+int obj_repo_delete_range(int low, int high);
+
 #endif

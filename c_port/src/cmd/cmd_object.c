@@ -253,8 +253,16 @@ bool cmd_get(descriptor_t *d, const char *args) {
     /* `get all <container>` -- empty an entire container (corpse, chest, ...)
      * into your inventory in one go, rather than naming each item. User,
      * 2026-07-11: "corpses are supposed to act like containers. get all
-     * corpse should get all items the player/mob was carrying upon death." */
-    if (nargs == 2 && strcasecmp(tok, "all") == 0) {
+     * corpse should get all items the player/mob was carrying upon death."
+     * `get all.<name> <container>` (user, 2026-08-04 follow-up to the
+     * bare `get all.<name>` room-floor form: "get from containers?") --
+     * same idea, but only items matching <name>, same
+     * obj_name_matches()/filter_len convention get_all_from_room() uses. */
+    if (nargs == 2 && (strcasecmp(tok, "all") == 0
+                        || (strncasecmp(tok, "all.", 4) == 0 && tok[4] != '\0'))) {
+        const char *name_filter = (tok[3] == '.') ? tok + 4 : NULL;
+        size_t filter_len = name_filter ? strlen(name_filter) : 0;
+
         obj_t *cont = find_obj(ch->base.stuff_head, conttok, NULL);
         if (!cont)
             cont = find_obj(ch->base.roomp->base.stuff_head, conttok, NULL);
@@ -278,15 +286,22 @@ bool cmd_get(descriptor_t *d, const char *args) {
             return true;
         }
 
+        int gotten = 0;
         thing_t *t = cont->base.stuff_head;
         while (t) {
             thing_t *next = t->stuff_next; /* thing_move_to() relinks t out of cont's list */
             obj_t *item = (obj_t *)t;
+            if (name_filter && !obj_name_matches(item->base.name, name_filter, filter_len)) {
+                t = next;
+                continue;
+            }
             if (pick_up_money(d, ch, item)) {
+                gotten++;
                 t = next;
                 continue;
             }
             thing_move_to(&item->base, &ch->base);
+            gotten++;
 
             game_log(LOG_SILENT, "%s gets %s (vnum %d) from %s (vnum %d) in room %d",
                      ch->base.name, item->base.short_descr, item->vnum,
@@ -308,7 +323,14 @@ bool cmd_get(descriptor_t *d, const char *args) {
 
             t = next;
         }
-        player_inventory_save(ch->player_id, ch);
+        if (gotten == 0) {
+            const char *cl = cont->base.short_descr[0] ? cont->base.short_descr : cont->base.name;
+            char msg[256];
+            snprintf(msg, sizeof(msg), "You don't see any of those in %s.\r\n", cl);
+            descriptor_send(d, msg);
+        } else {
+            player_inventory_save(ch->player_id, ch);
+        }
         return true;
     }
 
@@ -492,14 +514,25 @@ bool cmd_drop(descriptor_t *d, const char *args) {
      * "not worn/held" filter find_obj's owner_for_loose_filter already
      * enforces for a single `drop <item>` -- remove it first to drop
      * something equipped), one at a time so each still gets its own
-     * message/log/save exactly like a normal drop would. */
-    if (strcasecmp(tok, "all") == 0) {
+     * message/log/save exactly like a normal drop would. `drop
+     * all.<name>` (user, 2026-08-04: "and drop all.target", same
+     * `all`/`all.<name>` convention `get`/`remove`/`sell` already use) --
+     * only the loose carried items matching <name>. */
+    if (strcasecmp(tok, "all") == 0
+        || (strncasecmp(tok, "all.", 4) == 0 && tok[4] != '\0')) {
+        const char *name_filter = (tok[3] == '.') ? tok + 4 : NULL;
+        size_t filter_len = name_filter ? strlen(name_filter) : 0;
+
         thing_t *t = ch->base.stuff_head;
         int dropped = 0;
         while (t) {
             thing_t *next = t->stuff_next; /* thing_move_to() relinks t out of ch's chain */
             if (t->kind == THING_OBJ && is_loose(ch, (obj_t *)t)) {
                 obj_t *o = (obj_t *)t;
+                if (name_filter && !obj_name_matches(o->base.name, name_filter, filter_len)) {
+                    t = next;
+                    continue;
+                }
                 thing_move_to(&o->base, &ch->base.roomp->base);
                 game_log(LOG_SILENT, "%s drops %s (vnum %d) in room %d",
                          ch->base.name, o->base.short_descr, o->vnum, ch->base.roomp->vnum);
@@ -514,10 +547,12 @@ bool cmd_drop(descriptor_t *d, const char *args) {
             }
             t = next;
         }
-        if (dropped == 0)
-            descriptor_send(d, "You aren't carrying anything.\r\n");
-        else
+        if (dropped == 0) {
+            descriptor_send(d, name_filter ? "You aren't carrying any of those.\r\n"
+                                            : "You aren't carrying anything.\r\n");
+        } else {
             player_inventory_save(ch->player_id, ch);
+        }
         return true;
     }
 
@@ -886,9 +921,79 @@ bool cmd_switch(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* Removes one already-found worn/held item `o` -- the actual unequip
+ * logic `cmd_remove()` (single-target) and `remove_all_worn()` (bulk
+ * `remove all`/`remove all.<target>`, below) both funnel through, so the
+ * equipment-affect/save/message shape can't drift between the two paths. */
+static void remove_one_item(descriptor_t *d, being_t *ch, obj_t *o) {
+    bool was_worn = false;
+    for (int i = 0; i < LIMB_COUNT; i++)
+        if (ch->equipment[i] == o) {
+            ch->equipment[i] = NULL;
+            was_worn = true;
+        }
+    for (int i = 0; i < 2; i++)
+        if (ch->held[i] == o)
+            ch->held[i] = NULL;
+    /* Only equipment[] slots (WORN gear -- rings, armor, cloaks) carry
+     * stat/HP/Vitality affects, not held[]/wielded weapons (those get
+     * hit/damroll bonuses instead, applied live at attack time via
+     * obj_load_combat_mods() -- no wear/remove hook needed for those). */
+    if (was_worn)
+        obj_apply_equip_affects(ch, o, -1);
+
+    char msg[256];
+    const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+    snprintf(msg, sizeof(msg), "You remove %s.\r\n", label);
+    descriptor_send(d, msg);
+    if (ch->base.roomp) {
+        snprintf(msg, sizeof(msg), "%s removes %s.\r\n", ch->base.name, label);
+        descriptor_room_echo(ch->base.roomp, ch, msg);
+    }
+}
+
+/* `remove all` (everything currently worn/held) and `remove all.<name>`
+ * (every worn/held item matching <name>) -- user, 2026-08-04: "remove
+ * all.target should [work] the same" as `get all.<name>` above. Same
+ * name_filter/obj_name_matches() convention as get_all_from_room(); walks
+ * equipment[] then held[] rather than the stuff_head chain since those
+ * are the only two places a "worn or held" item can be. */
+static bool remove_all_worn(descriptor_t *d, being_t *ch, const char *name_filter) {
+    size_t filter_len = name_filter ? strlen(name_filter) : 0;
+    int removed = 0;
+
+    for (int i = 0; i < LIMB_COUNT; i++) {
+        obj_t *o = ch->equipment[i];
+        if (!o)
+            continue;
+        if (name_filter && !obj_name_matches(o->base.name, name_filter, filter_len))
+            continue;
+        remove_one_item(d, ch, o);
+        removed++;
+    }
+    for (int i = 0; i < 2; i++) {
+        obj_t *o = ch->held[i];
+        if (!o)
+            continue;
+        if (name_filter && !obj_name_matches(o->base.name, name_filter, filter_len))
+            continue;
+        remove_one_item(d, ch, o);
+        removed++;
+    }
+
+    if (removed == 0) {
+        descriptor_send(d, name_filter ? "You aren't wearing or holding any of those.\r\n"
+                                        : "You aren't wearing or holding anything.\r\n");
+    } else {
+        player_inventory_save(ch->player_id, ch);
+    }
+    return true;
+}
+
 /* The `remove` command: takes off a worn or held/wielded item, unapplying
  * its stat affects if it was worn gear (see the inline comment below on
- * why held/wielded items don't need that). */
+ * why held/wielded items don't need that). `remove all`/`remove
+ * all.<name>` (bulk forms) handled by remove_all_worn() above. */
 bool cmd_remove(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)
@@ -899,6 +1004,11 @@ bool cmd_remove(descriptor_t *d, const char *args) {
         descriptor_send(d, "Usage: remove <item>\r\n");
         return true;
     }
+
+    if (strcasecmp(tok, "all") == 0)
+        return remove_all_worn(d, ch, NULL);
+    if (strncasecmp(tok, "all.", 4) == 0 && tok[4] != '\0')
+        return remove_all_worn(d, ch, tok + 4);
 
     /* `remove hold`/`remove held` (user 2026-08-03: in the dark you can't
      * read an unidentified item's own name/keywords to target it the
@@ -922,32 +1032,8 @@ bool cmd_remove(descriptor_t *d, const char *args) {
         }
     }
 
-    bool was_worn = false;
-    for (int i = 0; i < LIMB_COUNT; i++)
-        if (ch->equipment[i] == o) {
-            ch->equipment[i] = NULL;
-            was_worn = true;
-        }
-    for (int i = 0; i < 2; i++)
-        if (ch->held[i] == o)
-            ch->held[i] = NULL;
-    /* Only equipment[] slots (WORN gear -- rings, armor, cloaks) carry
-     * stat/HP/Vitality affects, not held[]/wielded weapons (those get
-     * hit/damroll bonuses instead, applied live at attack time via
-     * obj_load_combat_mods() -- no wear/remove hook needed for those). */
-    if (was_worn)
-        obj_apply_equip_affects(ch, o, -1);
-
+    remove_one_item(d, ch, o);
     player_inventory_save(ch->player_id, ch);
-
-    char msg[256];
-    const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
-    snprintf(msg, sizeof(msg), "You remove %s.\r\n", label);
-    descriptor_send(d, msg);
-    if (ch->base.roomp) {
-        snprintf(msg, sizeof(msg), "%s removes %s.\r\n", ch->base.name, label);
-        descriptor_room_echo(ch->base.roomp, ch, msg);
-    }
     return true;
 }
 

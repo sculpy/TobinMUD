@@ -626,6 +626,123 @@ bool cmd_buy(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* Sells one already-found loose carried item `found` to `keeper` -- the
+ * price/tax/resale-eviction logic `cmd_sell()` (single-target) and
+ * `sell_all_from_inventory()` (bulk `sell all`/`sell all.<target>`,
+ * below) both funnel through. Returns the net gold the seller receives
+ * (0 if the shop doesn't buy that category -- caller decides whether
+ * that's worth reporting). `*tax_out` accumulates the tax taken, left
+ * untouched on a category refusal. */
+static int sell_one_item(being_t *ch, being_t *keeper, const shop_t *shop, obj_t *found, int *tax_out) {
+    if (!shop_repo_buys_category(shop->shop_nr, (int)found->category))
+        return -1;
+
+    /* Material property system: same value multiplier as buy, applied to
+     * whatever the item is actually worth on sale. */
+    int price = (int)(found->price * shop->profit_sell
+                       * material_tier_value_mult(material_tier_for_id(found->material)));
+    if (price < 0)
+        price = 0;
+    int tax = (int)(price * SALES_TAX_RATE);
+    int net = price - tax;
+    if (net < 0)
+        net = 0;
+
+    ch->progress.gold += net;
+    *tax_out += tax;
+
+    /* Resale: the item joins the keeper's own inventory instead of being
+     * destroyed, evicting the oldest resale item first if the keeper is
+     * already at SHOP_RESALE_MAX (see the doc comment above). */
+    if (count_resale_items(keeper) >= SHOP_RESALE_MAX) {
+        obj_t *oldest = find_resale_item_by_index(keeper, 1);
+        if (oldest)
+            obj_destroy(oldest);
+    }
+    thing_move_to(&found->base, &keeper->base);
+    return net;
+}
+
+/* `sell all` (every loose carried item the active shop buys) and `sell
+ * all.<name>` (every matching one) -- user, 2026-08-04: "in the shops
+ * sell all.commodity or all.component should work", same `all`/
+ * `all.<name>` convention `get`/`remove` already use. Walks the same
+ * loose-carried-only set `cmd_sell()`'s single-item lookup does (skips
+ * worn/held), skipping (not refusing outright) any item the shop's
+ * `shoptype` rows don't cover -- a mixed pile sells what it can rather
+ * than erroring on the first item the shop won't touch. Reports each
+ * sale by name (same shape `combat.c`'s autoloot reporting uses) then
+ * one tax summary line, rather than replaying the shop's own flavor-text
+ * `message_sell` once per item, which would spam a big pile. */
+static bool sell_all_from_inventory(descriptor_t *d, being_t *ch, being_t *keeper, const shop_t *shop, const char *name_filter) {
+    int sold = 0, refused = 0, total_net = 0, total_tax = 0;
+
+    thing_t *t = ch->base.stuff_head;
+    while (t) {
+        thing_t *next = t->stuff_next; /* thing_move_to() relinks t out of the chain on a sale */
+        if (t->kind != THING_OBJ) {
+            t = next;
+            continue;
+        }
+        obj_t *item = (obj_t *)t;
+        if (ch->held[0] == item || ch->held[1] == item) {
+            t = next;
+            continue;
+        }
+        bool worn = false;
+        for (int i = 0; i < LIMB_COUNT && !worn; i++)
+            if (ch->equipment[i] == item)
+                worn = true;
+        if (worn) {
+            t = next;
+            continue;
+        }
+        if (name_filter && !keyword_matches(item->base.name, name_filter)) {
+            t = next;
+            continue;
+        }
+
+        char capbuf[128];
+        const char *label = cap_first(item->base.short_descr[0] ? item->base.short_descr : item->base.name,
+                                      capbuf, sizeof(capbuf));
+        int net = sell_one_item(ch, keeper, shop, item, &total_tax);
+        if (net < 0) {
+            refused++;
+            t = next;
+            continue;
+        }
+        total_net += net;
+        sold++;
+
+        char msg[OBJ_LONG_DESCR_LEN + 32];
+        snprintf(msg, sizeof(msg), "You sell %s for %d gold.\r\n", label, net);
+        descriptor_send(d, msg);
+
+        t = next;
+    }
+
+    if (sold == 0) {
+        char msg[SHOP_MSG_LEN + 4];
+        snprintf(msg, sizeof(msg), "%s\r\n", refused == 0 ? shop->no_such_item2 : shop->do_not_buy);
+        descriptor_send(d, msg);
+        return true;
+    }
+
+    if (total_tax > 0) {
+        char taxmsg[96];
+        snprintf(taxmsg, sizeof(taxmsg), "A sales tax of %d gold is added to the crown's coffers.\r\n", total_tax);
+        descriptor_send(d, taxmsg);
+        treasury_repo_add_gold(total_tax);
+    }
+    char total[96];
+    snprintf(total, sizeof(total), "The shopkeeper pays you a total of %d gold.\r\n", total_net);
+    descriptor_send(d, total);
+
+    player_progress_save(ch->player_id, &ch->progress);
+    player_inventory_save(ch->player_id, ch);
+    return true;
+}
+
 /* `sell <item>`: sells a loose carried item to the active shop, if it
  * deals in that item's category (shop_repo_buys_category(), checked
  * against the seeded `shoptype` rows). The item moves into the keeper's
@@ -634,7 +751,8 @@ bool cmd_buy(descriptor_t *d, const char *args) {
  * doc comment above `find_active_shop()`'s own helpers, and `list`/`buy`
  * for the other half of this). A flat sales tax (same rate/treasury
  * destination as `buy`'s, user: "tax should be charged to people selling
- * at shops") is deducted from what the seller receives. */
+ * at shops") is deducted from what the seller receives. `sell all`/`sell
+ * all.<name>` (bulk forms) handled by sell_all_from_inventory() above. */
 bool cmd_sell(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -651,6 +769,14 @@ bool cmd_sell(descriptor_t *d, const char *args) {
     if (!keeper) {
         descriptor_send(d, "You don't see a shop here.\r\n");
         return true;
+    }
+
+    if (strcasecmp(args, "all") == 0)
+        return sell_all_from_inventory(d, ch, keeper, &shop, NULL);
+    if (strncasecmp(args, "all.", 4) == 0 && args[4] != '\0') {
+        char filter[64];
+        snprintf(filter, sizeof(filter), "%s", args + 4);
+        return sell_all_from_inventory(d, ch, keeper, &shop, filter);
     }
 
     /* Ordinal support (user 2026-07-18: "make it true as part of
@@ -688,23 +814,14 @@ bool cmd_sell(descriptor_t *d, const char *args) {
         return true;
     }
 
-    if (!shop_repo_buys_category(shop.shop_nr, (int)found->category)) {
+    int tax = 0;
+    int net = sell_one_item(ch, keeper, &shop, found, &tax);
+    if (net < 0) {
         char msg[SHOP_MSG_LEN + 4];
         snprintf(msg, sizeof(msg), "%s\r\n", shop.do_not_buy);
         descriptor_send(d, msg);
         return true;
     }
-
-    /* Material property system: same value multiplier as buy, applied to
-     * whatever the item is actually worth on sale. */
-    int price = (int)(found->price * shop.profit_sell
-                       * material_tier_value_mult(material_tier_for_id(found->material)));
-    if (price < 0)
-        price = 0;
-    int tax = (int)(price * SALES_TAX_RATE);
-    int net = price - tax;
-    if (net < 0)
-        net = 0;
 
     char capbuf[128];
     const char *label = cap_first(found->base.short_descr[0] ? found->base.short_descr : found->base.name,
@@ -724,18 +841,6 @@ bool cmd_sell(descriptor_t *d, const char *args) {
         descriptor_send(d, taxmsg);
         treasury_repo_add_gold(tax);
     }
-
-    ch->progress.gold += net;
-
-    /* Resale: the item joins the keeper's own inventory instead of being
-     * destroyed, evicting the oldest resale item first if the keeper is
-     * already at SHOP_RESALE_MAX (see the doc comment above). */
-    if (count_resale_items(keeper) >= SHOP_RESALE_MAX) {
-        obj_t *oldest = find_resale_item_by_index(keeper, 1);
-        if (oldest)
-            obj_destroy(oldest);
-    }
-    thing_move_to(&found->base, &keeper->base);
 
     player_progress_save(ch->player_id, &ch->progress);
     player_inventory_save(ch->player_id, ch);

@@ -375,6 +375,12 @@ bool look_at_target(descriptor_t *d, const char *args);
  * floor per command name. */
 #define PURGE_MIN_LEVEL 51
 #define PURGE_LINKDEAD_MIN_LEVEL 58
+#define PURGE_RANGE_MIN_LEVEL 59
+#define ZONE_RECLAIM_MIN_LEVEL 59
+#define EDROOM_RECLAIM_MIN_LEVEL 59
+#define EDOBJECT_RECLAIM_MIN_LEVEL 59
+#define EDMOBILE_RECLAIM_MIN_LEVEL 59
+#define EDTRIGGER_RECLAIM_MIN_LEVEL 59
 
 /* One row of cmd_table.c's dispatch table -- shared with cmd_help.c so
  * `help`/`wizhelp` can enumerate it without duplicating the list.

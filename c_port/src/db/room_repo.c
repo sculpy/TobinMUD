@@ -313,3 +313,17 @@ bool room_repo_extra_delete_all(int vnum) {
     db_close(db);
     return ok;
 }
+
+int room_repo_delete_range(int low, int high) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return 0;
+
+    db_query(db, "delete from roomexit where vnum between %i and %i", low, high);
+    db_query(db, "delete from roomextra where vnum between %i and %i", low, high);
+    db_query(db, "delete from room where vnum between %i and %i", low, high);
+    long n = db_row_count(db);
+
+    db_close(db);
+    return (int)n;
+}

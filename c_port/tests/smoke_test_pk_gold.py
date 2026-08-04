@@ -12,6 +12,13 @@ hit finishes the fight, keeping this deterministic) both opt into PK
   2. A's gold ends at 500, B's at 0 (both via direct DB read, since B is
      ejected to the account menu on defeat).
 
+A automatically loots the corpse's gold via `toggle autoloot` (2026-08-04
+fix: the corpse-gold-loot message only ever fires through that toggle --
+combat.c's autoloot pass -- this test previously assumed it fired
+unconditionally and never actually turned the toggle on, so it was passing
+by accident before autoloot existed and silently broke once gold moved to
+a lootable corpse object instead of a direct wallet credit).
+
     python3 tests/smoke_test_pk_gold.py [host] [port]
 """
 import re
@@ -20,6 +27,7 @@ import subprocess
 import sys
 import time
 from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
+from mud_creation import create_character
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
@@ -57,13 +65,7 @@ def make_char(name, pw):
     send_line(s, "y"); recv_all(s)
     send_line(s, pw); recv_all(s)
     send_line(s, pw); recv_all(s)
-    send_line(s, "new"); recv_all(s)
-    send_line(s, name); recv_all(s)
-    send_line(s, "1"); recv_all(s)  # race: human
-    send_line(s, "1"); recv_all(s)  # territory: urban
-    send_line(s, "1"); recv_all(s)  # class: mage
-    send_line(s, "done"); recv_all(s)
-    send_line(s, "done"); recv_all(s)  # alignment: neutral
+    create_character(s, name, send_line, recv_all)
     return s
 
 
@@ -93,6 +95,8 @@ sB = relog(nameB, pw)
 
 step_out_a = cmd(sA, "toggle pk")
 check("pk" in step_out_a.lower(), "A opts into PK")
+autoloot_out = cmd(sA, "toggle autoloot")
+check("autoloot" in autoloot_out.lower(), "A opts into autoloot, so the corpse's gold is picked up automatically")
 step_out_b = cmd(sB, "toggle pk")
 check("pk" in step_out_b.lower(), "B opts into PK")
 
