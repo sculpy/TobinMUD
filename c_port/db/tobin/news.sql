@@ -509,3 +509,7 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Warriors Can Now Kick', 'Kick is now available to Warriors from level 1, joining Thieves and Monks -- every class that isn''t a spellcaster now has it.'),
 ('The TobinMUD Team', 'Monks: Master Kick, and Advanced Kicking Takes Over', 'A Monk whose kick has reached 100% proficiency now automatically gains the benefit of advanced kicking -- a chance at a bonus strike each unarmed round -- even before reaching the level it''s normally taught at.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Wild Boars and Other Tusked Mobs Can Now Gore You', 'Some mobs -- wild boars among them -- can now attempt a goring attack mid-fight: a solid hit knocks you to the ground, though most of the time they just miss with a bit of flavor instead.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -1548,6 +1548,69 @@ void combat_fall_kill_pc(being_t *victim) {
         descriptor_leave_to_menu(victim->desc);
 }
 
+/* SPEC_TUSK_GORING (spec_mobs_goring.cc's `tuskGoring`) -- id 153, the
+ * first proc ported under the new per-round mob combat-action hook
+ * above (SPEC_PROCS.md previously logged this hook as entirely missing,
+ * blocking both this proc and SPEC_HORSE=16's kick). On its own swing
+ * each round, a goring mob (boar/tusker) has a 1-in-8 chance (upstream
+ * `::number(0, 7)`, kept verbatim) to attempt a gore against whoever
+ * it's fighting, requiring the victim standing and not mounted -- an
+ * 80% chance to land (upstream's `!isAgile(0) && ::number(0, 4)`
+ * simplified to a flat chance; Tobin has no agility-check primitive to
+ * hang the original's exact condition on, a disclosed scope note). A
+ * successful gore deals a real damage roll and knocks the victim to
+ * POSITION_SITTING; a failed attempt is flavor-only (a dodge message,
+ * no damage). */
+#define SPEC_TUSK_GORING 153
+
+static bool mob_spec_tusk_goring_combat(being_t *m, being_t *victim) {
+    if (victim->position != POSITION_STANDING || victim->mount)
+        return false;
+    if (rand() % 8 != 0)
+        return false;
+
+    char capbuf[128];
+    if (rand() % 5 == 0) {
+        char msg[192];
+        snprintf(msg, sizeof(msg), "%s charges towards you, but you easily dodge them.\r\n",
+                 being_display_name_cap(m, capbuf, sizeof(capbuf)));
+        tell(victim, "%s", msg);
+        if (victim->base.roomp)
+            descriptor_room_echo(victim->base.roomp, victim, msg);
+        return false;
+    }
+
+    int dmg = (m->progress.level * 5 + (rand() % 21 - 10)) / 2;
+    if (dmg < 10)
+        dmg = 10;
+
+    tell(victim, "%s barrels down on you, impaling you painfully! You are knocked to the ground.\r\n",
+         being_display_name_cap(m, capbuf, sizeof(capbuf)));
+    if (victim->base.roomp) {
+        char msg[192];
+        snprintf(msg, sizeof(msg), "%s charges into %s, impaling them fiercely!\r\n",
+                 being_display_name_cap(m, capbuf, sizeof(capbuf)), being_display_name(victim));
+        descriptor_room_echo(victim->base.roomp, victim, msg);
+    }
+
+    bool defeated = combat_apply_skill_damage(m, victim, dmg, LIMB_BODY);
+    if (!defeated)
+        victim->position = POSITION_SITTING;
+    return defeated;
+}
+
+/* The mob-side per-round combat-action dispatch table -- id -> function,
+ * same shape as mob_ai.c's own pulse dispatch table, just keyed off
+ * combat.c's own CMD_MOB_COMBAT-equivalent hook instead. */
+static bool mob_spec_dispatch_combat(being_t *m, being_t *victim) {
+    switch (m->mob_spec_proc) {
+    case SPEC_TUSK_GORING:
+        return mob_spec_tusk_goring_combat(m, victim);
+    default:
+        return false;
+    }
+}
+
 /* Runs on a timer (see main.c), once per combat round: resolves every
  * connected PC's ongoing fight (each pair only once per pulse, via
  * last_combat_pulse), mid-fight-persists both PCs' HP so a disconnect
@@ -1629,6 +1692,18 @@ void combat_process_run(long pulse_num) {
                 combat_defeat(a, b, a_decapitated);
                 continue;
             }
+        }
+
+        /* Mob-side per-round special combat action (SPEC_PROCS.md's own
+         * "CMD_MOB_COMBAT hook Tobin has none of yet" blocker note --
+         * this closes that gap, added here since combat.c is what owns
+         * this per-round hook; a mob-specific dispatch table, same "id
+         * -> function" shape as mob_ai.c's own pulse dispatch table).
+         * Both sides are confirmed alive at this point (an earlier
+         * defeat above would already have `continue`d). */
+        if (b->base.kind == THING_MOB && b->mob_spec_proc) {
+            if (mob_spec_dispatch_combat(b, a))
+                continue;
         }
 
         /* Vitality drain (user 2026-08-03: "vitality should decrease when

@@ -13,6 +13,11 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
+## Open follow-ups, logged 2026-08-04
+
+- [ ] **Copyover hangs a bit when restoring from a reboot** -- user, 2026-08-04: noticed live during this session's own copyover deploys. Not yet investigated -- worth profiling copyover_recover()/the mob-object restore pass (game_loop.c/main.c) next time this comes up, since that is the part of boot that scales with world size (3000+ mobs restored this session).
+- [ ] **Player PK should neither gain nor lose experience** -- user, 2026-08-04: player-vs-player kills currently affect XP like normal combat; PK outcomes should be XP-neutral for both sides. Not yet investigated -- likely a check in the XP-award path (combat_apply_skill_damage()/combat_defeat() in combat.c) needs to skip XP entirely when both sides are PC beings.
+
 ## User batch 2026-08-04 — done
 
 - [x] **Crit hit messages reproduced from Sneezy** — done, Session 128.

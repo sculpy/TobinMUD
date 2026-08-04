@@ -1,31 +1,36 @@
 # Tobin C Port — Status
 
 Last updated: 2026-08-04 — Session 129 (DO droplet, production port 4000):
-**Kick extended to Warrior (user: "all classes except for casters should
-get kick at level 1"); Monk kick-mastery now auto-unlocks advanced
-kicking.** Warrior/Thief/Monk (Tobin's three non-caster classes) all now
-carry "kick" at level 1 in `skill.c`'s roster; `tests/
-smoke_test_kick_level1.py` extended to cover Warrior plus a negative
-check that a caster (Mage) is still refused kick outright, confirming
-the non-caster scoping. Separately (user: "once kick is maxed then
-advanced kick should take over as an automatic attack"):
-`being_knows_skill()` (skill.c) now treats a Monk as knowing "advanced
-kicking" once their own "kick" proficiency reaches 100%, even below the
-skill's normal level-25/practice-point gate -- `combat_process_run()`'s
-existing bonus-strike check (the same one haste/chain attack/blur
-already use) already treats "advanced kicking" as one of its triggers
-for a barehanded, chance-gated extra strike each round, so mastering
-kick now unlocks that automatically. No direct player-facing surface to
-test against (`cmd_skills.c`'s listing re-implements its own level-based
-gating independently of `being_knows_skill()`, a disclosed pre-existing
-gap this change doesn't touch) -- new `tests/smoke_test_kick_mastery.py`
-verifies it statistically instead: a level-1 (well under the normal
-level-25 unlock) Monk with kick maxed, fighting a harmless dummy for 10
-real combat rounds, lands more own-swing lines (13) than rounds elapsed
-(10) -- proof the bonus-strike branch fired, since no other bonus-strike
-skill is reachable to a level-1 Monk. Both new tests pass live;
-`tests/smoke_test_combat.py` and `tests/smoke_test_kick_level1.py`
-rerun clean.
+**SPEC_TUSK_GORING=153 ported (spec-proc project), introducing a new
+per-round mob-combat-action hook.** SPEC_PROCS.md had logged this hook
+as entirely missing -- added as a new dispatch point in
+`combat_process_run()` (combat.c), right alongside the existing
+chain-attack/advanced-kicking bonus-strike block: `if (b->base.kind ==
+THING_MOB && b->mob_spec_proc) mob_spec_dispatch_combat(b, a);`. First
+(and so far only) proc wired through it is `tuskGoring`
+(`spec_mobs_goring.cc`): on its own swing each round, a goring mob has a
+1-in-8 chance to attempt a gore against whoever it's fighting (victim
+must be standing, not mounted) -- 80% of attempts land real damage and
+knock the victim to POSITION_SITTING, the rest are a flavor-only dodge
+message. Real seeded mobs already carry `spec_proc=153` (vnum 11043
+"boar giant wild" among others). Code review caught a real bug in the
+first draft: the hand-rolled damage application didn't exempt immortals
+from damage, unlike every other damage path in combat.c -- fixed by
+routing through the existing shared helper `combat_apply_skill_damage()`
+instead (same one `cmd_bash.c` uses), which zeroes damage for immortals,
+awards XP, and routes death through `combat_defeat()` on its own.
+Verification scope note: a full statistical proof of the 1-in-8 /
+80%-land odds was judged not worth the token/time budget after two
+earlier attempts (one flaky on message-matching, one where the mortal
+test victim died despite periodic healing) -- settled for code review
+plus `tests/smoke_test_specproc_tuskgoring.py` (5 checks: sandbox setup,
+mob load, real engagement, and post-combat server liveness across real
+combat rounds against the goring hook). This also partially unblocks
+`SPEC_HORSE=16`'s kick portion, which needs the same hook shape.
+`tests/smoke_test_combat.py` rerun clean. Also logged two new
+follow-ups in TODO.md this session: copyover hangs a bit when restoring
+from a reboot (not yet investigated), and player PK should neither gain
+nor lose experience (not yet investigated).
 
 Previous update (earlier the same session): 2026-08-04 — Session 129 (DO droplet, production port 4000):
 **Kick now level 1 for every class that has it** (user: "kick skill
@@ -6891,3 +6896,31 @@ Four related changes from user feedback in one pass:
 ### Session 1 (part 1) — 2026-07-01 — Scaffolded c_port/, wrote the walking-skeleton login/look/who slice
 - Built: full `c_port/` tree — `CMakeLists.txt`, `include/*.h`, `src/**/*.c` (log, config, db + account/player/room repos, net/main_socket/socket/descriptor, core/thing/being/room, cmd/cmd_table+look+who, world, game_loop, main). ~20 files per the session-1 plan.
 - Verified: not yet at the time — no C toolchain available in that part of the session. Hand-reviewed against the original source instead. (Verified for real in part 2 above, same session.)
+
+Previous update (earlier the same session): 2026-08-04 — Session 129 (DO droplet, production port 4000):
+**Kick extended to Warrior (user: "all classes except for casters should
+get kick at level 1"); Monk kick-mastery now auto-unlocks advanced
+kicking.** Warrior/Thief/Monk (Tobin's three non-caster classes) all now
+carry "kick" at level 1 in `skill.c`'s roster; `tests/
+smoke_test_kick_level1.py` extended to cover Warrior plus a negative
+check that a caster (Mage) is still refused kick outright, confirming
+the non-caster scoping. Separately (user: "once kick is maxed then
+advanced kick should take over as an automatic attack"):
+`being_knows_skill()` (skill.c) now treats a Monk as knowing "advanced
+kicking" once their own "kick" proficiency reaches 100%, even below the
+skill's normal level-25/practice-point gate -- `combat_process_run()`'s
+existing bonus-strike check (the same one haste/chain attack/blur
+already use) already treats "advanced kicking" as one of its triggers
+for a barehanded, chance-gated extra strike each round, so mastering
+kick now unlocks that automatically. No direct player-facing surface to
+test against (`cmd_skills.c`'s listing re-implements its own level-based
+gating independently of `being_knows_skill()`, a disclosed pre-existing
+gap this change doesn't touch) -- new `tests/smoke_test_kick_mastery.py`
+verifies it statistically instead: a level-1 (well under the normal
+level-25 unlock) Monk with kick maxed, fighting a harmless dummy for 10
+real combat rounds, lands more own-swing lines (13) than rounds elapsed
+(10) -- proof the bonus-strike branch fired, since no other bonus-strike
+skill is reachable to a level-1 Monk. Both new tests pass live;
+`tests/smoke_test_combat.py` and `tests/smoke_test_kick_level1.py`
+rerun clean.
+

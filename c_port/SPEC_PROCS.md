@@ -39,13 +39,19 @@ missing prerequisite named, not silently skipped or faked.
   still get added as procs needing them come up.
 - Files fully done: 0 / 58
 - Functions ported: 3 / 325 (pre-existing: DOCTOR/LAMPLIGHTER/
-  NEWBIE_EQUIPPER) + 5 new this project (`SPEC_CHICKEN` Session 124,
+  NEWBIE_EQUIPPER) + 6 new this project (`SPEC_CHICKEN` Session 124,
   `SPEC_BEGGAR` Session 127, `SPEC_REPLICANT` -- ported in the droplet's
   own parallel work, found already in mob_ai.c and only now reflected
-  here, no session number recorded -- `SPEC_THIEF` Session 128, and
+  here, no session number recorded -- `SPEC_THIEF` Session 128,
   `SPEC_TICKET_GUY` Session 129, the first proc needing a hook OTHER
   than the pulse dispatch table -- `CMD_BUY`, added directly in
-  `cmd_shop.c`).
+  `cmd_shop.c` -- and `SPEC_TUSK_GORING=153` Session 129, the first proc
+  needing a per-round mob-combat-action hook, a new dispatch point added
+  in `combat_process_run()` (combat.c) right alongside the existing
+  chain-attack/advanced-kicking block: `if (b->base.kind == THING_MOB &&
+  b->mob_spec_proc) mob_spec_dispatch_combat(b, a);`. This also
+  partially unblocks `SPEC_HORSE=16`'s kick portion, which needs the
+  same hook shape.).
   Along the way (Session 128), found and fixed a real live data bug: mob
   vnum 601 (the seeded beggar, `SPEC_BEGGAR`'s own test subject) had its
   `spec_proc` overwritten to 71 (`SPEC_REPLICANT`'s id) in the live DB,
@@ -324,7 +330,26 @@ original, or a helper function, not a real registered spec-proc)
 - [ ] `spec_mobs_earthquake_digger.cc`
 - [ ] `spec_mobs_fireman.cc`
 - [ ] `spec_mobs_flaskPeddler.cc`
-- [ ] `spec_mobs_goring.cc`
+- [x] `spec_mobs_goring.cc` -- `SPEC_TUSK_GORING=153` (`tuskGoring`)
+      -- **DONE, Session 129.** First proc using the new per-round
+      mob-combat-action hook (see Progress note above). On its own
+      swing each round, a goring mob has a 1-in-8 chance to attempt a
+      gore against whoever it's fighting (victim must be standing, not
+      mounted): 80% of attempts land real damage and knock the victim
+      to POSITION_SITTING, the rest are a flavor-only dodge message.
+      Real seeded mobs already carry `spec_proc=153` (vnum 11043
+      "boar giant wild" among others). Implementation reuses
+      `combat_apply_skill_damage()` (the same shared helper cmd_bash.c
+      uses) rather than hand-rolling HP subtraction -- code review
+      caught that the first draft skipped the immortal-damage-immunity
+      check every other damage path has, fixed by routing through the
+      shared helper instead of a bespoke `combat_defeat()` call.
+      Verification scope note: a full statistical proof of the 1-in-8 /
+      80%-land odds was judged not worth the token/time budget (mirrors
+      the crit-message precedent) -- settled for code review plus
+      `tests/smoke_test_specproc_tuskgoring.py` (5 checks: sandbox
+      setup, mob load, real engagement, and post-combat server liveness
+      across real rounds against the goring hook).
 - [ ] `spec_mobs_herofaeries.cc`
 - [ ] `spec_mobs_holdem_player.cc`
 - [ ] `spec_mobs_janitors.cc`
