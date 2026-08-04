@@ -17,8 +17,10 @@
 #include "descriptor.h"
 #include "hostname_resolve.h"
 #include "log.h"
+#include "mob_repo.h"
 #include "net.h"
 #include "obj.h"
+#include "obj_repo.h"
 #include "pulse.h"
 #include "room.h"
 #include "thing.h"
@@ -266,6 +268,20 @@ static bool copyover_recover(const char *file, main_socket_t *ms) {
     deferred_fight_t fights[MAX_DEFERRED_FIGHTS];
     int fight_count = 0;
 
+    /* Scoped prototype cache (mob_repo.h/obj_repo.h) -- a growing world
+     * population means a growing number of duplicate mob_proto_load()/
+     * obj_proto_load() DB round trips for the same handful of vnums on
+     * every single copyover (found live, 2026-08-04: 3663 mob restores
+     * in one pass, the overwhelming majority repeats of a much smaller
+     * set of zone-populated vnums) -- this was the real driver behind
+     * "copyover hangs a bit when restoring." Safe here specifically
+     * because this whole pass is boot-time, single-threaded, and nothing
+     * can be concurrently medit/oedit-saving or raw-SQL-editing a
+     * prototype mid-restore. Always paired with a matching *_cache_end()
+     * below so no entry outlives this one call. */
+    mob_proto_cache_begin();
+    obj_proto_cache_begin();
+
     int restored = 0, dropped = 0, mobs_restored = 0, objs_restored = 0;
     while (fgets(line, sizeof(line), f)) {
         char fight_fighter[64], fight_target[64];
@@ -360,6 +376,9 @@ static bool copyover_recover(const char *file, main_socket_t *ms) {
         else
             dropped++;
     }
+    mob_proto_cache_end();
+    obj_proto_cache_end();
+
     fclose(f);
     unlink(file);
 

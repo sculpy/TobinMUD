@@ -1,6 +1,51 @@
 # Tobin C Port — Status
 
 Last updated: 2026-08-04 — Session 129 (DO droplet, production port 4000):
+**Fixed the copyover-hang/resource-drain TODO item: added an opt-in
+per-vnum mob/object prototype cache, scoped to copyover restore only.**
+User: "I believe this issue is what was eating machine resources."
+Root cause: `copyover_recover()` (game_loop.c) restores every loose
+room mob/object from the copyover dump via `being_create_mob()`/
+`obj_create_from_proto()` per instance, and `mob_proto_load()`/
+`obj_proto_load()` (mob_repo.c/obj_repo.c) had zero caching -- every
+restored instance re-ran a full DB SELECT for its prototype, even when
+hundreds of instances shared the same handful of vnums. Checking this
+session's own logs showed why it was getting WORSE, live: mob restore
+counts climbed every single copyover this session (3185 -> 3307 ->
+3377 -> 3482 -> 3589 -> 3663 -> 3735 -> 3786), almost entirely leftover
+test-loaded mobs (this session's many smoke tests' ad hoc sandbox
+rooms) that nothing ever purges, faithfully re-dumped and re-restored
+forever by copyover's design. Considered and rejected a general
+always-on cache in mob_repo.c/obj_repo.c directly: `tests/
+smoke_test_material.py` and `db/tobin/tobin_migrations.sql` both
+depend on a live raw-SQL edit to a mob/obj prototype row taking effect
+on the very next spawn with no restart, and medit/oedit's own
+mob_proto_save()/obj_proto_save() commit live mid-process too -- an
+always-on cache would silently break all of that. Instead: `mob_proto_
+cache_begin()`/`_end()` and `obj_proto_cache_begin()`/`_end()`
+(mob_repo.h/obj_repo.h), OFF by default -- `mob_proto_load()`/`obj_
+proto_load()` behave exactly as before everywhere else -- activated
+only around `copyover_recover()`'s own restore loop, where it's
+provably safe (boot-time, single-threaded, nothing can be concurrently
+editing a prototype). Verified live: two consecutive copyovers post-
+fix both completed the mob/object restore phase in ~1 second (log
+timestamp granularity) despite a still-growing population (3735, then
+3786 restored) -- the same phase measured ~2 seconds pre-fix and was
+trending upward with population size. `tests/smoke_test_material.py`
+rerun clean post-fix (confirms live prototype edits still work
+outside the copyover window); `tests/smoke_test_combat.py` and
+`tests/smoke_test_specproc_tuskgoring.py` also rerun clean. Also fixed
+a pre-existing, unrelated zero-warning-build violation found along the
+way: `cmd_restore.c`'s `msg[128]` buffer was too small for its own
+format string against a full 64-byte character name (-Wformat-
+truncation) -- widened to `msg[192]`.
+
+Real cleanup of the already-accumulated ~3786 mobs (mostly this
+session's own leftover test-loaded mobs) is logged as a still-open
+follow-up in TODO.md -- this fix makes restoring that population fast
+again, it doesn't shrink it.
+
+Previous update (earlier the same session): 2026-08-04 — Session 129 (DO droplet, production port 4000):
 **SPEC_TUSK_GORING=153 ported (spec-proc project), introducing a new
 per-round mob-combat-action hook.** SPEC_PROCS.md had logged this hook
 as entirely missing -- added as a new dispatch point in

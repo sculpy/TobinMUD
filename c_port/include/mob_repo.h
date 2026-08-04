@@ -134,4 +134,24 @@ int mob_find_vnum_by_name(const char *name);
  * no original spec-proc behavior is executed. */
 int mob_repo_get_spec_proc(int vnum);
 
+/* Opt-in per-vnum prototype cache for mob_proto_load(), OFF by default --
+ * with it inactive, mob_proto_load() hits the DB every single call,
+ * exactly as before this existed. Activate only around a bounded,
+ * single-threaded burst of REPEAT lookups where nothing else can be
+ * concurrently editing prototypes (see game_loop.c's copyover_recover(),
+ * which restores every loose room mob from the copyover dump -- found
+ * live, 2026-08-04: a growing world population meant a growing number of
+ * literal duplicate mob_proto_load() DB round trips for the same handful
+ * of vnums on every single copyover, the actual driver behind "copyover
+ * hangs a bit when restoring"). Deliberately NOT a general always-on
+ * cache: medit's mob_proto_save() and the many `sql()`-driven raw DB
+ * edits this project's own smoke tests and migrations rely on (e.g.
+ * tobin_migrations.sql's body_type backfill) both depend on the very
+ * next mob_proto_load() reflecting a change with no server restart --
+ * an always-on cache would silently break that. mob_proto_cache_end()
+ * always fully clears the cache, so no entry can outlive the one call
+ * site that opted in. */
+void mob_proto_cache_begin(void);
+void mob_proto_cache_end(void);
+
 #endif

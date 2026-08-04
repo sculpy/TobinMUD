@@ -84,6 +84,14 @@ bool obj_proto_save(const obj_proto_t *p);
  * other DB error. */
 bool obj_proto_create_blank(int vnum);
 
+/* Opt-in per-vnum prototype cache for obj_proto_load() -- see
+ * mob_repo.h's mob_proto_cache_begin()/end() doc comment for the full
+ * rationale and safety argument; this is the same pattern applied to
+ * obj_proto_load(), activated alongside the mob cache in
+ * game_loop.c's copyover_recover(). OFF by default. */
+void obj_proto_cache_begin(void);
+void obj_proto_cache_end(void);
+
 /* Finds the lowest vnum whose `name` column contains `name` (case-
  * insensitive substring, e.g. "sword" matches "a rusty sword"), or -1 if
  * none match. Backs `oload <name>` (cmd_oload.c) as an alternative to a

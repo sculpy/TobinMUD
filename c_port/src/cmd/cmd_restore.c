@@ -56,7 +56,7 @@ bool cmd_restore(descriptor_t *d, const char *args) {
     if (target->player_id > 0)
         player_progress_save(target->player_id, &target->progress);
 
-    char msg[128];
+    char msg[192];
     snprintf(msg, sizeof(msg), "%s is fully restored -- health renewed, all spell affects cleared.\r\n",
              target->base.name);
     descriptor_send(d, msg);

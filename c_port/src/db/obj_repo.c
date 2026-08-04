@@ -11,10 +11,64 @@
 #include "log.h"
 #include "thing.h"
 
+#define OBJ_PROTO_CACHE_BUCKETS 512
+
+typedef struct obj_proto_cache_node {
+    int vnum;
+    obj_proto_t proto;
+    struct obj_proto_cache_node *next;
+} obj_proto_cache_node_t;
+
+static obj_proto_cache_node_t *g_obj_proto_cache[OBJ_PROTO_CACHE_BUCKETS];
+static bool g_obj_proto_cache_active = false;
+
+void obj_proto_cache_begin(void) {
+    g_obj_proto_cache_active = true;
+}
+
+void obj_proto_cache_end(void) {
+    for (int i = 0; i < OBJ_PROTO_CACHE_BUCKETS; i++) {
+        obj_proto_cache_node_t *n = g_obj_proto_cache[i];
+        while (n) {
+            obj_proto_cache_node_t *next = n->next;
+            free(n);
+            n = next;
+        }
+        g_obj_proto_cache[i] = NULL;
+    }
+    g_obj_proto_cache_active = false;
+}
+
+static const obj_proto_t *obj_proto_cache_find(int vnum) {
+    for (obj_proto_cache_node_t *n = g_obj_proto_cache[(unsigned)vnum % OBJ_PROTO_CACHE_BUCKETS]; n; n = n->next)
+        if (n->vnum == vnum)
+            return &n->proto;
+    return NULL;
+}
+
+static void obj_proto_cache_put(int vnum, const obj_proto_t *p) {
+    obj_proto_cache_node_t *n = malloc(sizeof(*n));
+    if (!n)
+        return;
+    n->vnum = vnum;
+    n->proto = *p;
+    unsigned bucket = (unsigned)vnum % OBJ_PROTO_CACHE_BUCKETS;
+    n->next = g_obj_proto_cache[bucket];
+    g_obj_proto_cache[bucket] = n;
+}
+
 /* Loads an object prototype's full field set from the obj table by vnum --
  * the counterpart to obj_proto_save() below, used to populate an
  * obj_proto_t for oedit and for instantiating objects in the world. */
 bool obj_proto_load(int vnum, obj_proto_t *out) {
+    if (g_obj_proto_cache_active) {
+        const obj_proto_t *hit = obj_proto_cache_find(vnum);
+        if (hit) {
+            *out = *hit;
+            return true;
+        }
+    }
+
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return false;
@@ -53,6 +107,8 @@ bool obj_proto_load(int vnum, obj_proto_t *out) {
     }
 
     db_close(db);
+    if (found && g_obj_proto_cache_active)
+        obj_proto_cache_put(vnum, out);
     return found;
 }
 

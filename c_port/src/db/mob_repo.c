@@ -9,10 +9,64 @@
 
 #include "db.h"
 
+#define MOB_PROTO_CACHE_BUCKETS 512
+
+typedef struct mob_proto_cache_node {
+    int vnum;
+    mob_proto_t proto;
+    struct mob_proto_cache_node *next;
+} mob_proto_cache_node_t;
+
+static mob_proto_cache_node_t *g_mob_proto_cache[MOB_PROTO_CACHE_BUCKETS];
+static bool g_mob_proto_cache_active = false;
+
+void mob_proto_cache_begin(void) {
+    g_mob_proto_cache_active = true;
+}
+
+void mob_proto_cache_end(void) {
+    for (int i = 0; i < MOB_PROTO_CACHE_BUCKETS; i++) {
+        mob_proto_cache_node_t *n = g_mob_proto_cache[i];
+        while (n) {
+            mob_proto_cache_node_t *next = n->next;
+            free(n);
+            n = next;
+        }
+        g_mob_proto_cache[i] = NULL;
+    }
+    g_mob_proto_cache_active = false;
+}
+
+static const mob_proto_t *mob_proto_cache_find(int vnum) {
+    for (mob_proto_cache_node_t *n = g_mob_proto_cache[(unsigned)vnum % MOB_PROTO_CACHE_BUCKETS]; n; n = n->next)
+        if (n->vnum == vnum)
+            return &n->proto;
+    return NULL;
+}
+
+static void mob_proto_cache_put(int vnum, const mob_proto_t *p) {
+    mob_proto_cache_node_t *n = malloc(sizeof(*n));
+    if (!n)
+        return;
+    n->vnum = vnum;
+    n->proto = *p;
+    unsigned bucket = (unsigned)vnum % MOB_PROTO_CACHE_BUCKETS;
+    n->next = g_mob_proto_cache[bucket];
+    g_mob_proto_cache[bucket] = n;
+}
+
 /* Loads a mob prototype's full field set from the mob table by vnum --
  * the counterpart to mob_proto_save() below, used to populate a mob_proto_t
  * for medit and for instantiating mobs in the world. */
 bool mob_proto_load(int vnum, mob_proto_t *out) {
+    if (g_mob_proto_cache_active) {
+        const mob_proto_t *hit = mob_proto_cache_find(vnum);
+        if (hit) {
+            *out = *hit;
+            return true;
+        }
+    }
+
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return false;
@@ -73,6 +127,8 @@ bool mob_proto_load(int vnum, mob_proto_t *out) {
     }
 
     db_close(db);
+    if (found && g_mob_proto_cache_active)
+        mob_proto_cache_put(vnum, out);
     return found;
 }
 
