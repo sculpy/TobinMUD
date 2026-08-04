@@ -1,6 +1,33 @@
 # Tobin C Port — Status
 
 Last updated: 2026-08-04 — Session 129 (DO droplet, production port 4000):
+**Kick extended to Warrior (user: "all classes except for casters should
+get kick at level 1"); Monk kick-mastery now auto-unlocks advanced
+kicking.** Warrior/Thief/Monk (Tobin's three non-caster classes) all now
+carry "kick" at level 1 in `skill.c`'s roster; `tests/
+smoke_test_kick_level1.py` extended to cover Warrior plus a negative
+check that a caster (Mage) is still refused kick outright, confirming
+the non-caster scoping. Separately (user: "once kick is maxed then
+advanced kick should take over as an automatic attack"):
+`being_knows_skill()` (skill.c) now treats a Monk as knowing "advanced
+kicking" once their own "kick" proficiency reaches 100%, even below the
+skill's normal level-25/practice-point gate -- `combat_process_run()`'s
+existing bonus-strike check (the same one haste/chain attack/blur
+already use) already treats "advanced kicking" as one of its triggers
+for a barehanded, chance-gated extra strike each round, so mastering
+kick now unlocks that automatically. No direct player-facing surface to
+test against (`cmd_skills.c`'s listing re-implements its own level-based
+gating independently of `being_knows_skill()`, a disclosed pre-existing
+gap this change doesn't touch) -- new `tests/smoke_test_kick_mastery.py`
+verifies it statistically instead: a level-1 (well under the normal
+level-25 unlock) Monk with kick maxed, fighting a harmless dummy for 10
+real combat rounds, lands more own-swing lines (13) than rounds elapsed
+(10) -- proof the bonus-strike branch fired, since no other bonus-strike
+skill is reachable to a level-1 Monk. Both new tests pass live;
+`tests/smoke_test_combat.py` and `tests/smoke_test_kick_level1.py`
+rerun clean.
+
+Previous update (earlier the same session): 2026-08-04 — Session 129 (DO droplet, production port 4000):
 **Kick now level 1 for every class that has it** (user: "kick skill
 should be received at level 1 for all classes who get the skill").
 `skill.c`'s `SKILLS[]` roster had Thief's kick at level 1 already but

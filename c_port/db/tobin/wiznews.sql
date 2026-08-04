@@ -1135,3 +1135,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Kick is now level 1 for every class that has it', 'skill.c had Thief''s kick at level 1 already but Monk''s at level 3 -- the only two classes carrying it. Monk''s is now level 1 too, matching Thief.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Kick extended to Warrior; Monk advanced kicking auto-unlocks on kick mastery', 'Warrior now carries "kick" at level 1 too (skill.c) -- Warrior/Thief/Monk, Tobin''s three non-caster classes, all have it at level 1 now, per the user''s "all classes except casters" scoping. Separately, being_knows_skill() now treats a Monk as knowing "advanced kicking" once their own kick proficiency hits 100%, even below the skill''s normal level-25 gate -- combat_process_run()''s existing bonus-strike check already treats advanced kicking as a trigger, so mastering kick now unlocks that automatically. No direct player-facing surface for the predicate itself (cmd_skills.c''s listing has its own independent level gating, untouched) -- verified statistically instead via a real fight (tests/smoke_test_kick_mastery.py).')
+ON DUPLICATE KEY UPDATE `title` = `title`;

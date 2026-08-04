@@ -30,6 +30,7 @@ static const skill_def_t SKILLS[] = {
     { "rally",                   CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "A battlecry that boosts nearby allies' combat prowess." },
     { "retreat",                 CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Voluntarily disengage from your current opponent." },
     { "parry",                   CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "A passive chance to block an incoming melee attack outright." },
+    { "kick",                   CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "An unarmed kick attack." },
     { "grapple",                 CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Grab and hold an opponent, restricting what they can do." },
     { "trip",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Knock an opponent to the ground." },
     { "doorbash",                CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Force your way through a closed door." },
@@ -441,6 +442,20 @@ bool being_knows_skill(const being_t *b, const char *name) {
     if (!b)
         return false;
     bool imm = being_is_immortal(b);
+    /* Monk kick mastery (user, 2026-08-04: "once kick is maxed then
+     * advanced kick should take over as an automatic attack") -- a Monk
+     * whose own "kick" proficiency has reached 100% is treated as
+     * knowing "advanced kicking" even before level 25 / spending
+     * practice points on it the normal way, so mastering the base skill
+     * naturally unlocks its automatic upgrade (combat_process_run()'s
+     * own bonus-strike check already treats "advanced kicking" as one
+     * of the triggers for a chance at a bonus strike each round,
+     * combat.c). */
+    if (!imm && b->char_class == CLASS_MONK && strcasecmp(name, "advanced kicking") == 0) {
+        const skill_def_t *kick_sk = skill_find(CLASS_MONK, "kick", false);
+        if (kick_sk && skill_proficiency(b, kick_sk) >= 100)
+            return true;
+    }
     int count = skill_count();
     for (int i = 0; i < count; i++) {
         const skill_def_t *sk = skill_at(i);

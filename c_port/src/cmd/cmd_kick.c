@@ -20,9 +20,11 @@
  * that auto-converts melee swings into kicks for monks specifically,
  * rather than making Monk kick its own command. Scoped way down here to
  * match this port's existing granularity: one flat DEX-flavored damage
- * roll to LIMB_BODY, no per-zone table -- Tobin's roster already lists
- * "kick" for both Thief (level 1) and Monk (level 3), both reaching
- * this same command rather than splitting an active/passive pair.
+ * roll to LIMB_BODY, no per-zone table -- Tobin's roster lists "kick" for
+ * every non-caster class (user, 2026-08-04: "all classes except for
+ * casters should get kick at level 1" -- Warrior/Thief/Monk, all level
+ * 1), all reaching this same command rather than splitting an active/
+ * passive pair.
  *
  * Same "extra action layered on the automatic round" shape as
  * cmd_bash.c -- see that file's header comment for the full rationale

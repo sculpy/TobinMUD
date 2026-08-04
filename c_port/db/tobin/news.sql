@@ -504,3 +504,8 @@ INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Selling to a Shop No Longer Just Vanishes', 'Selling an item to a shopkeeper now takes a small sales tax out of what you are paid, but the shopkeeper keeps what you sold -- it shows up in that shop''s listing, marked as used, for anyone (including you) to buy back later.'),
 ('The TobinMUD Team', 'Some Mobs Now Sell One-Way Tickets', 'A few seeded characters carry a hidden trade: buy ticket from one of them, standing and with enough gold, and they will send you somewhere else entirely.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Warriors Can Now Kick', 'Kick is now available to Warriors from level 1, joining Thieves and Monks -- every class that isn''t a spellcaster now has it.'),
+('The TobinMUD Team', 'Monks: Master Kick, and Advanced Kicking Takes Over', 'A Monk whose kick has reached 100% proficiency now automatically gains the benefit of advanced kicking -- a chance at a bonus strike each unarmed round -- even before reaching the level it''s normally taught at.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
