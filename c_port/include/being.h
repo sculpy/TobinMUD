@@ -526,6 +526,47 @@ const char *race_name(player_race_t r);
  * of) the class bonus. */
 void race_stat_bonus(player_race_t r, attrs_t *a);
 
+/* Territory/Homeland (Sneezy -> Tobin feature audit, `docs/systems/important/
+ * territory-system.md`): a permanent "upbringing" chosen at creation, right
+ * after race, on top of race's own bonus -- the real upstream's sub-race
+ * layer, distinct from and additional to plain race. Real upstream gives
+ * each of its 6 base races a DIFFERENT list of 4-8 homeland options (Urban,
+ * Villager, Mountain, Forest, Recluse, ...) on its full 12-stat system, with
+ * modifiers up to +/-30. Deliberately scoped down for Tobin's simpler
+ * 6-attribute set (a Tobin-scale slice, same precedent as banking/crafting/
+ * materials): a SINGLE shared 3-option set (Urban/Rural/Wilds) usable by
+ * every race alike rather than 6 separate race-specific tables, at a
+ * modifier scale (+/-3) proportioned to sit alongside race_stat_bonus()/
+ * class_stat_bonus()'s own +/-2..4 range rather than dwarfing it. Purely
+ * flavor + stats, same as race/class -- grants no skills. */
+typedef enum {
+    TERRITORY_URBAN = 0,  /* city-raised: sharp and sociable, softer and slower */
+    TERRITORY_RURAL,       /* farm/village-raised: practical and hardy, less refined */
+    TERRITORY_WILDS,       /* frontier-raised: tough and strong, blunt and unworldly */
+    TERRITORY_COUNT
+} player_territory_t;
+
+/* No value in [0, TERRITORY_COUNT) means "no homeland" -- same concept as
+ * real upstream's HOME_TER_NONE (0 there; here it's simply anything
+ * outside the 3 real choices, -1 by convention). Territory IS a forced
+ * creation step now (user, 2026-08-03: "should be a choice after choosing
+ * race", same as race/class), so a real player character never actually
+ * ends up with this value -- it exists as a safe init placeholder
+ * (descriptor.c, before CONN_CHAR_CREATE_TERRITORY runs) and a defensive
+ * fallback for any pre-existing DB row from before this column existed.
+ * territory_stat_bonus() below already no-ops for any unrecognized value,
+ * so TERRITORY_NONE needs no explicit enum member, just this convention. */
+#define TERRITORY_NONE ((player_territory_t)(-1))
+
+/* Display name ("Urban Dweller", ...), capitalized -- score/who. Returns
+ * "(none)" for TERRITORY_NONE/any other out-of-range value. */
+const char *territory_name(player_territory_t t);
+
+/* Applies `t`'s fixed stat bonus/penalty to `*a` IN PLACE, same convention
+ * and call site as race_stat_bonus()/class_stat_bonus() -- called once at
+ * creation, alongside both. */
+void territory_stat_bonus(player_territory_t t, attrs_t *a);
+
 typedef struct being {
     thing_t base;        /* first member -- see thing.h */
     long account_id;
@@ -606,6 +647,8 @@ typedef struct being {
      * Mage guildmaster" from "just an ordinary mob defaulting to 0". */
     player_class_t char_class;
     player_race_t race;
+    player_territory_t territory; /* player.territory -- see territory_stat_bonus() above.
+                                    * Meaningless for mobs, same as race. */
     bool mob_class_known;
 
     /* Free-text self-description (player.appearance), set at creation and
@@ -673,6 +716,35 @@ typedef struct being {
      * shape). Live in-memory only, meaningless across a reconnect, same
      * rule as sneaking above. */
     bool riposte_ready;
+
+    /* XP gained so far in the CURRENT fight (user, 2026-08-03: "we want xp
+     * gain calculated per hit, not at the end of a fight" -- so a mid-fight
+     * disconnect/crash doesn't erase XP already earned, and a leveling
+     * group member gets their max_hp/practice-point payoff as it happens,
+     * not stalled until the kill lands). combat_award_hit_xp() (combat.c)
+     * increments this AND progress.experience together on every landed
+     * hit, silently (no per-hit message) -- combat_defeat() prints the
+     * accumulated total as ONE summary line, then zeroes it back out.
+     * Live in-memory only, same "meaningless across a reconnect" rule as
+     * `fighting`/`riposte_ready` above -- worst case (a disconnect
+     * mid-fight followed by a later, unrelated fight) is a slightly
+     * inflated SUMMARY MESSAGE, never a wrong amount of real experience,
+     * since progress.experience itself is always incremented correctly
+     * regardless of this field. */
+    long xp_gained_this_fight;
+
+    /* Combat vitality drain (user 2026-08-03: "vitality should decrease
+     * when fighting to about .75 of a point per round", then "drop the
+     * vitality drain when fighting 20%" -- 0.6/round net). vit is an int
+     * (progress_t.vit) but the requested rate isn't a whole number, so
+     * combat_process_run() (combat.c) adds 0.6 here every round either
+     * side is still fighting and spends off whole points as they
+     * accumulate (being_spend_vit()) -- nets out to exactly 0.6/round on
+     * average (3 spends per 5 rounds) without needing vit itself to go
+     * fractional. Live in-memory only, same "meaningless across a
+     * reconnect" rule as `fighting`/`xp_gained_this_fight` above --
+     * worst case is losing a fraction of a point of pending drain. */
+    float vit_fatigue_accum;
 
     /* Group/party (Sneezy → Tobin feature audit, "Group / party system").
      * Live in-memory only, same "meaningless across a reconnect" rule as
@@ -937,6 +1009,21 @@ bool room_is_dark_for(const struct room *r, const being_t *ch);
 /* A word describing b's health as a fraction of max HP ("near death" ...
  * "perfect"), from the original's prompt_mesg[]. Shown in `score`. */
 const char *being_health_word(const being_t *b);
+
+/* Same word bucketing as being_health_word() above, but for a raw 0-100
+ * percentage directly (being_health_word() itself is just this applied to
+ * b->progress.hp/max_hp) -- shared so any OTHER 0-100 health-style value
+ * gets the exact same vocabulary instead of a raw number. Used by `limbs`
+ * (cmd_limbs.c, user 2026-08-03: "limbs command, list health words not
+ * %") via being_limb_pct(). */
+const char *health_word_for_pct(int pct);
+
+/* Same word as health_word_for_pct(), pre-wrapped in a Tobin color tag
+ * (colorstring.c's <letter>...<1> convention, same "bright edges, dim
+ * middle, red danger" gradient shape obj_condition_word() (obj.c) uses
+ * for item condition -- user 2026-08-03: "tastefully colored like item
+ * condition"). Used by game_loop.c's per-round prompt Tank:/Vict: tags. */
+const char *health_word_for_pct_colored(int pct);
 
 /* A word for a progress_t.alignment value ("demonic".."saintly", "neutral"
  * at 0) -- see progress_t's doc comment (being.h) for the -1000..+1000

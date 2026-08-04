@@ -24,22 +24,30 @@
  * fuel burn-down, (Sneezy → Tobin feature audit, "Object maintenance")
  * obj_decay_tick()'s room-floor decay countdowns (corpses, severed
  * limbs, ...), trigger_random_tick()'s "random" scripted triggers,
- * (Sneezy → Tobin feature audit, "Vital statistics") vitals_tick_run()'s
- * hunger/thirst drain + starvation, (same audit, "Weather & light
- * levels") gametime_tick()'s clock advance + weather_tick_run()'s sky
- * transitions, and (Planting) obj_plant_growth_tick()'s crop aging/fruit
- * yield only actually fire on the real ~60s pulse cadence, far too slow
- * to wait on in an automated smoke test; planting_tick_run() (the
- * dig/sow/cover task itself) is faster (~3s) but still worth forcing.
+ * (same audit, "Weather & light levels") gametime_tick()'s clock advance
+ * + weather_tick_run()'s sky transitions, and (Planting)
+ * obj_plant_growth_tick()'s crop aging/fruit yield only actually fire on
+ * the real ~60s pulse cadence, far too slow to wait on in an automated
+ * smoke test; planting_tick_run() (the dig/sow/cover task itself) is
+ * faster (~3s) but still worth forcing.
+ *
+ * `vitals_tick_force_world_only()` deliberately does NOT drain hunger/
+ * thirst or apply starvation/drowning HP damage to any connected player
+ * here (vitals.h has the full incident writeup: forcing hundreds of
+ * ticks at once via `aitick` used to silently starve and nearly kill
+ * whichever OTHER players happened to be online at the time, not just
+ * whatever the immortal running it meant to test) -- `aitick` is
+ * artificial WORLD state acceleration only, never a player-vitals
+ * effect, by design.
+ *
  * `aitick [count]` forces `count` (default 1, capped at 100) consecutive
  * world ticks synchronously, so a test can force overwhelming odds of a
  * wander/scavenge/random-trigger firing (e.g. `aitick 30` for a ~99.9%
- * chance), fully decay a pool/burn down a light, or drain hunger/thirst by
- * a known amount, all without waiting on real time at all. Also forces
- * along any `wait`-paused trigger script (trigger_pending_force_all()) --
- * those otherwise resume on their own ~1s real-time cadence, still too
- * slow for a test that wants to walk through a multi-`wait` script
- * deterministically. */
+ * chance), fully decay a pool/burn down a light, all without waiting on
+ * real time at all. Also forces along any `wait`-paused trigger script
+ * (trigger_pending_force_all()) -- those otherwise resume on their own
+ * ~1s real-time cadence, still too slow for a test that wants to walk
+ * through a multi-`wait` script deterministically. */
 bool cmd_aitick(descriptor_t *d, const char *args) {
     int count = 1;
     if (*args)
@@ -62,7 +70,7 @@ bool cmd_aitick(descriptor_t *d, const char *args) {
         obj_light_burn_tick(0);
         obj_decay_tick(0);
         trigger_random_tick(0);
-        vitals_tick_run(0);
+        vitals_tick_force_world_only(0);
         drug_tick_run(0);
         gametime_tick(0);
         weather_tick_run(0);

@@ -21,58 +21,16 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_druid_stupidity")
+announce("smoke_test_druid_stupidity", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 ROOM = 974000 + (int(time.time()) % 20000)
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
 
 
 def cmd(sock, line, timeout=1.0):
@@ -81,20 +39,10 @@ def cmd(sock, line, timeout=1.0):
     return raw.split("\r\n", 1)[1] if "\r\n" in raw else raw
 
 
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
-
-
 def make_char(name, pw, class_choice="1"):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (name, "y", pw, pw, "new", name, "1", class_choice, "done", "done"):
+    for step in (name, "y", pw, pw, "new", name, "1", "1", class_choice, "done", "done"):
         send_line(s, step)
         recv_all(s)
     s.close()
@@ -175,5 +123,5 @@ sql(f"DELETE FROM player WHERE name IN ('{druid_name}', '{vic_name}');")
 sql(f"DELETE FROM room WHERE vnum={ROOM};")
 sql(f"DELETE FROM obj WHERE vnum={COMPONENT};")
 
-announce_done("smoke_test_druid_stupidity")
+announce_done("smoke_test_druid_stupidity", host, port)
 print("=== ALL CHECKS PASSED ===")

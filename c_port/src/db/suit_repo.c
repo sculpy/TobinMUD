@@ -68,12 +68,14 @@ int suit_repo_list_all(suit_summary_t *out, int max) {
         return 0;
 
     int n = 0;
-    if (db_query(db, "select id, name, class, description from suit order by id")) {
+    if (db_query(db, "select id, name, class, race, description from suit order by id")) {
         while (n < max && db_fetch_row(db)) {
             out[n].id = atoi(db_get(db, "id"));
             snprintf(out[n].name, sizeof(out[n].name), "%s", db_get(db, "name"));
             const char *c = db_get(db, "class");
             out[n].class_restrict = (c && *c) ? atoi(c) : -1;
+            const char *r = db_get(db, "race");
+            out[n].race_restrict = (r && *r) ? atoi(r) : -1;
             snprintf(out[n].description, sizeof(out[n].description), "%s", db_get(db, "description"));
             n++;
         }
@@ -94,19 +96,23 @@ int suit_repo_list_all(suit_summary_t *out, int max) {
 
 /* Loads one suit's scalar fields -- see suit_repo.h. */
 bool suit_repo_get(int suit_id, char *name, size_t name_sz,
-                    int *out_class, char *description, size_t desc_sz) {
+                    int *out_class, int *out_race, char *description, size_t desc_sz) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return false;
 
     bool found = false;
-    if (db_query(db, "select name, class, description from suit where id=%i", suit_id)
+    if (db_query(db, "select name, class, race, description from suit where id=%i", suit_id)
         && db_fetch_row(db)) {
         if (name)
             snprintf(name, name_sz, "%s", db_get(db, "name"));
         if (out_class) {
             const char *c = db_get(db, "class");
             *out_class = (c && *c) ? atoi(c) : -1;
+        }
+        if (out_race) {
+            const char *r = db_get(db, "race");
+            *out_race = (r && *r) ? atoi(r) : -1;
         }
         if (description)
             snprintf(description, desc_sz, "%s", db_get(db, "description"));
@@ -156,6 +162,23 @@ bool suit_repo_set_class(int suit_id, int class_restrict) {
         ok = db_query(db, "update suit set class=NULL where id=%i", suit_id);
     else
         ok = db_query(db, "update suit set class=%i where id=%i", class_restrict, suit_id);
+
+    db_close(db);
+    return ok;
+}
+
+/* Updates a suit's race restriction -- mirrors suit_repo_set_class() above.
+ * See suit_repo.h. */
+bool suit_repo_set_race(int suit_id, int race_restrict) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool ok;
+    if (race_restrict < 0)
+        ok = db_query(db, "update suit set race=NULL where id=%i", suit_id);
+    else
+        ok = db_query(db, "update suit set race=%i where id=%i", race_restrict, suit_id);
 
     db_close(db);
     return ok;

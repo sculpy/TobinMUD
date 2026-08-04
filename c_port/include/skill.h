@@ -79,6 +79,14 @@ const skill_def_t *skill_find(player_class_t cls, const char *name, bool any_cla
  * Read-only -- does not trigger a gain-check. Used for display (`skills`). */
 int skill_proficiency(const being_t *ch, const skill_def_t *sk);
 
+/* Bucketed, colorized proficiency word for a 0-100 percentage ("untrained"
+ * .. "mastered") -- same "flavor text instead of a spreadsheet" gradient
+ * style as being_health_word_for_pct_colored() (being.h), bright at the
+ * extremes, dim in the middle. Used by `practice <discipline>`'s skill
+ * listing (user 2026-08-03: report skill level as descriptive colorized
+ * words, not a raw percentage). */
+const char *skill_proficiency_word_colored(int pct);
+
 /* Runs one learn-by-doing attempt: may raise `ch`'s stored proficiency
  * in `sk` by 1 (capped at the discipline-percentage ceiling for `sk`'s
  * tier, subject to a Wisdom-scaled diminishing-returns chance and a

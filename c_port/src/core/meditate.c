@@ -69,5 +69,22 @@ void meditate_tick_run(long pulse_num) {
             if (cured_something)
                 descriptor_send(d, "<g>Your meditation burns away poison and sickness alike!<z>\r\n");
         }
+
+        /* User 2026-08-03: "when completely rested or when yoginsa or
+         * meditate gets you to full you should automatically stand" --
+         * same "full HP and vitality -> back on your feet" rule
+         * regen.c's own plain-rest version uses, applied here for the
+         * meditation/yoginsa path specifically. Also ends the
+         * meditation itself -- nothing left to meditate for once fully
+         * healed, same as any other meditation-breaking condition
+         * above (position change, fighting). Checked last so this
+         * tick's own wohlin cure (just above) still applies before
+         * standing up. */
+        if (ch->progress.hp >= ch->progress.max_hp
+            && ch->progress.vit >= ch->progress.max_vit) {
+            ch->meditating = false;
+            ch->position = POSITION_STANDING;
+            descriptor_send(d, "You feel fully rested and stand up.\r\n");
+        }
     }
 }

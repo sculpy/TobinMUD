@@ -48,36 +48,12 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, check, sql, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
-
-
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
 
 
 def recv_all(sock, timeout=1.5):
@@ -94,27 +70,13 @@ def recv_all(sock, timeout=1.5):
     return b"".join(chunks).decode(errors="replace")
 
 
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
 def cmd(sock, line, timeout=1.5):
     send_line(sock, line)
     return recv_all(sock, timeout)
 
 
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
 def strip(s):
     return re.sub(r"\x1b\[[0-9;]*m", "", s)
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def make_char(name, pw):
@@ -127,6 +89,7 @@ def make_char(name, pw):
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
     send_line(s, "1"); recv_all(s)  # race: human
+    send_line(s, "1"); recv_all(s)  # territory: urban
     send_line(s, "1"); recv_all(s)  # class: mage
     send_line(s, "done"); recv_all(s)
     send_line(s, "done"); recv_all(s)  # alignment: neutral
@@ -149,7 +112,7 @@ def who_linkdead_count(sock):
     return int(m.group(1)) if m else None
 
 
-announce("smoke_test_linkdead_purge")
+announce("smoke_test_linkdead_purge", host, port)
 
 name = f"Ldpz{_suffix}"
 pw = "ldpztestpw1"
@@ -193,4 +156,4 @@ sql(f"DELETE FROM player_attrs WHERE player_id IN "
 sql(f"DELETE FROM player WHERE name IN ('{name}', 'Ldpzw{_suffix}');")
 
 print("=== ALL CHECKS PASSED ===")
-announce_done("smoke_test_linkdead_purge")
+announce_done("smoke_test_linkdead_purge", host, port)

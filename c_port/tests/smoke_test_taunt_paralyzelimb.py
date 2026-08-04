@@ -20,37 +20,13 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_taunt_paralyzelimb")
+announce("smoke_test_taunt_paralyzelimb", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
@@ -58,41 +34,8 @@ CLASS_CLERIC = 1
 CLASS_WARRIOR = 2
 
 
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
 def strip(s):
     return re.sub(r"\x1b\[[0-9;]*m", "", s)
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def make_char(name, pw):
@@ -101,7 +44,7 @@ def make_char(name, pw):
     # Corrected 12-step account-creation sequence (color + timezone
     # prompts land between the password retype and the account menu --
     # see TODO.md's "STRONG LEAD found 2026-07-28" writeup).
-    for step in (name, "y", pw, pw, "n", "0", "new", name, "1", str(CLASS_WARRIOR), "done", "done"):
+    for step in (name, "y", pw, pw, "n", "0", "new", name, "1", "1", str(CLASS_WARRIOR), "done", "done"):
         send_line(s, step)
         recv_all(s)
     s.close()
@@ -250,12 +193,13 @@ try:
     check("goes limp and unresponsive" in out5.lower(), "paralyze limb succeeds with a holy symbol")
     time.sleep(0.3)
     out_limbs = strip(cmd(tank, "limbs"))
-    check("0%" in out_limbs, "one of the target's limbs is now at 0% (paralyzed)")
+    check("(  0%)" in out_limbs or "near death" in out_limbs.lower(),
+          "one of the target's limbs is now at 0% (paralyzed)")
     out_tank_alive = strip(cmd(tank, "score"))
     check(tank_name.lower() in out_tank_alive.lower() or "level" in out_tank_alive.lower(),
           "the target is still alive after paralyze limb (never a major/instadeath limb)")
 
-    announce_done("smoke_test_taunt_paralyzelimb")
+    announce_done("smoke_test_taunt_paralyzelimb", host, port)
     print("=== ALL CHECKS PASSED ===")
 finally:
     for sock in sockets:

@@ -19,6 +19,7 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
@@ -33,39 +34,6 @@ LIMB_NAMES = [
 LIMB_MIN_MAX_HP = 15
 
 
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
-
-
 def make_char(name, pw):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
@@ -77,8 +45,9 @@ def make_char(name, pw):
     send_line(s, ""); recv_all(s)
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
-    send_line(s, "1"); recv_all(s)
-    send_line(s, "1"); recv_all(s)
+    send_line(s, "1"); recv_all(s)  # race: human
+    send_line(s, "1"); recv_all(s)  # homeland: urban (territory, forced step since 2026-08-03)
+    send_line(s, "1"); recv_all(s)  # class: mage
     send_line(s, "done"); recv_all(s)
     send_line(s, "done"); recv_all(s)
     return s
@@ -108,10 +77,15 @@ def read_hp(sock):
 
 
 def read_limb_pcts(sock):
+    # limbs shows a health WORD first now (user, 2026-08-03: "limbs command,
+    # list health words not %"), with the exact percentage kept alongside
+    # in parentheses -- e.g. "head          perfect     (100%)" -- this
+    # test needs the real number for its damage-ratio math, not just which
+    # of 10 coarse word tiers a limb falls in.
     out = cmd(sock, "limbs", 1.0)
     pcts = {}
     for name in LIMB_NAMES:
-        m = re.search(re.escape(name) + r"\s+(\d+)%", out)
+        m = re.search(re.escape(name) + r"\s+\S+\s+\(\s*(\d+)%\)", out)
         if m:
             pcts[name] = int(m.group(1))
     return pcts

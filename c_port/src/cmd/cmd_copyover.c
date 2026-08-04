@@ -36,6 +36,23 @@
  * file-scope handle for the one dump pass below -- not a real global. */
 static FILE *g_copyover_dump_file = NULL;
 
+/* 1-based count of same-vnum mobs in `r` at or before `target` in stuff_head
+ * order -- the ordinal game_loop.c's copyover_recover() re-finds `target`
+ * by on the other side of the exec (mobs have no stable identity beyond
+ * vnum+room, so "the Nth zombie in this room" is the best available key).
+ * Relies on the dump happening before anything reorders the room's list. */
+static int mob_ordinal_in_room(const room_t *r, const thing_t *target) {
+    int n = 0;
+    for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind == THING_MOB && t->id == target->id) {
+            n++;
+            if (t == target)
+                return n;
+        }
+    }
+    return 0;
+}
+
 static void copyover_dump_room_contents(room_t *r) {
     for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
         if (t->kind == THING_MOB) {
@@ -58,13 +75,17 @@ static void copyover_dump_room_contents(room_t *r) {
  * how to rebuild each descriptor (see game_loop.c's copyover_recover()
  * and descriptor_copyover_adopt()).
  *
- * The user's two requirements come almost for free:
- * - "lock out any commands": Tobin is single-threaded -- the whole
- *   copyover runs inside this one command execution, so no other input
- *   can interleave before the exec.
- * - "stop all fighting": every fighting pointer and wait-state is
- *   cleared (and progress persisted) before the state is written out, so
- *   nobody resumes mid-swing with a stale opponent pointer.
+ * The user's original "lock out any commands" requirement comes almost
+ * for free: Tobin is single-threaded, so the whole copyover runs inside
+ * this one command execution and no other input can interleave before
+ * the exec. `wait_pulses` (swing lag) is still cleared -- nobody resumes
+ * mid-swing lagged from an action that will never resolve -- but the
+ * fight itself (who's fighting whom) is recorded and re-linked by
+ * game_loop.c's copyover_recover() once both sides exist again post-exec
+ * (user 2026-08-03: "fights should persist after copyover"; previously
+ * every fighting pointer was unconditionally cleared here, silently
+ * ending every fight on every copyover). Progress is still saved before
+ * the recovery line is written, same as always.
  *
  * Connections still in login/menu/creation states can't be resumed
  * mid-dialog; they get a "please reconnect" note and are closed by the
@@ -118,6 +139,27 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
          * edit itself still doesn't survive (menu-editor sub-state isn't
          * in the recovery format either -- they resume as CONN_PLAYING). */
         if (it->character) {
+            /* Fight persistence (user 2026-08-03: "fights should persist
+             * after copyover") -- record the opponent's identity BEFORE
+             * clearing `fighting`, so game_loop.c's copyover_recover() can
+             * re-link the pair once both sides exist again post-exec. A PC
+             * opponent is keyed by name (both fighters are conn lines, so
+             * this account is naturally redundant/symmetric); a mob
+             * opponent has no stable identity beyond room+vnum+ordinal
+             * (mob_ordinal_in_room() above). If the opponent is neither
+             * (shouldn't happen -- thing_kind_t is just PC/MOB for a
+             * living combatant) the fight is silently dropped, same as
+             * before this feature existed. */
+            being_t *foe = it->character->fighting;
+            if (foe && foe->base.kind == THING_PC) {
+                fprintf(f, "fight %s pc %s\n", it->character->base.name, foe->base.name);
+            } else if (foe && foe->base.kind == THING_MOB && foe->base.roomp) {
+                int ord = mob_ordinal_in_room(foe->base.roomp, &foe->base);
+                if (ord > 0)
+                    fprintf(f, "fight %s mob %d %d %d\n", it->character->base.name,
+                            foe->base.roomp->vnum, foe->base.id, ord);
+            }
+
             it->character->fighting = NULL;
             it->character->wait_pulses = 0;
             it->edit_kind = EDIT_NONE; /* editor buffers don't survive exec */

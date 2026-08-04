@@ -12,78 +12,21 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_headbutt")
+announce("smoke_test_headbutt", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
 CLASS_WARRIOR = 2
 
 
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
 def strip(s):
     return re.sub(r"\x1b\[[0-9;]*m", "", s)
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def seed_proficiency(name, skill_name, pct):
@@ -95,7 +38,7 @@ def seed_proficiency(name, skill_name, pct):
 def make_char(name, pw):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (name, "y", pw, pw, "new", name, "1", "1", "done", "done"):
+    for step in (name, "y", pw, pw, "new", name, "1", "1", "1", "done", "done"):
         send_line(s, step)
         recv_all(s)
     s.close()
@@ -164,7 +107,7 @@ try:
     out4 = strip(cmd(sC, f"headbutt {nameC}"))
     check("aren't here" in out4.lower(), "headbutt can't target yourself")
 
-    announce_done("smoke_test_headbutt")
+    announce_done("smoke_test_headbutt", host, port)
     print("=== ALL CHECKS PASSED ===")
 finally:
     for sock in sockets:

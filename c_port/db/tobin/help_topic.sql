@@ -1101,3 +1101,15 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('typo', 'Usage: typo <what''s misspelled/wrong, and where>\n\nReports a typo or other text problem to the immortals -- your name,\nthe date, and the room you were standing in are all recorded with it.\nImmortals can type typo with no argument to list outstanding reports.\n\nRelated: deltypo', 'seed'),
 ('deltypo', 'Usage: deltypo <id>\n\nRemoves a typo report once it has been handled. The id is the number\nshown beside each report in `typo`.\n\nRelated: typo', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Territory/Homeland (Sneezy -> Tobin feature audit, a fresh, not-yet-
+-- audited system this session -- see being.h's player_territory_t doc
+-- comment for the scope-down from the real upstream's 6 race-specific
+-- homeland tables to one shared 3-option set).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('territory', 'Homelands\n\nRight after choosing your race, you choose a homeland -- where your\ncharacter actually grew up. It leaves its own permanent mark on top of\nyour race''s, the same way class does:\n\nUrban  -- raised in a city: sharper mind, more charisma, but softer\n          and less hardy.\nRural  -- raised in a farming village: more practical and sure-\n          footed, at the cost of some charm.\nWilds  -- raised on the frontier: tougher and stronger, at the cost\n          of wit and charisma.\n\nHomeland is chosen once, at creation, and cannot be changed\nafterward. It''s shown in your `score` as your homeland. Related: score', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('bank', 'Usage: bank [balance | deposit <amount> | withdraw <amount>]\n\nBanking is done through a bank keeper -- you must be standing in a\nroom with one to use this command at all (`bank` with no keeper\npresent just says so). Once you are:\n\n`bank` or `bank balance` -- shows how much gold you are carrying and\n                             how much is safely in the bank.\n`bank deposit <amount>`  -- moves gold from your wallet into the\n                             bank.\n`bank withdraw <amount>` -- moves gold from the bank back into your\n                             wallet.\n\nBanked gold is safe from anything that can take your carried gold --\nkeep only what you need on hand. Related: treasury', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

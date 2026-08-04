@@ -21,37 +21,13 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, check, sql, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_help_content")
+announce("smoke_test_help_content", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time() * 1000) // 26**i) % 26) for i in range(4))
 
@@ -72,10 +48,6 @@ def recv_all(sock, timeout=1.0):
     return b"".join(chunks).decode(errors="replace").replace("\r\n", "\n")
 
 
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
 def cmd(sock, line, timeout=1.0, max_pages=15):
     """Drains a paginated reply too (help/wizhelp now page past ~20 lines,
     2026-07-17 general-pagination sweep) -- a no-op for anything short."""
@@ -87,16 +59,6 @@ def cmd(sock, line, timeout=1.0, max_pages=15):
         out += recv_all(sock, timeout)
         pages += 1
     return out
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 pw = "helpcontentpw123"
@@ -112,6 +74,7 @@ send_line(s, pw); recv_all(s)
 send_line(s, "new"); recv_all(s)
 send_line(s, mort_name); recv_all(s)
 send_line(s, "1"); recv_all(s)
+send_line(s, "1"); recv_all(s)  # territory: urban
 send_line(s, "1"); recv_all(s)
 send_line(s, "done"); recv_all(s)
 out = cmd(s, "done")  # alignment: neutral -- finishes creation, enters the world
@@ -185,5 +148,5 @@ check("reboot" in out.lower(), "help copyover still renders real content (a pre-
 
 s.close()
 s2.close()
-announce_done("smoke_test_help_content")
+announce_done("smoke_test_help_content", host, port)
 print("=== ALL CHECKS PASSED ===")

@@ -31,37 +31,13 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_skillcombat")
+announce("smoke_test_skillcombat", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
@@ -73,41 +49,8 @@ WEAR_HOLD = 16384  # obj.c's WEAR_HOLD -- wear_slot_for_flag() maps this to WEAR
 TYPE_WEAPON = 5  # matches OBJ_CAT_WEAPON's raw seeded itemTypeT bucket
 
 
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
 def strip(s):
     return re.sub(r"\x1b\[[0-9;]*m", "", s)
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def set_class(name, cls):
@@ -145,6 +88,7 @@ def make_char(name, pw):
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
     send_line(s, "1"); recv_all(s)  # race: human
+    send_line(s, "1"); recv_all(s)  # homeland: urban (territory forced step, Session 117)
     send_line(s, "1"); recv_all(s)  # class: mage (overridden via SQL below)
     send_line(s, "done"); recv_all(s)
     send_line(s, "done"); recv_all(s)  # alignment: neutral
@@ -208,8 +152,32 @@ def make_pair(prefix, cls, room=None, level=None):
 
 
 # =================== 1. bash (Warrior) ===================
-(nameA, sA), (nameB, sB) = make_pair("Bshw", CLASS_WARRIOR)
+# User 2026-08-03: "bash should only work if holding a shield" -- needs
+# a sandbox room + immortal to load a shield object into, same pattern
+# section 3 (disarm) below already uses for its weapon.
+ROOM_BASH = 960000 + (int(time.time()) % 20000)
+sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
+    f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
+    f"VALUES ({ROOM_BASH},0,0,0,'Skillcombat Bash Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
+imm_bash_name, imm_bash_pw = f"Bshwimm{_suffix}", "bshwimmpw1"
+si_bash = make_char(imm_bash_name, imm_bash_pw)
+cmd(si_bash, "quit!"); si_bash.close()
+sql(f"UPDATE player_progress SET level=51 WHERE player_id=(SELECT id FROM player WHERE name='{imm_bash_name}');")
+si_bash = relog(imm_bash_name, imm_bash_pw)
+cmd(si_bash, f"goto {ROOM_BASH}")
+
+TYPE_ARMOR = 9  # matches OBJ_CAT_ARMOR's raw seeded itemTypeT bucket
+SHIELD_VNUM = ROOM_BASH + 1
+sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,weight,can_be_seen) "
+    f"VALUES ({SHIELD_VNUM},'shield','a wooden shield','A wooden shield is lying here.',"
+    f"{TYPE_ARMOR},{WEAR_TAKE | WEAR_HOLD},8,1);")
+
+(nameA, sA), (nameB, sB) = make_pair("Bshw", CLASS_WARRIOR, ROOM_BASH)
 seed_proficiency(nameA, "bash", 100)
+cmd(si_bash, f"load obj {SHIELD_VNUM}")
+cmd(si_bash, "drop shield")
+cmd(sA, "get shield")
+cmd(sA, "hold shield")
 attack_and_settle(sA, nameB)
 # Use a SHORT-timeout live read for the bash command itself, not cmd()'s
 # default ~1s -- cmd()'s blocking wait alone eats most of the DEFENDER's
@@ -232,15 +200,32 @@ check("still recovering" in out_b.lower(),
       "a successful bash also costs the DEFENDER a round (Sneezy's own 'prevent skill-use' effect)")
 sA.close(); sB.close()
 
-(nameC, sC), (nameD, sD) = make_pair("Bshwz", CLASS_WARRIOR)
+(nameC, sC), (nameD, sD) = make_pair("Bshwz", CLASS_WARRIOR, ROOM_BASH)
 seed_proficiency(nameC, "bash", 0)
+cmd(si_bash, f"load obj {SHIELD_VNUM}")
+cmd(si_bash, "drop shield")
+cmd(sC, "get shield")
+cmd(sC, "hold shield")
 attack_and_settle(sC, nameD)
 out = strip(cmd(sC, f"bash {nameD}"))
-check("twist out of the way" in out.lower(), "0%-proficiency bash always fails")
+check("twist out of the way" in out.lower(), "0%-proficiency bash always fails (still holding a shield)")
 out_d = strip(cmd(sD, "look"))
 check("still recovering" not in out_d.lower(),
       "a failed bash does NOT cost the defender a round")
 sC.close(); sD.close()
+si_bash.close()
+
+# User 2026-08-03: 100%-proficiency bash with NO shield held is refused
+# outright, before the skill roll even happens.
+(nameE, sE), (nameF, sF) = make_pair("Bshns", CLASS_WARRIOR)
+seed_proficiency(nameE, "bash", 100)
+attack_and_settle(sE, nameF)
+out = strip(cmd(sE, f"bash {nameF}"))
+check("need to be holding a shield" in out.lower(),
+      "bash is refused outright with no shield held, even at 100% proficiency")
+check("knocking" not in out.lower() and "twist out of the way" not in out.lower(),
+      "the shield-less refusal happens before any skill roll message")
+sE.close(); sF.close()
 
 # =================== 2. kick (Thief) ===================
 (nameE, sE), (nameF, sF) = make_pair("Kckt", CLASS_THIEF)
@@ -333,5 +318,5 @@ check(parried, "a 100%-proficiency Warrior eventually parries an incoming hit wi
 
 sM.close(); sN.close()
 
-announce_done("smoke_test_skillcombat")
+announce_done("smoke_test_skillcombat", host, port)
 print("=== ALL CHECKS PASSED ===")

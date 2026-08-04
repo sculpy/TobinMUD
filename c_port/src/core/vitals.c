@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "vitals.h"
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 #include "affect.h"
@@ -18,8 +19,11 @@
  * dehydration chip damage once either hits zero, rolls underwater drowning
  * damage (routed through combat_drown_pc() since this one can actually
  * kill), and persists the resulting progress. */
-void vitals_tick_run(long pulse_num) {
+static void vitals_tick_impl(long pulse_num, bool affect_players) {
     (void)pulse_num;
+    if (!affect_players)
+        return;
+
     for (descriptor_t *d = g_descriptors; d; d = d->next) {
         being_t *b = d->character;
         if (!b || being_is_immortal(b))
@@ -61,4 +65,15 @@ void vitals_tick_run(long pulse_num) {
 
         player_progress_save(b->player_id, &b->progress);
     }
+}
+
+void vitals_tick_run(long pulse_num) {
+    vitals_tick_impl(pulse_num, true);
+}
+
+/* See vitals.h's doc comment -- `aitick`'s forced-tick variant, no-op by
+ * design (a real live incident: 1000 forced vitals ticks silently
+ * starved and nearly killed a bystander player). */
+void vitals_tick_force_world_only(long pulse_num) {
+    vitals_tick_impl(pulse_num, false);
 }

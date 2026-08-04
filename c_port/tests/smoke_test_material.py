@@ -38,6 +38,7 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
@@ -57,32 +58,7 @@ MAT_LEGENDARY = 160  # MAT_MITHRIL
 MAT_RARE = 162       # MAT_SILVER
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_material")
+announce("smoke_test_material", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 ROOM = 950000 + (int(time.time()) % 20000)
@@ -90,39 +66,6 @@ COMMON_ARMOR_VNUM = ROOM + 1
 LEGENDARY_ARMOR_VNUM = ROOM + 2
 COMMON_WEAPON_VNUM = ROOM + 3
 LEGENDARY_WEAPON_VNUM = ROOM + 4
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def sql_out(stmt):
@@ -133,7 +76,7 @@ def sql_out(stmt):
 def make_char(name, pw, class_choice):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (name, "y", pw, pw, "new", name, "1", class_choice, "done", "done"):
+    for step in (name, "y", pw, pw, "new", name, "1", "1", class_choice, "done", "done"):
         send_line(s, step); recv_all(s)
     cmd(s, "quit!")
     s.close()
@@ -320,7 +263,7 @@ try:
     check(rare_price == int(30 * 1.1 * 6.0),
           "bumping a real shop item's material to Rare (6x) scales its buy price by exactly 6x")
 
-    announce_done("smoke_test_material")
+    announce_done("smoke_test_material", host, port)
     print("=== ALL CHECKS PASSED ===")
 finally:
     # Close sockets unconditionally, not just on the happy path -- an

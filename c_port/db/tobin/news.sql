@@ -422,3 +422,79 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New `whittle` Command', 'Anyone can now whittle simple wooden items -- chairs, chests, boxes, rings, pipes, daggers, walking sticks, idols, and more -- from carried wood logs. You''ll need a weapon wielded and enough wood on hand; type `whittle` alone to see the full list of what you can make.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Choose Your Homeland at Creation', 'Character creation''s options menu now lets you choose a homeland -- where your character actually grew up: a city (sharper and more charismatic, but softer), a farming village (practical and sure-footed), or the frontier wilds (tough and strong, but blunt). It''s entirely optional -- skip it and your character simply has no homeland, no bonus or penalty either way. If chosen, it''s permanent and shows up in your `score` alongside your race and class.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fresh Characters Now Get a Full Matching Pair', 'New characters were only ever given one sleeve, one bracelet, one glove, one legging, and one boot from their race''s starting gear -- covering just one arm, wrist, hand, leg, or foot and leaving the other bare. Fresh characters now start with two of each, enough to properly outfit both sides.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New Mage Spell: Eyes of Fertuman', 'Mages can now cast eyes of Fertuman to search far and wide for a person or item by name, learning what room they''re in.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Experience Now Earned as You Fight', 'Killing a tough opponent used to pay out all your experience in one lump at the very end. Now you earn it hit by hit as the fight goes on -- you can even level up mid-fight -- with a single summary line telling you the total once the fight is over.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A New Combat Trainer Near Town', 'A combat trainer has set up shop on Perimeter Road, right where it meets the East King''s Road at the edge of town.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Welfare Worker Now Greets You With What She Has', 'Walk into the Tobin City Welfare Department and the social worker there will now greet you with a list of the gear she can set you up with for your class -- just ask her for gear to actually receive it.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Faster Vitality Recovery, Limbs Command Speaks Plainly', 'Vitality now recovers 25% faster while resting. The `limbs` command now describes each limb''s health in plain words (perfect, hurt, near death, and so on) instead of a bare percentage.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Combat Discipline Refocused; Warriors Learn to Focus', 'Combat discipline now covers weapon and barehand proficiency alone -- every other combat skill has settled into Basic or Advanced discipline instead. Warriors also now occasionally focus their strikes automatically mid-fight, landing a more precise, harder-hitting blow without needing to do anything special to trigger it.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fighting Wears You Out; Looting Tells You What You Got', 'Ongoing fights now gradually drain your vitality as the fight wears on, on top of any damage taken. Warriors'' automatic focused strikes now land less often than before. And turning on auto-loot no longer just tells you a corpse was looted -- it now lists out exactly what gold and items you picked up.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Bash Now Requires a Shield', 'You now need to be holding a shield to bash an opponent -- it will no longer work bare-handed or with a weapon alone.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Resting and Meditating Now Stand You Back Up', 'Once resting, sitting, or meditating brings you back to full health and vitality, you now stand back up automatically instead of staying seated.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Combat Fatigue Eased Further', 'The vitality drain from ongoing combat has been reduced again, on top of last update''s tuning.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Weapon Proficiency Now Rises With Your Combat Training', 'Slashing, blunt, piercing, unarmed, and ranged proficiency now automatically rise alongside your combat discipline as you train with a guildmaster -- no more separate grinding needed, and every class can now access all five.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'See Your Condition and Your Opponent''s While Fighting', 'Every round of combat now tells you your own condition and your opponent''s, in plain words like "good" or "wounded" rather than a raw number.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Bank Balance Now Shown on Score', 'Your score sheet now shows how much gold you have in the bank alongside what you''re carrying.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Leveling Up Now Restores Your Vitality Too', 'Gaining a level now fully refills your vitality along with raising its maximum, the same way it already does for health.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Remove Hold Works in the Dark', 'You can now type "remove hold" to remove whatever you''re holding, even in the dark where you can''t see what it is -- it goes straight back into your inventory.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Light Sources Now Visible in the Dark', 'A lit torch or other light source is now visible even in a pitch-black room, whether it''s lying on the ground or being carried by someone else nearby.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fights Now Survive a Copyover', 'An ongoing fight now continues after the world reboots for an update, instead of quietly ending.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

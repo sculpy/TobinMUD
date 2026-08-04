@@ -19,65 +19,16 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
-def announce(test_name, host=host, port=port):
-    """Tell the running MUD which smoke test is executing: emits a [TEST]
-    log line (visible to online immortals and in the day's log file) via
-    the loopback-only `@test` server hook. Best-effort -- never fails the
-    test. Self-contained (own socket, doesn't depend on this file's other
-    helpers) so it can run at any point in the script."""
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    """Companion to announce() -- emits a [TEST] "finished" log line. Call
-    once at the very end of a smoke test, just before it reports success."""
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_help")
+announce("smoke_test_help", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 
 MORTAL_COMMANDS = ["look", "exits", "who", "score", "color", "attack", "kill", "say", "limbs", "help", "quit!"]
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
 
 
 def paged(sock, timeout=1.0, max_pages=15):
@@ -91,12 +42,6 @@ def paged(sock, timeout=1.0, max_pages=15):
         out += recv_all(sock, timeout)
         pages += 1
     return out
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
 
 
 def make_player(tag):
@@ -117,6 +62,7 @@ def make_player(tag):
     send_line(s, name)
     recv_all(s)
     send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
+    send_line(s, "1"); recv_all(s)  # territory: urban
     send_line(s, "1"); recv_all(s)  # class: mage
     send_line(s, "done")
     recv_all(s)
@@ -174,5 +120,5 @@ check(out.index("catchup") < out.index("goto") < out.index("look"),
       "help lists commands alphabetically (catchup < goto < look)")
 
 sA.close()
-announce_done("smoke_test_help")
+announce_done("smoke_test_help", host, port)
 print("=== ALL CHECKS PASSED ===")

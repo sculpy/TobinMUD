@@ -109,7 +109,8 @@ bool cmd_score(descriptor_t *d, const char *args) {
     char out[1536];
     snprintf(out, sizeof(out),
              "  Name: %s\tLevel: %s%s%s\tExperience: %ld\r\n"
-             "  Race: %s\tClass: %s\tGold: %d\r\n"
+             "  Race: %s\tClass: %s\tGold: %d\tBank: %d\r\n"
+             "  Homeland: %s\r\n"
              "  HP: %d (%d Max.) (%s)\t%s: 0\tMove: %d (%d Max.)\r\n"
              "  Str: %d\tInt: %d\tDex: %d\r\n"
              "  Wis: %d\tCon: %d\tCha: %d\r\n"
@@ -118,7 +119,8 @@ bool cmd_score(descriptor_t *d, const char *args) {
              "  Age: %d years old\r\n"
              "  Position: %s\r\n",
              ch->base.name, rank_col, level_field, rank_reset, p->experience,
-             race_name(ch->race), class_name(ch->char_class), p->gold,
+             race_name(ch->race), class_name(ch->char_class), p->gold, p->bank_gold,
+             territory_name(ch->territory),
              p->hp, p->max_hp, being_health_word(ch), resource_pool_label(ch->char_class),
              p->vit, p->max_vit,
              a->strength, a->intelligence, a->dexterity,

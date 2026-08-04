@@ -9,43 +9,12 @@ smoke_test.py first.
 """
 import socket
 import sys
+from mud_test_utils import send_line, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
-def announce(test_name, host=host, port=port):
-    """Tell the running MUD which smoke test is executing: emits a [TEST]
-    log line (visible to online immortals and in the day's log file) via
-    the loopback-only `@test` server hook. Best-effort -- never fails the
-    test. Self-contained (own socket, doesn't depend on this file's other
-    helpers) so it can run at any point in the script."""
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    """Companion to announce() -- emits a [TEST] "finished" log line. Call
-    once at the very end of a smoke test, just before it reports success."""
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_login")
+announce("smoke_test_login", host, port)
 
 name = sys.argv[3] if len(sys.argv) > 3 else "Fred"
 password = sys.argv[4] if len(sys.argv) > 4 else "smoketestpw123"
@@ -63,10 +32,6 @@ def recv_all(sock, timeout=1.0):
     except socket.timeout:
         pass
     return b"".join(chunks)
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
 
 
 # First connection: log in as an existing account, play the existing
@@ -102,19 +67,22 @@ send_line(s2, "new")
 print("=== conn2: choose 'new' ===")
 print(recv_all(s2).decode(errors="replace"))
 send_line(s2, "Second" + name)
-print("=== conn2: character name -> attr screen ===")
+print("=== conn2: character name -> race screen ===")
+print(recv_all(s2).decode(errors="replace"))
+send_line(s2, "1")
+print("=== conn2: race human -> homeland screen ===")
+print(recv_all(s2).decode(errors="replace"))
+send_line(s2, "1")
+print("=== conn2: homeland urban -> class screen ===")
+print(recv_all(s2).decode(errors="replace"))
+send_line(s2, "1")
+print("=== conn2: class mage -> attr screen ===")
 print(recv_all(s2).decode(errors="replace"))
 send_line(s2, "done")
-print("=== conn2: accept defaults, finish ===")
+print("=== conn2: accept default attrs -> options screen ===")
 print(recv_all(s2).decode(errors="replace"))
-send_line(s2, "1")
-print("=== conn2: race human ===")
-print(recv_all(s2).decode(errors="replace"))
-send_line(s2, "1")
-print("=== conn2: class mage ===")
-print(recv_all(s2).decode(errors="replace"))
-send_line(s2, "2")
-print("=== conn2: alignment neutral (auto look) ===")
+send_line(s2, "done")
+print("=== conn2: accept default options, finish (auto look) ===")
 print(recv_all(s2).decode(errors="replace"))
 
 # Now check `who` from BOTH connections -- each should see both players.
@@ -138,5 +106,5 @@ s3.close()
 
 s1.close()
 s2.close()
-announce_done("smoke_test_login")
+announce_done("smoke_test_login", host, port)
 print("=== done ===")

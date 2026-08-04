@@ -28,6 +28,11 @@
 #include "trigger.h"
 #include "world.h"
 
+/* Forward decl -- combat_strike() (below) calls this on every landed hit,
+ * but it's defined further down (needs group_recipients()), and
+ * practice.h's practice_points_for_level()/being_calc_max_hp() etc. */
+static void combat_award_hit_xp(being_t *attacker, being_t *victim, int dmg);
+
 /* Best-effort message to b's connection, if any -- no-op for a mob (once
  * mobs exist) or a being whose descriptor already went away. */
 static void tell(being_t *b, const char *fmt, ...) {
@@ -710,6 +715,38 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         if (is_major_limb(reroll))
             limb = reroll;
     }
+    /* Focus attack (Warrior, user 2026-08-03: "in tobin its a warrior
+     * skill" / "focused attack should be automatic"). Real upstream
+     * (SKILL_FOCUS_ATTACK/AFF_FOCUS_ATTACK, cmd_focus_attack.cc/
+     * crit_combat.cc) is a manually-triggered command with a cooldown
+     * that forces the NEXT swing to crit. Ported automatic instead, same
+     * "no separate command" simplification `critical hitting` (Monk)
+     * just above already established for this exact reroll-toward-a-
+     * MAJOR-limb mechanic -- gated on Warrior's own skill, with the real
+     * upstream's own flavor message when it actually lands on one (real
+     * upstream's own "$n executes a focused attack!"). User 2026-08-03:
+     * "focused attack is firing too much, decrease success by 50%" -- an
+     * extra 50% coin-flip gates the attempt itself (on top of the
+     * major-limb reroll odds already below), roughly halving how often
+     * it triggers overall. */
+    bool focused_attack = false;
+    if (attacker->base.kind == THING_PC && being_knows_skill(attacker, "focus attack")
+        && rand() % 100 < 50) {
+        limb_t reroll = pick_weighted_limb((body_type_t)defender->body_type);
+        if (is_major_limb(reroll)) {
+            limb = reroll;
+            focused_attack = true;
+        }
+    }
+    if (focused_attack) {
+        tell(attacker, "You focus intensely, striking with practiced precision!\r\n");
+        if (attacker->base.roomp) {
+            char capbuf[128], room_msg[192];
+            snprintf(room_msg, sizeof(room_msg), "%s focuses intensely, striking with practiced precision!\r\n",
+                     being_display_name_cap(attacker, capbuf, sizeof(capbuf)));
+            descriptor_room_echo(attacker->base.roomp, attacker, room_msg);
+        }
+    }
     int pct_before = being_limb_pct(defender, limb);
     int limb_hp_before = defender->limbs[limb].hp; /* pre-hit capacity, for describe_dam() below */
     /* Blood/limb-damage generation rate (TODO.md priority item, user
@@ -720,6 +757,7 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * below) roughly half as often too, without a second, separate
      * probability roll stacked on top. */
     defender->progress.hp -= dmg;
+    combat_award_hit_xp(attacker, defender, dmg);
     being_hurt_limb_only(defender, limb, (dmg + 1) / 2);
     int pct_after = being_limb_pct(defender, limb);
     combat_maybe_damage_equipment(defender, limb, dmg);
@@ -831,6 +869,79 @@ static int group_recipients(being_t *winner, room_t *room, being_t **out, int ma
     out[0] = winner;
     return 1;
 }
+
+/* Awards XP for `dmg` HP of damage `attacker` (a PC) just landed on
+ * `victim`, proportional to victim's max_hp -- user, 2026-08-03: "we want
+ * xp gain calculated per hit, not at the end of a fight" (the OLD design
+ * granted the whole reward in one lump at combat_defeat(), so a mid-fight
+ * disconnect/crash lost every bit of XP earned that fight, and a group
+ * member who would have leveled up mid-fight got no benefit -- max_hp
+ * recompute, full heal, practice points -- until the kill actually
+ * landed). Same total-reward formula and same level-weighted group split
+ * as the old one-shot version (victim_level*50), just credited AS THE
+ * DAMAGE LANDS: each hit's share is (dmg / victim->progress.max_hp) of
+ * the full reward, so the running total naturally approaches the full
+ * amount as the victim's HP is whittled down (a killing blow that
+ * overshoots remaining HP slightly overshoots the total too -- an
+ * accepted, minor imprecision, not worth a second clamping pass).
+ * Deliberately SILENT per hit (no "you gain N experience" message here --
+ * combat_defeat() prints ONE summary line for the whole fight instead,
+ * reading from/zeroing being_t.xp_gained_this_fight) -- otherwise a
+ * multi-round fight would spam a gain message every single swing. */
+static void combat_award_hit_xp(being_t *attacker, being_t *victim, int dmg) {
+    if (attacker->base.kind != THING_PC || being_is_immortal(attacker) || dmg <= 0)
+        return;
+    if (victim->progress.max_hp <= 0)
+        return;
+
+    long total_xp = (long)(victim->progress.level > 0 ? victim->progress.level : 1) * 50;
+
+    being_t *recipients[GROUP_MAX_FOLLOWERS + 1];
+    int n = group_recipients(attacker, attacker->base.roomp, recipients, GROUP_MAX_FOLLOWERS + 1);
+    long total_weight = 0;
+    for (int i = 0; i < n; i++)
+        total_weight += recipients[i]->progress.level > 0 ? recipients[i]->progress.level : 1;
+
+    for (int i = 0; i < n; i++) {
+        being_t *m = recipients[i];
+        long weight = m->progress.level > 0 ? m->progress.level : 1;
+        long full_share = (n == 1) ? total_xp : (total_xp * weight) / total_weight;
+        long hit_share = (full_share * dmg) / victim->progress.max_hp;
+        if (hit_share < 1)
+            hit_share = 1;
+
+        int levels_gained = progress_add_xp(&m->progress, hit_share);
+        m->xp_gained_this_fight += hit_share;
+        if (levels_gained > 0) {
+            /* Same level-up payoff the old one-shot version gave (see its
+             * own removed comment in combat_defeat() for the max_hp-recompute
+             * rationale) -- now lands the moment the threshold is actually
+             * crossed, mid-fight, not stalled until the kill. */
+            m->progress.max_hp = being_calc_max_hp(m);
+            m->progress.hp = m->progress.max_hp;
+            m->progress.max_vit = being_calc_max_vit(m);
+            m->progress.vit = m->progress.max_vit;
+            being_limbs_full_heal(m);
+            tell(m, "You feel more experienced!\r\n");
+            int pp = 0;
+            for (int j = 0; j < levels_gained; j++)
+                pp += practice_points_for_level(m);
+            m->progress.practice_points += pp;
+            tell(m, "<g>You gain %d practice point%s.<z>\r\n", pp, pp == 1 ? "" : "s");
+            /* Save right away only for the (rare) level-up case -- this
+             * box is memory-constrained (445MB total, saw MariaDB OOM-killed
+             * live during this session's own testing), so a DB write on
+             * EVERY landed hit for every group member is real, avoidable
+             * load. The two direct combatants already get saved every
+             * ROUND regardless (combat_process_run()'s own mid-fight-
+             * persistence save, below) -- that's enough durability for the
+             * common case; a level-up's max_hp/practice-point payoff is the
+             * one thing worth an extra write for immediately. */
+            player_progress_save(m->player_id, &m->progress);
+        }
+    }
+}
+
 /* Ends a fight once `loser`'s HP hits 0 (or they're decapitated) --
  * see the doc comment above (starting "No permadeath for a PC...") for
  * the full rationale on PC vs. mob outcomes, XP/gold transfer, and the
@@ -980,58 +1091,27 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         tell(loser, "You have been defeated by %s!\r\nYou are <r>DEAD<z>!\r\n", being_display_name(winner));
     }
 
-    /* XP on kill (TODO backlog) -- placeholder reward scaling with the
-     * loser's level, same "placeholder, revisit later" precedent as
-     * being_calc_max_hp()/progress_xp_for_level(). Immortals don't need XP
-     * (already past the mortal ladder), so this only fires for a
-     * non-immortal PC winner -- covers a normal HP-based defeat and a
-     * decapitation alike, but not an immortal's cmd_kill instakill (the
-     * winner there is always an immortal). */
+    /* XP on kill -- user, 2026-08-03: "we want xp gain calculated per hit,
+     * not at the end of a fight" (so a mid-fight disconnect/crash doesn't
+     * erase XP already earned, and a leveling group member gets their
+     * max_hp/practice-point payoff as it happens, not stalled until the
+     * kill). The actual granting now happens per landed hit
+     * (combat_award_hit_xp() below, called from both combat_strike()'s
+     * melee path and combat_apply_skill_damage()) -- this block just
+     * reports each recipient's own accumulated total as ONE summary line
+     * and zeroes the accumulator back out. Immortals never accumulate
+     * anything here (combat_award_hit_xp() already gates on that), so
+     * nothing prints for an immortal winner. */
     if (winner->base.kind == THING_PC && !being_is_immortal(winner)) {
-        long xp_gain = (long)(loser->progress.level > 0 ? loser->progress.level : 1) * 50;
-
-        /* Group split (see group_recipients() above): level-weighted, a
-         * simplification of the original's mob_exp()-based share -- a
-         * solo winner gets recipients={winner}, weight math collapses to
-         * the exact same xp_gain as before the group system existed. */
         being_t *recipients[GROUP_MAX_FOLLOWERS + 1];
         int n = group_recipients(winner, winner->base.roomp, recipients, GROUP_MAX_FOLLOWERS + 1);
-        long total_weight = 0;
-        for (int i = 0; i < n; i++)
-            total_weight += recipients[i]->progress.level > 0 ? recipients[i]->progress.level : 1;
 
         for (int i = 0; i < n; i++) {
             being_t *m = recipients[i];
-            long weight = m->progress.level > 0 ? m->progress.level : 1;
-            long share = (n == 1) ? xp_gain : (xp_gain * weight) / total_weight;
-            if (share < 1)
-                share = 1;
-            int levels_gained = progress_add_xp(&m->progress, share);
-            tell(m, "You gain %ld experience.\r\n", share);
-            if (levels_gained > 0) {
-                /* Bug found 2026-07-12 (weapon-depth testing): progress_add_xp()
-                 * only bumps `level` -- it works on a bare progress_t, with no
-                 * access to attrs/kind, so it can't call being_calc_max_hp()
-                 * itself. Without this, a leveled-up character's max_hp (and
-                 * every limb's own max_hp, being_limbs_full_heal()) stayed
-                 * stuck at their level-1 values forever, leaving even a
-                 * high-level character just as fragile -- and just as prone to
-                 * a lucky decapitation -- as a brand new one. Recomputed here,
-                 * with the full being_t m already is, and a full heal as the
-                 * level-up's reward (same spirit as the "You feel more
-                 * experienced!" message). Applies per-recipient now, not just
-                 * the winner, so a leveling-up group member gets the same
-                 * treatment the solo winner always did. */
-                m->progress.max_hp = being_calc_max_hp(m);
-                m->progress.hp = m->progress.max_hp;
-                being_limbs_full_heal(m);
-                tell(m, "You feel more experienced!\r\n");
-                int pp = 0;
-                for (int j = 0; j < levels_gained; j++)
-                    pp += practice_points_for_level(m);
-                m->progress.practice_points += pp;
-                tell(m, "<g>You gain %d practice point%s.<z>\r\n",
-                     pp, pp == 1 ? "" : "s");
+            if (m->xp_gained_this_fight > 0) {
+                tell(m, "You gain a total of %ld experience from that fight.\r\n",
+                     m->xp_gained_this_fight);
+                m->xp_gained_this_fight = 0;
             }
             player_progress_save(m->player_id, &m->progress);
         }
@@ -1179,7 +1259,15 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
          * inventory to receive into); no-op if the corpse ended up
          * empty (e.g. a mob loser, who carries nothing yet). */
         if (corpse && winner->base.kind == THING_PC && (winner->pflags & PLR_AUTOLOOT)) {
+            /* User 2026-08-03: "when looting a mob the game should report
+             * any inventory changes" -- autoloot used to print one generic
+             * "You automatically loot X's corpse." line with no breakdown
+             * of what was actually gained. Now reports each item by name
+             * and any gold as its own line, same "You get/find ..." shape
+             * cmd_object.c's manual get_all_from_room()/`get all <corpse>`
+             * already uses, just worded for the automatic case. */
             bool looted_any = false;
+            int looted_gold = 0;
             thing_t *ct = corpse->base.stuff_head;
             while (ct) {
                 thing_t *cnext = ct->stuff_next;
@@ -1189,16 +1277,20 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
                      * does for a manual `get` -- autoloot doesn't route
                      * through that function, so the money-object special
                      * case is duplicated here. */
+                    looted_gold += cobj->val[0];
                     winner->progress.gold += cobj->val[0];
                     obj_destroy(cobj);
                 } else {
+                    const char *label = cobj->base.short_descr[0] ? cobj->base.short_descr : cobj->base.name;
+                    tell(winner, "You loot %s from %s's corpse.\r\n", label, being_display_name(loser));
                     thing_move_to(ct, &winner->base);
                 }
                 looted_any = true;
                 ct = cnext;
             }
+            if (looted_gold > 0)
+                tell(winner, "You loot %d gold from %s's corpse.\r\n", looted_gold, being_display_name(loser));
             if (looted_any) {
-                tell(winner, "You automatically loot %s's corpse.\r\n", being_display_name(loser));
                 player_inventory_save(winner->player_id, winner);
                 player_progress_save(winner->player_id, &winner->progress);
             }
@@ -1256,6 +1348,7 @@ bool combat_apply_skill_damage(being_t *attacker, being_t *defender, int dmg, li
      * halved, kept consistent regardless of whether the damage came from
      * an ordinary swing or a skill. */
     defender->progress.hp -= dmg;
+    combat_award_hit_xp(attacker, defender, dmg);
     being_hurt_limb_only(defender, limb, (dmg + 1) / 2);
     if (defender->progress.hp <= 0) {
         combat_defeat(defender, attacker, false);
@@ -1503,6 +1596,24 @@ void combat_process_run(long pulse_num) {
             if (a->progress.hp <= 0 || a_decapitated) {
                 combat_defeat(a, b, a_decapitated);
                 continue;
+            }
+        }
+
+        /* Vitality drain (user 2026-08-03: "vitality should decrease when
+         * fighting to about .75 of a point per round", then "drop the
+         * vitality drain when fighting 20%" -- 0.75 * 0.8 = 0.6/round)
+         * -- see being.h's vit_fatigue_accum doc comment for why this
+         * accumulates a float and spends off whole points rather than
+         * draining vit directly. Immortals are exempt, same as
+         * movement's vit cost (being.h). */
+        for (int i = 0; i < 2; i++) {
+            being_t *fighter = i == 0 ? a : b;
+            if (fighter->base.kind != THING_PC || being_is_immortal(fighter))
+                continue;
+            fighter->vit_fatigue_accum += 0.6f;
+            while (fighter->vit_fatigue_accum >= 1.0f) {
+                being_spend_vit(fighter, 1);
+                fighter->vit_fatigue_accum -= 1.0f;
             }
         }
 

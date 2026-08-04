@@ -13,6 +13,7 @@
 #include "being.h"
 #include "combat.h"
 #include "log.h"
+#include "mob_ai.h"
 #include "obj.h"
 #include "obj_repo.h"
 #include "player_repo.h"
@@ -899,10 +900,26 @@ bool cmd_remove(descriptor_t *d, const char *args) {
         return true;
     }
 
-    obj_t *o = find_worn(ch, tok);
-    if (!o) {
-        descriptor_send(d, "You aren't wearing or holding that.\r\n");
-        return true;
+    /* `remove hold`/`remove held` (user 2026-08-03: in the dark you can't
+     * read an unidentified item's own name/keywords to target it the
+     * normal way, but you always know what's in your own hand) -- a
+     * pseudo-target naming the held SLOT itself rather than the object's
+     * name, so it works regardless of whether the item has ever been
+     * seen/identified. Picks the primary hand first, same preference
+     * do_hold_or_wield() (above) uses when filling hands. */
+    obj_t *o;
+    if (strcasecmp(tok, "hold") == 0 || strcasecmp(tok, "held") == 0) {
+        o = ch->held[0] ? ch->held[0] : ch->held[1];
+        if (!o) {
+            descriptor_send(d, "You aren't holding anything.\r\n");
+            return true;
+        }
+    } else {
+        o = find_worn(ch, tok);
+        if (!o) {
+            descriptor_send(d, "You aren't wearing or holding that.\r\n");
+            return true;
+        }
     }
 
     bool was_worn = false;
@@ -1029,6 +1046,7 @@ bool cmd_give(descriptor_t *d, const char *args) {
         snprintf(msg, sizeof(msg), "%s gives some gold to %s.\r\n",
                  being_display_name_cap(ch, capbuf, sizeof(capbuf)), being_display_name(vict));
         descriptor_room_echo(ch->base.roomp, ch, msg);
+        mob_ai_notify_given_coins(vict, amount);
         return true;
     }
 
@@ -1071,5 +1089,6 @@ bool cmd_give(descriptor_t *d, const char *args) {
     snprintf(msg, sizeof(msg), "%s gives %s to %s.\r\n",
              being_display_name_cap(ch, capbuf, sizeof(capbuf)), label, being_display_name(vict));
     descriptor_room_echo(ch->base.roomp, ch, msg);
+    mob_ai_notify_given_item(vict);
     return true;
 }

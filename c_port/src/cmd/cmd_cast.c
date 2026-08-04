@@ -54,6 +54,45 @@
  * polymorph/invisibility/...), so every listed spell is at least
  * reachable and consumes its component correctly. */
 
+/* "eyes of Fertuman" (Mage 22) world-wide search state -- world_for_each_mob()/
+ * world_for_each_obj() take a plain visitor callback with no user-data
+ * parameter, so the search target/caster/running count are shared via these
+ * statics, same "counting visitor" idiom cmd_load.c's count_mob_visit()/
+ * count_obj_visit() already use. Capped at 5 total matches across both
+ * mobs and objects (g_fertuman_found), a flat simplification of the real
+ * upstream's skill/level-scaled cap. */
+static being_t *g_fertuman_ch;
+static const char *g_fertuman_target;
+static int g_fertuman_found;
+
+static void fertuman_mob_visit(being_t *m) {
+    if (g_fertuman_found >= 5 || m == g_fertuman_ch || !m->base.roomp)
+        return;
+    if (being_is_immortal(m))
+        return;
+    if (!thing_name_matches(m->base.name, g_fertuman_target, strlen(g_fertuman_target)))
+        return;
+    char buf[512];
+    snprintf(buf, sizeof(buf), "  %s is in %s.\r\n",
+             being_display_name(m), m->base.roomp->base.name);
+    if (g_fertuman_ch->desc)
+        descriptor_send(g_fertuman_ch->desc, buf);
+    g_fertuman_found++;
+}
+
+static void fertuman_obj_visit(obj_t *o) {
+    if (g_fertuman_found >= 5 || !o->base.roomp)
+        return; /* only a room-floor item has a reliable room (thing.h) */
+    if (!thing_name_matches(o->base.name, g_fertuman_target, strlen(g_fertuman_target)))
+        return;
+    char buf[512];
+    const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+    snprintf(buf, sizeof(buf), "  %s is in %s.\r\n", label, o->base.roomp->base.name);
+    if (g_fertuman_ch->desc)
+        descriptor_send(g_fertuman_ch->desc, buf);
+    g_fertuman_found++;
+}
+
 /* Case-insensitive "does haystack contain needle" (strcasestr is GNU-only,
  * same style already duplicated in cmd_exec.c/cmd_scan.c/combat.c). */
 static bool ci_contains(const char *haystack, const char *needle) {
@@ -1340,6 +1379,69 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         snprintf(chargemsg, sizeof(chargemsg), "Arcane energy pours into %s, restoring its charges to full!\r\n", chlabel);
         descriptor_send(d, chargemsg);
         consume_component(d, chcomp);
+        return true;
+    }
+
+    if (strcasecmp(sk->name, "eyes of Fertuman") == 0) {
+        /* Fresh Sneezy -> Tobin audit item (docs/systems don't cover
+         * individual spells, so verified against the real source directly:
+         * disc/disc_mage_alchemy.cc's eyesOfFertuman()). Real upstream is a
+         * world-wide LOCATE by name -- scans every live object AND every
+         * character for a name match, reporting which room each is in,
+         * skipping the caster's own belongings, shopkeepers, and immortals,
+         * with an item's own ITEM_MAGIC flag making it partly resistant to
+         * being found (a random chance to skip it) and a critical-success
+         * roll widening the result cap. Scoped down for Tobin: no critical-
+         * success tier (no bSuccess()-style crit roll exists here to hook
+         * into), no ITEM_MAGIC-flag resistance chance (Tobin's obj_t has no
+         * such flag), a flat result cap (5) instead of a skill/level-scaled
+         * one, and object results are limited to items lying loose in a
+         * room (world_for_each_obj() visits every live obj_t, but roomp is
+         * only reliable for a room-floor item -- see thing.h's own doc
+         * comment: it goes stale for anything nested in a container or
+         * carried in inventory, so those are honestly out of scope here
+         * rather than reported with a wrong location). Still a real,
+         * useful world-wide search, not a fake stub. */
+        obj_t *fecomp = find_keyword_item(ch, "component");
+        if (!fecomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        if (!target_name) {
+            descriptor_send(d, "Locate what (or whom)?\r\n");
+            return true;
+        }
+        descriptor_send(d, "The eyes of Fertuman look far and wide across the world and find:\r\n");
+        size_t felen = strlen(target_name);
+        int found = 0;
+        char febuf[512];
+
+        for (descriptor_t *it = g_descriptors; it; it = it->next) {
+            if (found >= 5)
+                break;
+            being_t *b = it->character;
+            if (!b || b == ch || !b->base.roomp)
+                continue;
+            if (being_is_immortal(b))
+                continue;
+            if (!thing_name_matches(b->base.name, target_name, felen))
+                continue;
+            snprintf(febuf, sizeof(febuf), "  %s is in %s.\r\n",
+                     being_display_name(b), b->base.roomp->base.name);
+            descriptor_send(d, febuf);
+            found++;
+        }
+
+        g_fertuman_ch = ch;
+        g_fertuman_target = target_name;
+        g_fertuman_found = found;
+        world_for_each_mob(fertuman_mob_visit);
+        world_for_each_obj(fertuman_obj_visit);
+        found = g_fertuman_found;
+
+        if (found == 0)
+            descriptor_send(d, "  ...nothing.\r\n");
+        consume_component(d, fecomp);
         return true;
     }
 

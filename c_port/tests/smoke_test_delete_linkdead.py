@@ -18,71 +18,18 @@ destroys it too.
 import socket
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_delete_linkdead")
+announce("smoke_test_delete_linkdead", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 account_name = f"Dlacct{_suffix}"
 char_name = f"Dlchar{_suffix}"
 password = "dlinkdeadpw123"
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
 
 
 # --- Create the character, then disconnect via raw socket close (NOT
@@ -98,6 +45,7 @@ send_line(s, ""); recv_all(s)    # time zone prompt -> account menu
 send_line(s, "new"); recv_all(s)
 send_line(s, char_name); recv_all(s)
 send_line(s, "1"); recv_all(s)   # race: human
+send_line(s, "1"); recv_all(s)  # territory: urban
 send_line(s, "1"); recv_all(s)   # class: mage
 send_line(s, "done"); recv_all(s)  # attrs done -> options menu
 out = cmd(s, "done")             # options done -> playing
@@ -136,6 +84,7 @@ send_line(s3, ""); recv_all(s3)
 send_line(s3, "new"); recv_all(s3)
 send_line(s3, other_name); recv_all(s3)
 send_line(s3, "1"); recv_all(s3)
+send_line(s3, "1"); recv_all(s3)  # territory: urban
 send_line(s3, "1"); recv_all(s3)
 send_line(s3, "done"); recv_all(s3)
 cmd(s3, "done")  # playing, auto-look already ran
@@ -145,5 +94,5 @@ check(char_name not in out, f"{char_name}'s linkdead body is gone from the room 
 
 s2.close()
 s3.close()
-announce_done("smoke_test_delete_linkdead")
+announce_done("smoke_test_delete_linkdead", host, port)
 print("=== ALL CHECKS PASSED ===")

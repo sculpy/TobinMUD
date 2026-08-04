@@ -26,37 +26,13 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, check, sql, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_weapon_depth")
+announce("smoke_test_weapon_depth", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 # Uses microsecond precision (not just int(time.time())) -- this test
@@ -95,23 +71,9 @@ def recv_all(sock, timeout=1.0, idle_gap=0.3):
     return b"".join(chunks).decode(errors="replace")
 
 
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
 def cmd(sock, line, timeout=1.0):
     send_line(sock, line)
     return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def set_level(name, level):
@@ -153,6 +115,7 @@ def make_char(name, pw, class_choice):
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
     send_line(s, "1"); recv_all(s)  # race: human
+    send_line(s, "1"); recv_all(s)  # territory: urban
     send_line(s, class_choice); recv_all(s)
     send_line(s, "done"); recv_all(s)
     send_line(s, "done"); recv_all(s)  # alignment: neutral
@@ -261,6 +224,7 @@ send_line(s_imm, imm_pw); recv_all(s_imm)
 send_line(s_imm, "new"); recv_all(s_imm)
 send_line(s_imm, imm_name); recv_all(s_imm)
 send_line(s_imm, "1"); recv_all(s_imm)
+send_line(s_imm, "1"); recv_all(s_imm)  # territory: urban
 send_line(s_imm, "1"); recv_all(s_imm)
 send_line(s_imm, "done"); recv_all(s_imm)
 send_line(s_imm, "done"); recv_all(s_imm)
@@ -304,5 +268,5 @@ check(dagger_avg > bare_avg + 0.4,
       f"a sharp dagger's average damage ({dagger_avg:.2f}) beats bare hands ({bare_avg:.2f}) by a clear margin")
 
 s_imm.close()
-announce_done("smoke_test_weapon_depth")
+announce_done("smoke_test_weapon_depth", host, port)
 print("=== ALL CHECKS PASSED ===")

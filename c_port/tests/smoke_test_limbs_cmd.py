@@ -21,43 +21,12 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
-def announce(test_name, host=host, port=port):
-    """Tell the running MUD which smoke test is executing: emits a [TEST]
-    log line (visible to online immortals and in the day's log file) via
-    the loopback-only `@test` server hook. Best-effort -- never fails the
-    test. Self-contained (own socket, doesn't depend on this file's other
-    helpers) so it can run at any point in the script."""
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    """Companion to announce() -- emits a [TEST] "finished" log line. Call
-    once at the very end of a smoke test, just before it reports success."""
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_limbs_cmd")
+announce("smoke_test_limbs_cmd", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 ROOM = 900000 + (int(time.time()) % 70000)
@@ -67,39 +36,6 @@ LIMB_NAMES = [
     "left hand", "right hand", "left finger", "right finger",
     "body", "waist", "genitalia", "right leg", "left leg", "left foot", "right foot",
 ]
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def set_level(name, level):
@@ -116,6 +52,7 @@ def make_char(sock, name, pw):
     send_line(sock, "new"); recv_all(sock)
     send_line(sock, name); recv_all(sock)
     send_line(sock, "1"); recv_all(sock)  # race: human (zero stat modifier)
+    send_line(sock, "1"); recv_all(sock)  # homeland: urban (territory, forced step since 2026-08-03)
     send_line(sock, "1"); recv_all(sock)  # class: mage
     send_line(sock, "done"); recv_all(sock)
     send_line(sock, "done"); recv_all(sock)  # alignment: neutral
@@ -141,9 +78,9 @@ send_line(sA, "limbs")
 out = recv_all(sA)
 check("Limbs" in out, "limbs shows a Limbs header")
 for limb in LIMB_NAMES:
-    check(re.search(rf"{re.escape(limb)}\s+100%", out) is not None,
-          f"limbs lists '{limb}' at 100% on a fresh character")
-check("hurt" not in out and "medical attention" not in out and "destroyed" not in out,
+    check(re.search(rf"{re.escape(limb)}\s+perfect\s+\(100%\)", out) is not None,
+          f"limbs lists '{limb}' as 'perfect (100%)' on a fresh character")
+check("medical attention" not in out and "destroyed" not in out,
       "no injury phrases appear for a fully healthy character")
 sA.close()
 
@@ -196,16 +133,24 @@ check("Limb HP set" in out, "hurtlimb confirms (not a decapitation)")
 
 out = cmd(sv, "limbs")
 check("Limbs" in out, "limbs still shows a Limbs header after injury")
+# Anchored on the real `limbs` line format ("  <limb name>  <word>  (NN%)")
+# rather than a bare substring match -- hurtlimb's own broadcast ("Your
+# right leg is hurt rather badly!") can still be sitting unread in the
+# socket buffer ahead of this response and would otherwise double-count
+# whichever limb it just injured.
 limb_lines = [l for l in out.splitlines()
-              if "%" in l and any(limb in l for limb in LIMB_NAMES)]
+              if re.match(r"^  (" + "|".join(re.escape(n) for n in LIMB_NAMES) + r")\s+\S+\s+\(", l)]
 check(len(limb_lines) == 18, "limbs still lists all 18 real limbs, not just the injured one")
-check(any("right leg" in l and ("13%" in l or "20%" in l) for l in limb_lines),
-      "the injured limb (right leg) shows its expected percentage (13%, or 20% if one "
+# hp=2/15 = 13% -> "horrid" (10-19% tier); hp=3/15 = 20% -> "awful" (20-29%
+# tier) if one ~5s regen tick landed between hurtlimb and this check --
+# see the comment above for why both outcomes are accepted.
+check(any("right leg" in l and ("horrid" in l or "awful" in l) for l in limb_lines),
+      "the injured limb (right leg) shows its expected health word (horrid, or awful if one "
       "~5s regen tick landed between hurtlimb and this check)")
-check(sum(1 for l in limb_lines if "100%" in l) == 17,
-      "the other 17 untouched limbs still show 100%")
+check(sum(1 for l in limb_lines if "perfect" in l) == 17,
+      "the other 17 untouched limbs still show 'perfect'")
 
 s.close()
 sv.close()
-announce_done("smoke_test_limbs_cmd")
+announce_done("smoke_test_limbs_cmd", host, port)
 print("=== ALL CHECKS PASSED ===")

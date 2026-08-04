@@ -1,6 +1,533 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-03 — Session 115 (DO droplet, production port
+Last updated: 2026-08-03 — Session 127 (DO droplet, production port 4000):
+**Confirmed `smoke_test_copyover_fight.py` passing live; mid-fight Vitality
+regen; spec-proc project resumed with an important scoping correction.**
+See the Session 127 entry below for full detail.
+
+Previous update: 2026-08-03 — Session 126 (DO droplet, production port 4000):
+**Five small user-requested fixes: bank gold on `score`, max-vitality
+refill on level-up, `remove hold` in the dark, lit light sources visible
+in dark rooms, and fights persisting across copyover.** All built
+zero-warning and deployed live via real `copyover`s during testing.
+
+- `score` now shows `Bank: %d` next to `Gold: %d` (`cmd_score.c`) --
+  previously `bank_gold` was invisible outside the `bank` command
+  itself. `tests/smoke_test_score_bank_gold.py`.
+- Leveling up (combat.c's per-hit XP-award payoff) now recomputes
+  `max_vit` and refills `vit` to match, mirroring the existing max_hp
+  treatment -- previously only HP/limbs got the level-up payoff, so
+  Vitality (shown as "Move:" on `score`) stayed frozen at its starting
+  value forever and any already-spent vitality never came back.
+  `tests/smoke_test_levelup_vitality.py`.
+- `remove hold`/`remove held` (`cmd_object.c`) is a new pseudo-target
+  naming the held slot itself rather than the object's own name/
+  keywords -- works purely from knowing something is in your hand,
+  independent of whether you've ever seen/identified it (the point in
+  the dark). Primary hand first, same preference `hold`/`wield` use
+  filling hands. `tests/smoke_test_remove_hold_dark.py`.
+- A dark room's `look` (`cmd_look.c`) no longer suppresses EVERY light
+  source along with everything else -- a lit object on the ground still
+  renders its normal "(lit)" ground line, and another being carrying/
+  wielding an active light shows as "<name> is here, carrying a light.",
+  while the rest of the room stays dark. `tests/
+  smoke_test_dark_light_visible.py`.
+- `copyover` (`cmd_copyover.c`/`game_loop.c`) no longer unconditionally
+  clears every `fighting` pointer before the recovery dump -- the
+  opponent's identity is recorded (by name for a PC, by room+vnum+
+  ordinal-among-same-vnum-mobs for a mob, `mob_ordinal_in_room()`) and
+  both sides are re-linked once everyone/everything exists again post-
+  exec (`copyover_recover()`'s new deferred-fight pass). `wait_pulses`
+  (swing lag) still clears, same as before. `tests/
+  smoke_test_copyover_fight.py` written but **NOT yet passing as of
+  this write-up** -- multiple runs got tangled in test-harness issues
+  (a stale/colliding time-based account suffix across quick reruns,
+  then the default starting room's real ambient traffic defeating the
+  test's own "wait for a quiet gap" socket-read logic) rather than a
+  confirmed feature bug; last debug attempt was killed by its own 90s
+  timeout before reaching the first check. The feature code itself
+  compiles clean and the logic was reasoned through carefully (see the
+  functions above), but **treat copyover fight-persistence as unverified
+  live until that test is finished and actually passes** -- pick this up
+  next session.
+
+Update 2026-08-03 (continued) — Session 127 (DO droplet, production port 4000):
+**`smoke_test_copyover_fight.py` now confirmed PASSING live, all 5 checks**
+(previously flagged unverified at the end of Session 126). Root cause of
+the apparent "hang" across multiple earlier debug attempts: it was never
+a feature or test bug -- every prior debug run had been wrapped in a
+shell `timeout N`, which sends SIGTERM on expiry; Python's default SIGTERM
+disposition terminates immediately and skips the script's own `finally:`
+cleanup block, so each killed attempt left its 2 test characters + sandbox
+room behind as DB debris (219 orphaned sandbox rooms accumulated this way
+over the debugging history) and, worse, made a run that was simply mid-flight
+look identical to a genuine infinite hang when checked partway through.
+Confirmed by running the script un-wrapped (plain `nohup`, no external
+timeout): it completed cleanly end-to-end (~20s) with all 5 checks passing
+and its own `finally:` block correctly deleting its 2 characters + room. A
+direct login+score timing probe run mid-investigation also confirmed the
+live server itself was never slow (0.02s round-trip) -- ruling out DB/server
+load as a factor. Server log corroborates the underlying feature has been
+working correctly since Session 126: every copyover during this session's
+testing reported "2 fight(s) re-linked". **Also fixed same session**: Vitality
+now regens a small base amount even while fighting (previously fully gated
+on `!fighting` alongside HP, per user 2026-08-03 -- "you should be able to
+gain some vitality when fighting normally"; HP itself is untouched, still
+rest-only, combat pacing unaffected) -- `regen_tick_run()` (regen.c). The
+other half of that same request (block vit-costing actions at 0 Vitality
+until next tick) was already true for every existing vit-costing command
+(`cmd_slam.c`/`cmd_bodyslam.c`/`cmd_catleap.c`/`cmd_deathstroke.c`/
+`cmd_headbutt.c`/`cmd_shove.c`/`cmd_spin.c`/`cmd_move.c` all gate on
+`vit < cost` before spending) -- confirmed via a full grep audit of every
+`being_spend_vit()` caller, no gap found, no change needed there. Deployed
+via `copyover`. ~219 leftover test-debris rooms/4 leftover test characters
+from the debugging history intentionally left in place (user: "leave them,
+just don't clean up" -- harmless, and the existing 5-minute linkdead
+auto-purge already reclaims the character sessions over time).
+
+**Spec-proc project resumed (SPEC_PROCS.md), with an important scoping
+correction**: `SPEC_PROCS.md`'s own progress tracking hadn't been updated
+since Session 124 (still said "framework not yet built" and "0 new" even
+though `SPEC_CHICKEN` had already shipped) -- fixed. Bigger finding while
+scoping the next proc: **not every function in a `spec/*.cc` file is an
+independently-assignable spec-proc** -- `spec_mobs.h` has the real,
+authoritative `SPEC_*` id list, and several functions physically in
+`spec_mobs.cc` (`insulter`, `librarian`, `siren`, `thief`, `Summoner`,
+`StatTeller`, and more, see SPEC_PROCS.md) have NO matching id, meaning
+they're ambient AI helpers or dead code, not real assignable procs. The
+original 325-function count (a raw grep across all 58 files) is therefore
+an over-count of true portable work; SPEC_PROCS.md now documents this and
+lists which `spec_mobs.cc` functions are real vs. ambient. Checked three
+real-id candidates found this way: `SPEC_TORMENTOR=6` (`tormentor`) is
+`[B]` blocked -- its body does nothing on its own; `checkSpec()`'s own
+comment reveals its real purpose is a punishment-room mechanic (the one
+spec still active while a mob sits in Sneezy's `Room::HELL`), which Tobin
+has no equivalent of. `SPEC_TOLL_TAKER=79` (`payToll`) and
+`SPEC_HORSE=16` (`horse`) are both `[B]` blocked on hook points Tobin
+doesn't have yet: a pre-movement block hook (refuse a directional move
+before it executes) and a per-combat-round mob "extra action" hook
+(`CMD_MOB_COMBAT`) respectively -- both real, disclosed gaps rather than
+routed-around shortcuts, logged in SPEC_PROCS.md for whoever adds those
+hooks next. No new proc shipped this pass (all three candidates checked
+were legitimately blocked) -- the real deliverable this session is the
+corrected scoping methodology, which should make the NEXT session's
+proc-picking much faster.
+
+**`practice <discipline>` display rework** (user, same session): per-skill
+lines dropped the description text (help files already cover it) and now
+report `Skill    (learned/max potential) <colorized word>` instead of a
+raw percentage -- "max potential" is the discipline's own ceiling
+(`this_pct`), "learned" is the individual skill's own proficiency
+(`skill_proficiency()`). New `skill_proficiency_word_colored()` (skill.c/
+skill.h): a 7-tier bucket (untrained/novice/competent/adept/skilled/
+expert/mastered), same bright-at-extremes/dim-in-middle gradient style
+`being_health_word_for_pct_colored()` already established. Level-gated
+and discipline-locked skills keep their existing dim "(level N)"/
+"(practice this discipline to unlock)" lines, just without the
+description text. Verified live (created a throwaway character, forced
+Basic to 45% and inspected both the locked and unlocked line shapes) and
+via `tests/smoke_test_practice.py` (no existing check asserted on the old
+per-skill line format, zero regressions). Deployed via `copyover`.
+
+**Immortals: all skills/spells maxed without spending practice points**
+(user, same session): extended an existing precedent (`being_knows_skill()`/
+cmd_cast.c/cmd_pray.c's access gates and `skills`'s own display already
+special-cased immortals since 2026-07-12) to the one place that still
+didn't -- `practice`'s display and spend paths. `skill_proficiency()`
+(skill.c) now returns 100 immediately for an immortal caller, before any
+of its normal tier logic; `disc_pct()` (cmd_practice.c) does the same for
+Basic/Combat/Advanced. Both are read-time overrides, not DB writes -- no
+`practice_points` spent, `player_skill`/`*_disc_pct` storage untouched
+(so nothing needs undoing if demoted back to mortal). Fixed three spots
+in cmd_practice.c that read the raw `progress.*_disc_pct` fields directly
+instead of going through `disc_pct()` (the bare `practice` header, the
+Advanced-tier unlock check, and the Advanced spend-gate) -- all three
+would have shown/enforced stale 0% for an immortal who'd never actually
+practiced. Also gave `practice_show_discipline()` the same level-999
+sentinel `skills`'s own immortal branch already uses, so immortals see
+every skill regardless of in-game level, not just discipline-unlocked
+ones. Verified live: `practice`/`practice basic`/`practice advanced` all
+show every skill as `(100/100) mastered`. Deployed via `copyover`.
+
+**Sleeping locks out all commands but `wake`** (user, same session):
+one centralized gate in `cmd_dispatch()` (cmd_table.c), same shape/
+location as the existing wait-state (lag) gate right above it -- a
+non-immortal, sleeping caller can issue exactly one verb (`wake`, exact
+match, not abbreviation-aware) and nothing else; immortals fully exempt,
+same convention `being_get_wait()` already applies to lag. Superseded
+the handful of individual per-command sleeping checks (`look`, `attack`,
+`assist`, `sign`) as the first line of defense for mortals -- left those
+in place, they still fire harmlessly for an exempt immortal choosing to
+test/roleplay being asleep. Fixed 4 existing tests whose own assertions
+collided with the new blanket block: `smoke_test_socials.py`/
+`smoke_test_edsocial.py`'s min_position checks switched their test
+character from `sleep` to `sit` (still below the tested threshold,
+no longer literally asleep, so the min_position gate's own distinct
+message is reachable again); `smoke_test_curse_slumber.py`/
+`smoke_test_meditate_wake_proficiency.py` updated to expect the new
+lockout instead of reading the sleeping victim's own `score`/`affects`,
+which are no longer reachable that way. Verified live (a fresh mortal's
+`score` while asleep returns the lockout message; an immortal's does
+not). **Found while verifying, pre-existing and unrelated**: at least 5
+older smoke test files' `make_char()` helpers are stale -- missing the
+"homeland" selection step added to character creation in a later
+session, so they get stuck mid-creation on ANY run regardless of what
+they're actually testing (confirmed via live repro). Logged as its own
+TODO.md item, not fixed here (out of scope for this change).
+
+**Room `look` shows fighting status** (user, same session): "when
+fighting and you look in the room you should see the mob fighting a
+tank. A deputy of the Brotherhood is here, fighting you."
+`render_room_item()` (cmd_look.c) now appends ", fighting you" (from
+whoever's actually being fought) or ", fighting <opponent>" (for anyone
+else looking on) to a fighting occupant's room-listing line -- reads
+`being_t.fighting`, the same source of truth `score`'s own "Position:
+Fighting" already uses. No extra logic needed for stacking: two mobs
+fighting different targets already render distinct strings, so
+`group_room_items()`'s existing "stack identical rendered lines" pass
+naturally keeps them separate. `tests/smoke_test_look_fighting.py` (6
+checks) passes live -- caught and fixed two of its own bugs along the
+way: `flee` only succeeds ~2-in-3 per attempt (needed a bounded retry,
+not a single try), and the default starting room has real ambient
+combat traffic (other players/aggressive mobs) that can independently
+contain the word "fighting" -- the post-flee check needed to look for
+these two characters' own lines specifically, not a blanket absence of
+the word. Deployed via `copyover`.
+
+**Spec-proc project: `SPEC_BEGGAR` ported, plus a second important
+scoping correction** (SPEC_PROCS.md). Checked every remaining real-id
+candidate in `spec_mobs.cc` and found ALL of them blocked on missing
+subsystems (faction, disease, pet, hunting/pathfinding, a punishment-
+room concept, a pre-movement block hook, a per-round mob combat-action
+hook, a whole ranged-weapon subsystem, or mob-vs-mob combat resolution --
+`combat_process_run()` only ever iterates connected player descriptors,
+so two mobs' `fighting` pointers would never actually resolve a round,
+a real disclosed gap found this pass). Moved to `spec_objs.cc`
+(`objSpecials[]`) looking for a fresh candidate and found a SECOND
+scoping correction along the way: the real, assignable ids for both
+mobs and objects live in the `mob_specials[]`/`objSpecials[]`
+REGISTRATION ARRAYS (spec_mobs.cc/spec_objs.cc, array position = id),
+not the sparse named-constant lists in spec_mobs.h/spec_objs.h -- those
+headers only name entries referenced BY NAME elsewhere in the C++
+source. This means several procs marked `[-]` (no real id) earlier this
+session were WRONG -- `thief`, `beggar`, `dagger_thrower`,
+`hobbitEmissary`, `replicant`, `TicketGuy` all have real array
+positions despite no named constant. Ported `SPEC_BEGGAR` (id 17,
+confirmed against real seeded content -- vnum 601 "a beggar" among
+others already carries `spec_proc=17`) as the proof case for this
+correction: reacts to `give`-ing it an item (flat thanks) or coins (6
+amount-tiered reactions, two lines' crude wording toned down as a
+disclosed scope note) via a new "given item"/"given coins" hook
+(`mob_ai_notify_given_item()`/`mob_ai_notify_given_coins()`, called from
+cmd_object.c's `give` right after a mob recipient successfully receives
+something -- mobs have no descriptor, so the reaction is a room echo,
+same convention `chicken`'s egg-laying announcement already uses).
+`tests/smoke_test_specproc_beggar.py` (8 checks, including confirming a
+mob with no matching spec_proc reacts with nothing at all) passes live.
+Deployed via `copyover`.
+
+Previous update: 2026-08-03 — Session 125 (DO droplet, production port 4000):
+**Combat proficiency skills fixed (were permanently stuck at 1%); new
+per-round tank/target condition display.** User, across several
+clarifying messages: "the proficiency skills in combat disciplines
+should be gained at 1% of the disc" / "for all classes and all
+proficiencies" / "they should get all proficiency skills for spending
+1% of the combat practices" / "they should gain in proficiency
+automatically, when combat hits 100% they should be able to increase
+proficiency to 100%, but they should start from level 1." Root problem
+found while scoping: the 5 weapon/barehand proficiency skills (slash/
+blunt/pierce/barehand/ranged) had NO gameplay hook anywhere calling
+`skill_learn_from_doing()` on them (Tobin's obj.h has no weapon-type
+distinction to gate a per-swing roll on, per `cmd_stabbing.c`'s own
+"flavor-text placeholders" note) -- under the normal learn-by-doing
+system they'd sit permanently stuck at their 1% floor forever,
+un-grindable. Also only Cleric/Mage/Druid had these 5 in their roster;
+Warrior/Thief/Monk had zero. Fixed both: all six classes now carry all
+5 roster rows, and `skill_proficiency()` (skill.c) special-cases
+`SKILL_TIER_COMBAT` to auto-track `combat_disc_pct` directly (0 until
+any Combat discipline is trained, then floored at 1% and rising in
+lockstep with discipline up to 100%) -- no separate storage or
+per-use roll needed. `tests/smoke_test_proficiency_autotrack.py`
+(17 checks) passes live.
+
+User: "when fighting display tank condition and target condition, in
+words not %" -- every combat round (`combat_process_run()`, combat.c)
+now sends each PC fighter "You are <word>. <Opponent> is <word>.",
+using the same health-word buckets `score`/`limbs` already use
+(`being_health_word()`), not a raw percentage. `tests/smoke_test_
+tank_target_condition.py` (2 checks) passes live.
+
+Previous update: 2026-08-03 — Session 124 (DO droplet, production port 4000):
+**Started the spec-proc port project; a real live incident (`aitick`
+briefly starved/damaged a bystander player) plus its fix and several
+follow-on requests; five small unrelated gameplay tweaks.** New
+[SPEC_PROCS.md](SPEC_PROCS.md) tracks the "port all special procedures
+from Sneezy" project (user: "everything, in original file order") --
+325 distinct spec-proc functions in the original, Tobin had 3 (ad hoc,
+pre-dating this project). Built the first real dispatch framework
+(`mob_spec_dispatch_pulse()`, mob_ai.c, mirrors the original's
+`mob_specials[]`) and ported the first proc under it, `SPEC_CHICKEN`
+(id 8, spec_mobs.cc's `chicken`): a rare per-tick chance to lay an egg
+(obj vnum 2376) into its room, chosen as the proof case for being fully
+self-contained (no faction/pet/pathfinding dependency). `tests/
+smoke_test_specproc_chicken.py` (3 checks) passes live.
+
+**Incident**: verifying that proc required forcing ~1000 AI ticks via
+`aitick 100` x10 to make its 1-in-5000 odds statistically reliable --
+`aitick` forces EVERY pulse-driven system at once, including
+`vitals_tick_run` (hunger/thirst drain + starvation damage), for EVERY
+connected player, not just the tester's own sandbox mobs. This silently
+starved and chip-damaged a real bystander player's HP down to nearly
+nothing. Restored their HP immediately via the `Claudeop` immortal
+account (also found reverted to level 1 mid-incident for unrelated
+reasons, re-fixed). Root-cause fix: new `vitals_tick_force_world_only()`
+(vitals.c/h) -- `aitick` now calls this instead of `vitals_tick_run()`,
+which is a full no-op for players (world/mob ticks still forced exactly
+as before). User: "dont have aitick affect players hps" / "aitick
+should be artificial to players." Fixed `tests/smoke_test_vitals.py`'s
+two starvation checks to wait out one real ~60s vitals tick instead of
+forcing it (no longer forceable by design) -- also fixed an unrelated
+pre-existing territory-forced-step bug in that same file's `make_char()`
+(and `smoke_test_skillcombat.py`'s), both missed in Session 117's fixup
+pass.
+
+**New `restore <target>` immortal command** (user, directly prompted by
+the incident): fully heals HP/Vitality and clears every active spell
+affect on an online target, IMMORTAL_LEVEL_MIN gated.
+
+**Five small gameplay tweaks**, all user-requested, all deployed and
+tested live:
+- Combat vitality drain (Session 123) cut another 20%: 0.75 -> 0.6/round
+  (`being.h`/`combat.c`).
+- `bash` now requires holding a shield (`cmd_bash.c`) -- real upstream
+  actually allows a shieldless bash at high enough advanced discipline
+  (a graduated threshold ladder Tobin's flat single-roll bash has no
+  equivalent for); tightened into a hard requirement per the user's
+  explicit ask rather than porting the ladder. `smoke_test_skillcombat.py`
+  extended with a dedicated no-shield-refusal check.
+- Auto-stand on full rest: reaching full HP AND Vitality while resting/
+  sitting/sleeping (regen.c) OR while meditating via `yoginsa` (also
+  ending the meditation itself, meditate.c) now stands the character
+  back up automatically with a "You feel fully rested and stand up."
+  message. New `tests/smoke_test_autostand.py` (6 checks) passes live.
+- New `bank` help topic (`help_topic.sql`) -- previously undocumented.
+
+Previous update: 2026-08-03 — Session 123 (DO droplet, production port 4000):
+**Three small combat/loot tweaks, deployed via copyover mid-session after
+a droplet RAM upgrade (445MB -> 947MB).** User: "focused attack is
+firing too much, decrease success by 50%" -- `focus attack`'s automatic
+reroll-toward-a-MAJOR-limb attempt (Session 122) is now gated behind an
+extra `rand() % 100 < 50` coin flip in `combat_strike()` (combat.c),
+roughly halving how often it fires on top of the existing major-limb
+reroll odds. User: "vitality should decrease when fighting to about .75
+of a point per round" -- new `being_t.vit_fatigue_accum` (being.h, a
+float) accumulates 0.75 every round either PC side is fighting
+(`combat_process_run()`, combat.c) and spends off whole vit points via
+`being_spend_vit()` as the accumulator crosses 1.0 -- nets out to
+exactly 0.75/round on average (3 spends per 4 rounds) without needing
+`progress.vit` itself to go fractional; immortals exempt, same as
+movement's own vit cost. User: "when looting a mob the game should
+report any inventory changes" -- `autoloot` (`PLR_AUTOLOOT`,
+combat_defeat(), combat.c) used to print one generic "You automatically
+loot X's corpse." line with no breakdown; now reports each item by name
+("You loot <item> from <mob>'s corpse.") and any gold as its own line
+("You loot N gold from <mob>'s corpse."), same per-item shape manual
+`get all <corpse>` (cmd_object.c) already used -- the old generic
+sentence is gone entirely. New `tests/smoke_test_vit_drain_autoloot.py`
+(4 checks) passes live: vitality measurably drops over several real
+combat rounds (52 -> 40 observed), and killing a mob with autoloot on
+prints a specific "You loot N gold from ..." line rather than the old
+generic sentence. Also: the droplet's RAM was bumped from 445MB to
+947MB this session (user-initiated resize + reboot) -- `tobin_c` and
+its gdb crash-watcher were restarted after the reboot; MariaDB now
+comfortably fits in the larger pool (was the site of an OOM incident,
+Session 119).
+
+Previous update: 2026-08-03 — Session 122 (DO droplet, production port 4000):
+**Combat discipline tier narrowed to proficiency-only; `focus attack`
+ported as an automatic mechanic.** User: "all other skills belong in
+basic and advanced class discipline" / "just weapon proficiency in
+combat" / "barehand slash stab proficiency etc" -- `SKILL_TIER_COMBAT`
+(skill.c) now holds ONLY the 5 literal "<type> proficiency" rows (slash/
+blunt/pierce/barehand/ranged) per class; every other skill that used to
+be Combat tier (riding, parry, dodge, kick, backstab, steal, sneak,
+search, disarm, chop, counter move, switch opponents, etc -- ~43 roster
+rows across 6 classes) moved to `SKILL_TIER_CLASS` (Basic) or
+`SKILL_TIER_ADVANCED`, split on each skill's own existing min_level
+(< 25 -> Basic, >= 25 -> Advanced, matching the level range each tier
+already covered elsewhere in the roster). Verified live: `skills`
+now shows `riding` in the general list, not Combat. Separately, user:
+"in tobin its a warrior skill" / "focused attack should be automatic" --
+`focus attack` (already a Warrior roster entry at level 5, never
+implemented) now fires automatically inside ordinary melee
+(`combat_strike()`, combat.c): same "reroll toward a MAJOR limb"
+mechanic `critical hitting` (Monk) already uses, just gated on knowing
+`focus attack` instead, with the real upstream's own flavor message
+("You focus intensely...") when it lands on one -- no separate command,
+no manual arming/cooldown (a deliberate simplification of the real
+upstream's SKILL_FOCUS_ATTACK/AFF_FOCUS_ATTACK, which is a manually-
+triggered, cooldown-gated command there). New `tests/smoke_test_skill_
+tiers_focusattack.py` (6 checks) passes live. Also fixed
+`smoke_test_practice.py` for the territory forced-step gap.
+
+Previous update: 2026-08-03 — Session 121 (DO droplet, production port 4000):
+**Vitality regen +25%; `limbs` shows health words.** User: "vitality
+gains too slow, adjust it up 25%" -- `regen_tick_run()` (regen.c) now
+heals vitality at `regen_amount()*5/4`, HP's own rate untouched. User:
+"limbs command, list health words not %" -- new shared
+`health_word_for_pct()` (extracted from `being_health_word()`, being.c/h)
+used by `cmd_limbs.c`; kept the raw percentage in parentheses alongside
+the word rather than dropping it outright, since
+`smoke_test_limb_damage_rate.py`'s damage-ratio math genuinely needs the
+exact number, not just a coarse word tier. Fixed 5 more pre-existing
+tests broken by the territory forced-step gap plus the `limbs` format
+change; one (`smoke_test_limb_damage_rate.py`) hit a real regex bug of
+its own along the way (didn't account for the right-padded `%3d` spacing
+inside the parens) now fixed, though its statistical assertion showed
+one flaky run under this session's ongoing memory pressure -- not
+re-chased further.
+
+Previous update: 2026-08-03 — Session 120 (DO droplet, production port 4000):
+**Combat trainer on Perimeter Road; Welfare worker greets on arrival.**
+Two small user requests. Combat trainer (mob 239, the expert fencer)
+placed on room 111 via a NEW `db/tobin/zone_reset_tobin.sql` -- kept
+separate from the machine-generated `zone_reset.sql` (which does a full
+DELETE+re-INSERT every apply and would silently wipe a hand-added row),
+sorts after it under the C-locale filename order `apply-tobin-schema.sh`
+already uses. Welfare worker (`SPEC_PROC_NEWBIE_EQUIPPER`) now greets an
+arriving PC with their class's full gear list the moment they walk into
+her room (new `mob_ai_greet_newbie_equipper()`, called from
+`cmd_move.c`'s arrival point) -- separate from the existing "say gear"
+reissue flow, which is unchanged. Fixed `smoke_test_newbie_gear.py`,
+broken by the territory-forced-step gap.
+
+Previous update: 2026-08-03 — Session 119 (DO droplet, production port 4000):
+**XP granted per hit, not at the end of a fight (user request); MariaDB
+OOM incident.** `combat_award_hit_xp()` (combat.c, called from both
+combat_strike()'s melee path and combat_apply_skill_damage()) now credits
+a proportional share of a kill's total XP reward (same victim_level*50
+formula, same level-weighted group split as before) as each hit lands,
+silently -- `combat_defeat()` no longer grants any XP itself, it just
+prints ONE "You gain a total of N experience from that fight" summary
+line per recipient, reading from a new transient `being_t.xp_gained_this_
+fight` accumulator that gets zeroed right after. A level-up (crossing an
+XP threshold) can now happen MID-FIGHT, not just at the kill -- same
+max_hp-recompute/full-heal/practice-points payoff as before, just applied
+the moment it's actually earned. **Real incident found mid-session**:
+this droplet only has 445MB RAM, and MariaDB was OOM-killed live while
+testing (34 minutes of silent DB outage -- explains a "shops are broken"
+report and several test failures that looked unrelated) -- restarted it,
+then DELIBERATELY did NOT keep an unconditional player_progress_save()
+on every single hit (which would have meant a DB write per hit per group
+member, real avoidable load on a box this tight) -- only saves
+immediately on the rare level-up case; the two direct combatants already
+get saved every ROUND regardless (existing mid-fight-persistence hook),
+which is enough durability for the common case. New `tests/smoke_test_
+xp_per_hit.py` (7 checks) passes live. Also fixed 4 pre-existing tests
+broken by Session 117's territory-forced-step change (smoke_test_levelup_
+hp.py/smoke_test_combat.py/smoke_test_crit.py/smoke_test_mid_fight_
+persist.py all needed one more numeric input, a homeland pick, between
+race and class) -- these were directly blocking verification of this
+session's own combat change, unlike the broader "not retrofitted
+everywhere" backlog.
+
+Previous update: 2026-08-03 — Session 118 (DO droplet, production port 4000):
+**`eyes of Fertuman` (Mage 22) -- last gap in the level-21/22 audit
+batch.** Verified against disc/disc_mage_alchemy.cc's real eyesOfFertuman()
+directly. `conjure elemental earth` (Mage 21) turned out already
+implemented (shares cmd_cast.c's generic "conjure elemental" handler with
+fire/water/air) -- nothing to do there. Real upstream is a world-wide
+locate-by-name (every live object + character, reports each match's room);
+scoped down: no crit tier, no magic-item resistance chance, flat 5-result
+cap, object results limited to room-floor items (thing.h's own doc comment
+already flags `roomp` as unreliable for anything nested in a container/
+inventory). New counting-visitor pair for world_for_each_mob()/
+world_for_each_obj() (cmd_cast.c). `tests/smoke_test_level21_22_gap.py`
+(5 checks) passes live. Deployed via copyover.
+
+Previous update: 2026-08-03 — Session 117 (DO droplet, production port 4000):
+**Follow-ups on Session 116's Territory system, plus two small user
+requests.** (1) User override: territory should be a FORCED step right
+after race (matching SneezyMUD's own ordering), not the options-menu-only
+design Session 116 shipped -- moved `CONN_CHAR_CREATE_TERRITORY` back
+between race and class, `territory_stat_bonus()` back to the
+`CONN_CHAR_CREATE_ATTRS` "done" fold-in alongside race's/class's. This IS a
+breaking change for any test's race-then-class creation sequence (now
+needs one more numeric input, a homeland pick 1-3, between race and
+class) -- not retrofitted across every existing test in this pass, only
+`smoke_test_territory.py` itself. (2) Newbie race gear: paired-limb items
+(sleeve/bracelet/glove/legging/boot/ring -- ARMS/WRISTS/HANDS/LEGS/FEET/
+FINGERS wear_flags) only ever granted ONE apiece, leaving the other half
+of each pair (left arm, left wrist, etc) permanently bare; fixed with one
+bitwise `UPDATE suit_item` bumping quantity to 2 across all six race
+suits at once (`newbie_gear_race.sql`) -- `wear_slot_for_flag()` (obj.c)
+already fills the second matching limb, this was purely a starting-gear
+data gap. (3) `edit suit`: added a Race column next to Class in both the
+summary listing and the per-suit detail view (new `suit_repo_set_race()`,
+`CONN_EDSUIT_RACE` state mirroring `CONN_EDSUIT_CLASS`) -- previously the
+six race suits could only have their race set via raw SQL; also added a
+"your changes are saved" confirmation to the exit message (edsuit commits
+each field immediately, no separate save step, so the old "Done editing
+that suit." didn't make that clear). All three deployed via copyover,
+verified live (territory: 16 checks; edsuit: pre-existing test suite
+still passes; paired gear: confirmed both slots fill via `wear`+`equipment`).
+
+Previous update: 2026-08-03 — Session 116 (DO droplet, production port 4000):
+**Territory/Homeland system -- a fresh Sneezy -> Tobin audit item.** The
+2026-07-19/07-27 feature audits already closed out every item that had been
+explicitly logged in TODO.md (confirmed this session: every checkbox in the
+file is now `[x]`) -- this starts a NEW pass, cross-referencing
+`sneezymud-master/docs/systems/` against what Tobin has, rather than working
+an existing backlog. Territory (`docs/systems/important/territory-system.md`)
+had never been looked at: a permanent sub-race "homeland" chosen at
+creation, separate from and additional to plain race, with a DIFFERENT list
+of 4-8 options per race on the real upstream's full 12-stat system (up to
++/-30 modifiers). Scoped down for Tobin's simpler 6-attribute set (a
+Tobin-scale slice, same precedent as banking/crafting/materials): one
+shared 3-option set (Urban/Rural/Wilds) usable by every race alike, at a
++/-3 zero-sum modifier scale sized to sit alongside race_stat_bonus()/
+class_stat_bonus()'s own +/-2..4 range (`territory_stat_bonus()`, being.c).
+New `player.territory` column (tobin_migrations.sql); `player_territory_t`
+enum + `being_t.territory` field (being.h); `player_create()`/`player_load()`/
+`player_load_admin()` all persist/load it (player_repo.c); shown in `score`
+as a new Homeland line and in `stat player` (cmd_score.c/cmd_stat.c).
+**Deliberately NOT a forced step between race and class** (unlike the real
+upstream) -- that would have shifted every existing test's race-then-class
+creation script's numbered inputs out of alignment, breaking dozens of
+unrelated tests for a purely additive feature. Instead it's option 5 of the
+existing character-creation options screen (same menu as handedness/gender/
+alignment/appearance), defaulting to Urban if never visited -- same
+"optional, sane default" precedent alignment already established there.
+Caught one real bug before shipping (not just assumed correct): the
+territory bonus was originally folded into attrs alongside race's/class's
+in the CONN_CHAR_CREATE_ATTRS "done" handler, but territory isn't actually
+CHOSEN until later (the options sub-menu, reached only after attrs) -- a
+first test run showed Rural and Urban producing IDENTICAL attribute
+spreads, since the bonus applied was always still the TERRITORY_URBAN
+placeholder default at the time attrs got folded. Fixed by moving the
+`territory_stat_bonus()` call to the options screen's own "done" handler
+(the actual finalization point, right before `player_create()`), re-verified
+live -- Urban/Rural/Wilds now produce three genuinely different, correctly
+zero-sum attribute spreads. `tests/smoke_test_territory.py` (17 checks)
+passes live: default-Urban-if-skipped, the sub-menu's reachability/listing/
+re-prompt-on-bad-input, all three homelands' distinct stat spreads
+(including confirming Wilds' actual direction vs Urban -- higher CON, lower
+INT, not just "some difference"), and persistence across a reconnect.
+Deployed via a real in-game `copyover` while a real player (not a test
+account) was connected -- verified their connection survived both
+copyover cycles needed during this session (one before, one after the
+attrs-timing bugfix). New help topic (`territory`); news + wiznews entries.
+
+Also fixed, incidentally, at the START of this session: this Windows dev
+checkout had drifted ~124 commits behind `origin/main` (last synced
+2026-07-28) without the drift being noticed -- and the droplet itself,
+independently, had uncommitted local changes for the Whittle profession
+sitting in its working tree that were already safely pushed (byte-identical,
+diffed to confirm) as commit `05e04f4`. Fast-forwarded this checkout to
+`origin/main` and `git reset --hard origin/main` on the droplet -- both now
+track the same commit, no work lost.
+
+Previous update: 2026-08-03 — Session 115 (DO droplet, production port
 4000): **Whittle profession + two stale-test fixes.** TODO.md's last
 open item ("Deferred decisions" -- Whittle, the second `task/`
 profession alongside Cook) was scoped and built this session. New

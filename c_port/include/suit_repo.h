@@ -45,6 +45,9 @@ typedef struct {
     int id;
     char name[32];
     int class_restrict; /* -1 = any class */
+    int race_restrict;  /* -1 = any race -- suit.race (Newbie equipment system
+                            expansion, 2026-08-02), shown alongside class in
+                            `edit suit`'s listing (user, 2026-08-03) */
     char description[128];
     int item_count; /* distinct suit_item rows, not summed quantity */
 } suit_summary_t;
@@ -53,9 +56,11 @@ typedef struct {
  * loaded. For `edit suit` with no name argument. */
 int suit_repo_list_all(suit_summary_t *out, int max);
 
-/* Loads one suit's own scalar fields by id -- true if found. */
+/* Loads one suit's own scalar fields by id -- true if found. `out_race`
+ * (user, 2026-08-03: "add a column for race next to class") -- -1 = any
+ * race, same convention as `out_class`. */
 bool suit_repo_get(int suit_id, char *name, size_t name_sz,
-                    int *out_class, char *description, size_t desc_sz);
+                    int *out_class, int *out_race, char *description, size_t desc_sz);
 
 /* Deletes an entire suit and every one of its suit_item rows (the FK's
  * ON DELETE CASCADE, suit.sql, handles the item rows automatically --
@@ -74,6 +79,11 @@ int suit_repo_create(const char *name);
  * description. Both return true on success. */
 bool suit_repo_set_class(int suit_id, int class_restrict);
 bool suit_repo_set_description(int suit_id, const char *description);
+
+/* Updates a suit's race restriction (-1 = clear/any race) -- mirrors
+ * suit_repo_set_class() above (user, 2026-08-03: "add a column for race
+ * next to class"). */
+bool suit_repo_set_race(int suit_id, int race_restrict);
 
 /* Adds one suit_item row (or, if (suit_id, obj_vnum) already exists,
  * overwrites its quantity -- same "upsert" convention as trigger_repo's

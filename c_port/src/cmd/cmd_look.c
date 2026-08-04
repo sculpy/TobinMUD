@@ -42,7 +42,7 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
  * practice (each has a unique name, so its rendered line never matches
  * another's), but this still has to render PCs correctly since the room
  * loop walks every kind of thing through the same function. */
-static void render_room_item(char *buf, size_t bufsz, const room_t *r, const thing_t *t) {
+static void render_room_item(char *buf, size_t bufsz, const room_t *r, const thing_t *t, const being_t *viewer) {
     const char *label = t->short_descr[0] ? t->short_descr : t->name;
     char capbuf3[128];
     if (t->kind == THING_OBJ) {
@@ -71,8 +71,29 @@ static void render_room_item(char *buf, size_t bufsz, const room_t *r, const thi
          * (linkdead)" -- visible, but see combat_find_room_target() for
          * why they can't actually be targeted. */
         bool linkdead = t->kind == THING_PC && !((being_t *)t)->desc;
-        snprintf(buf, bufsz, "%s is here.%s",
+        /* User 2026-08-03: "when fighting and you look in the room you
+         * should see the mob fighting a tank" -- a room occupant's own
+         * `fighting` pointer (already the sole source of truth for
+         * "Fighting" on `score`, see cmd_score.c) now shows in their
+         * room-listing line too: "fighting you" from the viewer's own
+         * perspective if the viewer is the target, otherwise the real
+         * opponent's display name. Grouping (group_room_items() above)
+         * is by rendered-line equality, so two mobs fighting different
+         * targets naturally render distinct lines and never get
+         * incorrectly stacked together. */
+        const being_t *b = (const being_t *)t;
+        char fightbuf[128] = "";
+        if ((t->kind == THING_PC || t->kind == THING_MOB) && b->fighting) {
+            if (b->fighting == viewer) {
+                snprintf(fightbuf, sizeof(fightbuf), ", fighting you");
+            } else {
+                snprintf(fightbuf, sizeof(fightbuf), ", fighting %s",
+                         being_display_name(b->fighting));
+            }
+        }
+        snprintf(buf, bufsz, "%s is here%s.%s",
                  cap_first(label, capbuf3, sizeof(capbuf3)),
+                 fightbuf,
                  linkdead ? " (linkdead)" : "");
     }
 }
@@ -107,7 +128,7 @@ static int group_room_items(const room_t *r, const being_t *viewer, bool want_fi
             continue;
 
         char line[ROOM_ITEM_LINE_LEN];
-        render_room_item(line, sizeof(line), r, t);
+        render_room_item(line, sizeof(line), r, t, viewer);
 
         int i;
         for (i = 0; i < groups; i++) {
@@ -433,7 +454,51 @@ bool cmd_look(descriptor_t *d, const char *args) {
      * description only, same "don't over-reach past what was asked" call
      * as everywhere else this session. */
     if (room_is_dark_for((struct room *)r, d->character)) {
-        descriptor_send(d, "It is pitch black... you cannot see a thing.\r\n");
+        /* A lit light source is still visible even though nothing else in
+         * the room is (user 2026-08-03: "make torches and other light
+         * sources visible in the dark") -- a dropped lit object renders
+         * its normal ground line (render_room_item() already tags
+         * "(lit)"), and another being carrying/wielding one shows just
+         * enough to know a light is there, not the full room around them.
+         * Immortals/daytime/lit rooms never reach this branch at all
+         * (room_is_dark_for() above), so this only ever fires for a
+         * genuinely dark room. */
+        char out[ROOM_ITEM_LINE_LEN * 8];
+        int n = snprintf(out, sizeof(out), "It is pitch black... you cannot see a thing");
+        bool any_light = false;
+        for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+            if (t == &d->character->base)
+                continue;
+            if (t->kind == THING_OBJ) {
+                const obj_t *o = (const obj_t *)t;
+                if (o->category != OBJ_CAT_LIGHT || !o->val[3])
+                    continue;
+                if (!any_light)
+                    n += snprintf(out + n, sizeof(out) - (size_t)n,
+                                  ", except for a light nearby:\r\n");
+                any_light = true;
+                char line[ROOM_ITEM_LINE_LEN];
+                render_room_item(line, sizeof(line), r, t, d->character);
+                if ((size_t)n < sizeof(out))
+                    n += snprintf(out + n, sizeof(out) - (size_t)n, "%s\r\n", line);
+            } else if (t->kind == THING_PC || t->kind == THING_MOB) {
+                being_t *b = (being_t *)t;
+                if (!being_has_active_light(b))
+                    continue;
+                if (!any_light)
+                    n += snprintf(out + n, sizeof(out) - (size_t)n,
+                                  ", except for a light nearby:\r\n");
+                any_light = true;
+                char capbuf[128];
+                if ((size_t)n < sizeof(out))
+                    n += snprintf(out + n, sizeof(out) - (size_t)n, "%s is here, carrying a light.\r\n",
+                                  being_display_name_cap(b, capbuf, sizeof(capbuf)));
+            }
+        }
+        if (!any_light)
+            n += snprintf(out + n, sizeof(out) - (size_t)n, ".\r\n");
+        (void)n;
+        descriptor_send(d, out);
         return true;
     }
 

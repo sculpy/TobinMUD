@@ -40,37 +40,13 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_water_drowning_flight")
+announce("smoke_test_water_drowning_flight", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 ROOM_LAND = 980000 + (int(time.time()) % 15000)        # PLAINS (sector 17, cost 1)
@@ -79,39 +55,6 @@ COMPONENT_A = ROOM_LAND + 2
 COMPONENT_B = ROOM_LAND + 3
 COMPONENT_C = ROOM_LAND + 4
 MOVE_COST = (1 + 4 + 1) // 2  # 3, average-of-two-sectors rule
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def query(stmt):
@@ -153,6 +96,7 @@ def make_char(name, pw, class_num="1"):
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
     send_line(s, "1"); recv_all(s)  # race: human
+    send_line(s, "1"); recv_all(s)  # territory: urban
     send_line(s, class_num); recv_all(s)  # class: mage
     send_line(s, "done"); recv_all(s)
     send_line(s, "done"); recv_all(s)  # alignment: neutral
@@ -296,5 +240,5 @@ check(flying_cost == (MOVE_COST + 3) // 4,
 cmd(sC, "quit!"); sC.close()
 
 si.close()
-announce_done("smoke_test_water_drowning_flight")
+announce_done("smoke_test_water_drowning_flight", host, port)
 print("=== ALL CHECKS PASSED ===")

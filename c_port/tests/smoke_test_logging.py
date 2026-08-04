@@ -16,41 +16,12 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
-def announce_done(test_name, host=host, port=port):
-    """Companion to announce() -- emits a [TEST] "finished" log line. Call
-    once at the very end of a smoke test, just before it reports success."""
-    announce(f"done {test_name}", host, port)
-
-
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
 
 
 def strip(s):
@@ -95,6 +66,7 @@ def make_player(tag):
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
     send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
+    send_line(s, "1"); recv_all(s)  # territory: urban
     send_line(s, "1"); recv_all(s)  # class: mage
     send_line(s, "done"); recv_all(s)
     send_line(s, "done"); recv_all(s)  # alignment: neutral
@@ -156,5 +128,5 @@ check(f"[TEST] finished {marker}" in outImm,
 # hygiene
 set_level(nameImm, 1)
 sImm.close()
-announce_done("smoke_test_logging")
+announce_done("smoke_test_logging", host, port)
 print("=== ALL CHECKS PASSED ===")

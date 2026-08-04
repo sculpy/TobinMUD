@@ -14,9 +14,11 @@
 #include "descriptor.h"
 #include "gametime.h"
 #include "obj.h"
+#include "obj_repo.h"
 #include "pulse.h"
 #include "room.h"
 #include "room_repo.h"
+#include "suit_repo.h"
 #include "thing.h"
 #include "world.h"
 
@@ -556,6 +558,177 @@ static void mob_try_lamplighter(being_t *m) {
     }
 }
 
+/* Generic spec-proc dispatch (SPEC_PROCS.md: "lets port over all special
+ * procedures from sneezy"). SPEC_PROC_DOCTOR/LAMPLIGHTER/NEWBIE_EQUIPPER
+ * above pre-date this and stay as their own hand-special-cased checks
+ * (already shipped/tested, no reason to churn them) -- everything ported
+ * under this project going forward is registered here instead, in a real
+ * id -> function table mirroring the original's `mob_specials[]` +
+ * `TMonster::checkSpec`, since 322 more procs won't scale under the old
+ * one-off pattern. Ids match the original's spec_mobs.h SPEC_* constants
+ * verbatim, same "seeded numeric id from the real upstream data" contract
+ * SPEC_PROC_DOCTOR/etc already established. Only a pulse hook exists so
+ * far (mob_ai_tick's ~60s cadence) -- more hook points (speech, movement,
+ * buy/list, ...) get added here as procs that need them are ported; see
+ * SPEC_PROCS.md for the full checklist and known blockers. */
+#define SPEC_CHICKEN 8
+
+/* SPEC_CHICKEN (spec_mobs.cc's `chicken`): a rare per-tick chance to lay
+ * an egg (obj vnum 2376, seeded verbatim) into the mob's own room. First
+ * proc ported under this project -- chosen as the proof case because
+ * it's fully self-contained (no faction/disease/pet/pathfinding
+ * subsystem dependency, unlike most of the rest of spec_mobs.cc, see
+ * SPEC_PROCS.md's blocker notes). Real upstream odds are 1-in-5000 per
+ * pulse (`::number(0, 4999)` returns nonzero unless it rolls exactly 0);
+ * kept verbatim rather than re-tuned for Tobin's own ~60s AI tick
+ * cadence, which is slower than the original's per-pulse rate this was
+ * tuned against -- a deliberate, disclosed scope note, not a bug. */
+static void mob_spec_chicken_pulse(being_t *m) {
+    if (!m->base.roomp || rand() % 5000 != 0)
+        return;
+
+    obj_t *egg = obj_create_from_proto(2376);
+    if (!egg)
+        return;
+    thing_move_to(&egg->base, &m->base.roomp->base);
+
+    char capbuf[128], msg[192];
+    snprintf(msg, sizeof(msg), "%s lays an egg.\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)));
+    descriptor_room_echo(m->base.roomp, NULL, msg);
+}
+
+/* SPEC_REPLICANT (spec_mobs.cc's `replicant`) -- id 71, another
+ * "wrongly marked [-] before the array-position correction" find
+ * (SPEC_PROCS.md correction #2): no named constant in spec_mobs.h, but
+ * a real slot in `mob_specials[]`. Third proc ported under this
+ * project. On pulse, a damaged replicant heals to full and spawns a
+ * fresh, undamaged copy of itself into the room -- `thing_t.id` IS the
+ * live mob's own vnum for `THING_MOB` (thing.h's own doc comment),
+ * so no extra lookup is needed to know what to respawn.
+ * Deliberately unconditional, matching the original verbatim: it fires
+ * whenever the mob is below full HP for ANY reason (a real fight, an
+ * immortal's `hurt`, ...), not just mid-combat -- the original has no
+ * narrower gate either. */
+#define SPEC_REPLICANT 71
+
+static void mob_spec_replicant_pulse(being_t *m) {
+    if (!m->base.roomp || m->progress.hp >= m->progress.max_hp)
+        return;
+
+    char msg[192];
+    snprintf(msg, sizeof(msg), "Drops of %s's blood hit the ground, and spring up into another one!\r\n",
+             being_display_name(m));
+    descriptor_room_echo(m->base.roomp, NULL, msg);
+
+    being_t *copy = being_create_mob(m->base.id);
+    if (copy) {
+        thing_set_room(&copy->base, m->base.roomp);
+        descriptor_room_echo(m->base.roomp, NULL, "Two undamaged opponents face you now.\r\n");
+    }
+
+    m->progress.hp = m->progress.max_hp;
+}
+
+/* The actual dispatch table -- add one `case` per newly-ported proc that
+ * only needs the pulse hook. Procs needing other hooks (speech, etc)
+ * get their own small dispatch function alongside this one, called from
+ * wherever that hook already lives (cmd_say.c, cmd_move.c, ...), same
+ * "id -> function" shape either way. */
+static void mob_spec_dispatch_pulse(being_t *m) {
+    switch (m->mob_spec_proc) {
+    case SPEC_CHICKEN:
+        mob_spec_chicken_pulse(m);
+        break;
+    case SPEC_REPLICANT:
+        mob_spec_replicant_pulse(m);
+        break;
+    default:
+        break;
+    }
+}
+
+/* SPEC_BEGGAR (spec_mobs.cc's `beggar`) -- id 17, found in the REAL
+ * `mob_specials[]` registration array (spec_mobs.cc), not the sparse
+ * named-constant list in spec_mobs.h (a scoping correction found this
+ * session -- that header only names the entries referenced BY NAME
+ * elsewhere in the C++ source; most of the array's 222 slots, including
+ * this one, have no named constant at all and are only reachable by
+ * array position/id). Second proc ported under this project, and the
+ * first needing a hook beyond the pulse -- a new "given coins"/"given
+ * item" pair, called from cmd_object.c's `give` right after a mob
+ * successfully receives something. A mob has no descriptor to notify
+ * directly, so reactions are room echoes (same convention chicken's
+ * egg-laying announcement already uses). Two of the original's six
+ * coin-amount reactions had crude language toned down (kept the beat/
+ * amount-tiers verbatim, not the wording) -- a disclosed, deliberate
+ * scope note, not a bug. */
+#define SPEC_BEGGAR 17
+
+static void mob_spec_beggar_given_item(being_t *m) {
+    char capbuf[128], msg[192];
+    snprintf(msg, sizeof(msg), "%s says, \"Thanks! I'll pawn that off for some coin.\"\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)));
+    descriptor_room_echo(m->base.roomp, NULL, msg);
+}
+
+static void mob_spec_beggar_given_coins(being_t *m, int amount) {
+    char capbuf[128], msg[256];
+    const char *name = cap_first(m->base.short_descr, capbuf, sizeof(capbuf));
+    if (amount < 50) {
+        snprintf(msg, sizeof(msg), "%s says, \"Hmph. Don't strain yourself.\"\r\n", name);
+    } else if (amount < 250) {
+        snprintf(msg, sizeof(msg), "%s says, \"Good... that'll buy a meal.\"\r\n", name);
+    } else if (amount < 1000) {
+        snprintf(msg, sizeof(msg), "%s says, \"Wow. Thanks!\"\r\n", name);
+    } else if (amount < 10000) {
+        snprintf(msg, sizeof(msg),
+                 "%s staggers a bit, utterly amazed, and says, \"I can eat well for a year now! Thank you!\"\r\n",
+                 name);
+    } else if (amount < 100000) {
+        snprintf(msg, sizeof(msg), "%s shakes uncontrollably, too stunned to speak.\r\n", name);
+    } else {
+        snprintf(msg, sizeof(msg), "%s passes out in amazement, hitting the ground with a loud *thud*!\r\n", name);
+        m->position = POSITION_SLEEPING;
+    }
+    descriptor_room_echo(m->base.roomp, NULL, msg);
+}
+
+static void mob_spec_dispatch_given_item(being_t *m) {
+    switch (m->mob_spec_proc) {
+    case SPEC_BEGGAR:
+        mob_spec_beggar_given_item(m);
+        break;
+    default:
+        break;
+    }
+}
+
+static void mob_spec_dispatch_given_coins(being_t *m, int amount) {
+    switch (m->mob_spec_proc) {
+    case SPEC_BEGGAR:
+        mob_spec_beggar_given_coins(m, amount);
+        break;
+    default:
+        break;
+    }
+}
+
+/* Public hooks (see mob_ai.h) -- called from cmd_object.c's `give` right
+ * after a mob target successfully receives an item/coins. No-op for a
+ * mob with no matching spec_proc (the common case). */
+void mob_ai_notify_given_item(being_t *m) {
+    if (!m || m->base.kind != THING_MOB || !m->base.roomp)
+        return;
+    mob_spec_dispatch_given_item(m);
+}
+
+void mob_ai_notify_given_coins(being_t *m, int amount) {
+    if (!m || m->base.kind != THING_MOB || !m->base.roomp)
+        return;
+    mob_spec_dispatch_given_coins(m, amount);
+}
+
 /* world_for_each_mob() callback for mob_ai_tick() below -- runs every
  * one of this mob's independent AI behaviors in turn (wander, scavenge,
  * surplus collect/deliver, aggress, alignment flavor, lamplighter).
@@ -568,6 +741,7 @@ static void mob_ai_visit(being_t *m) {
     mob_try_aggress(m);
     mob_try_align_flavor(m);
     mob_try_lamplighter(m);
+    mob_spec_dispatch_pulse(m);
     /* Pet/charm's own "joins its master's fight" logic lives in
      * combat.c's pet-assist pass (combat_process_run()) instead of here
      * -- this AI tick runs on a ~60s wander/scavenge cadence, far too
@@ -585,4 +759,48 @@ static void mob_ai_visit(being_t *m) {
 void mob_ai_tick(long pulse_num) {
     (void)pulse_num;
     world_for_each_mob(mob_ai_visit);
+}
+
+/* See mob_ai.h's doc comment. Only greets for a matching mob's OWN class
+ * suit -- a mob with no suit defined for the arriver's class (suit_id < 0)
+ * says nothing, same "nothing for you right now" spirit as the say-
+ * triggered reissue in cmd_say.c. Stops at the first matching mob in the
+ * room, same convention try_newbie_equipper() uses. */
+void mob_ai_greet_newbie_equipper(being_t *arriver, room_t *r) {
+    if (!arriver || !r || !arriver->desc || arriver->player_id <= 0)
+        return;
+
+    for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_MOB)
+            continue;
+        being_t *mob = (being_t *)t;
+        if (mob->mob_spec_proc != SPEC_PROC_NEWBIE_EQUIPPER)
+            continue;
+
+        int suit_id = suit_repo_find_for_class((int)arriver->char_class);
+        if (suit_id < 0)
+            return;
+
+        int vnums[SUIT_MAX_ITEMS], qtys[SUIT_MAX_ITEMS];
+        int n = suit_repo_load_items_qty(suit_id, vnums, qtys, SUIT_MAX_ITEMS);
+        if (n == 0)
+            return;
+
+        char capbuf[128];
+        being_display_name_cap(mob, capbuf, sizeof(capbuf));
+        char out[1536];
+        size_t len = (size_t)snprintf(out, sizeof(out),
+            "%s looks you over and says, \"If you're ever short on gear, just ask "
+            "-- here's what I can set you up with:\"\r\n", capbuf);
+        for (int i = 0; i < n && len < sizeof(out); i++) {
+            obj_proto_t proto;
+            const char *label = obj_proto_load(vnums[i], &proto) ? proto.short_descr : "(unknown item)";
+            if (qtys[i] > 1)
+                len += (size_t)snprintf(out + len, sizeof(out) - len, "  %s (x%d)\r\n", label, qtys[i]);
+            else
+                len += (size_t)snprintf(out + len, sizeof(out) - len, "  %s\r\n", label);
+        }
+        descriptor_send(arriver->desc, out);
+        return;
+    }
 }

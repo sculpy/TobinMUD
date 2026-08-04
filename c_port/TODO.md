@@ -13,6 +13,40 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
+## User batch 2026-08-04 — logged, working these now
+
+- [ ] **Crit hit messages reproduced from Sneezy** — user 2026-08-04: port
+      the original SneezyMUD critical-hit combat messages (not yet
+      checked against Tobin's current crit implementation in `combat.c`/
+      `smoke_test_crit.py` — need to diff against the real upstream
+      source for the exact message set before porting).
+
+## User batch 2026-08-03 (later) — done
+
+- [x] **Immortals: all skills/spells at maxed potential** — done, Session
+      127. Read-time override (`skill_proficiency()` in skill.c, `disc_pct()`
+      in cmd_practice.c), not a DB write -- no practice_points spent,
+      mortal-facing storage untouched. `being_knows_skill()`/cmd_cast.c/
+      cmd_pray.c's access gates and `skills`'s own display already had
+      this precedent (2026-07-12); this extends it to `practice`'s
+      display/spend paths, the one place that didn't yet. Verified live.
+
+## User batch 2026-08-03 (late) — done
+
+- [x] **Vitality gate during combat** — done, Session 127. Mid-fight
+      Vitality now regens a small base amount (`regen_tick_run()`,
+      regen.c -- previously fully gated on `!fighting` alongside HP; HP
+      itself untouched, still rest-only). The "block vit-costing actions
+      at 0 Vitality" half was already true for every existing vit-costing
+      command (full `being_spend_vit()` caller audit found no gap).
+- [x] **`prac <class>` display rework** — done, Session 127. Per-skill
+      description text dropped; each line now reads `Skill    (learned/
+      max potential) <colorized word>` (`skill_proficiency_word_colored()`,
+      skill.c/skill.h, 7-tier bucket mirroring `being_health_word`'s
+      style) instead of a raw percentage. `tests/smoke_test_practice.py`
+      re-verified, zero regressions (no test asserted on the old per-skill
+      line format).
+
 ## User batch 2026-07-30 — autonomous backlog pass, working these now
 
 User directive: work through TODO.md/STATUS.md autonomously, prioritizing
@@ -337,6 +371,20 @@ ask only when genuinely ambiguous. Full list, in the order given:
       `tests/smoke_test_newbie_gear_race.py` plus a clean re-run of the
       pre-existing `tests/smoke_test_newbie_gear.py` — zero
       regressions.
+
+## Big ongoing project: port all special procedures from Sneezy
+
+**See [SPEC_PROCS.md](SPEC_PROCS.md) for the full tracking checklist —
+this entry is just a pointer so it's visible from TODO.md.** User
+2026-08-03: "lets port over all special procedures from sneezy" / "and
+apply them to the mobs/objs they modify," scoped as "everything, in
+original file order." 325 distinct spec-proc functions across 58 files
+in the original engine (`sneezymud-master/code/code/spec/*.cc`); Tobin
+has 3 so far, all pre-dating this project. Far too large for one
+session — SPEC_PROCS.md has the per-file checklist, blocker list, and
+progress counts so this can be picked up from any location/session.
+Needs a real dispatch-table framework built first (mirrors the
+original's `mob_specials[]`), not the old one-off special-cased pattern.
 
 ## User batch 2026-08-02 (session continuation) — logged, working these now
 
@@ -6596,6 +6644,77 @@ already tracked — pointers, not duplicates):
       it whenever that's wanted.
 
 ## Small near-term gameplay follow-ups
+
+- [x] **Sleeping should lock out commands until waking up** — done,
+      Session 127. One centralized gate in `cmd_dispatch()` (cmd_table.c),
+      same shape/location as the existing wait-state (lag) gate right
+      above it: a non-immortal, sleeping caller can issue exactly one
+      verb (`wake`, exact match, not abbreviation-aware -- same
+      simplicity precedent the sibling wait-state gate already uses) and
+      nothing else. Immortals fully exempt (`being_is_immortal()`), same
+      convention `being_get_wait()` already applies to lag. Superseded
+      the handful of individual per-command sleeping checks (`look`,
+      `attack`, `assist`, `sign`) as the FIRST line of defense for
+      mortals -- those still fire harmlessly for an exempt immortal who
+      chooses to test/roleplay being asleep, so nothing was removed.
+      Fixed 4 existing tests whose own assertions collided with the new
+      blanket block (`smoke_test_socials.py`/`smoke_test_edsocial.py`'s
+      min_position checks switched from `sleep` to `sit` -- still below
+      the tested threshold, no longer literally asleep;
+      `smoke_test_curse_slumber.py`/`smoke_test_meditate_wake_
+      proficiency.py` updated to expect the new lockout instead of
+      reading the sleeping victim's own `score`/`affects`, which are no
+      longer reachable that way). Verified live (a fresh mortal's
+      `score` while asleep returns the lockout message; an immortal's
+      does not).
+      **Also found while verifying** (pre-existing, unrelated to this
+      change): 8 older smoke test files' `make_char()` helpers are stale
+      -- they predate the "homeland" selection step added to character
+      creation in a later session, so EVERY one of them now gets stuck
+      mid-creation on any run (confirmed via live repro, not assumed).
+      Affects at least `smoke_test_positions.py`, `smoke_test_shout.py`,
+      `smoke_test_sign.py`, `smoke_test_telepathy.py`,
+      `smoke_test_meditate_wake_proficiency.py`, and likely others not
+      yet checked -- a real, disclosed backlog item, not something fixed
+      as a side effect here (out of scope for this change, logged as its
+      own item below).
+- [x] **Room `look` shows fighting status** — done, Session 127. User:
+      "when fighting and you look in the room you should see the mob
+      fighting a tank. A deputy of the Brotherhood is here, fighting
+      you." `render_room_item()` (cmd_look.c) now appends ", fighting
+      you" (from the perspective of whoever's actually being fought) or
+      ", fighting <opponent's display name>" (for anyone else looking
+      on) to a fighting occupant's room-listing line. Stacking (grouping
+      identical lines with "(xN)") needed no extra logic -- it's already
+      by rendered-string equality, so two mobs fighting different
+      targets naturally render distinct lines. `tests/
+      smoke_test_look_fighting.py` (6 checks: third-party view of both
+      fighters, each fighter's own "fighting you" perspective, and the
+      clause disappearing once combat ends) passes live.
+- [x] **Stale `make_char()` helpers across older smoke tests** — found
+      2026-08-03 while verifying the sleeping-lockout change above, fixed
+      same day. Several test files' character-creation helper was
+      missing the "homeland" selection step added later, so they got
+      stuck on the class-selection menu and failed their first real
+      assertion regardless of what they were actually testing. Swept all
+      243 `tests/smoke_test_*.py` files (three passes: tuple-style
+      `for step in (...)` helpers, line-per-step `send_line`/`cmd()`
+      helpers, and a handful of `step()`-helper or menu-letter-driven
+      outliers) and fixed every creation flow that skipped straight from
+      race to class (or, in a couple of very stale files --
+      `smoke_test_login.py`, `smoke_test_heartbeat.py` -- skipped race
+      and class too) to the current real sequence (name/confirm/pw/pw/
+      new/name/race/homeland/class/done/done). One non-mechanical fix
+      needed alongside: `smoke_test_accounts.py`'s hardcoded post-creation
+      `Str:` assertions (146/116) didn't account for the Urban homeland's
+      own -3 Str modifier once a real homeland pick was added -- recomputed
+      to 143/113 and updated the explanatory comments. Verified with a
+      final automated pass across every file confirming each creation
+      flow now sends exactly 3 choice tokens (race/territory/class)
+      before the two `done`s. Not live-tested against the running server
+      this session (no network route to db.kullit.com from this
+      environment) -- needs the normal build+targeted-test pass before
+      trusting it fully.
 
 - [x] **`mudstats` should also show account count, player (character)
       count, and lines of code in the codebase** — user 2026-07-28, done

@@ -108,4 +108,23 @@ const char *mob_action_names(int flags, char *buf, size_t size);
  * already call. */
 #define SPEC_PROC_NEWBIE_EQUIPPER 147
 
+/* Greets an arriving PC with a listing of what SPEC_PROC_NEWBIE_EQUIPPER
+ * mob(s) in `r` have available for their class, the moment they walk in
+ * (user, 2026-08-03: "surplus welfare worker should list whats available
+ * for her when walking into the room") -- separate from, and doesn't
+ * change, the existing "say gear"/etc request-and-reissue flow
+ * (cmd_say.c's try_newbie_equipper()), which stays the only way to
+ * actually RECEIVE the gear. Called from cmd_move.c right after a mover's
+ * own arrival echo. No-op for anyone who isn't a real connected PC (a mob
+ * wandering in, an admin snapshot, ...). */
+void mob_ai_greet_newbie_equipper(struct being *arriver, struct room *r);
+
+/* SPEC_BEGGAR (spec_mobs.cc's `beggar`, spec-proc project, SPEC_PROCS.md)
+ * -- called from cmd_object.c's `give` right after `m` (the recipient)
+ * successfully receives an item or `amount` coins. No-op for any mob
+ * without a matching mob_spec_proc, or for a non-mob target (a PC
+ * recipient never reaches these). See mob_ai.c for the reaction text. */
+void mob_ai_notify_given_item(struct being *m);
+void mob_ai_notify_given_coins(struct being *m, int amount);
+
 #endif

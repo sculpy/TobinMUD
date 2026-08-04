@@ -930,6 +930,54 @@ void race_stat_bonus(player_race_t r, attrs_t *a) {
     }
 }
 
+static const char *const TERRITORY_NAMES[TERRITORY_COUNT] = {
+    "Urban Dweller", "Rural Dweller", "Wilds Dweller",
+};
+
+/* Display name for a PC territory (TERRITORY_NAMES[] above) -- "(none)"
+ * for TERRITORY_NONE/any out-of-range value (see being.h's comment: this
+ * is the real, common case for a character who never visited the
+ * options sub-menu, not an error). */
+const char *territory_name(player_territory_t t) {
+    if (t < 0 || t >= TERRITORY_COUNT)
+        return "(none)";
+    return TERRITORY_NAMES[t];
+}
+
+/* Every territory's bonus/penalty sums to zero, same convention as
+ * race_stat_bonus()/class_stat_bonus() -- see the declaration comment
+ * (being.h) for the scope-down rationale (one shared 3-option set instead
+ * of 6 race-specific tables). Urban trades physical for mental/social
+ * (matches real upstream's own Urban Dweller table exactly in direction);
+ * Wilds is Urban's mirror image; Rural sits in between, favoring dexterity/
+ * wisdom over raw charisma. */
+void territory_stat_bonus(player_territory_t t, attrs_t *a) {
+    if (!a)
+        return;
+    switch (t) {
+        case TERRITORY_URBAN:
+            a->intelligence += 3;
+            a->charisma += 3;
+            a->constitution -= 3;
+            a->strength -= 3;
+            break;
+        case TERRITORY_RURAL:
+            a->wisdom += 2;
+            a->dexterity += 2;
+            a->strength -= 2;
+            a->charisma -= 2;
+            break;
+        case TERRITORY_WILDS:
+            a->constitution += 3;
+            a->strength += 3;
+            a->intelligence -= 3;
+            a->charisma -= 3;
+            break;
+        default:
+            break;
+    }
+}
+
 /* Bucketed HP% description for `b` ("perfect", "hurt", "near death",
  * etc.) -- the classic MUD `diagnose`/`look` health line, done as
  * discrete tiers rather than a raw percentage so the game reads as
@@ -938,6 +986,11 @@ const char *being_health_word(const being_t *b) {
     if (!b || b->progress.max_hp <= 0)
         return "unknown";
     int pct = (int)(((long)b->progress.hp * 100) / b->progress.max_hp);
+    return health_word_for_pct(pct);
+}
+
+/* See being.h's doc comment. */
+const char *health_word_for_pct(int pct) {
     if (pct > 100)   return "heroic";   /* above max (future: buffs) */
     if (pct >= 100)  return "perfect";
     if (pct >= 90)   return "excellent";
@@ -949,6 +1002,25 @@ const char *being_health_word(const being_t *b) {
     if (pct >= 20)   return "awful";
     if (pct >= 10)   return "horrid";
     return "near death";
+}
+
+/* See being.h's doc comment. Same gradient shape obj_condition_word()
+ * (obj.c) uses for item condition: bright at the extremes (a vivid
+ * "perfect"/bright green, an urgent "near death"/bright red), dim in
+ * the middle, matching this codebase's own "dim by default, bright
+ * sparingly" colorize habit. */
+const char *health_word_for_pct_colored(int pct) {
+    if (pct > 100)   return "<C>heroic<1>";
+    if (pct >= 100)  return "<G>perfect<1>";
+    if (pct >= 90)   return "<g>excellent<1>";
+    if (pct >= 75)   return "<c>good<1>";
+    if (pct >= 60)   return "<y>injured<1>";
+    if (pct >= 50)   return "<y>hurt<1>";
+    if (pct >= 40)   return "<o>wounded<1>";
+    if (pct >= 30)   return "<o>bad<1>";
+    if (pct >= 20)   return "<r>awful<1>";
+    if (pct >= 10)   return "<r>horrid<1>";
+    return "<R>near death<1>";
 }
 
 /* Words for progress_t.hunger/thirst (0-100, -1 = immortal-immune), same

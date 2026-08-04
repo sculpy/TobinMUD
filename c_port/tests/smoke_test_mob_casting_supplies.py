@@ -23,79 +23,17 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    """Tell the running MUD which smoke test is executing: emits a [TEST]
-    log line (visible to online immortals and in the day's log file) via
-    the loopback-only `@test` server hook. Best-effort -- never fails the
-    test. Self-contained (own socket, doesn't depend on this file's other
-    helpers) so it can run at any point in the script."""
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_mob_casting_supplies")
+announce("smoke_test_mob_casting_supplies", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 BASE = 900000 + (int(time.time()) % 70000)
 ROOM = BASE
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def set_level(name, level):
@@ -112,6 +50,7 @@ def make_char(sock, name, pw):
     send_line(sock, "new"); recv_all(sock)
     send_line(sock, name); recv_all(sock)
     send_line(sock, "1"); recv_all(sock)  # race: human (zero stat modifier)
+    send_line(sock, "1"); recv_all(sock)  # territory: urban
     send_line(sock, "1"); recv_all(sock)  # class: mage
     send_line(sock, "done"); recv_all(sock)
     send_line(sock, "done"); recv_all(sock)  # alignment: neutral
@@ -238,4 +177,4 @@ check("component" not in out.lower() and "symbol" not in out.lower(),
       "the Warrior mob's corpse holds no casting supplies at all")
 
 print("ALL CHECKS PASSED")
-announce_done("smoke_test_mob_casting_supplies")
+announce_done("smoke_test_mob_casting_supplies", host, port)

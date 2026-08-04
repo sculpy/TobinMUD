@@ -49,9 +49,10 @@ bool cmd_edsuit(descriptor_t *d, const char *args) {
         size_t len = (size_t)snprintf(out, sizeof(out), "\r\n<c>=== Suits ===<z>\r\n");
         for (int i = 0; i < n && len < sizeof(out); i++) {
             len += (size_t)snprintf(out + len, sizeof(out) - len,
-                "  <c>%3d)<z> <p>%-20s<z> class=%-9s items=%d -- %s\r\n",
+                "  <c>%3d)<z> <p>%-20s<z> class=%-9s race=%-7s items=%d -- %s\r\n",
                 suits[i].id, suits[i].name,
                 suits[i].class_restrict < 0 ? "any" : class_name((player_class_t)suits[i].class_restrict),
+                suits[i].race_restrict < 0 ? "any" : race_name((player_race_t)suits[i].race_restrict),
                 suits[i].item_count, suits[i].description);
         }
         if (len < sizeof(out))
@@ -83,7 +84,7 @@ bool cmd_edsuit(descriptor_t *d, const char *args) {
 
     char *end;
     long suit_id = strtol(tok, &end, 10);
-    if (end == tok || suit_id <= 0 || !suit_repo_get((int)suit_id, NULL, 0, NULL, NULL, 0)) {
+    if (end == tok || suit_id <= 0 || !suit_repo_get((int)suit_id, NULL, 0, NULL, NULL, NULL, 0)) {
         descriptor_send(d, "No such suit id -- `edit suit` with no argument lists them all.\r\n");
         return true;
     }

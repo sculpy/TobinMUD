@@ -14,6 +14,7 @@
 #include "cmd.h"
 #include "combat.h"
 #include "fall.h"
+#include "mob_ai.h"
 #include "player_repo.h"
 #include "room.h"
 #include "room_repo.h"
@@ -324,6 +325,8 @@ static bool do_move(descriptor_t *d, int dir) {
     }
     if (!ch->sneaking)
         descriptor_room_echo(to, ch, msg);
+
+    mob_ai_greet_newbie_equipper(ch, to);
 
     /* Leader/follower movement (TODO.md priority item, user 2026-07-30) --
      * see move_followers_along()'s own doc comment above do_move() for

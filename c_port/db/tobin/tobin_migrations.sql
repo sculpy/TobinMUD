@@ -636,3 +636,10 @@ ALTER TABLE `bug`
   ADD COLUMN IF NOT EXISTS `room_vnum` int DEFAULT NULL;
 ALTER TABLE `idea`
   ADD COLUMN IF NOT EXISTS `room_vnum` int DEFAULT NULL;
+
+-- Territory/Homeland (Sneezy -> Tobin feature audit, `docs/systems/important/
+-- territory-system.md` -- a fresh, not-yet-audited system): a permanent
+-- sub-race homeland chosen at creation right after race, same enum-order
+-- convention as `class`/`race` above (being.h's player_territory_t: 0-2).
+ALTER TABLE `player`
+  ADD COLUMN IF NOT EXISTS `territory` tinyint(4) NOT NULL DEFAULT 0;

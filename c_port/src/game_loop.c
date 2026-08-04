@@ -211,6 +211,42 @@ static bool copyover_room_already_has(const room_t *r, thing_kind_t kind, int vn
  * copyover recovery file (see cmd_copyover.c for the writer and the file
  * format). Returns false if the file can't be read/parsed -- the caller
  * then opens a fresh listening socket as if this were a cold boot. */
+/* Deferred fight re-link (cmd_copyover.c's "fight ..." lines): both sides
+ * of a fight may not exist yet at the point a "fight" line is read (a PC
+ * opponent might be a later "conn" line; a mob opponent's room might not
+ * be loaded yet), so every entry is queued here and resolved in one pass
+ * after the whole recovery file has been read and every conn/mob/obj line
+ * applied. */
+typedef struct {
+    char fighter[64];
+    bool is_mob;
+    char target_name[64];  /* is_mob == false */
+    int room_vnum, mob_vnum, ordinal; /* is_mob == true */
+} deferred_fight_t;
+#define MAX_DEFERRED_FIGHTS 128
+
+static being_t *find_online_char(const char *name) {
+    for (descriptor_t *d = g_descriptors; d; d = d->next)
+        if (d->character && strcmp(d->character->base.name, name) == 0)
+            return d->character;
+    return NULL;
+}
+
+/* The mob-side counterpart of cmd_copyover.c's mob_ordinal_in_room():
+ * finds the `ordinal`-th (1-based) mob of `vnum` in room `r`'s contents,
+ * in the same stuff_head traversal order the dump used. */
+static being_t *find_mob_at_ordinal(const room_t *r, int vnum, int ordinal) {
+    int n = 0;
+    for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind == THING_MOB && t->id == vnum) {
+            n++;
+            if (n == ordinal)
+                return (being_t *)t;
+        }
+    }
+    return NULL;
+}
+
 static bool copyover_recover(const char *file, main_socket_t *ms) {
     FILE *f = fopen(file, "r");
     if (!f) {
@@ -227,8 +263,34 @@ static bool copyover_recover(const char *file, main_socket_t *ms) {
         return false;
     }
 
+    deferred_fight_t fights[MAX_DEFERRED_FIGHTS];
+    int fight_count = 0;
+
     int restored = 0, dropped = 0, mobs_restored = 0, objs_restored = 0;
     while (fgets(line, sizeof(line), f)) {
+        char fight_fighter[64], fight_target[64];
+        int fight_room_vnum, fight_mob_vnum, fight_ordinal;
+        if (sscanf(line, "fight %63s pc %63s", fight_fighter, fight_target) == 2) {
+            if (fight_count < MAX_DEFERRED_FIGHTS) {
+                snprintf(fights[fight_count].fighter, sizeof(fights[fight_count].fighter), "%s", fight_fighter);
+                fights[fight_count].is_mob = false;
+                snprintf(fights[fight_count].target_name, sizeof(fights[fight_count].target_name), "%s", fight_target);
+                fight_count++;
+            }
+            continue;
+        }
+        if (sscanf(line, "fight %63s mob %d %d %d", fight_fighter, &fight_room_vnum,
+                   &fight_mob_vnum, &fight_ordinal) == 4) {
+            if (fight_count < MAX_DEFERRED_FIGHTS) {
+                snprintf(fights[fight_count].fighter, sizeof(fights[fight_count].fighter), "%s", fight_fighter);
+                fights[fight_count].is_mob = true;
+                fights[fight_count].room_vnum = fight_room_vnum;
+                fights[fight_count].mob_vnum = fight_mob_vnum;
+                fights[fight_count].ordinal = fight_ordinal;
+                fight_count++;
+            }
+            continue;
+        }
         int fd, room_vnum, color;
         long account_id;
         char peer_ip[46], char_name[64], account_name[80];
@@ -300,10 +362,113 @@ static bool copyover_recover(const char *file, main_socket_t *ms) {
     }
     fclose(f);
     unlink(file);
+
+    /* Re-link every deferred fight now that all conn/mob lines have been
+     * applied -- see deferred_fight_t's doc comment above. */
+    int fights_restored = 0;
+    for (int i = 0; i < fight_count; i++) {
+        being_t *fighter = find_online_char(fights[i].fighter);
+        if (!fighter)
+            continue;
+        being_t *target = NULL;
+        if (fights[i].is_mob) {
+            room_t *r = world_get_room(fights[i].room_vnum);
+            if (r)
+                target = find_mob_at_ordinal(r, fights[i].mob_vnum, fights[i].ordinal);
+        } else {
+            target = find_online_char(fights[i].target_name);
+        }
+        if (target) {
+            fighter->fighting = target;
+            target->fighting = fighter;
+            fights_restored++;
+        }
+    }
+
     log_info("Copyover: restored %d mob(s), %d object(s) into their rooms.",
               mobs_restored, objs_restored);
-    log_info("Copyover recovery: %d connection(s) restored, %d dropped.", restored, dropped);
+    log_info("Copyover recovery: %d connection(s) restored, %d dropped, %d fight(s) re-linked.",
+              restored, dropped, fights_restored);
     return true;
+}
+
+/* First whitespace-delimited token of `b->base.name` (the raw keyword
+ * list, e.g. mob vnum 31351's "zombie obedient" -- NOT short_descr's
+ * full "an obedient zombie"), lowercased as-seeded. User 2026-08-03:
+ * "(Vict: An obedient zombie good) should be (zombie: good)" -- a
+ * single short keyword reads better in a tight prompt tag than the
+ * full display name, and doubles as dropping the literal "Vict"/"Tank"
+ * label in favor of identifying WHO by name directly. A PC's own
+ * `base.name` is already just their one-word character name, so this
+ * is a no-op for them (falls through unchanged). */
+static void prompt_short_keyword(const being_t *b, char *buf, size_t buf_size) {
+    const char *src = b->base.name;
+    size_t i = 0;
+    while (src[i] && src[i] != ' ' && i < buf_size - 1) {
+        buf[i] = src[i];
+        i++;
+    }
+    buf[i] = '\0';
+}
+
+static int prompt_hp_pct(const being_t *b) {
+    return b->progress.max_hp > 0
+        ? (int)(((long)b->progress.hp * 100) / b->progress.max_hp) : 0;
+}
+
+/* User 2026-08-03: "HP: 176 Gold: 3120 Vit: 68 ExpNeed: 14555 >
+ * <Tank: condition> <Vict: condition> all on one line just the one
+ * word condition perfect, awful etc. and tastefully colored like item
+ * condition" -- a compact, per-prompt replacement for an earlier same-
+ * session attempt that sent a full "You are X. Y is Y." sentence every
+ * combat round (combat.c) instead. Refined three times more the same
+ * session:
+ *   - "use () instead of <>" -- visible delimiters that can't be
+ *     confused with the color tags they wrap (the confusion that
+ *     caused the separately-fixed "color codes arent working" bug).
+ *   - "if the tank is you the character then no need to display
+ *     condition, and for vict, substitute with the keyword/name of the
+ *     mob you are fighting. so if groupped, the others in a group
+ *     should see the tank condition, but the tank can skip that."
+ *   - "(Vict: An obedient zombie good) should be (zombie: good)" --
+ *     drop the literal Tank:/Vict: label in favor of a single short
+ *     keyword identifying who (prompt_short_keyword() above).
+ *
+ * `viewer` is whoever's prompt this is being built for -- NOT
+ * necessarily the one fighting:
+ *   - `viewer` is themselves fighting: they ARE the tank, so their own
+ *     condition is redundant with the HP number already in this same
+ *     prompt line -- shows only "(<opponent keyword>: <word>)".
+ *   - `viewer` isn't fighting, but a grouped member is: shows
+ *     "(<fighter keyword>: <word>)" for whichever grouped member is
+ *     actually engaged, so onlookers can see how their own tank is
+ *     doing.
+ *   - Neither: no-op, writes nothing (0). */
+static size_t prompt_append_tank_vict(const being_t *viewer, char *buf, size_t buf_size) {
+    if (!viewer)
+        return 0;
+
+    const being_t *tank = NULL;
+    if (viewer->fighting) {
+        tank = viewer;
+    } else if (viewer->grouped) {
+        being_t *members[GROUP_MAX_FOLLOWERS + 1];
+        int n = being_group_members(viewer, members, GROUP_MAX_FOLLOWERS + 1);
+        for (int i = 0; i < n; i++) {
+            if (members[i] != viewer && members[i]->fighting) {
+                tank = members[i];
+                break;
+            }
+        }
+    }
+    if (!tank || !tank->fighting)
+        return 0;
+
+    const being_t *shown = (tank == viewer) ? tank->fighting : tank;
+    char keyword[64];
+    prompt_short_keyword(shown, keyword, sizeof(keyword));
+    return (size_t)snprintf(buf, buf_size, "(%s: %s) ",
+                             keyword, health_word_for_pct_colored(prompt_hp_pct(shown)));
 }
 
 /* The main select()-driven accept/read/pulse loop -- the heart of the
@@ -506,11 +671,24 @@ int game_loop_run(int port, const char *copyover_file) {
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "ExpNeed: %ld ", need);
                     }
                     pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "> %s", waitbuf);
-                    descriptor_write(p, pbuf, pn);
+                    pn += (size_t)prompt_append_tank_vict(p->character, pbuf + pn, sizeof(pbuf) - pn);
+                    /* Tank:/Vict: (below) is the first color-tagged content
+                     * ever written into the prompt -- descriptor_write()
+                     * is the raw socket primitive with NO color/CRLF
+                     * processing (that's descriptor_send()'s job); writing
+                     * pbuf through it directly, as this code always had,
+                     * left the raw "<g>"/"<1>" tags showing up as literal
+                     * text once tags were actually in the buffer (user,
+                     * 2026-08-03: "color codes arent working"). Route
+                     * through descriptor_send() instead now that pbuf can
+                     * contain real tags. */
+                    descriptor_send(p, pbuf);
                 } else {
-                    char pbuf[32];
+                    char pbuf[96];
                     size_t pn = (size_t)snprintf(pbuf, sizeof(pbuf), "\r\n> %s", waitbuf);
-                    descriptor_write(p, pbuf, pn);
+                    if (p->character)
+                        pn += (size_t)prompt_append_tank_vict(p->character, pbuf + pn, sizeof(pbuf) - pn);
+                    descriptor_send(p, pbuf);
                 }
                 p->needs_prompt = false;
             }

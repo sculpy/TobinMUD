@@ -42,7 +42,8 @@ being_t *player_load(const char *name, long account_id);
  * MAX_CHARS_PER_ACCOUNT. */
 being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
                        int handed_right, gender_t gender, const char *appearance,
-                       player_class_t char_class, player_race_t race, int alignment);
+                       player_class_t char_class, player_race_t race, int alignment,
+                       player_territory_t territory);
 
 /* Deletes a player (and, via ON DELETE CASCADE, its player_attrs row) --
  * but only if it's owned by account_id. Returns false if not found/not

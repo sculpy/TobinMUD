@@ -20,37 +20,13 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_curse_slumber")
+announce("smoke_test_curse_slumber", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 ROOM = 977000 + (int(time.time()) % 1000)
@@ -63,41 +39,8 @@ CLASS_WARRIOR = 2
 WEAR_TAKE = 1
 
 
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
 def strip(s):
     return re.sub(r"\x1b\[[0-9;]*m", "", s)
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def make_char(name, pw):
@@ -109,7 +52,7 @@ def make_char(name, pw):
     # pattern smoke_test_shove.py/smoke_test_bodyslam.py already use.
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (name, "y", pw, pw, "new", name, "1", "1", "done", "done"):
+    for step in (name, "y", pw, pw, "new", name, "1", "1", "1", "done", "done"):
         send_line(s, step)
         recv_all(s)
     s.close()
@@ -191,8 +134,16 @@ try:
     cmd(sm, "get pouch"); recv_all(sm, 0.3)
     out2 = strip(cmd(sm, f"cast slumber {vic_name}"))
     check("collapse into sleep" in out2.lower(), "slumber succeeds with a component")
+    # 2026-08-03: a sleeping (non-immortal) caller can no longer run
+    # `affects` (or anything else but `wake`) at all -- the new central
+    # sleeping gate (cmd_table.c) intercepts it before it ever reaches
+    # cmd_affects.c, so "affects lists Sleep while it's active" is no
+    # longer independently observable via the victim's own command. The
+    # refusal itself is still solid proof the Sleep affect landed (a
+    # non-sleeping target would see their real affects list instead).
     out2b = strip(cmd(sv, "affects"))
-    check("sleep" in out2b.lower(), "the `affects` command lists Sleep while it's active")
+    check("fast asleep" in out2b.lower(),
+          "the sleeping victim can't even check their own affects (new sleep lockout)")
     cmd(sm, f"load obj {COMPONENT}"); recv_all(sm, 0.3)
     cmd(sm, "get pouch"); recv_all(sm, 0.3)
     out2d = strip(cmd(sm, f"cast slumber {vic_name}"))
@@ -204,7 +155,7 @@ try:
     # apply + refresh but not expiry either. affect.c's tick_being_affects()
     # special-case for AFFECT_SLEEP was verified by direct code review.)
 
-    announce_done("smoke_test_curse_slumber")
+    announce_done("smoke_test_curse_slumber", host, port)
     print("=== ALL CHECKS PASSED ===")
 finally:
     for sock in sockets:

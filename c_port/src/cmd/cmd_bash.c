@@ -7,10 +7,43 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <string.h>
+#include <strings.h>
+
 #include "being.h"
 #include "combat.h"
+#include "obj.h"
 #include "pulse.h"
 #include "skill.h"
+
+/* Same local-copy convention every other cmd_*.c using this helper
+ * already follows (cmd_cast.c, cmd_say.c, ...). */
+static bool ci_contains(const char *haystack, const char *needle) {
+    if (!haystack || !needle || !*needle)
+        return false;
+    size_t hlen = strlen(haystack), nlen = strlen(needle);
+    if (nlen > hlen)
+        return false;
+    for (size_t i = 0; i + nlen <= hlen; i++)
+        if (strncasecmp(haystack + i, needle, nlen) == 0)
+            return true;
+    return false;
+}
+
+/* True iff `ch` is currently holding a shield in either hand -- no
+ * dedicated OBJ_CAT_SHIELD exists (shields are OBJ_CAT_ARMOR, held[]
+ * items same as a weapon), so this matches the "shield" keyword the
+ * seed data's own shield names carry (e.g. whittle.c's "simple wooden
+ * shield"), same keyword-match idiom mob_ai.c's lamplighter uses for
+ * "lamppost". */
+static bool wielding_shield(const being_t *ch) {
+    for (int i = 0; i < 2; i++) {
+        obj_t *o = ch->held[i];
+        if (o && ci_contains(o->base.name, "shield"))
+            return true;
+    }
+    return false;
+}
 
 /* `bash` (Sneezy → Tobin feature audit, "Skill-based combat"). Checked
  * Sneezy's own cmd/cmd_bash.cc first: the real version is a heavy multi-
@@ -50,6 +83,19 @@ bool cmd_bash(descriptor_t *d, const char *args) {
     bool imm = being_is_immortal(ch);
     if (!imm && !being_knows_skill(ch, "bash")) {
         descriptor_send(d, "You don't know how to bash.\r\n");
+        return true;
+    }
+
+    /* User 2026-08-03: "bash should only work if holding a shield".
+     * Real upstream (cmd_bash.cc's isHoldingShield check) actually
+     * ALLOWS a shieldless bash once advanced discipline is high enough
+     * (10%/50%/90% thresholds for weapon-assisted/two-handed/barehanded
+     * bash respectively) -- a graduated system Tobin's flat single-roll
+     * bash has no discipline-threshold equivalent for. Tightened here
+     * into a hard requirement per the user's explicit ask, a deliberate
+     * simplification rather than porting the threshold ladder. */
+    if (!imm && !wielding_shield(ch)) {
+        descriptor_send(d, "You need to be holding a shield to bash.\r\n");
         return true;
     }
 

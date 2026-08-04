@@ -92,7 +92,7 @@ static bool is_skipped_column(const char *table, const char *col) {
     }
     if (strcmp(table, "player") == 0) {
         return strcasecmp(col, "class") == 0 || strcasecmp(col, "race") == 0
-            || strcasecmp(col, "gender") == 0;
+            || strcasecmp(col, "gender") == 0 || strcasecmp(col, "territory") == 0;
     }
     return false;
 }
@@ -139,6 +139,8 @@ static bool stat_player(descriptor_t *d, const char *name) {
                               class_name((player_class_t)atoi(db_get(db, "class"))));
         n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "race",
                               race_name((player_race_t)atoi(db_get(db, "race"))));
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "territory",
+                              territory_name((player_territory_t)atoi(db_get(db, "territory"))));
         n += (size_t)snprintf(out + n, sizeof(out) - n, "  %-16s %s\r\n", "gender",
                               gender_name((gender_t)atoi(db_get(db, "gender"))));
         dump_row(out, sizeof(out), &n, db, "player");

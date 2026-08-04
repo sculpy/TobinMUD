@@ -71,6 +71,7 @@ bool cmd_attack(descriptor_t *d, const char *args);
 bool cmd_kill(descriptor_t *d, const char *args);
 bool cmd_hit(descriptor_t *d, const char *args);
 bool cmd_hurtlimb(descriptor_t *d, const char *args);
+bool cmd_restore(descriptor_t *d, const char *args);
 bool cmd_aitick(descriptor_t *d, const char *args);
 bool cmd_flee(descriptor_t *d, const char *args);
 bool cmd_headbutt(descriptor_t *d, const char *args);

@@ -316,6 +316,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "time",    cmd_time,    "Show the current mud clock, weekday, and date.",     MORTAL_LEVEL_MIN },
     { "gametog", cmd_gametog, "View or flip global game-wide switches (58+).",      GAMETOG_MIN_LEVEL },
     { "hurtlimb", cmd_hurtlimb, "Debug: set a target's limb HP directly (hurtlimb <target> <limb> <hp>).", IMMORTAL_LEVEL_MIN },
+    { "restore", cmd_restore, "Fully heal an online target and clear their spell affects (restore <target>).", IMMORTAL_LEVEL_MIN },
     /* "load" is a full prefix of "loadroom", so it MUST stay ahead of it
      * and wins every shared abbreviation up to the exact word "load" --
      * loadroom needs "loadr" (5 letters). Alphabetical order delivers this
@@ -817,6 +818,21 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
      * leave. */
     if (d->character && being_get_wait(d->character) > 0) {
         descriptor_send(d, "You are still recovering!\r\n");
+        return true;
+    }
+
+    /* Sleeping gate (user 2026-08-03: "nothing is doable except wake" --
+     * previously only a handful of individual commands (`look`, `attack`,
+     * ...) checked POSITION_SLEEPING themselves, so most of the command
+     * table was silently still usable while fast asleep). Checked here,
+     * centrally, same shape as the wait-state gate just above -- a
+     * sleeping mortal can issue exactly one verb, `wake`, and nothing
+     * else. Immortals are fully exempt (same "no restrictions" convention
+     * `being_get_wait()` already applies to lag) even if their own
+     * position happens to be POSITION_SLEEPING. */
+    if (d->character && d->character->position == POSITION_SLEEPING
+        && !being_is_immortal(d->character) && strcmp(verb, "wake") != 0) {
+        descriptor_send(d, "You can't do anything -- you're fast asleep!\r\n");
         return true;
     }
 

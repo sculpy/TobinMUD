@@ -19,43 +19,12 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
-def announce(test_name, host=host, port=port):
-    """Tell the running MUD which smoke test is executing: emits a [TEST]
-    log line (visible to online immortals and in the day's log file) via
-    the loopback-only `@test` server hook. Best-effort -- never fails the
-    test. Self-contained (own socket, doesn't depend on this file's other
-    helpers) so it can run at any point in the script."""
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    """Companion to announce() -- emits a [TEST] "finished" log line. Call
-    once at the very end of a smoke test, just before it reports success."""
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_accounts")
+announce("smoke_test_accounts", host, port)
 
 # Unique per run so re-running the script doesn't collide with a leftover
 # account/character from a previous (possibly failed) run -- character
@@ -68,24 +37,6 @@ char2_name = f"Secondus{_suffix}"
 password = "attrtestpw123"
 
 
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
 def step(sock, label, line):
     """Sends `line`, reads the full reply, prints it, and returns it."""
     send_line(sock, line)
@@ -93,12 +44,6 @@ def step(sock, label, line):
     print(f"=== {label} ===")
     print(out)
     return out
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
 
 
 def player_name_exists_in_db(name):
@@ -129,6 +74,7 @@ check("(none yet)" in out, "brand-new account starts with an empty character lis
 step(s, "choose 'new'", "new")
 step(s, "character name -> race screen", char1_name)
 step(s, "race: human", "1")
+step(s, "territory: urban", "1")
 out = step(s, "class: mage -> attr screen (defaults)", "1")
 check("Str: 120" in out, "attributes start at ATTR_BASE (120)")
 check("Points remaining: 30" in out, "full pool (30) available before spending")
@@ -157,8 +103,8 @@ check(f"Welcome, {char1_name}" in out, "'done' creates the character and enters 
 
 out = step(s, "score", "score")
 check("Pri. Hand: Left" in out, "score shows the chosen left-handedness")
-check("Str: 146" in out and "Dex: 120" in out,
-      "score shows the persisted point-buy allocation (150 str -4 for the Mage class chosen at creation)")
+check("Str: 143" in out and "Dex: 120" in out,
+      "score shows the persisted point-buy allocation (150 str -4 for the Mage class, -3 for the Urban homeland chosen at creation)")
 
 s.close()
 
@@ -176,14 +122,15 @@ check("(none yet)" not in out, "the account menu recognizes the existing charact
 step(s2, "create second character", "new")
 step(s2, "second character name -> race screen", char2_name)
 step(s2, "race: human", "1")
+step(s2, "territory: urban", "1")
 step(s2, "class: mage -> attr screen", "1")
 step(s2, "accept defaults, finish", "done")
 out = step(s2, "alignment: neutral", "done")
 check(f"Welcome, {char2_name}" in out, "second character created with default (unallocated) attrs")
 
 out = step(s2, "score for second character", "score")
-check("Str: 116" in out, "second character kept the ATTR_BASE defaults (no allocation made; "
-      "120 -4 for the Mage class chosen at creation)")
+check("Str: 113" in out, "second character kept the ATTR_BASE defaults (no allocation made; "
+      "120 -4 for the Mage class, -3 for the Urban homeland chosen at creation)")
 
 s2.close()
 
@@ -234,5 +181,5 @@ check(not player_name_exists_in_db(char1_name), f"{char1_name}'s player row is g
 
 s4.close()
 
-announce_done("smoke_test_accounts")
+announce_done("smoke_test_accounts", host, port)
 print("=== ALL CHECKS PASSED ===")

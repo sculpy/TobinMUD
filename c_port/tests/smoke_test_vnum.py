@@ -10,70 +10,15 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    """Emit a [TEST] log line via the loopback `@test` hook so the running
-    MUD (and its log) records which smoke test is executing. Best-effort."""
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_vnum")
+announce("smoke_test_vnum", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
 
 
 def set_level(name, level):
@@ -109,6 +54,7 @@ send_line(s, pw); recv_all(s)
 send_line(s, "new"); recv_all(s)
 send_line(s, name); recv_all(s)
 send_line(s, "1"); recv_all(s)  # race: human (zero stat modifier)
+send_line(s, "1"); recv_all(s)  # territory: urban
 send_line(s, "1"); recv_all(s)  # class: mage
 send_line(s, "done"); recv_all(s)
 send_line(s, "done"); recv_all(s)  # alignment: neutral
@@ -158,5 +104,5 @@ check("fountain" in full.lower(), "vnum obj 1-10 includes vnum 3's fountain in r
 
 set_level(name, 1)
 s.close()
-announce_done("smoke_test_vnum")
+announce_done("smoke_test_vnum", host, port)
 print("=== ALL CHECKS PASSED ===")

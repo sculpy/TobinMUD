@@ -55,7 +55,7 @@ bool cmd_loadsuit(descriptor_t *d, const char *args) {
     long suit_id = strtol(id_tok, &end, 10);
     char suit_name[32];
     if (end == id_tok || suit_id <= 0 ||
-        !suit_repo_get((int)suit_id, suit_name, sizeof(suit_name), NULL, NULL, 0)) {
+        !suit_repo_get((int)suit_id, suit_name, sizeof(suit_name), NULL, NULL, NULL, 0)) {
         descriptor_send(d, "No such suit id -- `edit suit` with no argument lists them all.\r\n");
         return true;
     }

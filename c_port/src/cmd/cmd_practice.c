@@ -71,8 +71,14 @@ static const char *tier_name(int tier) {
     return "Basic";
 }
 
-/* Returns the current discipline percentage for a tier. */
+/* Returns the current discipline percentage for a tier. Immortals always
+ * read as 100% (user 2026-08-03: "all skills/spells at maxed potential
+ * without spending practice points") -- a read-time override, doesn't
+ * touch the stored column, so nothing needs undoing if they're ever
+ * demoted back to mortal. */
 static int disc_pct(const being_t *ch, int tier) {
+    if (being_is_immortal(ch))
+        return 100;
     if (tier == GUILD_LEVEL_COMBAT)   return ch->progress.combat_disc_pct;
     if (tier == GUILD_LEVEL_ADVANCED) return ch->progress.advanced_disc_pct;
     return ch->progress.basic_disc_pct;
@@ -121,15 +127,20 @@ static const char *spell_reagent_note(player_class_t cls, skill_tier_t sktier) {
 static void practice_show_discipline(descriptor_t *d, being_t *ch, int tier, bool has_guildmaster) {
     player_class_t cls = ch->char_class;
     skill_tier_t sktier = guild_tier_to_skill_tier(tier);
-    int level = ch->progress.level;
+    /* Immortals see every skill as available regardless of character
+     * level (999 sentinel, same precedent `skills`'s own immortal
+     * branch already uses in cmd_skills.c) -- consistent with
+     * being_knows_skill()'s "immortals always know everything" rule. */
+    int level = being_is_immortal(ch) ? 999 : ch->progress.level;
     int this_pct = disc_pct(ch, tier);
 
     bool unlocked = this_pct > 0;
     const char *lock_reason = "practice this discipline to unlock";
     if (tier == GUILD_LEVEL_ADVANCED) {
-        unlocked = ch->progress.basic_disc_pct >= 100 && ch->progress.combat_disc_pct >= 100
-                   && this_pct > 0;
-        if (ch->progress.basic_disc_pct < 100 || ch->progress.combat_disc_pct < 100)
+        int basic = disc_pct(ch, GUILD_LEVEL_BASIC);
+        int combat = disc_pct(ch, GUILD_LEVEL_COMBAT);
+        unlocked = basic >= 100 && combat >= 100 && this_pct > 0;
+        if (basic < 100 || combat < 100)
             lock_reason = "master Basic and Combat first";
     }
 
@@ -151,20 +162,27 @@ static void practice_show_discipline(descriptor_t *d, being_t *ch, int tier, boo
             continue;
         shown++;
 
+        /* User 2026-08-03: drop the per-skill description (help files
+         * already cover that) and report proficiency as "(learned/max
+         * potential)" plus a descriptive colorized word instead of a raw
+         * percentage -- max potential is the discipline's own ceiling
+         * (this_pct), the cap every skill's individual proficiency
+         * climbs toward (see this function's top doc comment). */
         bool level_ok = level >= sk->min_level;
         if (!level_ok) {
             n += (size_t)snprintf(out + n, sizeof(out) - n,
-                                  "  <k>%-26s %s (level %d)<z>\r\n",
-                                  sk->name, sk->desc, sk->min_level);
+                                  "  <k>%-26s (level %d)<z>\r\n",
+                                  sk->name, sk->min_level);
         } else if (!unlocked) {
             n += (size_t)snprintf(out + n, sizeof(out) - n,
-                                  "  <k>%-26s %s (%s)<z>\r\n",
-                                  sk->name, sk->desc, lock_reason);
+                                  "  <k>%-26s (%s)<z>\r\n",
+                                  sk->name, lock_reason);
         } else {
             int prof = skill_proficiency(ch, sk);
             n += (size_t)snprintf(out + n, sizeof(out) - n,
-                                  "  %-26s %s <y>[%d%%]<z>\r\n",
-                                  sk->name, sk->desc, prof);
+                                  "  %-26s (%d/%d) %s\r\n",
+                                  sk->name, prof, this_pct,
+                                  skill_proficiency_word_colored(prof));
         }
     }
     if (shown == 0)
@@ -208,9 +226,9 @@ bool cmd_practice(descriptor_t *d, const char *args) {
         int n = snprintf(msg, sizeof(msg),
                  "Basic: <c>%d%%<z>  Combat: <c>%d%%<z>  Advanced: <c>%d%%<z>\r\n"
                  "Practice points available: <c>%d<z>\r\n",
-                 ch->progress.basic_disc_pct,
-                 ch->progress.combat_disc_pct,
-                 ch->progress.advanced_disc_pct,
+                 disc_pct(ch, GUILD_LEVEL_BASIC),
+                 disc_pct(ch, GUILD_LEVEL_COMBAT),
+                 disc_pct(ch, GUILD_LEVEL_ADVANCED),
                  ch->progress.practice_points);
 
         int tier = 0;
@@ -291,7 +309,7 @@ bool cmd_practice(descriptor_t *d, const char *args) {
 
     /* Advanced gate: Basic AND Combat must both be 100%. */
     if (tier == GUILD_LEVEL_ADVANCED) {
-        if (ch->progress.basic_disc_pct < 100 || ch->progress.combat_disc_pct < 100) {
+        if (disc_pct(ch, GUILD_LEVEL_BASIC) < 100 || disc_pct(ch, GUILD_LEVEL_COMBAT) < 100) {
             descriptor_send(d, "The guildmaster shakes their head. "
                 "\"Master your Basic and Combat disciplines first.\"\r\n");
             return true;

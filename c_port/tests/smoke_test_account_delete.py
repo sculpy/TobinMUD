@@ -21,37 +21,13 @@ DELETE CASCADE FK to account).
 import socket
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_account_delete")
+announce("smoke_test_account_delete", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 account_name = f"Delacct{_suffix}"
@@ -60,36 +36,12 @@ char2_name = f"Delchtwo{_suffix}"
 password = "delaccttestpw123"
 
 
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
 def step(sock, label, line, timeout=1.0):
     send_line(sock, line)
     out = recv_all(sock, timeout)
     print(f"=== {label} ===")
     print(out)
     return out
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
 
 
 # --- Set up: a fresh account with two characters ---
@@ -106,6 +58,7 @@ check("X" in out, "the account menu lists the X (delete account) option")
 step(s, "create first character", "new")
 step(s, "first character name -> race screen", char1_name)
 step(s, "race: human", "1")
+step(s, "territory: urban", "1")
 step(s, "class: mage -> attr screen", "1")
 step(s, "finish creation", "done")
 step(s, "alignment: neutral", "done")
@@ -120,6 +73,7 @@ check(char1_name in out, "first character present before the second is created")
 step(s, "create second character", "new")
 step(s, "second character name -> race screen", char2_name)
 step(s, "race: human", "1")
+step(s, "territory: urban", "1")
 step(s, "class: mage -> attr screen", "1")
 step(s, "finish creation", "done")
 step(s, "alignment: neutral", "done")
@@ -167,5 +121,5 @@ out = step(s2, "reconnect with the deleted account name", account_name)
 check("new account" in out.lower(), "the deleted account name is unrecognized -- treated as brand new")
 s2.close()
 
-announce_done("smoke_test_account_delete")
+announce_done("smoke_test_account_delete", host, port)
 print("=== ALL CHECKS PASSED ===")

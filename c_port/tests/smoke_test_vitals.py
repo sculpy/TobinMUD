@@ -7,8 +7,13 @@ being.h's progress_t field comment. Covers:
      Age line in `score`.
   2. `eat` restores hunger by the food object's own val[0] and consumes it.
   3. `drink` from a fountain fully refills thirst.
-  4. Starvation (hunger AND thirst at 0) costs 1 HP per vitals tick
-     (forced deterministically via `aitick`, see cmd_aitick.c).
+  4. Starvation (hunger AND thirst at 0) costs 1 HP per vitals tick --
+     waits out one real ~60s VITALS_PULSES tick (no longer forceable via
+     `aitick`, see vitals.h's incident writeup, 2026-08-03: forcing this
+     via `aitick` used to silently starve/damage EVERY connected player,
+     not just whoever the immortal meant to test, so `aitick` was cut
+     from touching player vitals at all -- this check now waits on the
+     real clock instead).
   5. That HP loss is floored at 1 -- never lethal outside real combat,
      same precedent as cmd_sip.c's poison roll.
   6. An immortal is immune: `score` shows "Immune" regardless of level.
@@ -20,75 +25,18 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_vitals")
+announce("smoke_test_vitals", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 ROOM = 910000 + (int(time.time()) % 70000)
 FOOD_VNUM = 405   # "steak beef marinated" -- real seeded FOOD, val0=24
 FOUNTAIN_VNUM = 3  # "fountain water" -- real seeded DRINK, never runs dry
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def query(stmt):
@@ -136,6 +84,7 @@ def make_char(name, pw):
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
     send_line(s, "1"); recv_all(s)  # race: human
+    send_line(s, "1"); recv_all(s)  # homeland: urban (territory forced step, Session 117)
     send_line(s, "1"); recv_all(s)  # class: mage
     send_line(s, "done"); recv_all(s)
     send_line(s, "done"); recv_all(s)  # alignment: neutral
@@ -216,18 +165,28 @@ check("Refreshing" in out, "drink confirms")
 check(98 <= thirst_of(mort_name) <= 100, "thirst fully (or near-fully) refilled from the fountain")
 
 # --- 4/5: starvation costs 1 HP per tick, floored at 1 (never lethal) ---
+# `aitick` deliberately does NOT touch player vitals anymore (vitals.h's
+# incident writeup) -- waits out one real VITALS_PULSES tick (~60s)
+# instead of forcing it.
 set_hunger_thirst(mort_name, 0, 0)
 set_hp(mort_name, 50, 50)
 sA.close()
 sA = relog(mort_name, mort_pw)
-cmd(si, "aitick 1")
-check(47 <= hp_of(mort_name) <= 49, "starving at hunger AND thirst 0 costs ~1 HP for one forced tick")
+time.sleep(65)
+check(47 <= hp_of(mort_name) <= 49, "starving at hunger AND thirst 0 costs ~1 HP over one real vitals tick")
 
 set_hp(mort_name, 1, 50)
 sA.close()
 sA = relog(mort_name, mort_pw)
-cmd(si, "aitick 1")
-check(hp_of(mort_name) == 1, "starvation damage is floored at 1 HP -- never lethal outside real combat")
+time.sleep(65)
+# Not an exact-equality check anymore -- regen_tick_run() ALSO fires for
+# real on its own faster ~5s cadence during this same real-time window
+# (unlike the old forced-aitick-only version of this test, which could
+# isolate a single vitals tick with nothing else running), so HP can
+# rise above 1 from ordinary regen even while still starving. The real
+# property under test -- starvation damage never drops HP below 1 -- is
+# what's checked here instead.
+check(hp_of(mort_name) >= 1, "starvation damage is floored at 1 HP -- never lethal outside real combat")
 
 # --- 6: an immortal is immune regardless of stored value ---
 out = cmd(si, "score")
@@ -236,5 +195,5 @@ check("Thirst: immune" in out, "an immortal's score shows Thirst: immune")
 
 sA.close()
 si.close()
-announce_done("smoke_test_vitals")
+announce_done("smoke_test_vitals", host, port)
 print("=== ALL CHECKS PASSED ===")

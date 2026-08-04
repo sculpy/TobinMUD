@@ -22,6 +22,20 @@
  * main.c. */
 void vitals_tick_run(long pulse_num);
 
+/* `aitick`'s forced-tick variant (cmd_aitick.c) -- does NOT touch any
+ * connected player's hunger/thirst/HP (see vitals_tick_run() above for
+ * that). User, 2026-08-03, after a real live incident: forcing 1000
+ * vitals ticks via repeated `aitick 100` calls (testing a newly-ported
+ * mob spec-proc) silently starved every OTHER connected player's hunger/
+ * thirst to 0 and chip-damaged their HP down to nearly nothing, since
+ * vitals_tick_run() runs for every connected non-immortal PC, not just
+ * whatever the immortal running `aitick` is actually testing -- "dont
+ * have aitick affect players hps" / "aitick should be artificial to
+ * players." `aitick` still forces every OTHER world-state tick
+ * (mob AI, object decay/growth, weather, gametime, triggers) exactly as
+ * before -- only the player-vitals side effect is cut. */
+void vitals_tick_force_world_only(long pulse_num);
+
 /* VITALS_PULSES = 600 (~60s at 100ms/pulse) -- same "once a minute" cadence
  * as zone aging/gametime/mob AI/obj decay (main.c). At 1 point/tick, a
  * fully-fed-and-hydrated character takes ~100 minutes of continuous play

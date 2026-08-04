@@ -112,3 +112,22 @@ ON DUPLICATE KEY UPDATE `quantity` = VALUES(`quantity`);
 INSERT INTO `suit_item` (suit_id, obj_vnum, quantity)
 SELECT s.id, 500, 3 FROM `suit` s WHERE s.name = 'cleric_newbie'
 ON DUPLICATE KEY UPDATE `quantity` = VALUES(`quantity`);
+
+-- Two-slot limb items only granted ONE apiece above -- a sleeve (ARMS),
+-- bracelet (WRISTS), glove (HANDS), legging (LEGS), boot/shoe/slipper
+-- (FEET), or ring (FINGERS) covers only ONE of the pair (LIMB_RIGHT_ARM/
+-- LIMB_LEFT_ARM, etc, being.h), leaving the other arm/wrist/hand/leg/
+-- foot/finger bare (user, 2026-08-03: "include two of the limbs that
+-- require two eq slots like arms hands wrists legs feet etc"). Fixed by
+-- bumping quantity to 2 for exactly those rows -- wear_slot_for_flag()
+-- (obj.c) already fills the SECOND matching limb (prefers right, then
+-- left) once a second item with the same wear_flag exists to wear;
+-- nothing else needed. Every race armor set (36930-36995) uses the same
+-- 11-piece pattern, so one bitwise match against wear_flag covers all
+-- six races at once: WEAR_FINGERS(2)|WEAR_LEGS(32)|WEAR_FEET(64)|
+-- WEAR_HANDS(128)|WEAR_ARMS(256)|WEAR_WRISTS(4096) (src/core/obj.c).
+UPDATE `suit_item` si
+JOIN `obj` o ON o.vnum = si.obj_vnum
+SET si.quantity = 2
+WHERE o.vnum BETWEEN 36930 AND 36995
+  AND (o.wear_flag & (2 | 32 | 64 | 128 | 256 | 4096)) != 0;

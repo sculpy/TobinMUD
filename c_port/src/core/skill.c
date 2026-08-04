@@ -1,4 +1,4 @@
-/*******************************************************************
+﻿/*******************************************************************
  * TobinMUD ver. 0.5 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
@@ -23,20 +23,20 @@
  * `START_n` threshold. */
 static const skill_def_t SKILLS[] = {
     /* ---------------- WARRIOR ---------------- */
-    { "riding",                  CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Mount and control a rideable creature." },
+    { "riding",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Mount and control a rideable creature." },
     { "sign",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   10, "Communicate silently with hand signals -- only fellow signers understand you." },
-    { "bash",                    CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Knock your target down, stunning them briefly." },
-    { "berserk",                 CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Forgo defense for a burst of offense -- but you're much harder to rescue or parry while raging." },
-    { "rally",                   CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "A battlecry that boosts nearby allies' combat prowess." },
-    { "retreat",                 CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Voluntarily disengage from your current opponent." },
-    { "parry",                   CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "A passive chance to block an incoming melee attack outright." },
-    { "grapple",                 CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Grab and hold an opponent, restricting what they can do." },
-    { "trip",                    CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Knock an opponent to the ground." },
-    { "doorbash",                CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Force your way through a closed door." },
-    { "dual wield",              CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Passively reduces the damage penalty for your off-hand weapon." },
-    { "power move",              CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "Improves your odds of landing a solid, hard-hitting strike." },
-    { "two-handed specialization", CLASS_WARRIOR, SKILL_TIER_COMBAT, 1, "Bonus damage while wielding a two-handed weapon." },
-    { "fortify",                 CLASS_WARRIOR, SKILL_TIER_COMBAT,   1, "A defensive shield-wall stance -- requires a shield." },
+    { "bash",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Knock your target down, stunning them briefly." },
+    { "berserk",                 CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Forgo defense for a burst of offense -- but you're much harder to rescue or parry while raging." },
+    { "rally",                   CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "A battlecry that boosts nearby allies' combat prowess." },
+    { "retreat",                 CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Voluntarily disengage from your current opponent." },
+    { "parry",                   CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "A passive chance to block an incoming melee attack outright." },
+    { "grapple",                 CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Grab and hold an opponent, restricting what they can do." },
+    { "trip",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Knock an opponent to the ground." },
+    { "doorbash",                CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Force your way through a closed door." },
+    { "dual wield",              CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Passively reduces the damage penalty for your off-hand weapon." },
+    { "power move",              CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Improves your odds of landing a solid, hard-hitting strike." },
+    { "two-handed specialization", CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "Bonus damage while wielding a two-handed weapon." },
+    { "fortify",                 CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "A defensive shield-wall stance -- requires a shield." },
     { "rescue",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Swap places with an ally in combat, pulling their attacker onto yourself." },
     { "repair",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   5, "Mend damaged equipment yourself -- each repair wears an item down a little for good." },
     { "focus attack",            CLASS_WARRIOR, SKILL_TIER_CLASS,   5, "A single concentrated strike for extra damage." },
@@ -57,28 +57,33 @@ static const skill_def_t SKILLS[] = {
     { "weapon retention",        CLASS_WARRIOR, SKILL_TIER_ADVANCED, 25, "A passive chance to keep your grip on your weapon when disarmed or fumbling." },
     { "brawl avoidance",         CLASS_WARRIOR, SKILL_TIER_ADVANCED, 25, "Passive resistance to grapple- and trip-style attacks." },
     { "close quarters fighting", CLASS_WARRIOR, SKILL_TIER_ADVANCED, 50, "A combat bonus while grappled or fighting at point-blank range." },
+    { "slash proficiency",    CLASS_WARRIOR, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
+    { "blunt proficiency",    CLASS_WARRIOR, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
+    { "pierce proficiency",   CLASS_WARRIOR, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },
+    { "barehand proficiency", CLASS_WARRIOR, SKILL_TIER_COMBAT,  1, "Basic proficiency fighting unarmed." },
+    { "ranged proficiency",   CLASS_WARRIOR, SKILL_TIER_COMBAT, 25, "Basic proficiency with ranged weapons." },
 
     /* ---------------- THIEF ---------------- */
-    { "riding",           CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
+    { "riding",           CLASS_THIEF, SKILL_TIER_CLASS,  1, "Mount and control a rideable creature." },
     { "sign",             CLASS_THIEF, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
-    { "kick",             CLASS_THIEF, SKILL_TIER_COMBAT,  1, "An unarmed kick attack." },
-    { "retreat",          CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Disengage from your current opponent." },
-    { "backstab",         CLASS_THIEF, SKILL_TIER_COMBAT,  1, "A devastating sneak attack against an unaware or from-behind target." },
-    { "dodge",            CLASS_THIEF, SKILL_TIER_COMBAT,  1, "A passive chance to evade an incoming melee attack." },
-    { "garrotte",         CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Strangle a victim from behind with a cord." },
-    { "throatslit",       CLASS_THIEF, SKILL_TIER_COMBAT,  1, "A lethal sneak attack targeting the throat." },
-    { "poison weapon",    CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Coat your weapon in poison so your hits inflict it." },
-    { "steal",            CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Pick a victim's pocket." },
-    { "peek",             CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Attempt to see what someone is carrying, without their knowledge." },
-    { "search",           CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Find hidden objects or secret exits." },
-    { "detect trap",      CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Spot a trap before it triggers." },
-    { "counter steal",    CLASS_THIEF, SKILL_TIER_COMBAT,  1, "A passive chance to catch someone trying to steal from you." },
-    { "sneak",            CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Move around without waking sleepers or drawing attention." },
-    { "concealment",      CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Hide your movement trail from trackers." },
-    { "disguise",         CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Alter your apparent identity." },
-    { "skulk",            CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Move from room to room while remaining hidden." },
-    { "set trap (arrow)", CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Rig an arrow trap." },
-    { "set trap (container)", CLASS_THIEF, SKILL_TIER_COMBAT, 1, "Rig a trap on a container." },
+    { "kick",             CLASS_THIEF, SKILL_TIER_CLASS,  1, "An unarmed kick attack." },
+    { "retreat",          CLASS_THIEF, SKILL_TIER_CLASS,  1, "Disengage from your current opponent." },
+    { "backstab",         CLASS_THIEF, SKILL_TIER_CLASS,  1, "A devastating sneak attack against an unaware or from-behind target." },
+    { "dodge",            CLASS_THIEF, SKILL_TIER_CLASS,  1, "A passive chance to evade an incoming melee attack." },
+    { "garrotte",         CLASS_THIEF, SKILL_TIER_CLASS,  1, "Strangle a victim from behind with a cord." },
+    { "throatslit",       CLASS_THIEF, SKILL_TIER_CLASS,  1, "A lethal sneak attack targeting the throat." },
+    { "poison weapon",    CLASS_THIEF, SKILL_TIER_CLASS,  1, "Coat your weapon in poison so your hits inflict it." },
+    { "steal",            CLASS_THIEF, SKILL_TIER_CLASS,  1, "Pick a victim's pocket." },
+    { "peek",             CLASS_THIEF, SKILL_TIER_CLASS,  1, "Attempt to see what someone is carrying, without their knowledge." },
+    { "search",           CLASS_THIEF, SKILL_TIER_CLASS,  1, "Find hidden objects or secret exits." },
+    { "detect trap",      CLASS_THIEF, SKILL_TIER_CLASS,  1, "Spot a trap before it triggers." },
+    { "counter steal",    CLASS_THIEF, SKILL_TIER_CLASS,  1, "A passive chance to catch someone trying to steal from you." },
+    { "sneak",            CLASS_THIEF, SKILL_TIER_CLASS,  1, "Move around without waking sleepers or drawing attention." },
+    { "concealment",      CLASS_THIEF, SKILL_TIER_CLASS,  1, "Hide your movement trail from trackers." },
+    { "disguise",         CLASS_THIEF, SKILL_TIER_CLASS,  1, "Alter your apparent identity." },
+    { "skulk",            CLASS_THIEF, SKILL_TIER_CLASS,  1, "Move from room to room while remaining hidden." },
+    { "set trap (arrow)", CLASS_THIEF, SKILL_TIER_CLASS,  1, "Rig an arrow trap." },
+    { "set trap (container)", CLASS_THIEF, SKILL_TIER_CLASS, 1, "Rig a trap on a container." },
     { "track",            CLASS_THIEF, SKILL_TIER_CLASS,  13, "Follow a target's trail between rooms." },
     { "switch opponents", CLASS_THIEF, SKILL_TIER_CLASS,  1, "Change which opponent you're actively fighting." },
     { "set trap (door)",  CLASS_THIEF, SKILL_TIER_CLASS,  19, "Rig a trap on a door." },
@@ -94,17 +99,22 @@ static const skill_def_t SKILLS[] = {
     { "spy",              CLASS_THIEF, SKILL_TIER_ADVANCED, 38, "Covertly watch a room from elsewhere." },
     { "cudgel",           CLASS_THIEF, SKILL_TIER_ADVANCED, 41, "A blunt, non-lethal knockout-style attack." },
     { "set trap (grenade)", CLASS_THIEF, SKILL_TIER_ADVANCED, 50, "Rig a grenade-type trap." },
+    { "slash proficiency",    CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
+    { "blunt proficiency",    CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
+    { "pierce proficiency",   CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },
+    { "barehand proficiency", CLASS_THIEF, SKILL_TIER_COMBAT,  1, "Basic proficiency fighting unarmed." },
+    { "ranged proficiency",   CLASS_THIEF, SKILL_TIER_COMBAT, 25, "Basic proficiency with ranged weapons." },
 
     /* ---------------- MONK ---------------- */
-    { "riding",          CLASS_MONK, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
+    { "riding",          CLASS_MONK, SKILL_TIER_CLASS,  1, "Mount and control a rideable creature." },
     { "sign",            CLASS_MONK, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
-    { "disarm",          CLASS_MONK, SKILL_TIER_COMBAT,  1, "Knock the weapon out of an opponent's hand." },
-    { "kick",            CLASS_MONK, SKILL_TIER_COMBAT,  3, "An unarmed kick attack." },
-    { "groundfighting",  CLASS_MONK, SKILL_TIER_COMBAT, 5, "Reduces the penalty for fighting while knocked down." },
-    { "retreat",         CLASS_MONK, SKILL_TIER_COMBAT, 15, "Disengage from your current opponent." },
-    { "counter move",    CLASS_MONK, SKILL_TIER_COMBAT, 25, "Resist being shoved or thrown out of position." },
-    { "switch opponents", CLASS_MONK, SKILL_TIER_COMBAT, 25, "Change which opponent you're actively fighting." },
-    { "chop",            CLASS_MONK, SKILL_TIER_COMBAT, 25, "An edge-of-hand strike." },
+    { "disarm",          CLASS_MONK, SKILL_TIER_CLASS,  1, "Knock the weapon out of an opponent's hand." },
+    { "kick",            CLASS_MONK, SKILL_TIER_CLASS,  3, "An unarmed kick attack." },
+    { "groundfighting",  CLASS_MONK, SKILL_TIER_CLASS, 5, "Reduces the penalty for fighting while knocked down." },
+    { "retreat",         CLASS_MONK, SKILL_TIER_CLASS, 15, "Disengage from your current opponent." },
+    { "counter move",    CLASS_MONK, SKILL_TIER_ADVANCED, 25, "Resist being shoved or thrown out of position." },
+    { "switch opponents", CLASS_MONK, SKILL_TIER_ADVANCED, 25, "Change which opponent you're actively fighting." },
+    { "chop",            CLASS_MONK, SKILL_TIER_ADVANCED, 25, "An edge-of-hand strike." },
     { "yoginsa",         CLASS_MONK, SKILL_TIER_CLASS,   1, "Meditate to recover HP, movement, and mana." },
     { "jirin",           CLASS_MONK, SKILL_TIER_CLASS,   1, "Dodge, block, or deflect an incoming unarmed attack." },
     { "kubo",            CLASS_MONK, SKILL_TIER_CLASS,   1, "Your unarmed strikes scale with skill and level." },
@@ -136,9 +146,14 @@ static const skill_def_t SKILLS[] = {
     { "iron will",           CLASS_MONK, SKILL_TIER_ADVANCED, 48, "Resistance to non-magical damage and effects." },
     { "dufali",              CLASS_MONK, SKILL_TIER_ADVANCED, 48, "Passive resistance to paralysis." },
     { "bonebreak",           CLASS_MONK, SKILL_TIER_ADVANCED, 50, "A high-damage grapple attack that breaks a limb." },
+    { "slash proficiency",    CLASS_MONK, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
+    { "blunt proficiency",    CLASS_MONK, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
+    { "pierce proficiency",   CLASS_MONK, SKILL_TIER_COMBAT,  1, "Basic proficiency with piercing weapons." },
+    { "barehand proficiency", CLASS_MONK, SKILL_TIER_COMBAT,  1, "Basic proficiency fighting unarmed." },
+    { "ranged proficiency",   CLASS_MONK, SKILL_TIER_COMBAT, 25, "Basic proficiency with ranged weapons." },
 
     /* ---------------- CLERIC ---------------- */
-    { "riding",               CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
+    { "riding",               CLASS_CLERIC, SKILL_TIER_CLASS,  1, "Mount and control a rideable creature." },
     { "sign",                 CLASS_CLERIC, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "slash proficiency",    CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
     { "blunt proficiency",    CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
@@ -212,7 +227,7 @@ static const skill_def_t SKILLS[] = {
     { "summon swarm",     CLASS_CLERIC, SKILL_TIER_ADVANCED, 30, "Summons a swarm of locusts to fight at your side." },
 
     /* ---------------- MAGE ---------------- */
-    { "riding",               CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
+    { "riding",               CLASS_MAGE, SKILL_TIER_CLASS,  1, "Mount and control a rideable creature." },
     { "sign",                 CLASS_MAGE, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "slash proficiency",    CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
     { "blunt proficiency",    CLASS_MAGE, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
@@ -330,7 +345,7 @@ static const skill_def_t SKILLS[] = {
      * their original voodoo/loa styling. Shaman's totem/golem/undead-
      * thrall/possession lines were deliberately left out -- thematically
      * a poor fit regardless of renaming. */
-    { "riding",               CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Mount and control a rideable creature." },
+    { "riding",               CLASS_DRUID, SKILL_TIER_CLASS,  1, "Mount and control a rideable creature." },
     { "sign",                 CLASS_DRUID, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "slash proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with slashing weapons." },
     { "blunt proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "Basic proficiency with blunt weapons." },
@@ -507,20 +522,70 @@ static int skill_ceiling(const being_t *ch, const skill_def_t *sk) {
 #define SKILL_GAIN_COOLDOWN_SECS 30
 
 /* A character's current proficiency percent in `sk`, or 0 if they've never
- * attempted it (no skill_repo row yet). */
+ * attempted it (no skill_repo row yet).
+ *
+ * SKILL_TIER_COMBAT (the 5 weapon/barehand proficiency skills) is a
+ * special case (user 2026-08-03: "the proficiency skills in combat
+ * disciplines should be gained at 1% of the disc ... for all classes
+ * and all proficiencies ... they should gain in proficiency
+ * automatically, when combat hits 100% they should be able to increase
+ * proficiency to 100%, but they should start from level 1"). These 5
+ * skills have no gameplay hook anywhere that calls
+ * skill_learn_from_doing() on them (no weapon-type distinction exists
+ * in obj.h to gate a per-swing roll on -- see cmd_stabbing.c's own
+ * "flavor-text placeholders" note), so under the normal learn-by-doing
+ * system they would sit permanently stuck at their 1% floor forever,
+ * un-grindable. Auto-tracks combat_disc_pct directly instead: 0 until
+ * any Combat discipline is trained, then floored at 1 ("start from
+ * level 1") and rising automatically in lockstep with
+ * combat_disc_pct up to its full 100% -- no separate skill_repo
+ * storage or per-use roll needed for these 5. */
 int skill_proficiency(const being_t *ch, const skill_def_t *sk) {
+    /* User 2026-08-03: "immortals should have all skills/spells at maxed
+     * potential without spending practice points" -- a read-time
+     * override, not a DB write, so no practice_points are spent and
+     * player_skill / *_disc_pct storage stays untouched (also covers a
+     * demoted-then-repromoted immortal with zero extra bookkeeping). */
+    if (being_is_immortal(ch))
+        return 100;
+    if (sk->tier == SKILL_TIER_COMBAT) {
+        if (ch->progress.combat_disc_pct <= 0)
+            return 0;
+        int pct = ch->progress.combat_disc_pct;
+        return pct < SKILL_PROFICIENCY_FLOOR ? SKILL_PROFICIENCY_FLOOR : pct;
+    }
     skill_proficiency_t sp;
     if (!skill_repo_get(ch->player_id, sk->name, &sp))
         return 0;
     return sp.pct;
 }
 
+/* See skill.h's doc comment. */
+const char *skill_proficiency_word_colored(int pct) {
+    if (pct >= 100) return "<G>mastered<z>";
+    if (pct >= 90)  return "<g>expert<z>";
+    if (pct >= 75)  return "<c>skilled<z>";
+    if (pct >= 50)  return "<y>adept<z>";
+    if (pct >= 25)  return "<o>competent<z>";
+    if (pct >= 1)   return "<r>novice<z>";
+    return "<k>untrained<z>";
+}
+
 /* Learn-by-doing gain check: called after `ch` uses skill `sk`, this may
  * raise their stored proficiency toward its discipline-percent ceiling
  * (skill_ceiling()), gated by a cooldown and a headroom-shrinking chance
  * curve softened by Wisdom. Returns the resulting (possibly unchanged)
- * proficiency. First-ever use sets the floor with no roll. */
+ * proficiency. First-ever use sets the floor with no roll.
+ *
+ * SKILL_TIER_COMBAT is never actually called through here (see
+ * skill_proficiency()'s own doc comment -- nothing in the codebase has
+ * a hook to call this for those 5 skills), but routes straight to
+ * skill_proficiency() if it ever is, rather than writing a now-unused
+ * skill_repo row that skill_proficiency() would just ignore anyway. */
 int skill_learn_from_doing(being_t *ch, const skill_def_t *sk) {
+    if (sk->tier == SKILL_TIER_COMBAT)
+        return skill_proficiency(ch, sk);
+
     int ceiling = skill_ceiling(ch, sk);
     if (ceiling <= 0)
         return 0; /* shouldn't happen -- the caller's discipline gate already blocks this */

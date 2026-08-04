@@ -18,6 +18,7 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, check, sql
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
@@ -38,23 +39,9 @@ def recv_all(sock, timeout=1.0, idle_gap=0.3):
     return b"".join(chunks).decode(errors="replace")
 
 
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
 def cmd(sock, line, timeout=1.0):
     send_line(sock, line)
     return recv_all(sock, timeout)
-
-
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
 
 
 def sql_out(stmt):
@@ -65,7 +52,7 @@ def sql_out(stmt):
 def make_char(name, pw, class_num="1"):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (name, "y", pw, pw, "new", name, "1", class_num, "done", "done"):
+    for step in (name, "y", pw, pw, "new", name, "1", "1", class_num, "done", "done"):
         send_line(s, step)
         recv_all(s)
     return s

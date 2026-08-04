@@ -38,64 +38,17 @@ import socket
 import subprocess
 import sys
 import time
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 
-def announce(test_name, host=host, port=port):
-    try:
-        s = socket.create_connection((host, port), timeout=3)
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.sendall(f"@test {test_name}\r\n".encode())
-        s.settimeout(0.5)
-        try:
-            while s.recv(4096):
-                pass
-        except socket.timeout:
-            pass
-        s.close()
-    except OSError:
-        pass
-
-
-def announce_done(test_name, host=host, port=port):
-    announce(f"done {test_name}", host, port)
-
-
-announce("smoke_test_edsocial")
+announce("smoke_test_edsocial", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
 SOC1 = f"zzed{_suffix}"
 SOC2 = f"zzrn{_suffix}"  # rename target
-
-
-def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
-    chunks = []
-    try:
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            chunks.append(data)
-    except socket.timeout:
-        pass
-    return b"".join(chunks).decode(errors="replace")
-
-
-def send_line(sock, line):
-    sock.sendall((line + "\r\n").encode())
-
-
-def cmd(sock, line, timeout=1.0):
-    send_line(sock, line)
-    return recv_all(sock, timeout)
 
 
 def cmd_paged(sock, line, timeout=1.0, max_pages=30):
@@ -115,16 +68,6 @@ def cmd_paged(sock, line, timeout=1.0, max_pages=30):
     return full
 
 
-def check(condition, message):
-    if not condition:
-        raise AssertionError(message)
-    print(f">>> OK: {message}")
-
-
-def sql(stmt):
-    subprocess.run(["mariadb", "tobin", "-e", stmt], check=True)
-
-
 def set_level(name, level):
     sql(f"UPDATE player_progress SET level={level} WHERE player_id="
         f"(SELECT id FROM player WHERE name='{name}');")
@@ -133,7 +76,7 @@ def set_level(name, level):
 def make_char(name, pw):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
-    for step in (name, "y", pw, pw, "new", name, "1", "1", "done", "done"):
+    for step in (name, "y", pw, pw, "new", name, "1", "1", "1", "done", "done"):
         send_line(s, step); recv_all(s)
     s.close()
 
@@ -220,13 +163,18 @@ try:
     cmd(imm, "H")  # toggle back off
 
     # --- 6: P sets the minimum position, actually gating the mortal ---
+    # Uses "sit" rather than "sleep" for the same reason
+    # smoke_test_socials.py's own min_position check does -- sitting is
+    # still well below the "fighting" threshold set here, but isn't
+    # literally asleep, so it doesn't collide with the separate
+    # 2026-08-03 "sleeping blocks everything" dispatch gate (cmd_table.c).
     out = cmd(imm, "P")
     check("Enter a new one" in out, "P prompts for a new minimum position")
     cmd(imm, "fighting")
-    cmd(mort, "sleep")
+    cmd(mort, "sit")
     check("can't do that right now" in cmd(mort, SOC1),
           "raising the minimum position actually gates a mortal below it")
-    cmd(mort, "wake"); cmd(mort, "stand")
+    cmd(mort, "stand")
     cmd(imm, "P")
     cmd(imm, "dead")  # back to no restriction (position 0), matches most real socials
 
@@ -256,7 +204,7 @@ try:
     imm.close()
     mort.close()
 
-    announce_done("smoke_test_edsocial")
+    announce_done("smoke_test_edsocial", host, port)
     print("=== ALL CHECKS PASSED ===")
 finally:
     cleanup()

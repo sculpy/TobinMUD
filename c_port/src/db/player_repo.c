@@ -59,7 +59,7 @@ being_t *player_load(const char *name, long account_id) {
     being_t *b = NULL;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
                       "title, gender, appearance, pflags, poofin, poofout, bamfin, bamfout, "
-                      "class, race from player "
+                      "class, race, territory from player "
                       "where name='%s' and account_id=%i",
                  name, (int)account_id)
         && db_fetch_row(db)) {
@@ -78,6 +78,7 @@ being_t *player_load(const char *name, long account_id) {
             snprintf(b->bamfout, sizeof(b->bamfout), "%s", db_get(db, "bamfout"));
             b->char_class = (player_class_t)atoi(db_get(db, "class"));
             b->race = (player_race_t)atoi(db_get(db, "race"));
+            b->territory = (player_territory_t)atoi(db_get(db, "territory"));
         }
     }
 
@@ -117,7 +118,8 @@ being_t *player_load(const char *name, long account_id) {
 
 being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
                        int handed_right, gender_t gender, const char *appearance,
-                       player_class_t char_class, player_race_t race, int alignment) {
+                       player_class_t char_class, player_race_t race, int alignment,
+                       player_territory_t territory) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return NULL;
@@ -137,10 +139,10 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
     }
 
     bool ok = db_query(db,
-        "insert into player (name, talens, account_id, load_room, nutrition, handed, gender, appearance, class, race) "
-        "values ('%s', 0, %i, %i, 100, %i, %i, '%s', %i, %i)",
+        "insert into player (name, talens, account_id, load_room, nutrition, handed, gender, appearance, class, race, territory) "
+        "values ('%s', 0, %i, %i, 100, %i, %i, '%s', %i, %i, %i)",
         name, (int)account_id, DEFAULT_LOAD_ROOM, handed_right ? 1 : 0,
-        (int)gender, appearance ? appearance : "", (int)char_class, (int)race);
+        (int)gender, appearance ? appearance : "", (int)char_class, (int)race, (int)territory);
 
     being_t *b = NULL;
     if (ok) {
@@ -151,6 +153,7 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
             b->gender = gender;
             b->char_class = char_class;
             b->race = race;
+            b->territory = territory;
             b->pflags = PLR_NEWBIE; /* new players start on the newbie channel */
             snprintf(b->appearance, sizeof(b->appearance), "%s", appearance ? appearance : "");
             if (attrs)
@@ -538,7 +541,7 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
     int load_room = -1;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
                       "title, gender, appearance, pflags, poofin, poofout, bamfin, bamfout, "
-                      "class, race from player "
+                      "class, race, territory from player "
                       "where name='%s'",
                  name)
         && db_fetch_row(db)) {
@@ -558,6 +561,7 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
             snprintf(b->bamfout, sizeof(b->bamfout), "%s", db_get(db, "bamfout"));
             b->char_class = (player_class_t)atoi(db_get(db, "class"));
             b->race = (player_race_t)atoi(db_get(db, "race"));
+            b->territory = (player_territory_t)atoi(db_get(db, "territory"));
             load_room = atoi(db_get(db, "load_room"));
         }
     }

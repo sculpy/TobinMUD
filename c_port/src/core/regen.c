@@ -33,15 +33,44 @@ void regen_tick_run(long pulse_num) {
     (void)pulse_num;
     for (descriptor_t *d = g_descriptors; d; d = d->next) {
         being_t *b = d->character;
-        if (!b || b->fighting)
+        if (!b)
             continue;
+        if (b->fighting) {
+            /* User 2026-08-03: Vitality should trickle back some even
+             * mid-fight, not just after -- HP still only recovers at
+             * rest (combat pacing untouched, so no being_heal() here),
+             * but a fighter shouldn't sit flatlined at 0 Vitality for
+             * the whole fight once vit_fatigue_accum drains it
+             * (combat.c). Base un-multiplied amount only -- position
+             * stays STANDING while fighting, so no rest/sleep bonus
+             * applies, and no 5/4 "resting up" bump either. */
+            being_heal_vit(b, regen_amount(b));
+            continue;
+        }
         being_heal(b, regen_amount(b));
         /* Vitality (Sneezy → Tobin feature audit, "Vitality stat +
          * Terrain movement cost"): same weight-by-position amount as HP,
          * per TODO.md's own note this item closed out ("the regen tick
          * (weight by position, like HP already does)"). Still gated on
          * not fighting -- resting up after combat is when both HP and
-         * legs recover. */
-        being_heal_vit(b, regen_amount(b));
+         * legs recover. Bumped 25% over the shared HP amount (user,
+         * 2026-08-03: "vitality gains too slow, adjust it up 25%") --
+         * HP's own rate is untouched, only vitality's. */
+        int vit_amount = regen_amount(b) * 5 / 4;
+        if (vit_amount < 1)
+            vit_amount = 1;
+        being_heal_vit(b, vit_amount);
+
+        /* User 2026-08-03: "when completely rested ... you should
+         * automatically stand" -- reaching full HP AND vitality while
+         * resting/sitting/sleeping (not already standing) stands the
+         * character back up on their own, same spirit as meditate.c's
+         * own yoginsa/meditation version of this below. */
+        if (b->position != POSITION_STANDING
+            && b->progress.hp >= b->progress.max_hp
+            && b->progress.vit >= b->progress.max_vit) {
+            b->position = POSITION_STANDING;
+            descriptor_send(d, "You feel fully rested and stand up.\r\n");
+        }
     }
 }

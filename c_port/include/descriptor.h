@@ -40,8 +40,9 @@ typedef enum {
     CONN_ACCOUNT_MENU,
     CONN_CHAR_CREATE_NAME,
     CONN_CHAR_CREATE_RACE,      /* after name: pick one of 6 races */
-    CONN_CHAR_CREATE_CLASS,     /* after race: pick one of 6 classes */
-    CONN_CHAR_CREATE_ATTRS,     /* after class: point-buy, race/class bonuses folded in on "done" */
+    CONN_CHAR_CREATE_TERRITORY, /* after race: pick a homeland (Territory/Homeland audit item) */
+    CONN_CHAR_CREATE_CLASS,     /* after territory: pick one of 6 classes */
+    CONN_CHAR_CREATE_ATTRS,     /* after class: point-buy, race/territory/class bonuses folded in on "done" */
     CONN_CHAR_CREATE_ATTR_AMOUNT, /* numbered-pick (1-6) sub-prompt: "how much?" for one attribute */
     /* Second boxed menu (user wireframe, 2026-07-26), shown after attrs:
      * handedness/gender/alignment/appearance all live here now, each its
@@ -344,6 +345,8 @@ typedef enum {
     CONN_EDSUIT_ADD_VNUM,
     CONN_EDSUIT_ADD_QTY,
     CONN_EDSUIT_CLASS,
+    CONN_EDSUIT_RACE, /* Race restriction (user, 2026-08-03: "add a column for
+                          race next to class") -- mirrors CONN_EDSUIT_CLASS. */
     CONN_EDSUIT_DESC,
     CONN_EDSUIT_DELETE_CONFIRM, /* whole-suit delete (user, 2026-08-02:
                                    "a way to delete a suit needs to be
@@ -479,6 +482,7 @@ typedef struct descriptor {
     gender_t new_char_gender; /* GENDER_NEUTER default */
     char new_char_appearance[BEING_APPEARANCE_LEN]; /* empty default */
     player_race_t new_char_race;   /* chosen in CONN_CHAR_CREATE_RACE */
+    player_territory_t new_char_territory; /* chosen in CONN_CHAR_CREATE_TERRITORY */
     player_class_t new_char_class; /* chosen in CONN_CHAR_CREATE_CLASS */
     int new_char_alignment;        /* chosen in CONN_CHAR_CREATE_OPTIONS' alignment
                                        sub-menu: -500/0/500, defaults 0 (neutral) */
