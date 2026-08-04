@@ -100,32 +100,38 @@ si = relog(imm_name, imm_pw)
 ENTRY_COUNT = 5
 BODY_CHAR = "x"
 titles = []
-for i in range(ENTRY_COUNT):
-    title = f"Pager Stress Test {_suffix} {i}"
-    titles.append(title)
-    body = f"START{i}-" + (BODY_CHAR * 4180) + f"-END{i}"
-    sql(f"INSERT INTO wiznews (author, title, body) VALUES "
-        f"('Test Rig', '{title}', '{body}') "
-        f"ON DUPLICATE KEY UPDATE body=VALUES(body), created_at=NOW();")
-    time.sleep(1.1)  # created_at has 1s resolution -- keep insertion order stable
+try:
+    for i in range(ENTRY_COUNT):
+        title = f"Pager Stress Test {_suffix} {i}"
+        titles.append(title)
+        body = f"START{i}-" + (BODY_CHAR * 4180) + f"-END{i}"
+        sql(f"INSERT INTO wiznews (author, title, body) VALUES "
+            f"('Test Rig', '{title}', '{body}') "
+            f"ON DUPLICATE KEY UPDATE body=VALUES(body), created_at=NOW();")
+        time.sleep(1.1)  # created_at has 1s resolution -- keep insertion order stable
 
-out = cmd(si, "wiznews")
-full = out
-pages = 0
-while "ENTER for more" in out and pages < 30:
-    out = cmd(si, "")
-    full += out
-    pages += 1
+    out = cmd(si, "wiznews")
+    full = out
+    pages = 0
+    while "ENTER for more" in out and pages < 30:
+        out = cmd(si, "")
+        full += out
+        pages += 1
 
-for i in range(ENTRY_COUNT):
-    check(f"START{i}-" in full, f"entry {i}'s opening marker survived paging")
-    check(f"-END{i}" in full, f"entry {i}'s CLOSING marker survived paging (not truncated mid-body)")
+    for i in range(ENTRY_COUNT):
+        check(f"START{i}-" in full, f"entry {i}'s opening marker survived paging")
+        check(f"-END{i}" in full, f"entry {i}'s CLOSING marker survived paging (not truncated mid-body)")
 
-check(full.rstrip().endswith(">"), "paging through the full oversized feed ends at a normal prompt")
+    check(full.rstrip().endswith(">"), "paging through the full oversized feed ends at a normal prompt")
 
-for title in titles:
-    sql(f"DELETE FROM wiznews WHERE title='{title}';")
-
-si.close()
-announce_done("smoke_test_wiznews_pager", host, port)
-print("=== ALL CHECKS PASSED ===")
+    print("=== ALL CHECKS PASSED ===")
+finally:
+    # Always clean up the synthetic rows, even if an assertion above failed
+    # or the script crashed/timed out mid-test -- otherwise these fake
+    # "Pager Stress Test" entries stay visible to real players via the
+    # in-game `wiznews` command (found live 2026-08-04: 7 stray rows from
+    # two past aborted runs, manually cleaned up).
+    for title in titles:
+        sql(f"DELETE FROM wiznews WHERE title='{title}';")
+    si.close()
+    announce_done("smoke_test_wiznews_pager", host, port)
