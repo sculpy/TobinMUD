@@ -1,6 +1,78 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-03 — Session 127 (DO droplet, production port 4000):
+Last updated: 2026-08-04 — Session 128 (DO droplet, production port 4000):
+**Swept all 243 `tests/smoke_test_*.py` for the 2026-08-03 homeland/
+territory creation-flow gap, added shared test helpers, and committed
+the whole accumulated backlog to git.** See the Session 128 entry below
+for full detail.
+
+Update 2026-08-04 — Session 128 (DO droplet, production port 4000):
+**Root cause of the 2026-08-03 make_char() staleness (TODO.md) turned
+out to be much bigger than "a handful of files": 210+ of the 243
+`tests/smoke_test_*.py` files sent race+class directly with no
+homeland/territory pick in between, so they landed stuck on the class-
+selection re-prompt and failed their first real assertion regardless of
+what they were actually testing. Fixed every one of them (three
+mechanical passes for the different call styles in use across the
+suite -- tuple-loop `for step in (...)`, line-per-step `send_line`/
+`cmd()`, and a handful of `step()`-helper or menu-letter-driven
+outliers -- plus a few very stale files, `smoke_test_login.py` and
+`smoke_test_heartbeat.py`, that predated an even earlier reorder and
+were missing race/class entirely). One non-mechanical fix needed
+alongside: `smoke_test_accounts.py`'s hardcoded post-creation `Str:`
+assertions (146/116) didn't account for the Urban homeland's own -3 Str
+modifier once a real homeland pick was actually being sent --
+recomputed to 143/113.
+
+**This was the second time a creation-flow change broke the entire
+test suite independently** (first was the 2026-07-12 race-before-attrs
+reorder). To stop a third recurrence, added `tests/mud_creation.py`
+(a single `finish_char_creation()` helper covering the account-menu
+"new" -> race -> homeland -> class -> attrs-done -> options-done walk)
+and `tests/mud_test_utils.py` (`send_line`/`recv_all`/`check`/`sql`/
+`cmd`/`announce`/`announce_done` -- these were copy-pasted near-
+verbatim into 200+ files individually; a change to any one of them,
+e.g. the `@test` hook protocol or the mariadb invocation, previously
+meant hunting down every copy by hand). Migrated every file whose local
+copy of these functions matched the dominant/only behavior exactly;
+the ~20 files with genuinely customized I/O (different timeouts,
+idle-gap logic, pagination draining) kept their local overrides
+untouched -- verified via AST-level body comparison, not just text
+diffing, before touching anything.
+
+**Committed the whole accumulated backlog** (everything since the last
+commit, `05e04f4` -- Sessions ~116 through 128, all previously
+build+test-verified per their own STATUS.md entries but never
+committed) as `55e8a04`. Also found and deleted 16 stray duplicate
+source/SQL files sitting untracked at the repo root and in `include/`
+(e.g. a `.c` file inside `include/`) since 2026-08-03 -- diffed every
+one against its real tracked counterpart first (all 16 confirmed
+strictly *older*, some with visibly broken half-written code, nothing
+unique in any of them) before removing.
+
+**Not done this session**: the full sweep (`tests/sweep.sh`, all 243
+tests, ~2.5hrs) has not completed -- two attempts were killed by
+network/session interruptions before finishing. A representative
+sample (~13 tests spanning tuple-style, direct-style, step()-style,
+and the newly-consolidated-utils files) all passed clean with the real
+per-test timeout budget. **Run the full sweep first** before trusting
+this session's changes completely -- `bash tests/sweep.sh` from
+`~/NewMUD/c_port` on the droplet (`ssh mud@tobinmud.com`, NOT
+`db.kullit.com` -- that host is stale/wrong, confirmed 2026-08-04).
+`git push` to `origin` (github.com/sculpy/NewMUD) also has not been
+done -- only committed locally on the droplet so far.
+
+Next:
+1. Run the full sweep (`bash tests/sweep.sh`), triage any real
+   failures (see `[[tobin-sweep-failure-triage]]` -- verify with a live
+   repro before assuming regression vs. pre-existing flake).
+2. `git push` once the sweep is clean, if that's wanted.
+3. Pick up TODO.md's newest open item: reproduce SneezyMUD's original
+   critical-hit combat messages (user 2026-08-04) -- needs diffing
+   against the real upstream source for the exact message set before
+   porting, hasn't been scoped yet.
+
+Previous update: 2026-08-03 — Session 127 (DO droplet, production port 4000):
 **Confirmed `smoke_test_copyover_fight.py` passing live; mid-fight Vitality
 regen; spec-proc project resumed with an important scoping correction.**
 See the Session 127 entry below for full detail.
