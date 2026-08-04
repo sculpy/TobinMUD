@@ -39,14 +39,17 @@ missing prerequisite named, not silently skipped or faked.
   still get added as procs needing them come up.
 - Files fully done: 0 / 58
 - Functions ported: 3 / 325 (pre-existing: DOCTOR/LAMPLIGHTER/
-  NEWBIE_EQUIPPER) + 4 new this project (`SPEC_CHICKEN` Session 124,
+  NEWBIE_EQUIPPER) + 5 new this project (`SPEC_CHICKEN` Session 124,
   `SPEC_BEGGAR` Session 127, `SPEC_REPLICANT` -- ported in the droplet's
   own parallel work, found already in mob_ai.c and only now reflected
-  here, no session number recorded -- and `SPEC_THIEF` Session 128).
-  Along the way, found and fixed a real live data bug: mob vnum 601 (the
-  seeded beggar, `SPEC_BEGGAR`'s own test subject) had its `spec_proc`
-  overwritten to 71 (`SPEC_REPLICANT`'s id) in the live DB, almost
-  certainly from an earlier ad hoc verification of replicant that
+  here, no session number recorded -- `SPEC_THIEF` Session 128, and
+  `SPEC_TICKET_GUY` Session 129, the first proc needing a hook OTHER
+  than the pulse dispatch table -- `CMD_BUY`, added directly in
+  `cmd_shop.c`).
+  Along the way (Session 128), found and fixed a real live data bug: mob
+  vnum 601 (the seeded beggar, `SPEC_BEGGAR`'s own test subject) had its
+  `spec_proc` overwritten to 71 (`SPEC_REPLICANT`'s id) in the live DB,
+  almost certainly from an earlier ad hoc verification of replicant that
   mutated a real seeded mob instead of a scratch one -- restored to 17,
   `smoke_test_specproc_beggar.py` re-confirmed passing.
 
@@ -268,6 +271,32 @@ original, or a helper function, not a real registered spec-proc)
         `tests/smoke_test_specproc_thief.py` (10 checks, including
         confirming a worn item is never taken and an ordinary mob with
         no matching spec_proc never fires) passes live.
+      - `SPEC_DAGGER_THROWER=15` (`dagger_thrower`) — `[B]` blocked:
+        needs cross-room line-of-sight targeting through multiple exits
+        (`can_see_linear()`) AND a ranged throw-weapon attack mechanic --
+        same missing-subsystem class already logged for `SPEC_ARCHER`
+        above, not worth building twice-blocked infrastructure for one
+        proc at a time.
+      - `SPEC_HOBBIT_EMISSARY=36` (`hobbitEmissary`) — `[B]` blocked:
+        needs a persistent per-mob hunt/pathfinding state machine
+        (tracks a named target across rooms over many pulses, same
+        missing primitive as the Four Horsemen family/`bankGuard` above)
+        AND is hardcoded to hunt one specific named NPC
+        ("ambassador hobbit Grimhaven") from the original's own world --
+        not meaningfully portable as generic behavior even if the hook
+        existed.
+      - `SPEC_TICKET_GUY=51` (`TicketGuy`) — **`[x]` DONE, Session 129.**
+        Fifth proc ported under this project, and the first needing a
+        NEW hook (`CMD_BUY`, added directly in `cmd_shop.c`'s
+        `cmd_buy()` rather than mob_ai.c's pulse dispatch table, since
+        it's not pulse-driven). `buy ticket` from a matching mob deducts
+        a flat 1000-gold price and teleports the buyer to upstream's own
+        `Room::TICKET_DESTINATION=6969` -- verified this maps onto a
+        real imported Tobin room ("The Arrivals Circle") before porting,
+        unlike several other zone-hardcoded procs logged `[B]` above.
+        Real seeded mobs already carry `spec_proc=51` (vnum 69 "student
+        exiled mage" among others). `tests/
+        smoke_test_specproc_ticketguy.py` (13 checks) passes live.
       - `factionFaery`/`rumorMonger` — `[B]` faction system, rumor data
         files. `findMyHorse`/`randomHunt` (`TMonster::` methods feeding
         the Four Horsemen family above) — `[B]` pathfinding.

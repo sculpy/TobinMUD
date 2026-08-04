@@ -12,9 +12,12 @@
 
 #include "affect.h"
 #include "being.h"
+#include "cmd.h"
 #include "material.h"
 #include "obj.h"
 #include "obj_repo.h"
+#include "room.h"
+#include "room_repo.h"
 #include "shop_repo.h"
 #include "thing.h"
 #include "treasury_repo.h"
@@ -350,6 +353,78 @@ bool cmd_list(descriptor_t *d, const char *args) {
  * `list` position (1-based, same order shop_repo_producing() always
  * returns -- see cmd_list()'s comment); anything else matches by keyword
  * as before. */
+/* SPEC_TICKET_GUY (spec_mobs.cc's `TicketGuy`) -- id 51, one of the
+ * "wrongly marked [-] before the array-position correction" finds
+ * (SPEC_PROCS.md correction #2): no named constant in spec_mobs.h, but
+ * a real slot in `mob_specials[]`. `buy ticket` from a matching mob
+ * sells a one-way trip to a fixed destination room for a flat price --
+ * ported here (rather than mob_ai.c, alongside the pulse-hook procs)
+ * because it needs the `CMD_BUY` hook, which only cmd_buy() has; not a
+ * pulse proc, so it's checked BEFORE the normal `find_active_shop()`
+ * gate below (a ticket-guy mob has no real shop catalog, upstream's own
+ * `TicketGuy()` runs standalone off `CMD_BUY` too). Upstream's
+ * destination (`Room::TICKET_DESTINATION = 6969`) maps onto a real
+ * imported Tobin room ("The Arrivals Circle") -- verified before
+ * porting, unlike several other zone-hardcoded procs already logged
+ * `[B]` in SPEC_PROCS.md. */
+#define SPEC_TICKET_GUY 51
+#define TICKET_PRICE 1000
+#define TICKET_DESTINATION_VNUM 6969
+
+static being_t *find_ticket_guy(const room_t *room) {
+    for (thing_t *t = room->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_MOB)
+            continue;
+        being_t *m = (being_t *)t;
+        if (m->mob_spec_proc == SPEC_TICKET_GUY)
+            return m;
+    }
+    return NULL;
+}
+
+static bool cmd_buy_ticket(descriptor_t *d, being_t *ch, being_t *keeper) {
+    char keeper_name[128];
+    being_display_name_cap(keeper, keeper_name, sizeof(keeper_name));
+
+    if (ch->position != POSITION_STANDING) {
+        char msg[288];
+        snprintf(msg, sizeof(msg), "%s tells you, \"I won't sell you a ticket unless you stand on your own feet.\"\r\n", keeper_name);
+        descriptor_send(d, msg);
+        return true;
+    }
+    if (ch->progress.gold < TICKET_PRICE) {
+        char msg[224];
+        snprintf(msg, sizeof(msg), "%s tells you, \"Tickets cost %d talens.\"\r\n", keeper_name, TICKET_PRICE);
+        descriptor_send(d, msg);
+        return true;
+    }
+
+    ch->progress.gold -= TICKET_PRICE;
+    descriptor_send(d, "You buy a ticket.\r\nThe mage makes a strange gesture before you.\r\n      *BLICK*\r\nSuddenly you find yourself in another plane of existence.\r\n");
+
+    char ch_name_cap[128];
+    being_display_name_cap(ch, ch_name_cap, sizeof(ch_name_cap));
+
+    if (ch->base.roomp) {
+        char room_msg[384];
+        snprintf(room_msg, sizeof(room_msg), "%s purchases a ticket and %s transports %s into another plane.\r\n",
+                 ch_name_cap, keeper_name, being_display_name(ch));
+        descriptor_room_echo(ch->base.roomp, ch, room_msg);
+    }
+
+    room_t *dest = room_repo_load(TICKET_DESTINATION_VNUM);
+    if (dest) {
+        thing_set_room(&ch->base, dest);
+        if (ch->base.roomp) {
+            char arrive_msg[160];
+            snprintf(arrive_msg, sizeof(arrive_msg), "%s blicks into the room.\r\n", ch_name_cap);
+            descriptor_room_echo(ch->base.roomp, ch, arrive_msg);
+        }
+        cmd_dispatch(d, "look");
+    }
+    return true;
+}
+
 bool cmd_buy(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -360,6 +435,10 @@ bool cmd_buy(descriptor_t *d, const char *args) {
         descriptor_send(d, "Buy what? Usage: buy <item> | buy <#>\r\n");
         return true;
     }
+
+    being_t *ticket_guy = find_ticket_guy(ch->base.roomp);
+    if (ticket_guy && strcasecmp(args, "ticket") == 0)
+        return cmd_buy_ticket(d, ch, ticket_guy);
 
     shop_t shop;
     being_t *keeper = find_active_shop(ch->base.roomp, &shop);

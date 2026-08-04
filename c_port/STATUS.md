@@ -30,6 +30,21 @@ already sitting on the droplet (see the "single dev copy" note below).
   `SPEC_REPLICANT` (already implemented in mob_ai.c from the droplet's
   own parallel work, never reflected in the doc) -- fixed the doc, no
   code change needed there.
+- **SPEC_TICKET_GUY** (spec_mobs.cc's `TicketGuy`, id 51) ported --
+  fifth spec-proc under this project, and the first needing a hook
+  OTHER than the pulse dispatch table: `CMD_BUY`, checked directly in
+  `cmd_shop.c`'s `cmd_buy()` before the normal shop-catalog gate (a
+  ticket-guy mob has no real shop of its own). `buy ticket` deducts a
+  flat 1000 gold and teleports the buyer to upstream's own
+  `Room::TICKET_DESTINATION=6969` -- verified this maps onto a real
+  imported Tobin room ("The Arrivals Circle") before porting. Also
+  checked `dagger_thrower` (15) and `hobbitEmissary` (36), the other two
+  real-id spec-procs found unstarted last session: both `[B]` blocked,
+  same missing-subsystem classes already logged for other procs
+  (cross-room ranged targeting for the former, hunt/pathfinding state
+  for the latter, plus a hardcoded specific NPC name). `tests/
+  smoke_test_specproc_ticketguy.py` (13 checks) passes live; `tests/
+  smoke_test_combat.py` reran clean, no regressions.
 - **Real data bug found + fixed**: mob vnum 601 (the beggar,
   `SPEC_BEGGAR`'s own test subject) had `spec_proc=71`
   (`SPEC_REPLICANT`'s id) in the live DB instead of the correct 17 --

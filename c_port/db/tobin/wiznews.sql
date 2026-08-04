@@ -1123,3 +1123,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Thief mobs can now pick your pocket', 'Some mobs seeded from the original game carry a thief personality that was never wired up until now: an awake thief standing in a room with you, not already fighting, has a small random chance each world tick to quietly lift a loose item from your inventory without you noticing -- anything you are actually wearing or holding stays safe, it only ever takes something loose.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New: buy ticket from certain mobs teleports you to a fixed destination', 'A handful of seeded mobs carry a "ticket guy" personality that was never wired up until now: buy ticket from one of them, standing and with 1000 gold to spare, and you are whisked away to a fixed destination room -- an old-world one-way travel trick straight out of the original game.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
