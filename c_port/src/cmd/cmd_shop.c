@@ -72,6 +72,56 @@ static being_t *find_active_shop(room_t *room, shop_t *shop) {
     return NULL;
 }
 
+/* Resale stock (user, 2026-08-04: "the shop should attempt to resell the
+ * item at a profit" -- reversing cmd_sell()'s original "destroyed on sale,
+ * avoids unbounded shopkeeper inventory growth" simplification). A sold
+ * item now moves into the keeper's OWN inventory (thing_move_to()) instead
+ * of being destroyed, and `list`/`buy` both also draw from it, numbered/
+ * matched right after the shop's static `shopproducing` catalog -- priced
+ * the SAME way a fresh catalog item is (`.price * profit_buy`, material
+ * multiplier included), which is inherently a markup over whatever the
+ * shop paid the original seller (`profit_sell` is always < `profit_buy`,
+ * shop_repo.h's own struct comment). SHOP_RESALE_MAX caps how many resold
+ * items one keeper holds at once -- the original unbounded-growth concern
+ * is real over a long server lifetime, so the OLDEST resale item is
+ * destroyed outright to make room once the cap is hit, rather than
+ * growing forever. */
+#define SHOP_RESALE_MAX 20
+
+static int count_resale_items(const being_t *keeper) {
+    int n = 0;
+    for (thing_t *t = keeper->base.stuff_head; t; t = t->stuff_next)
+        if (t->kind == THING_OBJ)
+            n++;
+    return n;
+}
+
+/* Finds the `idx`-th (1-based) resold item in `keeper`'s own inventory,
+ * in stuff_head order -- same "list position -> buy <#>" convention
+ * shop_repo_producing()'s catalog already uses, just numbered to
+ * continue right after it (see cmd_list()/cmd_buy()). */
+static obj_t *find_resale_item_by_index(const being_t *keeper, int idx) {
+    int n = 0;
+    for (thing_t *t = keeper->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        n++;
+        if (n == idx)
+            return (obj_t *)t;
+    }
+    return NULL;
+}
+
+static obj_t *find_resale_item_by_keyword(const being_t *keeper, const char *tok) {
+    for (thing_t *t = keeper->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        if (keyword_matches(t->name, tok))
+            return (obj_t *)t;
+    }
+    return NULL;
+}
+
 /* Hospital (TODO.md: "add hospital code to the todo list" -- limb repair
  * + disease cures, ported from the original's hospital.cc `doctor` spec-
  * proc). A hospital shop's own `shopproducing` is empty -- nothing
@@ -337,7 +387,24 @@ bool cmd_list(descriptor_t *d, const char *args) {
                       i + 1, cap_first(label, capbuf, sizeof(capbuf)), price);
         shown++;
     }
-    if (shown == 0 && (size_t)n < sizeof(out))
+    /* Resale stock (see the doc comment on the helpers above) -- numbered
+     * continuing right after the catalog, so `buy <#>` can index into
+     * either range without ambiguity. */
+    int resale_shown = 0;
+    for (thing_t *t = keeper->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ || (size_t)n >= sizeof(out))
+            continue;
+        obj_t *o = (obj_t *)t;
+        int price = (int)(o->price * shop.profit_buy
+                           * material_tier_value_mult(material_tier_for_id(o->material)));
+        char capbuf[128];
+        const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+        n += snprintf(out + n, sizeof(out) - (size_t)n, " %2d) %-42s %d gold (used)\r\n",
+                      count + resale_shown + 1, cap_first(label, capbuf, sizeof(capbuf)), price);
+        resale_shown++;
+    }
+
+    if (shown == 0 && resale_shown == 0 && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  (nothing for sale right now)\r\n");
     else if ((size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "\r\n(buy <#> or buy <name>)\r\n");
@@ -471,10 +538,13 @@ bool cmd_buy(descriptor_t *d, const char *args) {
 
     obj_proto_t proto;
     int matched_vnum = -1;
+    obj_t *resale = NULL;
     if (all_digits) {
         int idx = atoi(tok);
         if (idx >= 1 && idx <= count && obj_proto_load(vnums[idx - 1], &proto))
             matched_vnum = vnums[idx - 1];
+        else if (idx > count)
+            resale = find_resale_item_by_index(keeper, idx - count);
     } else {
         for (int i = 0; i < count; i++) {
             if (obj_proto_load(vnums[i], &proto) && keyword_matches(proto.name, args)) {
@@ -482,8 +552,10 @@ bool cmd_buy(descriptor_t *d, const char *args) {
                 break;
             }
         }
+        if (matched_vnum < 0)
+            resale = find_resale_item_by_keyword(keeper, tok);
     }
-    if (matched_vnum < 0) {
+    if (matched_vnum < 0 && !resale) {
         char msg[SHOP_MSG_LEN + 4];
         snprintf(msg, sizeof(msg), "%s\r\n", shop.no_such_item1);
         descriptor_send(d, msg);
@@ -494,8 +566,13 @@ bool cmd_buy(descriptor_t *d, const char *args) {
      * higher-tier material raises an item's shop price, the one
      * dimension the real upstream genuinely does this way too
      * (obj_base_weapon.cc's price += weight * material.price). */
-    int price = (int)(proto.price * shop.profit_buy
-                       * material_tier_value_mult(material_tier_for_id(proto.material)));
+    /* Resale stock uses the SAME formula against its own already-set
+     * `.price`/`.material` (see the resale-stock doc comment above). */
+    int price = resale
+        ? (int)(resale->price * shop.profit_buy
+                * material_tier_value_mult(material_tier_for_id(resale->material)))
+        : (int)(proto.price * shop.profit_buy
+                * material_tier_value_mult(material_tier_for_id(proto.material)));
     /* Sales tax (Money system v2, Sneezy → Tobin feature audit). The real
      * upstream's chargeTax() only taxes player-OWNED shop transactions,
      * routed to a per-shop tax office and journalized in double-entry --
@@ -513,7 +590,9 @@ bool cmd_buy(descriptor_t *d, const char *args) {
         return true;
     }
 
-    obj_t *bought = obj_create_from_proto(matched_vnum);
+    obj_t *bought = resale;
+    if (!bought)
+        bought = obj_create_from_proto(matched_vnum);
     if (!bought) {
         descriptor_send(d, "Something went wrong -- that item couldn't be created.\r\n");
         return true;
@@ -521,7 +600,9 @@ bool cmd_buy(descriptor_t *d, const char *args) {
     thing_move_to(&bought->base, &ch->base);
 
     char capbuf[128];
-    const char *label = cap_first(proto.short_descr[0] ? proto.short_descr : proto.name,
+    const char *fallback_name = resale ? bought->base.name : proto.name;
+    const char *fallback_short = resale ? bought->base.short_descr : proto.short_descr;
+    const char *label = cap_first(fallback_short[0] ? fallback_short : fallback_name,
                                   capbuf, sizeof(capbuf));
     char confirm[OBJ_LONG_DESCR_LEN + 32];
     snprintf(confirm, sizeof(confirm), "You buy %s.\r\n", label);
@@ -547,9 +628,13 @@ bool cmd_buy(descriptor_t *d, const char *args) {
 
 /* `sell <item>`: sells a loose carried item to the active shop, if it
  * deals in that item's category (shop_repo_buys_category(), checked
- * against the seeded `shoptype` rows) -- destroyed on sale rather than
- * added to the keeper's own stock, avoiding unbounded shopkeeper
- * inventory growth over a long server lifetime. */
+ * against the seeded `shoptype` rows). The item moves into the keeper's
+ * OWN inventory instead of being destroyed (user, 2026-08-04: "the shop
+ * should attempt to resell the item at a profit" -- see the resale-stock
+ * doc comment above `find_active_shop()`'s own helpers, and `list`/`buy`
+ * for the other half of this). A flat sales tax (same rate/treasury
+ * destination as `buy`'s, user: "tax should be charged to people selling
+ * at shops") is deducted from what the seller receives. */
 bool cmd_sell(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -616,6 +701,10 @@ bool cmd_sell(descriptor_t *d, const char *args) {
                        * material_tier_value_mult(material_tier_for_id(found->material)));
     if (price < 0)
         price = 0;
+    int tax = (int)(price * SALES_TAX_RATE);
+    int net = price - tax;
+    if (net < 0)
+        net = 0;
 
     char capbuf[128];
     const char *label = cap_first(found->base.short_descr[0] ? found->base.short_descr : found->base.name,
@@ -625,12 +714,29 @@ bool cmd_sell(descriptor_t *d, const char *args) {
     descriptor_send(d, confirm);
 
     char paid[SHOP_MSG_LEN + 16];
-    snprintf(paid, sizeof(paid), shop.message_sell, price);
+    snprintf(paid, sizeof(paid), shop.message_sell, net);
     strncat(paid, "\r\n", sizeof(paid) - strlen(paid) - 1);
     descriptor_send(d, paid);
 
-    ch->progress.gold += price;
-    obj_destroy(found);
+    if (tax > 0) {
+        char taxmsg[96];
+        snprintf(taxmsg, sizeof(taxmsg), "A sales tax of %d gold is added to the crown's coffers.\r\n", tax);
+        descriptor_send(d, taxmsg);
+        treasury_repo_add_gold(tax);
+    }
+
+    ch->progress.gold += net;
+
+    /* Resale: the item joins the keeper's own inventory instead of being
+     * destroyed, evicting the oldest resale item first if the keeper is
+     * already at SHOP_RESALE_MAX (see the doc comment above). */
+    if (count_resale_items(keeper) >= SHOP_RESALE_MAX) {
+        obj_t *oldest = find_resale_item_by_index(keeper, 1);
+        if (oldest)
+            obj_destroy(oldest);
+    }
+    thing_move_to(&found->base, &keeper->base);
+
     player_progress_save(ch->player_id, &ch->progress);
     player_inventory_save(ch->player_id, ch);
     return true;

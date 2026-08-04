@@ -1127,3 +1127,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New: buy ticket from certain mobs teleports you to a fixed destination', 'A handful of seeded mobs carry a "ticket guy" personality that was never wired up until now: buy ticket from one of them, standing and with 1000 gold to spare, and you are whisked away to a fixed destination room -- an old-world one-way travel trick straight out of the original game.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Selling to a shop now costs a bit of tax, and the item does not just vanish', 'Selling something to a shopkeeper now has a small sales tax taken out of what you are paid, the same rate already charged when buying. In exchange, the shopkeeper actually keeps what you sold them instead of it disappearing forever -- it shows up in that shop''s listing, marked as used, and anyone (including you) can buy it back later at the shop''s usual markup.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

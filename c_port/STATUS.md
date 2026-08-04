@@ -1,6 +1,25 @@
 # Tobin C Port — Status
 
 Last updated: 2026-08-04 — Session 129 (DO droplet, production port 4000):
+**Shop resale + sales tax on selling** (user, mid-session: "the shop
+should attempt to resell the item at a profit" / "tax should be charged
+to people selling at shops"): `sell <item>` (`cmd_shop.c`) previously
+paid the seller and destroyed the item outright, untaxed. Now it moves
+into the keeper's own inventory instead (capped at `SHOP_RESALE_MAX=20`,
+oldest evicted first to avoid unbounded growth -- the exact concern the
+original "destroyed on sale" simplification was written to avoid), and
+both `list`/`buy` draw from that resale stock too, numbered/matched
+right after the shop's static catalog and tagged "(used)" -- priced the
+SAME way a fresh catalog item is (`.price * profit_buy`), which is
+inherently a markup over `profit_sell` (always < `profit_buy`,
+shop_repo.h's own struct comment) -- the "profit" the shop makes on a
+resale. A flat sales tax (same `SALES_TAX_RATE`/treasury destination as
+`buy`'s own tax) is now deducted from what a seller receives. New
+`tests/smoke_test_shop_resell.py` (12 checks, the first real smoke test
+for the shop system at all -- `buy`/`list`/`sell` had none before this)
+passes live; `tests/smoke_test_combat.py` reran clean.
+
+Previous update (earlier the same session): 2026-08-04 — Session 129 (DO droplet, production port 4000):
 **Dangling `fighting` pointer fix (TODO.md), crit-hit weapon-flavored
 messages, SPEC_THIEF ported, and a spell/skill/spec-proc coverage audit
 logged to TODO.md.** Also folded in this session: a real git-history
