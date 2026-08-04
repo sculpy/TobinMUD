@@ -1131,3 +1131,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Selling to a shop now costs a bit of tax, and the item does not just vanish', 'Selling something to a shopkeeper now has a small sales tax taken out of what you are paid, the same rate already charged when buying. In exchange, the shopkeeper actually keeps what you sold them instead of it disappearing forever -- it shows up in that shop''s listing, marked as used, and anyone (including you) can buy it back later at the shop''s usual markup.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Kick is now level 1 for every class that has it', 'skill.c had Thief''s kick at level 1 already but Monk''s at level 3 -- the only two classes carrying it. Monk''s is now level 1 too, matching Thief.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -1,6 +1,13 @@
 # Tobin C Port — Status
 
 Last updated: 2026-08-04 — Session 129 (DO droplet, production port 4000):
+**Kick now level 1 for every class that has it** (user: "kick skill
+should be received at level 1 for all classes who get the skill").
+`skill.c`'s `SKILLS[]` roster had Thief's kick at level 1 already but
+Monk's at level 3 -- the only two classes with it -- Monk's is now level
+1 too. New `tests/smoke_test_kick_level1.py` (7 checks) passes live.
+
+Previous update (earlier the same session): 2026-08-04 — Session 129 (DO droplet, production port 4000):
 **Shop resale + sales tax on selling** (user, mid-session: "the shop
 should attempt to resell the item at a profit" / "tax should be charged
 to people selling at shops"): `sell <item>` (`cmd_shop.c`) previously

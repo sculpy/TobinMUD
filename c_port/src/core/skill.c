@@ -109,7 +109,7 @@ static const skill_def_t SKILLS[] = {
     { "riding",          CLASS_MONK, SKILL_TIER_CLASS,  1, "Mount and control a rideable creature." },
     { "sign",            CLASS_MONK, SKILL_TIER_CLASS,  10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "disarm",          CLASS_MONK, SKILL_TIER_CLASS,  1, "Knock the weapon out of an opponent's hand." },
-    { "kick",            CLASS_MONK, SKILL_TIER_CLASS,  3, "An unarmed kick attack." },
+    { "kick",            CLASS_MONK, SKILL_TIER_CLASS,  1, "An unarmed kick attack." },
     { "groundfighting",  CLASS_MONK, SKILL_TIER_CLASS, 5, "Reduces the penalty for fighting while knocked down." },
     { "retreat",         CLASS_MONK, SKILL_TIER_CLASS, 15, "Disengage from your current opponent." },
     { "counter move",    CLASS_MONK, SKILL_TIER_ADVANCED, 25, "Resist being shoved or thrown out of position." },

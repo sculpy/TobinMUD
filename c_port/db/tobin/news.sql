@@ -498,3 +498,9 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Fights Now Survive a Copyover', 'An ongoing fight now continues after the world reboots for an update, instead of quietly ending.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Monks Learn Kick Two Levels Earlier', 'Kick is now available to Monks starting at level 1, same as Thieves already had it, instead of level 3.'),
+('The TobinMUD Team', 'Selling to a Shop No Longer Just Vanishes', 'Selling an item to a shopkeeper now takes a small sales tax out of what you are paid, but the shopkeeper keeps what you sold -- it shows up in that shop''s listing, marked as used, for anyone (including you) to buy back later.'),
+('The TobinMUD Team', 'Some Mobs Now Sell One-Way Tickets', 'A few seeded characters carry a hidden trade: buy ticket from one of them, standing and with enough gold, and they will send you somewhere else entirely.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
