@@ -49,7 +49,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.2.0"
+#define CLIENT_VERSION "0.3.3"
 #define UPDATE_VERSION_URL "http://tobinmud.com/tobinclient/version.txt"
 #define UPDATE_MSI_URL "http://tobinmud.com/tobinclient/TobinMUDClient.msi"
 
@@ -464,10 +464,28 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
  * in that case (both so the new process owns the visible window, and
  * because msiexec needed this process to let go of its own locked
  * .exe file to replace it in the first place). */
+/* TEMPORARY diagnostic (user, 2026-08-05: "not working again" -- exits
+ * near-instantly with no crash log and no AV interference found).
+ * Appends to %TEMP%\tobinmud_debug.log so a run's exact failure point
+ * is visible after the fact, since the window (if any) vanishes too
+ * fast to observe directly. Remove once root-caused. */
+static void debug_log(const char *msg) {
+    char path[MAX_PATH];
+    GetTempPathA(MAX_PATH, path);
+    strncat(path, "tobinmud_debug.log", sizeof(path) - strlen(path) - 1);
+    FILE *f = fopen(path, "a");
+    if (f) {
+        fprintf(f, "%s\n", msg);
+        fclose(f);
+    }
+}
+
 static bool check_and_apply_update(void) {
     HINTERNET hInternet = InternetOpenA("TobinMUDClient", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
-    if (!hInternet)
+    if (!hInternet) {
+        debug_log("update: InternetOpenA FAILED");
         return false;
+    }
     DWORD timeout_ms = 3000;
     InternetSetOptionA(hInternet, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout_ms, sizeof(timeout_ms));
     InternetSetOptionA(hInternet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout_ms, sizeof(timeout_ms));
@@ -480,6 +498,10 @@ static bool check_and_apply_update(void) {
         InternetReadFile(hVersion, remote_version, sizeof(remote_version) - 1, &read);
         remote_version[read] = '\0';
         InternetCloseHandle(hVersion);
+    } else {
+        char errbuf[128];
+        snprintf(errbuf, sizeof(errbuf), "update: InternetOpenUrlA FAILED, GetLastError=%lu", (unsigned long)GetLastError());
+        debug_log(errbuf);
     }
     for (char *p = remote_version; *p; p++) {
         if (*p == '\r' || *p == '\n') {
@@ -488,10 +510,18 @@ static bool check_and_apply_update(void) {
         }
     }
 
+    {
+        char cmpbuf[160];
+        snprintf(cmpbuf, sizeof(cmpbuf), "update: remote_version=\"%s\" CLIENT_VERSION=\"%s\"", remote_version, CLIENT_VERSION);
+        debug_log(cmpbuf);
+    }
+
     if (remote_version[0] == '\0' || strcmp(remote_version, CLIENT_VERSION) == 0) {
+        debug_log("update: up to date (or check failed) -- skipping update");
         InternetCloseHandle(hInternet); /* up to date, or the check itself failed -- either way, nothing to do */
         return false;
     }
+    debug_log("update: versions differ -- proceeding to download+install");
 
     char temp_dir[MAX_PATH], temp_msi[MAX_PATH + 32];
     GetTempPathA(MAX_PATH, temp_dir);
@@ -577,12 +607,19 @@ static bool check_and_apply_update(void) {
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {
     (void)hPrev; (void)cmdline;
 
-    if (check_and_apply_update())
+    debug_log("WinMain: start, CLIENT_VERSION=" CLIENT_VERSION);
+
+    bool updated = check_and_apply_update();
+    debug_log(updated ? "WinMain: check_and_apply_update returned TRUE, exiting" :
+                         "WinMain: check_and_apply_update returned FALSE, continuing normal startup");
+    if (updated)
         return 0; /* update installer launched -- let it take over, don't show our window */
 
     WSADATA wsa;
-    WSAStartup(MAKEWORD(2, 2), &wsa);
+    int wsa_result = WSAStartup(MAKEWORD(2, 2), &wsa);
+    debug_log(wsa_result == 0 ? "WinMain: WSAStartup OK" : "WinMain: WSAStartup FAILED");
     LoadLibraryW(L"Msftedit.dll"); /* registers the MSFTEDIT_CLASS RichEdit window class */
+    debug_log("WinMain: Msftedit.dll loaded");
 
     WNDCLASSW wc = { 0 };
     wc.lpfnWndProc = WndProc;
@@ -590,13 +627,16 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {
     wc.lpszClassName = L"TobinMUDClientWindow";
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    RegisterClassW(&wc);
+    ATOM cls = RegisterClassW(&wc);
+    debug_log(cls != 0 ? "WinMain: RegisterClassW OK" : "WinMain: RegisterClassW FAILED");
 
     HWND hwnd = CreateWindowW(L"TobinMUDClientWindow", L"TobinMUD Client",
         WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
         NULL, NULL, hInst, NULL);
+    debug_log(hwnd != NULL ? "WinMain: CreateWindowW OK" : "WinMain: CreateWindowW FAILED");
     ShowWindow(hwnd, show);
     UpdateWindow(hwnd);
+    debug_log("WinMain: entering message loop");
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {

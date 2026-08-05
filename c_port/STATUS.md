@@ -1,6 +1,55 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-05 — Session 134 (DO droplet, production port 4000):
+Last updated: 2026-08-05 — Session 135 (DO droplet, production port 4000):
+**The REAL root cause of "client wont open" (v0.3.0-0.3.2 were all
+broken the same way, for a dumber reason than the elevation/UI-
+feedback fixes already shipped): a workflow bug in how this session's
+own edits were pushed to the droplet, not a code or environment bug at
+all.** `client/src/win32/main.c` was edited via a persistent local
+scratchpad copy, scp'd up, then `CLIENT_VERSION` bumped via `sed`
+directly on the REMOTE file only -- never synced back to the local
+copy. The NEXT time that stale local copy got edited and scp'd up
+again, it silently overwrote the remote's already-bumped version
+number back down to a much older one ("0.2.0"), and every subsequent
+`sed 's/0.3.1/0.3.2/'`-style bump command matched nothing (the text
+it was looking for no longer existed) and silently no-op'd. Net
+effect: the shipped exe's baked-in `CLIENT_VERSION` was stuck at
+"0.2.0" for several releases running, so EVERY launch saw a version
+mismatch against the real published `version.txt` and re-triggered
+the update flow -- including on a machine that had just been "fixed"
+and verified working, which is why it kept regressing.
+- Caught by adding temporary diagnostic logging (`debug_log()`,
+  appends to `%TEMP%\tobinmud_debug.log`) directly in `main.c` at each
+  WinMain/update-check stage, since the failure was too fast to
+  observe interactively (exits before a screenshot or process-list
+  check can catch it mid-flight). Left in for now (harmless, appends
+  a few lines per launch) -- remove once the user's confirmed stable
+  for a while.
+- Fixed by working from a fresh `scp`-down of the actual remote file
+  before editing, and setting `CLIENT_VERSION`/the `.wxs` `Version`
+  explicitly to a new, verified-correct number (0.3.3) rather than
+  trusting another `sed` match against text that had already proven
+  unreliable.
+- **Lesson for future sessions on this project**: for `client/`
+  specifically (unlike `c_port/`, which already uses the safer
+  "fetch-anchor-verify-then-apply" Python-script pattern throughout
+  this session for exactly this class of risk), always re-fetch the
+  current remote file immediately before editing a local scratch copy
+  of it, or better, apply edits the same anchor-verified way `c_port/`
+  changes already do. A `grep`/`cat` sanity check of the actual
+  resulting remote file after any version-bump `sed` -- confirming
+  the NEW string is present, not just assuming the command "worked"
+  because it exited 0 -- would have caught this immediately instead of
+  costing several rounds of the user reporting "not working" for
+  what looked like (and partly was, compounding on top of) real
+  environment bugs (elevation, UI feedback).
+- Verified directly on the same machine this session's own tool
+  access runs on: v0.3.3 opens, stays running, and its own debug log
+  confirms it reaches `check_and_apply_update() -> FALSE (up to date)
+  -> WSAStartup OK -> RegisterClassW OK -> CreateWindowW OK -> entering
+  message loop` cleanly.
+
+Previous update: Last updated: 2026-08-05 — Session 134 (DO droplet, production port 4000):
 **Real MSP fight music: server-side combat_music_tick() + client-side
 MUSIC parsing.** User: "i have a sound package to give you, for random
 fight music that will stop when the fight is over" -- six real .wav
