@@ -49,6 +49,15 @@ and verified working, which is why it kept regressing.
   -> WSAStartup OK -> RegisterClassW OK -> CreateWindowW OK -> entering
   message loop` cleanly.
 
+- **User-confirmed live, 2026-08-05 (later the same day)**: real
+  music played during a fight and stopped on death, exactly as
+  designed -- the combat_music_tick() feature works correctly in
+  practice, resolving the verification gap noted above. User also
+  noted playback felt "slow" (unclear yet whether that means the
+  MSP marker itself, PlaySound()'s own startup latency, or
+  something else) -- not investigated this session, logged as a
+  loose end for next time.
+
 Previous update: Last updated: 2026-08-05 — Session 134 (DO droplet, production port 4000):
 **Real MSP fight music: server-side combat_music_tick() + client-side
 MUSIC parsing.** User: "i have a sound package to give you, for random
