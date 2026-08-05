@@ -7697,33 +7697,47 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       via copyover, zero build warnings.
 
 - [ ] **Custom MUD client + web play client + generated web help/manuals**
-      (user, 2026-08-05). Three related asks, logged together, not yet
-      scoped or started:
-      1. A dedicated "TobinMUD Client" desktop/downloadable client for
-         players to connect and log into their accounts, supporting
-         GMCP, MSDP, and MSSP/MMP-style out-of-band protocols, plus MSP
-         so sound/music can be triggered server-side (e.g. music during
-         combat or specific commands). Tobin's `net`/`descriptor.c`
-         layer currently speaks plain telnet only -- no telnet option
-         negotiation, no GMCP/MSDP subnegotiation framing exists yet;
-         this is new protocol-layer work on the server side too, not
-         just a client build.
-      2. A web page letting people connect and play directly in a
-         browser (a web-based telnet/websocket client talking to the
-         live `tobin_c` server on port 4000 -- needs a websocket-to-
-         telnet bridge or native websocket support added server-side,
-         since browsers can't open raw TCP sockets).
-      3. Auto-generated, web-viewable help files/manuals -- rendering
-         Tobin's existing `help_topic` DB table (already the source for
-         the in-game `help <topic>` command) out to browsable web pages,
-         kept in sync with the same data instead of a hand-maintained
-         duplicate.
-      No design decisions made yet (hosting for the web pieces, protocol
-      scope for GMCP/MSDP -- full spec vs. a minimal subset, whether the
-      web client and the desktop client share one codebase). Given
-      CLAUDE.md's droplet-only development rule, both the desktop client
-      build tooling and the web server piece would still need to be
-      developed/built on the droplet like everything else.
+      (user, 2026-08-05). Three related asks, logged together.
+      1. **"TobinMUD Client" desktop client -- Phase 1 done, 2026-08-05**
+         (Windows only; macOS dropped from scope per user follow-up
+         same day). Real telnet option negotiation added to the server
+         for the first time (`c_port/src/net/descriptor.c` -- previously
+         all WILL/WONT/DO/DONT bytes were read and silently discarded),
+         plus GMCP/MSDP/MSP support on top of it (new `gmcp.c`/`msdp.c`,
+         `Char.Vitals`/`Room.Info` GMCP messages, matching MSDP VAR/VAL,
+         an MSP sound marker on landing a hit). New `client/` directory
+         (sibling to `c_port/`, own CMake project): a portable core
+         (`client/src/core/` -- telnet/GMCP/MSDP client-side parser,
+         ANSI-to-styled-runs, minimal GMCP JSON field extraction, zero
+         OS dependency) plus a native Win32 GUI (`client/src/win32/
+         main.c` -- RichEdit scrollback with real ANSI color, input box,
+         Winsock2 networking, MSP sound playback via `PlaySound()`).
+         Cross-compiled from the droplet via `mingw64-gcc` (Fedora
+         package, installed this session) -- see `client/README.md` for
+         the build commands. Packaged as a real MSI via `msitools`'
+         `wixl` (also installed this session); silent install is
+         standard MSI behavior (`msiexec /i ... /quiet`), no custom
+         code needed for that part of the ask. Both the `.exe` and
+         `.msi` sent to the user for real-machine testing (can't click-
+         test a Win32 GUI from the Linux droplet) -- not yet confirmed
+         working end-to-end on a real Windows box as of this write-up.
+         Follow-ups: a real HP-bar/status-line widget (GMCP currently
+         just updates the window title), more GMCP modules as the game
+         grows, and confirming the MSI's Start Menu shortcut/uninstall
+         path on a real machine.
+      2. Web play client -- not started. A web-based telnet/websocket
+         client talking to the live `tobin_c` server on port 4000 --
+         needs a websocket-to-telnet bridge or native websocket support
+         added server-side, since browsers can't open raw TCP sockets.
+      3. Auto-generated, web-viewable help files/manuals -- not started.
+         Rendering Tobin's existing `help_topic` DB table (already the
+         source for the in-game `help <topic>` command) out to browsable
+         web pages, kept in sync with the same data instead of a hand-
+         maintained duplicate.
+      No design decisions made yet on hosting for the web pieces (#2/#3).
+      Given CLAUDE.md's droplet-only development rule, the web server
+      piece would still need to be developed/built on the droplet like
+      everything else.
 
 - [ ] **Intermittent hang on quit-then-reconnect (and possibly other
       commands) under load** (found 2026-08-05 while building/testing the

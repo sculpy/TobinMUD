@@ -1223,3 +1223,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Server now speaks GMCP, MSDP, and MSP', 'First phase of the TobinMUD Client project: the server now offers real telnet option negotiation for GMCP, MSDP, and MSP, three protocols that MUD clients (Mudlet, TinTin++, and others) use to get structured game data and trigger sound cues without cluttering the screen. Right now it pushes character HP/Vitality and current room info, plus a sound cue when you land a hit in combat -- more will follow as the client project continues. Nothing changes for anyone using a plain telnet client.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A native TobinMUD Client now exists (Windows, phase 1)', 'Building on last session''s GMCP/MSDP/MSP server support, there is now an actual TobinMUD Client for Windows: connects automatically, renders color properly, and plays a sound cue when you land a hit. Packaged as a real MSI installer, including a silent/unattended install option. Confirmed working with Mudlet too, independent of this new client. Not yet distributed to players -- still in testing.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

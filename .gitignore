@@ -110,3 +110,7 @@ c_port/.env.local
 # OS cruft
 .DS_Store
 Thumbs.db
+
+# TobinMUD Client build artifacts (client/README.md documents the build)
+client/build-win64/
+*.msi

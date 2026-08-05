@@ -1,6 +1,62 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-05 — Session 131 (DO droplet, production port 4000):
+Last updated: 2026-08-05 — Session 132 (DO droplet, production port 4000):
+**TobinMUD Client, Phase 1c: native Win32 GUI + MSI installer, built
+on top of Session 131's GMCP/MSDP/MSP protocol layer.** macOS dropped
+from scope per user request this session -- Windows only.
+- New `client/` directory (sibling to `c_port/`, own CMake project,
+  not folded into `tobin_c`'s build): `client/src/core/` is a portable
+  protocol layer with zero OS dependency (`telnet_client.c` -- a
+  client-side mirror of the server's own telnet/GMCP/MSDP state
+  machine, auto-replying DO to GMCP/MSDP/MSP/ECHO/SGA offers and DONT
+  to anything else; `ansi_client.c` -- ANSI SGR escapes to colored text
+  runs, resumable across reads same as the telnet parser; `gmcp_json.c`
+  -- minimal field extraction for the server's small, flat GMCP
+  payloads, not a general JSON parser).
+- `client/src/win32/main.c`: one window, a read-only RichEdit
+  scrollback pane rendering real ANSI color, a single-line input box
+  (Enter sends the line, standard Windows Edit control local display
+  handles what you're currently typing -- no client-side echo needed
+  since the server already echoes each character back, same as any
+  real telnet client), Winsock2 non-blocking socket polled on a 50ms
+  timer. GMCP `Char.Vitals`/`Room.Info` update the window title as a
+  real, working status readout (a dedicated HP-bar widget is a natural
+  follow-up once this pipe was proven, not built yet -- v1 scope). MSP's
+  `!!SOUND(file V=volume)` in-band marker is scanned for (resumable
+  across reads, same shape as the other two parsers) and stripped
+  before display, triggering `PlaySound()`.
+- **Toolchain, installed this session**: `mingw64-gcc` (Fedora package,
+  cross-compiler) and `msitools` (provides `wixl`, builds a real MSI
+  from a WiX-style manifest) -- both confirmed available via plain
+  `dnf install`, no manual toolchain build needed (unlike the macOS
+  path this session dropped, which would have needed `osxcross` built
+  against a user-supplied Apple SDK).
+- New `client/cmake/mingw-w64-x86_64.cmake` toolchain file cross-
+  compiles a real Windows PE32+ executable from the droplet. New
+  `client/installer/windows/tobinmud.wxs` (WiX-style XML, the older
+  `schemas.microsoft.com/wix/2006/wi` namespace -- the newer v4 schema
+  bundled with this wixl build's own UI extension files didn't parse
+  cleanly) builds via `wixl -a x64` into a real `.msi`. **Silent
+  install is standard MSI behavior** (`msiexec /i ... /quiet`/`/qn`) --
+  no TobinMUD-specific code needed for the user's "silent option" ask,
+  just a correctly-built real MSI.
+- Zero-warning clean build for both the exe and its dependency (one
+  real bug caught along the way: `gmcp_json.c` used `snprintf` without
+  including `<stdio.h>`, an implicit-declaration warning under mingw's
+  gcc; fixed). Both the `.exe` and `.msi` sent to the user directly
+  (can't click-test a Win32 GUI from the Linux droplet) for real-
+  machine verification.
+- **User confirmed live, same session**: connected via Mudlet (a real
+  GMCP/MSDP/MSP-aware client, not just this new one) and confirmed
+  seeing both MSP and GMCP negotiate and fire against the live server
+  -- strong independent proof the Session 131 protocol layer itself is
+  correct, from a different client entirely than the one built this
+  session.
+- New `client/README.md` documents the build/install/test flow.
+  `client/build-win64/` and `*.msi` added to `.gitignore` (build
+  artifacts, not committed).
+
+Previous update: Last updated: 2026-08-05 — Session 131 (DO droplet, production port 4000):
 **GMCP/MSDP/MSP protocol layer -- first phase of the TobinMUD Client
 project (user, 2026-08-05: "create a mud client for players to connect
 to their accounts, complete with GMCP MSDP MMP and MSP for music... call
