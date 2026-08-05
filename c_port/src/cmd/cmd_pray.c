@@ -15,6 +15,7 @@
 #include "combat.h"
 #include "obj.h"
 #include "player_repo.h"
+#include "liquids.h"
 #include "pulse.h"
 #include "room.h"
 #include "room_repo.h"
@@ -1084,6 +1085,73 @@ bool cmd_pray(descriptor_t *d, const char *args) {
             descriptor_send(d, msg);
         }
         consume_symbol(d, summ_symbol);
+        return true;
+    }
+
+    /* `create food`/`create water` (Cleric, level 3) -- object-target
+     * (create water) or no-target (create food) prayers, same "handled
+     * before the being-target resolution below" shape cmd_cast.c uses
+     * for its own object-target spells (identify/copy/illuminate/
+     * create food/create water there, for Mage/Druid). Ported here
+     * rather than shared since Cleric prayers spend a holy symbol
+     * (find_keyword_item(ch, "symbol")/consume_symbol()), not the
+     * Mage/Druid spell-component pouch. */
+    if (strcasecmp(sk->name, "create food") == 0) {
+        obj_t *cfsym = find_keyword_item(ch, "symbol");
+        if (!cfsym) {
+            descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
+            return true;
+        }
+        obj_t *food = obj_create_ephemeral("bread loaf conjured", "a conjured loaf of bread",
+                                            "A conjured loaf of bread sits here.", OBJ_CAT_FOOD);
+        if (!food) {
+            descriptor_send(d, "You pray for create food, but nothing happens.\r\n");
+            consume_symbol(d, cfsym);
+            return true;
+        }
+        food->val[0] = 12;
+        thing_move_to(&food->base, &ch->base);
+        descriptor_send(d, "You pray for create food -- a warm loaf of bread appears in your hands!\r\n");
+        char cfmsg[128], cfcapbuf[128];
+        snprintf(cfmsg, sizeof(cfmsg), "A loaf of bread appears in %s hands!\r\n",
+                 being_display_name_cap(ch, cfcapbuf, sizeof(cfcapbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, cfmsg);
+        consume_symbol(d, cfsym);
+        return true;
+    }
+
+    if (strcasecmp(sk->name, "create water") == 0) {
+        obj_t *cwsym = find_keyword_item(ch, "symbol");
+        if (!cwsym) {
+            descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
+            return true;
+        }
+        if (!target_name) {
+            descriptor_send(d, "Create water into what?\r\n");
+            return true;
+        }
+        obj_t *jug = liquid_find_carried_container(ch, target_name);
+        if (!jug) {
+            descriptor_send(d, "You aren't carrying that.\r\n");
+            return true;
+        }
+        if (jug->val[1] >= jug->val[0]) {
+            descriptor_send(d, "That is already completely full!\r\n");
+            return true;
+        }
+        if (jug->val[1] > 0 && jug->val[2] != LIQUID_TYPE_DEFAULT) {
+            descriptor_send(d, "You can't mix water with what's already in there -- pour it out first.\r\n");
+            return true;
+        }
+        jug->val[2] = LIQUID_TYPE_DEFAULT;
+        jug->val[1] = jug->val[0];
+        const char *jlabel = jug->base.short_descr[0] ? jug->base.short_descr : jug->base.name;
+        char cwmsg[224];
+        snprintf(cwmsg, sizeof(cwmsg), "You pray for create water -- %s fills to the brim!\r\n", jlabel);
+        descriptor_send(d, cwmsg);
+        snprintf(cwmsg, sizeof(cwmsg), "%s fills with water out of thin air!\r\n", jlabel);
+        descriptor_room_echo(ch->base.roomp, ch, cwmsg);
+        consume_symbol(d, cwsym);
         return true;
     }
 

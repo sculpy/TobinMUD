@@ -15,6 +15,7 @@ viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups, logged 2026-08-04
 
+- [ ] **Spell/prayer component requirements should appear in `help <spell>`** -- user, 2026-08-05: players currently only discover "you need a component/holy symbol" by trying to cast and getting refused; the help text for a spell/prayer that requires one should say so up front. Needs a look at how spell/prayer help entries are generated (skill_help.sql / cmd_skills.c's `print_tier()` roster display vs. the real `help` command's own topic lookup) to find the right place to surface it -- every Mage/Druid spell in cmd_cast.c needs a "component" pouch item, every Cleric prayer in cmd_pray.c needs a "symbol" holy-symbol item (find_keyword_item() gate), so the underlying rule is uniform even though it isn't documented anywhere player-facing yet.
 - [ ] **Inventory item lost after a SECOND quit/relog cycle** -- found live, 2026-08-04, while testing entangling roots: an item conjured via `load obj` (a plain pouch/component prototype) survives ONE quit->relog fine (still in inventory), but is silently gone after a SECOND quit->relog with no error. Not yet root-caused -- worth checking player_inventory_save()/load() for something specific to a second write cycle (slot reassignment collision? an UPSERT that fails silently on a re-save?), and whether this affects normally-acquired items too or only `load obj`-conjured ones. Real production risk if it's general (players losing items on repeated relogs).
 - [ ] **Cast/pray messaging: 3 lines per task step** -- user, 2026-08-04, no further detail yet. Needs clarification: which spells/commands, and what the 3 lines should be (e.g. a cast-attempt line, an effect line, a resolution line?) before scoping.
 - [ ] **Examine how spells are formed in real SneezyMUD and port the approach here** -- user, 2026-08-04, no further detail yet. Likely means reviewing `sneezymud-master/code/code/misc/spell_info.cc`'s discArray[]/spell-casting architecture (already the source used for the spell/skill audit's roster data) for structural/mechanical patterns Tobin's `cmd_cast.c`/`cmd_pray.c` keyword-dispatch approach doesn't currently capture -- scope not yet defined.
@@ -311,7 +312,7 @@ miss the damage branch -- flagged inline below.
 
 #### Druid (shares Mage's `cmd_cast.c` dispatcher) — 4 likely stubs
 - [x] Entangling roots — **Fixed 2026-08-04:** own explicit branch (outdoors-only per roster text, real damage via combat_apply_skill_damage()); also broadened the damage-keyword match to a "damag" stem (catches damage/damages/damaging) in both cmd_cast.c and cmd_pray.c, which independently helps several other still-open stubs below (e.g. energy drain).
-- [ ] Bramble drain — promises draining life from target to self; no damage/heal-transfer applied.
+- [x] Bramble drain — **Fixed 2026-08-05:** real damage (combat_apply_skill_damage) plus a genuine being_heal() drain-back for half the damage dealt (cmd_cast.c).
 - [ ] Beast soother — promises calming a hostile/hunting animal; no effect applied.
 - [x] Clot — **Fixed 2026-08-04:** same targeted AFFECT_DISEASE_BLEEDING cure as Cleric's identical spell (cmd_cast.c).
 
@@ -328,7 +329,8 @@ miss the damage branch -- flagged inline below.
 - [ ] Second wind — promises restoring a victim's movement points; no effect applied.
 - [ ] Paralyze (full) — only "paralyze limb" has real handling; plain "paralyze" falls through with zero effect.
 - [ ] Earthquake — desc says "damages" not "damage" AND doesn't say "area-effect" — misses BOTH branches, a room-wide AoE nuke that deals zero damage to anyone.
-- [ ] Consecrate / Crusade / Portal / Astral walk / Bone breaker / Wither limb / Spontaneous combust / Create food / Create water — none match any generic keyword branch; all fall through.
+- [ ] Consecrate / Crusade / Portal / Astral walk / Bone breaker / Wither limb / Spontaneous combust — none match any generic keyword branch; all fall through.
+- [x] Create food / Create water (Cleric level 3, Druid level 9) — **Fixed 2026-08-05:** create food conjures a real, eatable OBJ_CAT_FOOD item via obj_create_ephemeral() into the caster's hands; create water fills a carried empty container with real water (same val0/val1/val2 capacity/current/type fields cmd_fill.c's mundane `fill` uses), object-targeted like identify/copy. cmd_cast.c (Mage/Druid) + cmd_pray.c (Cleric, spends a holy symbol instead of a component pouch).
 
 *(Scope caveat: this stub audit covers only the `cast`/`pray` generic
 dispatchers -- the ~40 non-spell skill commands, one file per Warrior/

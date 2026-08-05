@@ -15,6 +15,7 @@
 #include "combat.h"
 #include "obj.h"
 #include "obj_magic_repo.h"
+#include "liquids.h"
 #include "pulse.h"
 #include "room.h"
 #include "room_repo.h"
@@ -732,6 +733,43 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
         if (!defeated && atk_target->desc) {
             char tcapbuf[128];
             snprintf(msg, sizeof(msg), "%s casts entangling roots -- roots erupt underfoot, tripping and mauling you %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "bramble drain") == 0) {
+        /* Level-3 stub-audit fix: "A thorned vine that drains a small
+         * amount of life to you" -- real damage + a life-drain heal-
+         * back, same being-target/combat_apply_skill_damage() shape as
+         * entangling roots just above, plus being_heal() for the "to
+         * you" half (a genuine drain, not just damage with drain
+         * flavor text and no actual transfer). Heal-back is capped at
+         * half the damage dealt -- "a SMALL amount of life", not a
+         * full 1:1 transfer. */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        int drained = dmg / 2;
+        if (drained < 1)
+            drained = 1;
+        being_heal(ch, drained);
+        snprintf(msg, sizeof(msg),
+                 "You cast bramble drain -- thorned vines lash %s %s, and you feel their life flow into you! (+%d HP)\r\n",
+                 being_display_name(atk_target), intensity, drained);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts bramble drain -- thorned vines lash you %s, draining your life away!\r\n",
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
             descriptor_notify(atk_target->desc, msg);
         }
@@ -1486,6 +1524,82 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         descriptor_send(d, copymsg);
         descriptor_room_echo(ch->base.roomp, ch, copymsg);
         consume_component(d, ccomp);
+        return true;
+    }
+
+    if (strcasecmp(sk->name, "create food") == 0) {
+        /* Level-9 (Druid)/level-3 (Cleric, cmd_pray.c mirrors this)
+         * stub-audit fix: "Conjures food from nothing" -- a real,
+         * eatable OBJ_CAT_FOOD item (obj_create_ephemeral(), val[0]=
+         * nutrition same field cmd_eat.c already reads), dropped into
+         * the caster's hands, not just a hunger-meter bump -- matches
+         * the roster text literally (an ITEM appears), and the food can
+         * be carried, given away, or eaten later like any other food. */
+        obj_t *cfcomp = find_keyword_item(ch, "component");
+        if (!cfcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        obj_t *food = obj_create_ephemeral("bread loaf conjured", "a conjured loaf of bread",
+                                            "A conjured loaf of bread sits here.", OBJ_CAT_FOOD);
+        if (!food) {
+            descriptor_send(d, "You cast create food, but nothing happens.\r\n");
+            consume_component(d, cfcomp);
+            return true;
+        }
+        food->val[0] = 12;
+        thing_move_to(&food->base, &ch->base);
+        descriptor_send(d, "You cast create food -- a warm loaf of bread appears in your hands!\r\n");
+        char cfmsg[128], cfcapbuf[128];
+        snprintf(cfmsg, sizeof(cfmsg), "A loaf of bread appears in %s hands!\r\n",
+                 being_display_name_cap(ch, cfcapbuf, sizeof(cfcapbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, cfmsg);
+        consume_component(d, cfcomp);
+        return true;
+    }
+
+    if (strcasecmp(sk->name, "create water") == 0) {
+        /* Level-9 (Druid)/level-3 (Cleric) stub-audit fix: "Fills a
+         * container with water" -- targets an OBJECT the caster is
+         * carrying, same object-target-before-being-resolution shape
+         * as identify/copy/illuminate above. Fills it with real LIQUID
+         * water (val[1]=current, val[0]=capacity, val[2]=type -- same
+         * fields cmd_fill.c's mundane `fill` uses), refusing only a
+         * container that's already full of something else (same mixing
+         * refusal cmd_fill.c already enforces) -- unlike `fill`, needs
+         * no room-side water source, since the whole point is conjuring
+         * it from nothing. */
+        obj_t *cwcomp = find_keyword_item(ch, "component");
+        if (!cwcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        if (!target_name) {
+            descriptor_send(d, "Create water into what?\r\n");
+            return true;
+        }
+        obj_t *jug = liquid_find_carried_container(ch, target_name);
+        if (!jug) {
+            descriptor_send(d, "You aren't carrying that.\r\n");
+            return true;
+        }
+        if (jug->val[1] >= jug->val[0]) {
+            descriptor_send(d, "That is already completely full!\r\n");
+            return true;
+        }
+        if (jug->val[1] > 0 && jug->val[2] != LIQUID_TYPE_DEFAULT) {
+            descriptor_send(d, "You can't mix water with what's already in there -- pour it out first.\r\n");
+            return true;
+        }
+        jug->val[2] = LIQUID_TYPE_DEFAULT;
+        jug->val[1] = jug->val[0];
+        const char *jlabel = jug->base.short_descr[0] ? jug->base.short_descr : jug->base.name;
+        char cwmsg[224];
+        snprintf(cwmsg, sizeof(cwmsg), "You cast create water -- %s fills to the brim!\r\n", jlabel);
+        descriptor_send(d, cwmsg);
+        snprintf(cwmsg, sizeof(cwmsg), "%s fills with water out of thin air!\r\n", jlabel);
+        descriptor_room_echo(ch->base.roomp, ch, cwmsg);
+        consume_component(d, cwcomp);
         return true;
     }
 
