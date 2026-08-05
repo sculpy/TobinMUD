@@ -521,3 +521,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Combat Now Has Music -- On Supported Clients', 'Fighting now triggers a random music track on clients that understand the MSP protocol (like the new TobinMUD Client, or Mudlet), and it stops automatically once the fight ends. Nothing changes for plain telnet clients.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Spellcasting Mobs Now Carry Real Spellbags', 'Mages and Druids you fight now carry a proper spellbag sized to their own strength, holding a real spell reagent inside -- loot it same as any other belongings.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

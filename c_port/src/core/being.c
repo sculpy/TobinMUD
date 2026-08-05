@@ -13,6 +13,7 @@
 
 #include "balance.h"
 #include "body.h"
+#include "db.h"
 #include "descriptor.h"
 #include "gmcp.h"
 #include "msdp.h"
@@ -100,6 +101,34 @@ bool mob_class_mask_to_tobin(int mask, player_class_t *out) {
     }
 }
 
+/* Picks a real spell-component object vnum at random from the seed
+ * data's "component mage" pool (user 2026-08-05: "put components in for
+ * spells the mob would know at his level, at random") -- collects every
+ * match first since obj_create_from_proto() below opens its own
+ * connection, same safe-row-collection pattern player_inventory_load()
+ * (obj_repo.c) uses. There's ~130 of these in the real seed data (vnums
+ * scattered 200-1548, no per-spell mapping -- see the doc comment below
+ * on why "for spells it would know" can only be cosmetic here), plenty
+ * for real variety. Returns -1 if none found (should never happen
+ * against the real seed data). */
+static int pick_random_component_vnum(void) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+
+    int vnums[256];
+    int n = 0;
+    if (db_query(db, "select vnum from obj where name like '%%component mage%%'")) {
+        while (n < 256 && db_fetch_row(db))
+            vnums[n++] = atoi(db_get(db, "vnum"));
+    }
+    db_close(db);
+
+    if (n == 0)
+        return -1;
+    return vnums[rand() % n];
+}
+
 /* Class-appropriate spellcasting supplies (user 2026-07-28 audit-batch
  * request, queued in Session 92, "Mage/Druid/Cleric mobs should load
  * carrying class-and-level-appropriate spell components"): Mage/Druid
@@ -109,33 +138,64 @@ bool mob_class_mask_to_tobin(int mask, player_class_t *out) {
  * could never actually cast/pray at all. That gate has no real
  * caster-level -> component-tier mapping of its own (any matching
  * keyword item anywhere in inventory works, see cmd_cast.c/cmd_pray.c),
- * so the "level-appropriate" part here is cosmetic only: Cleric mobs get
- * a holy symbol material picked off the real seed data's existing
+ * so "level-appropriate"/"for spells it would know" is cosmetic only in
+ * both branches below -- there's no per-spell component mapping in the
+ * seed data to bind a specific reagent to a specific spell. Cleric mobs
+ * get a holy symbol material picked off the real seed data's existing
  * 15-tier wooden(vnum 500) -> mithril(vnum 514) ladder, roughly one tier
- * every 4 levels. Mage/Druid mobs just get a generic "pouch of spell
- * components" (vnum 965881) -- there's no equivalent per-material tier
- * ladder for components in the seed data to mirror. */
+ * every 4 levels.
+ *
+ * Mage/Druid mobs (user 2026-08-05: "A small spellbag is here on the
+ * floor" -- give them a real spellbag (321 small/322 medium/323 big)
+ * instead of the old flat generic "pouch of spell components" (vnum
+ * 965881), loaded with a component picked at random) get a spellbag
+ * sized to their own level -- 1-20 small, 21-40 medium, 41-60 large,
+ * an even three-way split of the level range since there's no existing
+ * bag-size tier ladder to mirror the way Cleric symbols have one -- with
+ * one random real component (see pick_random_component_vnum() above)
+ * nested inside. Druid mobs reuse the same "component mage"-tagged pool
+ * as Mage (no separate Druid-tagged set exists in the seed data) --
+ * already an accepted precedent: find_keyword_item() only checks the
+ * "component" keyword, not a class-specific tag, so the same items work
+ * for both classes despite the "mage" name tag (see the newbie-gear
+ * wiznews entry that established this for player starting gear). */
 static void being_grant_class_casting_supplies(being_t *b) {
     if (!b->mob_class_known)
         return;
 
-    int vnum;
     if (b->char_class == CLASS_MAGE || b->char_class == CLASS_DRUID) {
-        vnum = 965881; /* "a pouch of spell components" */
-    } else if (b->char_class == CLASS_CLERIC) {
-        int tier = b->progress.level / 4;
-        if (tier > 14) tier = 14;
-        vnum = 500 + tier; /* wooden (novice) ... mithril (level 56+) */
-    } else {
+        int bag_vnum = b->progress.level <= 20 ? 321 : b->progress.level <= 40 ? 322 : 323;
+        obj_t *bag = obj_create_from_proto(bag_vnum);
+        if (!bag)
+            return;
+        bag->decay_time = -1; /* persistent starting gear, not ephemeral loot --
+                                  see zone.c's zone_cmd_load_obj_ground() doc
+                                  comment for why zone-spawned/starting content
+                                  overrides decay */
+
+        int comp_vnum = pick_random_component_vnum();
+        if (comp_vnum > 0) {
+            obj_t *comp = obj_create_from_proto(comp_vnum);
+            if (comp) {
+                comp->decay_time = -1;
+                thing_move_to(&comp->base, &bag->base);
+            }
+        }
+        thing_move_to(&bag->base, &b->base);
         return;
     }
+
+    if (b->char_class != CLASS_CLERIC)
+        return;
+
+    int tier = b->progress.level / 4;
+    if (tier > 14) tier = 14;
+    int vnum = 500 + tier; /* wooden (novice) ... mithril (level 56+) */
 
     obj_t *o = obj_create_from_proto(vnum);
     if (!o)
         return;
-    o->decay_time = -1; /* persistent starting gear, not ephemeral loot -- see
-                            zone.c's zone_cmd_load_obj_ground() doc comment for
-                            why zone-spawned/starting content overrides decay */
+    o->decay_time = -1;
     thing_move_to(&o->base, &b->base);
 }
 
