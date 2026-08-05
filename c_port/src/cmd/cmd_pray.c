@@ -758,6 +758,63 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (strcasecmp(sk->name, "consecrate") == 0 || strcasecmp(sk->name, "crusade") == 0) {
+        int cshit = 0;
+        for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC && t->kind != THING_MOB)
+                continue;
+            being_t *occ = (being_t *)t;
+            if (being_is_immortal(occ))
+                continue;
+            being_apply_affect(occ, AFFECT_SANCTUARY, 60);
+            cshit++;
+        }
+        (void)cshit;
+        snprintf(msg, sizeof(msg), "You pray for %s -- a holy light fills the room, blessing everyone in it!\r\n", sk->name);
+        descriptor_send(d, msg);
+        char csrmsg[160], cscapbuf[128];
+        snprintf(csrmsg, sizeof(csrmsg), "%s prays for %s -- a holy light fills the room, blessing everyone in it!\r\n",
+                 being_display_name_cap(ch, cscapbuf, sizeof(cscapbuf)), sk->name);
+        descriptor_room_echo(ch->base.roomp, ch, csrmsg);
+    } else if (strcasecmp(sk->name, "bone breaker") == 0 || strcasecmp(sk->name, "wither limb") == 0) {
+        ch->last_heal_target = NULL;
+        if (!atk_target) {
+            descriptor_send(d, "Pray for that over whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        static const limb_t BREAKABLE_LIMBS[] = {
+            LIMB_LEFT_ARM, LIMB_RIGHT_ARM, LIMB_LEFT_HAND, LIMB_RIGHT_HAND,
+            LIMB_RIGHT_LEG, LIMB_LEFT_LEG, LIMB_LEFT_FOOT, LIMB_RIGHT_FOOT,
+        };
+        limb_t bb_candidates[8];
+        int n_bb_candidates = 0;
+        for (size_t i = 0; i < sizeof(BREAKABLE_LIMBS) / sizeof(BREAKABLE_LIMBS[0]); i++) {
+            limb_t l = BREAKABLE_LIMBS[i];
+            if (being_has_limb(atk_target, l) && atk_target->limbs[l].hp > 0)
+                bb_candidates[n_bb_candidates++] = l;
+        }
+        if (n_bb_candidates == 0) {
+            snprintf(msg, sizeof(msg), "%s has no limb left for you to break!\r\n",
+                     being_display_name(atk_target));
+            descriptor_send(d, msg);
+            return;
+        }
+        limb_t bb_limb = bb_candidates[rand() % n_bb_candidates];
+        combat_debug_set_limb_hp(ch, atk_target, bb_limb, 0);
+        snprintf(msg, sizeof(msg), "You pray for %s over %s -- their %s snaps and goes limp!\r\n",
+                 sk->name, being_display_name(atk_target), limb_name(bb_limb));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s prays for %s over you -- your %s snaps and goes limp!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, limb_name(bb_limb));
+            descriptor_notify(atk_target->desc, msg);
+        }
     } else if (strcasecmp(sk->name, "numb") == 0) {
         ch->last_heal_target = NULL;
         if (!atk_target) {
@@ -982,7 +1039,11 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
                || ci_contains(sk->desc, "strike")
                /* `flamestrike` (level-13 stub-audit fix): desc "A column
                 * of divine flame" matches none of the above. */
-               || ci_contains(sk->desc, "flame") || ci_contains(sk->desc, "fiery")) {
+               || ci_contains(sk->desc, "flame") || ci_contains(sk->desc, "fiery")
+               /* `spontaneous combust` (level-48 stub-audit fix): desc
+                * "Sets a target ablaze from within" -- "ablaze" isn't
+                * in the list above. */
+               || ci_contains(sk->desc, "ablaze")) {
         /* No longer gated on ch->fighting (offensive spell breadth) --
          * can now open combat against atk_target, same as `attack`/
          * `kill`. If ch is already fighting someone else, this is just
@@ -1071,6 +1132,71 @@ bool cmd_pray(descriptor_t *d, const char *args) {
 
     while (*args == ' ')
         args++;
+    /* `astral walk`/`portal` (levels 35/49, stub-audit fix): real
+     * teleport to a room found by name, same room_repo_find_vnum_by_
+     * name()-backed mechanic ethereal gate (cmd_cast.c) uses.
+     * Intercepted here, before find_spell_and_target() below, same
+     * multi-word-target precedent as `summon` above it -- a location
+     * name is frequently more than one word. */
+    for (int awi = 0; awi < 2; awi++) {
+        const char *awverb = awi == 0 ? "astral walk" : "portal";
+        size_t awlen = strlen(awverb);
+        if (strncasecmp(args, awverb, awlen) != 0 || (args[awlen] != ' ' && args[awlen] != '\0'))
+            continue;
+        const skill_def_t *awsk = find_spell(ch->char_class, awverb, imm);
+        if (!awsk) {
+            descriptor_send(d, "You don't know a prayer by that name.\r\n");
+            return true;
+        }
+        if (!imm && ch->progress.level < awsk->min_level) {
+            char lvlmsg[96];
+            snprintf(lvlmsg, sizeof(lvlmsg), "You aren't experienced enough to pray for %s yet (level %d).\r\n",
+                     awsk->name, awsk->min_level);
+            descriptor_send(d, lvlmsg);
+            return true;
+        }
+        if (!imm && awsk->tier == SKILL_TIER_ADVANCED &&
+            (ch->progress.basic_disc_pct < 100 || ch->progress.combat_disc_pct < 100
+             || ch->progress.advanced_disc_pct <= 0)) {
+            descriptor_send(d, "Master your Basic and Combat disciplines, and begin Advanced practice, before this.\r\n");
+            return true;
+        }
+        obj_t *awsym = find_keyword_item(ch, "symbol");
+        if (!awsym) {
+            descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
+            return true;
+        }
+        const char *awtarget = args + awlen;
+        while (*awtarget == ' ')
+            awtarget++;
+        if (!*awtarget) {
+            descriptor_send(d, "Open a gate to where?\r\n");
+            return true;
+        }
+        int awvnum = room_repo_find_vnum_by_name(awtarget);
+        room_t *awdest = awvnum >= 0 ? world_get_room(awvnum) : NULL;
+        if (!awdest && awvnum >= 0)
+            awdest = room_repo_load(awvnum);
+        if (awdest)
+            world_register_room(awdest);
+        if (!awdest) {
+            descriptor_send(d, "You can't sense a place by that name.\r\n");
+            consume_symbol(d, awsym);
+            return true;
+        }
+        room_t *aworigin = ch->base.roomp;
+        char awmsg[128];
+        snprintf(awmsg, sizeof(awmsg), "You pray for %s -- a shimmering portal tears open before you!\r\n", awsk->name);
+        descriptor_send(d, awmsg);
+        if (aworigin)
+            descriptor_room_echo(aworigin, ch, "A shimmering portal tears open, and someone steps through!\r\n");
+        thing_set_room(&ch->base, awdest);
+        descriptor_room_echo(awdest, ch, "A shimmering portal tears open, and someone steps out!\r\n");
+        cmd_dispatch(d, "look");
+        consume_symbol(d, awsym);
+        return true;
+    }
+
     if (!*args) {
         descriptor_send(d, "Pray for what? Try 'skills' to see your prayers.\r\n");
         return true;

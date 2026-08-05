@@ -1203,3 +1203,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Huge stub-audit batch: 21 more spells/prayers fixed (levels 13-48)', 'The biggest batch yet in the ongoing spell-audit backlog. Cleric: `flamestrike`, `expel`, `numb`, `second wind`, full `paralyze`, and `earthquake` all now do something real instead of nothing. Mage: `shatter`, `infravision`, `true sight`, `cloud of concealment`, `watery grave`, `spontaneous generation`, `Garmul''s tail`, `immobilize`, `energy drain`, `fumble`, `suffocate`, `flight`, `divination`, `silence`, and `ethereal gate` (a real portal to any named room in the game) are all fixed too. `silence` is a genuinely new mechanic -- a silenced target really can''t cast spells or say prayers until it wears off. Every Mage/Cleric spell stub through level 48 is now cleared.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Spell/prayer stub audit complete through level 49', 'Last batch of the Cleric spell-stub audit: `astral walk` and `portal` now really teleport you to any named room in the game. `bone breaker` and `wither limb` really break one of a target''s limbs. `consecrate` and `crusade` really bless everyone in the room. `spontaneous combust` now deals real damage. That closes out the entire Mage/Druid/Cleric spell and prayer stub-audit backlog through level 49 -- every spell listed in `skills` now does what its description says.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

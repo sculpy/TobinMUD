@@ -333,7 +333,7 @@ miss the damage branch -- flagged inline below.
 - [x] Second wind — **Fixed 2026-08-05:** folded into `refresh`'s real Vitality-restore branch (Move == Vitality in Tobin's score display).
 - [x] Paralyze (full) — **Fixed 2026-08-05:** same disclosed limb-to-0 approximation as paralyze limb, applied to every safe-slot limb at once.
 - [x] Earthquake — **Fixed 2026-08-05:** added an explicit name check to route into pray_area_damage() (that helper's own doc comment already named earthquake as an intended caller).
-- [ ] Consecrate / Crusade / Portal / Astral walk / Bone breaker / Wither limb / Spontaneous combust — none match any generic keyword branch; all fall through.
+- [x] Consecrate / Crusade / Portal / Astral walk / Bone breaker / Wither limb / Spontaneous combust — **Fixed 2026-08-05:** Astral walk/portal route to a real named-location teleport (same room_repo_find_vnum_by_name() mechanic as Mage's ethereal gate). Bone breaker/wither limb reuse paralyze limb's disclosed limb-to-0 approximation. Consecrate/crusade grant a real room-wide AFFECT_SANCTUARY blessing. Spontaneous combust: added "ablaze" to the damage-keyword list. This closes out the Mage/Druid/Cleric spell-stub audit through level 49.
 - [x] Create food / Create water (Cleric level 3, Druid level 9) — **Fixed 2026-08-05:** create food conjures a real, eatable OBJ_CAT_FOOD item via obj_create_ephemeral() into the caster's hands; create water fills a carried empty container with real water (same val0/val1/val2 capacity/current/type fields cmd_fill.c's mundane `fill` uses), object-targeted like identify/copy. cmd_cast.c (Mage/Druid) + cmd_pray.c (Cleric, spends a holy symbol instead of a component pouch).
 
 *(Scope caveat: this stub audit covers only the `cast`/`pray` generic
