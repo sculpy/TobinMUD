@@ -288,16 +288,16 @@ miss the damage branch -- flagged inline below.
 - [x] Faerie fire — **Fixed 2026-08-05:** real AFFECT_FAERIE_FIRE (affect.h), combat.c's strike roll widens the defender-side to-hit modifier while it's active, same shape as the existing destroyed-limb modifier.
 - [x] Materialize — **Fixed 2026-08-05:** `cast materialize <item>` now routes to the real, pre-existing standalone `materialize` command (cmd_materialize.c, an earlier audit pass) instead of falling through to the generic stub placeholder -- intercepted in cmd_cast.c before the standard component-pouch gate, since real materialize only ever cost gold, never a spell component.
 - [x] Feathery descent — **Fixed 2026-08-05:** real room-wide AFFECT_FEATHERY_DESCENT, checked alongside the `catfall` skill in fall.c (wider survivable-depth threshold, halved crush damage).
-- [ ] Accelerate — promises a group haste-like buff (distinct from the separately-implemented "haste"); no affect applied.
-- [ ] Sense life — promises detecting nearby life; no detection performed.
-- [ ] Stealth — promises a quiet-movement group buff; no affect applied.
-- [ ] Faerie fog — promises obscuring the room; no room state changed.
-- [ ] Galvanize — promises charging an item with electricity; no item effect.
-- [ ] Powerstone — promises a mana-battery item; no item effect (also: no mana system exists to back it).
-- [ ] Ensorcer — promises charming/dominating a target; no charm/affect applied.
-- [ ] Falcon wings — promises a flight-like movement buff; no affect applied.
-- [ ] Mage repair — promises magically repairing equipment; no repair performed.
-- [ ] Calm — promises pacifying a target/stopping violence; no effect applied.
+- [x] Accelerate — **Fixed 2026-08-05:** real room-wide AFFECT_HASTE, group version of `haste`'s own single-target buff, same room-walk-loop shape as sorcerer's globe/flare.
+- [x] Sense life — **Fixed 2026-08-05:** delegates to the real, already-correct `scan` command (cmd_scan.c) instead of re-deriving a second life-detection readout.
+- [x] Stealth — **Fixed 2026-08-05:** sets the real `sneaking` in-memory toggle (being.h, same mechanic the `sneak` skill already uses) for every room occupant.
+- [x] Faerie fog — **Fixed 2026-08-05:** real AFFECT_BLIND applied to every hostile mob in the room, reusing the same affect combat.c already reads for a to-hit penalty.
+- [x] Galvanize — **Fixed 2026-08-05:** folded into `enhance weapon`'s branch (same disclosed AFFECT_ENHANCE_WEAPON scope-limit -- no per-instance objaffect slot for a true item-level charge).
+- [x] Powerstone — **Fixed 2026-08-05:** reuses `charge stave`'s real charges-refill mechanic (Tobin has no mana pool for a literal "mana battery", same disclosed gap attune/devotion already hit).
+- [x] Ensorcer — **Fixed 2026-08-05:** real AFFECT_CHARMED on an existing mob target (not a fresh summon like being_summon_charmed_pet()), same one-pet/follower-slot refusal shape.
+- [x] Falcon wings — **Fixed 2026-08-05:** real room-wide AFFECT_FLYING, group version of the single-target "float above the ground" branch.
+- [x] Mage repair — **Fixed 2026-08-05:** real object-target cur_struct restore to its depreciation-aware ceiling, same formula cmd_repair.c uses, at no gold cost.
+- [x] Calm — **Fixed 2026-08-05:** real ceasefire on any target (PC or mob), the general-purpose version of `beast soother` -- ends the current fight, and gates mob_try_aggress() via AFFECT_CALMED for a mob target.
 - [ ] Shatter — promises a destructive attack; "attack" isn't a damage-keyword trigger — zero damage.
 - [ ] Infravision — promises dark-vision; no affect applied.
 - [ ] True sight — promises seeing through illusions; no affect applied.

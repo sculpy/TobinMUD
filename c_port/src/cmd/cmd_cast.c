@@ -699,6 +699,100 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc && had)
                 descriptor_notify(target->desc, "Your bleeding stops!\r\n");
         }
+    } else if (strcasecmp(sk->name, "sense life") == 0) {
+        descriptor_send(d, "You cast sense life -- your mind reaches out, sensing the living...\r\n");
+        cmd_scan(d, "");
+    } else if (strcasecmp(sk->name, "accelerate") == 0) {
+        /* Level-11 stub-audit fix: "A group buff that speeds everyone
+         * up" -- the group-wide version of `haste`'s own single-target
+         * AFFECT_HASTE (see that spell's doc comment for the mechanic
+         * and disclosed scope-cut), same room-walk-loop shape as
+         * sorcerer's globe/flare/feathery descent above. */
+        int achit = 0;
+        for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC && t->kind != THING_MOB)
+                continue;
+            being_t *occ = (being_t *)t;
+            if (being_is_immortal(occ))
+                continue;
+            being_apply_affect(occ, AFFECT_HASTE, 60);
+            achit++;
+        }
+        (void)achit;
+        descriptor_send(d, "You cast accelerate -- everyone nearby feels a burst of speed!\r\n");
+        char rmsg[128], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts accelerate -- everyone nearby feels a burst of speed!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "calm") == 0) {
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        being_t *calmed_other = atk_target->fighting;
+        if (calmed_other) {
+            atk_target->fighting = NULL;
+            calmed_other->fighting = NULL;
+        }
+        if (atk_target->base.kind == THING_MOB)
+            being_apply_affect(atk_target, AFFECT_CALMED, 30 * COMBAT_ROUND_PULSES);
+        snprintf(msg, sizeof(msg), "You cast calm -- %s grows still, the violence draining away.\r\n",
+                 being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts calm over you -- the violence drains away.\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)));
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "falcon wings") == 0) {
+        int fwhit = 0;
+        for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC && t->kind != THING_MOB)
+                continue;
+            being_t *occ = (being_t *)t;
+            if (being_is_immortal(occ))
+                continue;
+            being_apply_affect(occ, AFFECT_FLYING, 100);
+            fwhit++;
+        }
+        (void)fwhit;
+        descriptor_send(d, "You cast falcon wings -- everyone nearby rises gently off the ground!\r\n");
+        char rmsg[128], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts falcon wings -- everyone nearby rises gently off the ground!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "faerie fog") == 0) {
+        int fghit = 0;
+        for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_MOB)
+                continue;
+            being_apply_affect((being_t *)t, AFFECT_BLIND, 20 * COMBAT_ROUND_PULSES);
+            fghit++;
+        }
+        (void)fghit;
+        descriptor_send(d, "You cast faerie fog -- an illusory mist rolls through the room, blinding hostile eyes!\r\n");
+        char rmsg[160], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts faerie fog -- an illusory mist rolls through the room!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "stealth") == 0) {
+        int sthit = 0;
+        for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC && t->kind != THING_MOB)
+                continue;
+            being_t *occ = (being_t *)t;
+            if (being_is_immortal(occ))
+                continue;
+            occ->sneaking = true;
+            sthit++;
+        }
+        (void)sthit;
+        descriptor_send(d, "You cast stealth -- everyone nearby's footsteps fall silent!\r\n");
+        char rmsg[128], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts stealth -- everyone nearby's footsteps fall silent!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
     } else if (strcasecmp(sk->name, "beast soother") == 0) {
         /* Level-5 stub-audit fix: "Calms a hostile or hunting animal" --
          * real ceasefire, not flavor text. Refuses a PC target (nothing
@@ -895,6 +989,51 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, intensity);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (strcasecmp(sk->name, "ensorcer") == 0) {
+        /* Level-15 stub-audit fix: "Charms or dominates a target" --
+         * real charm on an EXISTING mob (not a fresh summon like
+         * being_summon_charmed_pet() does for `summon` prayers/pets),
+         * same refusal shape: only one charmed pet at a time, only if a
+         * follower slot is free. Refuses a PC target outright (no
+         * domination-of-players mechanic exists, and real upstream
+         * charm spells don't work on other players either). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (atk_target->base.kind != THING_MOB) {
+            descriptor_send(d, "You can only ensorcer a wild creature.\r\n");
+            return;
+        }
+        if (being_find_charmed_pet(ch)) {
+            descriptor_send(d, "You already have a charmed minion -- you can't control another.\r\n");
+            return;
+        }
+        if (being_has_affect(atk_target, AFFECT_CHARMED)) {
+            descriptor_send(d, "That creature is already charmed by someone else.\r\n");
+            return;
+        }
+        int slot = -1;
+        for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
+            if (!ch->followers[i]) {
+                slot = i;
+                break;
+            }
+        }
+        if (slot < 0) {
+            descriptor_send(d, "You already have too many followers to take on another.\r\n");
+            return;
+        }
+        ch->followers[slot] = atk_target;
+        atk_target->master = ch;
+        being_apply_affect(atk_target, AFFECT_CHARMED, 60 * COMBAT_ROUND_PULSES);
+        snprintf(msg, sizeof(msg), "You cast ensorcer -- %s's eyes glaze over, and it bends to your will!\r\n",
+                 being_display_name(atk_target));
+        descriptor_send(d, msg);
+        char rmsg[160], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts ensorcer over %s, and it bends to their will!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)), being_display_name(atk_target));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
     } else if (ci_contains(sk->name, "stupidity")) {
         /* Full spell/skill/prayer roster import, Druid's 6 named Shaman
          * spells (user 2026-07-26) -- ported from disc_shaman.cc's real
@@ -1093,7 +1232,7 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc)
                 descriptor_notify(target->desc, "You feel yourself moving with the greatest of ease!\r\n");
         }
-    } else if (strcasecmp(sk->name, "enhance weapon") == 0) {
+    } else if (strcasecmp(sk->name, "enhance weapon") == 0 || strcasecmp(sk->name, "galvanize") == 0) {
         /* Level-24 audit batch (2026-07-29). See AFFECT_ENHANCE_WEAPON's
          * doc comment (affect.h) for the "permanent" -> temporary-buff
          * deviation and why: no per-instance objaffect slot to write a
@@ -1776,7 +1915,53 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         return true;
     }
 
-    if (strcasecmp(sk->name, "charge stave") == 0) {
+    if (strcasecmp(sk->name, "mage repair") == 0) {
+        obj_t *mrcomp = find_keyword_item(ch, "component");
+        if (!mrcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        if (!target_name) {
+            descriptor_send(d, "Repair what?\r\n");
+            return true;
+        }
+        obj_t *item = NULL;
+        size_t mrlen = strlen(target_name);
+        for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind == THING_OBJ && thing_name_matches(t->name, target_name, mrlen)) {
+                item = (obj_t *)t;
+                break;
+            }
+        }
+        if (!item) {
+            descriptor_send(d, "You aren't carrying that.\r\n");
+            return true;
+        }
+        if (item->max_struct <= 0) {
+            descriptor_send(d, "That isn't the sort of thing that can be damaged or repaired.\r\n");
+            return true;
+        }
+        int ceiling = item->max_struct - item->depreciation;
+        if (item->cur_struct >= ceiling) {
+            descriptor_send(d, "It's already in as good a condition as magic can get it.\r\n");
+            return true;
+        }
+        item->cur_struct = ceiling;
+        const char *mrlabel = item->base.short_descr[0] ? item->base.short_descr : item->base.name;
+        char mrmsg[224];
+        snprintf(mrmsg, sizeof(mrmsg), "You cast mage repair -- %s knits itself back together!\r\n", mrlabel);
+        descriptor_send(d, mrmsg);
+        snprintf(mrmsg, sizeof(mrmsg), "%s knits itself back together in a shimmer of light!\r\n", mrlabel);
+        descriptor_room_echo(ch->base.roomp, ch, mrmsg);
+        consume_component(d, mrcomp);
+        return true;
+    }
+
+    if (strcasecmp(sk->name, "charge stave") == 0 || strcasecmp(sk->name, "powerstone") == 0) {
+        /* `powerstone` (level-19 stub-audit fix) folded in here: Tobin
+         * has no mana pool for a "mana battery" item to charge into
+         * (same gap attune/devotion already disclosed), so it reuses
+         * this real charges-refill mechanic instead of doing nothing. */
         /* Level-25 audit batch. No real SPELL_CHARGE exists in the
          * bundled upstream source to port -- Tobin-original mechanic:
          * refills a carried magic device's current charges (val[0], see

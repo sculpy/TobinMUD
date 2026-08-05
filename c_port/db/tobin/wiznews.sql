@@ -1195,3 +1195,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Cast materialize fixed; obj struct fix (vnums 36930-36996)', '`cast materialize <item>` (Mage level 6) now actually works -- it was routed to nothing before, even though the standalone `materialize <item>` command has worked correctly for a while. Both forms now do the same thing: pay 100 gold, and if a cheap enough item exists with that name, a copy appears in your hands. Also: max/current structure points were corrected to 30 for 67 objects (vnums 36930-36996).')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Ten more Mage spell stubs fixed (levels 11-19)', 'Big batch of stub-audit fixes for Mage: `accelerate` and `falcon wings` now really buff the whole room (speed and flight). `sense life` now really scans for nearby life. `stealth` really quiets everyone''s footsteps. `ensorcer` really charms a wild creature into following you. `mage repair` really fixes a damaged item, for free. `faerie fog` really blinds hostile creatures in the room. `galvanize` and `powerstone` now do something real instead of nothing. `calm` really breaks up any fight, not just an animal''s. All ten were previously "nothing happens" placeholders despite looking castable in `skills`.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
