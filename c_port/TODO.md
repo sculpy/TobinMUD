@@ -228,13 +228,13 @@ raw checklist, pick from it as capacity allows.
 - [ ] Dissect
 - [ ] Divine (fortune-telling; distinct from Mage's "divination" spell)
 - [ ] Encamp
-- [ ] Evaluate
+- [x] Evaluate -- **Fixed 2026-08-05:** new roster entry (all 6 classes, generic) + new `evaluate <item>` command (cmd_evaluate.c) -- real upstream (cmd_compare.cc) gates a `compare` command Tobin never had; ported as its own new command instead, tiered by proficiency: a fuzzed price guess always, condition at 30%+, exact price + material tier at 60%+.
 - [ ] Fast heal
 - [ ] Fast load
 - [ ] Fish burble (language)
 - [ ] Fishing
 - [ ] Fishlore
-- [ ] Focused avoidance
+- [x] Focused avoidance -- **Fixed 2026-08-05:** new roster entry (all 6 classes, generic, Advanced tier); combat.c grants a real passive to-hit-modifier reduction against the defender scaling with proficiency, same insertion point/shape as the existing `oomlat` AC bonus (real upstream's own agility-scaled dodge check has no matching Tobin infrastructure -- disclosed scope-cut).
 - [ ] Gnoll jargon (language)
 - [ ] Gutter cant (language)
 - [ ] Hiking
@@ -260,7 +260,7 @@ raw checklist, pick from it as capacity allows.
 - [ ] Smooth
 - [ ] Swim
 - [ ] Tactics
-- [ ] Toughness
+- [x] Toughness -- **Fixed 2026-08-05:** new roster entry (all 6 classes, generic, Advanced tier); combat.c grants a real passive damage-reduction percentage (up to 20% at 100% proficiency) applied after Sanctuary (real upstream's own per-hit stacking-immunity buff has no matching Tobin infrastructure -- disclosed scope-cut, same "flat passive instead of true stacking" shape `bloodlust` already used).
 - [ ] Troglodyte pidgin (language)
 - [ ] Trollish (language)
 - [ ] Whittle
@@ -7695,6 +7695,58 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       10-check drug smoke test (dose, consolidation, expiry, Hobbit bonus,
       item destruction, withdrawal STR/CON penalty) passes clean. Deployed
       via copyover, zero build warnings.
+
+- [ ] **Custom MUD client + web play client + generated web help/manuals**
+      (user, 2026-08-05). Three related asks, logged together, not yet
+      scoped or started:
+      1. A dedicated "TobinMUD Client" desktop/downloadable client for
+         players to connect and log into their accounts, supporting
+         GMCP, MSDP, and MSSP/MMP-style out-of-band protocols, plus MSP
+         so sound/music can be triggered server-side (e.g. music during
+         combat or specific commands). Tobin's `net`/`descriptor.c`
+         layer currently speaks plain telnet only -- no telnet option
+         negotiation, no GMCP/MSDP subnegotiation framing exists yet;
+         this is new protocol-layer work on the server side too, not
+         just a client build.
+      2. A web page letting people connect and play directly in a
+         browser (a web-based telnet/websocket client talking to the
+         live `tobin_c` server on port 4000 -- needs a websocket-to-
+         telnet bridge or native websocket support added server-side,
+         since browsers can't open raw TCP sockets).
+      3. Auto-generated, web-viewable help files/manuals -- rendering
+         Tobin's existing `help_topic` DB table (already the source for
+         the in-game `help <topic>` command) out to browsable web pages,
+         kept in sync with the same data instead of a hand-maintained
+         duplicate.
+      No design decisions made yet (hosting for the web pieces, protocol
+      scope for GMCP/MSDP -- full spec vs. a minimal subset, whether the
+      web client and the desktop client share one codebase). Given
+      CLAUDE.md's droplet-only development rule, both the desktop client
+      build tooling and the web server piece would still need to be
+      developed/built on the droplet like everything else.
+
+- [ ] **Intermittent hang on quit-then-reconnect (and possibly other
+      commands) under load** (found 2026-08-05 while building/testing the
+      GMCP/MSDP/MSP protocol layer). A test script doing `create character
+      -> quit! -> reconnect` occasionally hangs indefinitely on the very
+      next command sent after reconnecting (observed once on `color off`,
+      once on `transfer`) -- not a timeout, the connection just never
+      responds, confirmed via `poll_schedule_timeout` in the blocked
+      process's kernel wchan (a real bounded wait, just never firing/
+      returning data). **Confirmed pre-existing and unrelated to the
+      GMCP/MSDP/MSP work**: reproduced identically against a from-scratch
+      clean build of the original code with that day's other changes
+      stashed out. Not consistently reproducible -- passed cleanly on some
+      runs, hung on others with IDENTICAL code/inputs, and got noticeably
+      MORE flaky while a long-running `tests/sweep.sh` full regression
+      pass was executing concurrently against the same server/DB (272
+      tests, ~5 hour run) -- resource contention (single-threaded
+      `select()` game loop + shared MariaDB instance under concurrent
+      load) is the leading theory, not yet confirmed. Not root-caused or
+      fixed -- logged for a dedicated investigation session. Repro
+      approach: hammer create+quit+reconnect in a tight loop, with and
+      without a concurrent sweep running, and see if it's reproducible in
+      isolation or genuinely load-dependent.
 
 ## Chores / infra
 

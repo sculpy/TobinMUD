@@ -410,6 +410,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* Skill-based combat (Sneezy → Tobin feature audit, Thief/Monk). */
     { "kick",    cmd_kick,    "Kick your opponent for bonus damage (Thief/Monk, must be fighting them).", MORTAL_LEVEL_MIN },
     { "stomp",   cmd_stomp,   "A crushing stomp attack (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
+    { "evaluate", cmd_evaluate, "Appraise an item's worth, condition, and material (evaluate <item>).", MORTAL_LEVEL_MIN },
     /* SWAP: pray before practice, so "p"/"pr" stay a Cleric's spell verb;
      * practice needs "prac", prompt needs "pro", put needs "pu". */
     { "pray",    cmd_pray,    "Pray for a spell (Cleric) -- requires a holy symbol.", MORTAL_LEVEL_MIN },

@@ -370,6 +370,26 @@ typedef enum {
  * line has to fit inside before its terminating newline arrives). */
 #define DESC_RAW_BUF 4096
 #define DESC_LINE_MAX 1024
+/* Out-of-band subnegotiation payload accumulator (GMCP/MSDP/MSP) -- a
+ * real message (e.g. GMCP's JSON) is small; this is generously sized
+ * for headroom, not tuned to a real observed max like DESC_LINE_MAX
+ * above. Payload bytes past this cap are silently truncated rather
+ * than growing the buffer or disconnecting -- a malformed/oversized
+ * inbound subnegotiation is not worth tearing down the connection
+ * over (matches DESC_RAW_BUF's own "abuse protection: drop it" shape
+ * in descriptor_process_input()). */
+#define DESC_SUBNEG_BUF 2048
+
+/* Real assigned telnet option numbers for GMCP/MSDP/MSP (TobinMUD
+ * Client project, 2026-08-05) -- exposed here (not just as a private
+ * enum inside descriptor.c) because callers outside descriptor.c need
+ * them too, as the `opt` argument to descriptor_send_subneg()
+ * (gmcp.c/msdp.c's builders don't know their own option number --
+ * that's telnet-layer framing, not GMCP/MSDP payload content). Same
+ * values every MSDP-aware client already expects, not Tobin-invented. */
+#define TOBIN_TN_GMCP 201
+#define TOBIN_TN_MSDP 69
+#define TOBIN_TN_MSP 90
 
 /* Outgoing-data backlog (see descriptor_write()/descriptor_flush_output()
  * in descriptor.c). Bytes that don't fit in one write() -- a full or
@@ -436,6 +456,32 @@ typedef struct descriptor {
      * mistaken for typed input on the next read. */
     bool in_subneg;
     unsigned char subneg_prev;
+    /* GMCP/MSDP/MSP (TobinMUD Client project, 2026-08-05): real
+     * WILL/WONT/DO/DONT option-state tracking -- the first the server
+     * has ever done; previously those bytes were read and discarded
+     * with no memory of the outcome (see descriptor.c's history). Set
+     * when the client answers our on-connect `IAC WILL <opt>` offers
+     * (descriptor_create()) with `IAC DO <opt>`; cleared on `IAC DONT
+     * <opt>`. Gates both outbound pushes (descriptor_send_subneg()
+     * callers check these first) and MSP's in-band `!!SOUND(...)`
+     * markers (descriptor_send_msp_sound()). */
+    bool opt_gmcp;
+    bool opt_msdp;
+    bool opt_msp;
+    /* Real subnegotiation payload capture, replacing the old discard-
+     * only swallow loop. `subneg_have_opt` is false immediately after
+     * `IAC SB` until the very next payload byte arrives (that byte IS
+     * the option id, not payload -- captured into `subneg_opt` and
+     * consumed, never appended to `subneg_buf`). Everything after that
+     * up to the `IAC SE` terminator accumulates in `subneg_buf`,
+     * capped at DESC_SUBNEG_BUF (see its own comment on truncation).
+     * All of this persists across process_input() calls exactly like
+     * `in_subneg`/`subneg_prev` already did, for the same "a real
+     * subnegotiation can arrive split across two TCP reads" reason. */
+    bool subneg_have_opt;
+    unsigned char subneg_opt;
+    unsigned char subneg_buf[DESC_SUBNEG_BUF];
+    int subneg_len;
     int line_len; /* in-progress line being typed, before Enter */
     char line[DESC_LINE_MAX];
 
@@ -739,6 +785,25 @@ void descriptor_destroy(descriptor_t *d);
 bool descriptor_process_input(descriptor_t *d);
 
 void descriptor_send(descriptor_t *d, const char *msg);
+
+/* Sends a raw out-of-band subnegotiation packet: `IAC SB <opt> <payload>
+ * IAC SE`. Bypasses descriptor_send()'s color-tag translation and CRLF
+ * normalization entirely -- both assume printable client-displayed
+ * text, and would corrupt GMCP's JSON or MSDP's binary VAR/VAL framing.
+ * Any literal 0xFF (TN_IAC) byte inside `payload` is doubled (IAC IAC),
+ * the standard telnet escape, so a client's own IAC-aware parser never
+ * mistakes payload content for the terminator. Caller is responsible
+ * for checking the matching `d->opt_gmcp`/`opt_msdp` flag first -- this
+ * function sends unconditionally. */
+void descriptor_send_subneg(descriptor_t *d, unsigned char opt, const unsigned char *payload, size_t len);
+
+/* MSP (2026-08-05): NOT a subnegotiation -- a plain in-band text marker
+ * (`!!SOUND(file V=vol)\r\n`) understood by an MSP-aware client once it
+ * has ack'd `IAC DO MSP` (d->opt_msp). Routed through descriptor_send()
+ * like any other text (color/CRLF pipeline is harmless here -- the
+ * marker contains no '<X>' tags or bare '\n'). No-op if the descriptor
+ * never opted in. `volume` is clamped to MSP's real 0-100 range. */
+void descriptor_send_msp_sound(descriptor_t *d, const char *filename, int volume);
 
 /* Queues already-formatted bytes for `d`, replacing a bare socket_write().
  * Tries an immediate write() first (the common case never touches

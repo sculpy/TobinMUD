@@ -588,6 +588,20 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             modifier -= skill_learn_from_doing(defender, oomlat_sk) / 8;
     }
 
+    /* `focused avoidance` (missing-skill audit, 2026-08-05, generic/
+     * cross-class): real upstream (disc_advanced_defense.cc's
+     * canFocusedAvoidance()) is a passive dodge check scaled by agility,
+     * checked once per incoming attack. Ported as a flat to-hit-modifier
+     * reduction against the defender instead -- same shape and insertion
+     * point as `oomlat`'s AC bonus just above, no separate dodge-roll
+     * layer needed. Not gated on fighting bare-handed (real upstream's
+     * own gate is awake+standing only, no weapon restriction). */
+    if (!being_is_immortal(defender) && being_knows_skill(defender, "focused avoidance")) {
+        const skill_def_t *avoid_sk = skill_find(defender->char_class, "focused avoidance", false);
+        if (avoid_sk)
+            modifier -= skill_learn_from_doing(defender, avoid_sk) / 6;
+    }
+
     /* Gamewide to-hit modifier (user 2026-07-12's `balance` command) --
      * a PC's own class+race, or a guildmaster mob's known class (mobs
      * have no race). Neutral (0) until an immortal actually balances
@@ -782,6 +796,24 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             dmg = 1;
     }
 
+    /* `toughness` (missing-skill audit, 2026-08-05, generic/cross-class):
+     * real upstream is a per-hit chance to gain a stacking damage-
+     * immunity buff (combat.cc's doToughness()). Ported as a flat
+     * passive damage-reduction percentage instead -- up to 20% off at
+     * 100% proficiency -- same "flat passive instead of true stacking"
+     * scope-cut `bloodlust` already used above. Applied after Sanctuary
+     * so a toughened, sanctuary'd defender stacks both reductions. */
+    if (defender->base.kind == THING_PC && !being_is_immortal(defender)
+        && being_knows_skill(defender, "toughness")) {
+        const skill_def_t *tough_sk = skill_find(defender->char_class, "toughness", false);
+        if (tough_sk) {
+            int tough_prof = skill_learn_from_doing(defender, tough_sk);
+            dmg -= dmg * (tough_prof / 5) / 100;
+            if (dmg < 1)
+                dmg = 1;
+        }
+    }
+
     /* Immortal damage immunity (user 2026-07-12: "an immortal character
      * shouldnt be damaged by hits in a fight, see engage code from
      * sneezy"). Real Sneezy's own rule (setCharFighting()/
@@ -852,6 +884,13 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * probability roll stacked on top. */
     defender->progress.hp -= dmg;
     combat_award_hit_xp(attacker, defender, dmg);
+    /* GMCP/MSDP push + MSP hit sound (TobinMUD Client project,
+     * 2026-08-05) -- no-op for a mob defender or a descriptor that
+     * never opted into GMCP/MSDP/MSP (being_notify_vitals_changed()/
+     * descriptor_send_msp_sound() both check that internally). */
+    being_notify_vitals_changed(defender);
+    if (defender->desc)
+        descriptor_send_msp_sound(defender->desc, "hit.wav", 100);
     being_hurt_limb_only(defender, limb, (dmg + 1) / 2);
     int pct_after = being_limb_pct(defender, limb);
     combat_maybe_damage_equipment(defender, limb, dmg);
@@ -1447,6 +1486,13 @@ bool combat_apply_skill_damage(being_t *attacker, being_t *defender, int dmg, li
      * an ordinary swing or a skill. */
     defender->progress.hp -= dmg;
     combat_award_hit_xp(attacker, defender, dmg);
+    /* GMCP/MSDP push + MSP hit sound (TobinMUD Client project,
+     * 2026-08-05) -- no-op for a mob defender or a descriptor that
+     * never opted into GMCP/MSDP/MSP (being_notify_vitals_changed()/
+     * descriptor_send_msp_sound() both check that internally). */
+    being_notify_vitals_changed(defender);
+    if (defender->desc)
+        descriptor_send_msp_sound(defender->desc, "hit.wav", 100);
     being_hurt_limb_only(defender, limb, (dmg + 1) / 2);
     if (defender->progress.hp <= 0) {
         combat_defeat(defender, attacker, false);

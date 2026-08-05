@@ -14,6 +14,8 @@
 #include "balance.h"
 #include "body.h"
 #include "descriptor.h"
+#include "gmcp.h"
+#include "msdp.h"
 #include "gametime.h"
 #include "log.h"
 #include "mob_repo.h"
@@ -1353,6 +1355,29 @@ void being_spend_vit(being_t *b, int amount) {
     b->progress.vit -= amount;
     if (b->progress.vit < 0)
         b->progress.vit = 0;
+}
+
+/* See being.h. GMCP/MSDP project (2026-08-05). */
+void being_notify_vitals_changed(being_t *b) {
+    if (!b || b->base.kind != THING_PC || !b->desc)
+        return;
+    descriptor_t *d = b->desc;
+    if (d->opt_gmcp) {
+        char buf[128];
+        size_t len = gmcp_build_char_vitals(buf, sizeof(buf), b->progress.hp,
+                                             b->progress.max_hp, b->progress.vit,
+                                             b->progress.max_vit);
+        if (len > 0)
+            descriptor_send_subneg(d, TOBIN_TN_GMCP, (const unsigned char *)buf, len);
+    }
+    if (d->opt_msdp) {
+        unsigned char buf[128];
+        size_t len = msdp_build_vitals(buf, sizeof(buf), b->progress.hp,
+                                        b->progress.max_hp, b->progress.vit,
+                                        b->progress.max_vit);
+        if (len > 0)
+            descriptor_send_subneg(d, TOBIN_TN_MSDP, buf, len);
+    }
 }
 
 /* Real upstream's XP-to-level curve (misc/gaining.cc's

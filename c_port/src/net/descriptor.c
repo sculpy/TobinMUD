@@ -37,6 +37,9 @@ descriptor_t *g_descriptors = NULL;
  * line client-side before sending it. */
 enum { TN_IAC = 255, TN_WILL = 251, TN_WONT = 252, TN_DO = 253, TN_DONT = 254,
        TN_SB = 250, TN_SE = 240, TN_ECHO = 1, TN_SGA = 3 };
+/* TOBIN_TN_GMCP/TOBIN_TN_MSDP/TOBIN_TN_MSP (descriptor.h) are the
+ * GMCP/MSDP/MSP option numbers -- defined there, not here, since
+ * callers outside this file (being.c) need them too. */
 
 /* Allocates and initializes a fresh descriptor for a newly-accepted socket:
  * negotiates telnet echo/SGA, links it into g_descriptors, and sends the
@@ -58,6 +61,15 @@ descriptor_t *descriptor_create(int fd) {
         TN_IAC, TN_WILL, TN_ECHO,
         TN_IAC, TN_WILL, TN_SGA,
         TN_IAC, TN_DO, TN_SGA,
+        /* GMCP/MSDP/MSP offers (TobinMUD Client project, 2026-08-05) --
+         * a plain telnet client just silently ignores an option offer
+         * it doesn't understand (RFC 854), so this is safe to always
+         * send; only a client that actually answers `IAC DO <opt>`
+         * (handled in drain_lines() below) gets the matching
+         * d->opt_gmcp/opt_msdp/opt_msp flag set. */
+        TN_IAC, TN_WILL, TOBIN_TN_GMCP,
+        TN_IAC, TN_WILL, TOBIN_TN_MSDP,
+        TN_IAC, TN_WILL, TOBIN_TN_MSP,
     };
     descriptor_write(d, (const char *)negotiate, sizeof(negotiate));
 
@@ -511,6 +523,44 @@ void descriptor_write(descriptor_t *d, const char *data, size_t len) {
     d->out_len += remain;
 }
 
+/* See descriptor.h. GMCP/MSDP/MSP project (2026-08-05). */
+void descriptor_send_subneg(descriptor_t *d, unsigned char opt, const unsigned char *payload, size_t len) {
+    /* IAC SB <opt> <payload, with every literal 0xFF doubled> IAC SE.
+     * Worst case every payload byte is an escaped IAC -- size for that
+     * rather than assume real GMCP/MSDP payloads never contain 0xFF
+     * (they're ASCII/UTF-8 JSON or VAR/VAL text in practice, but this
+     * function has no business assuming that of its caller). */
+    unsigned char *out = malloc(len * 2 + 5);
+    if (!out)
+        return;
+    size_t n = 0;
+    out[n++] = TN_IAC;
+    out[n++] = TN_SB;
+    out[n++] = opt;
+    for (size_t i = 0; i < len; i++) {
+        out[n++] = payload[i];
+        if (payload[i] == TN_IAC)
+            out[n++] = TN_IAC;
+    }
+    out[n++] = TN_IAC;
+    out[n++] = TN_SE;
+    descriptor_write(d, (const char *)out, n);
+    free(out);
+}
+
+/* See descriptor.h. GMCP/MSDP/MSP project (2026-08-05). */
+void descriptor_send_msp_sound(descriptor_t *d, const char *filename, int volume) {
+    if (!d->opt_msp)
+        return;
+    if (volume < 0)
+        volume = 0;
+    else if (volume > 100)
+        volume = 100;
+    char msg[160];
+    snprintf(msg, sizeof(msg), "!!SOUND(%s V=%d)\r\n", filename, volume);
+    descriptor_send(d, msg);
+}
+
 /* See descriptor.h. */
 bool descriptor_flush_output(descriptor_t *d) {
     if (d->out_len == 0)
@@ -651,14 +701,56 @@ static bool drain_lines(descriptor_t *d) {
         unsigned char b = d->raw[d->raw_pos++];
 
         /* Inside an IAC SB ... IAC SE subnegotiation (possibly resumed from
-         * a previous read) -- swallow payload bytes until the terminator. */
+         * a previous read). GMCP/MSDP/MSP project (2026-08-05): this used
+         * to be a discard-only swallow loop; now it captures the option id
+         * (the very first byte after SB) into d->subneg_opt and the real
+         * payload bytes into d->subneg_buf (capped at DESC_SUBNEG_BUF),
+         * correctly un-escaping a doubled IAC IAC (a literal 0xFF byte
+         * inside the payload) rather than mistaking it for the SE
+         * terminator -- the terminator is only ever IAC immediately
+         * followed by SE, checked one byte ahead via d->subneg_prev so an
+         * escape can't be confused with it. All of this state persists on
+         * the descriptor across reads, same "may arrive split across
+         * packets" guarantee `in_subneg`/`subneg_prev` already had before
+         * this change. What happens with a captured inbound payload is
+         * currently nothing -- v1 scope is the OUTBOUND pushes
+         * (descriptor_send_subneg() callers); a client-initiated GMCP/MSDP
+         * request (e.g. MSDP REPORT, GMCP core.hello) is parsed correctly
+         * but not yet acted on, a disclosed scope-cut for a later pass. */
         if (d->in_subneg) {
-            if (d->subneg_prev == TN_IAC && b == TN_SE) {
-                d->in_subneg = false;
+            if (!d->subneg_have_opt) {
+                d->subneg_opt = b;
+                d->subneg_have_opt = true;
                 d->subneg_prev = 0;
-            } else {
-                d->subneg_prev = b;
+                continue;
             }
+            if (d->subneg_prev == TN_IAC) {
+                d->subneg_prev = 0;
+                if (b == TN_SE) {
+                    d->in_subneg = false;
+                    d->subneg_have_opt = false;
+                    d->subneg_len = 0;
+                    continue;
+                }
+                if (b == TN_IAC) {
+                    if (d->subneg_len < DESC_SUBNEG_BUF)
+                        d->subneg_buf[d->subneg_len++] = TN_IAC;
+                    continue;
+                }
+                /* Malformed: a lone IAC not followed by SE or a second IAC.
+                 * Shouldn't happen from any real telnet client -- drop the
+                 * pending IAC and treat `b` itself as a fresh payload byte
+                 * rather than losing sync with the stream entirely. */
+                if (d->subneg_len < DESC_SUBNEG_BUF)
+                    d->subneg_buf[d->subneg_len++] = b;
+                continue;
+            }
+            if (b == TN_IAC) {
+                d->subneg_prev = TN_IAC;
+                continue;
+            }
+            if (d->subneg_len < DESC_SUBNEG_BUF)
+                d->subneg_buf[d->subneg_len++] = b;
             continue;
         }
 
@@ -667,10 +759,28 @@ static bool drain_lines(descriptor_t *d) {
             unsigned char cmd = d->raw[d->raw_pos++];
             if (cmd == TN_WILL || cmd == TN_WONT || cmd == TN_DO || cmd == TN_DONT) {
                 if (d->raw_pos >= d->raw_len) { d->raw_pos -= 2; break; }
-                d->raw_pos++; /* skip option byte */
+                unsigned char opt = d->raw[d->raw_pos++];
+                /* Real option-state tracking (GMCP/MSDP/MSP project,
+                 * 2026-08-05) -- only for the options WE offered on
+                 * connect (descriptor_create()'s WILL GMCP/MSDP/MSP); the
+                 * client answers DO to accept or DONT to refuse/withdraw.
+                 * Every other WILL/WONT/DO/DONT byte (nothing else is
+                 * offered or requested today) is still just consumed with
+                 * no reply, same as before this change. */
+                if (cmd == TN_DO || cmd == TN_DONT) {
+                    bool on = (cmd == TN_DO);
+                    if (opt == TOBIN_TN_GMCP)
+                        d->opt_gmcp = on;
+                    else if (opt == TOBIN_TN_MSDP)
+                        d->opt_msdp = on;
+                    else if (opt == TOBIN_TN_MSP)
+                        d->opt_msp = on;
+                }
             } else if (cmd == TN_SB) {
                 d->in_subneg = true;
+                d->subneg_have_opt = false;
                 d->subneg_prev = 0;
+                d->subneg_len = 0;
             }
             continue;
         }

@@ -502,6 +502,45 @@ static const skill_def_t SKILLS[] = {
     { "butcher",           CLASS_DRUID, SKILL_TIER_CLASS,     1, "Carve edible meat from a slain animal's corpse." },
     { "skin",              CLASS_DRUID, SKILL_TIER_ADVANCED, 15, "Strip a hide from a slain animal's corpse." },
     { "forage",            CLASS_DRUID, SKILL_TIER_ADVANCED, 15, "Gather wild food from the terrain around you." },
+    /* Missing-skill audit (TODO.md, "Generic / cross-class"), 2026-08-05:
+     * real upstream `toughness`/`focused avoidance`/`evaluate` are all
+     * SKILL_GENERAL in spell_info.cc's discArray (DISC_DEFENSE/
+     * DISC_ADVENTURING) -- available to every class, not tied to one --
+     * so each gets one roster row per class, same "duplicated per class"
+     * shape `repair`'s Cleric/Monk/Thief rows above already established
+     * for a cross-class skill. `toughness`: real upstream is a per-hit
+     * chance to gain a stacking damage-immunity buff (combat.cc's
+     * doToughness()); ported as a flat passive damage-reduction
+     * percentage scaling with proficiency instead (combat.c), same
+     * "flat passive instead of true stacking" scope-cut `bloodlust`
+     * above already used. `focused avoidance`: real upstream
+     * (disc_advanced_defense.cc's canFocusedAvoidance()) is a passive
+     * dodge check scaled by agility; ported as a flat to-hit-modifier
+     * reduction against the defender, same shape `oomlat`'s AC bonus
+     * already uses just below in combat.c. `evaluate`: real upstream
+     * (cmd_compare.cc) gates how much detail the `compare` command
+     * reveals about two items; Tobin has no `compare` command, so this
+     * ports as its own new `evaluate <item>` command (cmd_evaluate.c)
+     * instead, tiered by proficiency: a rough price guess at low skill,
+     * condition and material tier revealed at higher skill. */
+    { "toughness",          CLASS_MAGE,    SKILL_TIER_ADVANCED, 10, "A passive knack for shrugging off damage under fire." },
+    { "toughness",          CLASS_CLERIC,  SKILL_TIER_ADVANCED, 10, "A passive knack for shrugging off damage under fire." },
+    { "toughness",          CLASS_WARRIOR, SKILL_TIER_ADVANCED, 10, "A passive knack for shrugging off damage under fire." },
+    { "toughness",          CLASS_THIEF,   SKILL_TIER_ADVANCED, 10, "A passive knack for shrugging off damage under fire." },
+    { "toughness",          CLASS_DRUID,   SKILL_TIER_ADVANCED, 10, "A passive knack for shrugging off damage under fire." },
+    { "toughness",          CLASS_MONK,    SKILL_TIER_ADVANCED, 10, "A passive knack for shrugging off damage under fire." },
+    { "focused avoidance",  CLASS_MAGE,    SKILL_TIER_ADVANCED, 15, "A passive, concentration-based knack for dodging incoming attacks." },
+    { "focused avoidance",  CLASS_CLERIC,  SKILL_TIER_ADVANCED, 15, "A passive, concentration-based knack for dodging incoming attacks." },
+    { "focused avoidance",  CLASS_WARRIOR, SKILL_TIER_ADVANCED, 15, "A passive, concentration-based knack for dodging incoming attacks." },
+    { "focused avoidance",  CLASS_THIEF,   SKILL_TIER_ADVANCED, 15, "A passive, concentration-based knack for dodging incoming attacks." },
+    { "focused avoidance",  CLASS_DRUID,   SKILL_TIER_ADVANCED, 15, "A passive, concentration-based knack for dodging incoming attacks." },
+    { "focused avoidance",  CLASS_MONK,    SKILL_TIER_ADVANCED, 15, "A passive, concentration-based knack for dodging incoming attacks." },
+    { "evaluate",           CLASS_MAGE,    SKILL_TIER_CLASS,     8, "Appraise an item's worth, condition, and material -- the better your skill, the more you can tell." },
+    { "evaluate",           CLASS_CLERIC,  SKILL_TIER_CLASS,     8, "Appraise an item's worth, condition, and material -- the better your skill, the more you can tell." },
+    { "evaluate",           CLASS_WARRIOR, SKILL_TIER_CLASS,     8, "Appraise an item's worth, condition, and material -- the better your skill, the more you can tell." },
+    { "evaluate",           CLASS_THIEF,   SKILL_TIER_CLASS,     8, "Appraise an item's worth, condition, and material -- the better your skill, the more you can tell." },
+    { "evaluate",           CLASS_DRUID,   SKILL_TIER_CLASS,     8, "Appraise an item's worth, condition, and material -- the better your skill, the more you can tell." },
+    { "evaluate",           CLASS_MONK,    SKILL_TIER_CLASS,     8, "Appraise an item's worth, condition, and material -- the better your skill, the more you can tell." },
 };
 
 #define SKILL_TOTAL (int)(sizeof(SKILLS) / sizeof(SKILLS[0]))

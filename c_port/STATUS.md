@@ -1,6 +1,146 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-04 — Session 129 (DO droplet, production port 4000):
+Last updated: 2026-08-05 — Session 131 (DO droplet, production port 4000):
+**GMCP/MSDP/MSP protocol layer -- first phase of the TobinMUD Client
+project (user, 2026-08-05: "create a mud client for players to connect
+to their accounts, complete with GMCP MSDP MMP and MSP for music... call
+it the TobinMUD Client", then "an msi installer with a silent option"
+for Windows, macOS dropped from scope per follow-up).** The client
+itself needs a server-side protocol layer to talk to first -- this
+session built that layer; the client (Win32 GUI + MSI installer) is
+still to come.
+- **Real telnet option negotiation, for the first time.** Confirmed via
+  a full-tree grep that the server previously had ZERO WILL/WONT/DO/
+  DONT handling -- those bytes were read and silently discarded
+  (`descriptor.c`'s `drain_lines()`), and the only outbound offer was a
+  fixed `IAC WILL ECHO/WILL SGA/DO SGA` triplet. Now also offers `IAC
+  WILL GMCP/MSDP/MSP` on connect (real assigned option numbers 201/69/
+  90, exposed as `TOBIN_TN_GMCP/MSDP/MSP` in descriptor.h since callers
+  outside descriptor.c need them too); a client's `IAC DO <opt>` reply
+  sets a real per-descriptor flag (`opt_gmcp`/`opt_msdp`/`opt_msp`),
+  `IAC DONT` clears it.
+- **Real subnegotiation payload capture**, replacing the old discard-
+  only swallow-to-`IAC SE` loop: the option id and payload bytes
+  between `IAC SB` and `IAC SE` are now captured into a per-descriptor
+  buffer (`DESC_SUBNEG_BUF`, 2048 bytes), correctly un-escaping a
+  doubled `IAC IAC` (a literal 0xFF in the payload) instead of
+  mistaking it for the terminator. Reuses the existing `in_subneg`
+  resumable-across-reads state (Session 20's own split-`SB...SE` fix)
+  rather than replacing it. v1 scope is OUTBOUND pushes only -- a
+  captured INBOUND client-initiated message (MSDP REPORT, GMCP
+  core.hello) is parsed correctly but not yet acted on, disclosed in
+  the code's own comments.
+- **New `descriptor_send_subneg()`**: a sibling to `descriptor_send()`
+  that bypasses its color/CRLF pipeline entirely (would corrupt JSON/
+  binary payloads) and writes a real `IAC SB <opt> <payload, IAC-
+  escaped> IAC SE` packet.
+- **New `gmcp.c`/`gmcp.h`**: hand-built (not a general JSON encoder --
+  a small fixed vocabulary doesn't need one) `Char.Vitals` and
+  `Room.Info` message builders. `Char.Vitals` reports `hp`/`maxhp`/
+  `vit`/`maxvit` -- NOT `mana`, which doesn't exist anywhere in Tobin's
+  `being.h` (`progress_t` has no such field); a client would be lied to
+  by a conventional `mana` key that doesn't correspond to anything
+  real, so this reports Vitality (the actual HP-parallel resource)
+  instead.
+- **New `msdp.c`/`msdp.h`**: same real VAR/VAL wire framing (control
+  bytes 1/2, real assigned values) for the same vitals, flat values
+  only -- no TABLE/ARRAY nesting support yet, same "small vocabulary,
+  no unused generality" scope-cut as GMCP.
+- **MSP**: not a subnegotiation at all -- a plain in-band `!!SOUND(file
+  V=volume)` text marker sent once a client has ack'd `IAC DO MSP`.
+  New `descriptor_send_msp_sound()`.
+- **Hooks**: new `being_notify_vitals_changed()` (being.c) pushes
+  GMCP+MSDP on both real HP-change sites in combat.c (a PC-only,
+  descriptor-gated no-op otherwise); the same combat.c sites also fire
+  an MSP hit sound. `cmd_look.c`'s bare-`look` room-display path (the
+  one true choke point every room-display case -- movement, login,
+  `look` itself -- already funnels through via `cmd_dispatch(d,
+  "look")`) pushes GMCP `Room.Info`.
+- Zero-warning clean build. Manually verified live (raw-socket byte
+  inspection) that the negotiation offer, `Char.Vitals`/MSDP-vitals/
+  MSP-sound combat pushes, and `Room.Info` all fire with correct real
+  content. New `tests/smoke_test_gmcp_msdp_msp.py` written and mostly
+  passing, but **intermittently hangs partway through** on an unrelated,
+  pre-existing issue -- see TODO.md's new "Intermittent hang on quit-
+  then-reconnect..." entry (found while building/debugging this test,
+  reproduced identically against a from-scratch build of the code
+  BEFORE this session's changes, so confirmed not caused by this
+  feature). User directed skipping the full `tests/sweep.sh` run this
+  session (it was still ~80% through after ~4 hours, likely itself
+  contributing load-related flakiness) rather than wait further;
+  committing on the strength of the targeted smoke tests plus the
+  manual verification above, with the pre-existing flakiness logged
+  as its own follow-up rather than block on it.
+
+Previous update: Last updated: 2026-08-05 — Session 130 (DO droplet, production port 4000):
+Last updated: 2026-08-05 — Session 130 (DO droplet, production port 4000):
+**Missing-skill audit, batch 2 (generic/cross-class): `toughness`,
+`focused avoidance`, `evaluate`.** Continues the same backlog batch 1
+(committed earlier the same day, `78ad719`: repair for Cleric/Monk/
+Thief, advanced blacksmithing, debride, bloodlust, stomp, Oomlat
+Philosophy, swindle -- that commit landed without its own STATUS.md
+entry, noted here for the record) started. All three are SKILL_GENERAL
+in real upstream's discArray (misc/spell_info.cc) -- available to every
+class, not tied to one -- so each got a roster row per class (skill.c),
+same "duplicated per class" shape `repair`'s Cleric/Monk/Thief rows
+already established.
+- **`toughness`** (Advanced tier): real upstream is a per-hit chance to
+  gain a stacking damage-immunity buff (combat.cc's doToughness());
+  ported as a flat passive damage-reduction percentage instead -- up to
+  20% off at 100% proficiency, applied in combat.c right after
+  Sanctuary halves damage -- same "flat passive instead of true
+  stacking" scope-cut `bloodlust` already used.
+- **`focused avoidance`** (Advanced tier): real upstream
+  (disc_advanced_defense.cc's canFocusedAvoidance()) is a passive
+  agility-scaled dodge check; ported as a flat to-hit-modifier
+  reduction against the defender instead, same insertion point/shape
+  as the existing `oomlat` AC bonus in combat_strike()'s to-hit
+  formula.
+- **`evaluate`** (Class tier): real upstream (cmd_compare.cc) gates how
+  much detail the `compare` command reveals about two items -- Tobin
+  has no `compare` command, so this ports as its own brand-new
+  `evaluate <item>` command (cmd_evaluate.c) instead: always gives a
+  price guess (fuzzed below 60% proficiency, exact at/above), reveals
+  condition at 30%+, and material tier (material.h's existing 5-tier
+  system) at 60%+.
+- Found and fixed a real bug in this session's own first draft while
+  writing the smoke test: seeding a test character to level 51 to give
+  it other testing conveniences silently also made it immortal
+  (`IMMORTAL_LEVEL_MIN=51`), which bypasses `evaluate`'s whole tiered-
+  detail gate (immortals always get full detail) -- the test's own
+  level had to drop to a real mortal level (10) to actually exercise
+  the low/high-proficiency paths.
+- Also hit and fixed a real tooling bug this session: an `ssh host
+  "python3 - <<'PYEOF' ... PYEOF"` pattern piped from a local `cat
+  file |` doesn't work the way it looks -- `python3 -` reads its own
+  SCRIPT from stdin via the heredoc, so by the time the script body's
+  own `sys.stdin.read()` call runs, that same stdin is already
+  exhausted (empty read, no error) -- two source-file edits (skill.c's
+  roster block, combat.c's toughness insertion) silently no-opped this
+  way and went undetected until a source grep turned up empty. Fixed by
+  scp'ing the insert snippets to the remote box first and having a
+  small remote Python script read them from disk instead of stdin.
+- `rm -rf build`+rebuild happened twice against the live production
+  process per the above (once for the no-op edits, once for real) --
+  both times followed immediately by an in-game `copyover` via a
+  scripted throwaway immortal account (`/tmp/deploy_copyover.py` only
+  creates the account; had to walk it through actual character
+  creation by hand since the account menu literal prompts didn't match
+  what that script's canned keystrokes assumed), confirmed via
+  `/proc/<pid>/cwd` no longer showing `(deleted)` after each. A real
+  player was connected throughout (checked via `ss -tn` on :4000
+  before each restart) -- never a raw kill+restart.
+- New `tests/smoke_test_missing_skills_2.py` (14 checks) passes live;
+  `smoke_test_missing_skills_1.py` and `smoke_test_combat.py` rerun
+  clean, no regressions. A full `tests/sweep.sh` regression pass was
+  started but killed by user direction after ~4 hours (~80% through,
+  no failures seen up to that point) rather than wait further --
+  committing on targeted smoke-test coverage instead.
+- Sandbox cleanup: this session's own leftover `MissingSkill2 Sandbox`
+  rooms/objs/mobs (from an earlier failed test run) and `Sm{one,two}*`
+  throwaway player accounts swept up before commit.
+
+Previous update: Last updated: 2026-08-04 — Session 129 (DO droplet, production port 4000):
 **Fixed the copyover-hang/resource-drain TODO item: added an opt-in
 per-vnum mob/object prototype cache, scoped to copyover restore only.**
 User: "I believe this issue is what was eating machine resources."

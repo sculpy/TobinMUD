@@ -513,3 +513,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Wild Boars and Other Tusked Mobs Can Now Gore You', 'Some mobs -- wild boars among them -- can now attempt a goring attack mid-fight: a solid hit knocks you to the ground, though most of the time they just miss with a bit of flavor instead.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Three New Cross-Class Skills: Toughness, Focused Avoidance, Evaluate', 'Every class can now learn three new advanced-tier skills. Toughness makes you genuinely harder to hurt in a fight, the more you practice it. Focused avoidance gives you a real, growing knack for dodging incoming blows. And evaluate lets you appraise an item''s worth -- the more skilled you are, the more you can tell about its price, condition, and what it''s made of. A new `evaluate <item>` command goes with it.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

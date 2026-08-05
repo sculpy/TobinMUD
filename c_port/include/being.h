@@ -1160,6 +1160,14 @@ void being_heal_vit(being_t *b, int amount);
  * cost. No-op for amount <= 0. */
 void being_spend_vit(being_t *b, int amount);
 
+/* GMCP/MSDP push on vitals change (TobinMUD Client project, 2026-08-05).
+ * No-op unless `b` is a connected PC (`b->desc`) with the matching
+ * option flag set (d->opt_gmcp/opt_msdp, descriptor.h) -- safe to call
+ * unconditionally from any HP/mana-changing site. Called from combat.c
+ * wherever `progress.hp` changes; not yet wired to mana (Tobin's own
+ * mana-spend paths weren't part of this pass' scope, see STATUS.md). */
+void being_notify_vitals_changed(being_t *b);
+
 /* Placeholder XP curve (level*level*100) -- the original's is a recursive
  * kill-count formula tied to mob levels, which don't exist in Tobin yet.
  * Total XP required to REACH `level` from level 1. */

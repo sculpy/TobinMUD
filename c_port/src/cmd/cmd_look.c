@@ -10,6 +10,7 @@
 #include <strings.h>
 
 #include "affect.h"
+#include "gmcp.h"
 #include "being.h"
 #include "obj.h"
 #include "room.h"
@@ -444,6 +445,19 @@ bool cmd_look(descriptor_t *d, const char *args) {
         return look_at_target(d, args);
 
     room_t *r = d->character->base.roomp;
+
+    /* GMCP Room.Info push (TobinMUD Client project, 2026-08-05) -- every
+     * real room-display path (movement, login, `look` itself) already
+     * funnels through this one `cmd_dispatch(d, "look")` choke point
+     * (descriptor.c/cmd_move.c), so hooking here covers all of them at
+     * once rather than duplicating the push at each call site. No-op
+     * for a descriptor that never opted into GMCP. */
+    if (d->opt_gmcp) {
+        char gbuf[256];
+        size_t glen = gmcp_build_room_info(gbuf, sizeof(gbuf), r->vnum, r->base.name);
+        if (glen > 0)
+            descriptor_send_subneg(d, TOBIN_TN_GMCP, (const unsigned char *)gbuf, glen);
+    }
 
     /* Weather & light levels (Sneezy → Tobin feature audit): a dark,
      * unlit outdoor room at night with no personal light source shows
