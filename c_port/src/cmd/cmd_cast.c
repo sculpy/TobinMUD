@@ -317,7 +317,48 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
      * default), unaffected -- see cmd_pray.c's identical atk_target for
      * the full rationale. */
     being_t *atk_target = (target != ch) ? target : ch->fighting;
-    if (strcasecmp(sk->name, "teleport") == 0) {
+    if (strcasecmp(sk->name, "sorcerer's globe") == 0) {
+        /* Level-1 stub-audit fix (2026-08-04, user: "lower level players
+         * should get a full experience"): roster text "A magical shield
+         * that buffs the group's defense" -- a genuine ROOM-WIDE
+         * Sanctuary buff (same AFFECT_SANCTUARY the single-target
+         * "shield"-family branch below already uses), reusing
+         * cmd_rally.c's "every PC/mob in the room but not an immortal"
+         * group-buff shape since Tobin has no separate group/party
+         * roster to walk instead. */
+        int hit = 0;
+        for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC && t->kind != THING_MOB)
+                continue;
+            being_t *ally = (being_t *)t;
+            if (being_is_immortal(ally))
+                continue;
+            being_apply_affect(ally, AFFECT_SANCTUARY, 12);
+            hit++;
+        }
+        (void)hit;
+        descriptor_send(d, "You cast sorcerer's globe -- a shimmering dome of protection settles over the room!\r\n");
+        char rmsg[128], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts sorcerer's globe -- a shimmering dome of protection settles over the room!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "mage sight") == 0) {
+        /* Level-1 stub-audit fix: roster text bundles infravision/true
+         * sight/detection -- scoped down to just infravision (real dark-
+         * vision, AFFECT_INFRAVISION/room_is_dark_for(), affect.h/
+         * being.c), the one piece of the bundle Tobin has an actual
+         * darkness mechanic to hook into; true sight (seeing through
+         * illusions/disguises) and general detection have no matching
+         * subsystem yet, a disclosed simplification -- same "one real
+         * piece over faking the whole bundle" precedent this audit uses
+         * elsewhere. Self only. */
+        being_apply_affect(ch, AFFECT_INFRAVISION, 30 * COMBAT_ROUND_PULSES);
+        descriptor_send(d, "You cast mage sight -- your eyes adjust, piercing the darkness!\r\n");
+        char rmsg[128], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s's eyes glow faintly for a moment.\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "teleport") == 0) {
         /* Full spell/skill/prayer roster import continued, level-5+ list
          * (audit continued): real upstream (disc_mage_sorcery.cc's
          * teleport()/genericTeleport()) sends the target -- self by
@@ -501,7 +542,12 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                 descriptor_notify(target->desc, msg);
             }
         }
-    } else if (ci_contains(sk->desc, "heal")) {
+    } else if (ci_contains(sk->desc, "heal")
+               /* `salve` (Druid, level-12 stub-audit fix): desc "Treats
+                * a minor wound" carries no "heal" keyword despite being
+                * a plain heal-tier spell -- same fix as Cleric's
+                * identical spell (cmd_pray.c). */
+               || strcasecmp(sk->name, "salve") == 0) {
         int amount = 8 + ch->progress.level / 2;
         being_heal(target, amount);
         if (target == ch) {
@@ -604,7 +650,67 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), flavor, intensity);
             descriptor_notify(atk_target->desc, msg);
         }
-    } else if (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "bolt")
+    } else if (strcasecmp(sk->name, "clot") == 0) {
+        /* Level-5 stub-audit fix (Druid only -- Mage has no "clot" in
+         * its roster, so this branch is unreachable there). Same
+         * targeted AFFECT_DISEASE_BLEEDING cure as Cleric's identical
+         * spell (cmd_pray.c). */
+        bool had = being_has_affect(target, AFFECT_DISEASE_BLEEDING);
+        if (had)
+            being_remove_affect(target, AFFECT_DISEASE_BLEEDING);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), had
+                     ? "You cast %s -- your bleeding stops!\r\n"
+                     : "You cast %s, but you weren't bleeding to begin with.\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), had
+                     ? "You cast %s over %s -- their bleeding stops!\r\n"
+                     : "You cast %s over %s, but they weren't bleeding.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc && had)
+                descriptor_notify(target->desc, "Your bleeding stops!\r\n");
+        }
+    } else if (strcasecmp(sk->name, "entangling roots") == 0) {
+        /* Level-1 stub-audit fix: Druid's signature level-1 attack --
+         * roster text "only works outdoors" needed its own explicit
+         * branch (the generic damage branch below has no outdoor gate),
+         * and its desc says "damaging" not "damage" so it would have
+         * missed that branch anyway (see the broadened ci_contains()
+         * stem match just below, which also independently fixes several
+         * other "damaging"/"damages"-worded stubs). The outdoor check
+         * itself lives in cmd_cast()'s outer dispatcher, BEFORE the
+         * component is consumed -- see that check's own comment for why
+         * (a refusal here would still cost the caster their component,
+         * a pre-existing gap in how every task_cast() early-return
+         * interacts with the caller's unconditional post-call
+         * consume_component()). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You cast entangling roots -- roots erupt underfoot, tripping and mauling %s %s!\r\n",
+                 being_display_name(atk_target), intensity);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts entangling roots -- roots erupt underfoot, tripping and mauling you %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "damag")
+               || ci_contains(sk->desc, "bolt")
                || ci_contains(sk->desc, "beam") || ci_contains(sk->desc, "blast")
                || ci_contains(sk->desc, "strike") || ci_contains(sk->desc, "burst")
                || ci_contains(sk->desc, "fury") || ci_contains(sk->desc, "flame")) {
@@ -1229,6 +1335,22 @@ bool cmd_cast(descriptor_t *d, const char *args) {
             descriptor_send(d, "Master your Basic and Combat disciplines, and begin Advanced practice, before this.\r\n");
             return true;
         }
+    }
+
+    /* `entangling roots` (Druid, level 1) -- "only works outdoors" has to
+     * be checked HERE, before the generic component-consumption flow
+     * below, not inside task_cast()'s own branch for this spell: that
+     * function returns void with no way to tell this caller "refused,
+     * don't consume anything", and the generic path always runs
+     * consume_component() unconditionally right after task_cast()
+     * returns (whatever it did or didn't do) -- so a refusal inside
+     * task_cast() would still cost the caster their component. Same
+     * "intercept before the generic path" shape identify/scribe/
+     * telepathy below already use, for the same underlying reason. */
+    if (strcasecmp(sk->name, "entangling roots") == 0
+        && ch->base.roomp && (ch->base.roomp->room_flag & ROOM_FLAG_INDOORS)) {
+        descriptor_send(d, "There's no earth to command in here -- entangling roots only works outdoors.\r\n");
+        return true;
     }
 
     if (strcasecmp(sk->name, "identify") == 0) {

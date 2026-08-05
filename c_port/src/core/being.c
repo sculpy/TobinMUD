@@ -465,6 +465,8 @@ bool room_is_dark_for(const struct room *r, const being_t *ch) {
         return false;
     if (gametime_is_daytime())
         return false;
+    if (being_has_affect((being_t *)ch, AFFECT_INFRAVISION))
+        return false;
     return !being_has_active_light(ch);
 }
 

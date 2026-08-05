@@ -15,6 +15,10 @@ viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups, logged 2026-08-04
 
+- [ ] **Inventory item lost after a SECOND quit/relog cycle** -- found live, 2026-08-04, while testing entangling roots: an item conjured via `load obj` (a plain pouch/component prototype) survives ONE quit->relog fine (still in inventory), but is silently gone after a SECOND quit->relog with no error. Not yet root-caused -- worth checking player_inventory_save()/load() for something specific to a second write cycle (slot reassignment collision? an UPSERT that fails silently on a re-save?), and whether this affects normally-acquired items too or only `load obj`-conjured ones. Real production risk if it's general (players losing items on repeated relogs).
+- [ ] **Cast/pray messaging: 3 lines per task step** -- user, 2026-08-04, no further detail yet. Needs clarification: which spells/commands, and what the 3 lines should be (e.g. a cast-attempt line, an effect line, a resolution line?) before scoping.
+- [ ] **Examine how spells are formed in real SneezyMUD and port the approach here** -- user, 2026-08-04, no further detail yet. Likely means reviewing `sneezymud-master/code/code/misc/spell_info.cc`'s discArray[]/spell-casting architecture (already the source used for the spell/skill audit's roster data) for structural/mechanical patterns Tobin's `cmd_cast.c`/`cmd_pray.c` keyword-dispatch approach doesn't currently capture -- scope not yet defined.
+
 - [x] **Copyover hangs a bit when restoring from a reboot** -- user, 2026-08-04: noticed live during this session's own copyover deploys, then "I believe this issue is what was eating machine resources." **Fixed, same session.** Root cause found: `copyover_recover()` (game_loop.c) restores every loose room mob/object from the copyover dump by calling `being_create_mob()`/`obj_create_from_proto()` per instance, and neither `mob_proto_load()` nor `obj_proto_load()` (mob_repo.c/obj_repo.c) cached anything -- every single instance re-ran a full DB SELECT for its prototype, even when hundreds of instances shared the same handful of vnums. World population had grown unboundedly across this session's own copyovers (3185 -> 3786 mob restores logged within about 2 hours, mostly leftover test-loaded mobs nothing ever purged), so the DB-query cost climbed every single copyover. Fix: an opt-in per-vnum prototype cache in mob_repo.c/obj_repo.c (`mob_proto_cache_begin()`/`_end()`, `obj_proto_cache_begin()`/`_end()`), OFF by default so `mob_proto_load()`/`obj_proto_load()` behave exactly as before everywhere else -- activated only around `copyover_recover()`'s own restore loop (game_loop.c), where it's provably safe (boot-time, single-threaded, nothing can be concurrently medit/oedit-saving or raw-SQL-editing a prototype). Verified live: two consecutive copyovers post-fix both completed their mob/object restore in ~1 second (log timestamp granularity) despite a still-growing population (3735, then 3786 mobs restored) -- previously that phase alone measured ~2 seconds and was climbing with population size. Confirmed the cache's scoping doesn't break live prototype edits: `tests/smoke_test_material.py` (which raw-SQL-edits `obj.material` mid-test and expects the very next spawned instance to reflect it, no restart) still passes clean. `tests/smoke_test_combat.py` and `tests/smoke_test_specproc_tuskgoring.py` also rerun clean post-copyover.
   - [x] **Fixed:** cleaned up the leftover-mob/room accumulation, and added two new admin commands so this doesn't need a one-off script next time. `purge <low>-<high>` (cmd_purge.c, 59+) clears loose mobs/objects from every currently-loaded room in a vnum range -- ran once room-by-room via a script first (670/670 sandbox rooms had something to purge), which is what motivated the real command. `zone reclaim <low>-<high>` (cmd_zone.c, 59+, user 2026-08-04) goes further: permanently deletes room/obj/mob prototype rows (plus their roomexit/roomextra/objaffect/objextra/obj_magic/mob_extra/mob_imm/mobresponses satellite rows) and any zone_reset/trigger rows referencing that range, refusing if any OTHER connected player is standing in an in-range room. Ran `zone reclaim 900000-1010000` against the real leftover test-sandbox range: 665 rooms, 513 objs, 321 mobs, 5 triggers deleted, live player connection undisturbed throughout. New tests/smoke_test_purge_range.py and tests/smoke_test_zone_reclaim.py pass live.
 - [x] **Player PK should neither gain nor lose experience** -- user, 2026-08-04: player-vs-player kills currently affect XP like normal combat; PK outcomes should be XP-neutral for both sides ("They should still be able to loot gold. They just shouldn't get experience for killing another player."). **Fixed, same session.** Two spots in combat.c: `combat_award_hit_xp()` now returns immediately when `victim->base.kind == THING_PC` (no per-hit XP credit for landing blows on another player), and `combat_defeat()`'s death-XP-loss block now gates on `winner->base.kind != THING_PC` (used to just /10-reduce the loss for a PC winner, now skips it entirely). The PvP gold-to-corpse path (separate code, same function) is untouched -- looting a PK kill's gold still works exactly as before. New `tests/smoke_test_pk_xp.py` (6 checks) verifies both sides' `experience` column is unchanged across a PK kill; passes live. Deployed via copyover (temp level-60 `Deploybot` test account, deleted after use -- a real player connection was live throughout).
@@ -271,8 +275,8 @@ spells whose own description says "damages"/"damaging" ALSO silently
 miss the damage branch -- flagged inline below.
 
 #### Mage (`cmd_cast.c`) — ~32 stubs
-- [ ] Sorcerer's globe — promises a group defense buff, applies no affect.
-- [ ] Mage sight — promises infravision/true sight/detection bundle; no affect applied.
+- [x] Sorcerer's globe — **Fixed 2026-08-04:** now a real room-wide AFFECT_SANCTUARY buff (cmd_cast.c), reusing cmd_rally.c's "everyone in the room but immortals" group shape.
+- [x] Mage sight — **Fixed 2026-08-04:** grants real infravision (new AFFECT_INFRAVISION, room_is_dark_for()); true sight/detection dropped (no matching subsystem), a disclosed scope reduction.
 - [ ] Flare — promises room lighting; no lighting state changes.
 - [ ] Hands of flame — promises a "fiery touch attack"; desc says "fiery" not "flame", misses the damage-keyword branch — zero damage dealt.
 - [ ] Illuminate — promises lighting an object; no effect.
@@ -306,18 +310,18 @@ miss the damage branch -- flagged inline below.
 - [ ] Ethereal gate — promises opening a portal to a named location; no teleport/portal created.
 
 #### Druid (shares Mage's `cmd_cast.c` dispatcher) — 4 likely stubs
-- [ ] Entangling roots — desc says "damaging" not "damage", misses the branch — zero damage despite being the class's signature level-1 attack.
+- [x] Entangling roots — **Fixed 2026-08-04:** own explicit branch (outdoors-only per roster text, real damage via combat_apply_skill_damage()); also broadened the damage-keyword match to a "damag" stem (catches damage/damages/damaging) in both cmd_cast.c and cmd_pray.c, which independently helps several other still-open stubs below (e.g. energy drain).
 - [ ] Bramble drain — promises draining life from target to self; no damage/heal-transfer applied.
 - [ ] Beast soother — promises calming a hostile/hunting animal; no effect applied.
-- [ ] Clot — promises stopping bleeding (shares name/desc with Cleric's below); no bleed-affect removal in this dispatcher.
+- [x] Clot — **Fixed 2026-08-04:** same targeted AFFECT_DISEASE_BLEEDING cure as Cleric's identical spell (cmd_cast.c).
 
 #### Cleric (`cmd_pray.c`) — ~13 likely stubs
-- [ ] Clot — pray.c's heal keyword set ("heal"/"cure" only) doesn't match "stop bleeding" — no bleed-affect removed.
-- [ ] Attune — promises binding a holy symbol to faction; no effect applied.
-- [ ] Devotion — promises passive prayer-point regen; no effect when invoked via `pray`.
-- [ ] Salve — desc has no "heal"/"cure" — zero healing despite being a basic heal-tier spell.
+- [x] Clot — **Fixed 2026-08-04:** real targeted cure for AFFECT_DISEASE_BLEEDING (cmd_pray.c), distinct from the broader "cure disease" branch.
+- [x] Attune — **Fixed 2026-08-04:** Tobin has no PC faction system to bind to (disclosed gap), so this reuses the holy symbol's own decay-strength system (val[0]/val[1]) instead -- restores it to full and raises its max strength for the rest of the session (not persisted across a relog -- obj val[] isn't saved per carried instance at all, same pre-existing scope limit consume_symbol()'s decay already has).
+- [x] Devotion — **Fixed 2026-08-04:** Tobin has no prayer-point resource (disclosed gap), so this restores Vitality now instead -- the closest real regenerating resource Tobin has, "passive" becomes "on-demand".
+- [x] Salve — **Fixed 2026-08-04:** folded into the existing heal branch by name (cmd_pray.c).
 - [ ] Remove curse — promises stripping a curse; no affect removed.
-- [ ] Refresh — promises restoring movement points; no restore applied (Mage/Druid's identically-named "refresh" IS implemented via cast.c's explicit branch; Cleric's copy is not).
+- [x] Refresh — **Fixed 2026-08-04:** same Vitality-restore formula Mage/Druid's refresh already used (cmd_pray.c).
 - [ ] Flamestrike — pray.c's damage keyword set (damage/bolt/strike only) misses "flame" — zero damage from this signature Cleric nuke.
 - [ ] Expel — promises expelling vermin/possession; no effect applied.
 - [ ] Numb — promises numbing a limb; no affect applied.

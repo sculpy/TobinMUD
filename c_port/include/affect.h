@@ -276,6 +276,13 @@ typedef enum {
      * folds into no existing Tobin stat cleanly and is dropped, same "no
      * separate hitroll/AC stat" precedent as curse/blindness. */
     AFFECT_BIND,
+    /* `infravision`/`mage sight` (Mage, level 28/1) -- real, working
+     * dark-vision: checked by room_is_dark_for() (being.c) alongside the
+     * existing immortal/always-lit/daytime/active-light exemptions, so a
+     * caster with this affect active sees a normally-dark room fine with
+     * no light source needed. Plain flag/timer, no stat modifier -- same
+     * shape as AFFECT_BIND. */
+    AFFECT_INFRAVISION,
     AFFECT_COUNT,
 } affect_type_t;
 

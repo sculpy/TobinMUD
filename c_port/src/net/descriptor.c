@@ -1187,7 +1187,7 @@ static void show_opt_align_screen(descriptor_t *d) {
 
 /* Shared finish-up for both "play an existing character" and "just
  * finished creating one": place them in their load room and start play. */
-static void enter_world(descriptor_t *d, being_t *b) {
+static void enter_world(descriptor_t *d, being_t *b, bool is_new) {
     /* If this player has a linkdead body sitting somewhere (user
      * requirement: stay in the room until reconnect), resume in THAT room
      * instead of the load room -- but `b` is still a fresh DB load, so any
@@ -1312,9 +1312,20 @@ static void enter_world(descriptor_t *d, being_t *b) {
 
     /* Connect is a typed player-io event, symmetric to the link-loss line
      * in descriptor_destroy(): logged to the file and echoed to online
-     * immortals with a colored [PIO] tag, carrying the IP. */
-    game_log(LOG_PIO, linkdead_room_vnum >= 0 ? "%s has reconnected. [%s]" : "%s has connected. [%s]",
-             b->base.name, descriptor_display_host(d));
+     * immortals with a colored [PIO] tag, carrying the IP. A brand-new
+     * character gets its own distinct wording (user, 2026-08-04) --
+     * creation always immediately enters the world too, so without this
+     * an admin watching the feed sees what looks like the same "has
+     * connected" line twice in a row (once for creation, once for the
+     * very next real login) for one new player, with no way to tell
+     * those two genuinely different events apart at a glance. */
+    if (is_new) {
+        game_log(LOG_PIO, "%s has been created under account %s. [%s]",
+                 b->base.name, d->account.name, descriptor_display_host(d));
+    } else {
+        game_log(LOG_PIO, linkdead_room_vnum >= 0 ? "%s has reconnected. [%s]" : "%s has connected. [%s]",
+                 b->base.name, descriptor_display_host(d));
+    }
     d->state = CONN_PLAYING;
     cmd_dispatch(d, "look"); /* prompt comes from the game loop's prompter */
 }
@@ -3031,7 +3042,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     show_account_menu(d);
                     return true;
                 }
-                enter_world(d, b);
+                enter_world(d, b, false);
                 return true;
             }
 
@@ -3104,7 +3115,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     show_account_menu(d);
                     return true;
                 }
-                enter_world(d, b);
+                enter_world(d, b, false);
                 return true;
             }
 
@@ -3375,7 +3386,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                  * creation, not on every later login (see enter_world()'s
                  * "Welcome, X!"), so a veteran never sees it again. */
                 descriptor_send(d, "\r\nNew to TobinMUD? Type 'help playing' any time for an overview of the basics.\r\n");
-                enter_world(d, b);
+                enter_world(d, b, true);
                 return true;
             }
 
@@ -3539,7 +3550,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     if (linkdead)
                         being_destroy(linkdead);
                 }
-                log_info("Character %s deleted (account %s). [%s]",
+                game_log(LOG_PIO, "%s has been deleted from account %s. [%s]",
                          d->delete_char_name, d->account.name, descriptor_display_host(d));
                 descriptor_send(d, "Character deleted.\r\n");
             } else {

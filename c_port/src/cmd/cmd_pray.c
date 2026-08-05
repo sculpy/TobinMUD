@@ -309,7 +309,101 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
      * message rather than silently doing nothing. Heal/buff branches
      * keep using `target` directly (self by default), unaffected. */
     being_t *atk_target = (target != ch) ? target : ch->fighting;
-    if (strcasecmp(sk->name, "cure poison") == 0) {
+    if (strcasecmp(sk->name, "clot") == 0) {
+        /* Level-2 stub-audit fix (2026-08-04): "Stops a victim's
+         * bleeding" -- a real, targeted cure for the SAME
+         * AFFECT_DISEASE_BLEEDING affect this file's own offensive
+         * "open wound"-style spell (see that branch's doc comment,
+         * further down) inflicts, distinct from the broader "cure
+         * disease" branch which strips every disease at once. */
+        ch->last_heal_target = NULL;
+        bool had = being_has_affect(target, AFFECT_DISEASE_BLEEDING);
+        if (had)
+            being_remove_affect(target, AFFECT_DISEASE_BLEEDING);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), had
+                     ? "You pray for %s -- your bleeding stops!\r\n"
+                     : "You pray for %s, but you weren't bleeding to begin with.\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), had
+                     ? "You pray for %s over %s -- their bleeding stops!\r\n"
+                     : "You pray for %s over %s, but they weren't bleeding.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc && had)
+                descriptor_notify(target->desc, "Your bleeding stops!\r\n");
+        }
+    } else if (strcasecmp(sk->name, "refresh") == 0) {
+        /* Level-9 stub-audit fix: roster text "Restores movement
+         * points" -- Mage/Druid's identically-named spell already does
+         * this via cast.c's own explicit branch (that spell's own doc
+         * comment there covers why: no mana pool to "recover faster"
+         * for, Tobin's closest real regenerating resource is Vitality);
+         * Cleric's own copy never got the same treatment. Same formula. */
+        ch->last_heal_target = NULL;
+        int amount = 8 + ch->progress.level / 2;
+        being_heal_vit(target, amount);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), "You pray for %s and feel your vitality return! (+%d Vit)\r\n", sk->name, amount);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), "You pray for %s, and %s looks refreshed! (+%d Vit)\r\n",
+                     sk->name, being_display_name(target), amount);
+            descriptor_send(d, msg);
+            if (target->desc) {
+                char tcapbuf[128];
+                snprintf(msg, sizeof(msg), "%s prays for %s, refreshing your vitality! (+%d Vit)\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, amount);
+                descriptor_notify(target->desc, msg);
+            }
+        }
+    } else if (strcasecmp(sk->name, "attune") == 0) {
+        /* Level-1 stub-audit fix (2026-08-04): roster text "Bind a holy
+         * symbol to your faction" -- Tobin has no PC faction system at
+         * all to bind to (a disclosed gap, same shape as other spells
+         * this audit found with no matching subsystem), so this reuses
+         * the ONE real resource a holy symbol already has in this very
+         * file -- its decay strength (val[0]/val[1], see
+         * consume_symbol()'s own doc comment above) -- and gives it a
+         * real, felt boost for the rest of THIS session: restores it to
+         * full and raises its max strength a little, more resilient to
+         * future decay. Not persisted across a relog -- obj val[] state
+         * for a carried instance isn't saved to player_inventory at all
+         * (only vnum/slot/cur_struct/depreciation/monogram are), same
+         * scope limit the pre-existing consume_symbol() decay already
+         * has -- a disclosed gap, not new to this fix. Requires an
+         * actual holy symbol like every other prayer here. */
+        ch->last_heal_target = NULL;
+        obj_t *symbol = find_keyword_item(ch, "symbol");
+        if (!symbol) {
+            descriptor_send(d, "You have no holy symbol to attune.\r\n");
+            return;
+        }
+        int base = symbol->val[1] > 0 ? symbol->val[1] : (symbol->val[0] > 0 ? symbol->val[0] : 10);
+        symbol->val[1] = base + 2;
+        symbol->val[0] = symbol->val[1];
+        char capbuf[128];
+        const char *label = symbol->base.short_descr[0] ? symbol->base.short_descr : symbol->base.name;
+        snprintf(msg, sizeof(msg), "You attune yourself to %s -- it thrums with renewed devotion!\r\n",
+                 cap_first(label, capbuf, sizeof(capbuf)));
+        descriptor_send(d, msg);
+    } else if (strcasecmp(sk->name, "devotion") == 0) {
+        /* Level-1 stub-audit fix: roster text "Passive prayer-point
+         * regeneration" -- Tobin has no prayer-point/mana resource at
+         * all (disclosed gap, same "powerstone" precedent above), so
+         * this lands as an immediate Vitality restore instead --
+         * Tobin's own closest real regenerating resource, same shape
+         * the "refresh" family of spells already uses elsewhere in this
+         * file. "Passive" becomes "on-demand" -- a real, felt effect
+         * using an existing system rather than a faked continuous buff
+         * with no infrastructure to back it. */
+        ch->last_heal_target = NULL;
+        int amount = 6 + ch->progress.level / 3;
+        being_heal_vit(ch, amount);
+        snprintf(msg, sizeof(msg), "You pray for devotion -- a quiet peace steadies you! (+%d Vit)\r\n", amount);
+        descriptor_send(d, msg);
+    } else if (strcasecmp(sk->name, "cure poison") == 0) {
         ch->last_heal_target = NULL;
         bool had = being_has_affect(target, AFFECT_POISON);
         if (had)
@@ -700,7 +794,12 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
         descriptor_send(d, msg);
     } else if (strcasecmp(sk->name, "penance") == 0) {
         pray_apply_penance(d, ch, target, sk->name);
-    } else if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")) {
+    } else if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")
+               /* `salve` (level-4 stub-audit fix): desc "Treats a minor
+                * wound" carries neither keyword despite being a plain
+                * heal-tier spell -- folded into this branch by name
+                * rather than duplicating its logic. */
+               || strcasecmp(sk->name, "salve") == 0) {
         pray_apply_heal(d, ch, target, sk->name);
         ch->last_heal_target = target;
         snprintf(ch->last_heal_spell, sizeof(ch->last_heal_spell), "%s", sk->name);
@@ -736,7 +835,8 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
          * so one never accidentally silently degrades to single-target. */
         ch->last_heal_target = NULL;
         pray_area_damage(d, ch, sk);
-    } else if (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "bolt")
+    } else if (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "damag")
+               || ci_contains(sk->desc, "bolt")
                || ci_contains(sk->desc, "strike")) {
         /* No longer gated on ch->fighting (offensive spell breadth) --
          * can now open combat against atk_target, same as `attack`/
