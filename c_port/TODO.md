@@ -277,9 +277,9 @@ miss the damage branch -- flagged inline below.
 #### Mage (`cmd_cast.c`) — ~32 stubs
 - [x] Sorcerer's globe — **Fixed 2026-08-04:** now a real room-wide AFFECT_SANCTUARY buff (cmd_cast.c), reusing cmd_rally.c's "everyone in the room but immortals" group shape.
 - [x] Mage sight — **Fixed 2026-08-04:** grants real infravision (new AFFECT_INFRAVISION, room_is_dark_for()); true sight/detection dropped (no matching subsystem), a disclosed scope reduction.
-- [ ] Flare — promises room lighting; no lighting state changes.
+- [x] Flare — **Fixed 2026-08-05:** room-wide AFFECT_INFRAVISION for every non-immortal occupant (cmd_cast.c), same room-walk-loop shape as sorcerer's globe; scoped down from a room-level light state Tobin has no field for.
 - [x] Hands of flame — **Fixed 2026-08-04:** added "fiery" to cmd_cast.c's damage-keyword match.
-- [ ] Illuminate — promises lighting an object; no effect.
+- [x] Illuminate — **Fixed 2026-08-05:** real object-target spell, magically lights an OBJ_CAT_LIGHT item (cmd_cast.c), reusing cmd_light.c's val[2]/val[3] fuel/lit fields, topping off fuel if needed. Also fixed a real pre-existing bug found along the way: AFFECT_NAMES (affect.c) was missing an "Infravision" entry entirely -- affect_name(AFFECT_INFRAVISION) returned garbage/NULL ever since mage sight/AFFECT_INFRAVISION was added.
 - [ ] Faerie fire — promises an easier-to-hit debuff; no affect applied.
 - [ ] Materialize — promises conjuring a named item; no item created.
 - [ ] Feathery descent — promises fall-damage softening; no affect applied.

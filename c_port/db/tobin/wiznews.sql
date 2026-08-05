@@ -1179,3 +1179,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Two more spell stubs fixed: hands of flame, remove curse', 'Continuing the stub-audit backlog. `hands of flame` (Mage level 4) now deals real damage -- its own description said "fiery touch attack", one word off from the "flame" keyword the damage-dispatch branch was already checking for. `remove curse` (Cleric level 7) strips the AFFECT_CURSE debuff for real now, same shape as the existing cure poison/cure disease prayers.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Two more spell stubs fixed: illuminate, flare -- plus a real infravision display bug', 'Continuing the stub-audit backlog. `illuminate` (Mage level 2) now really lights up a lamp/torch you are carrying or see in the room, topping off its fuel first if needed -- reuses the same mechanism the mundane `light` command already uses. `flare` (Mage level 3) now really lights up the whole room: everyone present (except immortals) gets true dark-vision for a while, same room-wide shape `sorcerer''s globe` already uses for its shield. While testing, also caught and fixed a real pre-existing bug: the game''s internal list of affect names was missing an entry for Infravision, so anyone checking `affects` after `mage sight` or the new `flare` would have seen garbled text instead of "Infravision" -- fixed for good.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

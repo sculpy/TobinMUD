@@ -342,6 +342,32 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
         snprintf(rmsg, sizeof(rmsg), "%s casts sorcerer's globe -- a shimmering dome of protection settles over the room!\r\n",
                  being_display_name_cap(ch, capbuf, sizeof(capbuf)));
         descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "flare") == 0) {
+        /* Level-3 stub-audit fix: "Lights up the room" -- Tobin's
+         * darkness mechanic is a per-being affect check
+         * (room_is_dark_for(), being.c), not a room-level light state
+         * (room_t has no such field to flip), so this is scoped down to
+         * a genuine room-wide version of mage sight below: every PC/mob
+         * present (not immortals, same sorcerer's globe exclusion)
+         * gets AFFECT_INFRAVISION for the duration, matching what
+         * "lights up the room" actually needs to deliver -- everyone in
+         * it can see. */
+        int fhit = 0;
+        for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC && t->kind != THING_MOB)
+                continue;
+            being_t *occ = (being_t *)t;
+            if (being_is_immortal(occ))
+                continue;
+            being_apply_affect(occ, AFFECT_INFRAVISION, 10 * COMBAT_ROUND_PULSES);
+            fhit++;
+        }
+        (void)fhit;
+        descriptor_send(d, "You cast flare -- the room fills with a warm magical glow!\r\n");
+        char rmsg[128], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts flare -- the room fills with a warm magical glow!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
     } else if (strcasecmp(sk->name, "mage sight") == 0) {
         /* Level-1 stub-audit fix: roster text bundles infravision/true
          * sight/detection -- scoped down to just infravision (real dark-
@@ -1460,6 +1486,75 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         descriptor_send(d, copymsg);
         descriptor_room_echo(ch->base.roomp, ch, copymsg);
         consume_component(d, ccomp);
+        return true;
+    }
+
+    if (strcasecmp(sk->name, "illuminate") == 0) {
+        /* Level-2 stub-audit fix: "Lights up an object" -- targets an
+         * OBJECT, not a being, same "handled separately, before the
+         * being-target resolution below" precedent as identify/copy/
+         * charge stave above. Real, working reuse of the mundane
+         * light/extinguish/refuel mechanic (cmd_light.c, val[3]=is lit,
+         * val[2]=current burn) rather than a bespoke glow-affect: finds
+         * an OBJ_CAT_LIGHT item the caster is carrying (or sees in the
+         * room), and magically lights it -- topping off its fuel to
+         * full first if needed, so a spent lamp/torch works too, unlike
+         * the mundane `light` command which requires fuel already
+         * present. Refuses an already-lit item and one with no fuel
+         * capacity at all (OBJ_CAT_LIGHT items with maxBurn < 0, e.g.
+         * unrefuelable torches once truly spent -- same
+         * LIGHT_UNREFUELABLE concept cmd_light.c's refuel already
+         * checks, duplicated here rather than exported since it's one
+         * field read). */
+        obj_t *ilcomp = find_keyword_item(ch, "component");
+        if (!ilcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        if (!target_name) {
+            descriptor_send(d, "Illuminate what?\r\n");
+            return true;
+        }
+        obj_t *litem = NULL;
+        size_t iltlen = strlen(target_name);
+        for (thing_t *t = ch->base.stuff_head; !litem && t; t = t->stuff_next) {
+            if (t->kind == THING_OBJ && thing_name_matches(t->name, target_name, iltlen))
+                litem = (obj_t *)t;
+        }
+        if (!litem && ch->base.roomp) {
+            for (thing_t *t = ch->base.roomp->base.stuff_head; !litem && t; t = t->stuff_next) {
+                if (t->kind == THING_OBJ && thing_name_matches(t->name, target_name, iltlen))
+                    litem = (obj_t *)t;
+            }
+        }
+        if (!litem) {
+            descriptor_send(d, "You don't have (or see) that here to illuminate.\r\n");
+            return true;
+        }
+        if (litem->category != OBJ_CAT_LIGHT) {
+            descriptor_send(d, "That's not something that can be lit.\r\n");
+            return true;
+        }
+        if (litem->val[3]) {
+            descriptor_send(d, "It's already lit.\r\n");
+            return true;
+        }
+        if (litem->val[1] < 0) {
+            descriptor_send(d, "That can never hold a flame.\r\n");
+            return true;
+        }
+        if (litem->val[2] <= 0)
+            litem->val[2] = litem->val[1];
+        litem->val[3] = 1;
+        const char *ilabel = litem->base.short_descr[0] ? litem->base.short_descr : litem->base.name;
+        char ilmsg[224];
+        snprintf(ilmsg, sizeof(ilmsg), "You cast illuminate -- %s bursts into flame!\r\n", ilabel);
+        descriptor_send(d, ilmsg);
+        if (ch->base.roomp) {
+            snprintf(ilmsg, sizeof(ilmsg), "%s bursts into flame with a soft magical light!\r\n", ilabel);
+            descriptor_room_echo(ch->base.roomp, ch, ilmsg);
+        }
+        consume_component(d, ilcomp);
         return true;
     }
 
