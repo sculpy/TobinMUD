@@ -69,7 +69,13 @@ msiexec /i TobinMUDClient.msi /quiet
 even that for a fully silent, unattended install. Both work because
 this is a real MSI package, not anything TobinMUD-specific.
 
-Installs to `Program Files\TobinMUD Client\` and adds a Start Menu
+**Per-user install** (`InstallScope="perUser"` in tobinmud.wxs) --
+installs to `%LocalAppData%\Programs\TobinMUD Client\`, NOT Program
+Files, and needs no Administrator elevation. This was a deliberate fix
+(2026-08-05, see "Auto-update" below for the "client wont open" story
+behind it): a `perMachine` install requires elevation for msiexec to
+service it at all, which silently broke the whole self-update flow
+since it runs as a normal user with no UAC prompt. Adds a Start Menu
 shortcut. Uninstall via the normal Windows "Apps & features" list, or
 `msiexec /x TobinMUDClient.msi`.
 
@@ -86,12 +92,26 @@ taking a hit in combat (proves the GMCP pipe end-to-end).
 On launch, the client fetches `http://tobinmud.com/tobinclient/version.txt`
 and compares it (plain string compare) to `CLIENT_VERSION` in
 `src/win32/main.c`. If different, it downloads
-`http://tobinmud.com/tobinclient/TobinMUDClient.msi` to a temp file and
-silently launches `msiexec /i <temp>.msi /quiet /norestart`, then exits
-immediately (letting msiexec replace the running exe once this process
-lets go of it). Best-effort throughout -- no internet, host down, or a
-failed download just means the app starts normally; an update check
-must never block someone from playing.
+`http://tobinmud.com/tobinclient/TobinMUDClient.msi` to a temp file,
+runs `msiexec /i <temp>.msi /quiet /norestart` and WAITS for it (up to
+60s), then launches the freshly-installed exe directly so a real
+window actually opens. Best-effort throughout -- no internet, host
+down, a failed download, or a failed launch at any step just falls
+through to showing the OLD window instead of nothing; an update check
+must never leave the user looking at a blank screen.
+
+**"client wont open" postmortem (2026-08-05)**: the very first version
+of this feature fired-and-forgot `ShellExecuteA(msiexec, ...)` and
+exited immediately, with zero feedback either way. Combined with the
+installer originally being `perMachine`-scoped (Program Files, needs
+Administrator elevation), every real self-update was failing silently
+with Error 1730/exit 1603 -- msiexec running as a normal user simply
+can't service a perMachine install -- and the client just vanished
+with no window, no message, nothing. Two fixes, together: (1) the
+installer is now `perUser`-scoped (see "Installing" above), so
+msiexec needs no elevation at all; (2) the update code now waits for
+msiexec and explicitly launches the result, so something always
+visibly opens.
 
 **Publishing a new release** (on the droplet):
 ```sh

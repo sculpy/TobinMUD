@@ -444,19 +444,26 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 /* Auto-update (user, 2026-08-05). Fetches UPDATE_VERSION_URL (a plain
  * one-line text file, published alongside every release) and compares
  * it to CLIENT_VERSION; if different, downloads UPDATE_MSI_URL to a
- * temp file and launches `msiexec /i <temp>.msi /quiet` -- reuses the
- * MSI installer this project already has (MajorUpgrade in the .wxs
- * handles replacing the previous install) rather than a separate
- * updater program. Best-effort throughout: no internet, an
- * unreachable host, or any download failure just returns false and
- * the app starts normally -- an update check must never block someone
- * from playing. Short (3s) connect/receive timeouts keep a dead host
+ * temp file, runs `msiexec /i <temp>.msi /quiet` and WAITS for it (up
+ * to 60s) -- reuses the MSI installer this project already has
+ * (MajorUpgrade in the .wxs handles replacing the previous install)
+ * rather than a separate updater program. Once the install genuinely
+ * finishes, launches the freshly-installed exe directly from Program
+ * Files so something visibly opens. Best-effort throughout: no
+ * internet, an unreachable host, a failed download, or a failed
+ * launch at any step just returns false and the CALLER shows the old
+ * window instead -- an update must never leave the user with nothing
+ * open (see the "client wont open" note below for why this matters:
+ * the original fire-and-forget version updated correctly but gave
+ * zero visible feedback, which from the outside is indistinguishable
+ * from broken). Short (3s) connect/receive timeouts keep a dead host
  * from stalling startup.
  *
- * Returns true if an update install was actually launched -- the
- * caller should exit immediately without showing the main window,
- * since msiexec needs this process to let go of its own .exe file
- * (still open/locked while running) before it can replace it. */
+ * Returns true only once the NEW exe has actually been launched --
+ * the caller should exit immediately without showing its own window
+ * in that case (both so the new process owns the visible window, and
+ * because msiexec needed this process to let go of its own locked
+ * .exe file to replace it in the first place). */
 static bool check_and_apply_update(void) {
     HINTERNET hInternet = InternetOpenA("TobinMUDClient", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hInternet)
@@ -520,10 +527,51 @@ static bool check_and_apply_update(void) {
         return false;
     }
 
-    char cmdline[MAX_PATH + 64];
-    snprintf(cmdline, sizeof(cmdline), "/i \"%s\" /quiet /norestart", temp_msi);
-    HINSTANCE r = ShellExecuteA(NULL, "open", "msiexec.exe", cmdline, NULL, SW_HIDE);
-    return (INT_PTR)r > 32;
+    /* Run msiexec and WAIT for it (user, 2026-08-05: "client wont
+     * open" -- the original ShellExecute-and-immediately-exit version
+     * updated correctly but gave zero visible feedback: the old exe
+     * just vanished with no window, no message, nothing, while
+     * msiexec quietly finished in the background. From the outside
+     * that's indistinguishable from "broken." Now: block until the
+     * install genuinely finishes (up to 60s), then launch the freshly
+     * installed exe directly, so something visibly opens either way. */
+    char cmdline[sizeof(temp_msi) + 64];
+    snprintf(cmdline, sizeof(cmdline), "msiexec.exe /i \"%s\" /quiet /norestart", temp_msi);
+
+    STARTUPINFOA si;
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+    if (!CreateProcessA(NULL, cmdline, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
+        return false; /* couldn't even launch msiexec -- fall through, show the old window instead of nothing */
+
+    WaitForSingleObject(pi.hProcess, 60000);
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    DeleteFileA(temp_msi);
+
+    /* Per-user install path (tobinmud.wxs's own InstallScope="perUser",
+     * see that file's header comment for why perMachine/Program Files
+     * was the actual root cause of "client wont open" -- a non-
+     * elevated msiexec can't service a perMachine install, so every
+     * silent self-update was failing invisibly). */
+    char local_appdata[MAX_PATH];
+    if (!GetEnvironmentVariableA("LOCALAPPDATA", local_appdata, sizeof(local_appdata)))
+        return false; /* installed, but can't find where -- fall through and show the old window */
+    char new_exe[MAX_PATH + 64];
+    snprintf(new_exe, sizeof(new_exe), "%s\\Programs\\TobinMUD Client\\TobinMUDClient.exe", local_appdata);
+
+    STARTUPINFOA si2;
+    PROCESS_INFORMATION pi2;
+    ZeroMemory(&si2, sizeof(si2));
+    si2.cb = sizeof(si2);
+    ZeroMemory(&pi2, sizeof(pi2));
+    if (!CreateProcessA(new_exe, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si2, &pi2))
+        return false; /* the new install exists but wouldn't launch -- fall through rather than leave the user with nothing */
+    CloseHandle(pi2.hThread);
+    CloseHandle(pi2.hProcess);
+    return true;
 }
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {

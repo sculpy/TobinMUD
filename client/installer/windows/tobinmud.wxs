@@ -6,23 +6,38 @@
   produces a real .msi, msiexec /i TobinMUDClient.msi /quiet (or
   /qn for no UI at all) just works, per the MSI format itself. See
   client/README.md for the build command and install instructions.
+
+  PER-USER install (user, 2026-08-05: "client wont open", root cause
+  traced to Error 1730/exit 1603: the original perMachine scope put
+  this under Program Files, which needs Administrator elevation to
+  service. The client's own silent auto-update runs as a normal user
+  with no UAC prompt, so every self-update attempt was failing
+  invisibly: the exe just never got replaced, no error surfaced
+  anywhere the user could see it. perUser installs to the CURRENT
+  user's own LocalAppData, which msiexec can service with zero
+  elevation, the same pattern VS Code/Chrome/etc use for exactly
+  this reason. No HKLM writes anywhere in this package already
+  (registry component below is HKCU-only), so nothing else needed
+  changing to make this switch.
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product Id="*"
            Name="TobinMUD Client"
            Language="1033"
-           Version="0.3.0.0"
+           Version="0.3.2.0"
            Manufacturer="The TobinMUD Team"
            UpgradeCode="6f2a6f6e-9b1a-4b8a-8b0a-1f0b6a2c7e11">
 
-    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perUser" />
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of TobinMUD Client is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="TobinMUD Client" />
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="AppDataProgramsFolder" Name="Programs">
+          <Directory Id="INSTALLFOLDER" Name="TobinMUD Client" />
+        </Directory>
       </Directory>
       <Directory Id="ProgramMenuFolder">
         <Directory Id="AppProgramMenuFolder" Name="TobinMUD Client" />
