@@ -460,6 +460,48 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             weapon_hitroll += skill_learn_from_doing(attacker, cintai_sk) * 3 / 20;
     }
 
+    /* Weapon specializations (missing-skill audit, "all level 1 ... all
+     * of those should be automatic", user 2026-08-04) -- same passive,
+     * learn-by-doing shape as kubo/cintai just above: `verb` (already
+     * computed) picks which of the 5 specializations applies to
+     * whatever `attacker` is currently wielding (or bare hands), and if
+     * they know it (always true for a Warrior, see being_knows_skill()),
+     * proficiency grows on every swing and folds straight into this same
+     * round's hit/damage bonus, exactly like kubo/cintai do. weapon_verb()
+     * has no "ranged" bucket (Tobin has no ranged-weapon combat yet), so
+     * "ranged specialization" tracks proficiency (still auto-known, still
+     * learnable in principle) but never actually applies a bonus here --
+     * a disclosed gap, not an oversight, tracked for when ranged combat
+     * exists. "lash" (whip/flail) is approximated as blunt -- closer to
+     * a flail's real classification than either of the other two. At
+     * exactly 100% proficiency ("mastered", user: "bigger passive
+     * bonus" rather than a separate advanced-skill unlock), the bonus
+     * steps up further rather than just topping out flat. */
+    if (!being_is_immortal(attacker) && attacker->char_class == CLASS_WARRIOR) {
+        const char *spec_name = NULL;
+        if (strcmp(verb, "slice") == 0 || strcmp(verb, "chop") == 0)
+            spec_name = "slash specialization";
+        else if (strcmp(verb, "bludgeon") == 0 || strcmp(verb, "lash") == 0)
+            spec_name = "blunt specialization";
+        else if (strcmp(verb, "stab") == 0 || strcmp(verb, "pierce") == 0)
+            spec_name = "pierce specialization";
+        else if (!weapon)
+            spec_name = "barehand specialization";
+
+        if (spec_name) {
+            const skill_def_t *spec_sk = skill_find(CLASS_WARRIOR, spec_name, false);
+            if (spec_sk) {
+                int spec_prof = skill_learn_from_doing(attacker, spec_sk);
+                weapon_hitroll += spec_prof / 10;
+                weapon_damroll += spec_prof / 25;
+                if (spec_prof >= 100) {
+                    weapon_hitroll += 3;
+                    weapon_damroll += 2;
+                }
+            }
+        }
+    }
+
     int base_roll = rand() % 100;
     int modifier = (attacker->attrs.dexterity - defender->attrs.dexterity) / 4;
     modifier += weapon_hitroll;

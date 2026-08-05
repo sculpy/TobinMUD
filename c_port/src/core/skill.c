@@ -24,6 +24,24 @@
 static const skill_def_t SKILLS[] = {
     /* ---------------- WARRIOR ---------------- */
     { "riding",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Mount and control a rideable creature." },
+    /* Weapon specializations (missing-skill audit, "Generic / cross-class"
+     * list; user, 2026-08-04: "all level 1 ... all of those should be
+     * automatic" -- real upstream, spell_info.cc's discArray, ports each
+     * as SKILL_WARRIOR/DISC_SLASH etc, START_1 -- same level 1 here.
+     * "Automatic" means known from character creation with no
+     * guildmaster visit required (being_knows_skill()'s own special
+     * case, skill.c), climbing in proficiency purely through landed
+     * hits with a matching weapon category (combat_strike(), combat.c),
+     * same "learn by doing, no activation command" shape kubo/cintai
+     * (Monk) already use for their own passive combat bonuses. User,
+     * 2026-08-04, on what 100% proficiency should do: "bigger passive
+     * bonus" -- no separate "advanced" skill unlock, just a stronger
+     * bonus curve once mastered (see combat_strike()'s own comment). */
+    { "slash specialization",    CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "Passive hit/damage bonus while wielding a slashing weapon (sword, axe) -- grows stronger once mastered." },
+    { "blunt specialization",    CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "Passive hit/damage bonus while wielding a blunt weapon (mace, hammer, staff) -- grows stronger once mastered." },
+    { "pierce specialization",   CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "Passive hit/damage bonus while wielding a piercing weapon (dagger, spear) -- grows stronger once mastered." },
+    { "ranged specialization",   CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "Passive hit/damage bonus with ranged weapons -- grows stronger once mastered. (No ranged-weapon combat exists in Tobin yet; tracked for when it does.)" },
+    { "barehand specialization", CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "Passive hit/damage bonus while fighting unarmed -- grows stronger once mastered." },
     { "sign",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   10, "Communicate silently with hand signals -- only fellow signers understand you." },
     { "bash",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Knock your target down, stunning them briefly." },
     { "berserk",                 CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Forgo defense for a burst of offense -- but you're much harder to rescue or parry while raging." },
@@ -456,6 +474,21 @@ bool being_knows_skill(const being_t *b, const char *name) {
         if (kick_sk && skill_proficiency(b, kick_sk) >= 100)
             return true;
     }
+    /* Weapon specializations are auto-known (user, 2026-08-04: "all of
+     * those should be automatic") -- skip straight past the level check
+     * and the normal combat_disc_pct guildmaster gate every other
+     * Combat-tier skill needs. Still class-restricted (Warrior only,
+     * matching real upstream) and still off for a level below 1 (never
+     * true in practice, kept for consistency with every other gate
+     * here). */
+    if (!imm && b->char_class == CLASS_WARRIOR && b->progress.level >= 1
+        && (strcasecmp(name, "slash specialization") == 0
+            || strcasecmp(name, "blunt specialization") == 0
+            || strcasecmp(name, "pierce specialization") == 0
+            || strcasecmp(name, "ranged specialization") == 0
+            || strcasecmp(name, "barehand specialization") == 0)) {
+        return true;
+    }
     int count = skill_count();
     for (int i = 0; i < count; i++) {
         const skill_def_t *sk = skill_at(i);
@@ -522,6 +555,19 @@ const skill_def_t *skill_find(player_class_t cls, const char *name, bool any_cla
 static int skill_ceiling(const being_t *ch, const skill_def_t *sk) {
     if (sk->tier == SKILL_TIER_COMBAT)   return ch->progress.combat_disc_pct;
     if (sk->tier == SKILL_TIER_ADVANCED) return ch->progress.advanced_disc_pct;
+    /* Weapon specializations (user, 2026-08-04: "all of those should be
+     * automatic") -- Class-tier otherwise caps at basic_disc_pct, which
+     * sits at 0 for a never-practiced character and would leave these
+     * permanently stuck at their 1% floor despite landing real hits.
+     * Uncapped ceiling instead, same "no guildmaster gate at all" spirit
+     * as being_knows_skill()'s own bypass for these 5 names. */
+    if (sk->cls == CLASS_WARRIOR
+        && (strcasecmp(sk->name, "slash specialization") == 0
+            || strcasecmp(sk->name, "blunt specialization") == 0
+            || strcasecmp(sk->name, "pierce specialization") == 0
+            || strcasecmp(sk->name, "ranged specialization") == 0
+            || strcasecmp(sk->name, "barehand specialization") == 0))
+        return 100;
     return ch->progress.basic_disc_pct;
 }
 

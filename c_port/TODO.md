@@ -213,8 +213,8 @@ raw checklist, pick from it as capacity allows.
 - [ ] Alcoholism
 - [ ] Avian (language)
 - [ ] Bandage
-- [ ] Barehand specialization
-- [ ] Blunt specialization
+- [x] Barehand specialization — **Fixed 2026-08-04:** all 5 weapon specializations (slash/blunt/pierce/ranged/barehand) now implemented (skill.c/combat.c/cmd_skills.c) -- Warrior-only, level 1, auto-known with no guildmaster visit needed, individually learned by doing (Class-tier, uncapped ceiling) as a real passive hit/damage bonus scaling with proficiency, with an extra bump at exactly 100%. Kept genuinely distinct from Tobin's pre-existing "*_proficiency" Combat-tier skills (found live while building this -- those just mirror the shared combat_disc_pct with no individual tracking; specialization is a separate, individually-grindable layer on top). New tests/smoke_test_weapon_spec.py passes live.
+- [x] Blunt specialization
 - [ ] Bullycroak (language)
 - [ ] Climbing
 - [ ] Common (language)
@@ -245,13 +245,13 @@ raw checklist, pick from it as capacity allows.
 - [ ] Lumberjack
 - [ ] Mend
 - [ ] Offense
-- [ ] Pierce specialization
-- [ ] Ranged specialization
+- [x] Pierce specialization
+- [x] Ranged specialization
 - [ ] Read magic
 - [ ] Seekwater
 - [ ] Sharpen
 - [ ] Skinning (generic, non-Druid classes)
-- [ ] Slash specialization
+- [x] Slash specialization
 - [ ] Smooth
 - [ ] Swim
 - [ ] Tactics
