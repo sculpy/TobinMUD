@@ -29,6 +29,7 @@ if(WIN32)
         ws2_32
         winmm
         comctl32
+        wininet
     )
 else()
     message(WARNING "TobinMUDClient's Win32 GUI only builds for Windows -- "

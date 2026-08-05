@@ -1,6 +1,116 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-05 — Session 132 (DO droplet, production port 4000):
+Last updated: 2026-08-05 — Session 134 (DO droplet, production port 4000):
+**Real MSP fight music: server-side combat_music_tick() + client-side
+MUSIC parsing.** User: "i have a sound package to give you, for random
+fight music that will stop when the fight is over" -- six real .wav
+tracks named directly (adventure1.wav, atlasaudio.wav, audiodollar-
+adventure.wav, melodygodzilla.wav, motivational.wav, nastelborn.wav),
+placed by the user in the client's own `sounds\` folder.
+- Real MSP `!!MUSIC(...)` (NOT `!!SOUND` -- a separate marker in the
+  real MSP spec, meant exactly for loopable background audio a client
+  can be told to stop): `descriptor_send_msp_music()` sends `L=-1`
+  (loop forever); `descriptor_send_msp_music_off()` sends the literal
+  `!!MUSIC(Off)` stop marker (descriptor.c/h).
+- **Design choice, and why**: a real per-being combat-start/combat-end
+  hook was ruled out after finding `->fighting = ...` assigned or
+  cleared at 30+ scattered sites across the codebase (cmd_attack.c,
+  cmd_flee.c, mob_ai.c, combat.c's own defeat/pet-assist/rescue paths,
+  ...) -- hooking all of them individually would be sprawling and
+  fragile. Instead, new `combat_music_tick()` (combat.c), registered
+  at the same `COMBAT_ROUND_PULSES` cadence as `combat_process_run()`
+  itself (main.c), sweeps every connected descriptor each round and
+  compares "are they fighting now" against a new `descriptor_t.
+  music_playing` flag -- one single place that only needs the two
+  states, not every path that can produce them. Track picked via
+  `rand() % 6` in a `switch` (per the user's own suggested shape).
+- Client (`client/src/win32/main.c`, v0.3.0): `scan_msp_and_forward()`
+  now recognizes both `!!SOUND(` and `!!MUSIC(` markers (shared parsing,
+  a `play_msp(fname, loop)` helper dispatches to the right `PlaySound()`
+  flags -- `SND_LOOP` for music, one-shot for sound, `!!MUSIC(Off)`
+  stops via `PlaySoundA(NULL, NULL, 0)`). **Disclosed limitation**:
+  Win32's simple `PlaySound()` API is a single shared playback channel
+  for the whole process -- a `!!SOUND` hit effect firing while music
+  loops will interrupt the music rather than mixing over it; real
+  mixing needs a heavier API (DirectSound/XAudio2), out of scope here.
+- **Verification was blocked by the pre-existing scripted-input
+  flakiness** (TODO.md's now-broadened entry) -- every automated
+  attempt to drive a full create-character-then-fight sequence hit the
+  same desync this session already found and logged while testing
+  GMCP/MSDP/MSP, including with a from-scratch build and deliberate
+  delays between every send. New `tests/smoke_test_msp_music.py`
+  written correctly (same proven "single continuous connection, no
+  reconnect, goto <player> instead of a custom sandbox" pattern the
+  GMCP test settled on) and kept in the repo -- expected to pass
+  cleanly in a healthy run, just never got one this session. Confidence
+  in the feature itself rests on: the identical `g_descriptors`
+  iteration shape already proven in `combat_process_run()`, the
+  functions being trivial and directly modeled on the already-verified
+  `descriptor_send_msp_sound()`, and a manual (non-scripted) partial
+  test that DID show a real `!!SOUND(hit.wav V=100)` fire correctly
+  mid-fight (proving the MSP negotiation + combat-hook plumbing this
+  feature reuses is live and working) even though that same manual run
+  didn't last enough combat rounds to also observe MUSIC starting
+  (character died in one hit against a deliberately overtuned test
+  dummy).
+- Server + client both rebuilt zero-warning, deployed via copyover
+  (player connected throughout, confirmed via `ss -tn` first) and
+  published to the client update host (v0.3.0) respectively.
+
+Previous update: Last updated: 2026-08-05 — Session 133 (DO droplet, production port 4000):
+**Client polish + real auto-update, driven by live user testing of
+Session 132's build.** User connected the actual `.exe` and reported
+real, useful findings within minutes:
+- **Monospace font**: default Win32 controls use a proportional font,
+  looked "scrunched" on a MUD's column-aligned output. Set Consolas
+  (10pt in the RichEdit's default char format via `EM_SETCHARFORMAT`
+  `SCF_DEFAULT`, matched in the input box via `WM_SETFONT`) on both
+  controls; bumped the input box height to fit without clipping.
+- **MSP sound file location**: `PlaySoundA()` was resolving a bare
+  filename against the process's current working directory (varies
+  by launch method -- silently wrong depending on how the exe was
+  started). Now resolves from a `sounds\` folder next to the exe
+  itself (`GetModuleFileNameA()` + strip the filename), a stable,
+  predictable location regardless of launch method.
+- **Real UTF-8 bug, caught from the user's own screenshot**: the
+  connect banner's box-drawing art rendered as literal mojibake
+  ("â•”â•â•" instead of "╔══"). `MultiByteToWideChar()` was using
+  `CP_ACP` (Windows-1252 on a US system) -- the server actually sends
+  UTF-8. Switched both call sites to `CP_UTF8`. Disclosed, not-yet-
+  fixed edge case: a UTF-8 sequence split exactly across two socket
+  reads has no cross-call reassembly buffer yet (rare in practice for
+  Tobin's short box-drawing runs).
+- **Auto-update, a new user ask this session**: the client now checks
+  `http://tobinmud.com/tobinclient/version.txt` on launch and, if
+  different from its own compiled-in `CLIENT_VERSION`, downloads
+  `TobinMUDClient.msi` from the same host (WinINet, 3s connect/receive
+  timeouts so a dead host can't stall startup) and silently launches
+  `msiexec /i <temp> /quiet /norestart`, exiting immediately so msiexec
+  can replace the running exe. Best-effort throughout -- any failure
+  (no internet, download error) just starts the app normally.
+- **New infrastructure to support that**: `nginx` installed and
+  enabled (serves `/usr/share/nginx/html/tobinclient/` -- `version.txt`
+  + the latest `.msi` -- on port 80). Real debugging detour finding
+  out why port 80 stayed unreachable even after the user opened it in
+  DigitalOcean's cloud firewall: **this droplet also runs `ufw`
+  locally** (unusual for Fedora, which normally uses firewalld --
+  `firewall-cmd` isn't even installed here) with a default-deny INPUT
+  policy that had never been told about port 80. Both layers needed
+  the rule; confirmed end-to-end with `curl` from outside the droplet
+  only after opening both. `ENVIRONMENT.md`'s firewall section rewritten
+  with this exact gotcha so a future session doesn't lose the same
+  time re-discovering it.
+- Two real, disclosed-and-fixed `-Wformat-truncation` warnings caught
+  along the way (both from a destination buffer sized for the base
+  path alone, not path+filename combined) -- zero-warning build
+  maintained throughout.
+- Published two point releases during this session's live testing:
+  0.2.0 (font + sound-path fixes + the auto-update feature itself) and
+  0.2.1 (the UTF-8 fix) -- both sent to the user directly, both
+  published to the update host so any client left on an older version
+  self-heals to the fix on next launch.
+
+Previous update: Last updated: 2026-08-05 — Session 132 (DO droplet, production port 4000):
 **TobinMUD Client, Phase 1c: native Win32 GUI + MSI installer, built
 on top of Session 131's GMCP/MSDP/MSP protocol layer.** macOS dropped
 from scope per user request this session -- Windows only.

@@ -468,6 +468,12 @@ typedef struct descriptor {
     bool opt_gmcp;
     bool opt_msdp;
     bool opt_msp;
+    /* Whether combat_music_tick() (combat.c) currently believes this
+     * descriptor has fight music playing -- lets that periodic tick
+     * detect the fighting->not-fighting transition without needing a
+     * hook at every one of the 30+ scattered `->fighting = ...` combat-
+     * entry sites across the codebase. */
+    bool music_playing;
     /* Real subnegotiation payload capture, replacing the old discard-
      * only swallow loop. `subneg_have_opt` is false immediately after
      * `IAC SB` until the very next payload byte arrives (that byte IS
@@ -804,6 +810,16 @@ void descriptor_send_subneg(descriptor_t *d, unsigned char opt, const unsigned c
  * marker contains no '<X>' tags or bare '\n'). No-op if the descriptor
  * never opted in. `volume` is clamped to MSP's real 0-100 range. */
 void descriptor_send_msp_sound(descriptor_t *d, const char *filename, int volume);
+
+/* Combat music (user, 2026-08-05: "random fight music that will stop
+ * when the fight is over") -- real MSP `!!MUSIC(...)` (NOT `!!SOUND`,
+ * a separate marker in the real MSP spec, meant exactly for looping
+ * background audio a client can be told to stop). `descriptor_send_
+ * msp_music()` loops (L=-1); `descriptor_send_msp_music_off()` sends
+ * the literal `!!MUSIC(Off)` stop marker. See combat_music_tick()
+ * (combat.h) for what actually calls these. */
+void descriptor_send_msp_music(descriptor_t *d, const char *filename);
+void descriptor_send_msp_music_off(descriptor_t *d);
 
 /* Queues already-formatted bytes for `d`, replacing a bare socket_write().
  * Tries an immediate write() first (the common case never touches

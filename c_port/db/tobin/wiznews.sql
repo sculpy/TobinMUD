@@ -1227,3 +1227,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A native TobinMUD Client now exists (Windows, phase 1)', 'Building on last session''s GMCP/MSDP/MSP server support, there is now an actual TobinMUD Client for Windows: connects automatically, renders color properly, and plays a sound cue when you land a hit. Packaged as a real MSI installer, including a silent/unattended install option. Confirmed working with Mudlet too, independent of this new client. Not yet distributed to players -- still in testing.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Real MSP fight music added', 'Combat now triggers a random looping music track via MSP''s real MUSIC marker (separate from the SOUND marker added last session), and stops it when the fight ends. Implemented as a periodic sweep over connected players rather than hooking every place combat can start or end -- there are 30+ of those scattered across the codebase. The new TobinMUD Client (now v0.3.0) supports it, and so does Mudlet.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

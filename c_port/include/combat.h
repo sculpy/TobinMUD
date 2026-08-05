@@ -15,6 +15,19 @@
  * pair, once per combat round. */
 void combat_process_run(long pulse_num);
 
+/* Combat music (user, 2026-08-05: "random fight music that will stop
+ * when the fight is over") -- MSP `!!MUSIC(...)`. Registered via
+ * pulse_register(COMBAT_ROUND_PULSES, combat_music_tick) alongside
+ * combat_process_run() itself, same cadence. Rather than hooking every
+ * one of the 30+ scattered `->fighting = ...` combat-entry sites across
+ * the codebase (cmd_attack.c, cmd_flee.c, mob_ai.c, combat.c's own
+ * defeat/flee paths, ...), this just sweeps every connected PC each
+ * round and compares "are they fighting now" against "did we think
+ * music was already playing for them" (descriptor_t.music_playing) --
+ * one single place that only needs to know the two states, not every
+ * path that can produce them. */
+void combat_music_tick(long pulse_num);
+
 /* Finds another playing character named `name` in the same room as `self`
  * (case-insensitive, DikuMUD-style). Shared by cmd_attack.c and cmd_kill.c
  * so both target the same way. Returns NULL if nobody matches. */

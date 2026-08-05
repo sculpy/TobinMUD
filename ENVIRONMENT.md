@@ -150,12 +150,36 @@ crontab -e
 takes a `flock` on `/tmp/tobin_watchdog.lock` so only one restart ever runs.
 
 ### 3i. Open the firewall for telnet 4000
+
+**Two independent firewall layers guard this droplet -- both must be
+opened, or the port silently times out with no error on either side**
+(burned real debugging time, 2026-08-05, opening port 80 for the
+TobinMUD Client's update host -- the DO cloud firewall rule alone
+looked correct and was NOT enough):
+
+1. **Local, on the droplet itself.** Despite this being Fedora (where
+   `firewall-cmd`/firewalld is the normal default), the CURRENT droplet
+   actually runs **ufw** instead -- `firewall-cmd` isn't even installed
+   (`command not found`). Check which one is actually active before
+   assuming:
+   ```sh
+   sudo ufw status numbered          # if this shows Status: active, use ufw, not firewall-cmd
+   sudo ufw allow <port>/tcp
+   ```
+   (If a future droplet rebuild genuinely uses firewalld instead:
+   `sudo firewall-cmd --add-port=<port>/tcp --permanent && sudo firewall-cmd --reload`.)
+2. **DigitalOcean's cloud firewall** (a separate product, configured
+   via the DO web console under Networking -> Firewalls, or `doctl
+   compute firewall add-rules`) -- open the same port there too, on
+   whichever firewall resource is actually attached to this droplet.
+
+Test end-to-end from OUTSIDE the droplet (an open local port with a
+still-blocking cloud firewall, or vice versa, both look identical from
+localhost -- `curl http://127.0.0.1/...` succeeding proves nothing
+about external reachability):
 ```sh
-sudo firewall-cmd --add-port=4000/tcp --permanent && sudo firewall-cmd --reload   # Fedora/RHEL
-# or: sudo ufw allow 4000/tcp                                                     # Debian/Ubuntu
+curl -v --max-time 10 http://tobinmud.com:<port>/...
 ```
-Also open in the DigitalOcean cloud firewall if one is attached to the
-droplet.
 
 ### 3j. DNS
 Point `tobinmud.com`'s A record at the droplet's public IP with your

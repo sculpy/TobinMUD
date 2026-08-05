@@ -7717,14 +7717,30 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
          the build commands. Packaged as a real MSI via `msitools`'
          `wixl` (also installed this session); silent install is
          standard MSI behavior (`msiexec /i ... /quiet`), no custom
-         code needed for that part of the ask. Both the `.exe` and
-         `.msi` sent to the user for real-machine testing (can't click-
-         test a Win32 GUI from the Linux droplet) -- not yet confirmed
-         working end-to-end on a real Windows box as of this write-up.
+         code needed for that part of the ask. **Confirmed working on
+         a real Windows machine, same session** -- user tested the
+         actual `.exe` and reported real, useful findings, all fixed
+         same session: default font looked scrunched (now Consolas
+         monospace), MSP sound files now resolve from a `sounds\`
+         folder next to the exe (was the process's working directory,
+         launch-method-dependent), and a real UTF-8 bug (the connect
+         banner's box-drawing art rendered as mojibake -- was reading
+         `CP_ACP`/Windows-1252 instead of the UTF-8 the server
+         actually sends). **Auto-update also added, same session**
+         (new user ask): checks a `version.txt` on a new small nginx
+         host (`http://tobinmud.com/tobinclient/`) on launch, silently
+         re-installs via `msiexec /quiet` if newer -- see
+         `client/README.md`'s Auto-update section for the publish
+         workflow. Setting up that host surfaced a real, previously-
+         unknown gotcha: **this droplet runs `ufw` locally** (despite
+         being Fedora, which normally uses firewalld) in ADDITION to
+         DigitalOcean's cloud firewall -- both had to be opened for
+         port 80, documented in `ENVIRONMENT.md`.
          Follow-ups: a real HP-bar/status-line widget (GMCP currently
          just updates the window title), more GMCP modules as the game
-         grows, and confirming the MSI's Start Menu shortcut/uninstall
-         path on a real machine.
+         grows, and a cross-socket-read UTF-8 reassembly buffer (a
+         multi-byte character split exactly across two reads could
+         still misrender -- disclosed, not yet fixed).
       2. Web play client -- not started. A web-based telnet/websocket
          client talking to the live `tobin_c` server on port 4000 --
          needs a websocket-to-telnet bridge or native websocket support
@@ -7739,28 +7755,39 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       piece would still need to be developed/built on the droplet like
       everything else.
 
-- [ ] **Intermittent hang on quit-then-reconnect (and possibly other
-      commands) under load** (found 2026-08-05 while building/testing the
-      GMCP/MSDP/MSP protocol layer). A test script doing `create character
-      -> quit! -> reconnect` occasionally hangs indefinitely on the very
-      next command sent after reconnecting (observed once on `color off`,
-      once on `transfer`) -- not a timeout, the connection just never
-      responds, confirmed via `poll_schedule_timeout` in the blocked
-      process's kernel wchan (a real bounded wait, just never firing/
-      returning data). **Confirmed pre-existing and unrelated to the
-      GMCP/MSDP/MSP work**: reproduced identically against a from-scratch
-      clean build of the original code with that day's other changes
-      stashed out. Not consistently reproducible -- passed cleanly on some
-      runs, hung on others with IDENTICAL code/inputs, and got noticeably
-      MORE flaky while a long-running `tests/sweep.sh` full regression
-      pass was executing concurrently against the same server/DB (272
-      tests, ~5 hour run) -- resource contention (single-threaded
-      `select()` game loop + shared MariaDB instance under concurrent
-      load) is the leading theory, not yet confirmed. Not root-caused or
-      fixed -- logged for a dedicated investigation session. Repro
-      approach: hammer create+quit+reconnect in a tight loop, with and
-      without a concurrent sweep running, and see if it's reproducible in
-      isolation or genuinely load-dependent.
+- [ ] **Intermittent scripted-input desync/hang -- broader than first
+      thought** (found 2026-08-05 while building/testing the GMCP/MSDP/
+      MSP protocol layer and the MSP fight-music feature; re-confirmed
+      hitting it again during the fight-music smoke test). Originally
+      characterized as quit-then-reconnect hangs -- now confirmed the
+      real pattern is wider: **any multi-step scripted input sequence
+      sent close together can occasionally desync**, including plain
+      fresh character CREATION with no reconnect involved at all (name
+      -> race -> homeland -> class -> done -> done). When it desyncs,
+      one send lands on the wrong prompt and every subsequent one shifts
+      by one step from then on (symptom: a later command like `hit
+      dummy` gets swallowed as if it were an answer to a leftover
+      `Enter a number (1-6)` race prompt) -- not always a hang, sometimes
+      a silent misinterpretation instead. Separately, one variant IS a
+      genuine indefinite hang with no data ever arriving (confirmed via
+      `poll_schedule_timeout` in the blocked process's kernel wchan -- a
+      real bounded wait that just never fires). **Confirmed pre-existing
+      and unrelated to either the GMCP/MSDP/MSP or fight-music work**:
+      reproduced identically against a from-scratch clean build of the
+      code from before either feature existed. Not consistently
+      reproducible -- passed cleanly on some runs, desynced/hung on
+      others with IDENTICAL code/inputs and delays inserted between
+      every send (ruled out just needs more pacing as the fix). Got
+      noticeably MORE flaky while a long-running `tests/sweep.sh` full
+      regression pass was executing concurrently (272 tests, ~5 hour
+      run) -- resource contention (single-threaded `select()` game loop
+      + shared MariaDB instance under concurrent load) is A theory, but
+      it also happened with nothing else running, so it isn't the whole
+      story. Not root-caused or fixed -- logged for a dedicated
+      investigation session, ideally with packet-level capture
+      (tcpdump/wireshark on loopback) to see exactly what byte sequence
+      the server actually received right before a desync, since every
+      attempt at guessing from behavior alone has been inconclusive.
 
 ## Chores / infra
 

@@ -1928,6 +1928,43 @@ void combat_process_run(long pulse_num) {
     }
 }
 
+/* Combat music (user, 2026-08-05). See combat.h's own comment on why
+ * this is a periodic sweep rather than a hook at every `->fighting =
+ * ...` site. Six real tracks the user supplied, picked at random per
+ * fight (switch/case over a plain `rand() % N`, per the user's own
+ * suggested shape) -- a plain array would work identically; kept as a
+ * switch since that's what was asked for. */
+void combat_music_tick(long pulse_num) {
+    (void)pulse_num;
+    static const char *TRACKS[] = {
+        "adventure1.wav", "atlasaudio.wav", "audiodollar-adventure.wav",
+        "melodygodzilla.wav", "motivational.wav", "nastelborn.wav",
+    };
+    const int TRACK_COUNT = (int)(sizeof(TRACKS) / sizeof(TRACKS[0]));
+
+    for (descriptor_t *d = g_descriptors; d; d = d->next) {
+        being_t *ch = d->character;
+        bool now_fighting = ch && ch->fighting;
+
+        if (now_fighting && !d->music_playing) {
+            const char *track;
+            switch (rand() % TRACK_COUNT) {
+                case 0: track = TRACKS[0]; break;
+                case 1: track = TRACKS[1]; break;
+                case 2: track = TRACKS[2]; break;
+                case 3: track = TRACKS[3]; break;
+                case 4: track = TRACKS[4]; break;
+                default: track = TRACKS[5]; break;
+            }
+            descriptor_send_msp_music(d, track);
+            d->music_playing = true;
+        } else if (!now_fighting && d->music_playing) {
+            descriptor_send_msp_music_off(d);
+            d->music_playing = false;
+        }
+    }
+}
+
 /* PK opt-in gate (TODO.md: "player flag; BOTH players must have opted
  * in for attack/kill between players"). Mob targets are always fine;
  * an immortal on EITHER side bypasses this entirely -- immortal-vs-

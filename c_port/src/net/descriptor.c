@@ -561,6 +561,24 @@ void descriptor_send_msp_sound(descriptor_t *d, const char *filename, int volume
     descriptor_send(d, msg);
 }
 
+/* See descriptor.h. Real MSP `L=-1` loops the track indefinitely --
+ * the client is responsible for stopping it, either on a matching
+ * `!!MUSIC(Off)` or when a different `!!MUSIC(...)` supersedes it. */
+void descriptor_send_msp_music(descriptor_t *d, const char *filename) {
+    if (!d->opt_msp)
+        return;
+    char msg[160];
+    snprintf(msg, sizeof(msg), "!!MUSIC(%s L=-1)\r\n", filename);
+    descriptor_send(d, msg);
+}
+
+/* See descriptor.h. */
+void descriptor_send_msp_music_off(descriptor_t *d) {
+    if (!d->opt_msp)
+        return;
+    descriptor_send(d, "!!MUSIC(Off)\r\n");
+}
+
 /* See descriptor.h. */
 bool descriptor_flush_output(descriptor_t *d) {
     if (d->out_len == 0)

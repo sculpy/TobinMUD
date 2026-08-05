@@ -18,11 +18,15 @@ user request (2026-08-05) -- see STATUS.md.
   extraction for the server's small, flat GMCP payloads -- not a
   general JSON parser).
 - `src/win32/main.c` -- the actual GUI: one window, a read-only
-  RichEdit scrollback pane, a single-line input box, a Winsock2 socket
-  polled on a timer. GMCP `Char.Vitals`/`Room.Info` currently just
-  update the window title (a real HP-bar widget is a natural follow-up
-  once this pipe is proven, not yet built). MSP's `!!SOUND(file
-  V=volume)` in-band marker triggers `PlaySound()`.
+  RichEdit scrollback pane (monospace/Consolas, real UTF-8 decoding --
+  the server's connect-banner box-drawing art is UTF-8, not ANSI/CP_ACP),
+  a single-line input box, a Winsock2 socket polled on a timer. GMCP
+  `Char.Vitals`/`Room.Info` currently just update the window title (a
+  real HP-bar widget is a natural follow-up once this pipe is proven,
+  not yet built). MSP's `!!SOUND(file V=volume)` in-band marker plays
+  `sounds\<file>` (next to the exe) via `PlaySound()`. Also checks for
+  and silently self-updates to a newer release on launch -- see "Auto-
+  update" below.
 
 ## Building (on the droplet, per CLAUDE.md's droplet-only rule -- never locally)
 
@@ -76,3 +80,51 @@ then run/verify on a real Windows machine: connects to
 `tobinmud.com:4000` automatically on launch, colored text should
 render, and the window title should update with HP/Vitality after
 taking a hit in combat (proves the GMCP pipe end-to-end).
+
+## Auto-update
+
+On launch, the client fetches `http://tobinmud.com/tobinclient/version.txt`
+and compares it (plain string compare) to `CLIENT_VERSION` in
+`src/win32/main.c`. If different, it downloads
+`http://tobinmud.com/tobinclient/TobinMUDClient.msi` to a temp file and
+silently launches `msiexec /i <temp>.msi /quiet /norestart`, then exits
+immediately (letting msiexec replace the running exe once this process
+lets go of it). Best-effort throughout -- no internet, host down, or a
+failed download just means the app starts normally; an update check
+must never block someone from playing.
+
+**Publishing a new release** (on the droplet):
+```sh
+# 1. Bump the version in two places (keep them in sync):
+#    - CLIENT_VERSION in client/src/win32/main.c
+#    - Version="X.Y.Z.0" in client/installer/windows/tobinmud.wxs
+
+# 2. Rebuild
+cd ~/NewMUD/client
+rm -rf build-win64
+cmake -S . -B build-win64 -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64-x86_64.cmake
+cmake --build build-win64
+
+# 3. Rebuild the MSI
+cd installer/windows
+cp ../../build-win64/TobinMUDClient.exe .
+wixl -v -a x64 -o TobinMUDClient.msi tobinmud.wxs
+
+# 4. Publish
+sudo cp TobinMUDClient.msi /usr/share/nginx/html/tobinclient/TobinMUDClient.msi
+echo "X.Y.Z" | sudo tee /usr/share/nginx/html/tobinclient/version.txt
+sudo chmod -R a+rX /usr/share/nginx/html/tobinclient
+```
+Every client still running an older version will pick up the new one
+automatically the next time it's launched.
+
+### Update host setup (already done on the current droplet, for reference)
+
+- `nginx` installed (`sudo dnf install -y nginx`), serving its default
+  webroot `/usr/share/nginx/html` on port 80 (`sudo systemctl enable
+  --now nginx`).
+- Files published to `/usr/share/nginx/html/tobinclient/`.
+- **Port 80 needed opening on TWO separate firewall layers** -- see
+  `../ENVIRONMENT.md`'s "Open the firewall" section for the full
+  gotcha (this droplet runs `ufw` locally, not `firewall-cmd` despite
+  being Fedora, plus the separate DigitalOcean cloud firewall).
