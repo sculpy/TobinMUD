@@ -187,6 +187,12 @@ static const skill_def_t SKILLS[] = {
     { "devotion",         CLASS_CLERIC, SKILL_TIER_CLASS,  1, "Passive prayer-point regeneration." },
     { "penance",          CLASS_CLERIC, SKILL_TIER_CLASS,  1, "A meditative discipline that helps you recover vitality faster." },
     { "clot",             CLASS_CLERIC, SKILL_TIER_CLASS,  2, "Stops a victim's bleeding." },
+    /* Missing-spell audit: real upstream discArray[SPELL_STERILIZE]
+     * (disc_cleric_cures.cc) -- cures a PART_INFECTED limb flag. Tobin
+     * already has a matching real affect, AFFECT_DISEASE_INFECTION
+     * (affect.h) -- same targeted-cure shape as clot/remove curse
+     * above, just a different specific disease. */
+    { "sterilize",        CLASS_CLERIC, SKILL_TIER_CLASS,  6, "Cures a festering infection." },
     { "create food",      CLASS_CLERIC, SKILL_TIER_CLASS, 3, "Conjures food from nothing." },
     { "create water",     CLASS_CLERIC, SKILL_TIER_CLASS, 3, "Fills a container with water." },
     { "cure poison",      CLASS_CLERIC, SKILL_TIER_CLASS, 3, "Removes poison from a victim." },
@@ -265,6 +271,12 @@ static const skill_def_t SKILLS[] = {
     { "hands of flame",   CLASS_MAGE, SKILL_TIER_CLASS, 4, "A fiery touch attack." },
     { "mystic darts",     CLASS_MAGE, SKILL_TIER_CLASS, 5, "A bolt of raw magical energy." },
     { "illuminate",       CLASS_MAGE, SKILL_TIER_CLASS,  2, "Lights up an object." },
+    /* Missing-spell audit (TODO.md, 2026-08-05): real upstream
+     * discArray[SPELL_PROTECTION_FROM_EARTH] (spell_info.cc) -- Mage,
+     * DISC_EARTH, TAR_AREA, "You feel slightly less protected." on
+     * wear-off. Never had a Tobin roster entry at all (not a stub --
+     * genuinely absent). */
+    { "protection from earth", CLASS_MAGE, SKILL_TIER_CLASS, 8, "Wards the room against earthen harm." },
     { "faerie fire",      CLASS_MAGE, SKILL_TIER_CLASS, 6, "Marks a target with a pink aura, easier to hit." },
     { "materialize",      CLASS_MAGE, SKILL_TIER_CLASS, 6, "Conjures a named item out of thin air, for a price." },
     { "pebble spray",     CLASS_MAGE, SKILL_TIER_CLASS, 6, "An area-effect burst of earthen damage." },
@@ -310,6 +322,14 @@ static const skill_def_t SKILLS[] = {
     { "haste",            CLASS_MAGE, SKILL_TIER_CLASS, 23, "A group buff for extra speed and actions." },
     { "mage repair",      CLASS_MAGE, SKILL_TIER_CLASS, 17, "Magically repairs a piece of equipment." },
     { "calm",             CLASS_MAGE, SKILL_TIER_CLASS, 19, "Pacifies a target, stopping violence." },
+    /* Missing-spell audit: real upstream discArray[SPELL_INFERNO] --
+     * Mage, DISC_FIRE, TAR_CHAR_ROOM|TAR_VIOLENT|TAR_FIGHT_VICT,
+     * "The burning sensation on your skin fades away." wear-off (a
+     * DoT in the original; Tobin has no fire-specific DoT resource, so
+     * this ports as a real instant strike, same disclosed "no
+     * elemental damage-type system" scope-cut as every other
+     * elemental-flavored attack spell this audit has ported). */
+    { "inferno",          CLASS_MAGE, SKILL_TIER_CLASS, 21, "A burning attack that scorches a single target." },
     { "detect magic",        CLASS_MAGE, SKILL_TIER_ADVANCED,  25, "Lets you see magical auras." },
     { "protection from air",  CLASS_MAGE, SKILL_TIER_ADVANCED,  25, "Resistance to wind damage." },
     { "protection from fire", CLASS_MAGE, SKILL_TIER_ADVANCED,  25, "Resistance to fire damage." },

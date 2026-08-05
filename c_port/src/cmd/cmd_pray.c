@@ -462,6 +462,25 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc && had)
                 descriptor_notify(target->desc, "Whatever was controlling you is expelled!\r\n");
         }
+    } else if (strcasecmp(sk->name, "sterilize") == 0) {
+        ch->last_heal_target = NULL;
+        bool had_infect = being_has_affect(target, AFFECT_DISEASE_INFECTION);
+        if (had_infect)
+            being_remove_affect(target, AFFECT_DISEASE_INFECTION);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), had_infect
+                     ? "You pray for %s -- the infection is cleansed away!\r\n"
+                     : "You pray for %s, but you have no infection to cleanse.\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), had_infect
+                     ? "You pray for %s over %s -- their infection is cleansed away!\r\n"
+                     : "You pray for %s over %s, but they have no infection to cleanse.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc && had_infect)
+                descriptor_notify(target->desc, "Your infection is cleansed away!\r\n");
+        }
     } else if (strcasecmp(sk->name, "cure poison") == 0) {
         ch->last_heal_target = NULL;
         bool had = being_has_affect(target, AFFECT_POISON);

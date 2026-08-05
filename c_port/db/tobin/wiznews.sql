@@ -1207,3 +1207,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Spell/prayer stub audit complete through level 49', 'Last batch of the Cleric spell-stub audit: `astral walk` and `portal` now really teleport you to any named room in the game. `bone breaker` and `wither limb` really break one of a target''s limbs. `consecrate` and `crusade` really bless everyone in the room. `spontaneous combust` now deals real damage. That closes out the entire Mage/Druid/Cleric spell and prayer stub-audit backlog through level 49 -- every spell listed in `skills` now does what its description says.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Three brand-new spells added: protection from earth, inferno, sterilize', 'Starting on the missing-spell backlog (spells that never existed in Tobin at all, not just broken ones). Mage gains two new spells: `protection from earth` (level 8, a room-wide protective ward) and `inferno` (level 21, a real burning attack). Cleric gains `sterilize` (level 6, cures a festering infection). Most of the remaining "missing spell" list belongs to classes Tobin doesn''t have (Ranger, Shaman, Deikhan) -- these three were the only ones that actually belonged to Mage or Cleric.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

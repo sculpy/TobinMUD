@@ -74,12 +74,12 @@ raw checklist, pick from it as capacity allows.
 ### Spell port status — 56 of 231 SneezyMUD spells not yet in Tobin
 
 #### Mage (3)
-- [ ] Death mist
-- [ ] Inferno
-- [ ] Protection from earth
+- [ ] Death mist — **re-triaged 2026-08-05:** real upstream discArray[SPELL_DEATH_MIST] is actually DISC_SHAMAN, not DISC_MAGE (TODO's own audit mis-attributed it) -- Tobin has no Shaman class, so this is a class-scope-out item like the rest of the Shaman list below, not a Mage gap.
+- [x] Inferno — **Fixed 2026-08-05:** real upstream discArray[SPELL_INFERNO] (Mage, DISC_FIRE). New skill.c roster entry (level 21, CLASS tier) + cmd_cast.c branch: a real instant strike (combat_apply_skill_damage(), same shape every offensive spell here uses -- Tobin has no fire-DoT resource to port the original's periodic burn into, disclosed gap).
+- [x] Protection from earth — **Fixed 2026-08-05:** real upstream discArray[SPELL_PROTECTION_FROM_EARTH] (Mage, DISC_EARTH, TAR_AREA). New skill.c roster entry (level 8, CLASS tier) + cmd_cast.c branch: real room-wide AFFECT_SANCTUARY ward, same room-walk-loop shape as sorcerer's globe (Tobin has no elemental damage-type system to give a literal earth-resistance, same disclosed scope-cut as every other elemental-flavored spell this audit has ported).
 
 #### Cleric (1)
-- [ ] Sterilize
+- [x] Sterilize — **Fixed 2026-08-05:** real upstream discArray[SPELL_STERILIZE] cures a PART_INFECTED limb flag; Tobin already has a matching real affect, AFFECT_DISEASE_INFECTION. New skill.c roster entry (level 6, CLASS tier) + cmd_pray.c branch: real targeted cure, same shape as clot/remove curse.
 
 #### Ranger (6) — no Ranger class in Tobin
 - [ ] Creeping doom

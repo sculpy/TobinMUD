@@ -825,6 +825,47 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
         snprintf(rmsg, sizeof(rmsg), "%s casts stealth -- everyone nearby's footsteps fall silent!\r\n",
                  being_display_name_cap(ch, capbuf, sizeof(capbuf)));
         descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "inferno") == 0) {
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int infdmg = spell_damage_for_level(sk->min_level);
+        limb_t inflimb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int inflimb_hp_before = atk_target->limbs[inflimb].hp;
+        bool infdefeated = combat_apply_skill_damage(ch, atk_target, infdmg, inflimb);
+        const char *infintensity = describe_dam(infdmg, inflimb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You cast inferno -- flames engulf %s, scorching them %s!\r\n",
+                 being_display_name(atk_target), infintensity);
+        descriptor_send(d, msg);
+        if (!infdefeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts inferno -- flames engulf you, scorching you %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), infintensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "protection from earth") == 0) {
+        int pehit = 0;
+        for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC && t->kind != THING_MOB)
+                continue;
+            being_t *occ = (being_t *)t;
+            if (being_is_immortal(occ))
+                continue;
+            being_apply_affect(occ, AFFECT_SANCTUARY, 60);
+            pehit++;
+        }
+        (void)pehit;
+        descriptor_send(d, "You cast protection from earth -- a warding shimmer settles over the room!\r\n");
+        char rmsg[160], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts protection from earth -- a warding shimmer settles over the room!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
     } else if (strcasecmp(sk->name, "beast soother") == 0) {
         /* Level-5 stub-audit fix: "Calms a hostile or hunting animal" --
          * real ceasefire, not flavor text. Refuses a PC target (nothing
