@@ -699,6 +699,83 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc && had)
                 descriptor_notify(target->desc, "Your bleeding stops!\r\n");
         }
+    } else if (strcasecmp(sk->name, "beast soother") == 0) {
+        /* Level-5 stub-audit fix: "Calms a hostile or hunting animal" --
+         * real ceasefire, not flavor text. Refuses a PC target (nothing
+         * to calm there); ends the mob's CURRENT fight if it's fighting
+         * anyone at all (not just ch -- "calms a hostile animal" isn't
+         * scoped to only animals attacking the caster), and applies
+         * AFFECT_CALMED so mob_try_aggress() (mob_ai.c) leaves it alone
+         * for the duration instead of immediately re-aggroing next
+         * tick. */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (atk_target->base.kind != THING_MOB) {
+            descriptor_send(d, "That's not a wild animal.\r\n");
+            return;
+        }
+        being_t *other = atk_target->fighting;
+        if (other) {
+            atk_target->fighting = NULL;
+            other->fighting = NULL;
+        }
+        being_apply_affect(atk_target, AFFECT_CALMED, 30 * COMBAT_ROUND_PULSES);
+        snprintf(msg, sizeof(msg), "You cast beast soother -- %s grows calm and still.\r\n",
+                 being_display_name(atk_target));
+        descriptor_send(d, msg);
+        char rmsg[160], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts beast soother over %s, and it grows calm and still.\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)), being_display_name(atk_target));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "faerie fire") == 0) {
+        /* Level-6 stub-audit fix: "Marks a target with a pink aura,
+         * easier to hit" -- opens combat the same way the plain damage
+         * branch does (this is an offensive debuff, TAR_VIOLENT in
+         * spirit), applies AFFECT_FAERIE_FIRE (combat.c's strike roll
+         * widens the defender-side to-hit modifier while it's active). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        being_apply_affect(atk_target, AFFECT_FAERIE_FIRE, 30 * COMBAT_ROUND_PULSES);
+        snprintf(msg, sizeof(msg), "You cast faerie fire -- a shimmering pink aura clings to %s!\r\n",
+                 being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts faerie fire -- a shimmering pink aura clings to you!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)));
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "feathery descent") == 0) {
+        /* Level-7 stub-audit fix: "A group buff that softens falls" --
+         * real room-wide AFFECT_FEATHERY_DESCENT (fall.c checks it
+         * alongside the `catfall` skill: wider survivable-depth
+         * threshold, halved crush damage), same room-walk-loop shape as
+         * sorcerer's globe/flare above. */
+        int fdhit = 0;
+        for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC && t->kind != THING_MOB)
+                continue;
+            being_t *occ = (being_t *)t;
+            if (being_is_immortal(occ))
+                continue;
+            being_apply_affect(occ, AFFECT_FEATHERY_DESCENT, 30 * COMBAT_ROUND_PULSES);
+            fdhit++;
+        }
+        (void)fdhit;
+        descriptor_send(d, "You cast feathery descent -- everyone nearby feels lighter than air!\r\n");
+        char rmsg[128], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts feathery descent -- everyone nearby feels lighter than air!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
     } else if (strcasecmp(sk->name, "entangling roots") == 0) {
         /* Level-1 stub-audit fix: Druid's signature level-1 attack --
          * roster text "only works outdoors" needed its own explicit

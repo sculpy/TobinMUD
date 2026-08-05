@@ -528,6 +528,12 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * particular reason but consistency with the offense-side number). */
     if (being_has_destroyed_limb(defender))
         modifier += DESTROYED_LIMB_HIT_PENALTY;
+    /* `faerie fire` (Mage, level 6, stub-audit fix): a pink aura marking
+     * the defender, same flat easier-to-hit bonus as a destroyed limb --
+     * no particular reason for reusing the same number, just consistency
+     * with every other flat to-hit modifier in this function. */
+    if (being_has_affect(defender, AFFECT_FAERIE_FIRE))
+        modifier += DESTROYED_LIMB_HIT_PENALTY;
     /* Positions polish (TODO backlog): a defender who isn't standing --
      * sitting, resting, sleeping, or any of the lower reserved-for-future
      * rungs (see position_t, being.h) -- is an easier target, mirroring

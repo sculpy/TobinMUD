@@ -283,6 +283,29 @@ typedef enum {
      * no light source needed. Plain flag/timer, no stat modifier -- same
      * shape as AFFECT_BIND. */
     AFFECT_INFRAVISION,
+    /* `faerie fire` (Mage, level 6) -- "Marks a target with a pink aura,
+     * easier to hit". Real, working to-hit debuff: combat.c's strike
+     * roll already has a defender-side "easier to hit" precedent
+     * (a destroyed limb widens the attacker's modifier) -- this is the
+     * same mechanic, gated on this affect instead. Plain flag/timer, no
+     * stat modifier -- same shape as AFFECT_BIND/AFFECT_INFRAVISION. */
+    AFFECT_FAERIE_FIRE,
+    /* `feathery descent` (Mage, level 7) -- "A group buff that softens
+     * falls". Real, working fall-damage mitigation: fall.c's own
+     * `catfall` skill check (widens the survivable-depth threshold,
+     * halves crush damage) already does exactly this for a skill; this
+     * affect is checked alongside it so a cast buff gets the identical
+     * treatment without needing the skill. Plain flag/timer, no stat
+     * modifier. */
+    AFFECT_FEATHERY_DESCENT,
+    /* `beast soother` (Druid, level 5) -- "Calms a hostile or hunting
+     * animal". Tobin's mob aggression is purely reactive (no lingering
+     * hunt-memory to clear, mob_ai.c's mob_try_aggress() re-rolls fresh
+     * every tick), so "calming" a mob means ending its CURRENT fight
+     * (if any) and gating mob_try_aggress() off for the duration -- a
+     * real, working ceasefire, not just flavor text. Plain flag/timer,
+     * no stat modifier. */
+    AFFECT_CALMED,
     AFFECT_COUNT,
 } affect_type_t;
 

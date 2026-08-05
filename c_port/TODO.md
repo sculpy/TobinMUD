@@ -13,6 +13,10 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
+## Open follow-ups, logged 2026-08-05
+
+- [ ] **Mage/Druid mobs should carry spellbags with real components** -- user, 2026-08-05: "A small spellbag is here on the floor" -- give all Mage-class and Druid-class mobs a spellbag (vnum 321 for small/low-level mobs, 322 for medium-leveled mobs, 323 for big/high-level mobs) loaded with a spell component appropriate to the mob's level, matching how a player caster needs a component pouch to cast (find_keyword_item(ch, "component") gate, cmd_cast.c). Needs: confirming vnums 321/322/323 exist as real spellbag prototypes (or need creating), a level-tier cutoff scheme for small/medium/big, and a zone_reset-equivalent or mob_extra load-on-spawn mechanism so every matching mob spawns with one already equipped, not just a one-off SQL patch.
+
 ## Open follow-ups, logged 2026-08-04
 
 - [ ] **Spell/prayer component requirements should appear in `help <spell>`** -- user, 2026-08-05: players currently only discover "you need a component/holy symbol" by trying to cast and getting refused; the help text for a spell/prayer that requires one should say so up front. Needs a look at how spell/prayer help entries are generated (skill_help.sql / cmd_skills.c's `print_tier()` roster display vs. the real `help` command's own topic lookup) to find the right place to surface it -- every Mage/Druid spell in cmd_cast.c needs a "component" pouch item, every Cleric prayer in cmd_pray.c needs a "symbol" holy-symbol item (find_keyword_item() gate), so the underlying rule is uniform even though it isn't documented anywhere player-facing yet.
@@ -281,9 +285,9 @@ miss the damage branch -- flagged inline below.
 - [x] Flare — **Fixed 2026-08-05:** room-wide AFFECT_INFRAVISION for every non-immortal occupant (cmd_cast.c), same room-walk-loop shape as sorcerer's globe; scoped down from a room-level light state Tobin has no field for.
 - [x] Hands of flame — **Fixed 2026-08-04:** added "fiery" to cmd_cast.c's damage-keyword match.
 - [x] Illuminate — **Fixed 2026-08-05:** real object-target spell, magically lights an OBJ_CAT_LIGHT item (cmd_cast.c), reusing cmd_light.c's val[2]/val[3] fuel/lit fields, topping off fuel if needed. Also fixed a real pre-existing bug found along the way: AFFECT_NAMES (affect.c) was missing an "Infravision" entry entirely -- affect_name(AFFECT_INFRAVISION) returned garbage/NULL ever since mage sight/AFFECT_INFRAVISION was added.
-- [ ] Faerie fire — promises an easier-to-hit debuff; no affect applied.
+- [x] Faerie fire — **Fixed 2026-08-05:** real AFFECT_FAERIE_FIRE (affect.h), combat.c's strike roll widens the defender-side to-hit modifier while it's active, same shape as the existing destroyed-limb modifier.
 - [ ] Materialize — promises conjuring a named item; no item created.
-- [ ] Feathery descent — promises fall-damage softening; no affect applied.
+- [x] Feathery descent — **Fixed 2026-08-05:** real room-wide AFFECT_FEATHERY_DESCENT, checked alongside the `catfall` skill in fall.c (wider survivable-depth threshold, halved crush damage).
 - [ ] Accelerate — promises a group haste-like buff (distinct from the separately-implemented "haste"); no affect applied.
 - [ ] Sense life — promises detecting nearby life; no detection performed.
 - [ ] Stealth — promises a quiet-movement group buff; no affect applied.
@@ -313,7 +317,7 @@ miss the damage branch -- flagged inline below.
 #### Druid (shares Mage's `cmd_cast.c` dispatcher) — 4 likely stubs
 - [x] Entangling roots — **Fixed 2026-08-04:** own explicit branch (outdoors-only per roster text, real damage via combat_apply_skill_damage()); also broadened the damage-keyword match to a "damag" stem (catches damage/damages/damaging) in both cmd_cast.c and cmd_pray.c, which independently helps several other still-open stubs below (e.g. energy drain).
 - [x] Bramble drain — **Fixed 2026-08-05:** real damage (combat_apply_skill_damage) plus a genuine being_heal() drain-back for half the damage dealt (cmd_cast.c).
-- [ ] Beast soother — promises calming a hostile/hunting animal; no effect applied.
+- [x] Beast soother — **Fixed 2026-08-05:** real ceasefire -- ends the target mob's current fight and applies AFFECT_CALMED, which gates mob_try_aggress() (mob_ai.c) off for the duration so it doesn't immediately re-aggro.
 - [x] Clot — **Fixed 2026-08-04:** same targeted AFFECT_DISEASE_BLEEDING cure as Cleric's identical spell (cmd_cast.c).
 
 #### Cleric (`cmd_pray.c`) — ~13 likely stubs

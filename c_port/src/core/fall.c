@@ -46,7 +46,10 @@ void fall_check(being_t *b) {
     if (!sector_is_fall(b->base.roomp->sector))
         return;
 
-    bool catfall = being_knows_skill(b, "catfall");
+    /* `feathery descent` (Mage, level 7, stub-audit fix): the cast buff
+     * gets the exact same fall-softening treatment as the `catfall`
+     * skill below it, checked everywhere `catfall` already is. */
+    bool catfall = being_knows_skill(b, "catfall") || being_has_affect(b, AFFECT_FEATHERY_DESCENT);
     int num1 = catfall ? 10 : 5;
     int num2 = num1 - 2;
 

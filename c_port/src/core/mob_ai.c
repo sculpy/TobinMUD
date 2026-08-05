@@ -10,6 +10,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "affect.h"
 #include "being.h"
 #include "descriptor.h"
 #include "gametime.h"
@@ -367,6 +368,10 @@ static void mob_try_surplus_collect(being_t *m) {
  * plus a notification to the target if they're actually connected. */
 static void mob_try_aggress(being_t *m) {
     if (!(m->mob_actions & ACT_AGGRESSIVE))
+        return;
+    /* `beast soother` (Druid, level 5, stub-audit fix): a calmed animal
+     * mob doesn't pick fresh fights for the duration. */
+    if (being_has_affect(m, AFFECT_CALMED))
         return;
     if (m->fighting || m->position != POSITION_STANDING || !m->base.roomp)
         return;
