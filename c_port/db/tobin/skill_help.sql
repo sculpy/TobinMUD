@@ -351,3 +351,24 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('word of recall', 'Usage: cast word of recall [<target>], pray word of recall [<target>]\n\nTeleports yourself or an ally to the recall point. Not yet wired to a real effect -- consumes its component/symbol and does nothing further yet.\nRequires: any item keyworded "component" (e.g., a pouch of spell components) (`cast`); a holy symbol -- any item keyworded "symbol" (e.g., a wooden holy symbol) (`pray`)\nRelated: skills practice cast pray affects\nApprox. Level: 21\nDiscipline: 83%\nClasses: Cleric, Druid', 'seed'),
 ('yoginsa', 'Usage: yoginsa\n\nMeditate to recover HP and Vitality faster -- sits you down automatically if you were standing. Not usable while fighting.\nRequires: not applicable -- this is a real command, see `yoginsa`\nRelated: skills practice cast pray affects\nApprox. Level: 1\nDiscipline: 1%\nClasses: Monk', 'seed')
 ON DUPLICATE KEY UPDATE `body` = IF(`updated_by` = 'seed', VALUES(`body`), `body`);
+-- topic entirely (2026-08-05 TODO follow-up: 'players currently only
+-- discover you need a component/holy symbol by trying to cast and
+-- getting refused' -- turned out the underlying help_topic generator
+-- system already existed since 2026-07-22 above, but these six were
+-- added to skill.c's roster afterward and never got a matching row).
+-- Same hand-authored format/conventions as the generated rows above --
+-- Requires/Approx. Level/Discipline sourced the same way (skill.c for
+-- level/classes, sneezymud-master/code/code/misc/spell_info.cc's real
+-- discArray[] START_ values for Discipline where a real upstream entry
+-- exists; protection from earth/inferno/sterilize/stupidity all have
+-- one, summon swarm/animal companion are Tobin-original mechanics with
+-- no upstream spellInfo entry to cite, so their Discipline line is
+-- omitted, same precedent the generator itself used).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('protection from earth', 'Usage: cast protection from earth\n\nWards the room against earthen harm. This is a room-wide effect -- everyone present is warded, not just a chosen target.\nRequires: any item keyworded "component" (e.g., a pouch of spell components) (`cast`)\nRelated: skills practice cast pray affects\nApprox. Level: 8\nDiscipline: 1%\nClasses: Mage', 'seed'),
+('inferno', 'Usage: cast inferno [<target>]\n\nA burning attack that scorches a single target. This is a single-target spell -- aimed at one person: whoever you name, or whoever you''re already fighting if you don''t name anyone.\nRequires: any item keyworded "component" (e.g., a pouch of spell components) (`cast`)\nRelated: skills practice cast pray affects\nApprox. Level: 21\nDiscipline: 15%\nClasses: Mage', 'seed'),
+('stupidity', 'Usage: cast stupidity [<target>]\n\nAddles a target''s mind, dulling their intelligence for a while. This is a single-target spell -- aimed at one person: whoever you name, or whoever you''re already fighting if you don''t name anyone.\nRequires: any item keyworded "component" (e.g., a pouch of spell components) (`cast`)\nRelated: skills practice cast pray affects\nApprox. Level: 15\nDiscipline: 15%\nClasses: Druid', 'seed'),
+('sterilize', 'Usage: pray sterilize [<target>]\n\nCures a festering infection. This is a single-target spell -- aimed at one person: whoever you name, or whoever you''re already fighting if you don''t name anyone.\nRequires: a holy symbol -- any item keyworded "symbol" (e.g., a wooden holy symbol) (`pray`)\nRelated: skills practice cast pray affects\nApprox. Level: 6\nDiscipline: 21%\nClasses: Cleric', 'seed'),
+('summon swarm', 'Usage: pray summon swarm\n\nSummons a swarm of locusts to fight at your side. This is a self-cast effect -- no target needed.\nRequires: a holy symbol -- any item keyworded "symbol" (e.g., a wooden holy symbol) (`pray`)\nRelated: skills practice cast pray affects\nApprox. Level: 30\nClasses: Cleric', 'seed'),
+('animal companion', 'Usage: cast animal companion\n\nCalls a loyal beast companion to your side. This is a self-cast effect -- no target needed.\nRequires: any item keyworded "component" (e.g., a pouch of spell components) (`cast`)\nRelated: skills practice cast pray affects\nApprox. Level: 24\nClasses: Druid', 'seed')
+ON DUPLICATE KEY UPDATE `body` = IF(`updated_by` = 'seed', VALUES(`body`), `body`);
