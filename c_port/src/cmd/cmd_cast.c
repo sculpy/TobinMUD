@@ -369,6 +369,21 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
         snprintf(rmsg, sizeof(rmsg), "%s casts flare -- the room fills with a warm magical glow!\r\n",
                  being_display_name_cap(ch, capbuf, sizeof(capbuf)));
         descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "infravision") == 0) {
+        /* Level-28 stub-audit fix: its own standalone ADVANCED-tier
+         * spell -- same real dark-vision mage sight's own infravision
+         * piece already grants (AFFECT_INFRAVISION), just self-only and
+         * longer-lasting to match the higher tier. */
+        being_apply_affect(ch, AFFECT_INFRAVISION, 60 * COMBAT_ROUND_PULSES);
+        descriptor_send(d, "You cast infravision -- your eyes adjust, piercing the darkness!\r\n");
+    } else if (strcasecmp(sk->name, "true sight") == 0) {
+        /* Level-28 stub-audit fix: "Sees through illusions and
+         * disguises" -- scoped to the one real piece Tobin has a
+         * mechanic for (AFFECT_DETECT_INVISIBLE, already a working spell
+         * elsewhere), same "one real piece over faking the whole bundle"
+         * precedent mage sight's own doc comment already used. */
+        being_apply_affect(ch, AFFECT_DETECT_INVISIBLE, 100);
+        descriptor_send(d, "You cast true sight -- your vision sharpens, piercing illusion and disguise alike!\r\n");
     } else if (strcasecmp(sk->name, "mage sight") == 0) {
         /* Level-1 stub-audit fix: roster text bundles infravision/true
          * sight/detection -- scoped down to just infravision (real dark-
@@ -745,7 +760,7 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)));
             descriptor_notify(atk_target->desc, msg);
         }
-    } else if (strcasecmp(sk->name, "falcon wings") == 0) {
+    } else if (strcasecmp(sk->name, "flight") == 0 || strcasecmp(sk->name, "falcon wings") == 0) {
         int fwhit = 0;
         for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
             if (t->kind != THING_PC && t->kind != THING_MOB)
@@ -774,6 +789,23 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
         descriptor_send(d, "You cast faerie fog -- an illusory mist rolls through the room, blinding hostile eyes!\r\n");
         char rmsg[160], capbuf[128];
         snprintf(rmsg, sizeof(rmsg), "%s casts faerie fog -- an illusory mist rolls through the room!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "cloud of concealment") == 0) {
+        int cchit = 0;
+        for (thing_t *t = ch->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC)
+                continue;
+            being_t *occ = (being_t *)t;
+            if (being_is_immortal(occ))
+                continue;
+            being_apply_affect(occ, AFFECT_INVISIBLE, 60);
+            cchit++;
+        }
+        (void)cchit;
+        descriptor_send(d, "You cast cloud of concealment -- a thick, obscuring mist rolls through the room!\r\n");
+        char rmsg[160], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "%s casts cloud of concealment -- a thick, obscuring mist rolls through the room!\r\n",
                  being_display_name_cap(ch, capbuf, sizeof(capbuf)));
         descriptor_room_echo(ch->base.roomp, ch, rmsg);
     } else if (strcasecmp(sk->name, "stealth") == 0) {
@@ -823,6 +855,138 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
         snprintf(rmsg, sizeof(rmsg), "%s casts beast soother over %s, and it grows calm and still.\r\n",
                  being_display_name_cap(ch, capbuf, sizeof(capbuf)), being_display_name(atk_target));
         descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "silence") == 0) {
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        being_apply_affect(atk_target, AFFECT_SILENCE, 30 * COMBAT_ROUND_PULSES);
+        snprintf(msg, sizeof(msg), "You cast silence -- %s's voice dies in %s throat!\r\n",
+                 being_display_name(atk_target), gender_possess(atk_target->gender));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts silence -- your voice dies in your throat!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)));
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "suffocate") == 0) {
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int sfdmg = spell_damage_for_level(sk->min_level);
+        limb_t sflimb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int sflimb_hp_before = atk_target->limbs[sflimb].hp;
+        bool sfdefeated = combat_apply_skill_damage(ch, atk_target, sfdmg, sflimb);
+        const char *sfintensity = describe_dam(sfdmg, sflimb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You cast suffocate -- %s's lungs burn for air %s!\r\n",
+                 being_display_name(atk_target), sfintensity);
+        descriptor_send(d, msg);
+        if (!sfdefeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts suffocate -- your lungs burn for air %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sfintensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "fumble") == 0) {
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int fprimary = atk_target->handed_right ? 0 : 1;
+        int fsecondary = atk_target->handed_right ? 1 : 0;
+        obj_t *fweapon = NULL;
+        if (atk_target->held[fprimary] && atk_target->held[fprimary]->category == OBJ_CAT_WEAPON)
+            fweapon = atk_target->held[fprimary];
+        else if (atk_target->held[fsecondary] && atk_target->held[fsecondary]->category == OBJ_CAT_WEAPON)
+            fweapon = atk_target->held[fsecondary];
+        if (!fweapon) {
+            snprintf(msg, sizeof(msg), "%s isn't even holding a weapon!\r\n", being_display_name(atk_target));
+            descriptor_send(d, msg);
+            return;
+        }
+        for (int i = 0; i < 2; i++)
+            if (atk_target->held[i] == fweapon)
+                atk_target->held[i] = NULL;
+        thing_move_to(&fweapon->base, &atk_target->base.roomp->base);
+        if (atk_target->base.kind == THING_PC)
+            player_inventory_save(atk_target->player_id, atk_target);
+        const char *flabel = fweapon->base.short_descr[0] ? fweapon->base.short_descr : fweapon->base.name;
+        char fmsg[256];
+        snprintf(fmsg, sizeof(fmsg), "You cast fumble -- %s's fingers spasm, and %s clatters to the floor!\r\n",
+                 being_display_name(atk_target), flabel);
+        descriptor_send(d, fmsg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(fmsg, sizeof(fmsg), "%s casts fumble -- your fingers spasm, and %s clatters to the floor!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), flabel);
+            descriptor_notify(atk_target->desc, fmsg);
+        }
+    } else if (strcasecmp(sk->name, "immobilize") == 0) {
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        being_apply_affect(atk_target, AFFECT_BIND, 30 * COMBAT_ROUND_PULSES);
+        snprintf(msg, sizeof(msg), "You cast immobilize -- %s is rooted to the spot!\r\n",
+                 being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts immobilize -- you're rooted to the spot!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)));
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (ci_contains(sk->name, "garmul")) {
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        bool stripped = false;
+        if (being_has_affect(atk_target, AFFECT_WATERBREATH)) {
+            being_remove_affect(atk_target, AFFECT_WATERBREATH);
+            stripped = true;
+        }
+        if (being_has_affect(atk_target, AFFECT_FLYING)) {
+            being_remove_affect(atk_target, AFFECT_FLYING);
+            stripped = true;
+        }
+        (void)stripped;
+        snprintf(msg, sizeof(msg), "You cast %s -- %s's legs feel heavy and clumsy, like a fish out of water!\r\n",
+                 sk->name, being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s casts %s -- your legs feel heavy and clumsy!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
+            descriptor_notify(atk_target->desc, msg);
+        }
     } else if (strcasecmp(sk->name, "faerie fire") == 0) {
         /* Level-6 stub-audit fix: "Marks a target with a pink aura,
          * easier to hit" -- opens combat the same way the plain damage
@@ -952,7 +1116,11 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                /* `hands of flame` (level-4 stub-audit fix): desc says
                 * "fiery" not "flame", missing this branch entirely
                 * despite "flame" already being a tested keyword. */
-               || ci_contains(sk->desc, "fiery")) {
+               || ci_contains(sk->desc, "fiery")
+               /* `shatter` (level-27) / `watery grave` (level-32) stub-
+                * audit fixes: their own desc words aren't in the list
+                * above at all. */
+               || ci_contains(sk->desc, "shatter") || ci_contains(sk->desc, "drowning")) {
         /* No longer gated on ch->fighting (breadth work) -- a spell can
          * now OPEN combat against atk_target, same as `attack`/`kill`,
          * rather than only ever being usable on whoever you're already
@@ -1447,6 +1615,12 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
         return true;
     }
+    /* `silence` (level-48 stub-audit fix): a silenced caster can't cast
+     * at all, checked before anything else below. */
+    if (!imm && being_has_affect(ch, AFFECT_SILENCE)) {
+        descriptor_send(d, "You try to speak the words, but no sound comes out!\r\n");
+        return true;
+    }
 
     while (*args == ' ')
         args++;
@@ -1601,15 +1775,78 @@ bool cmd_cast(descriptor_t *d, const char *args) {
      * cmd_materialize() does its own gating already and delegating
      * through the generic component-pouch flow would wrongly demand a
      * component this spell was never supposed to need. */
-    if (strncasecmp(args, "materialize", 11) == 0 && (args[11] == ' ' || args[11] == '\0')) {
+    if ((strncasecmp(args, "materialize", 11) == 0 && (args[11] == ' ' || args[11] == '\0'))
+        || (strncasecmp(args, "spontaneous generation", 22) == 0 && (args[22] == ' ' || args[22] == '\0'))) {
         if (!imm && ch->char_class != CLASS_MAGE) {
             descriptor_send(d, "You don't know a spell by that name.\r\n");
             return true;
         }
-        const char *mat_arg = args + 11;
+        bool is_sg = strncasecmp(args, "spontaneous", 11) == 0;
+        const char *mat_arg = args + (is_sg ? 22 : 11);
         while (*mat_arg == ' ')
             mat_arg++;
         return cmd_materialize(d, mat_arg);
+    }
+
+    /* `ethereal gate <location>` (level-48 stub-audit fix). Intercepted
+     * here, BEFORE find_spell_and_target() below, same multi-word-
+     * argument precedent as telepathy/scribe above -- a named location
+     * is frequently more than one word, and that helper only ever
+     * captures a single trailing word as the target. Real, working
+     * teleport to a room found by name (room_repo_find_vnum_by_name(),
+     * room_repo.c -- same db_query() %s-escaping safety as obj_repo.c's
+     * own obj_find_vnum_by_name()). */
+    if (strncasecmp(args, "ethereal gate", 13) == 0 && (args[13] == ' ' || args[13] == '\0')) {
+        const skill_def_t *egsk = find_spell(ch->char_class, "ethereal gate", imm);
+        if (!egsk) {
+            descriptor_send(d, "You don't know a spell by that name.\r\n");
+            return true;
+        }
+        if (!imm && ch->progress.level < egsk->min_level) {
+            char lvlmsg[96];
+            snprintf(lvlmsg, sizeof(lvlmsg), "You aren't experienced enough to cast %s yet (level %d).\r\n",
+                     egsk->name, egsk->min_level);
+            descriptor_send(d, lvlmsg);
+            return true;
+        }
+        if (!imm && egsk->tier == SKILL_TIER_ADVANCED &&
+            (ch->progress.basic_disc_pct < 100 || ch->progress.combat_disc_pct < 100
+             || ch->progress.advanced_disc_pct <= 0)) {
+            descriptor_send(d, "Master your Basic and Combat disciplines, and begin Advanced practice, before this.\r\n");
+            return true;
+        }
+        obj_t *egcomp = find_keyword_item(ch, "component");
+        if (!egcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        const char *egtarget = args + 13;
+        while (*egtarget == ' ')
+            egtarget++;
+        if (!*egtarget) {
+            descriptor_send(d, "Open a gate to where?\r\n");
+            return true;
+        }
+        int egvnum = room_repo_find_vnum_by_name(egtarget);
+        room_t *egdest = egvnum >= 0 ? world_get_room(egvnum) : NULL;
+        if (!egdest && egvnum >= 0)
+            egdest = room_repo_load(egvnum);
+        if (egdest)
+            world_register_room(egdest);
+        if (!egdest) {
+            descriptor_send(d, "You can't sense a place by that name.\r\n");
+            consume_component(d, egcomp);
+            return true;
+        }
+        room_t *egorigin = ch->base.roomp;
+        descriptor_send(d, "You cast ethereal gate -- a shimmering portal tears open before you!\r\n");
+        if (egorigin)
+            descriptor_room_echo(egorigin, ch, "A shimmering portal tears open, and someone steps through!\r\n");
+        thing_set_room(&ch->base, egdest);
+        descriptor_room_echo(egdest, ch, "A shimmering portal tears open, and someone steps out!\r\n");
+        cmd_dispatch(d, "look");
+        consume_component(d, egcomp);
+        return true;
     }
 
     char target_buf[64];
@@ -1662,6 +1899,25 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         && ch->base.roomp && (ch->base.roomp->room_flag & ROOM_FLAG_INDOORS)) {
         descriptor_send(d, "There's no earth to command in here -- entangling roots only works outdoors.\r\n");
         return true;
+    }
+
+    if (strcasecmp(sk->name, "divination") == 0) {
+        /* Level-45 stub-audit fix: object-target, before being-target
+         * resolution, same "identify" precedent just below -- scoped to
+         * the object half of "reveals information about an object or
+         * being" (disclosed gap: no being-inspection mechanic exists). */
+        obj_t *divcomp = find_keyword_item(ch, "component");
+        if (!divcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        if (!target_name) {
+            descriptor_send(d, "Divine information about what?\r\n");
+            return true;
+        }
+        bool divok = cmd_identify(d, target_name);
+        consume_component(d, divcomp);
+        return divok;
     }
 
     if (strcasecmp(sk->name, "identify") == 0) {

@@ -17,6 +17,12 @@
  * allocated room_t, or NULL if no such room exists. */
 room_t *room_repo_load(int vnum);
 
+/* Finds the lowest-vnum room whose name contains `name` (case-sensitive
+ * SQL LIKE substring match, same "%%%s%%" shape as obj_repo.c's own
+ * obj_find_vnum_by_name()) -- for `ethereal gate` (cmd_cast.c, level 48)
+ * teleporting to a named location. Returns -1 if nothing matches. */
+int room_repo_find_vnum_by_name(const char *name);
+
 /* True if a room row with this vnum exists. */
 bool room_repo_exists(int vnum);
 

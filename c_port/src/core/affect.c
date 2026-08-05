@@ -66,6 +66,7 @@ static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "Faerie Fire",
     "Feathery Descent",
     "Calmed",
+    "Silenced",
 };
 
 /* HP drained per damage sub-tick for AFFECT_POISON -- its own faster gate

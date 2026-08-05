@@ -298,21 +298,21 @@ miss the damage branch -- flagged inline below.
 - [x] Falcon wings — **Fixed 2026-08-05:** real room-wide AFFECT_FLYING, group version of the single-target "float above the ground" branch.
 - [x] Mage repair — **Fixed 2026-08-05:** real object-target cur_struct restore to its depreciation-aware ceiling, same formula cmd_repair.c uses, at no gold cost.
 - [x] Calm — **Fixed 2026-08-05:** real ceasefire on any target (PC or mob), the general-purpose version of `beast soother` -- ends the current fight, and gates mob_try_aggress() via AFFECT_CALMED for a mob target.
-- [ ] Shatter — promises a destructive attack; "attack" isn't a damage-keyword trigger — zero damage.
-- [ ] Infravision — promises dark-vision; no affect applied.
-- [ ] True sight — promises seeing through illusions; no affect applied.
-- [ ] Cloud of concealment — promises concealing mist; no room/affect state changed.
-- [ ] Watery grave — promises a drowning attack against a single target; "attack" not a damage keyword — zero damage despite the name.
-- [ ] Spontaneous generation — promises conjuring raw material by name; nothing created.
-- [ ] Garmul's tail — promises reduced mobility in water for target; no affect applied.
-- [ ] Immobilize — promises rooting a target in place; no affect applied.
-- [ ] Energy drain — desc says "damaging" not "damage", misses the damage branch — zero damage/drain despite the name.
-- [ ] Fumble — promises causing a target to fumble/disarm; no effect applied.
-- [ ] Suffocate — promises depriving a target of air; no effect applied.
-- [ ] Flight — promises a true-flight group buff; no affect applied.
-- [ ] Divination — promises revealing info about an object/being; no lookup performed.
-- [ ] Silence — promises muting a target's spellcasting; no affect applied.
-- [ ] Ethereal gate — promises opening a portal to a named location; no teleport/portal created.
+- [x] Shatter — **Fixed 2026-08-05:** added "shatter" to the damage-keyword list (its own desc word wasn't in it).
+- [x] Infravision — **Fixed 2026-08-05:** real standalone AFFECT_INFRAVISION grant, self-only, same mechanic mage sight already uses.
+- [x] True sight — **Fixed 2026-08-05:** real AFFECT_DETECT_INVISIBLE grant, scoped to the one real piece Tobin has a mechanic for.
+- [x] Cloud of concealment — **Fixed 2026-08-05:** real room-wide AFFECT_INVISIBLE for every PC ally in the room (not hostile mobs).
+- [x] Watery grave — **Fixed 2026-08-05:** added "drowning" to the damage-keyword list.
+- [x] Spontaneous generation — **Fixed 2026-08-05:** routes to the real `materialize` mechanic (same pay-a-price/conjure-a-match logic, `cast materialize` precedent).
+- [x] Garmul's tail — **Fixed 2026-08-05:** strips AFFECT_WATERBREATH/AFFECT_FLYING from the target, the two affects that exempt a being from vitals.c's real underwater-drowning damage -- a genuine "now vulnerable in water" debuff.
+- [x] Immobilize — **Fixed 2026-08-05:** real AFFECT_BIND, the same movement-blocking mechanic `bind` itself uses.
+- [x] Energy drain — **Fixed 2026-08-05:** already covered by the earlier "damag" stem broadening (entangling roots fix) -- desc's "damaging" now matches. The "drains a resource" half stays a disclosed gap (no resource system to drain).
+- [x] Fumble — **Fixed 2026-08-05:** real weapon knock-loose, same core mechanic `disarm` uses.
+- [x] Suffocate — **Fixed 2026-08-05:** real damage via combat_apply_skill_damage(), same shape every offensive spell here uses (no separate "air" resource to drain -- disclosed gap).
+- [x] Flight — **Fixed 2026-08-05:** folded into `falcon wings`'s real room-wide AFFECT_FLYING branch (identical mechanic, different tier/flavor).
+- [x] Divination — **Fixed 2026-08-05:** routes to the real `identify` command, object-target half only (disclosed gap: no being-inspection mechanic exists).
+- [x] Silence — **Fixed 2026-08-05:** real AFFECT_SILENCE, checked at the top of both cmd_cast()/cmd_pray() -- a silenced target genuinely can't cast/pray at all.
+- [x] Ethereal gate — **Fixed 2026-08-05:** real teleport to a room found by name (new room_repo_find_vnum_by_name(), same safe db_query() %s-escaping as obj_find_vnum_by_name()). Intercepted before find_spell_and_target() (multi-word location names, same telepathy/scribe precedent).
 
 #### Druid (shares Mage's `cmd_cast.c` dispatcher) — 4 likely stubs
 - [x] Entangling roots — **Fixed 2026-08-04:** own explicit branch (outdoors-only per roster text, real damage via combat_apply_skill_damage()); also broadened the damage-keyword match to a "damag" stem (catches damage/damages/damaging) in both cmd_cast.c and cmd_pray.c, which independently helps several other still-open stubs below (e.g. energy drain).
@@ -327,12 +327,12 @@ miss the damage branch -- flagged inline below.
 - [x] Salve — **Fixed 2026-08-04:** folded into the existing heal branch by name (cmd_pray.c).
 - [x] Remove curse — **Fixed 2026-08-04:** removes AFFECT_CURSE (cmd_pray.c), same shape as cure poison/cure disease.
 - [x] Refresh — **Fixed 2026-08-04:** same Vitality-restore formula Mage/Druid's refresh already used (cmd_pray.c).
-- [ ] Flamestrike — pray.c's damage keyword set (damage/bolt/strike only) misses "flame" — zero damage from this signature Cleric nuke.
-- [ ] Expel — promises expelling vermin/possession; no effect applied.
-- [ ] Numb — promises numbing a limb; no affect applied.
-- [ ] Second wind — promises restoring a victim's movement points; no effect applied.
-- [ ] Paralyze (full) — only "paralyze limb" has real handling; plain "paralyze" falls through with zero effect.
-- [ ] Earthquake — desc says "damages" not "damage" AND doesn't say "area-effect" — misses BOTH branches, a room-wide AoE nuke that deals zero damage to anyone.
+- [x] Flamestrike — **Fixed 2026-08-05:** added "flame"/"fiery" to cmd_pray.c's damage-keyword list.
+- [x] Expel — **Fixed 2026-08-05:** strips AFFECT_CHARMED (the "possessing affliction" half; no vermin mechanic exists -- disclosed gap).
+- [x] Numb — **Fixed 2026-08-05:** real weaker sibling of `paralyze limb` -- halves a random safe limb's HP via being_hurt_limb_only() instead of destroying it.
+- [x] Second wind — **Fixed 2026-08-05:** folded into `refresh`'s real Vitality-restore branch (Move == Vitality in Tobin's score display).
+- [x] Paralyze (full) — **Fixed 2026-08-05:** same disclosed limb-to-0 approximation as paralyze limb, applied to every safe-slot limb at once.
+- [x] Earthquake — **Fixed 2026-08-05:** added an explicit name check to route into pray_area_damage() (that helper's own doc comment already named earthquake as an intended caller).
 - [ ] Consecrate / Crusade / Portal / Astral walk / Bone breaker / Wither limb / Spontaneous combust — none match any generic keyword branch; all fall through.
 - [x] Create food / Create water (Cleric level 3, Druid level 9) — **Fixed 2026-08-05:** create food conjures a real, eatable OBJ_CAT_FOOD item via obj_create_ephemeral() into the caster's hands; create water fills a carried empty container with real water (same val0/val1/val2 capacity/current/type fields cmd_fill.c's mundane `fill` uses), object-targeted like identify/copy. cmd_cast.c (Mage/Druid) + cmd_pray.c (Cleric, spends a holy symbol instead of a component pouch).
 

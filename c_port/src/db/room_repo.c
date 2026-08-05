@@ -13,6 +13,21 @@
 
 /* Loads a room by vnum, including all ten exits (roomexit rows, one per
  * direction) -- the main entry point for bringing a room into memory. */
+int room_repo_find_vnum_by_name(const char *name) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+
+    int vnum = -1;
+    if (db_query(db, "select vnum from room where name like '%%%s%%' order by vnum limit 1", name)
+        && db_fetch_row(db)) {
+        vnum = atoi(db_get(db, "vnum"));
+    }
+
+    db_close(db);
+    return vnum;
+}
+
 room_t *room_repo_load(int vnum) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)

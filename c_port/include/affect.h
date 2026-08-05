@@ -306,6 +306,11 @@ typedef enum {
      * real, working ceasefire, not just flavor text. Plain flag/timer,
      * no stat modifier. */
     AFFECT_CALMED,
+    /* `silence` (Mage, level 48) -- "Mutes a target, blocking their
+     * spellcasting". Real, working gate: checked at the top of
+     * cmd_cast()/cmd_pray() (both dispatchers), refusing to cast/pray
+     * at all while active. Plain flag/timer, no stat modifier. */
+    AFFECT_SILENCE,
     AFFECT_COUNT,
 } affect_type_t;
 

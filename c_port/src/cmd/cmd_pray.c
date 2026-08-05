@@ -335,7 +335,7 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc && had)
                 descriptor_notify(target->desc, "Your bleeding stops!\r\n");
         }
-    } else if (strcasecmp(sk->name, "refresh") == 0) {
+    } else if (strcasecmp(sk->name, "refresh") == 0 || strcasecmp(sk->name, "second wind") == 0) {
         /* Level-9 stub-audit fix: roster text "Restores movement
          * points" -- Mage/Druid's identically-named spell already does
          * this via cast.c's own explicit branch (that spell's own doc
@@ -428,6 +428,39 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
             descriptor_send(d, msg);
             if (target->desc && had)
                 descriptor_notify(target->desc, "The dark aura around you lifts!\r\n");
+        }
+    } else if (strcasecmp(sk->name, "expel") == 0) {
+        /* Level-13 stub-audit fix: "Expels vermin or a possessing
+         * affliction" -- Tobin has no vermin-infestation mechanic to
+         * expel (disclosed gap), so this is scoped to the "possessing
+         * affliction" half: strips AFFECT_CHARMED, the one real
+         * "something else controls you" state Tobin has, freeing the
+         * target from whatever charmed them. */
+        ch->last_heal_target = NULL;
+        bool had = being_has_affect(target, AFFECT_CHARMED);
+        if (had) {
+            being_remove_affect(target, AFFECT_CHARMED);
+            if (target->master) {
+                for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
+                    if (target->master->followers[i] == target)
+                        target->master->followers[i] = NULL;
+                }
+                target->master = NULL;
+            }
+        }
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), had
+                     ? "You pray for %s -- whatever was controlling you is expelled!\r\n"
+                     : "You pray for %s, but nothing was possessing you.\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), had
+                     ? "You pray for %s over %s -- whatever was controlling them is expelled!\r\n"
+                     : "You pray for %s over %s, but they weren't possessed.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc && had)
+                descriptor_notify(target->desc, "Whatever was controlling you is expelled!\r\n");
         }
     } else if (strcasecmp(sk->name, "cure poison") == 0) {
         ch->last_heal_target = NULL;
@@ -681,6 +714,89 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
         snprintf(msg, sizeof(msg), "You pray for %s over %s -- their %s goes limp and unresponsive!\r\n",
                  sk->name, being_display_name(atk_target), limb_name(limb));
         descriptor_send(d, msg);
+    } else if (strcasecmp(sk->name, "paralyze") == 0) {
+        /* Level-33 stub-audit fix: same disclosed approximation
+         * "paralyze limb" (level 22, above) already uses -- drives a
+         * limb's hp to 0 (the "destroyed" state) rather than a real
+         * PART_PARALYZED flag Tobin has no field for -- but applied to
+         * EVERY safe-slot limb at once, matching "Fully paralyzes" as
+         * literally as this mechanic can. */
+        ch->last_heal_target = NULL;
+        if (!atk_target) {
+            descriptor_send(d, "Pray for that over whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        static const limb_t FULL_PARALYZE_LIMBS[] = {
+            LIMB_LEFT_ARM, LIMB_RIGHT_ARM, LIMB_LEFT_HAND, LIMB_RIGHT_HAND,
+            LIMB_RIGHT_LEG, LIMB_LEFT_LEG, LIMB_LEFT_FOOT, LIMB_RIGHT_FOOT,
+        };
+        int fp_hit = 0;
+        for (size_t i = 0; i < sizeof(FULL_PARALYZE_LIMBS) / sizeof(FULL_PARALYZE_LIMBS[0]); i++) {
+            limb_t l = FULL_PARALYZE_LIMBS[i];
+            if (being_has_limb(atk_target, l) && atk_target->limbs[l].hp > 0) {
+                combat_debug_set_limb_hp(ch, atk_target, l, 0);
+                fp_hit++;
+            }
+        }
+        if (fp_hit == 0) {
+            snprintf(msg, sizeof(msg), "%s has no limb left for you to paralyze!\r\n",
+                     being_display_name(atk_target));
+            descriptor_send(d, msg);
+            return;
+        }
+        snprintf(msg, sizeof(msg), "You pray for %s over %s -- their whole body goes limp and unresponsive!\r\n",
+                 sk->name, being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s prays for %s over you -- your whole body goes limp and unresponsive!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "numb") == 0) {
+        ch->last_heal_target = NULL;
+        if (!atk_target) {
+            descriptor_send(d, "Pray for that over whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        static const limb_t NUMBABLE_LIMBS[] = {
+            LIMB_LEFT_ARM, LIMB_RIGHT_ARM, LIMB_LEFT_HAND, LIMB_RIGHT_HAND,
+            LIMB_RIGHT_LEG, LIMB_LEFT_LEG, LIMB_LEFT_FOOT, LIMB_RIGHT_FOOT,
+        };
+        limb_t numb_candidates[8];
+        int n_numb_candidates = 0;
+        for (size_t i = 0; i < sizeof(NUMBABLE_LIMBS) / sizeof(NUMBABLE_LIMBS[0]); i++) {
+            limb_t l = NUMBABLE_LIMBS[i];
+            if (being_has_limb(atk_target, l) && atk_target->limbs[l].hp > 0)
+                numb_candidates[n_numb_candidates++] = l;
+        }
+        if (n_numb_candidates == 0) {
+            snprintf(msg, sizeof(msg), "%s has no limb left for you to numb!\r\n",
+                     being_display_name(atk_target));
+            descriptor_send(d, msg);
+            return;
+        }
+        limb_t numb_limb = numb_candidates[rand() % n_numb_candidates];
+        being_hurt_limb_only(atk_target, numb_limb, atk_target->limbs[numb_limb].hp / 2);
+        snprintf(msg, sizeof(msg), "You pray for %s over %s -- their %s goes numb and clumsy!\r\n",
+                 sk->name, being_display_name(atk_target), limb_name(numb_limb));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s prays for %s over you -- your %s goes numb and clumsy!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, limb_name(numb_limb));
+            descriptor_notify(atk_target->desc, msg);
+        }
     } else if (ci_contains(sk->name, "disease") || ci_contains(sk->name, "infect")) {
         ch->last_heal_target = NULL;
         if (!atk_target) {
@@ -852,7 +968,7 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc)
                 descriptor_notify(target->desc, "A shimmering aura surrounds you!\r\n");
         }
-    } else if (ci_contains(sk->desc, "area-effect")) {
+    } else if (ci_contains(sk->desc, "area-effect") || strcasecmp(sk->name, "earthquake") == 0) {
         /* Real room-wide effect (offensive spell breadth) -- previously
          * fell into the single-target branch below like everything
          * else. Cleric's roster doesn't currently have any spell
@@ -863,7 +979,10 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
         pray_area_damage(d, ch, sk);
     } else if (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "damag")
                || ci_contains(sk->desc, "bolt")
-               || ci_contains(sk->desc, "strike")) {
+               || ci_contains(sk->desc, "strike")
+               /* `flamestrike` (level-13 stub-audit fix): desc "A column
+                * of divine flame" matches none of the above. */
+               || ci_contains(sk->desc, "flame") || ci_contains(sk->desc, "fiery")) {
         /* No longer gated on ch->fighting (offensive spell breadth) --
          * can now open combat against atk_target, same as `attack`/
          * `kill`. If ch is already fighting someone else, this is just
@@ -941,6 +1060,12 @@ bool cmd_pray(descriptor_t *d, const char *args) {
     bool imm = being_is_immortal(ch);
     if (!imm && ch->char_class != CLASS_CLERIC) {
         descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+        return true;
+    }
+    /* `silence` (Mage, level 48, stub-audit fix): mutes ANY spellcaster,
+     * Cleric prayers included -- same gate cmd_cast.c enforces. */
+    if (!imm && being_has_affect(ch, AFFECT_SILENCE)) {
+        descriptor_send(d, "You try to speak the words, but no sound comes out!\r\n");
         return true;
     }
 
