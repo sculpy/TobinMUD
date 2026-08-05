@@ -278,7 +278,7 @@ miss the damage branch -- flagged inline below.
 - [x] Sorcerer's globe — **Fixed 2026-08-04:** now a real room-wide AFFECT_SANCTUARY buff (cmd_cast.c), reusing cmd_rally.c's "everyone in the room but immortals" group shape.
 - [x] Mage sight — **Fixed 2026-08-04:** grants real infravision (new AFFECT_INFRAVISION, room_is_dark_for()); true sight/detection dropped (no matching subsystem), a disclosed scope reduction.
 - [ ] Flare — promises room lighting; no lighting state changes.
-- [ ] Hands of flame — promises a "fiery touch attack"; desc says "fiery" not "flame", misses the damage-keyword branch — zero damage dealt.
+- [x] Hands of flame — **Fixed 2026-08-04:** added "fiery" to cmd_cast.c's damage-keyword match.
 - [ ] Illuminate — promises lighting an object; no effect.
 - [ ] Faerie fire — promises an easier-to-hit debuff; no affect applied.
 - [ ] Materialize — promises conjuring a named item; no item created.
@@ -320,7 +320,7 @@ miss the damage branch -- flagged inline below.
 - [x] Attune — **Fixed 2026-08-04:** Tobin has no PC faction system to bind to (disclosed gap), so this reuses the holy symbol's own decay-strength system (val[0]/val[1]) instead -- restores it to full and raises its max strength for the rest of the session (not persisted across a relog -- obj val[] isn't saved per carried instance at all, same pre-existing scope limit consume_symbol()'s decay already has).
 - [x] Devotion — **Fixed 2026-08-04:** Tobin has no prayer-point resource (disclosed gap), so this restores Vitality now instead -- the closest real regenerating resource Tobin has, "passive" becomes "on-demand".
 - [x] Salve — **Fixed 2026-08-04:** folded into the existing heal branch by name (cmd_pray.c).
-- [ ] Remove curse — promises stripping a curse; no affect removed.
+- [x] Remove curse — **Fixed 2026-08-04:** removes AFFECT_CURSE (cmd_pray.c), same shape as cure poison/cure disease.
 - [x] Refresh — **Fixed 2026-08-04:** same Vitality-restore formula Mage/Druid's refresh already used (cmd_pray.c).
 - [ ] Flamestrike — pray.c's damage keyword set (damage/bolt/strike only) misses "flame" — zero damage from this signature Cleric nuke.
 - [ ] Expel — promises expelling vermin/possession; no effect applied.

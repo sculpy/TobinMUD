@@ -403,6 +403,31 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
         being_heal_vit(ch, amount);
         snprintf(msg, sizeof(msg), "You pray for devotion -- a quiet peace steadies you! (+%d Vit)\r\n", amount);
         descriptor_send(d, msg);
+    } else if (strcasecmp(sk->name, "remove curse") == 0) {
+        /* Level-7 stub-audit fix: "Strips a curse from a person or
+         * object" -- ported the person half only (Tobin objects have no
+         * curse-affect concept, same "no equivalent" scope limit the
+         * curse-inflicting spell's own doc comment above already
+         * accepts). Removes AFFECT_CURSE, same shape as cure poison/
+         * cure disease just below. */
+        ch->last_heal_target = NULL;
+        bool had = being_has_affect(target, AFFECT_CURSE);
+        if (had)
+            being_remove_affect(target, AFFECT_CURSE);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), had
+                     ? "You pray for %s -- the dark aura around you lifts!\r\n"
+                     : "You pray for %s, but you weren't cursed to begin with.\r\n", sk->name);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), had
+                     ? "You pray for %s over %s -- the dark aura around them lifts!\r\n"
+                     : "You pray for %s over %s, but they weren't cursed.\r\n",
+                     sk->name, being_display_name(target));
+            descriptor_send(d, msg);
+            if (target->desc && had)
+                descriptor_notify(target->desc, "The dark aura around you lifts!\r\n");
+        }
     } else if (strcasecmp(sk->name, "cure poison") == 0) {
         ch->last_heal_target = NULL;
         bool had = being_has_affect(target, AFFECT_POISON);

@@ -713,7 +713,11 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
                || ci_contains(sk->desc, "bolt")
                || ci_contains(sk->desc, "beam") || ci_contains(sk->desc, "blast")
                || ci_contains(sk->desc, "strike") || ci_contains(sk->desc, "burst")
-               || ci_contains(sk->desc, "fury") || ci_contains(sk->desc, "flame")) {
+               || ci_contains(sk->desc, "fury") || ci_contains(sk->desc, "flame")
+               /* `hands of flame` (level-4 stub-audit fix): desc says
+                * "fiery" not "flame", missing this branch entirely
+                * despite "flame" already being a tested keyword. */
+               || ci_contains(sk->desc, "fiery")) {
         /* No longer gated on ch->fighting (breadth work) -- a spell can
          * now OPEN combat against atk_target, same as `attack`/`kill`,
          * rather than only ever being usable on whoever you're already
