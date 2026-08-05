@@ -19,8 +19,23 @@
 #include "room.h"
 #include "room_repo.h"
 #include "shop_repo.h"
+#include "skill.h"
 #include "thing.h"
 #include "treasury_repo.h"
+
+/* `swindle` (missing-skill audit, 2026-08-05, Thief): real upstream
+ * getSwindleBonus() (stats.cc) is a 0-10% haggling discount/markup,
+ * scaling with proficiency -- same ratio here (skill_proficiency() is
+ * read-only, no gain-check side effect on a price quote). Buy prices
+ * are multiplied by (1 - bonus), sell prices by (1 + bonus). */
+static double swindle_bonus(const being_t *ch) {
+    if (ch->char_class != CLASS_THIEF)
+        return 0.0;
+    const skill_def_t *sk = skill_find(CLASS_THIEF, "swindle", false);
+    if (!sk)
+        return 0.0;
+    return 0.10 * skill_proficiency(ch, sk) / 100.0;
+}
 
 /* Flat sales tax on ordinary `buy` purchases (Money system v2, Sneezy →
  * Tobin feature audit) -- see cmd_buy()'s own comment. */
@@ -573,6 +588,7 @@ bool cmd_buy(descriptor_t *d, const char *args) {
                 * material_tier_value_mult(material_tier_for_id(resale->material)))
         : (int)(proto.price * shop.profit_buy
                 * material_tier_value_mult(material_tier_for_id(proto.material)));
+    price = (int)(price * (1.0 - swindle_bonus(ch)));
     /* Sales tax (Money system v2, Sneezy → Tobin feature audit). The real
      * upstream's chargeTax() only taxes player-OWNED shop transactions,
      * routed to a per-shop tax office and journalized in double-entry --
@@ -641,6 +657,7 @@ static int sell_one_item(being_t *ch, being_t *keeper, const shop_t *shop, obj_t
      * whatever the item is actually worth on sale. */
     int price = (int)(found->price * shop->profit_sell
                        * material_tier_value_mult(material_tier_for_id(found->material)));
+    price = (int)(price * (1.0 + swindle_bonus(ch)));
     if (price < 0)
         price = 0;
     int tax = (int)(price * SALES_TAX_RATE);

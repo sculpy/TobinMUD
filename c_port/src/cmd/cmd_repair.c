@@ -150,7 +150,11 @@ bool cmd_repair(descriptor_t *d, const char *args) {
     }
 
     o->cur_struct = ceiling;
-    o->depreciation += 1;
+    /* `advanced blacksmithing` (missing-skill audit, 2026-08-05): a
+     * real, working difference from base `repair` -- an advanced
+     * blacksmith's work doesn't wear the item down further. */
+    if (!being_knows_skill(ch, "advanced blacksmithing"))
+        o->depreciation += 1;
     snprintf(o->monogram, sizeof(o->monogram), "%s", being_display_name(ch));
 
     snprintf(msg, sizeof(msg), "You repair %s, mending it back into shape.\r\n", label);
@@ -344,5 +348,72 @@ bool cmd_tickets(descriptor_t *d, const char *args) {
                        tickets[i].id, tickets[i].item_label, tickets[i].price);
     }
     descriptor_send(d, out);
+    return true;
+}
+
+/* `debride <item>` (missing-skill audit, 2026-08-05): real upstream
+ * SKILL_DEBRIDE (disc_warrior_blacksmithing.cc's doDebride()) strips an
+ * ITEM_RUSTY flag Tobin has no equivalent for -- ported as a real,
+ * working inverse of `repair`'s own depreciation increment instead:
+ * carefully working over an item undoes 1 point of its accumulated
+ * wear, raising the ceiling `repair` can ever restore it to again
+ * (cmd_repair.c's own effective_max_struct(), above). No gold cost
+ * (unlike repair) -- just time and skill, matching the real upstream's
+ * own "no material cost" shape (a start_task duration there; Tobin has
+ * no matching multi-tick task system yet, resolved instantly here,
+ * same "v1 scope" simplification as everywhere else in this session). */
+bool cmd_debride(descriptor_t *d, const char *args) {
+    being_t *ch = d->character;
+    if (!ch)
+        return true;
+
+    bool imm = being_is_immortal(ch);
+    if (!imm && !being_knows_skill(ch, "debride")) {
+        descriptor_send(d, "You don't know how to debride equipment.\r\n");
+        return true;
+    }
+
+    char tok[64] = "";
+    sscanf(args, "%63s", tok);
+    if (!*tok) {
+        descriptor_send(d, "Debride what?\r\n");
+        return true;
+    }
+
+    obj_t *o = find_any_obj(ch, tok);
+    if (!o) {
+        descriptor_send(d, "You don't have that.\r\n");
+        return true;
+    }
+    if (o->max_struct <= 0) {
+        descriptor_send(d, "That isn't the sort of thing that can be damaged or repaired.\r\n");
+        return true;
+    }
+    if (o->depreciation <= 0) {
+        descriptor_send(d, "It's already in as good a condition as it's ever been.\r\n");
+        return true;
+    }
+
+    const skill_def_t *sk = skill_find(ch->char_class, "debride", imm);
+    bool success = imm || !sk || skill_roll_success(skill_learn_from_doing(ch, sk));
+
+    const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+    char msg[256];
+    if (!success) {
+        snprintf(msg, sizeof(msg), "You work over %s, but can't quite undo any of its wear.\r\n", label);
+        descriptor_send(d, msg);
+        return true;
+    }
+
+    o->depreciation -= 1;
+    snprintf(msg, sizeof(msg), "You carefully work over %s, undoing some of its wear.\r\n", label);
+    descriptor_send(d, msg);
+    if (ch->base.roomp) {
+        char capbuf[128];
+        char room_msg[224];
+        snprintf(room_msg, sizeof(room_msg), "%s carefully works over %s.\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)), label);
+        descriptor_room_echo(ch->base.roomp, ch, room_msg);
+    }
     return true;
 }

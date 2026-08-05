@@ -58,6 +58,50 @@ static const skill_def_t SKILLS[] = {
     { "fortify",                 CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "A defensive shield-wall stance -- requires a shield." },
     { "rescue",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   1, "Swap places with an ally in combat, pulling their attacker onto yourself." },
     { "repair",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   5, "Mend damaged equipment yourself -- each repair wears an item down a little for good." },
+    /* Missing-skill audit (TODO.md, 2026-08-05): real upstream has a
+     * separate SKILL_REPAIR_CLERIC/SKILL_REPAIR_MONK/SKILL_REPAIR_THIEF
+     * per class, all funneling into the same repairMeHammer()-style
+     * mechanic Tobin's own `repair` (Warrior, above) already ports.
+     * Rather than duplicate the command under three more names, these
+     * classes get the SAME "repair" skill (cmd_repair.c gates on
+     * being_knows_skill(ch, "repair") + skill_find(ch->char_class,
+     * "repair", ...), so a same-named roster row for another class
+     * just works, no command changes needed). "Blacksmithing" itself
+     * (Warrior) is this exact skill under its real-upstream name --
+     * already fully covered, not a separate missing entry. */
+    { "repair",                  CLASS_CLERIC, SKILL_TIER_CLASS,  10, "Mend damaged equipment yourself -- each repair wears an item down a little for good." },
+    { "repair",                  CLASS_MONK, SKILL_TIER_CLASS,    10, "Mend damaged equipment yourself -- each repair wears an item down a little for good." },
+    { "repair",                  CLASS_THIEF, SKILL_TIER_CLASS,   10, "Mend damaged equipment yourself -- each repair wears an item down a little for good." },
+    /* Missing-skill audit: real upstream SKILL_BLACKSMITHING_ADVANCED
+     * (Warrior) -- gates repairing crystalline materials, a material-
+     * property distinction Tobin's own `repair` doc comment already
+     * disclosed it doesn't model. Real, working difference ported
+     * instead: an advanced blacksmith's repairs don't wear the item
+     * down at all (cmd_repair.c skips the depreciation increment when
+     * this is known), vs. the base `repair` skill's permanent -1 every
+     * time. */
+    { "advanced blacksmithing",  CLASS_WARRIOR, SKILL_TIER_CLASS,  20, "Repair equipment without wearing it down further." },
+    /* Missing-skill audit: real upstream SKILL_DEBRIDE (Warrior,
+     * disc_warrior_blacksmithing.cc's doDebride()) strips an ITEM_RUSTY
+     * flag Tobin has no equivalent for. Real, working reuse instead:
+     * reduces an item's depreciation by 1 (the exact inverse of what
+     * `repair` increases), a genuine "undo some of that wear" effect --
+     * cmd_repair.c's own doc comment already covers depreciation as a
+     * real, working field. */
+    { "debride",                  CLASS_WARRIOR, SKILL_TIER_CLASS,  12, "Carefully clean up an item's wear, undoing some of its depreciation." },
+    /* Missing-skill audit: real upstream SKILL_BLOODLUST (Warrior,
+     * disc_warrior_brawling.cc) is a passive per-round chance for a
+     * stacking damage buff while fighting. Ported as a flat passive
+     * hitroll/damroll bonus scaling with proficiency, same shape as the
+     * weapon-specialization bonuses combat_strike() already applies
+     * (kubo/cintai/spec_prof) -- real, working, no separate stacking-
+     * affect infrastructure needed. */
+    { "bloodlust",                CLASS_WARRIOR, SKILL_TIER_CLASS,  15, "A battle-fury that strengthens your blows the longer you fight." },
+    /* Missing-skill audit: real upstream SKILL_STOMP (Warrior,
+     * disc_warrior_brawling.cc) is a leg/foot melee attack, part of the
+     * berserk auto-proc pool. Ported as its own standalone command
+     * (cmd_stomp.c), same shape as `kick`. */
+    { "stomp",                     CLASS_WARRIOR, SKILL_TIER_CLASS,  8, "A crushing stomp attack." },
     { "focus attack",            CLASS_WARRIOR, SKILL_TIER_CLASS,   5, "A single concentrated strike for extra damage." },
     { "shove",                   CLASS_WARRIOR, SKILL_TIER_CLASS,   6, "Push an opponent, knocking them off balance." },
     { "bodyslam",                CLASS_WARRIOR, SKILL_TIER_CLASS,   10, "A grappling throw that slams your opponent down for damage." },
@@ -88,6 +132,11 @@ static const skill_def_t SKILLS[] = {
     { "kick",             CLASS_THIEF, SKILL_TIER_CLASS,  1, "An unarmed kick attack." },
     { "retreat",          CLASS_THIEF, SKILL_TIER_CLASS,  1, "Disengage from your current opponent." },
     { "backstab",         CLASS_THIEF, SKILL_TIER_CLASS,  1, "A devastating sneak attack against an unaware or from-behind target." },
+    /* Missing-skill audit: real upstream SKILL_SWINDLE (stats.cc's
+     * getSwindleBonus()) discounts shop buy prices and pads sell
+     * prices. Ported into cmd_shop.c's own price formulas, scaling
+     * with skill_proficiency(). */
+    { "swindle",          CLASS_THIEF, SKILL_TIER_CLASS,  10, "A knack for getting a better deal from shopkeepers." },
     { "dodge",            CLASS_THIEF, SKILL_TIER_CLASS,  1, "A passive chance to evade an incoming melee attack." },
     { "garrotte",         CLASS_THIEF, SKILL_TIER_CLASS,  1, "Strangle a victim from behind with a cord." },
     { "throatslit",       CLASS_THIEF, SKILL_TIER_CLASS,  1, "A lethal sneak attack targeting the throat." },
@@ -130,6 +179,12 @@ static const skill_def_t SKILLS[] = {
     { "disarm",          CLASS_MONK, SKILL_TIER_CLASS,  1, "Knock the weapon out of an opponent's hand." },
     { "kick",            CLASS_MONK, SKILL_TIER_CLASS,  1, "An unarmed kick attack." },
     { "groundfighting",  CLASS_MONK, SKILL_TIER_CLASS, 5, "Reduces the penalty for fighting while knocked down." },
+    /* Missing-skill audit: real upstream SKILL_OOMLAT ("Oomlat
+     * Philosophy", disc_monk_meditation.cc) -- a passive discipline
+     * that improves armor class the more it's practiced. Ported as a
+     * real being_total_ac() bonus (being.c), scaling with
+     * skill_proficiency(). */
+    { "Oomlat Philosophy", CLASS_MONK, SKILL_TIER_CLASS, 20, "A meditative discipline that hardens your body against harm." },
     { "retreat",         CLASS_MONK, SKILL_TIER_CLASS, 15, "Disengage from your current opponent." },
     { "counter move",    CLASS_MONK, SKILL_TIER_ADVANCED, 25, "Resist being shoved or thrown out of position." },
     { "switch opponents", CLASS_MONK, SKILL_TIER_ADVANCED, 25, "Change which opponent you're actively fighting." },

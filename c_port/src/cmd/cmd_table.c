@@ -409,6 +409,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "rescue",  cmd_rescue,  "Swap places with an ally in combat, pulling their attacker onto you (Warrior, rescue <ally>).", MORTAL_LEVEL_MIN },
     /* Skill-based combat (Sneezy → Tobin feature audit, Thief/Monk). */
     { "kick",    cmd_kick,    "Kick your opponent for bonus damage (Thief/Monk, must be fighting them).", MORTAL_LEVEL_MIN },
+    { "stomp",   cmd_stomp,   "A crushing stomp attack (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
     /* SWAP: pray before practice, so "p"/"pr" stay a Cleric's spell verb;
      * practice needs "prac", prompt needs "pro", put needs "pu". */
     { "pray",    cmd_pray,    "Pray for a spell (Cleric) -- requires a holy symbol.", MORTAL_LEVEL_MIN },
@@ -570,6 +571,7 @@ static const cmd_entry_t COMMANDS[] = {
      * folded into the edit dispatcher above. */
     { "wiznews", cmd_wiznews, "Read the immortal news channel.",                    IMMORTAL_LEVEL_MIN },
     { "repair",  cmd_repair,  "Mend a damaged item yourself (Warrior, repair <item>).", MORTAL_LEVEL_MIN },
+    { "debride", cmd_debride, "Undo some of an item's accumulated wear (Warrior, debride <item>).", MORTAL_LEVEL_MIN },
     /* Full spell/skill/prayer roster import (user 2026-07-26): "sac" is
      * unambiguous -- say already owns "sa", save "sav". */
     { "sacrifice", cmd_sacrifice, "Ritually sacrifice a corpse to the loa (Druid, sacrifice <corpse>).", MORTAL_LEVEL_MIN },

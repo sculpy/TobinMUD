@@ -1211,3 +1211,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Three brand-new spells added: protection from earth, inferno, sterilize', 'Starting on the missing-spell backlog (spells that never existed in Tobin at all, not just broken ones). Mage gains two new spells: `protection from earth` (level 8, a room-wide protective ward) and `inferno` (level 21, a real burning attack). Cleric gains `sterilize` (level 6, cures a festering infection). Most of the remaining "missing spell" list belongs to classes Tobin doesn''t have (Ranger, Shaman, Deikhan) -- these three were the only ones that actually belonged to Mage or Cleric.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Ten new skills added across four classes', 'Cleric, Monk, and Thief can now learn `repair` (same as Warrior already could). Warrior also gains `advanced blacksmithing` (repairs without wearing the item down further), `debride` (undoes some of an item''s accumulated wear), `bloodlust` (a passive combat fury that strengthens your blows the longer you fight), and `stomp` (a new leg-crushing attack). Monk gains `Oomlat Philosophy`, a meditative discipline that really lowers your armor class the more you practice it. Thief gains `swindle`, a knack for haggling that really gets you better prices at shops.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -142,22 +142,22 @@ raw checklist, pick from it as capacity allows.
 ### Skill port status — 105 of 232 SneezyMUD skills not yet in Tobin
 
 #### Warrior (5)
-- [ ] Advanced blacksmithing
-- [ ] Blacksmithing
-- [ ] Bloodlust
-- [ ] Debride
-- [ ] Stomp
+- [x] Advanced blacksmithing — **Fixed 2026-08-05:** new roster entry; cmd_repair.c skips the depreciation increment on a successful repair when known (real, working difference from base `repair`).
+- [x] Blacksmithing — **Re-triaged 2026-08-05:** this IS Tobin's existing `repair` skill (Warrior) under its real-upstream name -- already fully covered, not a separate gap.
+- [x] Bloodlust — **Fixed 2026-08-05:** new roster entry; combat.c grants a passive hitroll/damroll bonus scaling with proficiency, same shape as the weapon-specialization bonus it sits next to (real upstream's own stacking-buff mechanic has no matching Tobin infrastructure -- disclosed scope-cut).
+- [x] Debride — **Fixed 2026-08-05:** new roster entry + new `debride <item>` command (cmd_repair.c) -- reduces an item's depreciation by 1, the real inverse of what `repair` increases (real upstream's ITEM_RUSTY-flag mechanic has no Tobin equivalent -- disclosed scope-cut, same-value reuse of the depreciation field instead of doing nothing).
+- [x] Stomp — **Fixed 2026-08-05:** new roster entry + new `stomp` command (cmd_stomp.c), same shape as `kick` -- a real leg-targeted attack (real upstream's own berserk-auto-proc-pool integration has no Tobin equivalent -- disclosed scope-cut, same "own standalone command" precedent as kick).
 
 #### Cleric (1)
-- [ ] Cleric repair — Cleric has no repair skill at all in Tobin (Warrior/Mage do)
+- [x] Cleric repair — **Fixed 2026-08-05:** new `repair` roster row for Cleric -- reuses the exact same command/mechanic Warrior's `repair` already has (cmd_repair.c gates by skill name + caster's own class, so a same-named row for another class needs no code changes).
 
 #### Monk (2)
-- [ ] Oomlat Philosophy
-- [ ] Monk repair
+- [x] Oomlat Philosophy — **Fixed 2026-08-05:** new roster entry; being_total_ac() (being.c) grants a real passive AC bonus scaling with skill_proficiency(), same ratio as real upstream's own armor-scaling formula (combat.cc).
+- [x] Monk repair — **Fixed 2026-08-05:** new `repair` roster row for Monk, same reuse as Cleric repair above.
 
 #### Thief (2)
-- [ ] Swindle
-- [ ] Thief repair
+- [x] Swindle — **Fixed 2026-08-05:** new roster entry; cmd_shop.c's buy/sell price formulas apply a real 0-10% haggling discount/markup scaling with skill_proficiency(), same ratio as real upstream's own getSwindleBonus().
+- [x] Thief repair — **Fixed 2026-08-05:** new `repair` roster row for Thief, same reuse as Cleric/Monk repair above.
 
 #### Ranger (6) — no Ranger class in Tobin
 - [ ] Apply herbs

@@ -19,6 +19,7 @@
 #include "mob_repo.h"
 #include "obj.h"
 #include "room.h"
+#include "skill.h"
 #include "world.h"
 
 /* Maps a stat token (full name or 3-letter abbreviation, either case) to
@@ -1225,6 +1226,20 @@ int being_total_ac(const being_t *b) {
      * stack with anything, just a flat improvement while in the saddle. */
     if (b->position == POSITION_MOUNTED)
         total -= 5;
+    /* `Oomlat Philosophy` (missing-skill audit, 2026-08-05, Monk): real
+     * upstream (combat.cc) scales armor by skillValue/250 -- ported at
+     * the same ratio here, subtracting (Tobin's AC is "lower is
+     * better", unlike the real upstream's own convention at that call
+     * site) proportional to the total AC already accumulated, same
+     * "the better armored you already are, the more this technique
+     * squeezes out of it" shape as the original. */
+    if (b->base.kind == THING_PC && b->char_class == CLASS_MONK) {
+        const skill_def_t *oomlat_sk = skill_find(CLASS_MONK, "Oomlat Philosophy", false);
+        if (oomlat_sk) {
+            int oomlat_prof = skill_proficiency(b, oomlat_sk);
+            total -= (total * oomlat_prof) / 250;
+        }
+    }
     return total;
 }
 

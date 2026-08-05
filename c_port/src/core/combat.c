@@ -500,6 +500,20 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
                 }
             }
         }
+
+        /* `bloodlust` (missing-skill audit, 2026-08-05, Warrior): real
+         * upstream is a passive per-round chance for a stacking damage
+         * buff while fighting (disc_warrior_brawling.cc's
+         * doBloodlust()). Ported as a flat passive hitroll/damroll
+         * bonus scaling with proficiency instead of true stacking --
+         * same shape as the specialization bonus just above, no
+         * separate stacking-affect infrastructure needed. */
+        const skill_def_t *bloodlust_sk = skill_find(CLASS_WARRIOR, "bloodlust", false);
+        if (bloodlust_sk && being_knows_skill(attacker, "bloodlust")) {
+            int bloodlust_prof = skill_learn_from_doing(attacker, bloodlust_sk);
+            weapon_hitroll += bloodlust_prof / 15;
+            weapon_damroll += bloodlust_prof / 10;
+        }
     }
 
     int base_roll = rand() % 100;
