@@ -1446,6 +1446,33 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* `materialize <item>` (Mage, level 6, stub-audit fix): real
+     * upstream (disc_alchemy.cc) never used a spell component at all --
+     * "for a price" means the flat MATERIALIZE_PRICE gold cost
+     * cmd_materialize.c already charges, not a component pouch. Tobin
+     * ALREADY has a real, correct, standalone `materialize <item>`
+     * command (cmd_materialize.c, from an earlier audit pass) with its
+     * own level/skill-known gating -- roster text promises `cast
+     * materialize` too (skill.c lists it as a normal Mage spell), but
+     * nothing routed that form to it, so it fell through to the
+     * generic "nothing happens yet" placeholder despite the real
+     * mechanic existing. Intercepted here, BEFORE find_spell_and_
+     * target() and the outer level/discipline gates below (same
+     * "handled separately" precedent as telepathy/scribe above), since
+     * cmd_materialize() does its own gating already and delegating
+     * through the generic component-pouch flow would wrongly demand a
+     * component this spell was never supposed to need. */
+    if (strncasecmp(args, "materialize", 11) == 0 && (args[11] == ' ' || args[11] == '\0')) {
+        if (!imm && ch->char_class != CLASS_MAGE) {
+            descriptor_send(d, "You don't know a spell by that name.\r\n");
+            return true;
+        }
+        const char *mat_arg = args + 11;
+        while (*mat_arg == ' ')
+            mat_arg++;
+        return cmd_materialize(d, mat_arg);
+    }
+
     char target_buf[64];
     const char *target_name;
     const skill_def_t *sk = find_spell_and_target(ch->char_class, args, imm, target_buf, sizeof(target_buf), &target_name);

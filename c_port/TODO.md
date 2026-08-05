@@ -286,7 +286,7 @@ miss the damage branch -- flagged inline below.
 - [x] Hands of flame — **Fixed 2026-08-04:** added "fiery" to cmd_cast.c's damage-keyword match.
 - [x] Illuminate — **Fixed 2026-08-05:** real object-target spell, magically lights an OBJ_CAT_LIGHT item (cmd_cast.c), reusing cmd_light.c's val[2]/val[3] fuel/lit fields, topping off fuel if needed. Also fixed a real pre-existing bug found along the way: AFFECT_NAMES (affect.c) was missing an "Infravision" entry entirely -- affect_name(AFFECT_INFRAVISION) returned garbage/NULL ever since mage sight/AFFECT_INFRAVISION was added.
 - [x] Faerie fire — **Fixed 2026-08-05:** real AFFECT_FAERIE_FIRE (affect.h), combat.c's strike roll widens the defender-side to-hit modifier while it's active, same shape as the existing destroyed-limb modifier.
-- [ ] Materialize — promises conjuring a named item; no item created.
+- [x] Materialize — **Fixed 2026-08-05:** `cast materialize <item>` now routes to the real, pre-existing standalone `materialize` command (cmd_materialize.c, an earlier audit pass) instead of falling through to the generic stub placeholder -- intercepted in cmd_cast.c before the standard component-pouch gate, since real materialize only ever cost gold, never a spell component.
 - [x] Feathery descent — **Fixed 2026-08-05:** real room-wide AFFECT_FEATHERY_DESCENT, checked alongside the `catfall` skill in fall.c (wider survivable-depth threshold, halved crush damage).
 - [ ] Accelerate — promises a group haste-like buff (distinct from the separately-implemented "haste"); no affect applied.
 - [ ] Sense life — promises detecting nearby life; no detection performed.

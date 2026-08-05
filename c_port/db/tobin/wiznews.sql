@@ -1191,3 +1191,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Level 2-9 spell stub audit complete: beast soother, faerie fire, feathery descent', 'Wrapping up the level 2-9 slice of the spell stub-audit backlog. `beast soother` (Druid level 5) now really calls off a fight with an animal and keeps it calm for a while, instead of doing nothing. `faerie fire` (Mage level 6) now really marks its target with a pink aura that makes them easier to hit in combat. `feathery descent` (Mage level 7) now really softens everyone''s falls in the room, same protection the `catfall` skill already gives. Every level 2-9 spell/prayer stub is now fixed -- next up, the level 11-49 backlog.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Cast materialize fixed; obj struct fix (vnums 36930-36996)', '`cast materialize <item>` (Mage level 6) now actually works -- it was routed to nothing before, even though the standalone `materialize <item>` command has worked correctly for a while. Both forms now do the same thing: pay 100 gold, and if a cheap enough item exists with that name, a copy appears in your hands. Also: max/current structure points were corrected to 30 for 67 objects (vnums 36930-36996).')
+ON DUPLICATE KEY UPDATE `title` = `title`;
