@@ -34,10 +34,12 @@ static void json_escape(const char *src, char *dst, size_t dst_sz) {
     dst[o] = '\0';
 }
 
-size_t gmcp_build_char_vitals(char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit) {
+size_t gmcp_build_char_vitals(char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit,
+                               int mana, int maxmana) {
     int n = snprintf(buf, bufsz,
-                      "Char.Vitals {\"hp\":%d,\"maxhp\":%d,\"vit\":%d,\"maxvit\":%d}",
-                      hp, maxhp, vit, maxvit);
+                      "Char.Vitals {\"hp\":%d,\"maxhp\":%d,\"vit\":%d,\"maxvit\":%d,"
+                      "\"mana\":%d,\"maxmana\":%d}",
+                      hp, maxhp, vit, maxvit, mana, maxmana);
     if (n < 0 || (size_t)n >= bufsz)
         return 0;
     return (size_t)n;

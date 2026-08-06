@@ -25,13 +25,14 @@
  * caution as anywhere else a fixed buffer meets untrusted-length
  * input, even though `name` here is always server-controlled). */
 
-/* "Char.Vitals {"hp":42,"maxhp":100,"vit":10,"maxvit":20}" -- Tobin
+/* "Char.Vitals {"hp":42,"maxhp":100,"vit":10,"maxvit":20,"mana":5,"maxmana":30}" -- Tobin
  * has no mana stat (confirmed against being.h's progress_t -- no
  * such field exists), so the second resource is Vitality (`vit`/
  * `max_vit`, the real HP-parallel movement-cost resource Tobin
  * actually has), not an invented `mana` key a real client would
  * be lied to about. */
-size_t gmcp_build_char_vitals(char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit);
+size_t gmcp_build_char_vitals(char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit,
+                               int mana, int maxmana);
 
 /* "Room.Info {"num":942900,"name":"A bare sandbox room."}" -- `name` is
  * JSON-string-escaped (quotes/backslashes/control bytes) since it's

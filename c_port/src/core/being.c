@@ -1521,18 +1521,20 @@ void being_notify_vitals_changed(being_t *b) {
         return;
     descriptor_t *d = b->desc;
     if (d->opt_gmcp) {
-        char buf[128];
+        char buf[160];
         size_t len = gmcp_build_char_vitals(buf, sizeof(buf), b->progress.hp,
                                              b->progress.max_hp, b->progress.vit,
-                                             b->progress.max_vit);
+                                             b->progress.max_vit, b->progress.mana,
+                                             b->progress.max_mana);
         if (len > 0)
             descriptor_send_subneg(d, TOBIN_TN_GMCP, (const unsigned char *)buf, len);
     }
     if (d->opt_msdp) {
-        unsigned char buf[128];
+        unsigned char buf[160];
         size_t len = msdp_build_vitals(buf, sizeof(buf), b->progress.hp,
                                         b->progress.max_hp, b->progress.vit,
-                                        b->progress.max_vit);
+                                        b->progress.max_vit, b->progress.mana,
+                                        b->progress.max_mana);
         if (len > 0)
             descriptor_send_subneg(d, TOBIN_TN_MSDP, buf, len);
     }

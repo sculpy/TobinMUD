@@ -28,6 +28,7 @@
  * Tobin's being.h progress_t has no mana stat at all, only hp/max_hp
  * and vit/max_vit (the real HP-parallel movement-cost resource), so
  * this reports what actually exists rather than lying to the client. */
-size_t msdp_build_vitals(unsigned char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit);
+size_t msdp_build_vitals(unsigned char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit,
+                          int mana, int maxmana);
 
 #endif

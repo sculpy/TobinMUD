@@ -28,11 +28,14 @@ static size_t append_var(unsigned char *buf, size_t bufsz, size_t o, const char 
     return o;
 }
 
-size_t msdp_build_vitals(unsigned char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit) {
+size_t msdp_build_vitals(unsigned char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit,
+                          int mana, int maxmana) {
     size_t o = 0;
     o = append_var(buf, bufsz, o, "HEALTH", hp);
     o = append_var(buf, bufsz, o, "HEALTH_MAX", maxhp);
     o = append_var(buf, bufsz, o, "VITALITY", vit);
     o = append_var(buf, bufsz, o, "VITALITY_MAX", maxvit);
+    o = append_var(buf, bufsz, o, "MANA", mana);
+    o = append_var(buf, bufsz, o, "MANA_MAX", maxmana);
     return o;
 }
