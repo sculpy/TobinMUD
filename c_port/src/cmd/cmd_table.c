@@ -818,8 +818,14 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
      * can't issue any further command until their wait clears. Immortals
      * always read 0 here, so this is a no-op for them. Checked after the
      * quit! special-case so a laggy player can never get stuck unable to
-     * leave. */
-    if (d->character && being_get_wait(d->character) > 0) {
+     * leave. `wake` is also exempt (user, 2026-08-06: fell asleep with
+     * leftover combat/skill lag still ticking down and couldn't `wake`
+     * until it cleared on its own) -- the sleeping gate just below this
+     * one already promises "a sleeping mortal can issue exactly one
+     * verb, wake, and nothing else," and residual wait-state from
+     * whatever they were doing right before falling asleep shouldn't be
+     * able to override that and leave them stuck asleep a while longer. */
+    if (d->character && being_get_wait(d->character) > 0 && strcmp(verb, "wake") != 0) {
         descriptor_send(d, "You are still recovering!\r\n");
         return true;
     }
