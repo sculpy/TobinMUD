@@ -78,6 +78,7 @@
 #define ID_PREFS_HEIGHT_EDIT 303
 #define ID_PREFS_OK 304
 #define ID_PREFS_CANCEL 305
+#define ID_PREFS_FULLSCREEN_CHECK 306
 
 /* Sensible defaults + clamps for the two preferences -- guards against
  * a hand-edited/corrupt prefs.ini producing an unusable (zero-size or
@@ -97,7 +98,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.10"
+#define CLIENT_VERSION "0.4.11"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -228,6 +229,13 @@ typedef struct {
     int font_pt;
     int win_w;
     int win_h;
+    /* Full screen (user, 2026-08-06: "a full screen option should be in
+     * preferences") -- borderless, covering the monitor the window is
+     * currently on. windowed_rect/windowed_style save what to restore
+     * to when it's turned back off. */
+    bool fullscreen;
+    RECT windowed_rect;
+    LONG_PTR windowed_style;
 } app_state_t;
 
 static app_state_t g_app;
@@ -679,7 +687,18 @@ static void telnet_on_gmcp(void *ctx, const char *package, const char *json) {
         gmcp_json_get_int(json, "mana", &mana);
         gmcp_json_get_int(json, "maxmana", &maxmana);
         set_gauge(g_app.hwnd_gauge_label_hp, g_app.hwnd_gauge_bar_hp, "HP", hp, maxhp);
-        set_gauge(g_app.hwnd_gauge_label_mana, g_app.hwnd_gauge_bar_mana, "Mana", mana, maxmana);
+        /* User, 2026-08-06: "no use for mana shouldnt display mana" --
+         * maxmana is 0 for every class but Mage (being_calc_max_mana(),
+         * c_port/src/core/being.c), so this is a real, server-driven
+         * class check, not a guess. */
+        if (maxmana > 0) {
+            ShowWindow(g_app.hwnd_gauge_label_mana, SW_SHOW);
+            ShowWindow(g_app.hwnd_gauge_bar_mana, SW_SHOW);
+            set_gauge(g_app.hwnd_gauge_label_mana, g_app.hwnd_gauge_bar_mana, "Mana", mana, maxmana);
+        } else {
+            ShowWindow(g_app.hwnd_gauge_label_mana, SW_HIDE);
+            ShowWindow(g_app.hwnd_gauge_bar_mana, SW_HIDE);
+        }
         set_gauge(g_app.hwnd_gauge_label_move, g_app.hwnd_gauge_bar_move, "Move", vit, maxvit);
     } else if (strcmp(package, "Room.Info") == 0) {
         char name[128];
@@ -941,6 +960,8 @@ static void load_prefs(void) {
 
     g_app.win_h = GetPrivateProfileIntA("Prefs", "WindowHeight", PREFS_DEFAULT_WIN_H, path);
     if (g_app.win_h < PREFS_MIN_WIN_H) g_app.win_h = PREFS_MIN_WIN_H;
+
+    g_app.fullscreen = GetPrivateProfileIntA("Prefs", "Fullscreen", 0, path) != 0;
 }
 
 static void save_prefs(void) {
@@ -954,6 +975,7 @@ static void save_prefs(void) {
     WritePrivateProfileStringA("Prefs", "WindowWidth", buf, path);
     snprintf(buf, sizeof(buf), "%d", g_app.win_h);
     WritePrivateProfileStringA("Prefs", "WindowHeight", buf, path);
+    WritePrivateProfileStringA("Prefs", "Fullscreen", g_app.fullscreen ? "1" : "0", path);
 }
 
 /* (Re)builds g_app.font from g_app.font_pt and applies it to the input
@@ -995,6 +1017,38 @@ static void apply_font(void) {
     }
 }
 
+/* Toggles borderless full screen on `hwnd`, covering whichever monitor
+ * it's currently on. Saves the windowed rect/style the first time it's
+ * turned on so turning it back off restores exactly where the window
+ * was -- guarded by the early-return so a repeat "turn on" call (e.g.
+ * re-opening Preferences and hitting OK again with the box still
+ * checked) can't clobber that saved state with the current (already
+ * full-screen) geometry. */
+static void apply_fullscreen(HWND hwnd, bool enable) {
+    if (enable == g_app.fullscreen)
+        return;
+    if (enable) {
+        GetWindowRect(hwnd, &g_app.windowed_rect);
+        g_app.windowed_style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+        HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO mi;
+        mi.cbSize = sizeof(mi);
+        GetMonitorInfoW(mon, &mi);
+        SetWindowLongPtrW(hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+        SetWindowPos(hwnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top,
+                     mi.rcMonitor.right - mi.rcMonitor.left,
+                     mi.rcMonitor.bottom - mi.rcMonitor.top,
+                     SWP_FRAMECHANGED);
+    } else {
+        SetWindowLongPtrW(hwnd, GWL_STYLE, g_app.windowed_style);
+        SetWindowPos(hwnd, NULL, g_app.windowed_rect.left, g_app.windowed_rect.top,
+                     g_app.windowed_rect.right - g_app.windowed_rect.left,
+                     g_app.windowed_rect.bottom - g_app.windowed_rect.top,
+                     SWP_FRAMECHANGED | SWP_NOZORDER);
+    }
+    g_app.fullscreen = enable;
+}
+
 /* -- Preferences window (user, 2026-08-05: "preferences section to
  * adjust window size and font size") --
  *
@@ -1028,12 +1082,19 @@ static LRESULT CALLBACK PrefsWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
             if (v >= PREFS_MIN_WIN_H)
                 win_h = v;
 
+            bool fullscreen = IsDlgButtonChecked(hwnd, ID_PREFS_FULLSCREEN_CHECK) == BST_CHECKED;
+
             g_app.font_pt = font_pt;
             g_app.win_w = win_w;
             g_app.win_h = win_h;
             apply_font();
-            SetWindowPos(GetParent(g_app.hwnd_output), NULL, 0, 0, win_w, win_h,
-                         SWP_NOMOVE | SWP_NOZORDER);
+            HWND main_hwnd = GetParent(g_app.hwnd_output);
+            if (fullscreen) {
+                apply_fullscreen(main_hwnd, true);
+            } else {
+                apply_fullscreen(main_hwnd, false);
+                SetWindowPos(main_hwnd, NULL, 0, 0, win_w, win_h, SWP_NOMOVE | SWP_NOZORDER);
+            }
             save_prefs();
 
             EnableWindow(GetParent(g_app.hwnd_output), TRUE);
@@ -1079,7 +1140,7 @@ static void open_preferences(HWND parent) {
         cls_registered = true;
     }
 
-    const int win_w = 300, win_h = 190;
+    const int win_w = 300, win_h = 222;
     RECT pr;
     GetWindowRect(parent, &pr);
     int x = pr.left + ((pr.right - pr.left) - win_w) / 2;
@@ -1110,12 +1171,21 @@ static void open_preferences(HWND parent) {
     HWND e3 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", buf, WS_CHILD | WS_VISIBLE | ES_NUMBER,
         180, 78, 90, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_HEIGHT_EDIT, NULL, NULL);
 
-    HWND ok = CreateWindowW(L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        90, 130, 80, 26, hwnd, (HMENU)(INT_PTR)ID_PREFS_OK, NULL, NULL);
-    HWND cancel = CreateWindowW(L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE,
-        180, 130, 80, 26, hwnd, (HMENU)(INT_PTR)ID_PREFS_CANCEL, NULL, NULL);
+    /* User, 2026-08-06: "a full screen option should be in
+     * preferences" -- ignores the width/height fields above while
+     * checked (apply_fullscreen() overrides the window's actual
+     * geometry), but they stay saved/editable for whenever it's
+     * unchecked again. */
+    HWND chk1 = CreateWindowW(L"BUTTON", L"Full Screen", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+        16, 112, 150, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_FULLSCREEN_CHECK, NULL, NULL);
+    SendMessageW(chk1, BM_SETCHECK, g_app.fullscreen ? BST_CHECKED : BST_UNCHECKED, 0);
 
-    HWND ctrls[] = { lbl1, e1, lbl2, e2, lbl3, e3, ok, cancel };
+    HWND ok = CreateWindowW(L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+        90, 162, 80, 26, hwnd, (HMENU)(INT_PTR)ID_PREFS_OK, NULL, NULL);
+    HWND cancel = CreateWindowW(L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE,
+        180, 162, 80, 26, hwnd, (HMENU)(INT_PTR)ID_PREFS_CANCEL, NULL, NULL);
+
+    HWND ctrls[] = { lbl1, e1, lbl2, e2, lbl3, e3, chk1, ok, cancel };
     for (size_t i = 0; i < sizeof(ctrls) / sizeof(ctrls[0]); i++)
         SendMessageW(ctrls[i], WM_SETFONT, (WPARAM)dlgfont, TRUE);
 
@@ -1170,10 +1240,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         SendMessageW(g_app.hwnd_gauge_bar_hp, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
         SendMessageW(g_app.hwnd_gauge_bar_hp, PBM_SETBARCOLOR, 0, (LPARAM)RGB(190, 40, 40));
 
+        /* Starts hidden -- no character loaded yet, class unknown until
+         * the first Char.Vitals GMCP push (telnet_on_gmcp() shows/hides
+         * it from there based on maxmana). */
         g_app.hwnd_gauge_label_mana = CreateWindowExW(0, L"STATIC", L"Mana",
-            WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_GAUGE_LABEL_MANA, NULL, NULL);
+            WS_CHILD, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_GAUGE_LABEL_MANA, NULL, NULL);
         g_app.hwnd_gauge_bar_mana = CreateWindowExW(0, PROGRESS_CLASSW, L"",
-            WS_CHILD | WS_VISIBLE | PBS_SMOOTH, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_GAUGE_BAR_MANA, NULL, NULL);
+            WS_CHILD | PBS_SMOOTH, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_GAUGE_BAR_MANA, NULL, NULL);
         SendMessageW(g_app.hwnd_gauge_bar_mana, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
         SendMessageW(g_app.hwnd_gauge_bar_mana, PBM_SETBARCOLOR, 0, (LPARAM)RGB(40, 90, 200));
 
@@ -1559,6 +1632,10 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {
     SetMenu(hwnd, build_menu());
     ShowWindow(hwnd, show);
     UpdateWindow(hwnd);
+    if (g_app.fullscreen) {
+        g_app.fullscreen = false; /* apply_fullscreen(..., true) no-ops if already true */
+        apply_fullscreen(hwnd, true);
+    }
     debug_log("WinMain: entering message loop");
 
     MSG msg;
