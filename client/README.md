@@ -48,7 +48,7 @@ required, same as the server.
 
 ```sh
 cd ~/NewMUD/client/installer/windows
-cp ../../build-win64/TobinMUDClient.exe . && cp ../../tobinmud_icon.ico .
+cp ../../build-win64/TobinMUDClient.exe . && cp ../../tobinmud_icon.ico . && cp -r ../../sounds .
 wixl -v -a x64 -o TobinMUDClient.msi tobinmud.wxs
 ```
 
@@ -127,7 +127,7 @@ cmake --build build-win64
 
 # 3. Rebuild the MSI
 cd installer/windows
-cp ../../build-win64/TobinMUDClient.exe . && cp ../../tobinmud_icon.ico .
+cp ../../build-win64/TobinMUDClient.exe . && cp ../../tobinmud_icon.ico . && cp -r ../../sounds .
 wixl -v -a x64 -o TobinMUDClient.msi tobinmud.wxs
 
 # 4. Publish

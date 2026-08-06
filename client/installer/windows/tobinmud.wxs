@@ -24,7 +24,7 @@
   <Product Id="*"
            Name="TobinMUD Client"
            Language="1033"
-           Version="0.4.1.0"
+           Version="0.4.2.0"
            Manufacturer="The TobinMUD Team"
            UpgradeCode="6f2a6f6e-9b1a-4b8a-8b0a-1f0b6a2c7e11">
 
@@ -41,7 +41,9 @@
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="LocalAppDataFolder">
         <Directory Id="AppDataProgramsFolder" Name="Programs">
-          <Directory Id="INSTALLFOLDER" Name="TobinMUD Client" />
+          <Directory Id="INSTALLFOLDER" Name="TobinMUD Client">
+            <Directory Id="SoundsFolder" Name="sounds" />
+          </Directory>
         </Directory>
       </Directory>
       <Directory Id="ProgramMenuFolder">
@@ -52,6 +54,63 @@
     <DirectoryRef Id="INSTALLFOLDER">
       <Component Id="MainExecutable" Guid="8c2e4b0a-2b3f-4d3e-9b7a-2f6b0a1c9d22">
         <File Id="TobinMUDClientEXE" Source="TobinMUDClient.exe" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="SoundsFolder">
+      <Component Id="Sound_backstab_wav" Guid="1a2ad202-99fa-4d2b-a659-93d25b06b428">
+        <File Id="Sound_backstab_wav_File" Source="sounds/backstab.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_cleric_wav" Guid="fc185de9-27fc-43f5-875b-c3fca4ca8508">
+        <File Id="Sound_cleric_wav_File" Source="sounds/cleric.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_hit_wav" Guid="09b8310b-3d6f-474e-a483-5adfb6d11eb4">
+        <File Id="Sound_hit_wav_File" Source="sounds/hit.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_hit2_wav" Guid="c2938aab-799f-4e15-b66a-f9512e446d23">
+        <File Id="Sound_hit2_wav_File" Source="sounds/hit2.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_hit3_wav" Guid="d44a1217-be94-4d69-b356-cdb592333991">
+        <File Id="Sound_hit3_wav_File" Source="sounds/hit3.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_hit4_wav" Guid="b65dd22e-b2bc-453e-a1fd-e7e0196c2cc9">
+        <File Id="Sound_hit4_wav_File" Source="sounds/hit4.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_monk1_wav" Guid="8a4a5e56-f5cc-439f-8a4d-7ec8b978b249">
+        <File Id="Sound_monk1_wav_File" Source="sounds/monk1.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_monk2_wav" Guid="c61c2bc2-34de-4b83-9206-9fbf95236ef9">
+        <File Id="Sound_monk2_wav_File" Source="sounds/monk2.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_monk3_wav" Guid="80069124-e762-468c-8c50-ce1041d1690f">
+        <File Id="Sound_monk3_wav_File" Source="sounds/monk3.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_monk4_wav" Guid="c95a4963-cc86-4090-b0d1-592fb513bd99">
+        <File Id="Sound_monk4_wav_File" Source="sounds/monk4.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_slash_wav" Guid="985517b8-23b2-47d4-919d-58ee30e3ea9d">
+        <File Id="Sound_slash_wav_File" Source="sounds/slash.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_slash2_wav" Guid="e26c121c-2f39-45e9-8d9f-ace4b7e4ce9e">
+        <File Id="Sound_slash2_wav_File" Source="sounds/slash2.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_slash3_wav" Guid="05156a1d-8088-4864-a56a-d9941be218af">
+        <File Id="Sound_slash3_wav_File" Source="sounds/slash3.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_spell_wav" Guid="3494bd74-85d7-4d1d-ac4a-eed9b3c4d477">
+        <File Id="Sound_spell_wav_File" Source="sounds/spell.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_spell2_wav" Guid="a497dea0-d764-4bee-9d3b-862b9a1e8461">
+        <File Id="Sound_spell2_wav_File" Source="sounds/spell2.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_spell_fireball_wav" Guid="fb38080c-219f-43f6-8f52-f4886c67cf20">
+        <File Id="Sound_spell_fireball_wav_File" Source="sounds/spell_fireball.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_thief_wav" Guid="ace08fb8-06aa-47cd-85a3-98518b5eb1f2">
+        <File Id="Sound_thief_wav_File" Source="sounds/thief.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_thief2_wav" Guid="657b334e-1347-479f-8afc-0705c25adfee">
+        <File Id="Sound_thief2_wav_File" Source="sounds/thief2.wav" KeyPath="yes" />
       </Component>
     </DirectoryRef>
 
@@ -74,6 +133,24 @@
     <Feature Id="MainFeature" Title="TobinMUD Client" Level="1">
       <ComponentRef Id="MainExecutable" />
       <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="Sound_backstab_wav" />
+      <ComponentRef Id="Sound_cleric_wav" />
+      <ComponentRef Id="Sound_hit_wav" />
+      <ComponentRef Id="Sound_hit2_wav" />
+      <ComponentRef Id="Sound_hit3_wav" />
+      <ComponentRef Id="Sound_hit4_wav" />
+      <ComponentRef Id="Sound_monk1_wav" />
+      <ComponentRef Id="Sound_monk2_wav" />
+      <ComponentRef Id="Sound_monk3_wav" />
+      <ComponentRef Id="Sound_monk4_wav" />
+      <ComponentRef Id="Sound_slash_wav" />
+      <ComponentRef Id="Sound_slash2_wav" />
+      <ComponentRef Id="Sound_slash3_wav" />
+      <ComponentRef Id="Sound_spell_wav" />
+      <ComponentRef Id="Sound_spell2_wav" />
+      <ComponentRef Id="Sound_spell_fireball_wav" />
+      <ComponentRef Id="Sound_thief_wav" />
+      <ComponentRef Id="Sound_thief2_wav" />
     </Feature>
 
   </Product>
