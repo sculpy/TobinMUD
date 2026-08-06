@@ -70,6 +70,7 @@
 #define ID_MENU_FILE_PREFERENCES 204
 #define ID_MENU_FILE_EXIT 205
 #define ID_MENU_FILE_RELOAD_TRIGGERS 207
+#define ID_MENU_FILE_RELOAD_ALIASES 208
 #define ID_MENU_HELP_ABOUT 206
 
 #define ID_PREFS_FONTSIZE_EDIT 301
@@ -96,7 +97,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.9"
+#define CLIENT_VERSION "0.4.10"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -114,6 +115,19 @@ typedef struct {
     char action[TRIGGER_ACTION_MAX];
     bool gag;
 } trigger_t;
+
+/* Simple aliases (same "not lua based" spirit as triggers) -- a short
+ * typed word expands to a longer command before sending, with
+ * whatever else was typed after it carried through unchanged. See
+ * load_aliases()'s own comment for the on-disk format. */
+#define ALIAS_MAX 128
+#define ALIAS_NAME_MAX 32
+#define ALIAS_EXPANSION_MAX 256
+
+typedef struct {
+    char name[ALIAS_NAME_MAX];
+    char expansion[ALIAS_EXPANSION_MAX];
+} alias_t;
 #define UPDATE_VERSION_URL "http://tobinmud.com/tobinclient/version.txt"
 #define UPDATE_MSI_URL "http://tobinmud.com/tobinclient/TobinMUDClient.msi"
 
@@ -175,6 +189,8 @@ typedef struct {
      * range instead of holding output back. */
     trigger_t triggers[TRIGGER_MAX];
     int trigger_count;
+    alias_t aliases[ALIAS_MAX];
+    int alias_count;
     char pending_line_text[TRIGGER_LINE_BUF];
     size_t pending_line_len;
     int line_start_offset;
@@ -191,7 +207,7 @@ typedef struct {
      * input box resends this instead of a no-op/blank line; typing a
      * new line and sending it (even a repeat of the same text)
      * refreshes it as usual. */
-    char last_line[1024];
+    char last_line[1024 + ALIAS_EXPANSION_MAX];
     /* Command history (user, 2026-08-06: "make the client behave as
      * much as possible to Mudlet" -- Up/Down arrow recall, picked as
      * the highest-value single Mudlet-ism to add first). history[] is
@@ -414,6 +430,89 @@ static void trigger_scan_feed(const char *text, size_t len) {
         if (g_app.pending_line_len + 1 < sizeof(g_app.pending_line_text))
             g_app.pending_line_text[g_app.pending_line_len++] = text[i];
     }
+}
+
+static void aliases_path(char *out, size_t outsize) {
+    snprintf(out, outsize, "%saliases.txt", g_app.exe_dir);
+}
+
+/* Loads aliases.txt (next to the exe, same folder as triggers.txt):
+ * one alias per line, tab-separated -- NAME<TAB>EXPANSION. Whatever
+ * the player types as the FIRST word of an input line is matched
+ * case-insensitively, whole-word only (not a substring -- typing
+ * "kill" must never accidentally trigger an alias named "k"); on a
+ * match, EXPANSION replaces that first word and whatever the player
+ * typed after it is carried through unchanged (classic "alias k kill"
+ * -> "k rat" sends "kill rat"). Lines starting with # are comments.
+ * First run with no file present seeds a commented example. */
+static void load_aliases(void) {
+    g_app.alias_count = 0;
+    char path[MAX_PATH + 32];
+    aliases_path(path, sizeof(path));
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        f = fopen(path, "w");
+        if (f) {
+            fputs("# TobinMUD Client aliases -- one per line:\r\n"
+                  "#   NAME<TAB>EXPANSION\r\n"
+                  "# Typing NAME as the first word of a line sends EXPANSION instead,\r\n"
+                  "# with anything else you typed after NAME carried through unchanged\r\n"
+                  "# (e.g. \"k\" -> \"kill\" turns \"k rat\" into \"kill rat\").\r\n"
+                  "# Reload after editing via File > Reload Aliases.\r\n"
+                  "#\r\n"
+                  "# Example (disabled -- remove the leading # to enable):\r\n"
+                  "# k\tkill\r\n", f);
+            fclose(f);
+        }
+        return;
+    }
+    char line[512];
+    while (g_app.alias_count < ALIAS_MAX && fgets(line, sizeof(line), f)) {
+        size_t n = strlen(line);
+        while (n > 0 && (line[n - 1] == '\n' || line[n - 1] == '\r'))
+            line[--n] = '\0';
+        if (n == 0 || line[0] == '#')
+            continue;
+        char *tab = strchr(line, '\t');
+        if (!tab)
+            continue;
+        *tab = '\0';
+        const char *name = line;
+        const char *expansion = tab + 1;
+        if (!name[0] || !expansion[0])
+            continue;
+        alias_t *a = &g_app.aliases[g_app.alias_count++];
+        snprintf(a->name, sizeof(a->name), "%s", name);
+        snprintf(a->expansion, sizeof(a->expansion), "%s", expansion);
+    }
+    fclose(f);
+}
+
+/* Expands `input`'s first word against g_app.aliases (case-insensitive,
+ * whole-word match only) into `out`; copies input unchanged if no
+ * alias matches. Safe to call with out == a separate buffer from input. */
+static void expand_alias(const char *input, char *out, size_t outsize) {
+    size_t i = 0;
+    while (input[i] && input[i] != ' ')
+        i++;
+    size_t wordlen = i;
+    const char *rest = input + i;
+    while (*rest == ' ')
+        rest++;
+
+    for (int k = 0; k < g_app.alias_count; k++) {
+        alias_t *a = &g_app.aliases[k];
+        if (strlen(a->name) != wordlen)
+            continue;
+        if (_strnicmp(a->name, input, wordlen) != 0)
+            continue;
+        if (rest[0])
+            snprintf(out, outsize, "%s %s", a->expansion, rest);
+        else
+            snprintf(out, outsize, "%s", a->expansion);
+        return;
+    }
+    snprintf(out, outsize, "%s", input);
 }
 
 static void ansi_emit_cb(void *ctx, const char *text, size_t len, int color_index, int bold) {
@@ -679,15 +778,24 @@ static LRESULT CALLBACK InputSubclassProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM
          * resends the last real command instead of sending a blank
          * line -- most MUD/telnet clients treat a bare Enter as "do it
          * again", and this is the same convention. A non-empty line
-         * always sends as typed and becomes the new "last command",
-         * even if it's identical to the previous one. */
+         * always sends as typed (through alias expansion -- user,
+         * 2026-08-06: "make the client behave as much as possible to
+         * Mudlet") and becomes the new "last command", even if it's
+         * identical to the previous one. History stores what the
+         * player actually TYPED (pre-expansion), so Up/Down shows
+         * their own shorthand back, not the expanded form; last_line
+         * stores the EXPANDED form, since a bare-Enter repeat means
+         * "do that same network action again." */
+        char expanded[1024 + ALIAS_EXPANSION_MAX];
         const char *to_send = buf;
         if (len == 0) {
             if (g_app.last_line[0] == '\0')
                 return 0; /* nothing sent yet this session -- truly a no-op */
             to_send = g_app.last_line;
         } else {
-            snprintf(g_app.last_line, sizeof(g_app.last_line), "%s", buf);
+            expand_alias(buf, expanded, sizeof(expanded));
+            to_send = expanded;
+            snprintf(g_app.last_line, sizeof(g_app.last_line), "%s", expanded);
             /* History push -- only real, non-empty, TYPED lines (not
              * the bare-Enter repeat above, which would otherwise pile
              * up duplicate entries every time the player just mashes
@@ -704,7 +812,7 @@ static LRESULT CALLBACK InputSubclassProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM
         g_app.history_pos = g_app.history_count; /* stop browsing, back to a fresh line */
         g_app.history_pending[0] = '\0';
         if (g_app.sock != INVALID_SOCKET) {
-            char line[1030];
+            char line[1024 + ALIAS_EXPANSION_MAX + 8];
             int n = snprintf(line, sizeof(line), "%s\r\n", to_send);
             send(g_app.sock, line, n, 0);
         }
@@ -1026,6 +1134,7 @@ static HMENU build_menu(void) {
     AppendMenuW(hFile, MF_SEPARATOR, 0, NULL);
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_PREFERENCES, L"&Preferences...");
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_RELOAD_TRIGGERS, L"&Reload Triggers");
+    AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_RELOAD_ALIASES, L"Reload &Aliases");
     AppendMenuW(hFile, MF_SEPARATOR, 0, NULL);
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_EXIT, L"E&xit");
     AppendMenuW(hMenuBar, MF_POPUP, (UINT_PTR)hFile, L"&File");
@@ -1196,6 +1305,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             char msg[64];
             int mlen = snprintf(msg, sizeof(msg), "Reloaded %d trigger(s) from triggers.txt.\r\n",
                                  g_app.trigger_count);
+            append_output(msg, (size_t)mlen, 3, 0);
+            g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
+            g_app.pending_line_len = 0;
+            return 0;
+        }
+        case ID_MENU_FILE_RELOAD_ALIASES: {
+            load_aliases();
+            char msg[64];
+            int mlen = snprintf(msg, sizeof(msg), "Reloaded %d alias(es) from aliases.txt.\r\n",
+                                 g_app.alias_count);
             append_output(msg, (size_t)mlen, 3, 0);
             g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
             g_app.pending_line_len = 0;
@@ -1403,6 +1522,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {
     resolve_exe_dir();
     load_prefs();
     load_triggers();
+    load_aliases();
 
     bool updated = check_and_apply_update();
     debug_log(updated ? "WinMain: check_and_apply_update returned TRUE, exiting" :

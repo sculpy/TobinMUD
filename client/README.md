@@ -50,6 +50,22 @@ seeds a commented example. Edit the file in any text editor, then
 reload it in the running client via File > Reload Triggers -- no
 restart needed.
 
+## Aliases
+
+`aliases.txt`, same folder, same "simple, not lua based" spirit --
+one alias per line:
+
+```
+NAME<TAB>EXPANSION
+```
+
+Typing `NAME` as the first word of an input line sends `EXPANSION`
+instead, with anything else typed after `NAME` carried through
+unchanged (e.g. `k` -> `kill` turns `k rat` into `kill rat`). Matching
+is case-insensitive and whole-word only (typing `kill` never
+accidentally matches an alias named `k`). Reload via File > Reload
+Aliases.
+
 ## Building (on the droplet, per CLAUDE.md's droplet-only rule -- never locally)
 
 One-time setup (already done on the current droplet):
