@@ -109,6 +109,42 @@ being_t *player_load(const char *name, long account_id) {
          * decapitatable regardless of real max_hp (found 2026-07-12 while
          * testing the affects system). */
         being_limbs_full_heal(b);
+        /* Same staleness class as the mana fix just below, for max_hp/
+         * max_vit: both are also stored-verbatim values that only ever
+         * get refreshed by whatever code path happens to touch them
+         * (e.g. leveling up) -- a character whose row predates a
+         * formula change (like the 2026-08-06 real-SneezyMUD HP/
+         * Vitality rework) keeps showing the OLD ceiling forever
+         * otherwise. CEILING ONLY, never auto-heals: current hp/vit
+         * are clamped DOWN if the recompute ever lowers the max below
+         * what was stored, but never bumped up to a newly-higher max --
+         * relogging must not become a free full-heal exploit. */
+        b->progress.max_hp = being_calc_max_hp(b);
+        if (b->progress.hp > b->progress.max_hp)
+            b->progress.hp = b->progress.max_hp;
+        b->progress.max_vit = being_calc_max_vit(b);
+        if (b->progress.vit > b->progress.max_vit)
+            b->progress.vit = b->progress.max_vit;
+        /* Same "stored value can go stale, recompute on login" fix as
+         * being_limbs_full_heal() just above -- user, 2026-08-06:
+         * "mana isnt updating, meditated to full still reads 0".
+         * player_progress_load() (called above) trusts whatever
+         * max_mana was last SAVED to the DB verbatim; a character whose
+         * row predates the real mana pool (or was otherwise never
+         * saved with a real value) stays stuck at max_mana<=0 forever,
+         * since being_heal_mana() treats that as "no mana pool at all"
+         * and silently no-ops -- meditate genuinely was restoring
+         * nothing, not failing to report a real gain. being_calc_max_
+         * mana() is cheap and deterministic (class + current "mana"
+         * skill proficiency only), so recomputing it on every login is
+         * always safe and self-healing, matching the limb-heal
+         * precedent right above. Clamp current mana down too, in the
+         * (currently impossible, since proficiency only ever grows)
+         * case a recompute ever lowers the ceiling below what was
+         * stored. */
+        b->progress.max_mana = being_calc_max_mana(b);
+        if (b->progress.mana > b->progress.max_mana)
+            b->progress.mana = b->progress.max_mana;
         player_inventory_load(b->player_id, b); /* recreates carried/worn/held instances, see obj_repo.h */
         ensure_jesus_level(b);
     }

@@ -1263,3 +1263,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Combat sound effects now vary by class and weapon', 'The MSP hit sound used to always be the same file. Now it is randomly picked from a real pool: Cleric, Monk, Thief, and Mage each have their own dedicated sounds, and everyone else gets a slashing-weapon sound or a generic hit sound depending on what they are swinging. Players need the matching .wav files in their client''s own sounds folder to hear them.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Real bug fixed: max_hp/max_vit/max_mana stale on login for pre-existing characters', 'player_load() was loading these ceilings verbatim from the DB, never recomputing them -- any character whose row predated a formula change (yesterday''s HP/Vitality rework, or mana shipping at all) stayed stuck at the old/zero ceiling forever, regardless of level. Now recomputed on every login, ceiling only (never auto-heals current values up, so this cannot become a free-heal exploit via relogging). score also reformatted to consistent X/Y display for HP/Mana/Move, and Mana now actually shows its real max.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

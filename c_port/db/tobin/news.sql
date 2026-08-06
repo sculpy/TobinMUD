@@ -537,3 +537,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'HP and Movement Rebalanced Toward the Classic Game', 'Max HP and max movement now scale the same way they did in the classic game -- new characters, and squishier classes like Mage, should feel noticeably less fragile than before.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Mage Mana Fixed -- Was Permanently Stuck At Zero', 'Mages created or logged into before mana was added were stuck with a mana pool that could never fill, no matter how much meditating was done. This is now fixed automatically on your next login. The score screen also now shows your mana and HP as current/maximum, consistently.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

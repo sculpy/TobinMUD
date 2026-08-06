@@ -1,6 +1,51 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-06 — Session 136 (DO droplet, production port 4000):
+Last updated: 2026-08-06 — Session 137 (DO droplet, production port 4000):
+**Real bug: mana/HP/Vitality ceilings stale on login for existing
+characters.** User: "mana isnt updating, meditated to full still reads
+0." Root cause: `player_load()` (`player_repo.c`, regular login) loads
+`max_hp`/`max_vit`/`max_mana` straight from whatever was last SAVED to
+the DB -- it never recomputes them, unlike `player_create()` (character
+creation), which does. Any character whose row predates a formula
+change (the 2026-08-06 real-SneezyMUD HP/Vitality rework, or the mana
+pool shipping in the first place) stays stuck at the OLD/zero ceiling
+forever. `being_heal_mana()` treats `max_mana <= 0` as "no mana pool at
+all" and silently no-ops -- meditate genuinely was restoring nothing,
+not just failing to report a real gain. Confirmed against real data: a
+real player's character ("Kimorgh", level 4 Mage) showed `mana=0,
+max_hp=33` in the DB while the OTHER session's own throwaway test Mages
+(created fresh, after the mana feature shipped) showed correct
+non-zero values -- exactly the "old row, never recomputed" pattern.
+- Fix: `player_load()` now recomputes `max_hp`/`max_vit`/`max_mana` via
+  `being_calc_max_hp()`/`being_calc_max_vit()`/`being_calc_max_mana()`
+  on every login, same "stored value can go stale, recompute on load"
+  precedent `being_limbs_full_heal()` already established for a
+  different staleness bug (2026-07-12). **Ceiling only, never auto-
+  heals**: current hp/vit/mana are clamped DOWN if a recompute ever
+  lowers the max below what was stored, but never bumped up to a newly
+  higher max -- relogging must not become a free full-heal exploit.
+- Verified live: Kimorgh's mana went from a permanent 0 to a real,
+  correctly-computed 100 max immediately after copyover (which re-runs
+  the same login path for already-connected characters). Then, per the
+  user's explicit request ("restore kimorgh's mana and hps to what
+  they should be"), manually set hp/vit/mana to their now-correct maxes
+  (56/130/100) as a one-time compensation for the bug -- using the
+  values the SERVER itself computed via the fix, not hand arithmetic.
+- **`score` reformatted** (user, same session): `HP: %d (%d Max.)
+  (health-word)` / bare `Mana: %d` (no max shown at all) / `Move: %d
+  (%d Max.)` unified into one consistent `X/Y` style for all three --
+  `HP: 33/33  Mana: 19/100  Move: 51/51` -- and Mana now actually shows
+  its real max (`p->max_mana`), not just current value, matching the
+  user's exact requested format. Health-word ("perfect" etc, still a
+  real function -- `being_health_word()`, kept for potential future
+  use) dropped from this line per the user's literal target string.
+- Zero-warning build, deployed via copyover twice (player connected
+  throughout both times, confirmed via `ss -tn` first).
+- Also delivered the full current sound pack (23 files, zipped) to the
+  user directly and confirmed the client-side install path
+  (`%LocalAppData%\Programs\TobinMUD Client\sounds\`).
+
+Previous update: Last updated: 2026-08-06 — Session 136 (DO droplet, production port 4000):
 **MSP hit-sound variety: randomized by attacker class or weapon type.**
 User: "i uploaded a sounds directory into the droplet for you to
 randomize sounds to play by weapon type or class" -- a real sound pack
