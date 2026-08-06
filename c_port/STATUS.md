@@ -1,6 +1,56 @@
 # Tobin C Port — Status
 
-Last updated: 2026-08-05 — Session 135 (DO droplet, production port 4000):
+Last updated: 2026-08-06 — Session 136 (DO droplet, production port 4000):
+**MSP hit-sound variety: randomized by attacker class or weapon type.**
+User: "i uploaded a sounds directory into the droplet for you to
+randomize sounds to play by weapon type or class" -- a real sound pack
+already present in `client/sounds/` (hit/hit2-4.wav, slash/slash2-3.wav,
+backstab.wav, cleric.wav, monk1-4.wav, thief/thief2.wav, spell/spell2/
+spell_fireball.wav).
+- New `pick_hit_sound(attacker, verb)` (combat.c, right after
+  `weapon_verb()`): class-specific pools take priority over weapon
+  type -- Cleric -> `cleric.wav` (single file, no dedicated variety
+  yet), Monk -> 4-file pool, Thief -> `thief.wav`/`thief2.wav`/
+  `backstab.wav`, Mage -> the 3-file spell pool. Everything else
+  (Warrior, Druid, or a class with no dedicated pool) falls back to
+  weapon type: `slice`/`chop` (slashing weapons, `weapon_verb()`'s own
+  category) get the 3-file slash pool, everything else (blunt/pierce/
+  lash/bare-handed) gets the 4-file generic hit pool.
+- `verb` is `NULL` when called from `combat_apply_skill_damage()`
+  (shared by every skill/spell in the game -- bash, kick, spells,
+  backstab, stomp, ... -- with no per-skill signal to key off without
+  threading a new parameter through every one of its many callers) --
+  falls straight to the class-pool-or-generic-hit branch, skipping the
+  weapon-type check entirely. `backstab.wav` therefore isn't tied to
+  the `backstab` command specifically; it's just a third file in the
+  Thief class pool, which still delivers "randomize by class" for a
+  Thief's damage regardless of which skill produced it.
+- Wired into both existing `descriptor_send_msp_sound()` call sites
+  (`combat_strike()`'s melee path already had `verb` in scope;
+  `combat_apply_skill_damage()` passes `NULL`) -- replacing the flat
+  hardcoded `"hit.wav"` both had used since Session 131.
+- **Client-side note, not yet done**: the Windows client only plays a
+  sound if the matching file already exists in ITS OWN local `sounds\`
+  folder next to the exe -- the user will need to copy the new files
+  there (same manual step they already did once for the fight-music
+  tracks) for anyone testing this to actually hear the variety; the
+  server-side selection logic works regardless.
+- New `tests/smoke_test_msp_sound_variety.py`: confirmed live (2 of 2
+  checks passed) that a Mage-class attacker (the deploy immortal,
+  attacking a mortal Cleric directly -- immortal ATTACKERS aren't
+  damage-immune, only immortal DEFENDERS are, so this delivers real
+  damage) produces one of the 3 spell-pool files, not the old flat
+  `hit.wav`. Test's own cleanup tail hit the same pre-existing
+  scripted-input flakiness already logged in TODO.md (unrelated --
+  both assertions had already passed and printed OK before the hang);
+  cleaned up test data manually afterward.
+- Zero-warning build, deployed via copyover. **Deploybot's own player
+  character had been deleted** (account still existed, `-- Your
+  players -- (none yet)`) since this session's last commit -- recreated
+  it (same manual account-menu walkthrough as the very first time this
+  project needed it) before the copyover could run.
+
+Previous update: Last updated: 2026-08-05 — Session 135 (DO droplet, production port 4000):
 **The REAL root cause of "client wont open" (v0.3.0-0.3.2 were all
 broken the same way, for a dumber reason than the elevation/UI-
 feedback fixes already shipped): a workflow bug in how this session's

@@ -283,6 +283,48 @@ static const char *weapon_verb(const obj_t *weapon) {
     return "hit";
 }
 
+/* MSP hit-sound selection, randomized by class or weapon type (user,
+ * 2026-08-06: "randomize sounds to play by weapon type or class" --
+ * uploaded a real sound pack under client/sounds/). Class-specific
+ * pools take priority (Cleric/Monk/Thief/Mage have dedicated audio);
+ * everything else falls back to weapon_verb()'s own slash-vs-generic
+ * split. `verb` is NULL for skill/spell damage (combat_apply_skill_
+ * damage() has no weapon context), non-NULL for an ordinary melee
+ * strike (combat_strike() already computed it). Backstab has no
+ * separate damage-source signal to key off (combat_apply_skill_
+ * damage() is shared by every skill/spell in the game, not just
+ * backstab -- adding one would mean threading a new parameter through
+ * every caller) -- backstab.wav is folded into the Thief pool instead,
+ * still true to "randomize by class". */
+static const char *pick_hit_sound(const being_t *attacker, const char *verb) {
+    static const char *cleric_pool[] = { "cleric.wav" };
+    static const char *monk_pool[] = { "monk1.wav", "monk2.wav", "monk3.wav", "monk4.wav" };
+    static const char *thief_pool[] = { "thief.wav", "thief2.wav", "backstab.wav" };
+    static const char *mage_pool[] = { "spell.wav", "spell2.wav", "spell_fireball.wav" };
+    static const char *slash_pool[] = { "slash.wav", "slash2.wav", "slash3.wav" };
+    static const char *generic_pool[] = { "hit.wav", "hit2.wav", "hit3.wav", "hit4.wav" };
+
+    const char **pool = NULL;
+    int count = 0;
+    switch (attacker->char_class) {
+        case CLASS_CLERIC: pool = cleric_pool; count = 1; break;
+        case CLASS_MONK:   pool = monk_pool;   count = 4; break;
+        case CLASS_THIEF:  pool = thief_pool;  count = 3; break;
+        case CLASS_MAGE:   pool = mage_pool;   count = 3; break;
+        default: break;
+    }
+    if (!pool) {
+        if (verb && (strcmp(verb, "slice") == 0 || strcmp(verb, "chop") == 0)) {
+            pool = slash_pool;
+            count = 3;
+        } else {
+            pool = generic_pool;
+            count = 4;
+        }
+    }
+    return pool[rand() % count];
+}
+
 /* Qualitative hit-intensity description (user 2026-07-12: "dont report
  * damage"; follow-up: "take out the damage number and use it to
  * describe how hard the hit was"). Ported from the real upstream's own
@@ -890,7 +932,7 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * descriptor_send_msp_sound() both check that internally). */
     being_notify_vitals_changed(defender);
     if (defender->desc)
-        descriptor_send_msp_sound(defender->desc, "hit.wav", 100);
+        descriptor_send_msp_sound(defender->desc, pick_hit_sound(attacker, verb), 100);
     being_hurt_limb_only(defender, limb, (dmg + 1) / 2);
     int pct_after = being_limb_pct(defender, limb);
     combat_maybe_damage_equipment(defender, limb, dmg);
@@ -1492,7 +1534,7 @@ bool combat_apply_skill_damage(being_t *attacker, being_t *defender, int dmg, li
      * descriptor_send_msp_sound() both check that internally). */
     being_notify_vitals_changed(defender);
     if (defender->desc)
-        descriptor_send_msp_sound(defender->desc, "hit.wav", 100);
+        descriptor_send_msp_sound(defender->desc, pick_hit_sound(attacker, NULL), 100);
     being_hurt_limb_only(defender, limb, (dmg + 1) / 2);
     if (defender->progress.hp <= 0) {
         combat_defeat(defender, attacker, false);
