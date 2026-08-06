@@ -23,7 +23,12 @@
  * own comment.
  *
  * A `File` menu (user, 2026-08-05) offers Connect/Reconnect/
- * Disconnect/Preferences/Exit; a `Help` menu has About. The input box
+ * Disconnect/Preferences/Reload Triggers/Exit; a `Help` menu has
+ * About. Reload Triggers re-reads triggers.txt (next to the exe) --
+ * plain, case-insensitive substring-match triggers against incoming
+ * lines, each optionally sending a command and/or gagging the line
+ * (user, 2026-08-06: "make triggers simple, not lua based" -- see
+ * load_triggers()'s own comment for the file format). The input box
  * refocuses itself whenever the window is (re)activated, and hitting
  * Enter on an empty input line resends the last real command instead
  * of doing nothing (same user request). Preferences lets the window
@@ -64,6 +69,7 @@
 #define ID_MENU_FILE_DISCONNECT 203
 #define ID_MENU_FILE_PREFERENCES 204
 #define ID_MENU_FILE_EXIT 205
+#define ID_MENU_FILE_RELOAD_TRIGGERS 207
 #define ID_MENU_HELP_ABOUT 206
 
 #define ID_PREFS_FONTSIZE_EDIT 301
@@ -90,9 +96,24 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.7"
+#define CLIENT_VERSION "0.4.8"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
+
+/* Simple triggers (user, 2026-08-06: "make triggers simple, not lua
+ * based") -- plain case-insensitive substring match against each
+ * complete incoming line, no wildcards/regex/scripting. See
+ * load_triggers()'s own comment for the on-disk format. */
+#define TRIGGER_MAX 128
+#define TRIGGER_PATTERN_MAX 128
+#define TRIGGER_ACTION_MAX 256
+#define TRIGGER_LINE_BUF 2048
+
+typedef struct {
+    char pattern[TRIGGER_PATTERN_MAX];
+    char action[TRIGGER_ACTION_MAX];
+    bool gag;
+} trigger_t;
 #define UPDATE_VERSION_URL "http://tobinmud.com/tobinclient/version.txt"
 #define UPDATE_MSI_URL "http://tobinmud.com/tobinclient/TobinMUDClient.msi"
 
@@ -144,6 +165,19 @@ typedef struct {
      * carries mana (see gmcp.c's server-side change, same date). */
     HWND hwnd_gauge_label_hp, hwnd_gauge_label_mana, hwnd_gauge_label_move;
     HWND hwnd_gauge_bar_hp, hwnd_gauge_bar_mana, hwnd_gauge_bar_move;
+    /* Simple triggers -- loaded from triggers.txt (exe_dir) at startup
+     * and via File > Reload Triggers. pending_line_text/len accumulate
+     * the PLAIN (color-stripped) text of whatever line is currently
+     * being displayed, purely for matching -- the actual display
+     * always happens immediately via append_output() for full
+     * responsiveness (see trigger_scan_feed()'s own comment); a gag
+     * match retroactively deletes the just-displayed line's RichEdit
+     * range instead of holding output back. */
+    trigger_t triggers[TRIGGER_MAX];
+    int trigger_count;
+    char pending_line_text[TRIGGER_LINE_BUF];
+    size_t pending_line_len;
+    int line_start_offset;
     HBRUSH window_bg_brush; /* dark-mode only, backs the gauge strip's own
                                 static labels via WM_CTLCOLORSTATIC and the
                                 main window class background */
@@ -240,9 +274,151 @@ static void append_output(const char *text, size_t len, int color_index, int bol
     SendMessageW(g_app.hwnd_output, WM_VSCROLL, SB_BOTTOM, 0);
 }
 
+static void triggers_path(char *out, size_t outsize) {
+    snprintf(out, outsize, "%striggers.txt", g_app.exe_dir);
+}
+
+/* Plain, case-insensitive substring search (no strcasestr() dependency --
+ * keeps this portable/self-contained, and the whole point of "simple,
+ * not lua" triggers is a tiny, obviously-correct matcher). */
+static bool ci_contains(const char *hay, const char *needle) {
+    if (!needle[0])
+        return false;
+    size_t hlen = strlen(hay), nlen = strlen(needle);
+    if (nlen > hlen)
+        return false;
+    for (size_t i = 0; i + nlen <= hlen; i++) {
+        size_t j = 0;
+        for (; j < nlen; j++) {
+            char a = hay[i + j], b = needle[j];
+            if (a >= 'A' && a <= 'Z') a = (char)(a + 32);
+            if (b >= 'A' && b <= 'Z') b = (char)(b + 32);
+            if (a != b)
+                break;
+        }
+        if (j == nlen)
+            return true;
+    }
+    return false;
+}
+
+/* Loads triggers.txt (next to the exe, same folder as sounds\ and
+ * prefs.ini): one trigger per line, tab-separated --
+ * PATTERN<TAB>ACTION[<TAB>flags]. PATTERN is a plain, case-insensitive
+ * substring match against each complete incoming line (no wildcards/
+ * regex/scripting -- user, 2026-08-06: "make triggers simple, not lua
+ * based"). ACTION is sent to the server exactly like a typed command;
+ * leave it blank to just gag (hide) the line. A trailing "g" (or "G")
+ * in the optional third field gags the matched line in addition to
+ * sending ACTION. Lines starting with # are comments. First run with
+ * no file present seeds a commented example instead of silently doing
+ * nothing, so the feature is discoverable without external docs. */
+static void load_triggers(void) {
+    g_app.trigger_count = 0;
+    char path[MAX_PATH + 32];
+    triggers_path(path, sizeof(path));
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        f = fopen(path, "w");
+        if (f) {
+            fputs("# TobinMUD Client triggers -- one per line:\r\n"
+                  "#   PATTERN<TAB>ACTION[<TAB>g]\r\n"
+                  "# PATTERN is a plain, case-insensitive substring match against each\r\n"
+                  "# incoming line (no wildcards/regex -- kept simple on purpose).\r\n"
+                  "# ACTION is sent to the server exactly like a typed command; leave it\r\n"
+                  "# blank to just gag (hide) the line without sending anything.\r\n"
+                  "# Add a trailing g in a third tab-separated field to gag the matched\r\n"
+                  "# line as well as sending ACTION.\r\n"
+                  "# Reload after editing via File > Reload Triggers.\r\n"
+                  "#\r\n"
+                  "# Example (disabled -- remove the leading # to enable):\r\n"
+                  "# You are bleeding\tbandage self\r\n", f);
+            fclose(f);
+        }
+        return;
+    }
+    char line[512];
+    while (g_app.trigger_count < TRIGGER_MAX && fgets(line, sizeof(line), f)) {
+        size_t n = strlen(line);
+        while (n > 0 && (line[n - 1] == '\n' || line[n - 1] == '\r'))
+            line[--n] = '\0';
+        if (n == 0 || line[0] == '#')
+            continue;
+        char *tab1 = strchr(line, '\t');
+        if (!tab1)
+            continue;
+        *tab1 = '\0';
+        const char *pattern = line;
+        if (!pattern[0])
+            continue;
+        char *rest = tab1 + 1;
+        char *tab2 = strchr(rest, '\t');
+        bool gag = false;
+        const char *action = rest;
+        if (tab2) {
+            *tab2 = '\0';
+            const char *flags = tab2 + 1;
+            if (strchr(flags, 'g') || strchr(flags, 'G'))
+                gag = true;
+        }
+        trigger_t *t = &g_app.triggers[g_app.trigger_count++];
+        snprintf(t->pattern, sizeof(t->pattern), "%s", pattern);
+        snprintf(t->action, sizeof(t->action), "%s", action);
+        t->gag = gag;
+    }
+    fclose(f);
+}
+
+/* Called once a full incoming line's plain text has accumulated in
+ * pending_line_text. Every matching trigger's ACTION is sent
+ * (multiple triggers can fire on the same line); if ANY matching
+ * trigger is flagged gag, the line's already-displayed RichEdit range
+ * ([line_start_offset, current end)) is deleted right back out --
+ * cheaper and far simpler than holding display back until end-of-line
+ * is known, and the flash is imperceptible in practice. */
+static void trigger_process_line(void) {
+    g_app.pending_line_text[g_app.pending_line_len] = '\0';
+    bool gag = false;
+    for (int i = 0; i < g_app.trigger_count; i++) {
+        trigger_t *t = &g_app.triggers[i];
+        if (!ci_contains(g_app.pending_line_text, t->pattern))
+            continue;
+        if (t->gag)
+            gag = true;
+        if (t->action[0] && g_app.sock != INVALID_SOCKET) {
+            char sendbuf[TRIGGER_ACTION_MAX + 4];
+            int n = snprintf(sendbuf, sizeof(sendbuf), "%s\r\n", t->action);
+            send(g_app.sock, sendbuf, n, 0);
+        }
+    }
+    if (gag) {
+        int end = GetWindowTextLengthW(g_app.hwnd_output);
+        SendMessageW(g_app.hwnd_output, EM_SETSEL, g_app.line_start_offset, end);
+        SendMessageW(g_app.hwnd_output, EM_REPLACESEL, FALSE, (LPARAM)L"");
+    }
+    g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
+    g_app.pending_line_len = 0;
+}
+
+/* Feeds the same plain text append_output() just displayed into the
+ * trigger line accumulator, splitting on '\n' -- text already displays
+ * immediately regardless (see trigger_process_line()'s own comment on
+ * why gag is retroactive instead of buffered). */
+static void trigger_scan_feed(const char *text, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        if (text[i] == '\n') {
+            trigger_process_line();
+            continue;
+        }
+        if (g_app.pending_line_len + 1 < sizeof(g_app.pending_line_text))
+            g_app.pending_line_text[g_app.pending_line_len++] = text[i];
+    }
+}
+
 static void ansi_emit_cb(void *ctx, const char *text, size_t len, int color_index, int bold) {
     (void)ctx;
     append_output(text, len, color_index, bold);
+    trigger_scan_feed(text, len);
 }
 
 /* Plays (or, for `!!MUSIC(Off)`, stops) whatever `!!SOUND(...)`/
@@ -421,11 +597,15 @@ static void do_connect(const char *host, int port) {
     snprintf(portstr, sizeof(portstr), "%d", port);
     if (getaddrinfo(host, portstr, &hints, &res) != 0 || !res) {
         append_output("Could not resolve host.\r\n", 26, 1, 1);
+    g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
+    g_app.pending_line_len = 0;
         return;
     }
     SOCKET s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (s == INVALID_SOCKET || connect(s, res->ai_addr, (int)res->ai_addrlen) != 0) {
         append_output("Could not connect.\r\n", 20, 1, 1);
+    g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
+    g_app.pending_line_len = 0;
         if (s != INVALID_SOCKET)
             closesocket(s);
         freeaddrinfo(res);
@@ -450,6 +630,8 @@ static void do_disconnect(bool announce) {
     g_app.sock = INVALID_SOCKET;
     if (announce)
         append_output("\r\n-- Disconnected --\r\n", 22, 1, 1);
+    g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
+    g_app.pending_line_len = 0;
 }
 
 static void do_reconnect(void) {
@@ -557,6 +739,8 @@ static void poll_socket(void) {
         if (err == WSAEWOULDBLOCK)
             return; /* nothing more right now */
         append_output("\r\n-- Connection error --\r\n", 26, 1, 1);
+    g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
+    g_app.pending_line_len = 0;
         do_disconnect(false);
         return;
     }
@@ -823,6 +1007,7 @@ static HMENU build_menu(void) {
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_DISCONNECT, L"&Disconnect");
     AppendMenuW(hFile, MF_SEPARATOR, 0, NULL);
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_PREFERENCES, L"&Preferences...");
+    AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_RELOAD_TRIGGERS, L"&Reload Triggers");
     AppendMenuW(hFile, MF_SEPARATOR, 0, NULL);
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_EXIT, L"E&xit");
     AppendMenuW(hMenuBar, MF_POPUP, (UINT_PTR)hFile, L"&File");
@@ -976,6 +1161,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 do_connect(DEFAULT_HOST, DEFAULT_PORT);
             else
                 append_output("Already connected.\r\n", 21, 3, 0);
+    g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
+    g_app.pending_line_len = 0;
             return 0;
         case ID_MENU_FILE_RECONNECT:
             do_reconnect();
@@ -986,6 +1173,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case ID_MENU_FILE_PREFERENCES:
             open_preferences(hwnd);
             return 0;
+        case ID_MENU_FILE_RELOAD_TRIGGERS: {
+            load_triggers();
+            char msg[64];
+            int mlen = snprintf(msg, sizeof(msg), "Reloaded %d trigger(s) from triggers.txt.\r\n",
+                                 g_app.trigger_count);
+            append_output(msg, (size_t)mlen, 3, 0);
+            g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
+            g_app.pending_line_len = 0;
+            return 0;
+        }
         case ID_MENU_FILE_EXIT:
             DestroyWindow(hwnd);
             return 0;
@@ -1187,6 +1384,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {
 
     resolve_exe_dir();
     load_prefs();
+    load_triggers();
 
     bool updated = check_and_apply_update();
     debug_log(updated ? "WinMain: check_and_apply_update returned TRUE, exiting" :

@@ -20,13 +20,35 @@ user request (2026-08-05) -- see STATUS.md.
 - `src/win32/main.c` -- the actual GUI: one window, a read-only
   RichEdit scrollback pane (monospace/Consolas, real UTF-8 decoding --
   the server's connect-banner box-drawing art is UTF-8, not ANSI/CP_ACP),
-  a single-line input box, a Winsock2 socket polled on a timer. GMCP
-  `Char.Vitals`/`Room.Info` currently just update the window title (a
-  real HP-bar widget is a natural follow-up once this pipe is proven,
-  not yet built). MSP's `!!SOUND(file V=volume)` in-band marker plays
-  `sounds\<file>` (next to the exe) via `PlaySound()`. Also checks for
-  and silently self-updates to a newer release on launch -- see "Auto-
+  a single-line input box (Up/Down recalls previously sent commands),
+  a Winsock2 socket polled on a timer. GMCP `Char.Vitals` feeds a real
+  HP/Mana/Move gauge strip; `Room.Info` updates the window title. MSP's
+  `!!SOUND(file V=volume)` in-band marker plays `sounds\<file>` (next
+  to the exe) via `PlaySound()`; `!!MUSIC(...)` loops fight music
+  through a separate MCI channel so it doesn't get cut off by hit
+  sounds. Also checks for and silently self-updates to a newer release
+  on launch -- see "Auto-
   update" below.
+
+## Triggers
+
+`triggers.txt`, next to the exe (same folder as `sounds\` and
+`prefs.ini`) -- plain, case-insensitive substring-match triggers
+against each incoming line, no wildcards/regex/scripting (user,
+2026-08-06: "make triggers simple, not lua based"). One trigger per
+line:
+
+```
+PATTERN<TAB>ACTION[<TAB>g]
+```
+
+`ACTION` is sent to the server exactly like a typed command; leave it
+blank to just gag (hide) the line. A trailing `g` in the optional
+third field gags the matched line in addition to sending `ACTION`.
+Lines starting with `#` are comments. A first run with no file present
+seeds a commented example. Edit the file in any text editor, then
+reload it in the running client via File > Reload Triggers -- no
+restart needed.
 
 ## Building (on the droplet, per CLAUDE.md's droplet-only rule -- never locally)
 
