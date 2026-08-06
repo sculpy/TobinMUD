@@ -84,7 +84,8 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.5"
+#define CLIENT_VERSION "0.4.6"
+#define HISTORY_MAX 100
 #define UPDATE_VERSION_URL "http://tobinmud.com/tobinclient/version.txt"
 #define UPDATE_MSI_URL "http://tobinmud.com/tobinclient/TobinMUDClient.msi"
 
@@ -137,6 +138,19 @@ typedef struct {
      * new line and sending it (even a repeat of the same text)
      * refreshes it as usual. */
     char last_line[1024];
+    /* Command history (user, 2026-08-06: "make the client behave as
+     * much as possible to Mudlet" -- Up/Down arrow recall, picked as
+     * the highest-value single Mudlet-ism to add first). history[] is
+     * append-only up to HISTORY_MAX, oldest dropped via shift once
+     * full; history_pos is the index currently shown in the input box,
+     * or == history_count when NOT browsing (the normal state) --
+     * history_pending holds whatever the player had actually typed
+     * before the first Up press, restored on Down past the newest
+     * entry, same convention as bash. */
+    char history[HISTORY_MAX][1024];
+    int history_count;
+    int history_pos;
+    char history_pending[1024];
     /* Live preferences -- font point size and window size, loaded from
      * (and saved back to) prefs.ini. Window size is only read at
      * startup (CreateWindowW needs it up front); font size is also
@@ -436,12 +450,52 @@ static LRESULT CALLBACK InputSubclassProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM
             to_send = g_app.last_line;
         } else {
             snprintf(g_app.last_line, sizeof(g_app.last_line), "%s", buf);
+            /* History push -- only real, non-empty, TYPED lines (not
+             * the bare-Enter repeat above, which would otherwise pile
+             * up duplicate entries every time the player just mashes
+             * Enter to repeat an attack). Drop the oldest entry once
+             * full rather than growing unbounded. */
+            if (g_app.history_count == HISTORY_MAX) {
+                memmove(g_app.history[0], g_app.history[1],
+                        sizeof(g_app.history[0]) * (HISTORY_MAX - 1));
+                g_app.history_count--;
+            }
+            snprintf(g_app.history[g_app.history_count], sizeof(g_app.history[0]), "%s", buf);
+            g_app.history_count++;
         }
+        g_app.history_pos = g_app.history_count; /* stop browsing, back to a fresh line */
+        g_app.history_pending[0] = '\0';
         if (g_app.sock != INVALID_SOCKET) {
             char line[1030];
             int n = snprintf(line, sizeof(line), "%s\r\n", to_send);
             send(g_app.sock, line, n, 0);
         }
+        return 0;
+    }
+    /* Command history (user, 2026-08-06: "make the client behave as
+     * much as possible to Mudlet") -- Up/Down recall the player's own
+     * previously SENT lines, shell-style. The first Up press saves
+     * whatever's currently typed (possibly nothing) into
+     * history_pending so Down can walk back past the newest history
+     * entry to restore it, rather than just clearing the box. */
+    if (msg == WM_KEYDOWN && (wp == VK_UP || wp == VK_DOWN)) {
+        if (g_app.history_count == 0)
+            return 0;
+        if (wp == VK_UP) {
+            if (g_app.history_pos == g_app.history_count)
+                GetWindowTextA(hwnd, g_app.history_pending, sizeof(g_app.history_pending));
+            if (g_app.history_pos > 0)
+                g_app.history_pos--;
+        } else {
+            if (g_app.history_pos < g_app.history_count)
+                g_app.history_pos++;
+        }
+        const char *show = (g_app.history_pos == g_app.history_count)
+                                ? g_app.history_pending
+                                : g_app.history[g_app.history_pos];
+        SetWindowTextA(hwnd, show);
+        int end = (int)strlen(show);
+        SendMessageA(hwnd, EM_SETSEL, end, end);
         return 0;
     }
     return CallWindowProc(g_app.input_orig_proc, hwnd, msg, wp, lp);
