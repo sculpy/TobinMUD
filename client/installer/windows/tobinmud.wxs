@@ -24,7 +24,7 @@
   <Product Id="*"
            Name="TobinMUD Client"
            Language="1033"
-           Version="0.4.11.0"
+           Version="0.4.12.0"
            Manufacturer="The TobinMUD Team"
            UpgradeCode="6f2a6f6e-9b1a-4b8a-8b0a-1f0b6a2c7e11">
 
@@ -112,6 +112,24 @@
       <Component Id="Sound_thief2_wav" Guid="657b334e-1347-479f-8afc-0705c25adfee">
         <File Id="Sound_thief2_wav_File" Source="sounds/thief2.wav" KeyPath="yes" />
       </Component>
+      <Component Id="Sound_adventure1_wav" Guid="7c769244-7bfe-4b48-95e3-3dcbdbcdb16e">
+        <File Id="Sound_adventure1_wav_File" Source="sounds/adventure1.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_atlasaudio_wav" Guid="9f2305d9-c5b4-4c55-88fb-002bdc286d91">
+        <File Id="Sound_atlasaudio_wav_File" Source="sounds/atlasaudio.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_audiodollar_adventure_wav" Guid="ed97908b-ddd3-48a6-bcd2-6c33fc52c80d">
+        <File Id="Sound_audiodollar_adventure_wav_File" Source="sounds/audiodollar-adventure.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_melodygodzilla_wav" Guid="f822deb6-b8f6-425f-8bd2-58eff498c013">
+        <File Id="Sound_melodygodzilla_wav_File" Source="sounds/melodygodzilla.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_motivational_wav" Guid="49a69c47-9419-4df2-abd3-14ff5af36e86">
+        <File Id="Sound_motivational_wav_File" Source="sounds/motivational.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_nastelborn_wav" Guid="f3b7f016-8a02-4980-bb7d-55d6b3ce185b">
+        <File Id="Sound_nastelborn_wav_File" Source="sounds/nastelborn.wav" KeyPath="yes" />
+      </Component>
     </DirectoryRef>
 
     <DirectoryRef Id="AppProgramMenuFolder">
@@ -151,6 +169,12 @@
       <ComponentRef Id="Sound_spell_fireball_wav" />
       <ComponentRef Id="Sound_thief_wav" />
       <ComponentRef Id="Sound_thief2_wav" />
+      <ComponentRef Id="Sound_adventure1_wav" />
+      <ComponentRef Id="Sound_atlasaudio_wav" />
+      <ComponentRef Id="Sound_audiodollar_adventure_wav" />
+      <ComponentRef Id="Sound_melodygodzilla_wav" />
+      <ComponentRef Id="Sound_motivational_wav" />
+      <ComponentRef Id="Sound_nastelborn_wav" />
     </Feature>
 
   </Product>
