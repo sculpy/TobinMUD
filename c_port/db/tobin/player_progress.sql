@@ -29,3 +29,9 @@ ALTER TABLE `player_progress` ADD COLUMN IF NOT EXISTS `alignment` int(11) NOT N
 -- audit item -- same predates-this-change reasoning as `alignment` above.
 ALTER TABLE `player_progress` ADD COLUMN IF NOT EXISTS `vit` int(11) NOT NULL DEFAULT 50;
 ALTER TABLE `player_progress` ADD COLUMN IF NOT EXISTS `max_vit` int(11) NOT NULL DEFAULT 50;
+
+-- `mana`/`max_mana` added for the real mana pool (user 2026-08-06: "add
+-- mana to prompt"/"implement it just like sneezy") -- same
+-- predates-this-change reasoning as `vit`/`max_vit` above.
+ALTER TABLE `player_progress` ADD COLUMN IF NOT EXISTS `mana` int(11) NOT NULL DEFAULT 0;
+ALTER TABLE `player_progress` ADD COLUMN IF NOT EXISTS `max_mana` int(11) NOT NULL DEFAULT 0;

@@ -188,6 +188,22 @@ typedef struct {
      * as hunger/thirst immunity above. */
     int vit;
     int max_vit;
+    /* Mana (user 2026-08-06: "implement it just like sneezy" -- real
+     * SneezyMUD's own TPerson::manaLimit(): a Mage's pool is `100 +
+     * getSkillValue(SKILL_MANA) * 3` (their own "mana" skill governs
+     * its size, gained the same learn-by-doing way as any other skill
+     * -- see skill.c's roster entry and cmd_cast.c), a
+     * Ranger/Monk-lineage class gets `100 + level * 3` instead (no
+     * comparable skill exists for them); Tobin folds Ranger into Druid,
+     * so Druid uses that second formula (being_calc_max_mana(),
+     * being.c) and Cleric/Warrior/Thief/Monk get none -- Cleric spends
+     * a wholly separate resource (piety) in the original that Tobin
+     * hasn't built, so `pray` still costs nothing numeric, unchanged.
+     * Spent on `cast` per real spell_info.cc MANA_<n> values where one
+     * exists (spell_mana.c), regenerates on the same tick/position
+     * weighting as HP/Vitality (regen.c). */
+    int mana;
+    int max_mana;
 } progress_t;
 
 /* Prompt customization bits (player.prompt_flags, cmd_prompt.c; rendered
@@ -209,6 +225,13 @@ typedef struct {
  * toward" convention. */
 #define PROMPT_FLAG_EXP 8
 #define PROMPT_FLAG_EXPNEED 16
+/* PROMPT_FLAG_MANA (user 2026-08-06, once the mana pool itself shipped --
+ * see progress_t's own mana/max_mana comment): 0 for a non-caster, same
+ * "just doesn't show" convention as any other stat a given character
+ * doesn't have (e.g. Vitality already does this for nobody currently,
+ * but mana is the first stat that's genuinely absent for MOST classes
+ * by design, not just untested). */
+#define PROMPT_FLAG_MANA 32
 
 /* Player flag bits (player.pflags). PLR_NEWBIE = on the newbie help channel
  * (default on; toggle off with `toggle newbie`). PLR_NOSHOUT = opted out of
@@ -1122,6 +1145,12 @@ int being_calc_max_hp(const being_t *b);
  * alongside being_calc_max_hp() if a real growth curve is designed. */
 int being_calc_max_vit(const being_t *b);
 
+/* Recomputes `b`'s max mana -- see progress_t's own mana/max_mana doc
+ * comment for the real per-class formula this ports from SneezyMUD.
+ * Returns 0 for any class/kind with no mana pool at all (most of the
+ * roster). */
+int being_calc_max_mana(const being_t *b);
+
 /* (Re)sets every limb's max_hp from b->progress.max_hp (split evenly across
  * LIMB_COUNT, placeholder -- the original weights per-slot max via
  * hitLimit()/slotChance(), not replicated here) and heals every limb to
@@ -1159,6 +1188,19 @@ void being_heal_vit(being_t *b, int amount);
  * unlike progress.hp). Used by cmd_move.c to pay a sector's movement
  * cost. No-op for amount <= 0. */
 void being_spend_vit(being_t *b, int amount);
+
+/* Heals b's mana by `amount` (clamped at max_mana). No-op for
+ * amount <= 0 or for a being with no mana pool (max_mana == 0). Used
+ * by the regen tick and by `cast meditate` (cmd_cast.c). */
+void being_heal_mana(being_t *b, int amount);
+
+/* Spends `amount` of b's mana (clamped at 0). No-op for amount <= 0.
+ * Used by cmd_cast.c to pay a spell's real mana cost (spell_mana.c).
+ * Callers must check `progress.mana >= cost` themselves first and
+ * refuse the cast otherwise -- this function does not refuse, same
+ * "spend, don't gate" division of responsibility being_spend_vit()
+ * already uses (cmd_move.c does its own affordability check). */
+void being_spend_mana(being_t *b, int amount);
 
 /* GMCP/MSDP push on vitals change (TobinMUD Client project, 2026-08-05).
  * No-op unless `b` is a connected PC (`b->desc`) with the matching

@@ -30,14 +30,15 @@ bool cmd_prompt(descriptor_t *d, const char *args) {
     if (!ch)
         return true;
 
-    char msg[220];
+    char msg[256];
     if (!*args) {
         snprintf(msg, sizeof(msg),
-                 "Prompt: hp %s, gold %s, vit %s, exp %s, expneed %s. "
-                 "Usage: prompt hp|gold|vit|exp|expneed|all\r\n",
+                 "Prompt: hp %s, gold %s, vit %s, mana %s, exp %s, expneed %s. "
+                 "Usage: prompt hp|gold|vit|mana|exp|expneed|all\r\n",
                  (ch->prompt_flags & PROMPT_FLAG_HP) ? "ON" : "off",
                  (ch->prompt_flags & PROMPT_FLAG_GOLD) ? "ON" : "off",
                  (ch->prompt_flags & PROMPT_FLAG_VIT) ? "ON" : "off",
+                 (ch->prompt_flags & PROMPT_FLAG_MANA) ? "ON" : "off",
                  (ch->prompt_flags & PROMPT_FLAG_EXP) ? "ON" : "off",
                  (ch->prompt_flags & PROMPT_FLAG_EXPNEED) ? "ON" : "off");
         descriptor_send(d, msg);
@@ -52,7 +53,7 @@ bool cmd_prompt(descriptor_t *d, const char *args) {
 
     if (strcasecmp(tok, "all") == 0) {
         ch->prompt_flags |= PROMPT_FLAG_HP | PROMPT_FLAG_GOLD | PROMPT_FLAG_VIT
-                           | PROMPT_FLAG_EXP | PROMPT_FLAG_EXPNEED;
+                           | PROMPT_FLAG_MANA | PROMPT_FLAG_EXP | PROMPT_FLAG_EXPNEED;
         player_set_prompt_flags(ch->player_id, ch->prompt_flags);
         game_log(LOG_SILENT, "%s turns on every available prompt stat", ch->base.name);
         descriptor_send(d, "Your prompt will now show every available stat.\r\n");
@@ -70,6 +71,9 @@ bool cmd_prompt(descriptor_t *d, const char *args) {
     } else if (strcasecmp(tok, "vit") == 0) {
         flag = PROMPT_FLAG_VIT;
         label = "vitality";
+    } else if (strcasecmp(tok, "mana") == 0) {
+        flag = PROMPT_FLAG_MANA;
+        label = "mana";
     } else if (strcasecmp(tok, "exp") == 0) {
         flag = PROMPT_FLAG_EXP;
         label = "experience";
@@ -77,7 +81,7 @@ bool cmd_prompt(descriptor_t *d, const char *args) {
         flag = PROMPT_FLAG_EXPNEED;
         label = "experience needed to level";
     } else {
-        descriptor_send(d, "Usage: prompt hp|gold|vit|exp|expneed|all\r\n");
+        descriptor_send(d, "Usage: prompt hp|gold|vit|mana|exp|expneed|all\r\n");
         return true;
     }
 

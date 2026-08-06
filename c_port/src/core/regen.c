@@ -61,12 +61,28 @@ void regen_tick_run(long pulse_num) {
             vit_amount = 1;
         being_heal_vit(b, vit_amount);
 
+        /* Mana (user 2026-08-06: "add mana to prompt" -- once the pool
+         * itself shipped, it needs a regen tick same as HP/Vitality).
+         * being_heal_mana() is already a no-op for max_mana == 0, so
+         * this line costs nothing for the classes that don't have one. */
+        being_heal_mana(b, regen_amount(b));
+
         /* User 2026-08-03: "when completely rested ... you should
          * automatically stand" -- reaching full HP AND vitality while
          * resting/sitting/sleeping (not already standing) stands the
          * character back up on their own, same spirit as meditate.c's
-         * own yoginsa/meditation version of this below. */
-        if (b->position != POSITION_STANDING
+         * own yoginsa/meditation version of this below. Skipped while
+         * `meditating` (found live 2026-08-06): a Mage using `meditate`
+         * for Mana almost always already has full HP/Vitality (those
+         * regen far faster and aren't what they're meditating for), so
+         * this used to fire on literally the FIRST tick and force them
+         * standing before meditate_tick_run() ever got a chance to
+         * restore any mana at all -- meditate.c's own topped_off check
+         * (the resource that command actually cares about) is the only
+         * one that should decide when a meditating being stands back
+         * up. */
+        if (!b->meditating
+            && b->position != POSITION_STANDING
             && b->progress.hp >= b->progress.max_hp
             && b->progress.vit >= b->progress.max_vit) {
             b->position = POSITION_STANDING;

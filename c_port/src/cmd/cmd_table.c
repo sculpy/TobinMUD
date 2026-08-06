@@ -680,6 +680,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "engage",  cmd_hit,     "Attack a player or mobile via real combat, even for immortals (never instakill).", MORTAL_LEVEL_MIN },
     { "throatslit", cmd_throatslit, "A lethal opening throat-slitting attack (Thief, throatslit <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
     { "yoginsa", cmd_yoginsa, "Meditate to recover HP and Vitality faster (Monk, sits you down automatically).", MORTAL_LEVEL_MIN },
+    { "meditate", cmd_meditate, "Meditate to recover Mana faster (Mage/Druid, sits you down automatically).", MORTAL_LEVEL_MIN },
     /* SWAP: continue before consider, so "con" keeps repeating a heal
      * rather than sizing up a fight; consider needs "cons". */
     { "continue", cmd_continue, "Repeat your last heal-type prayer until the target is healed or your holy symbols run out.", MORTAL_LEVEL_MIN },

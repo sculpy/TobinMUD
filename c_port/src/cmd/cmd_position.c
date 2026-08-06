@@ -8,6 +8,7 @@
 
 #include "affect.h"
 #include "being.h"
+#include "skill.h"
 
 /* Body positions: sit / stand / rest / sleep / wake. Each sets being.position
  * and announces to the room. Movement requires standing (cmd_move.c), you
@@ -62,6 +63,24 @@ bool cmd_stand(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* `yoginsa` (Monk, and anyone else who knows it) used to require
+ * manually typing the command to start the background meditation task
+ * (meditate_tick_run(), meditate.c) -- user 2026-08-06: "yoginsa should
+ * be automatic". Sitting or resting now starts it on its own for
+ * anyone who knows the skill and isn't already meditating; `yoginsa`
+ * itself still works too (as an explicit stop/restart toggle, or to
+ * start meditating without changing position first -- see its own
+ * header comment, cmd_yoginsa.c), it's just no longer the only way in. */
+static void auto_start_meditating(descriptor_t *d, being_t *ch) {
+    if (ch->meditating)
+        return;
+    bool imm = being_is_immortal(ch);
+    if (!imm && !being_knows_skill(ch, "yoginsa"))
+        return;
+    ch->meditating = true;
+    descriptor_send(d, "You begin meditating.\r\n");
+}
+
 /* `sit` command: drops the character to POSITION_SITTING. */
 bool cmd_sit(descriptor_t *d, const char *args) {
     (void)args;
@@ -75,6 +94,7 @@ bool cmd_sit(descriptor_t *d, const char *args) {
         return true;
     }
     set_position(d, POSITION_SITTING, "You sit down.\r\n", "%s sits down.\r\n");
+    auto_start_meditating(d, ch);
     return true;
 }
 
@@ -93,6 +113,7 @@ bool cmd_rest(descriptor_t *d, const char *args) {
     }
     set_position(d, POSITION_RESTING, "You settle down and rest.\r\n",
                  "%s settles down to rest.\r\n");
+    auto_start_meditating(d, ch);
     return true;
 }
 

@@ -19,6 +19,7 @@
 #include "pulse.h"
 #include "room.h"
 #include "spell_flavor.h"
+#include "spell_mana.h"
 #include "room_repo.h"
 #include "skill.h"
 #include "thing.h"
@@ -558,33 +559,6 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             descriptor_send(d, msg);
             if (target->desc && cured)
                 descriptor_notify(target->desc, "Your sickness lifts!\r\n");
-        }
-    } else if (strcasecmp(sk->name, "meditate") == 0 || strcasecmp(sk->name, "refresh") == 0) {
-        /* `meditate` (Mage/Druid, level 1, roster gap/flavor-text pass
-         * 2026-07-27): the skill_help.sql entry that shipped with the
-         * roster import said "Rest to recover mana faster" and was left
-         * "Not yet wired to a real effect" -- Tobin has no mana pool at
-         * all (see yoginsa's own header comment in cmd_yoginsa.c), so
-         * there was never a real resource for it to refill. Corrected and
-         * wired the same way yoginsa itself was: a single-action Vitality
-         * restore, same "meditative discipline" framing, same formula.
-         * Same shape as the heal branch just above -- target defaults to
-         * self, an explicit ally target restores their Vitality instead. */
-        int amount = 8 + ch->progress.level / 2;
-        being_heal_vit(target, amount);
-        if (target == ch) {
-            snprintf(msg, sizeof(msg), "You cast %s and feel your vitality return! (+%d Vit)\r\n", sk->name, amount);
-            descriptor_send(d, msg);
-        } else {
-            snprintf(msg, sizeof(msg), "You cast %s, and %s looks refreshed! (+%d Vit)\r\n",
-                     sk->name, being_display_name(target), amount);
-            descriptor_send(d, msg);
-            if (target->desc) {
-                char tcapbuf[128];
-                snprintf(msg, sizeof(msg), "%s casts %s, refreshing your vitality! (+%d Vit)\r\n",
-                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), sk->name, amount);
-                descriptor_notify(target->desc, msg);
-            }
         }
     } else if (ci_contains(sk->desc, "heal")
                /* `salve` (Druid, level-12 stub-audit fix): desc "Treats
@@ -1899,6 +1873,18 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         descriptor_send(d, "You don't know a spell by that name.\r\n");
         return true;
     }
+    /* `meditate` is NOT a spell (user 2026-08-06) -- caught here, before
+     * ANY of the normal cast machinery below (level/discipline gates,
+     * component check, mana spend, flavor text, skill-roll/proficiency
+     * gain) runs for it. It's a real standalone command now
+     * (cmd_meditate.c) -- redirecting this early means `cast meditate`
+     * costs nothing and trains nothing, unlike the brief window earlier
+     * this same session where it fell through to the normal spell
+     * dispatch and did all of that before redirecting. */
+    if (strcasecmp(sk->name, "meditate") == 0 || strcasecmp(sk->name, "refresh") == 0) {
+        descriptor_send(d, "Meditate isn't something you cast -- just type `meditate`.\r\n");
+        return true;
+    }
     if (!imm && ch->progress.level < sk->min_level) {
         char msg[96];
         snprintf(msg, sizeof(msg), "You aren't experienced enough to cast %s yet (level %d).\r\n",
@@ -2432,12 +2418,62 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* Real mana cost (user 2026-08-06: "implement it just like sneezy"),
+     * Mage only -- Druid has no mana pool at all (a separate, not-yet-
+     * built Lifeforce resource in the real game, see
+     * being_calc_max_mana()'s own doc comment), so gating Druid's cast
+     * on mana here would wrongly refuse every Druid spell outright
+     * (max_mana is always 0 for them). Checked and spent before the
+     * skill roll below, same order real spellcasting tasks use (pay
+     * first, THEN find out if it worked) -- an immortal never pays,
+     * same "no restrictions" spirit as every other immortal bypass in
+     * this function. */
+    if (!imm && ch->char_class == CLASS_MAGE) {
+        int cost = spell_mana_cost(sk->name, sk->min_level);
+        if (ch->progress.mana < cost) {
+            char lowmsg[96];
+            snprintf(lowmsg, sizeof(lowmsg), "You don't have enough mana to cast %s (need %d).\r\n",
+                     sk->name, cost);
+            descriptor_send(d, lowmsg);
+            return true;
+        }
+        being_spend_mana(ch, cost);
+    }
+
     /* Per-skill proficiency (Sneezy-style learn-by-doing, user 2026-07-17)
      * -- separate from the discipline-percentage ACCESS gate above, this
      * is the caster's own success chance at THIS specific spell, and it
      * climbs with every attempt. Immortals always succeed, same "no
      * restrictions" spirit as their other gate bypasses. */
-    if (imm || skill_roll_success(skill_learn_from_doing(ch, sk))) {
+    bool cast_ok = imm || skill_roll_success(skill_learn_from_doing(ch, sk));
+
+    /* `wizardry` and `mana` proficiency (user 2026-08-06: "wizardry
+     * should also gain automatically from casting") -- both are Mage-
+     * only base skills that back EVERY cast ("the core skill of casting
+     * itself" / "governs the size of your mana pool", skill.c), not any
+     * one specific spell, so they train on every attempt regardless of
+     * which spell was cast or whether it succeeded -- same "gain by
+     * doing, win or lose" spirit `sk` itself just used above. `mana`
+     * training here is also what makes being_calc_max_mana()'s pool
+     * actually grow over time, mirroring real SneezyMUD's own
+     * SKILL_MANA-drives-manaLimit() relationship. */
+    if (!imm && ch->char_class == CLASS_MAGE) {
+        const skill_def_t *wizardry_sk = skill_find(CLASS_MAGE, "wizardry", false);
+        if (wizardry_sk && wizardry_sk != sk)
+            skill_learn_from_doing(ch, wizardry_sk);
+        const skill_def_t *mana_sk = skill_find(CLASS_MAGE, "mana", false);
+        if (mana_sk && mana_sk != sk)
+            skill_learn_from_doing(ch, mana_sk);
+        /* max_mana is DERIVED from the mana skill's own proficiency
+         * (being_calc_max_mana()) -- recompute now that training just
+         * above may have moved it, same "recompute on demand" pattern
+         * being_calc_max_hp() already uses after a level-up. */
+        ch->progress.max_mana = being_calc_max_mana(ch);
+        if (ch->progress.mana > ch->progress.max_mana)
+            ch->progress.mana = ch->progress.max_mana;
+    }
+
+    if (cast_ok) {
         task_cast(d, ch, target, sk);
     } else {
         char msg[128];

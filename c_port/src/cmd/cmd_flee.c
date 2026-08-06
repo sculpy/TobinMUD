@@ -82,7 +82,13 @@ bool cmd_flee(descriptor_t *d, const char *args) {
     descriptor_room_echo(from, ch, msg);
 
     thing_set_room(&ch->base, to);
-    descriptor_send(d, "<y>You flee head over heels!<z>\r\n");
+    /* Names the actual direction fled (user 2026-08-06: "when you flee
+     * you should see what direction you fled") -- `dir` was already
+     * picked at random above; DIR_NAMES (room.h) is the same lookup
+     * `exits`/cmd_move.c use for direction names elsewhere. */
+    char fleemsg[64];
+    snprintf(fleemsg, sizeof(fleemsg), "<y>You flee %s, head over heels!<z>\r\n", DIR_NAMES[dir]);
+    descriptor_send(d, fleemsg);
 
     snprintf(msg, sizeof(msg), "%s arrives, panting and out of breath.\r\n", ch->base.name);
     descriptor_room_echo(to, ch, msg);

@@ -31,8 +31,30 @@ void meditate_tick_run(long pulse_num) {
             continue;
         }
 
+        /* Resource-aware (user 2026-08-06: "meditate sits a character
+         * down and meditates back to his max mana" -- `meditate`
+         * (cmd_meditate.c, Mage/Druid) and `yoginsa` (cmd_yoginsa.c,
+         * Monk) both just toggle this same `meditating` flag and land
+         * here; which SKILL a being actually knows decides which real
+         * resource this tick restores -- Mana for a `meditate`-knowing
+         * Mage (being_calc_max_mana() is Mage-only, see its own doc
+         * comment for why not Druid), HP/Vitality for anyone else
+         * (Monk's `yoginsa`, or a Druid whose own `meditate` entry has
+         * no numeric resource to restore yet either -- same disclosed
+         * Lifeforce gap as before). An immortal always succeeds and
+         * always gets the HP/Vitality path (no skill to check against). */
         bool imm = being_is_immortal(ch);
-        const skill_def_t *sk = skill_find(ch->char_class, "yoginsa", imm);
+        /* Class alone decides the resource, same as being_calc_max_mana()
+         * itself (no imm check there either) -- an immortal playing a
+         * Mage still has a real mana pool and should meditate it back
+         * up, not silently fall through to the HP/Vitality path just
+         * because they're immune to the skill-roll/being_knows_skill()
+         * gate below. Found live (2026-08-06): an immortal Mage's
+         * meditate ended instantly claiming "fully rested" because it
+         * was checking already-full HP/Vit instead of their actual
+         * (not-full) mana. */
+        bool mana_mode = ch->char_class == CLASS_MAGE;
+        const skill_def_t *sk = skill_find(ch->char_class, mana_mode ? "meditate" : "yoginsa", imm);
         bool success = imm || !sk || skill_roll_success(skill_learn_from_doing(ch, sk));
         if (!success) {
             descriptor_send(d, "You try to meditate, but your mind won't settle.\r\n");
@@ -40,9 +62,14 @@ void meditate_tick_run(long pulse_num) {
         }
 
         int heal = 5 + ch->progress.level / 2;
-        being_heal(ch, heal);
-        being_heal_vit(ch, heal);
-        descriptor_send(d, "<g>Meditating refreshes your inner harmonies!<z>\r\n");
+        if (mana_mode) {
+            being_heal_mana(ch, heal);
+            descriptor_send(d, "<g>Meditating clears your mind, and your focus returns!<z>\r\n");
+        } else {
+            being_heal(ch, heal);
+            being_heal_vit(ch, heal);
+            descriptor_send(d, "<g>Meditating refreshes your inner harmonies!<z>\r\n");
+        }
 
         /* `wohlin meditation` (Monk, level 25, level-25 audit batch:
          * "While meditating, unlocks bonus self-cure effects."). This is
@@ -80,8 +107,10 @@ void meditate_tick_run(long pulse_num) {
          * above (position change, fighting). Checked last so this
          * tick's own wohlin cure (just above) still applies before
          * standing up. */
-        if (ch->progress.hp >= ch->progress.max_hp
-            && ch->progress.vit >= ch->progress.max_vit) {
+        bool topped_off = mana_mode
+            ? (ch->progress.mana >= ch->progress.max_mana)
+            : (ch->progress.hp >= ch->progress.max_hp && ch->progress.vit >= ch->progress.max_vit);
+        if (topped_off) {
             ch->meditating = false;
             ch->position = POSITION_STANDING;
             descriptor_send(d, "You feel fully rested and stand up.\r\n");

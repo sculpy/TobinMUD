@@ -31,10 +31,13 @@
  * opportunity.
  *
  * The class-dependent resource-pool field (Mana/Piety/Lifeforce, see
- * resource_pool_label() below) is always 0 -- Tobin has no mana/piety/
- * lifeforce resource pool at all (a disclosed simplification going back
- * to the offensive-spell-system work; see TODO.md), the field is kept in
- * the layout only because the wireframe asked for it by name. `Move` is
+ * resource_pool_label() below) shows a real number for Mage (Mana,
+ * user 2026-08-06: "implement it just like sneezy" -- progress_t.mana/
+ * max_mana, being_calc_max_mana()) as of this session; Cleric (Piety)
+ * and Druid (Lifeforce) still show 0 -- neither resource has been built
+ * yet, a disclosed simplification going back to the offensive-spell-
+ * system work (see TODO.md); the field stayed in the layout even before
+ * Mana existed only because the wireframe asked for it by name. `Move` is
  * Tobin's own Vitality stat (progress_t.vit/max_vit, the terrain-
  * movement-cost resource added earlier), relabeled to match the
  * wireframe wording. */
@@ -111,7 +114,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
              "  Name: %s\tLevel: %s%s%s\tExperience: %ld\r\n"
              "  Race: %s\tClass: %s\tGold: %d\tBank: %d\r\n"
              "  Homeland: %s\r\n"
-             "  HP: %d (%d Max.) (%s)\t%s: 0\tMove: %d (%d Max.)\r\n"
+             "  HP: %d (%d Max.) (%s)\t%s: %d\tMove: %d (%d Max.)\r\n"
              "  Str: %d\tInt: %d\tDex: %d\r\n"
              "  Wis: %d\tCon: %d\tCha: %d\r\n"
              "  Armor Class: %d  Pri. Hand: %s  Sex: %s\r\n"
@@ -122,6 +125,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
              race_name(ch->race), class_name(ch->char_class), p->gold, p->bank_gold,
              territory_name(ch->territory),
              p->hp, p->max_hp, being_health_word(ch), resource_pool_label(ch->char_class),
+             ch->char_class == CLASS_MAGE ? p->mana : 0,
              p->vit, p->max_vit,
              a->strength, a->intelligence, a->dexterity,
              a->wisdom, a->constitution, a->charisma,

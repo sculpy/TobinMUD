@@ -68,6 +68,8 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
     being_limbs_full_heal(b);
     b->progress.max_vit = being_calc_max_vit(b);
     b->progress.vit = b->progress.max_vit;
+    b->progress.max_mana = being_calc_max_mana(b);
+    b->progress.mana = b->progress.max_mana;
     b->progress.hunger = 100;
     b->progress.thirst = 100;
     /* A starting stipend (user 2026-07-28: "let all players start with
@@ -688,6 +690,38 @@ int being_calc_max_vit(const being_t *b) {
         return 50;
     int con_bonus = b->attrs.constitution - ATTR_BASE;
     return 50 + con_bonus + b->progress.level * 2;
+}
+
+/* Real Mage mana formula, ported from SneezyMUD's own
+ * TPerson::manaLimit() (user 2026-08-06: "implement it just like
+ * sneezy") -- see progress_t's own mana/max_mana doc comment (being.h).
+ * The "mana" skill IS the real upstream SKILL_MANA (skill.c's roster
+ * entry, "Governs the size of your mana pool"), gained the normal
+ * learn-by-doing way every time it's rolled in cmd_cast.c. Scoped to
+ * Mage only, NOT Druid -- real SneezyMUD gives Druid's own Ranger/
+ * Shaman-lineage spells a separate LIFEFORCE resource, not mana (see
+ * spell_info.cc's per-spell MANA_n vs LIFEFORCE_n arguments), matching
+ * Tobin's own pre-existing resource_pool_label() (cmd_score.c), which
+ * already calls Druid's pool "Lifeforce (LF)" distinctly from Mage's
+ * "Mana" -- building a Druid mana pool here would misuse that label,
+ * not honor it. Lifeforce itself is a separate, not-yet-built resource
+ * (still shows 0 in score, same disclosed gap as before this pass) --
+ * out of scope for this request, which only ever asked about mana.
+ * Cleric/Warrior/Thief/Monk get 0 -- no mana pool at all. */
+int being_calc_max_mana(const being_t *b) {
+    if (!b)
+        return 0;
+    /* A mob with no recognized class defaults char_class to CLASS_MAGE
+     * (calloc's zero value, see mob_class_mask_to_tobin()'s own doc
+     * comment) -- guard against silently granting every unclassed mob
+     * in the game a Mage-shaped mana pool it will never use. */
+    if (b->base.kind == THING_MOB && !b->mob_class_known)
+        return 0;
+    if (b->char_class != CLASS_MAGE)
+        return 0;
+    const skill_def_t *mana_sk = skill_find(CLASS_MAGE, "mana", false);
+    int pct = mana_sk ? skill_proficiency(b, mana_sk) : 0;
+    return 100 + pct * 3;
 }
 
 static const char *LIMB_NAMES[LIMB_COUNT] = {
@@ -1415,6 +1449,30 @@ void being_spend_vit(being_t *b, int amount) {
     b->progress.vit -= amount;
     if (b->progress.vit < 0)
         b->progress.vit = 0;
+}
+
+/* Restores `amount` of mana to `b`, clamped at max_mana -- the mana
+ * counterpart to being_heal_vit(). A no-op (not just a clamp to 0) for
+ * a being with no mana pool (max_mana == 0), same as any other stat
+ * that class/kind genuinely doesn't have. */
+void being_heal_mana(being_t *b, int amount) {
+    if (!b || amount <= 0 || b->progress.max_mana <= 0)
+        return;
+    b->progress.mana += amount;
+    if (b->progress.mana > b->progress.max_mana)
+        b->progress.mana = b->progress.max_mana;
+}
+
+/* Deducts `amount` of mana from `b`, clamped at 0 -- the spend side of
+ * being_heal_mana(), used by cmd_cast.c to pay a spell's real mana
+ * cost (spell_mana.c). Does not refuse an overspend itself -- see
+ * being.h's own doc comment on why that's the caller's job. */
+void being_spend_mana(being_t *b, int amount) {
+    if (!b || amount <= 0)
+        return;
+    b->progress.mana -= amount;
+    if (b->progress.mana < 0)
+        b->progress.mana = 0;
 }
 
 /* See being.h. GMCP/MSDP project (2026-08-05). */

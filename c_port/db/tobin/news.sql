@@ -529,3 +529,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Casting and Praying Now Show Real Flavor Text', 'Every cast and prayer now shows a gesture, a few spoken words, and a moment where you feel the magic take shape, before its effect happens -- more of the feel of actually working the spell, not just an instant result.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Mages Now Have a Real Mana Pool', 'Mages finally have a real mana pool, shown in score and toggleable into your prompt with `prompt mana`. Every spell has its own real cost drawn straight from the classic game, and running dry means you can''t cast until you recover. `meditate` is no longer something you cast -- it''s its own command now, just like `yoginsa`: it sits you down and restores your mana over time on its own.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
