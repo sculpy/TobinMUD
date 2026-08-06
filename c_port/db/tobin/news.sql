@@ -533,3 +533,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Mages Now Have a Real Mana Pool', 'Mages finally have a real mana pool, shown in score and toggleable into your prompt with `prompt mana`. Every spell has its own real cost drawn straight from the classic game, and running dry means you can''t cast until you recover. `meditate` is no longer something you cast -- it''s its own command now, just like `yoginsa`: it sits you down and restores your mana over time on its own.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'HP and Movement Rebalanced Toward the Classic Game', 'Max HP and max movement now scale the same way they did in the classic game -- new characters, and squishier classes like Mage, should feel noticeably less fragile than before.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

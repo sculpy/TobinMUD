@@ -5,6 +5,7 @@
 #include "being.h"
 
 #include <ctype.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -617,39 +618,53 @@ void being_set_wait(being_t *b, int pulses) {
     b->wait_pulses = pulses;
 }
 
-/* Relative HP-per-level scaling by class (PCs only), loosely mirroring the
- * original's hpGainForClass()'s ranking (warrior/monk tankiest, mage
- * squishiest) without porting its per-level-roll mechanic -- Tobin has no
- * level-up event to hook a per-level roll into yet, so this just scales
- * the flat per-level term class_stat_bonus() doesn't otherwise touch. */
-/* Real per-level HP gain, by class (misc/limits.cc's hpGainForClass()):
- * a random roll each level-up (Warrior 6-11, Cleric 5-7, Ranger 6-8,
- * Thief 4-8, Monk 4-7, Mage 3-7) -- averaged here since Tobin recomputes
- * max_hp on demand from level rather than accumulating random per-level
- * rolls. Ranger has no Tobin class of its own; Druid reuses its number,
- * matching the existing CLASS_DRUID<-mob.class(ranger) mapping
- * (being_map_mob_class(), Session ~2026-07-12) elsewhere in this file.
- * Replaces the old placeholder ratios (Warrior 1.3x/Mage 0.8x etc, an
- * unsourced guess) applied to a flat "5 per level" -- this is now the
- * real average gain itself, not a multiplier on an arbitrary base.
- * User (2026-07-28): "hp assigned to new characters and hp gain per
- * level need balancing" -- grounded in source; the `balance` command's
- * own class_balance_get()->hp_mult (applied on top, unchanged below)
- * stays the live-adjustable knob for anything these real averages still
- * don't quite hit (e.g. a from-scratch Warrior computes to ~28 HP at
- * level 1 and ~445 at level 50 against real upstream's own documented
- * anchors of 25 and 500 -- the gap is real upstream's PER-LEVEL
- * multiplicative CON scaling, getConHpModifier(), which this pass does
- * NOT port; Tobin's con_bonus stays a flat one-time addition). */
+/* Direct port of real SneezyMUD's plotValue<T,V>() template
+ * (misc/extern.h) -- a two-branch power curve that maps a raw stat
+ * into a min/avg/max output range, used everywhere upstream turns CON
+ * (or any stat) into a smooth non-linear bonus/multiplier instead of a
+ * flat linear one (getConHpModifier(), getMaxMove()'s CON term, etc).
+ * `power` defaults to 1.4 upstream; callers here always pass it
+ * explicitly to keep this a faithful, no-surprises port. Tobin's
+ * point-buy attribute scale (ATTR_BASE=120, ATTR_MAX=250) has no
+ * MIN_STAT/MAX_STAT analog of its own, so callers pass [0, ATTR_MAX]
+ * as the input bound -- same curve shape, remapped onto Tobin's own
+ * numbers (user 2026-08-06: "sneezy had good balance, no sense
+ * reinventing the wheel"). */
+static double plot_value(double value, double lower, double upper,
+                          double minv, double maxv, double avg, double power) {
+    double midline = (upper - lower) / 2.0 + lower;
+    if (value < lower) value = lower;
+    if (value > upper) value = upper;
+    double a, b;
+    if (value >= midline) {
+        a = (maxv - avg) / (pow(upper, power) - pow(midline, power));
+        b = avg - pow(midline, power) * a;
+    } else {
+        a = (avg - minv) / (pow(midline, power) - pow(lower, power));
+        b = minv - pow(lower, power) * a;
+    }
+    return a * pow(value, power) + b;
+}
+
+/* Real per-level HP rates, ported from SneezyMUD's own classInfo[]
+ * table (constants.cc) -- user 2026-08-06 gave the exact numbers to
+ * use, matching real Sneezy's own scaling: tank classes (Warrior) earn
+ * a full level's worth of HP per level, non-tank classes are scaled to
+ * only earn "35 levels' worth spread over 50" (real comment, real
+ * source) -- e.g. Cleric/Thief's real 8.0 becomes 8.0*35/50=5.6, and
+ * Mage/Shaman/Monk's real 7.5 becomes 7.5*35/50=5.25. Druid has no
+ * real-Sneezy analog (it's Tobin's own stand-in for Ranger/Shaman
+ * lineage, see mob_class_mask_to_tobin()'s doc comment) so it's
+ * grouped with Mage/Monk's 5.25 rather than invented from scratch. */
 static double class_hp_per_level(player_class_t c) {
     switch (c) {
         case CLASS_WARRIOR: return 8.5;
-        case CLASS_CLERIC:  return 6.0;
-        case CLASS_DRUID:   return 7.0;
-        case CLASS_THIEF:   return 6.0;
-        case CLASS_MONK:    return 5.5;
-        case CLASS_MAGE:    return 5.0;
-        default:            return 5.0;
+        case CLASS_CLERIC:  return 5.6;
+        case CLASS_THIEF:   return 5.6;
+        case CLASS_DRUID:   return 5.25;
+        case CLASS_MONK:    return 5.25;
+        case CLASS_MAGE:    return 5.25;
+        default:            return 5.25;
     }
 }
 
@@ -663,7 +678,6 @@ static double class_hp_per_level(player_class_t c) {
 int being_calc_max_hp(const being_t *b) {
     if (!b)
         return 20;
-    int con_bonus = b->attrs.constitution - ATTR_BASE;
     double per_level = 5.0;
     double scale = 1.0;
     /* Gamewide HP multiplier (user 2026-07-12's `balance` command) --
@@ -678,18 +692,44 @@ int being_calc_max_hp(const being_t *b) {
         per_level = class_hp_per_level(b->char_class);
         scale *= class_balance_get(b->char_class)->hp_mult;
     }
-    return 20 + con_bonus + (int)(b->progress.level * per_level * scale);
+    /* baseHp()=21 + ageHpMod()=16 -- real upstream's ageHpMod() is a
+     * graf() age curve, but real aging is permanently disabled there
+     * too (pinned to a constant "35 year old" result), so both are
+     * just constants here, exactly as upstream itself currently
+     * behaves. */
+    double base_and_age = 21.0 + 16.0;
+    double class_term = b->progress.level * per_level * scale;
+    /* getConHpModifier(): real upstream plots CON through a 0.8..1.25
+     * power curve centered on 1.0, then multiplies the WHOLE base+age+
+     * level sum by it (not a flat additive bonus) -- this is the exact
+     * mechanic the old flat `con_bonus` approximation was missing. */
+    double con_mod = plot_value(b->attrs.constitution, 0.0, (double)ATTR_MAX,
+                                 0.8, 1.25, 1.0, 1.4);
+    return (int)((base_and_age + class_term) * con_mod);
 }
 
-/* Recomputes `b`'s max vitality (the stamina-like pool skills/spells
- * spend from) from constitution and level, same "recompute on demand"
- * role as being_calc_max_hp() above but with its own flatter, class-
- * independent formula. */
+/* Recomputes `b`'s max vitality (Tobin's movement-cost pool, standing
+ * in for real SneezyMUD's "move" points) -- direct port of
+ * getMaxMove()/moveLimit() (misc/limits.cc): 100 + 15 + level +
+ * plotStat(CON, 3, 18, 13) [+ Iron Legs*2 for a Monk who knows it].
+ * Real upstream also adds race->getMoveMod() and a maxMove item/affect
+ * bonus and halves the total for TOG_IS_ASTHMATIC -- Tobin has no race
+ * move-mod table, no move-affecting gear/affects wired up yet, and no
+ * asthmatic quest bit, so those terms are simply absent rather than
+ * faked (user 2026-08-06: "sneezy had good balance, no sense
+ * reinventing the wheel" -- port what's real, disclose what's not). */
 int being_calc_max_vit(const being_t *b) {
     if (!b)
         return 50;
-    int con_bonus = b->attrs.constitution - ATTR_BASE;
-    return 50 + con_bonus + b->progress.level * 2;
+    double con_bonus = plot_value(b->attrs.constitution, 0.0, (double)ATTR_MAX,
+                                   3.0, 18.0, 13.0, 1.4);
+    double iron_legs_bonus = 0.0;
+    if (b->char_class == CLASS_MONK) {
+        const skill_def_t *sk = skill_find(CLASS_MONK, "iron legs", false);
+        if (sk)
+            iron_legs_bonus = skill_proficiency(b, sk) * 2.0;
+    }
+    return (int)(100.0 + 15.0 + b->progress.level + con_bonus + iron_legs_bonus);
 }
 
 /* Real Mage mana formula, ported from SneezyMUD's own

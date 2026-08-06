@@ -26,6 +26,7 @@ target_include_directories(tobin_c PRIVATE
 target_link_libraries(tobin_c PRIVATE
     ${MARIADB_LIBRARIES}
     crypt
+    m
     Threads::Threads
 )
 

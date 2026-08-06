@@ -1132,17 +1132,21 @@ int being_get_wait(const being_t *b);
 /* Sets b's wait to `pulses`. No-op for immortals. */
 void being_set_wait(being_t *b, int pulses);
 
-/* Placeholder max-HP formula: 20 base + (constitution above ATTR_BASE) +
- * 5 per level. Not the original's class/level-table-driven formula (no
- * classes exist) -- revisit once a real growth curve is designed. */
+/* Direct port of real SneezyMUD's TPerson::hitLimit() (misc/limits.cc):
+ * (baseHp()=21 + ageHpMod()=16 [both constants, since real aging is
+ * disabled upstream too] + classHpPerLevel()*level) * getConHpModifier()
+ * (a 0.8..1.25 power curve on CON, see being.c's plot_value()). Tobin's
+ * own `balance` command multiplier is folded into the class-level term
+ * on top of this real formula. User 2026-08-06: "sneezy had good
+ * balance, no sense reinventing the wheel." */
 int being_calc_max_hp(const being_t *b);
 
-/* Placeholder max-Vitality formula: 50 base + (constitution above
- * ATTR_BASE) + 2 per level -- same "CON-and-level-driven resource" shape
- * as the original's getMaxMove() (misc/limits.cc: 100 + 15 + level +
- * plotStat(CON,...)), scaled down since Tobin's vit only pays for
- * per-room movement cost, not a whole combat-fatigue economy. Revisit
- * alongside being_calc_max_hp() if a real growth curve is designed. */
+/* Direct port of real SneezyMUD's getMaxMove()/moveLimit()
+ * (misc/limits.cc): 100 + 15 + level + plotStat(CON,3,18,13), plus
+ * Iron Legs*2 for a Monk who knows it. Real upstream also folds in a
+ * per-race move mod, gear/affect move bonuses, and an asthmatic-quest-
+ * bit halving -- Tobin has none of those systems wired up yet, so
+ * they're simply absent rather than approximated. */
 int being_calc_max_vit(const being_t *b);
 
 /* Recomputes `b`'s max mana -- see progress_t's own mana/max_mana doc
