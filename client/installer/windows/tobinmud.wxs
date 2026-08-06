@@ -24,7 +24,7 @@
   <Product Id="*"
            Name="TobinMUD Client"
            Language="1033"
-           Version="0.4.0.0"
+           Version="0.4.1.0"
            Manufacturer="The TobinMUD Team"
            UpgradeCode="6f2a6f6e-9b1a-4b8a-8b0a-1f0b6a2c7e11">
 
@@ -32,6 +32,11 @@
 
     <MajorUpgrade DowngradeErrorMessage="A newer version of TobinMUD Client is already installed." />
     <MediaTemplate EmbedCab="yes" />
+
+    <!-- Add/Remove Programs icon (user 2026-08-05: fixing the generic-icon
+         symptom everywhere the client shows up, not just its own window). -->
+    <Icon Id="AppIcon.ico" SourceFile="tobinmud_icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="LocalAppDataFolder">

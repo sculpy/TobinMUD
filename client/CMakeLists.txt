@@ -21,8 +21,14 @@ add_library(tobinclient_core STATIC
 target_include_directories(tobinclient_core PUBLIC include)
 
 if(WIN32)
+    # Embeds tobinmud_icon.ico as the app's real icon resource (windres,
+    # via CMAKE_RC_COMPILER in the mingw toolchain file) -- fixes Windows
+    # synthesizing a generic letter-avatar icon for an icon-less exe (the
+    # "titlebar just shows a T" symptom, user 2026-08-05).
+    enable_language(RC)
     add_executable(TobinMUDClient WIN32
         src/win32/main.c
+        tobinmud.rc
     )
     target_link_libraries(TobinMUDClient PRIVATE
         tobinclient_core

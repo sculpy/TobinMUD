@@ -43,6 +43,7 @@
 #include "telnet_client.h"
 #include "ansi_client.h"
 #include "gmcp_json.h"
+#include "resource.h"
 
 #define DEFAULT_HOST "tobinmud.com"
 #define DEFAULT_PORT 4000
@@ -82,7 +83,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.0"
+#define CLIENT_VERSION "0.4.1"
 #define UPDATE_VERSION_URL "http://tobinmud.com/tobinclient/version.txt"
 #define UPDATE_MSI_URL "http://tobinmud.com/tobinclient/TobinMUDClient.msi"
 
@@ -991,6 +992,13 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {
     wc.lpszClassName = L"TobinMUDClientWindow";
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    /* Real embedded icon (tobinmud.rc) -- without this, Windows
+     * synthesizes a generic letter-avatar icon for the titlebar/
+     * taskbar/Alt-Tab (the "just shows a T" symptom, user 2026-08-05).
+     * WNDCLASSW (unlike WNDCLASSEXW) has no separate small-icon field --
+     * Windows derives the small titlebar icon from this same handle,
+     * and the .ico already carries every size (16-256px) windres needs. */
+    wc.hIcon = LoadIconW(hInst, MAKEINTRESOURCEW(IDI_APPICON));
     ATOM cls = RegisterClassW(&wc);
     debug_log(cls != 0 ? "WinMain: RegisterClassW OK" : "WinMain: RegisterClassW FAILED");
 
