@@ -525,3 +525,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Spellcasting Mobs Now Carry Real Spellbags', 'Mages and Druids you fight now carry a proper spellbag sized to their own strength, holding a real spell reagent inside -- loot it same as any other belongings.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Casting and Praying Now Show Real Flavor Text', 'Every cast and prayer now shows a gesture, a few spoken words, and a moment where you feel the magic take shape, before its effect happens -- more of the feel of actually working the spell, not just an instant result.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -18,6 +18,7 @@
 #include "liquids.h"
 #include "pulse.h"
 #include "room.h"
+#include "spell_flavor.h"
 #include "room_repo.h"
 #include "skill.h"
 #include "thing.h"
@@ -317,6 +318,7 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
      * nothing. Heal/buff branches keep using `target` directly (self by
      * default), unaffected -- see cmd_pray.c's identical atk_target for
      * the full rationale. */
+    spell_flavor_show(d, ch, false); /* user 2026-08-04/08-05: 3-line flavor text, modeled on real SneezyMUD's per-round sendCastingMessages() -- see spell_flavor.h */
     being_t *atk_target = (target != ch) ? target : ch->fighting;
     if (strcasecmp(sk->name, "sorcerer's globe") == 0) {
         /* Level-1 stub-audit fix (2026-08-04, user: "lower level players

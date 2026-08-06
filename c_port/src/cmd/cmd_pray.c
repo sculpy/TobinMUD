@@ -17,6 +17,7 @@
 #include "player_repo.h"
 #include "liquids.h"
 #include "pulse.h"
+#include "spell_flavor.h"
 #include "room.h"
 #include "room_repo.h"
 #include "skill.h"
@@ -309,6 +310,7 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
      * AND not fighting anyone) is handled per-branch with a "who?"
      * message rather than silently doing nothing. Heal/buff branches
      * keep using `target` directly (self by default), unaffected. */
+    spell_flavor_show(d, ch, true); /* user 2026-08-04/08-05: 3-line flavor text, modeled on real SneezyMUD's per-round sendCastingMessages() -- see spell_flavor.h */
     being_t *atk_target = (target != ch) ? target : ch->fighting;
     if (strcasecmp(sk->name, "clot") == 0) {
         /* Level-2 stub-audit fix (2026-08-04): "Stops a victim's
