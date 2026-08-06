@@ -14,11 +14,10 @@
  * as long as the server thinks you're fighting, distinct from MSP
  * SOUND's one-shot effects -- MUSIC plays via a dedicated MCI channel
  * so hit sounds can overlap it instead of cutting it off (see
- * play_msp()'s own comment). GMCP Char.Vitals/Room.Info update
- * the window title as a simple, real status readout -- a dedicated
- * status bar/HP gauge is a natural follow-up once this pipe is proven
- * working, not done here (v1 scope, matches every other "prove the
- * pipe first" precedent in this session). On launch, checks
+ * play_msp()'s own comment). GMCP Char.Vitals feeds a real HP/Mana/
+ * Move gauge strip (three native progress-bar controls between the
+ * menu bar and the scrollback, see set_gauge()); Room.Info still
+ * updates the window title. On launch, checks
  * UPDATE_VERSION_URL for a newer release and silently re-installs
  * itself via msiexec if one exists -- see check_and_apply_update()'s
  * own comment.
@@ -35,6 +34,7 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <richedit.h>
+#include <commctrl.h>
 #include <mmsystem.h>
 #include <wininet.h>
 #include <stdio.h>
@@ -50,6 +50,12 @@
 #define DEFAULT_PORT 4000
 #define ID_INPUT 101
 #define ID_OUTPUT 102
+#define ID_GAUGE_LABEL_HP 401
+#define ID_GAUGE_BAR_HP 402
+#define ID_GAUGE_LABEL_MANA 403
+#define ID_GAUGE_BAR_MANA 404
+#define ID_GAUGE_LABEL_MOVE 405
+#define ID_GAUGE_BAR_MOVE 406
 #define ID_TIMER_POLL 1
 #define WM_APP_SENDLINE (WM_APP + 1)
 
@@ -84,8 +90,9 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.6"
+#define CLIENT_VERSION "0.4.7"
 #define HISTORY_MAX 100
+#define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 #define UPDATE_VERSION_URL "http://tobinmud.com/tobinclient/version.txt"
 #define UPDATE_MSI_URL "http://tobinmud.com/tobinclient/TobinMUDClient.msi"
 
@@ -127,6 +134,19 @@ typedef struct {
     HBRUSH input_bg_brush; /* only non-NULL in dark mode; NULL lets
                                DefWindowProc's default (white) stand in
                                light mode */
+    /* HP/Mana/Move gauge bar (user, 2026-08-06: "make the client behave
+     * as much as possible to Mudlet" -- a real gauge bar was flagged as
+     * the natural follow-up to the GMCP Char.Vitals pipe already
+     * proven via the title-bar text). Three native progress-bar
+     * controls with a label static above each, in a fixed-height strip
+     * between the menu bar and the scrollback -- fed by
+     * telnet_on_gmcp()'s existing Char.Vitals handler, which now also
+     * carries mana (see gmcp.c's server-side change, same date). */
+    HWND hwnd_gauge_label_hp, hwnd_gauge_label_mana, hwnd_gauge_label_move;
+    HWND hwnd_gauge_bar_hp, hwnd_gauge_bar_mana, hwnd_gauge_bar_move;
+    HBRUSH window_bg_brush; /* dark-mode only, backs the gauge strip's own
+                                static labels via WM_CTLCOLORSTATIC and the
+                                main window class background */
     /* Partial "!!SOUND(" scan state across on_text() calls -- a marker
      * can straddle two socket reads same as anything else on the wire. */
     char sound_scan_buf[256];
@@ -339,17 +359,35 @@ static void set_status_title(const wchar_t *status) {
     SetWindowTextW(GetParent(g_app.hwnd_output), title);
 }
 
+/* Updates one gauge (label text + bar position/color). `maxval <= 0`
+ * (no pool at all, e.g. a non-Mage's mana) shows an empty, near-invisible
+ * bar rather than a misleading full/zero one -- PBM_SETPOS still wants
+ * a real 0-100 range either way. */
+static void set_gauge(HWND label, HWND bar, const char *name, int val, int maxval) {
+    char text[64];
+    snprintf(text, sizeof(text), "%s %d/%d", name, val, maxval);
+    wchar_t wtext[64];
+    MultiByteToWideChar(CP_UTF8, 0, text, -1, wtext, 64);
+    SetWindowTextW(label, wtext);
+    int pct = (maxval > 0) ? (int)((long long)val * 100 / maxval) : 0;
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    SendMessageW(bar, PBM_SETPOS, (WPARAM)pct, 0);
+}
+
 static void telnet_on_gmcp(void *ctx, const char *package, const char *json) {
     (void)ctx;
     if (strcmp(package, "Char.Vitals") == 0) {
-        int hp = 0, maxhp = 0, vit = 0, maxvit = 0;
+        int hp = 0, maxhp = 0, vit = 0, maxvit = 0, mana = 0, maxmana = 0;
         gmcp_json_get_int(json, "hp", &hp);
         gmcp_json_get_int(json, "maxhp", &maxhp);
         gmcp_json_get_int(json, "vit", &vit);
         gmcp_json_get_int(json, "maxvit", &maxvit);
-        wchar_t status[128];
-        swprintf(status, 128, L"HP %d/%d  Vit %d/%d", hp, maxhp, vit, maxvit);
-        set_status_title(status);
+        gmcp_json_get_int(json, "mana", &mana);
+        gmcp_json_get_int(json, "maxmana", &maxmana);
+        set_gauge(g_app.hwnd_gauge_label_hp, g_app.hwnd_gauge_bar_hp, "HP", hp, maxhp);
+        set_gauge(g_app.hwnd_gauge_label_mana, g_app.hwnd_gauge_bar_mana, "Mana", mana, maxmana);
+        set_gauge(g_app.hwnd_gauge_label_move, g_app.hwnd_gauge_bar_move, "Move", vit, maxvit);
     } else if (strcmp(package, "Room.Info") == 0) {
         char name[128];
         if (gmcp_json_get_string(json, "name", name, sizeof(name))) {
@@ -800,8 +838,39 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
     case WM_CREATE: {
         g_app.dark_theme = system_prefers_dark_theme();
-        if (g_app.dark_theme)
+        if (g_app.dark_theme) {
             g_app.input_bg_brush = CreateSolidBrush(RGB(30, 30, 30));
+            g_app.window_bg_brush = CreateSolidBrush(RGB(20, 20, 20));
+            SetClassLongPtrW(hwnd, GCLP_HBRBACKGROUND, (LONG_PTR)g_app.window_bg_brush);
+        }
+
+        {
+            INITCOMMONCONTROLSEX icc = { sizeof(icc), ICC_PROGRESS_CLASS };
+            InitCommonControlsEx(&icc);
+        }
+        /* HP/Mana/Move gauge strip -- one (label, progress bar) pair per
+         * vital, laid out by WM_SIZE below. Labels start blank/empty bar
+         * until the first Char.Vitals GMCP push arrives (telnet_on_gmcp()). */
+        g_app.hwnd_gauge_label_hp = CreateWindowExW(0, L"STATIC", L"HP",
+            WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_GAUGE_LABEL_HP, NULL, NULL);
+        g_app.hwnd_gauge_bar_hp = CreateWindowExW(0, PROGRESS_CLASSW, L"",
+            WS_CHILD | WS_VISIBLE | PBS_SMOOTH, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_GAUGE_BAR_HP, NULL, NULL);
+        SendMessageW(g_app.hwnd_gauge_bar_hp, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
+        SendMessageW(g_app.hwnd_gauge_bar_hp, PBM_SETBARCOLOR, 0, (LPARAM)RGB(190, 40, 40));
+
+        g_app.hwnd_gauge_label_mana = CreateWindowExW(0, L"STATIC", L"Mana",
+            WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_GAUGE_LABEL_MANA, NULL, NULL);
+        g_app.hwnd_gauge_bar_mana = CreateWindowExW(0, PROGRESS_CLASSW, L"",
+            WS_CHILD | WS_VISIBLE | PBS_SMOOTH, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_GAUGE_BAR_MANA, NULL, NULL);
+        SendMessageW(g_app.hwnd_gauge_bar_mana, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
+        SendMessageW(g_app.hwnd_gauge_bar_mana, PBM_SETBARCOLOR, 0, (LPARAM)RGB(40, 90, 200));
+
+        g_app.hwnd_gauge_label_move = CreateWindowExW(0, L"STATIC", L"Move",
+            WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_GAUGE_LABEL_MOVE, NULL, NULL);
+        g_app.hwnd_gauge_bar_move = CreateWindowExW(0, PROGRESS_CLASSW, L"",
+            WS_CHILD | WS_VISIBLE | PBS_SMOOTH, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_GAUGE_BAR_MOVE, NULL, NULL);
+        SendMessageW(g_app.hwnd_gauge_bar_move, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
+        SendMessageW(g_app.hwnd_gauge_bar_move, PBM_SETBARCOLOR, 0, (LPARAM)RGB(40, 160, 60));
 
         /* Monospace font throughout (user, 2026-08-05: default felt
          * "scrunched" -- a proportional font on a MUD's column-aligned
@@ -858,7 +927,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_SIZE: {
         int w = LOWORD(lp), h = HIWORD(lp);
         int input_h = 28; /* fits the Consolas font set in WM_CREATE without clipping descenders */
-        MoveWindow(g_app.hwnd_output, 0, 0, w, h - input_h, TRUE);
+        int col_w = w / 3;
+        int label_h = 14, bar_h = 16, pad = 2;
+        MoveWindow(g_app.hwnd_gauge_label_hp, 0, pad, col_w - pad, label_h, TRUE);
+        MoveWindow(g_app.hwnd_gauge_bar_hp, 0, pad + label_h, col_w - pad, bar_h, TRUE);
+        MoveWindow(g_app.hwnd_gauge_label_mana, col_w, pad, col_w - pad, label_h, TRUE);
+        MoveWindow(g_app.hwnd_gauge_bar_mana, col_w, pad + label_h, col_w - pad, bar_h, TRUE);
+        MoveWindow(g_app.hwnd_gauge_label_move, col_w * 2, pad, w - col_w * 2 - pad, label_h, TRUE);
+        MoveWindow(g_app.hwnd_gauge_bar_move, col_w * 2, pad + label_h, w - col_w * 2 - pad, bar_h, TRUE);
+        MoveWindow(g_app.hwnd_output, 0, GAUGE_H, w, h - input_h - GAUGE_H, TRUE);
         MoveWindow(g_app.hwnd_input, 0, h - input_h, w, input_h, TRUE);
         return 0;
     }
@@ -877,6 +954,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             SetTextColor(hdc, RGB(220, 220, 220));
             SetBkColor(hdc, RGB(30, 30, 30));
             return (LRESULT)g_app.input_bg_brush;
+        }
+        break;
+    case WM_CTLCOLORSTATIC:
+        if (g_app.dark_theme) {
+            HDC hdc = (HDC)wp;
+            SetTextColor(hdc, RGB(220, 220, 220));
+            SetBkColor(hdc, RGB(20, 20, 20));
+            return (LRESULT)g_app.window_bg_brush;
         }
         break;
     case WM_TIMER:
@@ -924,6 +1009,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             DeleteObject(g_app.font);
         if (g_app.input_bg_brush)
             DeleteObject(g_app.input_bg_brush);
+        if (g_app.window_bg_brush)
+            DeleteObject(g_app.window_bg_brush);
         PostQuitMessage(0);
         return 0;
     }
