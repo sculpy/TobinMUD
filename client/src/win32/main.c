@@ -83,7 +83,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.3"
+#define CLIENT_VERSION "0.4.4"
 #define UPDATE_VERSION_URL "http://tobinmud.com/tobinclient/version.txt"
 #define UPDATE_MSI_URL "http://tobinmud.com/tobinclient/TobinMUDClient.msi"
 
@@ -393,6 +393,16 @@ static void do_reconnect(void) {
 }
 
 static LRESULT CALLBACK InputSubclassProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    /* A single-line Edit control has no use for a carriage-return
+     * character (that is what ES_WANTRETURN/multi-line is for) -- its
+     * default WndProc treats WM_CHAR==VK_RETURN as unhandled input and
+     * calls MessageBeep(), which is the "ding" the user heard on every
+     * command (2026-08-06). WM_KEYDOWN is swallowed just below already
+     * (to send the command instead of forwarding it), but WM_CHAR is a
+     * separate message the default proc still sees unless this also
+     * swallows it. */
+    if (msg == WM_CHAR && wp == VK_RETURN)
+        return 0;
     if (msg == WM_KEYDOWN && wp == VK_RETURN) {
         int len = GetWindowTextLengthA(hwnd);
         char buf[1024];
