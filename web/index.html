@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TobinMUD</title>
+<style>
+  :root {
+    color-scheme: dark light;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Consolas, "Courier New", monospace;
+    background: #0c0c0c;
+    color: #d8d8d8;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+  h1 {
+    font-size: 2.4rem;
+    margin: 0 0 4px;
+    color: #e0c060;
+    letter-spacing: 1px;
+  }
+  .tagline {
+    color: #9a9a9a;
+    margin: 0 0 36px;
+  }
+  h2 {
+    color: #7fc0ff;
+    font-size: 1.15rem;
+    margin: 40px 0 12px;
+    border-bottom: 1px solid #2a2a2a;
+    padding-bottom: 6px;
+  }
+  code, .connect-line {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    padding: 2px 8px;
+    color: #9fe89f;
+  }
+  .connect-line {
+    display: inline-block;
+    padding: 10px 16px;
+    font-size: 1.05rem;
+  }
+  a { color: #7fc0ff; }
+  a:hover { color: #a9d8ff; }
+  .btn {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 12px 22px;
+    background: #274b7a;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 6px;
+    border: 1px solid #3a6aa8;
+    font-weight: bold;
+  }
+  .btn:hover { background: #2f5c94; color: #fff; }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid #3a3a3a;
+    color: #d8d8d8;
+  }
+  .btn-secondary:hover { background: #1a1a1a; color: #fff; }
+  ul { padding-left: 20px; }
+  li { margin: 6px 0; }
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid #2a2a2a;
+    color: #6a6a6a;
+    font-size: 0.85rem;
+  }
+  @media (prefers-color-scheme: light) {
+    body { background: #f6f6f2; color: #222; }
+    .tagline { color: #555; }
+    h2 { color: #1a5fa8; border-bottom-color: #ddd; }
+    code, .connect-line { background: #eee; border-color: #ddd; color: #1a7a1a; }
+    .btn-secondary { border-color: #ccc; color: #222; }
+    .btn-secondary:hover { background: #eee; }
+    footer { border-top-color: #ddd; color: #888; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>TobinMUD</h1>
+  <p class="tagline">A classic text-based multiplayer world. Fight, level, cast, loot, and explore &mdash; free to play.</p>
+
+  <h2>Connect</h2>
+  <p>Play instantly with any telnet client:</p>
+  <p class="connect-line">telnet tobinmud.com 4000</p>
+  <p>Or use the native Windows client below for colors, sound, and a live HP/Mana/Move gauge out of the box.</p>
+
+  <h2>Download the Windows Client</h2>
+  <p>
+    <a class="btn" href="/tobinclient/TobinMUDClient.msi">Download TobinMUD Client (.msi)</a>
+  </p>
+  <p>Installs to your own user account &mdash; no administrator rights needed, and the client silently keeps itself up to date.</p>
+  <ul>
+    <li>Full color and sound (weapon/class-varied hit sounds, looping fight music)</li>
+    <li>Live HP / Mana / Move gauge bar</li>
+    <li>Command history (Up/Down arrow)</li>
+    <li>Simple, editable triggers &mdash; no scripting required</li>
+  </ul>
+
+  <h2>Source</h2>
+  <p>TobinMUD is an open, plain-C port of SneezyMUD. Code, issues, and history live on GitHub:</p>
+  <p><a class="btn btn-secondary" href="https://github.com/sculpy/NewMUD">github.com/sculpy/NewMUD</a></p>
+
+  <footer>
+    TobinMUD &mdash; tobinmud.com
+  </footer>
+</div>
+</body>
+</html>

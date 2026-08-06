@@ -96,7 +96,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.8"
+#define CLIENT_VERSION "0.4.9"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -215,6 +215,7 @@ typedef struct {
 } app_state_t;
 
 static app_state_t g_app;
+static void debug_log(const char *msg); /* defined near check_and_apply_update(); forward-declared for play_msp()'s MCI-failure fallback log */
 
 static void append_output(const char *text, size_t len, int color_index, int bold) {
     if (len == 0)
@@ -441,9 +442,26 @@ static void play_msp(const char *fname, bool loop) {
         char fullpath[MAX_PATH + 128 + 16];
         snprintf(fullpath, sizeof(fullpath), "%ssounds\\%s", g_app.exe_dir, fname);
         snprintf(cmd, sizeof(cmd), "open \"%s\" type waveaudio alias tobinmusic", fullpath);
-        if (mciSendStringA(cmd, NULL, 0, NULL) != 0)
+        MCIERROR err = mciSendStringA(cmd, NULL, 0, NULL);
+        if (err == 0)
+            err = mciSendStringA("play tobinmusic repeat", NULL, 0, NULL);
+        if (err == 0)
             return;
-        mciSendStringA("play tobinmusic repeat", NULL, 0, NULL);
+        /* MCI failed (open or play) -- user, 2026-08-06: "the client
+         * isnt playing music anymore" after the v0.4.5 MCI switch, on
+         * some real-world setup MCI silently refused to cooperate.
+         * Rather than leave music broken outright, fall back to the
+         * pre-0.4.5 PlaySoundA(SND_LOOP) behavior -- loses the
+         * play-over-hit-sounds overlap this session, but music
+         * actually plays again, which matters more. Logged so a real
+         * MCI error code is available if this needs a proper fix. */
+        char errbuf[128];
+        mciGetErrorStringA(err, errbuf, sizeof(errbuf));
+        char logmsg[256];
+        snprintf(logmsg, sizeof(logmsg), "play_msp: MCI failed (%lu: %s), falling back to PlaySoundA loop",
+                 (unsigned long)err, errbuf);
+        debug_log(logmsg);
+        PlaySoundA(fullpath, NULL, SND_FILENAME | SND_ASYNC | SND_NODEFAULT | SND_LOOP);
         return;
     }
     if (strcmp(fname, "Off") == 0) {
