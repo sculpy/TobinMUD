@@ -12,8 +12,9 @@
  * PlaySound() from a `sounds\` folder next to the exe -- MSP MUSIC
  * (`!!MUSIC(...)`/`!!MUSIC(Off)`) loops a random fight-music track for
  * as long as the server thinks you're fighting, distinct from MSP
- * SOUND's one-shot effects (see play_msp()'s own comment on the two
- * sharing one playback channel). GMCP Char.Vitals/Room.Info update
+ * SOUND's one-shot effects -- MUSIC plays via a dedicated MCI channel
+ * so hit sounds can overlap it instead of cutting it off (see
+ * play_msp()'s own comment). GMCP Char.Vitals/Room.Info update
  * the window title as a simple, real status readout -- a dedicated
  * status bar/HP gauge is a natural follow-up once this pipe is proven
  * working, not done here (v1 scope, matches every other "prove the
@@ -83,7 +84,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.4"
+#define CLIENT_VERSION "0.4.5"
 #define UPDATE_VERSION_URL "http://tobinmud.com/tobinclient/version.txt"
 #define UPDATE_MSI_URL "http://tobinmud.com/tobinclient/TobinMUDClient.msi"
 
@@ -212,24 +213,36 @@ static void ansi_emit_cb(void *ctx, const char *text, size_t len, int color_inde
 
 /* Plays (or, for `!!MUSIC(Off)`, stops) whatever `!!SOUND(...)`/
  * `!!MUSIC(...)` already extracted as its filename argument (or "Off"
- * for music). `loop` selects SND_LOOP for MSP MUSIC (real upstream
- * MSP semantics: MUSIC loops until told to stop; SOUND plays once).
- * Known, disclosed limitation: Win32's simple PlaySound() API is a
- * single shared playback channel for the whole process -- a `!!SOUND`
- * hit effect firing while `!!MUSIC` is looping will interrupt the
- * music rather than mixing over it (real audio mixing needs a heavier
- * API, e.g. DirectSound/XAudio2 -- out of scope for this pass). */
+ * for music). MUSIC loops via a dedicated MCI device alias
+ * ("tobinmusic") instead of PlaySound(); SOUND one-shots still use
+ * PlaySoundA(). These are two independent Win32 audio subsystems, so
+ * they mix instead of one stomping the other -- fixes the "music
+ * stops as soon as a hit sound plays" report (user, 2026-08-06). MCI
+ * playback is real overlapping audio, not a workaround: the OS mixer
+ * already handles multiple simultaneous streams fine, the old bug was
+ * only that PlaySoundA() itself refuses to run two sounds at once
+ * within a single process. */
 static void play_msp(const char *fname, bool loop) {
+    if (loop) {
+        char cmd[MAX_PATH + 128 + 64];
+        mciSendStringA("close tobinmusic", NULL, 0, NULL);
+        if (strcmp(fname, "Off") == 0)
+            return;
+        char fullpath[MAX_PATH + 128 + 16];
+        snprintf(fullpath, sizeof(fullpath), "%ssounds\\%s", g_app.exe_dir, fname);
+        snprintf(cmd, sizeof(cmd), "open \"%s\" type waveaudio alias tobinmusic", fullpath);
+        if (mciSendStringA(cmd, NULL, 0, NULL) != 0)
+            return;
+        mciSendStringA("play tobinmusic repeat", NULL, 0, NULL);
+        return;
+    }
     if (strcmp(fname, "Off") == 0) {
-        PlaySoundA(NULL, NULL, 0); /* stop whatever's currently playing */
+        PlaySoundA(NULL, NULL, 0); /* stop any one-shot currently playing */
         return;
     }
     char fullpath[MAX_PATH + 128 + 16];
     snprintf(fullpath, sizeof(fullpath), "%ssounds\\%s", g_app.exe_dir, fname);
-    DWORD flags = SND_FILENAME | SND_ASYNC | SND_NODEFAULT;
-    if (loop)
-        flags |= SND_LOOP;
-    PlaySoundA(fullpath, NULL, flags);
+    PlaySoundA(fullpath, NULL, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
 }
 
 /* Scans (across calls) for `!!SOUND(<file> ...)` and `!!MUSIC(<file>
@@ -848,6 +861,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     }
     case WM_DESTROY:
         KillTimer(hwnd, ID_TIMER_POLL);
+        mciSendStringA("close tobinmusic", NULL, 0, NULL);
         if (g_app.sock != INVALID_SOCKET)
             closesocket(g_app.sock);
         telnet_client_destroy(g_app.telnet);
