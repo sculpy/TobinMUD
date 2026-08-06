@@ -83,7 +83,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.2"
+#define CLIENT_VERSION "0.4.3"
 #define UPDATE_VERSION_URL "http://tobinmud.com/tobinclient/version.txt"
 #define UPDATE_MSI_URL "http://tobinmud.com/tobinclient/TobinMUDClient.msi"
 
@@ -113,6 +113,18 @@ typedef struct {
      * sound playback silently fail depending on launch method), and
      * `prefs.ini` lives here too. */
     char exe_dir[MAX_PATH];
+    /* System light/dark theme (user, 2026-08-06: "color preferences
+     * dictated by the system config") -- read once at startup from the
+     * same registry value Windows Settings > Colors > "Choose your
+     * mode" writes, AppsUseLightTheme. Output pane bg/default-text and
+     * the input box are recolored to match; the 16-color ANSI palette
+     * itself stays the same in both modes (standard terminal-emulator
+     * convention -- only the neutral bg/fg swap, not the color meanings
+     * a MUD script or player might rely on). */
+    bool dark_theme;
+    HBRUSH input_bg_brush; /* only non-NULL in dark mode; NULL lets
+                               DefWindowProc's default (white) stand in
+                               light mode */
     /* Partial "!!SOUND(" scan state across on_text() calls -- a marker
      * can straddle two socket reads same as anything else on the wire. */
     char sound_scan_buf[256];
@@ -172,7 +184,7 @@ static void append_output(const char *text, size_t len, int color_index, int bol
     if (color_index >= 0 && color_index <= 7)
         cf.crTextColor = bold ? palette_bold[color_index] : palette[color_index];
     else
-        cf.crTextColor = RGB(200, 200, 200); /* default -- matches a dark scrollback background */
+        cf.crTextColor = g_app.dark_theme ? RGB(200, 200, 200) : RGB(20, 20, 20);
 
     /* Move the caret to the end first (SetCharFormat with SCF_SELECTION
      * applies to the current selection, not "future typed text" unless
@@ -441,6 +453,28 @@ static void poll_socket(void) {
  * process's current working directory (which varies by how the exe
  * was launched -- double-click, Start Menu shortcut, or a shell in
  * some other dir). */
+/* Reads Windows' own light/dark mode setting (Settings > Personalization
+ * > Colors > "Choose your mode"/"Choose your default app mode") --
+ * the same registry value Explorer/every theme-aware app reads. Missing
+ * key (pre-Win10-1903, or a locked-down policy) defaults to dark, this
+ * client's original look, so nothing changes for anyone not on a
+ * theme-aware build. */
+static bool system_prefers_dark_theme(void) {
+    HKEY hkey;
+    LONG rc = RegOpenKeyExA(HKEY_CURRENT_USER,
+        "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+        0, KEY_READ, &hkey);
+    if (rc != ERROR_SUCCESS)
+        return true;
+    DWORD value = 1, size = sizeof(value), type = 0;
+    rc = RegQueryValueExA(hkey, "AppsUseLightTheme", NULL, &type,
+                           (LPBYTE)&value, &size);
+    RegCloseKey(hkey);
+    if (rc != ERROR_SUCCESS || type != REG_DWORD)
+        return true;
+    return value == 0;
+}
+
 static void resolve_exe_dir(void) {
     char path[MAX_PATH];
     DWORD n = GetModuleFileNameA(NULL, path, MAX_PATH);
@@ -688,6 +722,10 @@ static HMENU build_menu(void) {
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
     case WM_CREATE: {
+        g_app.dark_theme = system_prefers_dark_theme();
+        if (g_app.dark_theme)
+            g_app.input_bg_brush = CreateSolidBrush(RGB(30, 30, 30));
+
         /* Monospace font throughout (user, 2026-08-05: default felt
          * "scrunched" -- a proportional font on a MUD's column-aligned
          * output, plus the default Edit/RichEdit font size, is what
@@ -699,7 +737,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         g_app.hwnd_output = CreateWindowExW(WS_EX_CLIENTEDGE, MSFTEDIT_CLASS, L"",
             WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
             0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_OUTPUT, NULL, NULL);
-        SendMessageW(g_app.hwnd_output, EM_SETBKGNDCOLOR, 0, RGB(10, 10, 10));
+        SendMessageW(g_app.hwnd_output, EM_SETBKGNDCOLOR, 0,
+                     g_app.dark_theme ? RGB(10, 10, 10) : RGB(250, 250, 250));
         SendMessageW(g_app.hwnd_output, EM_SETEVENTMASK, 0, 0);
         {
             /* Sets the RichEdit's DEFAULT text color (not a selection)
@@ -711,7 +750,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             ZeroMemory(&cf, sizeof(cf));
             cf.cbSize = sizeof(cf);
             cf.dwMask = CFM_COLOR;
-            cf.crTextColor = RGB(200, 200, 200);
+            cf.crTextColor = g_app.dark_theme ? RGB(200, 200, 200) : RGB(20, 20, 20);
             SendMessageW(g_app.hwnd_output, EM_SETCHARFORMAT, SCF_DEFAULT, (LPARAM)&cf);
         }
 
@@ -755,6 +794,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (LOWORD(wp) != WA_INACTIVE)
             SetFocus(g_app.hwnd_input);
         break;
+    case WM_CTLCOLOREDIT:
+        if (g_app.dark_theme && (HWND)lp == g_app.hwnd_input) {
+            HDC hdc = (HDC)wp;
+            SetTextColor(hdc, RGB(220, 220, 220));
+            SetBkColor(hdc, RGB(30, 30, 30));
+            return (LRESULT)g_app.input_bg_brush;
+        }
+        break;
     case WM_TIMER:
         if (wp == ID_TIMER_POLL)
             poll_socket();
@@ -797,6 +844,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         ansi_client_destroy(g_app.ansi);
         if (g_app.font)
             DeleteObject(g_app.font);
+        if (g_app.input_bg_brush)
+            DeleteObject(g_app.input_bg_brush);
         PostQuitMessage(0);
         return 0;
     }
