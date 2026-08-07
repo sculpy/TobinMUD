@@ -121,7 +121,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
   * via -Wformat once this file was actually recompiled. */
 	" <c>Name:<1> %-20.20s <c>Level:<1> %s%-12.12s%s <c>XP:<1> %-10ld\r\n"
         " <c>Race:<1> %-20s <c>Class:<1> %-12s\r\n"
-        " <c>Homeland:<1> %-50s <c>Gold:<1> %-8d <c>Bank:<1> %-8d\r\n"
+        " <c>Homeland:<1> %-25s <c>Gold:<1> %-8d <c>Bank:<1> %-8d\r\n"
         "<c>------------------------------------------------------------<1>\r\n"
 	/* Real bug (found 2026-08-07): resource_pool_label() (Piety/
 	 * Lifeforce/Mana per class) was computed and passed as an
