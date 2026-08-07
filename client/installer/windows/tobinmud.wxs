@@ -24,7 +24,7 @@
   <Product Id="*"
            Name="TobinMUD Client"
            Language="1033"
-           Version="0.4.22.0"
+           Version="0.4.23.0"
            Manufacturer="The TobinMUD Team"
            UpgradeCode="6f2a6f6e-9b1a-4b8a-8b0a-1f0b6a2c7e11">
 
@@ -62,20 +62,41 @@
       <Component Id="Sound_backstab_wav" Guid="1a2ad202-99fa-4d2b-a659-93d25b06b428">
         <File Id="Sound_backstab_wav_File" Source="sounds/backstab.wav" KeyPath="yes" />
       </Component>
+      <Component Id="Sound_barehand1_wav" Guid="265182b7-5531-4ac0-9bae-afa55bd39c20">
+        <File Id="Sound_barehand1_wav_File" Source="sounds/barehand1.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_barehand2_wav" Guid="475ef68a-4109-4a37-99ba-ae0fcab22c3f">
+        <File Id="Sound_barehand2_wav_File" Source="sounds/barehand2.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_barehand3_wav" Guid="f52707bd-7e8f-490a-8149-83c594d5acae">
+        <File Id="Sound_barehand3_wav_File" Source="sounds/barehand3.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_barehand4_wav" Guid="dd802986-95c0-414f-a8e3-75e855f8d6e7">
+        <File Id="Sound_barehand4_wav_File" Source="sounds/barehand4.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_barehand5_wav" Guid="0ab64bcd-d068-40b8-b834-bdb99f2c6050">
+        <File Id="Sound_barehand5_wav_File" Source="sounds/barehand5.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_casting1_wav" Guid="bac4cf69-4f8f-4b64-933a-e764e4aa73d6">
+        <File Id="Sound_casting1_wav_File" Source="sounds/casting1.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_casting2_wav" Guid="c4eaa78e-9c6e-4205-8769-e5a6d4e5edaa">
+        <File Id="Sound_casting2_wav_File" Source="sounds/casting2.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_casting3_wav" Guid="90afd9a9-3ab5-48e7-a16c-0aa515913055">
+        <File Id="Sound_casting3_wav_File" Source="sounds/casting3.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_casting4_wav" Guid="932ea19a-70f7-4735-a083-378304d67ee3">
+        <File Id="Sound_casting4_wav_File" Source="sounds/casting4.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_casting5_wav" Guid="e1f888c5-7faa-4d41-94d4-4d78962f86a7">
+        <File Id="Sound_casting5_wav_File" Source="sounds/casting5.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_casting6_wav" Guid="3b418c6e-9dda-4912-ba09-68319652cbf8">
+        <File Id="Sound_casting6_wav_File" Source="sounds/casting6.wav" KeyPath="yes" />
+      </Component>
       <Component Id="Sound_cleric_wav" Guid="fc185de9-27fc-43f5-875b-c3fca4ca8508">
         <File Id="Sound_cleric_wav_File" Source="sounds/cleric.wav" KeyPath="yes" />
-      </Component>
-      <Component Id="Sound_hit_wav" Guid="09b8310b-3d6f-474e-a483-5adfb6d11eb4">
-        <File Id="Sound_hit_wav_File" Source="sounds/hit.wav" KeyPath="yes" />
-      </Component>
-      <Component Id="Sound_hit2_wav" Guid="c2938aab-799f-4e15-b66a-f9512e446d23">
-        <File Id="Sound_hit2_wav_File" Source="sounds/hit2.wav" KeyPath="yes" />
-      </Component>
-      <Component Id="Sound_hit3_wav" Guid="d44a1217-be94-4d69-b356-cdb592333991">
-        <File Id="Sound_hit3_wav_File" Source="sounds/hit3.wav" KeyPath="yes" />
-      </Component>
-      <Component Id="Sound_hit4_wav" Guid="b65dd22e-b2bc-453e-a1fd-e7e0196c2cc9">
-        <File Id="Sound_hit4_wav_File" Source="sounds/hit4.wav" KeyPath="yes" />
       </Component>
       <Component Id="Sound_monk1_wav" Guid="8a4a5e56-f5cc-439f-8a4d-7ec8b978b249">
         <File Id="Sound_monk1_wav_File" Source="sounds/monk1.wav" KeyPath="yes" />
@@ -89,8 +110,35 @@
       <Component Id="Sound_monk4_wav" Guid="c95a4963-cc86-4090-b0d1-592fb513bd99">
         <File Id="Sound_monk4_wav_File" Source="sounds/monk4.wav" KeyPath="yes" />
       </Component>
-      <Component Id="Sound_slash_wav" Guid="985517b8-23b2-47d4-919d-58ee30e3ea9d">
-        <File Id="Sound_slash_wav_File" Source="sounds/slash.wav" KeyPath="yes" />
+      <Component Id="Sound_music1_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music1_wav_File" Source="sounds/music1.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music2_wav" Guid="8211628e-c44d-4ad4-b11d-91b8804d6bd6">
+        <File Id="Sound_music2_wav_File" Source="sounds/music2.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music3_wav" Guid="35b5e1c7-78aa-4676-be85-b5a45ce9797e">
+        <File Id="Sound_music3_wav_File" Source="sounds/music3.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music4_wav" Guid="fc686bf3-cf0c-4401-807d-7e55e168495b">
+        <File Id="Sound_music4_wav_File" Source="sounds/music4.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music5_wav" Guid="209f9fa3-46f3-4d30-aa93-38aff76c45a4">
+        <File Id="Sound_music5_wav_File" Source="sounds/music5.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music6_wav" Guid="d4149e8a-bd44-4d13-b6b5-c6d8a5d95e7e">
+        <File Id="Sound_music6_wav_File" Source="sounds/music6.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music7_wav" Guid="dc59012e-d3e6-498f-be19-cbd4556c68a0">
+        <File Id="Sound_music7_wav_File" Source="sounds/music7.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music8_wav" Guid="b5acfd11-b576-4f3e-ba21-66cbcaf94b3a">
+        <File Id="Sound_music8_wav_File" Source="sounds/music8.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music9_wav" Guid="c419ff49-a639-410b-b5b4-e53d45677abc">
+        <File Id="Sound_music9_wav_File" Source="sounds/music9.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_slash1_wav" Guid="5b7993d6-c1f4-443c-a924-0a5a17e4d116">
+        <File Id="Sound_slash1_wav_File" Source="sounds/slash1.wav" KeyPath="yes" />
       </Component>
       <Component Id="Sound_slash2_wav" Guid="e26c121c-2f39-45e9-8d9f-ace4b7e4ce9e">
         <File Id="Sound_slash2_wav_File" Source="sounds/slash2.wav" KeyPath="yes" />
@@ -98,44 +146,47 @@
       <Component Id="Sound_slash3_wav" Guid="05156a1d-8088-4864-a56a-d9941be218af">
         <File Id="Sound_slash3_wav_File" Source="sounds/slash3.wav" KeyPath="yes" />
       </Component>
+      <Component Id="Sound_slash4_wav" Guid="bd7d6932-e2f2-4346-9ffa-7f5f47a38dce">
+        <File Id="Sound_slash4_wav_File" Source="sounds/slash4.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_slash5_wav" Guid="68ce4739-60eb-4c26-be3e-0900acca04cc">
+        <File Id="Sound_slash5_wav_File" Source="sounds/slash5.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_slash6_wav" Guid="f74f6916-3abf-45eb-94e9-e21f3e3b1fc3">
+        <File Id="Sound_slash6_wav_File" Source="sounds/slash6.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_slash7_wav" Guid="930a12f6-e0a3-4b0f-a1c0-0bea149a72ac">
+        <File Id="Sound_slash7_wav_File" Source="sounds/slash7.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_slash8_wav" Guid="919691a1-64e0-435f-923d-1d84b0a4c712">
+        <File Id="Sound_slash8_wav_File" Source="sounds/slash8.wav" KeyPath="yes" />
+      </Component>
       <Component Id="Sound_spell_wav" Guid="3494bd74-85d7-4d1d-ac4a-eed9b3c4d477">
         <File Id="Sound_spell_wav_File" Source="sounds/spell.wav" KeyPath="yes" />
       </Component>
       <Component Id="Sound_spell2_wav" Guid="a497dea0-d764-4bee-9d3b-862b9a1e8461">
         <File Id="Sound_spell2_wav_File" Source="sounds/spell2.wav" KeyPath="yes" />
       </Component>
-      <Component Id="Sound_spell_fireball_wav" Guid="fb38080c-219f-43f6-8f52-f4886c67cf20">
-        <File Id="Sound_spell_fireball_wav_File" Source="sounds/spell_fireball.wav" KeyPath="yes" />
+      <Component Id="Sound_spell3_wav" Guid="818f1ea6-c55c-446a-a9e1-ec893bbbaa4a">
+        <File Id="Sound_spell3_wav_File" Source="sounds/spell3.wav" KeyPath="yes" />
       </Component>
-      <Component Id="Sound_thief_wav" Guid="ace08fb8-06aa-47cd-85a3-98518b5eb1f2">
-        <File Id="Sound_thief_wav_File" Source="sounds/thief.wav" KeyPath="yes" />
+      <Component Id="Sound_stab1_wav" Guid="83e32195-b0e7-4405-b3ad-ef584354973f">
+        <File Id="Sound_stab1_wav_File" Source="sounds/stab1.wav" KeyPath="yes" />
       </Component>
-      <Component Id="Sound_thief2_wav" Guid="657b334e-1347-479f-8afc-0705c25adfee">
-        <File Id="Sound_thief2_wav_File" Source="sounds/thief2.wav" KeyPath="yes" />
+      <Component Id="Sound_stab2_wav" Guid="61008c69-69fa-4215-9125-fb4e54fdb7b3">
+        <File Id="Sound_stab2_wav_File" Source="sounds/stab2.wav" KeyPath="yes" />
       </Component>
-      <Component Id="Sound_adventure1_wav" Guid="7c769244-7bfe-4b48-95e3-3dcbdbcdb16e">
-        <File Id="Sound_adventure1_wav_File" Source="sounds/adventure1.wav" KeyPath="yes" />
+      <Component Id="Sound_stab3_wav" Guid="ca30397e-80a7-46c4-8ec8-32c15009766c">
+        <File Id="Sound_stab3_wav_File" Source="sounds/stab3.wav" KeyPath="yes" />
       </Component>
-      <Component Id="Sound_atlasaudio_wav" Guid="9f2305d9-c5b4-4c55-88fb-002bdc286d91">
-        <File Id="Sound_atlasaudio_wav_File" Source="sounds/atlasaudio.wav" KeyPath="yes" />
+      <Component Id="Sound_stab4_wav" Guid="a8c0d470-07d6-4c63-9bc6-3833e2d4c7e7">
+        <File Id="Sound_stab4_wav_File" Source="sounds/stab4.wav" KeyPath="yes" />
       </Component>
-      <Component Id="Sound_audiodollar_adventure_wav" Guid="ed97908b-ddd3-48a6-bcd2-6c33fc52c80d">
-        <File Id="Sound_audiodollar_adventure_wav_File" Source="sounds/audiodollar-adventure.wav" KeyPath="yes" />
+      <Component Id="Sound_stab5_wav" Guid="571a15ff-af01-4ff6-be7b-310b633c8b15">
+        <File Id="Sound_stab5_wav_File" Source="sounds/stab5.wav" KeyPath="yes" />
       </Component>
-      <Component Id="Sound_melodygodzilla_wav" Guid="f822deb6-b8f6-425f-8bd2-58eff498c013">
-        <File Id="Sound_melodygodzilla_wav_File" Source="sounds/melodygodzilla.wav" KeyPath="yes" />
-      </Component>
-      <Component Id="Sound_motivational_wav" Guid="49a69c47-9419-4df2-abd3-14ff5af36e86">
-        <File Id="Sound_motivational_wav_File" Source="sounds/motivational.wav" KeyPath="yes" />
-      </Component>
-      <Component Id="Sound_nastelborn_wav" Guid="f3b7f016-8a02-4980-bb7d-55d6b3ce185b">
-        <File Id="Sound_nastelborn_wav_File" Source="sounds/nastelborn.wav" KeyPath="yes" />
-      </Component>
-    </DirectoryRef>
-
-    <DirectoryRef Id="FontsBundledFolder">
-      <Component Id="Font_DejaVuSansMono_ttf" Guid="7a1f3e9b-4c6d-4b2a-9e5f-1d8c3a7b0f52">
-        <File Id="Font_DejaVuSansMono_ttf_File" Source="fonts/DejaVuSansMono.ttf" KeyPath="yes" />
+      <Component Id="Sound_staff1_wav" Guid="0fcbcbc7-b088-48a9-b7fe-24a462150ca1">
+        <File Id="Sound_staff1_wav_File" Source="sounds/staff1.wav" KeyPath="yes" />
       </Component>
     </DirectoryRef>
 
@@ -159,30 +210,48 @@
       <ComponentRef Id="MainExecutable" />
       <ComponentRef Id="StartMenuShortcut" />
       <ComponentRef Id="Sound_backstab_wav" />
+      <ComponentRef Id="Sound_barehand1_wav" />
+      <ComponentRef Id="Sound_barehand2_wav" />
+      <ComponentRef Id="Sound_barehand3_wav" />
+      <ComponentRef Id="Sound_barehand4_wav" />
+      <ComponentRef Id="Sound_barehand5_wav" />
+      <ComponentRef Id="Sound_casting1_wav" />
+      <ComponentRef Id="Sound_casting2_wav" />
+      <ComponentRef Id="Sound_casting3_wav" />
+      <ComponentRef Id="Sound_casting4_wav" />
+      <ComponentRef Id="Sound_casting5_wav" />
+      <ComponentRef Id="Sound_casting6_wav" />
       <ComponentRef Id="Sound_cleric_wav" />
-      <ComponentRef Id="Sound_hit_wav" />
-      <ComponentRef Id="Sound_hit2_wav" />
-      <ComponentRef Id="Sound_hit3_wav" />
-      <ComponentRef Id="Sound_hit4_wav" />
       <ComponentRef Id="Sound_monk1_wav" />
       <ComponentRef Id="Sound_monk2_wav" />
       <ComponentRef Id="Sound_monk3_wav" />
       <ComponentRef Id="Sound_monk4_wav" />
-      <ComponentRef Id="Sound_slash_wav" />
+      <ComponentRef Id="Sound_music1_wav" />
+      <ComponentRef Id="Sound_music2_wav" />
+      <ComponentRef Id="Sound_music3_wav" />
+      <ComponentRef Id="Sound_music4_wav" />
+      <ComponentRef Id="Sound_music5_wav" />
+      <ComponentRef Id="Sound_music6_wav" />
+      <ComponentRef Id="Sound_music7_wav" />
+      <ComponentRef Id="Sound_music8_wav" />
+      <ComponentRef Id="Sound_music9_wav" />
+      <ComponentRef Id="Sound_slash1_wav" />
       <ComponentRef Id="Sound_slash2_wav" />
       <ComponentRef Id="Sound_slash3_wav" />
+      <ComponentRef Id="Sound_slash4_wav" />
+      <ComponentRef Id="Sound_slash5_wav" />
+      <ComponentRef Id="Sound_slash6_wav" />
+      <ComponentRef Id="Sound_slash7_wav" />
+      <ComponentRef Id="Sound_slash8_wav" />
       <ComponentRef Id="Sound_spell_wav" />
       <ComponentRef Id="Sound_spell2_wav" />
-      <ComponentRef Id="Sound_spell_fireball_wav" />
-      <ComponentRef Id="Sound_thief_wav" />
-      <ComponentRef Id="Sound_thief2_wav" />
-      <ComponentRef Id="Sound_adventure1_wav" />
-      <ComponentRef Id="Sound_atlasaudio_wav" />
-      <ComponentRef Id="Sound_audiodollar_adventure_wav" />
-      <ComponentRef Id="Sound_melodygodzilla_wav" />
-      <ComponentRef Id="Sound_motivational_wav" />
-      <ComponentRef Id="Sound_nastelborn_wav" />
-      <ComponentRef Id="Font_DejaVuSansMono_ttf" />
+      <ComponentRef Id="Sound_spell3_wav" />
+      <ComponentRef Id="Sound_stab1_wav" />
+      <ComponentRef Id="Sound_stab2_wav" />
+      <ComponentRef Id="Sound_stab3_wav" />
+      <ComponentRef Id="Sound_stab4_wav" />
+      <ComponentRef Id="Sound_stab5_wav" />
+      <ComponentRef Id="Sound_staff1_wav" />
     </Feature>
 
   </Product>

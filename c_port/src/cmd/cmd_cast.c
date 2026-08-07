@@ -320,6 +320,17 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
      * default), unaffected -- see cmd_pray.c's identical atk_target for
      * the full rationale. */
     spell_flavor_show(d, ch, false); /* user 2026-08-04/08-05: 3-line flavor text, modeled on real SneezyMUD's per-round sendCastingMessages() -- see spell_flavor.h */
+    /* MSP casting sound (2026-08-07 sound pack, casting1.wav-casting6.wav,
+     * randomized) -- distinct from pick_hit_sound()'s spell-IMPACT pool
+     * (combat.c), this plays at the moment of casting itself, same beat
+     * as the flavor text just above. */
+    if (d) {
+        static const char *casting_pool[] = {
+            "casting1.wav", "casting2.wav", "casting3.wav",
+            "casting4.wav", "casting5.wav", "casting6.wav",
+        };
+        descriptor_send_msp_sound(d, casting_pool[rand() % 6], 100);
+    }
     being_t *atk_target = (target != ch) ? target : ch->fighting;
     if (strcasecmp(sk->name, "sorcerer's globe") == 0) {
         /* Level-1 stub-audit fix (2026-08-04, user: "lower level players

@@ -297,29 +297,56 @@ static const char *weapon_verb(const obj_t *weapon) {
  * every caller) -- backstab.wav is folded into the Thief pool instead,
  * still true to "randomize by class". */
 static const char *pick_hit_sound(const being_t *attacker, const char *verb) {
+    /* Re-mapped to the user's 2026-08-07 sound pack, which renamed/
+     * reorganized the whole file set (old hit.wav->barehand1.wav,
+     * thief.wav/thief2.wav->stab4.wav/stab5.wav folded into a shared
+     * weapon-type pool, slash.wav->slash8.wav, spell_fireball.wav->
+     * spell3.wav, adventure1.wav & co->music1.wav-music5.wav) and added
+     * real content for weapon types this never had before: a dedicated
+     * "stab" pool for dagger/knife (weapon_verb() already returns
+     * "stab" for those, previously falling through to the generic
+     * pool) and a "bludgeon" pool for mace/hammer/club/staff. Thief no
+     * longer gets its own class pool -- the old 3-file thief_pool
+     * (thief/thief2/backstab) is now folded into the shared stab pool
+     * instead, so a Thief's sound now reflects the weapon they're
+     * actually using (dagger->stab, sword->slash, etc) same as a
+     * Warrior's, rather than being fixed regardless of weapon. */
     static const char *cleric_pool[] = { "cleric.wav" };
     static const char *monk_pool[] = { "monk1.wav", "monk2.wav", "monk3.wav", "monk4.wav" };
-    static const char *thief_pool[] = { "thief.wav", "thief2.wav", "backstab.wav" };
-    static const char *mage_pool[] = { "spell.wav", "spell2.wav", "spell_fireball.wav" };
-    static const char *slash_pool[] = { "slash.wav", "slash2.wav", "slash3.wav" };
-    static const char *generic_pool[] = { "hit.wav", "hit2.wav", "hit3.wav", "hit4.wav" };
+    static const char *mage_pool[] = { "spell.wav", "spell2.wav", "spell3.wav" };
+    static const char *slash_pool[] = {
+        "slash1.wav", "slash2.wav", "slash3.wav", "slash4.wav",
+        "slash5.wav", "slash6.wav", "slash7.wav", "slash8.wav",
+    };
+    static const char *stab_pool[] = {
+        "stab1.wav", "stab2.wav", "stab3.wav", "stab4.wav", "stab5.wav", "backstab.wav",
+    };
+    static const char *staff_pool[] = { "staff1.wav" };
+    static const char *generic_pool[] = {
+        "barehand1.wav", "barehand2.wav", "barehand3.wav", "barehand4.wav", "barehand5.wav",
+    };
 
     const char **pool = NULL;
     int count = 0;
     switch (attacker->char_class) {
         case CLASS_CLERIC: pool = cleric_pool; count = 1; break;
         case CLASS_MONK:   pool = monk_pool;   count = 4; break;
-        case CLASS_THIEF:  pool = thief_pool;  count = 3; break;
         case CLASS_MAGE:   pool = mage_pool;   count = 3; break;
         default: break;
     }
     if (!pool) {
         if (verb && (strcmp(verb, "slice") == 0 || strcmp(verb, "chop") == 0)) {
             pool = slash_pool;
-            count = 3;
+            count = 8;
+        } else if (verb && strcmp(verb, "stab") == 0) {
+            pool = stab_pool;
+            count = 6;
+        } else if (verb && strcmp(verb, "bludgeon") == 0) {
+            pool = staff_pool;
+            count = 1;
         } else {
             pool = generic_pool;
-            count = 4;
+            count = 5;
         }
     }
     return pool[rand() % count];
@@ -1979,8 +2006,11 @@ void combat_process_run(long pulse_num) {
 void combat_music_tick(long pulse_num) {
     (void)pulse_num;
     static const char *TRACKS[] = {
-        "adventure1.wav", "atlasaudio.wav", "audiodollar-adventure.wav",
-        "melodygodzilla.wav", "motivational.wav", "nastelborn.wav",
+        /* Renamed music1.wav-music5.wav (old adventure1/nastelborn/
+         * motivational/atlasaudio/audiodollar-adventure) plus 4 real
+         * new tracks (music6-9.wav), 2026-08-07 sound pack. */
+        "music1.wav", "music2.wav", "music3.wav", "music4.wav",
+        "music5.wav", "music6.wav", "music7.wav", "music8.wav", "music9.wav",
     };
     const int TRACK_COUNT = (int)(sizeof(TRACKS) / sizeof(TRACKS[0]));
 
