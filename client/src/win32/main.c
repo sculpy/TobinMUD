@@ -98,7 +98,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.12"
+#define CLIENT_VERSION "0.4.13"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -531,15 +531,23 @@ static void ansi_emit_cb(void *ctx, const char *text, size_t len, int color_inde
 
 /* Plays (or, for `!!MUSIC(Off)`, stops) whatever `!!SOUND(...)`/
  * `!!MUSIC(...)` already extracted as its filename argument (or "Off"
- * for music). MUSIC loops via a dedicated MCI device alias
- * ("tobinmusic") instead of PlaySound(); SOUND one-shots still use
- * PlaySoundA(). These are two independent Win32 audio subsystems, so
- * they mix instead of one stomping the other -- fixes the "music
- * stops as soon as a hit sound plays" report (user, 2026-08-06). MCI
- * playback is real overlapping audio, not a workaround: the OS mixer
- * already handles multiple simultaneous streams fine, the old bug was
- * only that PlaySoundA() itself refuses to run two sounds at once
- * within a single process. */
+ * for music). Both MUSIC and hit SOUND now loop/play through their
+ * OWN dedicated MCI device alias ("tobinmusic" / "tobinhit") -- user,
+ * 2026-08-06: "music plays, but as soon as a hit occurs the music
+ * stops", confirmed via tobinmud_debug.log showing MCI was NOT
+ * failing on this machine (no "MCI failed" line), which ruled out the
+ * v0.4.5-era fallback path. The real culprit: PlaySoundA() and an
+ * MCI-opened waveaudio device both ultimately reach for the same
+ * default wave-out device, and Windows documents that a PlaySound()
+ * call can preempt/stop audio already playing through an open MCI
+ * wave alias -- using PlaySoundA() for the one-shot hit sound was
+ * exactly that collision, even though it looked like "two independent
+ * subsystems" from the API names alone. Giving the hit sound its own
+ * MCI alias instead keeps both on the mechanism already proven to
+ * work without contention on this setup (no MCI errors logged for
+ * music), so the OS mixer genuinely overlaps them. PlaySoundA is kept
+ * only as a last-resort fallback if MCI itself refuses to open for a
+ * given file, same safety net as the music path already had. */
 static void play_msp(const char *fname, bool loop) {
     if (loop) {
         char cmd[MAX_PATH + 128 + 64];
@@ -571,12 +579,28 @@ static void play_msp(const char *fname, bool loop) {
         PlaySoundA(fullpath, NULL, SND_FILENAME | SND_ASYNC | SND_NODEFAULT | SND_LOOP);
         return;
     }
-    if (strcmp(fname, "Off") == 0) {
-        PlaySoundA(NULL, NULL, 0); /* stop any one-shot currently playing */
+    mciSendStringA("close tobinhit", NULL, 0, NULL);
+    if (strcmp(fname, "Off") == 0)
         return;
-    }
     char fullpath[MAX_PATH + 128 + 16];
     snprintf(fullpath, sizeof(fullpath), "%ssounds\\%s", g_app.exe_dir, fname);
+    char cmd[MAX_PATH + 128 + 64];
+    snprintf(cmd, sizeof(cmd), "open \"%s\" type waveaudio alias tobinhit", fullpath);
+    MCIERROR err = mciSendStringA(cmd, NULL, 0, NULL);
+    if (err == 0)
+        err = mciSendStringA("play tobinhit", NULL, 0, NULL);
+    if (err == 0)
+        return;
+    /* Same last-resort fallback as the music path -- a one-shot via
+     * PlaySoundA can still momentarily preempt concurrent MCI music if
+     * this ever fires, but that only happens when MCI has already
+     * failed to open the hit sound at all. */
+    char errbuf[128];
+    mciGetErrorStringA(err, errbuf, sizeof(errbuf));
+    char logmsg[256];
+    snprintf(logmsg, sizeof(logmsg), "play_msp: MCI failed for hit sound (%lu: %s), falling back to PlaySoundA",
+             (unsigned long)err, errbuf);
+    debug_log(logmsg);
     PlaySoundA(fullpath, NULL, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
 }
 
