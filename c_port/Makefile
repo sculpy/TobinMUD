@@ -18,7 +18,7 @@ MARIADB_LIBS   := $(shell pkg-config --libs libmariadb)
 
 CFLAGS   ?= -g -O0
 ALL_CFLAGS = $(CFLAGS) $(STD) $(WARN) -Iinclude $(MARIADB_CFLAGS)
-LDLIBS   := $(MARIADB_LIBS) -lcrypt
+LDLIBS   := $(MARIADB_LIBS) -lcrypt -lm
 
 BIN      := build/tobin_c
 SRCS     := $(shell find src -name '*.c')

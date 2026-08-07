@@ -72,7 +72,7 @@ static int compute_age_years(long birth_time) {
 static const char *resource_pool_label(player_class_t c) {
     switch (c) {
         case CLASS_CLERIC: return "Piety";
-        case CLASS_DRUID:  return "Lifeforce (LF)";
+        case CLASS_DRUID:  return "Lifeforce";
         default:           return "Mana";
     }
 }
@@ -112,11 +112,26 @@ bool cmd_score(descriptor_t *d, const char *args) {
     char out[1536];
     snprintf(out, sizeof(out),
         "<c>============================================================<1>\r\n"
-        " <c>Name:<1> %-20s <c>Level:<1> %-3s%s%s <c>XP:<1> %-10ld\r\n"
+ /* Real bug (found 2026-08-07): rank_col/rank_reset (immortal
+  * rank coloring around the level field) were passed as extra
+  * snprintf arguments with NO matching %s specifiers here -- that
+  * shifted every argument after them by 2 positions for the rest
+  * of the whole format string (XP receiving Race's pointer, Race
+  * receiving Class's, etc, all the way down). Compiler caught it
+  * via -Wformat once this file was actually recompiled. */
+	" <c>Name:<1> %-20.20s <c>Level:<1> %s%-12.12s%s <c>XP:<1> %-10ld\r\n"
         " <c>Race:<1> %-20s <c>Class:<1> %-12s <c>Gold:<1> %-8d <c>Bank :<1> %-8d\r\n"
         " <c>Homeland:<1> %-50s\r\n"
         "<c>------------------------------------------------------------<1>\r\n"
-        " <c>HP:<1> %4d/%-4d %-6s: %4d/%-4d Move:<1> %4d/%-4d\r\n"
+	/* Real bug (found 2026-08-07): resource_pool_label() (Piety/
+	 * Lifeforce/Mana per class) was computed and passed as an
+	 * argument, but the label text here was hardcoded to literal
+	 * "Mana:" with no %s for it -- same missing-specifier shift
+	 * bug as the Level/rank-color one above, corrupting every
+	 * field after it (AC, hand, sex, align, hunger, thirst, age,
+	 * position). A Cleric/Druid has been seeing "Mana:" instead of
+	 * their real "Piety:"/"Lifeforce:" label this whole time too. */
+	" <c>HP:<1> %4d/%-4d <c>%s:<1>%4d/%-4d <c>Move:<1>%4d/%-4d\r\n"
         "<c>------------------------------------------------------------<1>\r\n"
         " <c>Str:<1> %-3d <c>Int:<1> %-3d <c>Dex:<1> %-3d\r\n"
         " <c>Wis:<1> %-3d <c>Con:<1> %-3d <c>Cha:<1> %-3d\r\n"
@@ -130,6 +145,16 @@ bool cmd_score(descriptor_t *d, const char *args) {
              race_name(ch->race), class_name(ch->char_class), p->gold, p->bank_gold,
              territory_name(ch->territory),
              p->hp, p->max_hp, resource_pool_label(ch->char_class),
+             /* Real bug (found 2026-08-07): `(CLASS_MAGE || CLASS_MONK)`
+              * is a boolean OR of two enum values, which C collapses to
+              * 1 -- since CLASS_MAGE==0, this whole comparison was
+              * actually `ch->char_class == 1` (CLASS_CLERIC), not "is
+              * Mage or Monk". A real Mage's own score has been showing
+              * 0/0 mana this entire time; Cleric (always-0 mana anyway)
+              * happened to pass harmlessly. being_calc_max_mana() (being.c)
+              * is Mage-only regardless -- Monk never gets a real pool in
+              * Tobin -- so this now matches that exactly rather than
+              * re-adding a Monk branch that would always read 0 anyway. */
              ch->char_class == CLASS_MAGE ? p->mana : 0,
              ch->char_class == CLASS_MAGE ? p->max_mana : 0,
              p->vit, p->max_vit,
