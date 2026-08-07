@@ -120,8 +120,8 @@ bool cmd_score(descriptor_t *d, const char *args) {
   * receiving Class's, etc, all the way down). Compiler caught it
   * via -Wformat once this file was actually recompiled. */
 	" <c>Name:<1> %-20.20s <c>Level:<1> %s%-12.12s%s <c>XP:<1> %-10ld\r\n"
-        " <c>Race:<1> %-20s <c>Class:<1> %-12s <c>Gold:<1> %-8d <c>Bank :<1> %-8d\r\n"
-        " <c>Homeland:<1> %-50s\r\n"
+        " <c>Race:<1> %-20s <c>Class:<1> %-12s\r\n"
+        " <c>Homeland:<1> %-50s <c>Gold:<1> %-8d <c>Bank:<1> %-8d\r\n"
         "<c>------------------------------------------------------------<1>\r\n"
 	/* Real bug (found 2026-08-07): resource_pool_label() (Piety/
 	 * Lifeforce/Mana per class) was computed and passed as an
@@ -142,8 +142,8 @@ bool cmd_score(descriptor_t *d, const char *args) {
         "<c>============================================================<1>\r\n"
         " <c>Position:<1> %s\r\n",
              ch->base.name, rank_col, level_field, rank_reset, p->experience,
-             race_name(ch->race), class_name(ch->char_class), p->gold, p->bank_gold,
-             territory_name(ch->territory),
+             race_name(ch->race), class_name(ch->char_class), territory_name(ch->territory),
+             p->gold, p->bank_gold,
              p->hp, p->max_hp, resource_pool_label(ch->char_class),
              /* Real bug (found 2026-08-07): `(CLASS_MAGE || CLASS_MONK)`
               * is a boolean OR of two enum values, which C collapses to
