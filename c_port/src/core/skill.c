@@ -69,9 +69,9 @@ static const skill_def_t SKILLS[] = {
      * just works, no command changes needed). "Blacksmithing" itself
      * (Warrior) is this exact skill under its real-upstream name --
      * already fully covered, not a separate missing entry. */
-    { "repair",                  CLASS_CLERIC, SKILL_TIER_CLASS, 10, "See help `repair` for help." },
-    { "repair",                  CLASS_MONK, SKILL_TIER_CLASS,    10, "See help `repair` for help." },
-    { "repair",                  CLASS_THIEF, SKILL_TIER_CLASS,   10, "See help `repair` for help." },
+    { "repair",                  CLASS_CLERIC, SKILL_TIER_CLASS, 1, "See help `repair` for help." },
+    { "repair",                  CLASS_MONK, SKILL_TIER_CLASS,    1, "See help `repair` for help." },
+    { "repair",                  CLASS_THIEF, SKILL_TIER_CLASS,   1, "See help `repair` for help." },
     /* Missing-skill audit: real upstream SKILL_BLACKSMITHING_ADVANCED
      * (Warrior) -- gates repairing crystalline materials, a material-
      * property distinction Tobin's own `repair` doc comment already
@@ -80,7 +80,7 @@ static const skill_def_t SKILLS[] = {
      * down at all (cmd_repair.c skips the depreciation increment when
      * this is known), vs. the base `repair` skill's permanent -1 every
      * time. */
-    { "advanced blacksmithing",  CLASS_WARRIOR, SKILL_TIER_CLASS,  20, "See help `advanced blacksmithing` for help." },
+    { "advanced blacksmithing",  CLASS_WARRIOR, SKILL_TIER_ADVANCED,  25, "See help `advanced blacksmithing` for help." },
     /* Missing-skill audit: real upstream SKILL_DEBRIDE (Warrior,
      * disc_warrior_blacksmithing.cc's doDebride()) strips an ITEM_RUSTY
      * flag Tobin has no equivalent for. Real, working reuse instead:
@@ -88,7 +88,7 @@ static const skill_def_t SKILLS[] = {
      * `repair` increases), a genuine "undo some of that wear" effect --
      * cmd_repair.c's own doc comment already covers depreciation as a
      * real, working field. */
-    { "debride",                  CLASS_WARRIOR, SKILL_TIER_CLASS,  12, "See help `debride` for help." },
+    { "debride",                  CLASS_WARRIOR, SKILL_TIER_ADVANCED,  25, "See help `debride` for help." },
     /* Missing-skill audit: real upstream SKILL_BLOODLUST (Warrior,
      * disc_warrior_brawling.cc) is a passive per-round chance for a
      * stacking damage buff while fighting. Ported as a flat passive
@@ -96,24 +96,24 @@ static const skill_def_t SKILLS[] = {
      * weapon-specialization bonuses combat_strike() already applies
      * (kubo/cintai/spec_prof) -- real, working, no separate stacking-
      * affect infrastructure needed. */
-    { "bloodlust",                CLASS_WARRIOR, SKILL_TIER_CLASS,  15, "See help `bloodlust` for help." },
+    { "bloodlust",                CLASS_WARRIOR, SKILL_TIER_ADVANCED,  25, "See help `bloodlust` for help." },
     /* Missing-skill audit: real upstream SKILL_STOMP (Warrior,
      * disc_warrior_brawling.cc) is a leg/foot melee attack, part of the
      * berserk auto-proc pool. Ported as its own standalone command
      * (cmd_stomp.c), same shape as `kick`. */
-    { "stomp",                     CLASS_WARRIOR, SKILL_TIER_CLASS,  8, "See help `stomp` for help." },
+    { "stomp",                     CLASS_WARRIOR, SKILL_TIER_ADVANCED,  29, "See help `stomp` for help." },
     { "focus attack",            CLASS_WARRIOR, SKILL_TIER_CLASS,   5, "See help `focus attack` for help." },
     { "shove",                   CLASS_WARRIOR, SKILL_TIER_CLASS,   6, "See help `shove` for help." },
-    { "bodyslam",                CLASS_WARRIOR, SKILL_TIER_CLASS,   10, "See help `bodyslam` for help." },
-    { "headbutt",                CLASS_WARRIOR, SKILL_TIER_CLASS,   15, "See help `headbutt` for help." },
-    { "spin",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   17, "See help `spin` for help." },
-    { "disarm",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   17, "See help `disarm` for help." },
-    { "advanced berserking",     CLASS_WARRIOR, SKILL_TIER_CLASS,   20, "See help `advanced berserking` for help." },
-    { "slam",                    CLASS_WARRIOR, SKILL_TIER_CLASS,   20, "See help `slam` for help." },
-    { "riposte",                 CLASS_WARRIOR, SKILL_TIER_CLASS,   20, "See help `riposte` for help." },
-    { "deathstroke",             CLASS_WARRIOR, SKILL_TIER_CLASS,   20, "See help `deathstroke` for help." },
-    { "taunt",                   CLASS_WARRIOR, SKILL_TIER_CLASS,   22, "See help `taunt` for help." },
-    { "whirlwind",               CLASS_WARRIOR, SKILL_TIER_CLASS,   25, "See help `whirlwind` for help." },
+    { "bodyslam",                CLASS_WARRIOR, SKILL_TIER_ADVANCED,   28, "See help `bodyslam` for help." },
+    { "headbutt",                CLASS_WARRIOR, SKILL_TIER_ADVANCED,   27, "See help `headbutt` for help." },
+    { "spin",                    CLASS_WARRIOR, SKILL_TIER_ADVANCED,   30, "See help `spin` for help." },
+    { "disarm",                  CLASS_WARRIOR, SKILL_TIER_CLASS,   5, "See help `disarm` for help." },
+    { "advanced berserking",     CLASS_WARRIOR, SKILL_TIER_ADVANCED,   35, "See help `advanced berserking` for help." },
+    { "slam",                    CLASS_WARRIOR, SKILL_TIER_ADVANCED,   25, "See help `slam` for help." },
+    { "riposte",                 CLASS_WARRIOR, SKILL_TIER_ADVANCED,   25, "See help `riposte` for help." },
+    { "deathstroke",             CLASS_WARRIOR, SKILL_TIER_ADVANCED,   35, "See help `deathstroke` for help." },
+    { "taunt",                   CLASS_WARRIOR, SKILL_TIER_ADVANCED,   30, "See help `taunt` for help." },
+    { "whirlwind",               CLASS_WARRIOR, SKILL_TIER_ADVANCED,   25, "See help `whirlwind` for help." },
     { "kneestrike",              CLASS_WARRIOR, SKILL_TIER_CLASS,   25, "See help `kneestrike` for help." },
     { "switch opponents",        CLASS_WARRIOR, SKILL_TIER_CLASS,   25, "See help `switch opponents` for help." },
     { "trance of blades",        CLASS_WARRIOR, SKILL_TIER_ADVANCED, 25, "See help `trance of blades` for help." },
@@ -124,11 +124,11 @@ static const skill_def_t SKILLS[] = {
     { "blunt proficiency",    CLASS_WARRIOR, SKILL_TIER_COMBAT,  1, "See help `blunt proficiency` for help." },
     { "pierce proficiency",   CLASS_WARRIOR, SKILL_TIER_COMBAT,  1, "See help `pierce proficiency` for help." },
     { "barehand proficiency", CLASS_WARRIOR, SKILL_TIER_COMBAT,  1, "See help `barehand proficiency` for help." },
-    { "ranged proficiency",   CLASS_WARRIOR, SKILL_TIER_COMBAT, 25, "See help `ranged proficiency` for help." },
+    { "ranged proficiency",   CLASS_WARRIOR, SKILL_TIER_ADVANCED, 25, "See help `ranged proficiency` for help." },
 
     /* ---------------- THIEF ---------------- */
     { "riding",           CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `riding` for help." },
-    { "sign",             CLASS_THIEF, SKILL_TIER_CLASS,  10, "See help `sign` for help." },
+    { "sign",             CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `sign` for help." },
     { "kick",             CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `kick` for help." },
     { "retreat",          CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `retreat` for help." },
     { "backstab",         CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `backstab` for help." },
@@ -138,27 +138,27 @@ static const skill_def_t SKILLS[] = {
      * with skill_proficiency(). */
     { "swindle",          CLASS_THIEF, SKILL_TIER_CLASS,  10, "See help `swindle` for help." },
     { "dodge",            CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `dodge` for help." },
-    { "garrotte",         CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `garrotte` for help." },
-    { "throatslit",       CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `throatslit` for help." },
-    { "poison weapon",    CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `poison weapon` for help." },
+    { "garrotte",         CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `garrotte` for help." },
+    { "throatslit",       CLASS_THIEF, SKILL_TIER_ADVANCED,  26, "See help `throatslit` for help." },
+    { "poison weapon",    CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `poison weapon` for help." },
     { "steal",            CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `steal` for help." },
     { "peek",             CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `peek` for help." },
     { "search",           CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `search` for help." },
-    { "detect trap",      CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `detect trap` for help." },
-    { "counter steal",    CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `counter steal` for help." },
+    { "detect trap",      CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `detect trap` for help." },
+    { "counter steal",    CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `counter steal` for help." },
     { "sneak",            CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `sneak` for help." },
-    { "concealment",      CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `concealment` for help." },
-    { "disguise",         CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `disguise` for help." },
-    { "skulk",            CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `skulk` for help." },
-    { "set trap (arrow)", CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `set trap (arrow)` for help." },
-    { "set trap (container)", CLASS_THIEF, SKILL_TIER_CLASS, 1, "See help `set trap (container)` for help." },
-    { "track",            CLASS_THIEF, SKILL_TIER_CLASS,  13, "See help `track` for help." },
+    { "concealment",      CLASS_THIEF, SKILL_TIER_ADVANCED,  30, "See help `concealment` for help." },
+    { "disguise",         CLASS_THIEF, SKILL_TIER_ADVANCED,  30, "See help `disguise` for help." },
+    { "skulk",            CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `skulk` for help." },
+    { "set trap (arrow)", CLASS_THIEF, SKILL_TIER_ADVANCED,  26, "See help `set trap (arrow)` for help." },
+    { "set trap (container)", CLASS_THIEF, SKILL_TIER_ADVANCED, 27, "See help `set trap (container)` for help." },
+    { "track",            CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `track` for help." },
     { "switch opponents", CLASS_THIEF, SKILL_TIER_CLASS,  1, "See help `switch opponents` for help." },
-    { "set trap (door)",  CLASS_THIEF, SKILL_TIER_CLASS,  19, "See help `set trap (door)` for help." },
-    { "pick lock",        CLASS_THIEF, SKILL_TIER_CLASS,  21, "See help `pick lock` for help." },
-    { "stabbing",         CLASS_THIEF, SKILL_TIER_CLASS,  25, "See help `stabbing` for help." },
-    { "disarm",           CLASS_THIEF, SKILL_TIER_CLASS,  25, "See help `disarm` for help." },
-    { "disarm trap",      CLASS_THIEF, SKILL_TIER_CLASS,  25, "See help `disarm trap` for help." },
+    { "set trap (door)",  CLASS_THIEF, SKILL_TIER_ADVANCED,  29, "See help `set trap (door)` for help." },
+    { "pick lock",        CLASS_THIEF, SKILL_TIER_ADVANCED,  31, "See help `pick lock` for help." },
+    { "stabbing",         CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `stabbing` for help." },
+    { "disarm",           CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `disarm` for help." },
+    { "disarm trap",      CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `disarm trap` for help." },
     { "subterfuge",       CLASS_THIEF, SKILL_TIER_ADVANCED, 25, "See help `subterfuge` for help." },
     { "hide",             CLASS_THIEF, SKILL_TIER_ADVANCED, 31, "See help `hide` for help." },
     { "plant",            CLASS_THIEF, SKILL_TIER_ADVANCED, 31, "See help `plant` for help." },
@@ -171,11 +171,11 @@ static const skill_def_t SKILLS[] = {
     { "blunt proficiency",    CLASS_THIEF, SKILL_TIER_COMBAT,  1, "See help `blunt proficiency` for help." },
     { "pierce proficiency",   CLASS_THIEF, SKILL_TIER_COMBAT,  1, "See help `pierce proficiency` for help." },
     { "barehand proficiency", CLASS_THIEF, SKILL_TIER_COMBAT,  1, "See help `barehand proficiency` for help." },
-    { "ranged proficiency",   CLASS_THIEF, SKILL_TIER_COMBAT, 25, "See help `ranged proficiency` for help." },
+    { "ranged proficiency",   CLASS_THIEF, SKILL_TIER_ADVANCED, 25, "See help `ranged proficiency` for help." },
 
     /* ---------------- MONK ---------------- */
     { "riding",          CLASS_MONK, SKILL_TIER_CLASS,  1, "See help `riding` for help." },
-    { "sign",            CLASS_MONK, SKILL_TIER_CLASS,  10, "See help `sign` for help." },
+    { "sign",            CLASS_MONK, SKILL_TIER_CLASS,  1, "See help `sign` for help." },
     { "disarm",          CLASS_MONK, SKILL_TIER_CLASS,  1, "See help `disarm` for help." },
     { "kick",            CLASS_MONK, SKILL_TIER_CLASS,  1, "See help `kick` for help." },
     { "groundfighting",  CLASS_MONK, SKILL_TIER_CLASS, 5, "See help `groundfighting` for help." },
@@ -184,8 +184,8 @@ static const skill_def_t SKILLS[] = {
      * that improves armor class the more it's practiced. Ported as a
      * real being_total_ac() bonus (being.c), scaling with
      * skill_proficiency(). */
-    { "Oomlat Philosophy", CLASS_MONK, SKILL_TIER_CLASS, 20, "See help `Oomlat Philosophy` for help." },
-    { "retreat",         CLASS_MONK, SKILL_TIER_CLASS, 15, "See help `retreat` for help." },
+    { "Oomlat Philosophy", CLASS_MONK, SKILL_TIER_ADVANCED, 25, "See help `Oomlat Philosophy` for help." },
+    { "retreat",         CLASS_MONK, SKILL_TIER_ADVANCED, 25, "See help `retreat` for help." },
     { "counter move",    CLASS_MONK, SKILL_TIER_ADVANCED, 25, "See help `counter move` for help." },
     { "switch opponents", CLASS_MONK, SKILL_TIER_ADVANCED, 25, "See help `switch opponents` for help." },
     { "chop",            CLASS_MONK, SKILL_TIER_ADVANCED, 25, "See help `chop` for help." },
@@ -194,11 +194,11 @@ static const skill_def_t SKILLS[] = {
     { "kubo",            CLASS_MONK, SKILL_TIER_CLASS,   1, "See help `kubo` for help." },
     { "chi",             CLASS_MONK, SKILL_TIER_CLASS,   1, "See help `chi` for help." },
     { "oomlat",          CLASS_MONK, SKILL_TIER_CLASS,   1, "See help `oomlat` for help." },
-    { "catfall",         CLASS_MONK, SKILL_TIER_CLASS,   1, "See help `catfall` for help." },
-    { "catleap",         CLASS_MONK, SKILL_TIER_CLASS,   1, "See help `catleap` for help." },
+    { "catfall",         CLASS_MONK, SKILL_TIER_ADVANCED,   25, "See help `catfall` for help." },
+    { "catleap",         CLASS_MONK, SKILL_TIER_ADVANCED,   25, "See help `catleap` for help." },
     { "cintai",          CLASS_MONK, SKILL_TIER_CLASS,   5, "See help `cintai` for help." },
-    { "springleap",      CLASS_MONK, SKILL_TIER_CLASS,  20, "See help `springleap` for help." },
-    { "advanced kicking", CLASS_MONK, SKILL_TIER_CLASS, 25, "See help `advanced kicking` for help." },
+    { "springleap",      CLASS_MONK, SKILL_TIER_ADVANCED,  30, "See help `springleap` for help." },
+    { "advanced kicking", CLASS_MONK, SKILL_TIER_ADVANCED, 25, "See help `advanced kicking` for help." },
     { "iron fist",           CLASS_MONK, SKILL_TIER_ADVANCED,  25, "See help `iron fist` for help." },
     { "hurl",                CLASS_MONK, SKILL_TIER_ADVANCED,  25, "See help `hurl` for help." },
     { "chain attack",        CLASS_MONK, SKILL_TIER_ADVANCED,  25, "See help `chain attack` for help." },
@@ -224,7 +224,7 @@ static const skill_def_t SKILLS[] = {
     { "blunt proficiency",    CLASS_MONK, SKILL_TIER_COMBAT,  1, "See help `blunt proficiency` for help." },
     { "pierce proficiency",   CLASS_MONK, SKILL_TIER_COMBAT,  1, "See help `pierce proficiency` for help." },
     { "barehand proficiency", CLASS_MONK, SKILL_TIER_COMBAT,  1, "See help `barehand proficiency` for help." },
-    { "ranged proficiency",   CLASS_MONK, SKILL_TIER_COMBAT, 25, "See help `ranged proficiency` for help." },
+    { "ranged proficiency",   CLASS_MONK, SKILL_TIER_ADVANCED, 25, "See help `ranged proficiency` for help." },
 
     /* ---------------- CLERIC ---------------- */
     { "riding",               CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `riding` for help." },
@@ -233,13 +233,13 @@ static const skill_def_t SKILLS[] = {
     { "blunt proficiency",    CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "See help `blunt proficiency` for help." },
     { "pierce proficiency",   CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "See help `pierce proficiency` for help." },
     { "barehand proficiency", CLASS_CLERIC, SKILL_TIER_COMBAT,  1, "See help `barehand proficiency` for help." },
-    { "ranged proficiency",   CLASS_CLERIC, SKILL_TIER_COMBAT, 25, "See help `ranged proficiency` for help." },
+    { "ranged proficiency",   CLASS_CLERIC, SKILL_TIER_ADVANCED, 25, "See help `ranged proficiency` for help." },
     { "heal light",       CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `heal light` for help." },
     { "harm light",       CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `harm light` for help." },
     { "armor",            CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `armor` for help." },
     { "bless",            CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `bless` for help." },
-    { "attune",           CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `attune` for help." },
-    { "devotion",         CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `devotion` for help." },
+    { "attune",           CLASS_CLERIC, SKILL_TIER_ADVANCED,  25, "See help `attune` for help." },
+    { "devotion",         CLASS_CLERIC, SKILL_TIER_ADVANCED,  25, "See help `devotion` for help." },
     { "penance",          CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `penance` for help." },
     { "clot",             CLASS_CLERIC, SKILL_TIER_CLASS,  2, "See help `clot` for help." },
     /* Missing-spell audit: real upstream discArray[SPELL_STERILIZE]
@@ -248,10 +248,10 @@ static const skill_def_t SKILLS[] = {
      * (affect.h) -- same targeted-cure shape as clot/remove curse
      * above, just a different specific disease. */
     { "sterilize",        CLASS_CLERIC, SKILL_TIER_CLASS,  6, "See help `sterilize` for help." },
-    { "create food",      CLASS_CLERIC, SKILL_TIER_CLASS, 3, "See help `create food` for help." },
-    { "create water",     CLASS_CLERIC, SKILL_TIER_CLASS, 3, "See help `create water` for help." },
-    { "cure poison",      CLASS_CLERIC, SKILL_TIER_CLASS, 3, "See help `cure poison` for help." },
-    { "salve",            CLASS_CLERIC, SKILL_TIER_CLASS, 4, "See help `salve` for help." },
+    { "create food",      CLASS_CLERIC, SKILL_TIER_CLASS, 1, "See help `create food` for help." },
+    { "create water",     CLASS_CLERIC, SKILL_TIER_CLASS, 1, "See help `create water` for help." },
+    { "cure poison",      CLASS_CLERIC, SKILL_TIER_CLASS, 15, "See help `cure poison` for help." },
+    { "salve",            CLASS_CLERIC, SKILL_TIER_CLASS, 20, "See help `salve` for help." },
     { "heal serious",     CLASS_CLERIC, SKILL_TIER_CLASS, 5, "See help `heal serious` for help." },
     { "rain brimstone",   CLASS_CLERIC, SKILL_TIER_CLASS, 5, "See help `rain brimstone` for help." },
     { "remove curse",     CLASS_CLERIC, SKILL_TIER_CLASS, 7, "See help `remove curse` for help." },
@@ -271,11 +271,11 @@ static const skill_def_t SKILLS[] = {
     { "heal",             CLASS_CLERIC, SKILL_TIER_CLASS, 17, "See help `heal` for help." },
     { "summon",           CLASS_CLERIC, SKILL_TIER_CLASS, 19, "See help `summon` for help." },
     { "harm",             CLASS_CLERIC, SKILL_TIER_CLASS, 20, "See help `harm` for help." },
-    { "plague of locusts", CLASS_CLERIC, SKILL_TIER_CLASS, 21, "See help `plague of locusts` for help." },
-    { "word of recall",   CLASS_CLERIC, SKILL_TIER_CLASS, 21, "See help `word of recall` for help." },
-    { "blindness",        CLASS_CLERIC, SKILL_TIER_CLASS, 21, "See help `blindness` for help." },
-    { "paralyze limb",    CLASS_CLERIC, SKILL_TIER_CLASS, 22, "See help `paralyze limb` for help." },
-    { "knit bone",        CLASS_CLERIC, SKILL_TIER_CLASS, 25, "See help `knit bone` for help." },
+    { "plague of locusts", CLASS_CLERIC, SKILL_TIER_ADVANCED, 25, "See help `plague of locusts` for help." },
+    { "word of recall",   CLASS_CLERIC, SKILL_TIER_ADVANCED, 26, "See help `word of recall` for help." },
+    { "blindness",        CLASS_CLERIC, SKILL_TIER_ADVANCED, 26, "See help `blindness` for help." },
+    { "paralyze limb",    CLASS_CLERIC, SKILL_TIER_ADVANCED, 27, "See help `paralyze limb` for help." },
+    { "knit bone",        CLASS_CLERIC, SKILL_TIER_ADVANCED, 27, "See help `knit bone` for help." },
     { "sanctuary",        CLASS_CLERIC, SKILL_TIER_ADVANCED,  25, "See help `sanctuary` for help." },
     { "bleed",            CLASS_CLERIC, SKILL_TIER_ADVANCED,  25, "See help `bleed` for help." },
     { "restore limb",     CLASS_CLERIC, SKILL_TIER_ADVANCED,  25, "See help `restore limb` for help." },
@@ -308,12 +308,12 @@ static const skill_def_t SKILLS[] = {
 
     /* ---------------- MAGE ---------------- */
     { "riding",               CLASS_MAGE, SKILL_TIER_CLASS,  1, "See help `riding` for help." },
-    { "sign",                 CLASS_MAGE, SKILL_TIER_CLASS,  10, "See help `sign` for help." },
+    { "sign",                 CLASS_MAGE, SKILL_TIER_CLASS,  1, "See help `sign` for help." },
     { "slash proficiency",    CLASS_MAGE, SKILL_TIER_COMBAT,  1, "See help `slash proficiency` for help." },
     { "blunt proficiency",    CLASS_MAGE, SKILL_TIER_COMBAT,  1, "See help `blunt proficiency` for help." },
     { "pierce proficiency",   CLASS_MAGE, SKILL_TIER_COMBAT,  1, "See help `pierce proficiency` for help." },
     { "barehand proficiency", CLASS_MAGE, SKILL_TIER_COMBAT,  1, "See help `barehand proficiency` for help." },
-    { "ranged proficiency",   CLASS_MAGE, SKILL_TIER_COMBAT, 25, "See help `ranged proficiency` for help." },
+    { "ranged proficiency",   CLASS_MAGE, SKILL_TIER_ADVANCED, 25, "See help `ranged proficiency` for help." },
     { "wizardry",         CLASS_MAGE, SKILL_TIER_CLASS,  1, "See help `wizardry` for help." },
     { "mana",             CLASS_MAGE, SKILL_TIER_CLASS,  1, "See help `mana` for help." },
     { "meditate",         CLASS_MAGE, SKILL_TIER_CLASS,  1, "See help `meditate` for help." },
@@ -372,10 +372,10 @@ static const skill_def_t SKILLS[] = {
     { "enhance weapon",   CLASS_MAGE, SKILL_TIER_CLASS, 24, "See help `enhance weapon` for help." },
     { "conjure elemental water", CLASS_MAGE, SKILL_TIER_CLASS, 24, "See help `conjure elemental water` for help." },
     { "copy",             CLASS_MAGE, SKILL_TIER_CLASS, 23, "See help `copy` for help." },
-    { "farlook",          CLASS_MAGE, SKILL_TIER_CLASS, 25, "See help `farlook` for help." },
-    { "acid blast",       CLASS_MAGE, SKILL_TIER_CLASS, 25, "See help `acid blast` for help." },
-    { "haste",            CLASS_MAGE, SKILL_TIER_CLASS, 23, "See help `haste` for help." },
-    { "mage repair",      CLASS_MAGE, SKILL_TIER_CLASS, 17, "See help `mage repair` for help." },
+    { "farlook",          CLASS_MAGE, SKILL_TIER_ADVANCED, 25, "See help `farlook` for help." },
+    { "acid blast",       CLASS_MAGE, SKILL_TIER_ADVANCED, 25, "See help `acid blast` for help." },
+    { "haste",            CLASS_MAGE, SKILL_TIER_ADVANCED, 26, "See help `haste` for help." },
+    { "mage repair",      CLASS_MAGE, SKILL_TIER_CLASS, 10, "See help `mage repair` for help." },
     { "calm",             CLASS_MAGE, SKILL_TIER_CLASS, 19, "See help `calm` for help." },
     /* Missing-spell audit: real upstream discArray[SPELL_INFERNO] --
      * Mage, DISC_FIRE, TAR_CHAR_ROOM|TAR_VIOLENT|TAR_FIGHT_VICT,
@@ -384,7 +384,7 @@ static const skill_def_t SKILLS[] = {
      * this ports as a real instant strike, same disclosed "no
      * elemental damage-type system" scope-cut as every other
      * elemental-flavored attack spell this audit has ported). */
-    { "inferno",          CLASS_MAGE, SKILL_TIER_CLASS, 21, "See help `inferno` for help." },
+    { "inferno",          CLASS_MAGE, SKILL_TIER_ADVANCED, 31, "See help `inferno` for help." },
     { "detect magic",        CLASS_MAGE, SKILL_TIER_ADVANCED,  25, "See help `detect magic` for help." },
     { "protection from air",  CLASS_MAGE, SKILL_TIER_ADVANCED,  25, "See help `protection from air` for help." },
     { "protection from fire", CLASS_MAGE, SKILL_TIER_ADVANCED,  25, "See help `protection from fire` for help." },
@@ -440,20 +440,20 @@ static const skill_def_t SKILLS[] = {
      * thrall/possession lines were deliberately left out -- thematically
      * a poor fit regardless of renaming. */
     { "riding",               CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `riding` for help." },
-    { "sign",                 CLASS_DRUID, SKILL_TIER_CLASS,  10, "See help `sign` for help." },
+    { "sign",                 CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `sign` for help." },
     { "slash proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "See help `slash proficiency` for help." },
     { "blunt proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "See help `blunt proficiency` for help." },
     { "pierce proficiency",   CLASS_DRUID, SKILL_TIER_COMBAT,  1, "See help `pierce proficiency` for help." },
     { "barehand proficiency", CLASS_DRUID, SKILL_TIER_COMBAT,  1, "See help `barehand proficiency` for help." },
-    { "ranged proficiency",   CLASS_DRUID, SKILL_TIER_COMBAT, 25, "See help `ranged proficiency` for help." },
+    { "ranged proficiency",   CLASS_DRUID, SKILL_TIER_ADVANCED, 25, "See help `ranged proficiency` for help." },
     /* Full spell/skill/prayer roster import: 6 named Shaman spells
      * (user 2026-07-26), ported onto Druid. Real level threshold from
      * spell_info.cc's START_1 (task_sacrifice.cc). */
     { "sacrifice",         CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `sacrifice` for help." },
-    { "barkskin",          CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `barkskin` for help." },
-    { "entangling roots",  CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `entangling roots` for help." },
-    { "heal light",        CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `heal light` for help." },
-    { "harm light",        CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `harm light` for help." },
+    { "barkskin",          CLASS_DRUID, SKILL_TIER_CLASS,  3, "See help `barkskin` for help." },
+    { "entangling roots",  CLASS_DRUID, SKILL_TIER_CLASS,  5, "See help `entangling roots` for help." },
+    { "heal light",        CLASS_DRUID, SKILL_TIER_CLASS,  7, "See help `heal light` for help." },
+    { "harm light",        CLASS_DRUID, SKILL_TIER_CLASS,  7, "See help `harm light` for help." },
     /* Roster gap noted during the meditate/penance pass (user 2026-07-27):
      * Mage has "meditate" and Cleric has "penance", both a level-1
      * meditative-recovery discipline -- Druid had no equivalent at all.
@@ -474,9 +474,9 @@ static const skill_def_t SKILLS[] = {
      * (user 2026-07-26), ported onto Druid. Real level threshold from
      * spell_info.cc's START_15 (disc_shaman.cc's stupidity()). */
     { "stupidity",         CLASS_DRUID, SKILL_TIER_CLASS, 15, "See help `stupidity` for help." },
-    { "storm call",        CLASS_DRUID, SKILL_TIER_CLASS, 23, "See help `storm call` for help." },
+    { "storm call",        CLASS_DRUID, SKILL_TIER_ADVANCED, 28, "See help `storm call` for help." },
     { "cure disease",      CLASS_DRUID, SKILL_TIER_CLASS, 23, "See help `cure disease` for help." },
-    { "refresh",           CLASS_DRUID, SKILL_TIER_CLASS, 25, "See help `refresh` for help." },
+    { "refresh",           CLASS_DRUID, SKILL_TIER_ADVANCED, 25, "See help `refresh` for help." },
     { "heal critical",     CLASS_DRUID, SKILL_TIER_ADVANCED, 25, "See help `heal critical` for help." },
     { "feral wrath",       CLASS_DRUID, SKILL_TIER_ADVANCED, 28, "See help `feral wrath` for help." },
     { "earthmaw",          CLASS_DRUID, SKILL_TIER_ADVANCED, 28, "See help `earthmaw` for help." },
@@ -500,8 +500,8 @@ static const skill_def_t SKILLS[] = {
      * Tobin's established Ranger-flavor analog (same mapping the roster-
      * import section above uses for Ranger's own real spell list). */
     { "butcher",           CLASS_DRUID, SKILL_TIER_CLASS,     1, "See help `butcher` for help." },
-    { "skin",              CLASS_DRUID, SKILL_TIER_ADVANCED, 15, "See help `skin` for help." },
-    { "forage",            CLASS_DRUID, SKILL_TIER_ADVANCED, 15, "See help `forage` for help." },
+    { "skin",              CLASS_DRUID, SKILL_TIER_ADVANCED, 25, "See help `skin` for help." },
+    { "forage",            CLASS_DRUID, SKILL_TIER_ADVANCED, 25, "See help `forage` for help." },
     /* Missing-skill audit (TODO.md, "Generic / cross-class"), 2026-08-05:
      * real upstream `toughness`/`focused avoidance`/`evaluate` are all
      * SKILL_GENERAL in spell_info.cc's discArray (DISC_DEFENSE/
@@ -523,24 +523,24 @@ static const skill_def_t SKILLS[] = {
      * ports as its own new `evaluate <item>` command (cmd_evaluate.c)
      * instead, tiered by proficiency: a rough price guess at low skill,
      * condition and material tier revealed at higher skill. */
-    { "toughness",          CLASS_MAGE,    SKILL_TIER_ADVANCED, 10, "See help `toughness` for help." },
-    { "toughness",          CLASS_CLERIC,  SKILL_TIER_ADVANCED, 10, "See help `toughness` for help." },
-    { "toughness",          CLASS_WARRIOR, SKILL_TIER_ADVANCED, 10, "See help `toughness` for help." },
-    { "toughness",          CLASS_THIEF,   SKILL_TIER_ADVANCED, 10, "See help `toughness` for help." },
-    { "toughness",          CLASS_DRUID,   SKILL_TIER_ADVANCED, 10, "See help `toughness` for help." },
-    { "toughness",          CLASS_MONK,    SKILL_TIER_ADVANCED, 10, "See help `toughness` for help." },
-    { "focused avoidance",  CLASS_MAGE,    SKILL_TIER_ADVANCED, 15, "See help `focused avoidance` for help." },
-    { "focused avoidance",  CLASS_CLERIC,  SKILL_TIER_ADVANCED, 15, "See help `focused avoidance` for help." },
-    { "focused avoidance",  CLASS_WARRIOR, SKILL_TIER_ADVANCED, 15, "See help `focused avoidance` for help." },
-    { "focused avoidance",  CLASS_THIEF,   SKILL_TIER_ADVANCED, 15, "See help `focused avoidance` for help." },
-    { "focused avoidance",  CLASS_DRUID,   SKILL_TIER_ADVANCED, 15, "See help `focused avoidance` for help." },
-    { "focused avoidance",  CLASS_MONK,    SKILL_TIER_ADVANCED, 15, "See help `focused avoidance` for help." },
-    { "evaluate",           CLASS_MAGE,    SKILL_TIER_CLASS,     8, "See help `evaluate` for help." },
-    { "evaluate",           CLASS_CLERIC,  SKILL_TIER_CLASS,     8, "See help `evaluate` for help." },
-    { "evaluate",           CLASS_WARRIOR, SKILL_TIER_CLASS,     8, "See help `evaluate` for help." },
-    { "evaluate",           CLASS_THIEF,   SKILL_TIER_CLASS,     8, "See help `evaluate` for help." },
-    { "evaluate",           CLASS_DRUID,   SKILL_TIER_CLASS,     8, "See help `evaluate` for help." },
-    { "evaluate",           CLASS_MONK,    SKILL_TIER_CLASS,     8, "See help `evaluate` for help." },
+    { "toughness",          CLASS_MAGE,    SKILL_TIER_ADVANCED, 25, "See help `toughness` for help." },
+    { "toughness",          CLASS_CLERIC,  SKILL_TIER_ADVANCED, 25, "See help `toughness` for help." },
+    { "toughness",          CLASS_WARRIOR, SKILL_TIER_ADVANCED, 25, "See help `toughness` for help." },
+    { "toughness",          CLASS_THIEF,   SKILL_TIER_ADVANCED, 25, "See help `toughness` for help." },
+    { "toughness",          CLASS_DRUID,   SKILL_TIER_ADVANCED, 25, "See help `toughness` for help." },
+    { "toughness",          CLASS_MONK,    SKILL_TIER_ADVANCED, 25, "See help `toughness` for help." },
+    { "focused avoidance",  CLASS_MAGE,    SKILL_TIER_ADVANCED, 30, "See help `focused avoidance` for help." },
+    { "focused avoidance",  CLASS_CLERIC,  SKILL_TIER_ADVANCED, 30, "See help `focused avoidance` for help." },
+    { "focused avoidance",  CLASS_WARRIOR, SKILL_TIER_ADVANCED, 30, "See help `focused avoidance` for help." },
+    { "focused avoidance",  CLASS_THIEF,   SKILL_TIER_ADVANCED, 30, "See help `focused avoidance` for help." },
+    { "focused avoidance",  CLASS_DRUID,   SKILL_TIER_ADVANCED, 30, "See help `focused avoidance` for help." },
+    { "focused avoidance",  CLASS_MONK,    SKILL_TIER_ADVANCED, 30, "See help `focused avoidance` for help." },
+    { "evaluate",           CLASS_MAGE,    SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
+    { "evaluate",           CLASS_CLERIC,  SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
+    { "evaluate",           CLASS_WARRIOR, SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
+    { "evaluate",           CLASS_THIEF,   SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
+    { "evaluate",           CLASS_DRUID,   SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
+    { "evaluate",           CLASS_MONK,    SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
 };
 
 #define SKILL_TOTAL (int)(sizeof(SKILLS) / sizeof(SKILLS[0]))
