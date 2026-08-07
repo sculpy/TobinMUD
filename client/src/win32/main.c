@@ -98,7 +98,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.13"
+#define CLIENT_VERSION "0.4.14"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -1031,12 +1031,32 @@ static void apply_font(void) {
         cf.dwMask = CFM_FACE | CFM_SIZE;
         wcscpy(cf.szFaceName, L"Consolas");
         cf.yHeight = g_app.font_pt * 20; /* twips (1/20 pt) */
+
+        /* Msftedit.dll (real RichEdit, not the old RICHED32 control)
+         * defaults new paragraphs to its own "Normal style" spacing,
+         * which adds visible space AFTER every paragraph on top of the
+         * font's natural line height -- since every incoming MUD line
+         * ends its own paragraph (\r\n), that showed up as "an extra
+         * half line of space...for every line" (user, 2026-08-06), not
+         * a font-metric issue. PARAFORMAT2's dySpaceBefore/dySpaceAfter
+         * zero that out and bLineSpacingRule=0 pins single spacing,
+         * removing the word-processor-style paragraph gap so scroll-
+         * back reads like a terminal again. */
+        PARAFORMAT2 pf;
+        ZeroMemory(&pf, sizeof(pf));
+        pf.cbSize = sizeof(pf);
+        pf.dwMask = PFM_SPACEBEFORE | PFM_SPACEAFTER | PFM_LINESPACING;
+        pf.dySpaceBefore = 0;
+        pf.dySpaceAfter = 0;
+        pf.bLineSpacingRule = 0; /* single */
+
         SendMessageW(g_app.hwnd_output, EM_SETCHARFORMAT, SCF_DEFAULT, (LPARAM)&cf);
 
         LRESULT saved_start, saved_end;
         SendMessageW(g_app.hwnd_output, EM_GETSEL, (WPARAM)&saved_start, (LPARAM)&saved_end);
         SendMessageW(g_app.hwnd_output, EM_SETSEL, 0, -1);
         SendMessageW(g_app.hwnd_output, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cf);
+        SendMessageW(g_app.hwnd_output, EM_SETPARAFORMAT, 0, (LPARAM)&pf);
         SendMessageW(g_app.hwnd_output, EM_SETSEL, saved_start, saved_end);
     }
 }
