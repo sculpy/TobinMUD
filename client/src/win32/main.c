@@ -98,7 +98,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.21"
+#define CLIENT_VERSION "0.4.22"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -555,8 +555,23 @@ static void play_msp(const char *fname, bool loop) {
     if (loop) {
         char cmd[MAX_PATH + 128 + 64];
         mciSendStringA("close tobinmusic", NULL, 0, NULL);
-        if (strcmp(fname, "Off") == 0)
+        if (strcmp(fname, "Off") == 0) {
+            /* Real fix for "after a fight ends music continues" (user,
+             * 2026-08-06/07) -- confirmed live via tobinmud_debug.log:
+             * MCI was failing to open "tobinmusic" at all (error 259,
+             * "driver cannot recognize the specified command
+             * parameter"), so every fight's music was actually playing
+             * through the PlaySoundA(SND_LOOP) fallback below, not MCI.
+             * Closing "tobinmusic" above is then a complete no-op --
+             * there was never an MCI device to close -- so the looping
+             * PlaySoundA fallback ran forever with nothing left to stop
+             * it. Stopping PlaySoundA here too costs nothing when MCI
+             * DID succeed (stopping a sound that isn't playing is a
+             * harmless no-op), and actually silences the fallback case
+             * when it didn't. */
+            PlaySoundA(NULL, NULL, 0);
             return;
+        }
         char fullpath[MAX_PATH + 128 + 16];
         snprintf(fullpath, sizeof(fullpath), "%ssounds\\%s", g_app.exe_dir, fname);
         snprintf(cmd, sizeof(cmd), "open \"%s\" type waveaudio alias tobinmusic", fullpath);
