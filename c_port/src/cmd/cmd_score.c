@@ -111,16 +111,21 @@ bool cmd_score(descriptor_t *d, const char *args) {
 
     char out[1536];
     snprintf(out, sizeof(out),
-             "  Name: %s\tLevel: %s%s%s\tExperience: %ld\r\n"
-             "  Race: %s\tClass: %s\tGold: %d\tBank: %d\r\n"
-             "  Homeland: %s\r\n"
-             "  HP: %d/%d\t%s: %d/%d\tMove: %d/%d\r\n"
-             "  Str: %d\tInt: %d\tDex: %d\r\n"
-             "  Wis: %d\tCon: %d\tCha: %d\r\n"
-             "  Armor Class: %d  Pri. Hand: %s  Sex: %s\r\n"
-             "  Align: %s  Hunger: %s\tThirst: %s\r\n"
-             "  Age: %d years old\r\n"
-             "  Position: %s\r\n",
+        "<c>============================================================<1>\r\n"
+        " <c>Name:<1> %-20s <c>Level:<1> %-3s%s%s <c>XP:<1> %-10ld\r\n"
+        " <c>Race:<1> %-20s <c>Class:<1> %-12s <c>Gold:<1> %-8d <c>Bank :<1> %-8d\r\n"
+        " <c>Homeland:<1> %-50s\r\n"
+        "<c>------------------------------------------------------------<1>\r\n"
+        " <c>HP:<1> %4d/%-4d %-6s: %4d/%-4d Move:<1> %4d/%-4d\r\n"
+        "<c>------------------------------------------------------------<1>\r\n"
+        " <c>Str:<1> %-3d <c>Int:<1> %-3d <c>Dex:<1> %-3d\r\n"
+        " <c>Wis:<1> %-3d <c>Con:<1> %-3d <c>Cha:<1> %-3d\r\n"
+        "<c>------------------------------------------------------------<1>\r\n"
+        " <c>Armor Class :<1> %-4d <c>Pri. Hand :<1> %-12s Sex :<1> %-8s\r\n"
+        " <c>Align:<1> %-12s <c>Hunger:<1> %-12s <c>Thirst:<1> %-12s\r\n"
+        " <c>Age:<1> %d years old\r\n"
+        "<c>============================================================<1>\r\n"
+        " <c>Position:<1> %s\r\n",
              ch->base.name, rank_col, level_field, rank_reset, p->experience,
              race_name(ch->race), class_name(ch->char_class), p->gold, p->bank_gold,
              territory_name(ch->territory),
@@ -138,7 +143,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
      * grid above, unrelated to the wireframe's fields. */
     size_t n = strlen(out);
     if (ch->appearance[0] && n < sizeof(out))
-        n += (size_t)snprintf(out + n, sizeof(out) - n, "  Appearance: %s\r\n", ch->appearance);
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  <c>Appearance:<1> %s\r\n", ch->appearance);
 
     /* A limb only shows up here at all once it's hurt (< 20% health, per
      * limb_status_text()) -- a fully healthy character has no Limbs
@@ -153,11 +158,11 @@ bool cmd_score(descriptor_t *d, const char *args) {
         const char *status = limb_status_text(limb_pct);
         if (status)
             inj_n += snprintf(injuries + inj_n, sizeof(injuries) - (size_t)inj_n,
-                              "  Your %s %s! (%d%%)\r\n", limb_name((limb_t)i), status, limb_pct);
+                              "  <Y>Your %s %s!<1>\r\n", limb_name((limb_t)i), status);
     }
 
     if (inj_n > 0 && n < sizeof(out))
-        n += (size_t)snprintf(out + n, sizeof(out) - n, "  Limbs:\r\n%s", injuries);
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "  <c>Limbs:<1>\r\n%s", injuries);
 
     descriptor_send(d, out);
     return true;
