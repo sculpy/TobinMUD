@@ -4,7 +4,7 @@
 /* Native Win32 GUI for the TobinMUD Client project (Phase 1c). One
  * window: a read-only RichEdit scrollback pane (colored per ANSI runs
  * via ansi_client.c) and a single-line input box, both set to a
- * monospace font (Consolas). Networking is a non-blocking Winsock2
+ * monospace font (DejaVu Sans Mono). Networking is a non-blocking Winsock2
  * socket polled on a timer, feeding raw bytes through telnet_client.c
  * (handles telnet/GMCP/MSDP negotiation) -> ansi_client.c (SGR-to-
  * colored-runs) -> RichEdit. MSP's `!!SOUND(...)` in-band marker is
@@ -98,7 +98,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.15"
+#define CLIENT_VERSION "0.4.19"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -1019,7 +1019,7 @@ static void apply_font(void) {
 
     g_app.font = CreateFontW(px, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                               DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                              CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, L"Consolas");
+                              CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, L"DejaVu Sans Mono");
 
     if (g_app.hwnd_input)
         SendMessageW(g_app.hwnd_input, WM_SETFONT, (WPARAM)g_app.font, TRUE);
@@ -1029,14 +1029,34 @@ static void apply_font(void) {
         ZeroMemory(&cf, sizeof(cf));
         cf.cbSize = sizeof(cf);
         cf.dwMask = CFM_FACE | CFM_SIZE;
-        wcscpy(cf.szFaceName, L"Consolas");
+        wcscpy(cf.szFaceName, L"DejaVu Sans Mono");
         cf.yHeight = g_app.font_pt * 20; /* twips (1/20 pt) */
+
+        /* Second, smaller contributor to "still some space" (user,
+         * 2026-08-06) on top of the real EM_SETTEXTMODE/TM_PLAINTEXT
+         * fix above -- Msftedit's default paragraph format still
+         * carries its own non-zero space-after-paragraph value even in
+         * plain-text mode. A prior pass added this exact zeroing and
+         * saw no visible change, then reverted it as "ineffective" --
+         * wrongly: at that point the much larger \r\n-doubling bug
+         * was still present and completely masked this smaller effect.
+         * Re-added now that the real cause is fixed, so this can
+         * actually be seen to work or not. */
+        PARAFORMAT2 pf;
+        ZeroMemory(&pf, sizeof(pf));
+        pf.cbSize = sizeof(pf);
+        pf.dwMask = PFM_SPACEBEFORE | PFM_SPACEAFTER | PFM_LINESPACING;
+        pf.dySpaceBefore = 0;
+        pf.dySpaceAfter = 0;
+        pf.bLineSpacingRule = 0; /* single */
+
         SendMessageW(g_app.hwnd_output, EM_SETCHARFORMAT, SCF_DEFAULT, (LPARAM)&cf);
 
         LRESULT saved_start, saved_end;
         SendMessageW(g_app.hwnd_output, EM_GETSEL, (WPARAM)&saved_start, (LPARAM)&saved_end);
         SendMessageW(g_app.hwnd_output, EM_SETSEL, 0, -1);
         SendMessageW(g_app.hwnd_output, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cf);
+        SendMessageW(g_app.hwnd_output, EM_SETPARAFORMAT, 0, (LPARAM)&pf);
         SendMessageW(g_app.hwnd_output, EM_SETSEL, saved_start, saved_end);
     }
 }
@@ -1284,10 +1304,22 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         /* Monospace font throughout (user, 2026-08-05: default felt
          * "scrunched" -- a proportional font on a MUD's column-aligned
          * output, plus the default Edit/RichEdit font size, is what
-         * that was). Consolas ships with every Windows version this
-         * targets; CreateFontW silently falls back to a default font
-         * if it's somehow missing rather than failing outright, so no
-         * extra fallback logic is needed here. Actual size comes from
+         * that was). Switched Consolas -> Lucida Console -> Bitstream
+         * Vera Sans Mono -> DejaVu Sans Mono (user, 2026-08-06).
+         * Bitstream Vera Sans Mono was requested by name, bundled and
+         * loaded successfully (AddFontResourceExW below), but STILL
+         * misaligned every box-drawing screen -- verified via fontTools
+         * that VeraMono.ttf has only 256 glyphs total (basic Latin/
+         * Latin-1), zero coverage of the U+2500 box-drawing block Tobin
+         * uses throughout its menus/banners, forcing Windows to
+         * silently substitute a different fallback font for just those
+         * characters, which doesn't share Vera's exact monospace cell
+         * width. DejaVu Sans Mono is Vera's actively-maintained,
+         * visually-near-identical descendant with full Unicode
+         * coverage (3300+ glyphs, confirmed real glyphs for
+         * U+2550/2551/2554/2557/255A/255D via the same fontTools
+         * check) -- same look, but the box art this game actually
+         * relies on renders correctly. Actual size comes from
          * g_app.font_pt (Preferences, default 10pt) via apply_font(). */
         g_app.hwnd_output = CreateWindowExW(WS_EX_CLIENTEDGE, MSFTEDIT_CLASS, L"",
             WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
@@ -1348,7 +1380,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     }
     case WM_SIZE: {
         int w = LOWORD(lp), h = HIWORD(lp);
-        int input_h = 28; /* fits the Consolas font set in WM_CREATE without clipping descenders */
+        int input_h = 28; /* fits the DejaVu Sans Mono font set in WM_CREATE without clipping descenders */
         int col_w = w / 3;
         int label_h = 14, bar_h = 16, pad = 2;
         MoveWindow(g_app.hwnd_gauge_label_hp, 0, pad, col_w - pad, label_h, TRUE);
@@ -1645,6 +1677,24 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {
     debug_log(wsa_result == 0 ? "WinMain: WSAStartup OK" : "WinMain: WSAStartup FAILED");
     LoadLibraryW(L"Msftedit.dll"); /* registers the MSFTEDIT_CLASS RichEdit window class */
     debug_log("WinMain: Msftedit.dll loaded");
+
+    /* DejaVu Sans Mono (Vera Sans Mono's full-Unicode-coverage
+     * descendant -- see apply_font()'s own comment for why) does NOT
+     * ship with Windows, so it's bundled next to the exe
+     * (fonts\DejaVuSansMono.ttf, same "resource folder beside the
+     * binary" pattern as sounds\) and loaded privately here via
+     * AddFontResourceExW(..., FR_PRIVATE, ...) -- visible only to this
+     * process's own GDI calls (CreateFontW in apply_font()), no admin
+     * rights, no per-user registry/relogin timing to worry about, and
+     * guaranteed available on every single launch regardless of
+     * install state. Must happen before the first apply_font() call. */
+    {
+        wchar_t wfontpath[MAX_PATH + 32];
+        swprintf(wfontpath, MAX_PATH + 32, L"%hsfonts\\DejaVuSansMono.ttf", g_app.exe_dir);
+        int added = AddFontResourceExW(wfontpath, FR_PRIVATE, 0);
+        debug_log(added > 0 ? "WinMain: bundled font loaded (FR_PRIVATE)"
+                             : "WinMain: bundled font FAILED to load -- falling back to whatever CreateFontW substitutes");
+    }
 
     WNDCLASSW wc = { 0 };
     wc.lpfnWndProc = WndProc;
