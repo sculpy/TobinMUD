@@ -54,6 +54,9 @@ descriptor_t *descriptor_create(int fd) {
     d->state = CONN_GET_ACCOUNT_NAME;
     d->color_enabled = true;
     d->last_active = (long)time(NULL);
+    d->last_music_track = -1; /* calloc leaves this 0, which would wrongly
+                                * exclude track 0 from the very first fight's
+                                * pick -- see combat_music_tick(). */
     d->next = g_descriptors;
     g_descriptors = d;
 

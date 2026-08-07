@@ -35,6 +35,14 @@ void regen_tick_run(long pulse_num) {
         being_t *b = d->character;
         if (!b)
             continue;
+        /* Client HP/Mana/Move gauge only ever got pushed on actual
+         * damage (combat.c) -- meaning it sat frozen while the player
+         * was healing/regenerating outside a fight (user, 2026-08-06:
+         * "status bar needs updating per tick"). Firing it once here,
+         * before this tick's own healing below, keeps the gauge honest
+         * every regen tick regardless of what path (fighting or not)
+         * this being takes -- it's a no-op for anyone not GMCP-opted-in. */
+        being_notify_vitals_changed(b);
         if (b->fighting) {
             /* User 2026-08-03: Vitality should trickle back some even
              * mid-fight, not just after -- HP still only recovers at

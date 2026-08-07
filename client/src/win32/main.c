@@ -98,7 +98,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.20"
+#define CLIENT_VERSION "0.4.21"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -150,6 +150,7 @@ typedef struct {
     telnet_client_t *telnet;
     ansi_client_t *ansi;
     WNDPROC input_orig_proc;
+    WNDPROC output_orig_proc;
     HFONT font;
     /* Directory the .exe itself lives in, with a trailing backslash --
      * MSP sound files resolve from a "sounds\" subfolder next to it
@@ -202,6 +203,8 @@ typedef struct {
      * can straddle two socket reads same as anything else on the wire. */
     char sound_scan_buf[256];
     size_t sound_scan_len;
+    bool cr_pending; /* last byte of the previous chunk was a bare \r --
+                       * see scan_msp_and_forward()'s CRLF-collapse pass */
     /* Repeat-last-command (user, 2026-08-05: "keep last command so i
      * could just hit enter to repeat command"): the last non-empty
      * line actually sent to the server. Hitting Enter on an EMPTY
@@ -625,6 +628,32 @@ static void scan_msp_and_forward(const char *data, size_t len) {
     memcpy(combined + clen, data, copy);
     clen += copy;
 
+    /* Collapse "\r\n" to a bare "\r" (RichEdit's native paragraph
+     * separator) -- feeding it literal \r\n doubles every line, and
+     * fixing that via EM_SETTEXTMODE(TM_PLAINTEXT) instead (v0.4.15)
+     * broke per-line ANSI colors, so it's done here instead. cr_pending
+     * carries a split \r\n across socket-read boundaries. */
+    size_t start_idx = 0;
+    if (g_app.cr_pending) {
+        g_app.cr_pending = false;
+        if (clen > 0 && combined[0] == '\n')
+            start_idx = 1;
+    }
+    {
+        size_t w = 0;
+        for (size_t r = start_idx; r < clen; r++) {
+            if (combined[r] == '\r' && r + 1 < clen && combined[r + 1] == '\n') {
+                combined[w++] = '\r';
+                r++;
+            } else {
+                combined[w++] = combined[r];
+            }
+        }
+        if (w > 0 && combined[w - 1] == '\r')
+            g_app.cr_pending = true;
+        clen = w;
+    }
+
     size_t out_start = 0;
     size_t i = 0;
     while (i < clen) {
@@ -797,6 +826,19 @@ static void do_disconnect(bool announce) {
 static void do_reconnect(void) {
     do_disconnect(false);
     do_connect(DEFAULT_HOST, DEFAULT_PORT);
+}
+
+/* Clicking anywhere in the scrollback (user, 2026-08-06: "when
+ * clicking on window put focus and cursor in the input line") --
+ * the RichEdit output is read-only, so there's no editing reason for
+ * it to hold keyboard focus; let its own click handling run first
+ * (so click-drag text selection for copying still works), then hand
+ * focus back to the input box right after. */
+static LRESULT CALLBACK OutputSubclassProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    LRESULT result = CallWindowProc(g_app.output_orig_proc, hwnd, msg, wp, lp);
+    if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP)
+        SetFocus(g_app.hwnd_input);
+    return result;
 }
 
 static LRESULT CALLBACK InputSubclassProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
@@ -1335,22 +1377,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         g_app.hwnd_output = CreateWindowExW(WS_EX_CLIENTEDGE, MSFTEDIT_CLASS, L"",
             WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
             0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_OUTPUT, NULL, NULL);
-        /* Real root cause of "extra half line of space...for every
-         * line" (user, 2026-08-06) -- Msftedit.dll defaults to its RTF/
-         * TM_RICHTEXT paragraph model, which does NOT treat an incoming
-         * "\r\n" pair as a single line break the way a plain Edit
-         * control (or Notepad) does -- it renders `\r` as a paragraph
-         * end and then the trailing `\n` as an additional break inside
-         * the new paragraph, visually doubling every line. A prior pass
-         * wrongly diagnosed this as paragraph SPACING (PARAFORMAT2
-         * dySpaceAfter) and saw no change, which is exactly what you'd
-         * expect if the real cause were the text mode instead. Must be
-         * set before the control has ANY text (MSDN) -- right after
-         * creation, before EM_SETBKGNDCOLOR/any WM_SETTEXT. */
-        SendMessageW(g_app.hwnd_output, EM_SETTEXTMODE, TM_PLAINTEXT | TM_MULTICODEPAGE, 0);
+        /* NOT TM_PLAINTEXT here (tried in v0.4.15, reverted in v0.4.21)
+         * -- it fixed \r\n doubling but silently restricts the WHOLE
+         * control to one uniform character format, which is why ANSI
+         * colors stopped rendering (user, 2026-08-06: "color got lost
+         * in the client display, toggling color on and off does
+         * nothing" -- the toggle had no per-run format left to act on).
+         * The real doubling fix now lives in scan_msp_and_forward()
+         * instead, collapsing \r\n to a bare \r before this text ever
+         * reaches the RichEdit control -- that doesn't touch character
+         * formatting, so per-line color keeps working. */
         SendMessageW(g_app.hwnd_output, EM_SETBKGNDCOLOR, 0,
                      g_app.dark_theme ? RGB(10, 10, 10) : RGB(250, 250, 250));
         SendMessageW(g_app.hwnd_output, EM_SETEVENTMASK, 0, 0);
+        g_app.output_orig_proc = (WNDPROC)SetWindowLongPtr(g_app.hwnd_output, GWLP_WNDPROC,
+                                                             (LONG_PTR)OutputSubclassProc);
         {
             /* Sets the RichEdit's DEFAULT text color (not a selection)
              * so every future EM_REPLACESEL in append_output() inherits
@@ -1394,13 +1435,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         int input_h = 28; /* fits the DejaVu Sans Mono font set in WM_CREATE without clipping descenders */
         int col_w = w / 3;
         int label_h = 14, bar_h = 16, pad = 2;
-        MoveWindow(g_app.hwnd_gauge_label_hp, 0, pad, col_w - pad, label_h, TRUE);
-        MoveWindow(g_app.hwnd_gauge_bar_hp, 0, pad + label_h, col_w - pad, bar_h, TRUE);
-        MoveWindow(g_app.hwnd_gauge_label_mana, col_w, pad, col_w - pad, label_h, TRUE);
-        MoveWindow(g_app.hwnd_gauge_bar_mana, col_w, pad + label_h, col_w - pad, bar_h, TRUE);
-        MoveWindow(g_app.hwnd_gauge_label_move, col_w * 2, pad, w - col_w * 2 - pad, label_h, TRUE);
-        MoveWindow(g_app.hwnd_gauge_bar_move, col_w * 2, pad + label_h, w - col_w * 2 - pad, bar_h, TRUE);
-        MoveWindow(g_app.hwnd_output, 0, GAUGE_H, w, h - input_h - GAUGE_H, TRUE);
+        int gauge_y = h - input_h - GAUGE_H;
+        MoveWindow(g_app.hwnd_gauge_label_hp, 0, gauge_y + pad, col_w - pad, label_h, TRUE);
+        MoveWindow(g_app.hwnd_gauge_bar_hp, 0, gauge_y + pad + label_h, col_w - pad, bar_h, TRUE);
+        MoveWindow(g_app.hwnd_gauge_label_mana, col_w, gauge_y + pad, col_w - pad, label_h, TRUE);
+        MoveWindow(g_app.hwnd_gauge_bar_mana, col_w, gauge_y + pad + label_h, col_w - pad, bar_h, TRUE);
+        MoveWindow(g_app.hwnd_gauge_label_move, col_w * 2, gauge_y + pad, w - col_w * 2 - pad, label_h, TRUE);
+        MoveWindow(g_app.hwnd_gauge_bar_move, col_w * 2, gauge_y + pad + label_h, w - col_w * 2 - pad, bar_h, TRUE);
+        MoveWindow(g_app.hwnd_output, 0, 0, w, gauge_y, TRUE);
         MoveWindow(g_app.hwnd_input, 0, h - input_h, w, input_h, TRUE);
         return 0;
     }

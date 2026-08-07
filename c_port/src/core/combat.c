@@ -1989,16 +1989,17 @@ void combat_music_tick(long pulse_num) {
         bool now_fighting = ch && ch->fighting;
 
         if (now_fighting && !d->music_playing) {
-            const char *track;
-            switch (rand() % TRACK_COUNT) {
-                case 0: track = TRACKS[0]; break;
-                case 1: track = TRACKS[1]; break;
-                case 2: track = TRACKS[2]; break;
-                case 3: track = TRACKS[3]; break;
-                case 4: track = TRACKS[4]; break;
-                default: track = TRACKS[5]; break;
-            }
-            descriptor_send_msp_music(d, track);
+            /* Never repeat the same track twice in a row (user,
+             * 2026-08-06: "rotate the music never repeating music twice
+             * in a row") -- re-roll until it differs from last time,
+             * skipped entirely on the very first pick (last_music_track
+             * == -1). */
+            int pick;
+            do {
+                pick = rand() % TRACK_COUNT;
+            } while (pick == d->last_music_track);
+            descriptor_send_msp_music(d, TRACKS[pick]);
+            d->last_music_track = pick;
             d->music_playing = true;
         } else if (!now_fighting && d->music_playing) {
             descriptor_send_msp_music_off(d);

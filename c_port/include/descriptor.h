@@ -474,6 +474,10 @@ typedef struct descriptor {
      * hook at every one of the 30+ scattered `->fighting = ...` combat-
      * entry sites across the codebase. */
     bool music_playing;
+    int last_music_track; /* index into combat_music_tick()'s TRACKS[] --
+                            * -1 until the first pick, so the next-track
+                            * roll can exclude whatever played last and
+                            * never repeat back-to-back (user, 2026-08-06). */
     /* Real subnegotiation payload capture, replacing the old discard-
      * only swallow loop. `subneg_have_opt` is false immediately after
      * `IAC SB` until the very next payload byte arrives (that byte IS
