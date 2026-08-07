@@ -98,7 +98,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.19"
+#define CLIENT_VERSION "0.4.20"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -1163,7 +1163,18 @@ static LRESULT CALLBACK PrefsWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
         g_app.hwnd_prefs = NULL;
         return 0;
     }
-    return DefWindowProc(hwnd, msg, wp, lp);
+    /* Real root cause of "the windows title bar still says T" (user,
+     * 2026-08-06) -- both windows here are registered via RegisterClassW
+     * (genuine Unicode windows), but the plain DefWindowProc() macro
+     * resolves to DefWindowProcA with no UNICODE/_UNICODE defined
+     * anywhere in this build. CreateWindowW sets the initial caption via
+     * an internal WM_SETTEXT carrying a wide-string pointer; falling
+     * through to the ANSI DefWindowProcA for that unhandled message
+     * misreads it byte-by-byte -- 'T' is 0x54,0x00 in UTF-16LE, and that
+     * trailing zero byte reads as an immediate ANSI string terminator,
+     * so only the first character ever survives. Must be DefWindowProcW
+     * for any window whose class was registered with RegisterClassW. */
+    return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
 static void open_preferences(HWND parent) {
@@ -1490,7 +1501,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         PostQuitMessage(0);
         return 0;
     }
-    return DefWindowProc(hwnd, msg, wp, lp);
+    /* See the Prefs WndProc's matching comment above -- same
+     * ANSI/Unicode DefWindowProc mismatch, same "title bar just says T"
+     * symptom, same fix. */
+    return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
 /* Auto-update (user, 2026-08-05). Fetches UPDATE_VERSION_URL (a plain
