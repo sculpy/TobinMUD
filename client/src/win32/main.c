@@ -98,7 +98,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.23"
+#define CLIENT_VERSION "0.4.24"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -672,36 +672,61 @@ static void scan_msp_and_forward(const char *data, size_t len) {
     size_t out_start = 0;
     size_t i = 0;
     while (i < clen) {
-        int is_sound = (clen - i >= 8 && memcmp(combined + i, "!!SOUND(", 8) == 0);
-        int is_music = (clen - i >= 8 && memcmp(combined + i, "!!MUSIC(", 8) == 0);
-        if (combined[i] == '!' && i + 1 < clen && combined[i + 1] == '!' && (is_sound || is_music)) {
-            /* Flush plain text before the marker. */
-            if (i > out_start)
-                ansi_client_feed(g_app.ansi, combined + out_start, i - out_start);
-            const char *close = memchr(combined + i, ')', clen - i);
-            if (!close) {
-                /* Marker not fully arrived yet -- hold the rest for next time. */
-                size_t rem = clen - i;
-                if (rem <= sizeof(g_app.sound_scan_buf)) {
-                    memcpy(g_app.sound_scan_buf, combined + i, rem);
-                    g_app.sound_scan_len = rem;
+        size_t avail = clen - i;
+        if (combined[i] == '!') {
+            if (avail >= 8) {
+                int is_sound = memcmp(combined + i, "!!SOUND(", 8) == 0;
+                int is_music = memcmp(combined + i, "!!MUSIC(", 8) == 0;
+                if (is_sound || is_music) {
+                    /* Flush plain text before the marker. */
+                    if (i > out_start)
+                        ansi_client_feed(g_app.ansi, combined + out_start, i - out_start);
+                    const char *close = memchr(combined + i, ')', avail);
+                    if (!close) {
+                        /* Marker not fully arrived yet -- hold the rest for next time. */
+                        size_t rem = avail;
+                        if (rem <= sizeof(g_app.sound_scan_buf)) {
+                            memcpy(g_app.sound_scan_buf, combined + i, rem);
+                            g_app.sound_scan_len = rem;
+                        }
+                        return;
+                    }
+                    char fname[128];
+                    size_t inner_start = i + 8;
+                    size_t inner_len = (size_t)(close - (combined + inner_start));
+                    const char *sp = memchr(combined + inner_start, ' ', inner_len);
+                    size_t namelen = sp ? (size_t)(sp - (combined + inner_start)) : inner_len;
+                    if (namelen >= sizeof(fname))
+                        namelen = sizeof(fname) - 1;
+                    memcpy(fname, combined + inner_start, namelen);
+                    fname[namelen] = '\0';
+                    play_msp(fname, is_music);
+
+                    i = (size_t)(close - combined) + 1;
+                    out_start = i;
+                    continue;
+                }
+            } else if (memcmp(combined + i, "!!SOUND(", avail) == 0
+                       || memcmp(combined + i, "!!MUSIC(", avail) == 0) {
+                /* Fewer than 8 bytes left in this chunk, but what's here
+                 * still matches the start of a marker -- a `!!MUSIC(...)`
+                 * tag that lands right at a TCP packet boundary used to
+                 * fall through to the `i++` below and get forwarded as
+                 * plain text instead of being held, silently dropping
+                 * the marker (the actual cause of "music sometimes just
+                 * doesn't play" -- user, 2026-08-08 -- timing-dependent
+                 * on how the server's output happened to be chunked,
+                 * hence "sporadic"; exit+relog just got lucky with a
+                 * different chunking next time). Hold it exactly like
+                 * the close-paren-not-found case above. */
+                if (i > out_start)
+                    ansi_client_feed(g_app.ansi, combined + out_start, i - out_start);
+                if (avail <= sizeof(g_app.sound_scan_buf)) {
+                    memcpy(g_app.sound_scan_buf, combined + i, avail);
+                    g_app.sound_scan_len = avail;
                 }
                 return;
             }
-            char fname[128];
-            size_t inner_start = i + 8;
-            size_t inner_len = (size_t)(close - (combined + inner_start));
-            const char *sp = memchr(combined + inner_start, ' ', inner_len);
-            size_t namelen = sp ? (size_t)(sp - (combined + inner_start)) : inner_len;
-            if (namelen >= sizeof(fname))
-                namelen = sizeof(fname) - 1;
-            memcpy(fname, combined + inner_start, namelen);
-            fname[namelen] = '\0';
-            play_msp(fname, is_music);
-
-            i = (size_t)(close - combined) + 1;
-            out_start = i;
-            continue;
         }
         i++;
     }
