@@ -6375,8 +6375,49 @@ static bool handle_line(descriptor_t *d, const char *line) {
              * loop's prompter sends one "> " per iteration to any playing,
              * non-editing connection that received output -- covering both
              * command replies and asynchronous output (says, combat
-             * rounds, broadcasts) uniformly. */
-            return cmd_dispatch(d, line);
+             * rounds, broadcasts) uniformly.
+             *
+             * Command separator (user, 2026-08-08: "implement a command
+             * seperator in the game") -- `;` splits one typed line into
+             * several commands run in order ("north;look;inventory"), the
+             * classic Diku/Sneezy convention. Freed up by dropping `;`'s
+             * old leading-character wiznet shorthand (cmd_table.c) in the
+             * same session, on the user's own call ("use ';' anyway, drop
+             * the wiznet shorthand" / "if you need the ; wizards can use
+             * alias to substitute") -- a `;wiznet-message`-style one-key
+             * habit is still reachable via a personal alias.
+             *
+             * A segment's own leading `'` (say-shorthand) still works
+             * per-segment, since each piece re-enters cmd_dispatch()
+             * fresh -- but this means a literal `;` inside a say/tell/
+             * gossip message still splits it, same known, accepted
+             * limitation the real ';' character always had for anyone
+             * typing punctuation into a sentence; there's no quoting
+             * syntax to escape it, matching upstream MUD convention. If
+             * any segment's dispatch returns false (e.g. `quit!` chained
+             * mid-line), the rest of the line is abandoned and false
+             * propagates immediately -- the connection is on its way out
+             * either way. */
+            {
+                char segs[DESC_LINE_MAX];
+                snprintf(segs, sizeof(segs), "%s", line);
+                char *save = NULL;
+                char *seg = strtok_r(segs, ";", &save);
+                bool ran_any = false;
+                bool result = true;
+                while (seg) {
+                    while (*seg == ' ')
+                        seg++;
+                    if (*seg) {
+                        ran_any = true;
+                        result = cmd_dispatch(d, seg);
+                        if (!result)
+                            return false;
+                    }
+                    seg = strtok_r(NULL, ";", &save);
+                }
+                return ran_any ? result : cmd_dispatch(d, line); /* an all-';' or empty line still gets its normal "Huh?!" */
+            }
         }
 
         case CONN_CLOSED:

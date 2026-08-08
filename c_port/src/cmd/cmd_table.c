@@ -742,8 +742,8 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
 
     /* `@set ...` (Session 43, TODO) -- a leading `@` isn't a command of its
      * own (no `@`-anything system is planned), just a habit some players
-     * type before `set`. Unlike the `'`/`;` shortcuts below (which replace
-     * a single character with a whole hardcoded verb, since the real verb
+     * type before `set`. Unlike the `'` shortcut below (which replaces a
+     * single character with a whole hardcoded verb, since the real verb
      * never appears), the real verb already follows the `@` here, so this
      * is a plain strip-and-fall-through into the normal parse below rather
      * than a hardcoded alias -- harmlessly covers any other stray leading
@@ -768,14 +768,6 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
      * verb token). */
     if (*line == '\'') {
         strcpy(verb, "say");
-        args = line + 1;
-        while (*args == ' ')
-            args++;
-    } else if (*line == ';') {
-        /* `;` is the one-character shorthand for `wiznet` (same idea as `'`
-         * for say). Immortal-only like wiznet itself -- a mortal typing it
-         * just falls through to the "Huh?!" path below. */
-        strcpy(verb, "wiznet");
         args = line + 1;
         while (*args == ' ')
             args++;

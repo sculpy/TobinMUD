@@ -1113,3 +1113,15 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('bank', 'Usage: bank [balance | deposit <amount> | withdraw <amount>]\n\nBanking is done through a bank keeper -- you must be standing in a\nroom with one to use this command at all (`bank` with no keeper\npresent just says so). Once you are:\n\n`bank` or `bank balance` -- shows how much gold you are carrying and\n                             how much is safely in the bank.\n`bank deposit <amount>`  -- moves gold from your wallet into the\n                             bank.\n`bank withdraw <amount>` -- moves gold from the bank back into your\n                             wallet.\n\nBanked gold is safe from anything that can take your carried gold --\nkeep only what you need on hand. Related: treasury', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Command separator (user, 2026-08-08: "implement a command seperator in
+-- the game"). Freed up `;` from its old leading-character wiznet
+-- shorthand (dropped same session, user: "use ';' anyway, drop the
+-- wiznet shorthand") -- rewrite wiznet's own body to stop advertising the
+-- retired shortcut, and add the new `separator` topic.
+UPDATE `help_topic` SET `body` = 'Usage: wiznet <message>   |   wiznet @<level> <message>\n\nImmortals only: a private broadcast channel among the immortals. Your\nmessage reaches every online immortal (and yourself), out of sight of\nmortals. Add `@<level>` to narrow delivery to only immortals at or\nabove that level -- `wiznet @59 <msg>` reaches Administrator+ only.\n\nThe old `;<message>` one-key shortcut was retired 2026-08-08 when `;`\nbecame the general command separator (see HELP SEPARATOR) -- define\nyour own alias if you want a quick one-key habit back.'
+  WHERE `name` = 'wiznet' AND `updated_by` = 'seed';
+
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('separator', '`;` chains several commands into one typed line, run in order:\n  north;look;inventory\nruns `north`, then `look`, then `inventory`.\n\nEach piece is trimmed and dispatched on its own, so a leading apostrophe\nstill works per-piece (say-shorthand: hi;bye said with a leading\napostrophe on each piece). There is no way to escape a literal `;`\ninside a message -- typing one into a say/tell/similar sentence will\nsplit it there, same as any other MUDs command separator. If a\nchained command ends your connection (like quit!), anything after it\nin the same line is not run.', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

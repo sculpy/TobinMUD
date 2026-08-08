@@ -26,7 +26,7 @@ viewers keep plain names (`news`, `wiznews`).
 - [ ] Implement trophy system from Sneezy.
 - [ ] Implement missing skills from docs/Spell Assignments.xlsx; take everything usable from sneezy code/code/disc.
 - [ ] Implement what's useful from sneezy code/code/misc/ai_*.
-- [ ] Implement a command separator in the game.
+- [x] Implement a command separator in the game -- done 2026-08-08. `;` splits one typed line into several commands run in order ("north;look;inventory"), the classic Diku/Sneezy convention. Real conflict found before implementing: `;` at the start of a line was already a one-character shorthand for `wiznet` (cmd_table.c, same idea as `'` for say) -- asked the user, who chose to drop the wiznet shorthand outright ("use ';' anyway, drop the wiznet shorthand" / "if you need the ; wizards can use alias to substitute"). Split happens in descriptor.c's CONN_PLAYING dispatch point (via strtok_r on ';', each trimmed piece re-entering cmd_dispatch() fresh) -- so a leading `'` say-shorthand still works per-segment ("'hi;'bye" says "hi" then says "bye"), and if any chained segment ends the connection (e.g. `quit!` mid-line) the rest of the line is abandoned. No escaping for a literal `;` inside a message -- same accepted limitation every Diku-family MUD's separator has. help_topic `wiznet` rewritten (no longer claims the retired shorthand, points at the new `separator` topic); new `separator` help_topic added. tests/smoke_test_separator.py (8 checks) passes live.
 - [ ] Fix skills/spells that are stubbed out/no-ops — make them work exactly as coded in Sneezy.
 
 ## Learn-by-doing roster audit, 2026-08-08
