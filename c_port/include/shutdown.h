@@ -27,9 +27,10 @@
  * shuts the MUD down before returning. */
 void shutdown_schedule(int seconds, const char *initiator);
 
-/* Cancels a pending timed shutdown, announcing it to everyone. Returns
- * false (no announcement made) if no shutdown was pending. */
-bool shutdown_cancel(void);
+/* Cancels a pending timed shutdown, announcing it to everyone as coming
+ * from `initiator`. Returns false (no announcement made) if no shutdown
+ * was pending. */
+bool shutdown_cancel(const char *initiator);
 
 /* True while a timed shutdown is counting down (false once it has fired,
  * been cancelled, or never scheduled). */

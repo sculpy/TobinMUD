@@ -30,6 +30,24 @@ static bool is_milestone(long s) {
     return false;
 }
 
+/* Renders `s` seconds as "N minute(s)", "N second(s)", or "N minute(s) M
+ * second(s)" -- player-facing broadcast text only (user, 2026-08-08: "not
+ * everyone will know what 300 second means" / "in the messages only, we
+ * will know issuing the command" -- log_info() calls elsewhere in this
+ * file stay in plain seconds, unaffected). */
+static void format_seconds(long s, char *buf, size_t bufsz) {
+    if (s < 60) {
+        snprintf(buf, bufsz, "%ld second%s", s, s == 1 ? "" : "s");
+        return;
+    }
+    long m = s / 60;
+    long r = s % 60;
+    if (r == 0)
+        snprintf(buf, bufsz, "%ld minute%s", m, m == 1 ? "" : "s");
+    else
+        snprintf(buf, bufsz, "%ld minute%s %ld second%s", m, m == 1 ? "" : "s", r, r == 1 ? "" : "s");
+}
+
 /* Sends `msg` to every connected descriptor -- the shared helper behind
  * every shutdown-countdown announcement in this file. */
 static void broadcast(const char *msg) {
@@ -61,11 +79,14 @@ void shutdown_schedule(int seconds, const char *initiator) {
     g_remaining_seconds = seconds;
 
     char msg[256];
-    if (seconds == 0)
+    if (seconds == 0) {
         snprintf(msg, sizeof(msg), "\r\n<r>*** %s is shutting down the MUD now. ***<z>\r\n", initiator);
-    else
-        snprintf(msg, sizeof(msg), "\r\n<r>*** %s has scheduled a shutdown in %d second%s. ***<z>\r\n",
-                 initiator, seconds, seconds == 1 ? "" : "s");
+    } else {
+        char timebuf[48];
+        format_seconds(seconds, timebuf, sizeof(timebuf));
+        snprintf(msg, sizeof(msg), "\r\n<r>*** %s has scheduled a shutdown in %s. ***<z>\r\n",
+                 initiator, timebuf);
+    }
     broadcast(msg);
     log_info("Shutdown scheduled by %s: %d second(s).", initiator, seconds);
 
@@ -76,13 +97,17 @@ void shutdown_schedule(int seconds, const char *initiator) {
 }
 
 /* Cancels a pending shutdown countdown, if any, and announces the
- * cancellation. Returns false (no-op) if nothing was pending. */
-bool shutdown_cancel(void) {
+ * cancellation (with who cancelled it -- user, 2026-08-08: "add a name to
+ * the message: Jesus has canceled a shutdown"). Returns false (no-op) if
+ * nothing was pending. */
+bool shutdown_cancel(const char *initiator) {
     if (g_remaining_seconds < 0)
         return false;
     g_remaining_seconds = -1;
-    broadcast("\r\n<g>*** The scheduled shutdown has been cancelled. ***<z>\r\n");
-    log_info("Pending shutdown cancelled.");
+    char msg[128];
+    snprintf(msg, sizeof(msg), "\r\n<g>*** %s has cancelled the scheduled shutdown. ***<z>\r\n", initiator);
+    broadcast(msg);
+    log_info("Shutdown cancelled by %s.", initiator);
     return true;
 }
 
@@ -108,9 +133,10 @@ void shutdown_pulse_tick(long pulse_num) {
     if (g_remaining_seconds > 0) {
         g_remaining_seconds--;
         if (g_remaining_seconds > 0 && is_milestone(g_remaining_seconds)) {
+            char timebuf[48];
+            format_seconds(g_remaining_seconds, timebuf, sizeof(timebuf));
             char msg[128];
-            snprintf(msg, sizeof(msg), "\r\n<r>*** The MUD will shut down in %ld second%s. ***<z>\r\n",
-                     g_remaining_seconds, g_remaining_seconds == 1 ? "" : "s");
+            snprintf(msg, sizeof(msg), "\r\n<r>*** TobinMUD will shut down in %s. ***<z>\r\n", timebuf);
             broadcast(msg);
         }
     }

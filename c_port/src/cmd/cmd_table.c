@@ -335,7 +335,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* "shu" is already unambiguous ("sh"/"sho" still resolve to shout,
      * above) -- no collision to guard against. Implementor-only (60),
      * same tier as `exec`: ends the whole process. */
-    { "shutdown", cmd_shutdown, "End the game gracefully, now or in N seconds (shutdown [seconds|-now|cancel]).", SHUTDOWN_MIN_LEVEL },
+    { "shutdown", cmd_shutdown, "End the game gracefully, now or in N seconds (shutdown [seconds|-now|cancel|abort]).", SHUTDOWN_MIN_LEVEL },
     { "whisper", cmd_whisper, "Send a private message to someone in the room (whisper <name> <message>).", MORTAL_LEVEL_MIN },
     /* Whittle profession (TODO.md "Deferred decisions" -- the second
      * `task/` profession alongside cook). Placed after "who"/"whisper"
@@ -528,7 +528,7 @@ static const cmd_entry_t COMMANDS[] = {
      * abbreviations. */
     { "bamfin",  cmd_bamfin,  "Set your custom `goto` arrival message (bamfin [msg]).",    IMMORTAL_LEVEL_MIN },
     { "bamfout", cmd_bamfout, "Set your custom `goto` departure message (bamfout [msg]).", IMMORTAL_LEVEL_MIN },
-    { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected (copyover [-now]).", COPYOVER_MIN_LEVEL },
+    { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected (copyover [seconds|-now|cancel|abort]).", COPYOVER_MIN_LEVEL },
     { "deathstroke", cmd_deathstroke, "A heavy, finishing-style attack against a single target (Warrior, deathstroke <target>).", MORTAL_LEVEL_MIN },
     /* Must come AFTER sleep -- "sl" is already sleep's abbreviation;
      * slam is only reachable via its own "sla"+ prefix. */

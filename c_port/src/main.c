@@ -30,6 +30,7 @@
 #include "practice.h"
 #include "pulse.h"
 #include "regen.h"
+#include "copyover.h"
 #include "shutdown.h"
 #include "socials.h"
 #include "tips_repo.h"
@@ -134,6 +135,7 @@ int main(int argc, char **argv) {
 
     pulse_register(1, wait_tick_run);
     pulse_register(10, shutdown_pulse_tick);     /* ~1s: pending `shutdown <seconds>` countdown */
+    pulse_register(10, copyover_pulse_tick);    /* ~1s: pending `copyover <seconds>` countdown */
     pulse_register(COMBAT_ROUND_PULSES, combat_process_run);
     pulse_register(COMBAT_ROUND_PULSES, combat_music_tick); /* MSP fight music start/stop */
     pulse_register(COMBAT_ROUND_PULSES, affect_tick_run); /* counts down active buffs/debuffs every round */

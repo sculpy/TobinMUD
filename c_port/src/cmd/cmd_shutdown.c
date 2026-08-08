@@ -37,8 +37,8 @@ bool cmd_shutdown(descriptor_t *d, const char *args) {
                                  ? d->character->base.name
                                  : "An immortal";
 
-    if (tok[0] && strcasecmp(tok, "cancel") == 0) {
-        if (shutdown_cancel())
+    if (tok[0] && (strcasecmp(tok, "cancel") == 0 || strcasecmp(tok, "abort") == 0)) {
+        if (shutdown_cancel(initiator))
             descriptor_send(d, "Pending shutdown cancelled.\r\n");
         else
             descriptor_send(d, "No shutdown is pending.\r\n");
@@ -62,7 +62,7 @@ bool cmd_shutdown(descriptor_t *d, const char *args) {
             }
         }
         if (!all_digits) {
-            descriptor_send(d, "Usage: shutdown [seconds|-now|cancel]\r\n");
+            descriptor_send(d, "Usage: shutdown [seconds|-now|cancel|abort]\r\n");
             return true;
         }
         seconds = atoi(tok);

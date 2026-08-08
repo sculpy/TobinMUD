@@ -4,11 +4,14 @@
  *******************************************************************/
 #include "cmd_internal.h"
 
+#include <ctype.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
 
+#include "copyover.h"
 #include "game_loop.h"
 #include "log.h"
 #include "obj.h"
@@ -54,6 +57,8 @@ static int mob_ordinal_in_room(const room_t *r, const thing_t *target) {
     return 0;
 }
 
+static void broadcast_copyover_exec_failed(void);
+
 static void copyover_dump_room_contents(room_t *r) {
     for (thing_t *t = r->base.stuff_head; t; t = t->stuff_next) {
         if (t->kind == THING_MOB) {
@@ -76,17 +81,23 @@ static void copyover_dump_room_contents(room_t *r) {
  * how to rebuild each descriptor (see game_loop.c's copyover_recover()
  * and descriptor_copyover_adopt()).
  *
- * The user's original "lock out any commands" requirement comes almost
- * for free: Tobin is single-threaded, so the whole copyover runs inside
- * this one command execution and no other input can interleave before
- * the exec. `wait_pulses` (swing lag) is still cleared -- nobody resumes
- * mid-swing lagged from an action that will never resolve -- but the
- * fight itself (who's fighting whom) is recorded and re-linked by
- * game_loop.c's copyover_recover() once both sides exist again post-exec
- * (user 2026-08-03: "fights should persist after copyover"; previously
- * every fighting pointer was unconditionally cleared here, silently
- * ending every fight on every copyover). Progress is still saved before
- * the recovery line is written, same as always.
+ * Runs via copyover_schedule()/copyover_pulse_tick() (copyover_schedule.c)
+ * for anything past `-now` -- see copyover.h for why a long countdown no
+ * longer blocks the game loop the way a flat sleep() once did. This
+ * function is the actual work, called either directly (0-second/`-now`
+ * case) or from the pulse tick once a countdown reaches zero.
+ *
+ * The "lock out any commands" requirement comes almost for free: Tobin is
+ * single-threaded, so the whole copyover runs inside this one function
+ * call and no other input can interleave before the exec. `wait_pulses`
+ * (swing lag) is still cleared -- nobody resumes mid-swing lagged from an
+ * action that will never resolve -- but the fight itself (who's fighting
+ * whom) is recorded and re-linked by game_loop.c's copyover_recover() once
+ * both sides exist again post-exec (user 2026-08-03: "fights should
+ * persist after copyover"; previously every fighting pointer was
+ * unconditionally cleared here, silently ending every fight on every
+ * copyover). Progress is still saved before the recovery line is written,
+ * same as always.
  *
  * Connections still in login/menu/creation states can't be resumed
  * mid-dialog; they get a "please reconnect" note and are closed by the
@@ -94,53 +105,20 @@ static void copyover_dump_room_contents(room_t *r) {
  * fails we can simply clear the flag and carry on unharmed). */
 #define COPYOVER_FILE "copyover.dat"
 
-bool cmd_copyover(descriptor_t *d, const char *args) {
-    /* `-now` (user, 2026-08-08): skips the 5-second warning/sleep below
-     * entirely for an immediate copyover -- same recovery-file/exec path
-     * either way, just without the wait. */
-    bool now = args && strcasecmp(args, "-now") == 0;
-
+void copyover_execute(void) {
     int listen_fd = game_loop_listen_fd();
     if (listen_fd < 0) {
-        descriptor_send(d, "Copyover unavailable: no listening socket.\r\n");
-        return true;
-    }
-
-    /* 5-second warning to every connection (user requirement), then a
-     * literal sleep: the select loop is blocked for the duration, so no
-     * command can run and no combat round can resolve in the window --
-     * the "lock out everything" guarantee is the sleep itself. The
-     * warning bytes are written to the sockets immediately (socket_write
-     * is direct), so players see it before the freeze.
-     *
-     * Deliberately descriptor_send(), NOT descriptor_notify() -- reviewed
-     * during the Session 43 "editors get absolute quiet" audit and kept as
-     * an intentional exception: the interruption is happening in 5 seconds
-     * regardless of what anyone is doing, so holding this for catchup
-     * would mean their connection just silently drops with no warning at
-     * all (the held message would only surface after the copyover already
-     * happened). Same reasoning for the two reborn/reconnect lines below.
-     * `-now` skips the warning + wait outright -- there's nothing to warn
-     * about a stretch of time that isn't happening. */
-    if (now) {
-        for (descriptor_t *it = g_descriptors; it; it = it->next)
-            descriptor_send(it,
-                "\r\n<c>*** COPYOVER now -- the world is about to be reborn. ***<z>\r\n");
-    } else {
-        for (descriptor_t *it = g_descriptors; it; it = it->next)
-            descriptor_send(it,
-                "\r\n<c>*** COPYOVER in 5 seconds -- the world is about to be reborn. ***<z>\r\n");
-        sleep(5);
+        log_error("copyover: no listening socket -- aborted.");
+        return;
     }
 
     FILE *f = fopen(COPYOVER_FILE, "w");
     if (!f) {
-        descriptor_send(d, "Copyover failed: cannot write the recovery file.\r\n");
-        return true;
+        log_error("copyover: cannot write the recovery file -- aborted.");
+        return;
     }
 
-    log_info("Copyover initiated by %s.",
-             d->character ? d->character->base.name : "(unknown)");
+    log_info("Copyover executing.");
     fprintf(f, "listen %d\n", listen_fd);
 
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
@@ -202,8 +180,8 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
      * a backlog lives only in this process's heap, so unflushed bytes
      * would simply vanish across the exec below. One more non-blocking
      * attempt is all that's safe here (this can't block on a slow
-     * client) -- the 5-second warning sleep above already gives normal
-     * backlogs time to drain, so in practice this is a no-op. */
+     * client) -- the countdown's own final-second warnings already give
+     * normal backlogs time to drain, so in practice this is a no-op. */
     for (descriptor_t *it = g_descriptors; it; it = it->next)
         descriptor_flush_output(it);
 
@@ -223,6 +201,66 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
         if (!it->character) /* matches the branch condition above */
             fcntl(it->fd, F_SETFD, 0);
     }
-    descriptor_send(d, "Copyover failed at exec -- the world continues unchanged.\r\n");
+    broadcast_copyover_exec_failed();
+}
+
+/* Tiny helper so copyover_execute()'s exec-failed path (unreachable in
+ * practice) doesn't need its own descriptor loop duplicated -- kept local
+ * since nothing else needs it. */
+static void broadcast_copyover_exec_failed(void) {
+    for (descriptor_t *it = g_descriptors; it; it = it->next)
+        descriptor_send(it, "\r\n<r>*** Copyover failed at exec -- the world continues unchanged. ***<z>\r\n");
+}
+
+/* `copyover [seconds|-now|cancel]` -- immortal command, thin wrapper
+ * around copyover_schedule()/copyover_execute()/copyover_cancel()
+ * (copyover_schedule.c). Bare `copyover` keeps the original 5-second
+ * warning window; `copyover <seconds>` runs a longer/shorter countdown;
+ * `-now` skips straight to copyover_execute(); `cancel` aborts a countdown
+ * already in progress. Same shape as cmd_shutdown.c. */
+#define DEFAULT_COPYOVER_SECONDS 5
+
+bool cmd_copyover(descriptor_t *d, const char *args) {
+    char tok[32] = "";
+    sscanf(args, "%31s", tok);
+
+    const char *initiator = (d->character && d->character->base.name[0])
+                                 ? d->character->base.name
+                                 : "An immortal";
+
+    if (tok[0] && (strcasecmp(tok, "cancel") == 0 || strcasecmp(tok, "abort") == 0)) {
+        if (copyover_cancel(initiator))
+            descriptor_send(d, "Pending copyover cancelled.\r\n");
+        else
+            descriptor_send(d, "No copyover is pending.\r\n");
+        return true;
+    }
+
+    if (tok[0] && strcasecmp(tok, "-now") == 0) {
+        log_info("Copyover (-now) initiated by %s.", initiator);
+        copyover_execute();
+        descriptor_send(d, "Copyover failed -- see the log.\r\n"); /* only reached if execute() returned */
+        return true;
+    }
+
+    int seconds = DEFAULT_COPYOVER_SECONDS;
+    if (tok[0]) {
+        bool all_digits = true;
+        for (const char *p = tok; *p; p++) {
+            if (!isdigit((unsigned char)*p)) {
+                all_digits = false;
+                break;
+            }
+        }
+        if (!all_digits) {
+            descriptor_send(d, "Usage: copyover [seconds|-now|cancel|abort]\r\n");
+            return true;
+        }
+        seconds = atoi(tok);
+    }
+
+    copyover_schedule(seconds, initiator); /* logs its own "Copyover scheduled by..." line */
+    if (seconds > 0)
+        descriptor_send(d, "Copyover scheduled.\r\n");
     return true;
 }
