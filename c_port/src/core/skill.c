@@ -699,22 +699,19 @@ static int skill_ceiling(const being_t *ch, const skill_def_t *sk) {
 /* A character's current proficiency percent in `sk`, or 0 if they've never
  * attempted it (no skill_repo row yet).
  *
- * SKILL_TIER_COMBAT (the 5 weapon/barehand proficiency skills) is a
- * special case (user 2026-08-03: "the proficiency skills in combat
- * disciplines should be gained at 1% of the disc ... for all classes
- * and all proficiencies ... they should gain in proficiency
- * automatically, when combat hits 100% they should be able to increase
- * proficiency to 100%, but they should start from level 1"). These 5
- * skills have no gameplay hook anywhere that calls
- * skill_learn_from_doing() on them (no weapon-type distinction exists
- * in obj.h to gate a per-swing roll on -- see cmd_stabbing.c's own
- * "flavor-text placeholders" note), so under the normal learn-by-doing
- * system they would sit permanently stuck at their 1% floor forever,
- * un-grindable. Auto-tracks combat_disc_pct directly instead: 0 until
- * any Combat discipline is trained, then floored at 1 ("start from
- * level 1") and rising automatically in lockstep with
- * combat_disc_pct up to its full 100% -- no separate skill_repo
- * storage or per-use roll needed for these 5. */
+ * SKILL_TIER_COMBAT (the 5 weapon/barehand proficiency skills) used to be
+ * a special case that auto-tracked combat_disc_pct directly instead of
+ * real per-use learning, because nothing called skill_learn_from_doing()
+ * on them (no weapon-type distinction existed to gate a per-swing roll
+ * on). combat.c's weapon_verb() classification (already used for
+ * hit-message flavor and the weapon-specialization bonuses) closed that
+ * gap -- combat_strike() now calls skill_learn_from_doing() for the
+ * matching proficiency skill every swing, same as every other skill (user,
+ * 2026-08-08: "all skills/spells should be learn by doing, linked to use
+ * and player stats"). Reads straight from skill_repo like everything
+ * else; combat_disc_pct only still matters as this tier's ceiling
+ * (skill_ceiling()), same relationship discipline has with every other
+ * tier. */
 int skill_proficiency(const being_t *ch, const skill_def_t *sk) {
     /* User 2026-08-03: "immortals should have all skills/spells at maxed
      * potential without spending practice points" -- a read-time
@@ -723,12 +720,6 @@ int skill_proficiency(const being_t *ch, const skill_def_t *sk) {
      * demoted-then-repromoted immortal with zero extra bookkeeping). */
     if (being_is_immortal(ch))
         return 100;
-    if (sk->tier == SKILL_TIER_COMBAT) {
-        if (ch->progress.combat_disc_pct <= 0)
-            return 0;
-        int pct = ch->progress.combat_disc_pct;
-        return pct < SKILL_PROFICIENCY_FLOOR ? SKILL_PROFICIENCY_FLOOR : pct;
-    }
     skill_proficiency_t sp;
     if (!skill_repo_get(ch->player_id, sk->name, &sp))
         return 0;
@@ -752,15 +743,11 @@ const char *skill_proficiency_word_colored(int pct) {
  * curve softened by Wisdom. Returns the resulting (possibly unchanged)
  * proficiency. First-ever use sets the floor with no roll.
  *
- * SKILL_TIER_COMBAT is never actually called through here (see
- * skill_proficiency()'s own doc comment -- nothing in the codebase has
- * a hook to call this for those 5 skills), but routes straight to
- * skill_proficiency() if it ever is, rather than writing a now-unused
- * skill_repo row that skill_proficiency() would just ignore anyway. */
+ * SKILL_TIER_COMBAT (weapon/barehand proficiency) goes through this same
+ * path as every other tier now -- combat.c's per-swing hook calls it with
+ * combat_disc_pct as the ceiling (skill_ceiling()), same as any other
+ * discipline-gated skill. */
 int skill_learn_from_doing(being_t *ch, const skill_def_t *sk) {
-    if (sk->tier == SKILL_TIER_COMBAT)
-        return skill_proficiency(ch, sk);
-
     int ceiling = skill_ceiling(ch, sk);
     if (ceiling <= 0)
         return 0; /* shouldn't happen -- the caller's discipline gate already blocks this */

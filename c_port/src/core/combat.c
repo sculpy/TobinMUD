@@ -488,6 +488,33 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     if (weapon)
         obj_load_combat_mods(weapon->vnum, &weapon_hitroll, &weapon_damroll);
 
+    /* Weapon/barehand proficiency (user, 2026-08-08: "all skills/spells
+     * should be learn by doing, linked to use and player stats") -- the 5
+     * SKILL_TIER_COMBAT proficiency skills (slash/blunt/pierce/barehand,
+     * all classes) used to just mirror combat_disc_pct because nothing
+     * called skill_learn_from_doing() on them. `verb` (weapon_verb(),
+     * already computed above for hit-message flavor) gives the same
+     * weapon-type classification the Warrior-only specialization bonus
+     * below already keys off of -- reused here to pick which proficiency
+     * skill this swing exercises, for every class, not just Warrior. PCs
+     * only (mobs have no player_id/practice-points system to hang skill
+     * gain on, same reasoning as the dual-wield learn-by-doing gate
+     * above). skill_learn_from_doing() itself is a no-op read if the
+     * character hasn't trained any Combat discipline yet (skill_ceiling()
+     * returns combat_disc_pct, which is 0 until then). */
+    if (attacker->base.kind == THING_PC && !being_is_immortal(attacker)) {
+        const char *prof_name = "barehand proficiency";
+        if (strcmp(verb, "slice") == 0 || strcmp(verb, "chop") == 0)
+            prof_name = "slash proficiency";
+        else if (strcmp(verb, "bludgeon") == 0 || strcmp(verb, "lash") == 0)
+            prof_name = "blunt proficiency";
+        else if (strcmp(verb, "stab") == 0 || strcmp(verb, "pierce") == 0)
+            prof_name = "pierce proficiency";
+        const skill_def_t *prof_sk = skill_find(attacker->char_class, prof_name, false);
+        if (prof_sk)
+            skill_learn_from_doing(attacker, prof_sk);
+    }
+
     /* Kubo (Monk, spell/skill functional-completeness audit continued:
      * skill.c's own "Your unarmed strikes scale with skill and level.").
      * Real upstream folds kubo into several separate to-hit/damage
