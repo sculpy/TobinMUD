@@ -38,11 +38,11 @@ void regen_tick_run(long pulse_num) {
         /* Client HP/Mana/Move gauge only ever got pushed on actual
          * damage (combat.c) -- meaning it sat frozen while the player
          * was healing/regenerating outside a fight (user, 2026-08-06:
-         * "status bar needs updating per tick"). Firing it once here,
-         * before this tick's own healing below, keeps the gauge honest
-         * every regen tick regardless of what path (fighting or not)
-         * this being takes -- it's a no-op for anyone not GMCP-opted-in. */
-        being_notify_vitals_changed(b);
+         * "status bar needs updating per tick"). Fired at the end of
+         * each branch below, AFTER this tick's own healing, not before
+         * it -- notifying first sent the gauge last tick's numbers,
+         * showing the player permanently one tick behind (user,
+         * 2026-08-08: "status bar in client is one tick behind"). */
         if (b->fighting) {
             /* User 2026-08-03: Vitality should trickle back some even
              * mid-fight, not just after -- HP still only recovers at
@@ -53,6 +53,7 @@ void regen_tick_run(long pulse_num) {
              * stays STANDING while fighting, so no rest/sleep bonus
              * applies, and no 5/4 "resting up" bump either. */
             being_heal_vit(b, regen_amount(b));
+            being_notify_vitals_changed(b);
             continue;
         }
         being_heal(b, regen_amount(b));
@@ -96,5 +97,6 @@ void regen_tick_run(long pulse_num) {
             b->position = POSITION_STANDING;
             descriptor_send(d, "You feel fully rested and stand up.\r\n");
         }
+        being_notify_vitals_changed(b);
     }
 }

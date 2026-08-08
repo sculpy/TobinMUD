@@ -13,6 +13,22 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
+## User batch 2026-08-08 — logged, working these now
+
+- [ ] Combat skills should improve by doing (skill-gain-through-use), not just training.
+- [x] Client status bar is one tick behind actual game state -- done 2026-08-08. Root cause: regen_tick_run() (src/core/regen.c) called being_notify_vitals_changed() BEFORE applying that tick's own being_heal()/being_heal_vit()/being_heal_mana(), so every GMCP/MSDP Char.Vitals push carried the PREVIOUS tick's numbers -- client gauge bar was always one tick stale by construction, not a client-side rendering bug. Fixed by moving the notify call to the end of both the fighting and resting branches, after all heals for that tick are applied. Also fixed tests/smoke_test_regen.py's HP regex, which still expected the old 'HP: NN (NN Max' score format (score was reworked to 'HP: NN/NN' at some point) and didn't strip ANSI color codes -- pre-existing stale test, unrelated to this bug, fixed in passing.
+- [ ] Client music playback is sporadic; exit+relog sometimes fixes it.
+- [ ] Examine sneezymud-master/lib/races — determine if usable for DB import / race balancing.
+- [ ] Examine sneezymud-master/lib/tipsfile — pull anything usable into tips messaging.
+- [ ] Account menu: prompt for email address (privacy message: never shared, MUD-communications only), save to account DB.
+- [ ] Containers: objects should stack and components merge (see Sneezy for inspiration).
+- [ ] Fully implement egotrip from Sneezy.
+- [ ] Implement trophy system from Sneezy.
+- [ ] Implement missing skills from docs/Spell Assignments.xlsx; take everything usable from sneezy code/code/disc.
+- [ ] Implement what's useful from sneezy code/code/misc/ai_*.
+- [ ] Implement a command separator in the game.
+- [ ] Fix skills/spells that are stubbed out/no-ops — make them work exactly as coded in Sneezy.
+
 ## Open follow-ups, logged 2026-08-05
 
 - [x] **Client v0.4.23 + server: sound pack fully remapped after user's real 2026-08-07 upload landed in the wrong directory** -- done 2026-08-07. What actually happened: the user's new/reorganized 43-file sound set landed root-owned in `client/installer/windows/sounds/` (a build-staging copy, not the canonical source), while `client/sounds/` itself kept the OLD 24-file set until a later sync step deleted the old-named files there too (adventure1/atlasaudio/audiodollar-adventure/melodygodzilla/motivational/nastelborn/hit/hit2-4/slash/thief/thief2/spell_fireball all gone). Net result: the real, final file set (43 files, confirmed via `ls`) renamed/reorganized the whole taxonomy -- hit.wav-hit4.wav -> barehand1-4.wav (+ a genuinely new barehand5.wav), thief.wav/thief2.wav -> stab4.wav/stab5.wav (folded into a new shared weapon-type pool, +3 genuinely new stab1-3.wav), slash.wav -> slash8.wav (+5 new slash1/4-7.wav), spell_fireball.wav -> spell3.wav, the 6 old fight-music tracks -> music1-5.wav (one dropped, melodygodzilla had no surviving name) + 4 genuinely new tracks (music6-9.wav), and two entirely new categories: casting1-6.wav (spell-cast moment, not impact) and staff1.wav (blunt weapons). backstab.wav/cleric.wav/monk1-4.wav/spell.wav/spell2.wav kept their names unchanged.
