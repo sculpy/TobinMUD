@@ -127,4 +127,11 @@ void mob_ai_greet_newbie_equipper(struct being *arriver, struct room *r);
 void mob_ai_notify_given_item(struct being *m);
 void mob_ai_notify_given_coins(struct being *m, int amount);
 
+/* Forces `m` (must be a mob) to attempt its one wander-a-room-over move
+ * right now, bypassing the normal per-AI-tick dice roll -- backs
+ * egotrip's `wander` subcommand (user, 2026-08-08). All the OTHER
+ * legitimate gates (charmed pet, ACT_SENTINEL, fighting/non-standing, no
+ * open exit) still apply; a no-op for anything they'd already block. */
+void mob_ai_force_wander(struct being *m);
+
 #endif

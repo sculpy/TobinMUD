@@ -224,6 +224,7 @@ bool cmd_zonefile(descriptor_t *d, const char *args);
 bool cmd_edtrigger(descriptor_t *d, const char *args);
 bool cmd_consider(descriptor_t *d, const char *args);
 bool cmd_egotrip(descriptor_t *d, const char *args);
+bool cmd_force(descriptor_t *d, const char *args);
 bool cmd_stat(descriptor_t *d, const char *args);
 bool cmd_stats(descriptor_t *d, const char *args);
 bool cmd_gtell(descriptor_t *d, const char *args);
@@ -369,6 +370,8 @@ bool look_at_target(descriptor_t *d, const char *args);
  * cmd_wipe.c itself, not by this table gate alone (mirrors `snoop`'s
  * comment above). */
 #define WIPE_MIN_LEVEL 59
+/* `force <target> <command>` (user, 2026-08-08). */
+#define FORCE_MIN_LEVEL 55
 
 /* `set`: Administrator (58+), same tier as edplayer -- its one-shot,
  * scriptable sibling (user spec: build both). */

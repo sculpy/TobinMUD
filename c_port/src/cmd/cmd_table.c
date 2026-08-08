@@ -275,6 +275,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "test",    cmd_test,    "Show the currently-running smoke test, if any.",     TEST_MIN_LEVEL },
     { "tipedit", cmd_tipedit, "Add/list/delete tips (tipedit <text>|list|delete <id>).", TIPEDIT_MIN_LEVEL },
     { "transfer", cmd_transfer, "Teleport someone to you, or to a room (transfer <name> [vnum]).", IMMORTAL_LEVEL_MIN },
+    { "force",   cmd_force,   "Make a player or mob run a command as themselves (force <target> <command>).", FORCE_MIN_LEVEL },
     { "mudstats", cmd_mudstats, "Show basic statistics about the game world.",      MORTAL_LEVEL_MIN },
     /* SWAP: news before newbie, so "new" still means news; newbie needs
      * "newb". ("n"/"ne" are movement -- head above.) */
@@ -686,7 +687,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* SWAP: continue before consider, so "con" keeps repeating a heal
      * rather than sizing up a fight; consider needs "cons". */
     { "continue", cmd_continue, "Repeat your last heal-type prayer until the target is healed or your holy symbols run out.", MORTAL_LEVEL_MIN },
-    { "egotrip", cmd_egotrip, "Immortal toy-box -- only 'blast <target>' is implemented.", EGOTRIP_MIN_LEVEL },
+    { "egotrip", cmd_egotrip, "Immortal toy-box (blast/disease/cleanse/stupidity/wander/crit -- see HELP EGOTRIP).", EGOTRIP_MIN_LEVEL },
     { "dig",     cmd_dig,     "Dig a new room in the current direction, if none exists yet (dig <direction>).", BUILD_MIN_LEVEL },
     { "smoke",   cmd_smoke,   "Smoke a carried drug item (smoke <item>).",          MORTAL_LEVEL_MIN },
     /* "zone" is a full prefix of "zonefile", so it MUST stay ahead of it --

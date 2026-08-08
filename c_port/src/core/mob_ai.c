@@ -118,8 +118,14 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
  * (skipping closed doors and ROOM_FLAG_NO_MOB destinations), announces
  * the departure/arrival to both rooms, and moves it. No-ops for a
  * fighting/non-standing mob, one with no room, or a charmed pet (see
- * the comment inside for why pets never wander on their own). */
-static void mob_try_wander(being_t *m) {
+ * the comment inside for why pets never wander on their own).
+ *
+ * `force` (user, 2026-08-08, egotrip's `wander` subcommand -- "forces a
+ * wander pulse for all mobs in the room") skips the per-tick RNG gate
+ * below but keeps every other legitimate gate (charm/sentinel/fighting/
+ * position/no valid exit) -- an immortal forcing a wander still can't
+ * make a charmed pet abandon its master or a sentinel budge. */
+static void mob_try_wander(being_t *m, bool force) {
     /* Pet/charm (Sneezy → Tobin feature audit): a charmed pet only ever
      * moves by following its master room-to-room (cmd_move.c's
      * charmed-pet drag-along), never on its own -- a random ACT_SENTINEL-
@@ -132,7 +138,7 @@ static void mob_try_wander(being_t *m) {
         return;
     if (m->fighting || m->position != POSITION_STANDING || !m->base.roomp)
         return;
-    if (rand() % 100 >= MOB_WANDER_CHANCE_PCT)
+    if (!force && rand() % 100 >= MOB_WANDER_CHANCE_PCT)
         return;
 
     room_t *from = m->base.roomp;
@@ -800,13 +806,22 @@ void mob_ai_notify_given_coins(being_t *m, int amount) {
     mob_spec_dispatch_given_coins(m, amount);
 }
 
+/* Public wrapper (see mob_ai.h) for egotrip's `wander` subcommand --
+ * forces the one wander attempt mob_try_wander() would otherwise only
+ * make on a per-tick dice roll. */
+void mob_ai_force_wander(being_t *m) {
+    if (!m || m->base.kind != THING_MOB)
+        return;
+    mob_try_wander(m, true);
+}
+
 /* world_for_each_mob() callback for mob_ai_tick() below -- runs every
  * one of this mob's independent AI behaviors in turn (wander, scavenge,
  * surplus collect/deliver, aggress, alignment flavor, lamplighter).
  * Combat follow-through for a charmed pet is deliberately NOT here --
  * see the trailing comment for why that lives in combat.c instead. */
 static void mob_ai_visit(being_t *m) {
-    mob_try_wander(m);
+    mob_try_wander(m, false);
     mob_try_scavenge(m);
     mob_try_surplus_collect(m);
     mob_try_aggress(m);

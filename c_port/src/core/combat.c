@@ -219,6 +219,29 @@ static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb,
     }
 }
 
+/* See combat.h's doc comment. */
+bool combat_egotrip_crit(being_t *immortal, being_t *target) {
+    if (!target || target->base.kind != THING_PC || !target->base.roomp)
+        return false;
+
+    limb_t candidates[LIMB_COUNT];
+    int n = 0;
+    for (int i = 0; i < LIMB_COUNT; i++) {
+        if (is_major_limb((limb_t)i))
+            continue;
+        if (target->limbs[i].hp <= 0)
+            continue;
+        candidates[n++] = (limb_t)i;
+    }
+    if (n == 0)
+        return false;
+
+    limb_t limb = candidates[rand() % n];
+    target->limbs[limb].hp = 0;
+    combat_sever_limb(immortal, target, limb, "hit");
+    return true;
+}
+
 /* Case-insensitive "does haystack contain needle" (strcasestr is GNU-only,
  * same style already duplicated in cmd_exec.c/cmd_scan.c/cmd_who.c). */
 static bool ci_contains(const char *haystack, const char *needle) {

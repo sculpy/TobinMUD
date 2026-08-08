@@ -112,4 +112,23 @@ bool combat_apply_skill_damage(being_t *attacker, being_t *defender, int dmg, li
  * cmd_pray.c/cmd_move.c/cmd_use.c rather than reimplemented per file. */
 const char *describe_dam(int dam, int capacity, const char *verb);
 
+/* egotrip's `crit` subcommand (user, 2026-08-08 -- "force a random limb
+ * to sever right now"). Sneezy's own egotrip crit picks a specific
+ * outcome from a ~100-entry crit-effect table Tobin never ported (its
+ * own crit model triggers purely on a limb's HP crossing to 0% in real
+ * combat, no chance roll, no numbered table -- see combat_sever_limb()'s
+ * doc comment); this reuses THAT mechanic instead, outside of combat.
+ * Deliberately MINOR limbs only (never LIMB_HEAD/NECK/WAIST/BODY,
+ * is_major_limb()) -- a major-limb sever normally routes through
+ * combat_defeat() for the kill, which has its own subtle preconditions
+ * tied to being called from within combat_process_run()'s own iteration
+ * (see combat_defeat()'s doc comment on a real, previously-traced crash
+ * from calling it outside that context); this command has nothing to
+ * gain from that risk, so instant death is simply out of scope here.
+ * `target` must be a connected PC (combat_sever_limb() itself only fires
+ * for THING_PC, matching the "mobs are destroyed outright already"
+ * scope note it already carries) in a real room. Returns false (no-op)
+ * if `target` isn't eligible or has no minor limb left with HP > 0. */
+bool combat_egotrip_crit(being_t *immortal, being_t *target);
+
 #endif
