@@ -159,6 +159,24 @@ CREATE TABLE IF NOT EXISTS `player_skill` (
   PRIMARY KEY (`player_id`, `skill_name`)
 );
 
+-- Trophy system (TODO.md, user: "implement trophy system from Sneezy"),
+-- ported from SneezyMUD's `trophy` table (TTrophy class, cmd_trophy.cc).
+-- One row per player per mob vnum they've killed; `count` decays over
+-- time (trophy_pulse_tick(), trophy.c) and drives an XP-modifier that
+-- shrinks the reward for repeatedly farming the same mob. See
+-- trophy_repo.h/trophy.h for the read/write API and the exact decay/mod
+-- formula. Sneezy's schema also had a separate `trophyplayer` summary
+-- table (per-player distinct-mob-count + lifetime total) purely for the
+-- zone-percentage browsing `doTrophy()` prints -- not ported, since this
+-- port's own `trophy` command (cmd_trophy.c) deliberately skips that
+-- zone-percentage browsing (disclosed in trophy.h's own doc comment).
+CREATE TABLE IF NOT EXISTS `player_trophy` (
+  `player_id` bigint(20) unsigned NOT NULL,
+  `mob_vnum` int(11) NOT NULL,
+  `count` double NOT NULL DEFAULT 0,
+  PRIMARY KEY (`player_id`, `mob_vnum`)
+);
+
 -- Player-defined command aliases (`alias` command, cmd_alias.c). Stored on
 -- the ACCOUNT, not the character, and shared across every character on it
 -- -- but scoped by tier: an immortal alias only expands for an immortal

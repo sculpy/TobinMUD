@@ -1134,3 +1134,9 @@ UPDATE `help_topic` SET `body` = 'Usage: egotrip <subcommand>\n\nImmortal toy-bo
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('force', 'Usage: force <target> <command>\n\nLevel 55+ only: makes another player or a mob run a command as\nthemselves -- exactly as if they''d typed it. A player target''s own\ncommand feedback goes to their own screen, not yours (only your own\nconfirmation line does). A player target is found anywhere in the\ngame; a mob target must be in your own room. Can''t force yourself,\nand can''t force another immortal ranked equal to or above you.\n\nA forced mob (or lowbie player) still can''t reach a command above\ntheir own level -- forcing someone to `egotrip` or `shutdown` just\ngets them the same "Huh?!" typing it themselves would. Related: egotrip transfer', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Trophy system (TODO.md, user: "implement trophy system from Sneezy").
+-- See trophy.h/trophy.c/trophy_repo.c/cmd_trophy.c.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('trophy', 'Usage: trophy [name]\n\nShows how much XP you will earn the next time you kill each mob\nyou''ve already killed before -- repeat kills of the same mob are\nworth less and less (down to a floor, never zero), so grinding one\nspawn stops paying off after a while. Leave that mob alone and the\npenalty fades back out over time on its own.\n\nWith no argument, lists every mob you have a trophy count for. Add\na name to narrow the list to mobs whose name contains it, e.g.\n`trophy rat`. Related: score', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

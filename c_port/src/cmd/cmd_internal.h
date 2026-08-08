@@ -225,6 +225,7 @@ bool cmd_edtrigger(descriptor_t *d, const char *args);
 bool cmd_consider(descriptor_t *d, const char *args);
 bool cmd_egotrip(descriptor_t *d, const char *args);
 bool cmd_force(descriptor_t *d, const char *args);
+bool cmd_trophy(descriptor_t *d, const char *args);
 bool cmd_stat(descriptor_t *d, const char *args);
 bool cmd_stats(descriptor_t *d, const char *args);
 bool cmd_gtell(descriptor_t *d, const char *args);

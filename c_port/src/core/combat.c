@@ -26,6 +26,8 @@
 #include "skill.h"
 #include "thing.h"
 #include "trigger.h"
+#include "trophy.h"
+#include "trophy_repo.h"
 #include "world.h"
 
 /* Forward decl -- combat_strike() (below) calls this on every landed hit,
@@ -1164,6 +1166,19 @@ static void combat_award_hit_xp(being_t *attacker, being_t *victim, int dmg) {
         long weight = m->progress.level > 0 ? m->progress.level : 1;
         long full_share = (n == 1) ? total_xp : (total_xp * weight) / total_weight;
         long hit_share = (full_share * dmg) / victim->progress.max_hp;
+
+        /* Trophy decay (TODO.md, user: "implement trophy system from
+         * sneezy") -- repeat-killing the same mob vnum shrinks its own
+         * XP worth, down to a floor, nudging players toward variety.
+         * Ported from Sneezy's TTrophy::getExpModVal(), applied here
+         * (not in a separate pass) so it naturally scales with the same
+         * per-hit crediting combat_award_hit_xp() already does. Reads
+         * `m`'s own trophy count, not the group's -- each recipient's
+         * modifier is theirs alone, same as Sneezy's per-TBeing
+         * TTrophy instance. */
+        double trophy_count = 0.0;
+        trophy_repo_get_count(m->player_id, victim->base.id, &trophy_count);
+        hit_share = (long)(hit_share * trophy_exp_mod((int)victim->base.id, trophy_count));
         if (hit_share < 1)
             hit_share = 1;
 
@@ -1338,6 +1353,9 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         int mob_level = loser->progress.level > 0 ? loser->progress.level : 1;
         corpse_gold = mob_level * (1 + rand() % 5);
     }
+
+    if (!loser_is_pc)
+        trophy_record_kill(winner, (int)loser->base.id);
 
     if (slain) {
         tell(winner, "You have slain %s!\r\n", being_display_name(loser));

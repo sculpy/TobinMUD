@@ -23,7 +23,7 @@ viewers keep plain names (`news`, `wiznews`).
 - [x] Account menu: prompt for email address (privacy message: never shared, MUD-communications only), save to account DB -- done 2026-08-08. account.email already existed in the schema (inherited from Sneezy's own account.sql, unused until now) -- no migration needed. New CONN_GET_EMAIL connection state (descriptor.c) prompts right after the timezone step, for BOTH the timezone-set and timezone-skip branches (the second one was missed on the first pass -- blank at the timezone prompt used to jump straight to CONN_ACCOUNT_MENU, skipping the new email prompt entirely; caught live via smoke_test_email.py and fixed same session). Blank opts out silently (user follow-up, 2026-08-08: 'allow someone to opt out of providing email') -- account.email just stays empty, no nagging. A minimal '@' + '.'-after-the-'@' check rejects obvious typos with a retry; real validation is out of scope. New self-service `email [<address>|clear]` command (cmd_email.c, mortal-level) mirrors `time`/`color`'s own view-or-set shape for changing it later. New account_set_email()/account.email field (account_repo.c/account.h). tests/smoke_test_email.py (16 checks) passes live.
 - [x] Containers: objects should stack and components merge (see Sneezy for inspiration) -- done 2026-08-08. `inventory` (cmd_object.c) and the room floor listing (group_room_items(), cmd_look.c) already grouped identical items into a single "(xN)" line; container contents were the one place still listing every item on its own line -- `look <container>`'s "It contains:" and the immortal-only carried-inventory view's one-level-nested container listing (both cmd_look.c). New shared render_grouped_contents() (cmd_look.c) closes both gaps with the exact same "identical rendered line -> one entry, count it" technique the other two spots already use -- no separate vnum-equality check needed, so it naturally covers "components merge" too (ephemeral same-label items, e.g. Planting's fruit/hide/meat, group the same way real prototype items do). Checked Sneezy's own obj_component.cc for inspiration first -- it's a much bigger, disclosed-separate system (TComponent::willMerge()/doMerge(), spell-material charges, decay-time weighted averaging, room/weather-gated spawn placement tables for ~2500 lines) tied to spell components specifically, not general item stacking; scoped this fix to the display-grouping gap that actually existed, same precedent the 2026-07-26 inventory-stacking work already set, not the full Sneezy subsystem -- logged as a real, much larger follow-up below if the user wants the actual spell-component system ported later. tests/smoke_test_container_stack.py (3 checks) passes live.
 - [x] Fully implement egotrip from Sneezy -- done 2026-08-08, see the 'Egotrip expansion + new `force` command' section below for details.
-- [ ] Implement trophy system from Sneezy.
+- [x] Implement trophy system from Sneezy -- done 2026-08-08, see the 'Trophy system' section below for details.
 - [ ] Implement missing skills from docs/Spell Assignments.xlsx; take everything usable from sneezy code/code/disc.
 - [ ] Implement what's useful from sneezy code/code/misc/ai_*.
 - [x] Implement a command separator in the game -- done 2026-08-08. `;` splits one typed line into several commands run in order ("north;look;inventory"), the classic Diku/Sneezy convention. Real conflict found before implementing: `;` at the start of a line was already a one-character shorthand for `wiznet` (cmd_table.c, same idea as `'` for say) -- asked the user, who chose to drop the wiznet shorthand outright ("use ';' anyway, drop the wiznet shorthand" / "if you need the ; wizards can use alias to substitute"). Split happens in descriptor.c's CONN_PLAYING dispatch point (via strtok_r on ';', each trimmed piece re-entering cmd_dispatch() fresh) -- so a leading `'` say-shorthand still works per-segment ("'hi;'bye" says "hi" then says "bye"), and if any chained segment ends the connection (e.g. `quit!` mid-line) the rest of the line is abandoned. No escaping for a literal `;` inside a message -- same accepted limitation every Diku-family MUD's separator has. help_topic `wiznet` rewritten (no longer claims the retired shorthand, points at the new `separator` topic); new `separator` help_topic added. tests/smoke_test_separator.py (8 checks) passes live.
@@ -65,6 +65,56 @@ Real candidates for task 14 (stubbed skills) -- skill-shaped roster names with n
 
 - [x] "Implement egotrip from Sneezy" -- egotrip previously only had `blast` (2026-07-12; the other 12 Sneezy subcommands were disclosed as skipped since their systems -- disease, garble, portal objects, mob hate/aggro, a numbered crit table -- didn't exist in Tobin at the time). A real disease system has landed since then, so this pass ports every subcommand that now maps onto something real: `disease <target> <disease>` (cold/dysentery/flu/pneumonia/leprosy/gangrene/plague/scurvy, reusing being_apply_affect()+AFFECT_DISEASE_*, same mechanism cmd_drink.c's puddle-disease roll already uses, just a deliberate curse duration -- 5x cmd_drink.c's own accidental-infection durations); `cleanse` (removes every disease + poison affect from every connected being, world-wide, via affect_is_disease()+being_remove_affect()); `stupidity` (AFFECT_STUPIDITY on every connected mortal, same penalty formula cmd_cast.c's own stupidity branch uses); `wander` (forces every eligible mob in the caller's room to attempt its wander move right now -- mob_try_wander() (mob_ai.c) gained a `force` parameter that skips its per-tick RNG gate but keeps every other legitimate one -- charm/sentinel/fighting/position -- exposed via a new public mob_ai_force_wander()); `crit <target>` (forces a random MINOR limb sever, reusing Tobin's own "limb hits 0% HP" crit mechanic (combat_egotrip_crit(), new public wrapper around the existing static combat_sever_limb()) instead of Sneezy's missing ~100-entry numbered crit-effect table -- deliberately MINOR limbs only, never a killing blow, since a major-limb sever normally routes through combat_defeat(), which has its own subtle preconditions tied to being called from within combat_process_run()'s own iteration; user confirmed this scope-down explicitly). Still disclosed as not ported, no reusable system exists: `deity` (no spec-proc global-pulse hook), `bless` (Sneezy's version is 17 different named-god flavor blessings, no generic "flat blessing" affect exists to reuse), `portal` (no persistent walk-through portal object type, only the instant one-shot `ethereal gate` cast), `hate` (Tobin's aggro is alignment-based, no per-mob targeted-hate list). `teleport` is likewise not duplicated here -- already fully covered by the separate, pre-existing `transfer <name> [vnum]` command. Updated the `egotrip` help_topic (both live and the seed file) to match; `egotrip`'s cmd_table.c description updated too. tests/smoke_test_egotrip.py (15 checks) passes live.
 - [x] New `force <target> <command>` (user follow-up, same day: "need a force command thats 55+ that force <target> [command] mobs or players can be forced") -- classic Diku/Sneezy immortal command with no dedicated Sneezy source of its own to port, just the standard shape (new FORCE_MIN_LEVEL=55, cmd_internal.h). A PC target is found world-wide (same g_descriptors scan egotrip's blast/disease/crit already use) and the command runs on their OWN real descriptor -- exactly as if they'd typed it, so their own command feedback goes to their own screen, not the immortal's (verified live: forcing a target to `score` showed the score output on the TARGET's connection). A mob target is looked up in the caller's own room only (combat_find_room_target(), same helper kill/disarm already share) -- Tobin has no world-wide mob-by-name index, a disclosed narrower scope than Sneezy's own world-wide lookup. A mob has no real descriptor, so a throwaway one is heap-allocated (descriptor_t is ~150KB -- a 128KB page buffer alone -- so deliberately NOT stack-allocated), zeroed, pointed at the mob, dispatched through, and freed; fd=-1 makes any stray descriptor_send() a safe no-op. No per-command filtering needed: cmd_dispatch()'s own min_level gate already checks the ACTING being's level once forced, so a forced mob or lowbie player can't reach an immortal-only command through `force` any more than by typing it directly. Same true-rank immortal-vs-immortal guard cmd_kill.c's own instakill check uses (can't force an equal-or-higher-ranked immortal peer). New `force` help_topic (live + seed file). Covered by the same smoke_test_egotrip.py above.
+
+## Trophy system, 2026-08-08
+
+- [x] "Implement trophy system from Sneezy" -- ported SneezyMUD's TTrophy
+      class (cmd/cmd_trophy.cc/.h): a per-player, per-mob-vnum decaying
+      kill count that shrinks the XP a repeatedly-farmed mob is worth,
+      nudging players toward variety instead of parking on one easy
+      spawn. New `player_trophy` table (tobin_migrations.sql, one row per
+      player per mob vnum) + trophy_repo.h/.c (skill_repo.c's own
+      get/add-upsert pattern) + trophy.h/.c (the actual formula/logic) +
+      new `trophy [name]` player command (cmd_trophy.c).
+      trophy_exp_mod(vnum, count) is an exact port of Sneezy's own
+      getExpModVal(): full reward for the first 8 kills (`free_kills`),
+      then steps down 0.5/14 (`step_mod`/`num_steps`) per kill past that,
+      floored at 0.3 (`min_mod`) -- normalized by the mob's `max_exist`
+      (Tobin's analog of Sneezy's `numberLoad`) when that's a real
+      positive cap, so a mob with many concurrent spawns decays more
+      slowly per-kill than a unique one. Wired into combat.c in two
+      places: combat_award_hit_xp() reads each recipient's OWN trophy
+      count for the victim's vnum and multiplies their per-hit XP share
+      by the modifier (before the existing <1-floor clamp), and
+      combat_defeat() calls trophy_record_kill() once per real mob kill
+      (gated on `!loser_is_pc` -- `slain` is only decapitation flavor
+      text, NOT "did they actually die", both branches of that function
+      are real kills, so the increment had to sit above that branch, not
+      inside `if (slain)`). Decay is pulse-driven (trophy_pulse_tick(),
+      main.c, ~60s, matching every other slow-tick system's cadence) --
+      0.25 off every row, floor-at-zero guarded by the SQL itself
+      (`where count > 0.25`). Real, disclosed simplification from
+      Sneezy's own decay: ONE global `update player_trophy` query per
+      tick regardless of who's online, instead of Sneezy's own
+      procTrophyDecay walking character_list and issuing one query PER
+      ONLINE PC -- simpler and cheaper on this box's memory-constrained
+      MariaDB (same OOM history combat_award_hit_xp()'s own practice-
+      point-save comment already notes), and the DB is the only
+      persistent store here anyway (no in-memory TTrophy cache to keep
+      in sync the way Sneezy's TBeing::trophy instance does).
+      Two more disclosed scope-downs, both noted in trophy.h's own doc
+      comment: no `trophy wipe()` (character deletion already cascades
+      every player-keyed table the same way, nothing trophy-specific
+      needed) and no zone-grouped kill-percentage browsing in the
+      `trophy` command -- Sneezy's own doTrophy() walks every zone
+      counting `doesLoad` mobs to print "you've killed N% of this zone",
+      which needs a full mob-census-per-zone repo function Tobin doesn't
+      have; this port keeps just the functionally important half, a flat
+      per-mob XP-modifier listing, optionally filtered by name
+      substring (`trophy rat`). New `trophy` help_topic (live + seed
+      file). tests/smoke_test_trophy.py (15 checks, including a live
+      relative-XP comparison proving the modifier is actually APPLIED to
+      combat XP, not just displayed) passes live.
 
 ## Open follow-ups, logged 2026-08-05
 

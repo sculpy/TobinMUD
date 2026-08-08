@@ -236,6 +236,12 @@ static const cmd_entry_t COMMANDS[] = {
     /* SWAP: score before scan, so "sc"/"sco" still reach score; scan needs
      * "sca". */
     { "score",   cmd_score,   "Show your character's stats, level, and HP.",        MORTAL_LEVEL_MIN },
+    /* Sneezy's own real command table assigns CMD_TROPHY right after
+     * CMD_SCORE textually (see this file's own Phase 2 reorder notes,
+     * 2026-08-02) -- kept adjacent here too; no real "tr"-prefix
+     * ambiguity risk (transfer/trip/treasury/trance all diverge by the
+     * 3rd letter). */
+    { "trophy",  cmd_trophy,  "See how the XP you earn from repeat kills has decayed (trophy [name]).", MORTAL_LEVEL_MIN },
     /* shout before show is already alphabetical, but it is load-bearing:
      * "sho" is ambiguous and shout wins it -- "show" must be typed in
      * full. */

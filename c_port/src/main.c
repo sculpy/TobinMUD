@@ -35,6 +35,7 @@
 #include "socials.h"
 #include "tips_repo.h"
 #include "trigger.h"
+#include "trophy.h"
 #include "vitals.h"
 #include "wait_tick.h"
 #include "weather.h"
@@ -161,6 +162,7 @@ int main(int argc, char **argv) {
     pulse_register(30, planting_tick_run);       /* ~3s: advance in-progress `plant <seeds>` tasks */
     pulse_register(REGEN_PULSES, meditate_tick_run); /* ~5s: advance an in-progress `yoginsa` meditation */
     pulse_register(600, obj_plant_growth_tick);  /* ~60s: age planted crops, occasionally yield fruit */
+    pulse_register(600, trophy_pulse_tick);      /* ~60s: decay every player's trophy kill-counts */
 
     int rc = game_loop_run(cfg->telnet_port, copyover_file);
 
