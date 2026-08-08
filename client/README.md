@@ -75,7 +75,7 @@ sudo dnf install -y mingw64-gcc msitools
 
 Cross-compile:
 ```sh
-cd ~/NewMUD/client
+cd ~/TobinMUD/client
 cmake -S . -B build-win64 -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64-x86_64.cmake
 cmake --build build-win64
 ```
@@ -85,7 +85,7 @@ required, same as the server.
 ## Building the MSI installer
 
 ```sh
-cd ~/NewMUD/client/installer/windows
+cd ~/TobinMUD/client/installer/windows
 cp ../../build-win64/TobinMUDClient.exe . && cp ../../tobinmud_icon.ico . && cp -r ../../sounds .
 wixl -v -a x64 -o TobinMUDClient.msi tobinmud.wxs
 ```
@@ -158,7 +158,7 @@ visibly opens.
 #    - Version="X.Y.Z.0" in client/installer/windows/tobinmud.wxs
 
 # 2. Rebuild
-cd ~/NewMUD/client
+cd ~/TobinMUD/client
 rm -rf build-win64
 cmake -S . -B build-win64 -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-w64-x86_64.cmake
 cmake --build build-win64

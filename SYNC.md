@@ -20,8 +20,8 @@ Keep all responses ultra-concise and direct — this travels with the repo
 
 | | Dev tree | Build/test/prod box | Reach it via |
 |---|---|---|---|
-| **Dev machine** | `C:\Users\jhines\NewMUD\` (Windows) | — | edit here |
-| **TobinMUD droplet** | — | `~/NewMUD/`, MariaDB local, `tobin_c` on port 4000 | `ssh mud@tobinmud.com` |
+| **Dev machine** | `C:\Users\jhines\TobinMUD\` (Windows) | — | edit here |
+| **TobinMUD droplet** | — | `~/TobinMUD/`, MariaDB local, `tobin_c` on port 4000 | `ssh mud@tobinmud.com` |
 
 Repo root is the whole tree (`c_port/` is one subdir). Logs land in
 `c_port/logs/`.
@@ -32,9 +32,9 @@ Repo root is the whole tree (`c_port/` is one subdir). Logs land in
 on the droplet's working copy to carry changes back — it is derived, not
 authoritative, even though it's also production.
 
-- **Repo:** `github.com/sculpy/NewMUD` (private), branch `main`.
+- **Repo:** `github.com/sculpy/TobinMUD` (private), branch `main`.
 - **Migrated 2026-07-09** from the old `sculpy/tobin-mud` (frozen, do not
-  push to it). NewMUD carries its full history through `c18d592` plus
+  push to it). TobinMUD carries its full history through `c18d592` plus
   everything since.
 
 ```bash
@@ -43,18 +43,18 @@ git status                                # nothing uncommitted left behind
 git push origin main
 
 # droplet, on arrival:
-cd ~/NewMUD && git pull --ff-only
+cd ~/TobinMUD && git pull --ff-only
 ```
 
 The droplet authenticates to GitHub via its own **read-only deploy key**
-(`~/.ssh/newmud_deploy`, scoped via `core.sshCommand`) — no interactive
+(`~/.ssh/tobinmud_deploy`, scoped via `core.sshCommand`) — no interactive
 GitHub login there. Already set up; if a fresh droplet is ever needed, see
 [ENVIRONMENT.md](ENVIRONMENT.md).
 
 The upstream reference clone sits beside `c_port/` (gitignored, never
 carried by git):
 ```bash
-git clone https://github.com/sneezymud/sneezymud.git ~/NewMUD/sneezymud-master
+git clone https://github.com/sneezymud/sneezymud.git ~/TobinMUD/sneezymud-master
 ```
 Not required to build or run Tobin — only for looking up the original
 SneezyMUD C++ source during porting/research work.
@@ -62,7 +62,7 @@ SneezyMUD C++ source during porting/research work.
 ## Deploy sequence (on the droplet, after pulling)
 
 ```bash
-cd ~/NewMUD/c_port
+cd ~/TobinMUD/c_port
 git pull origin main
 rm -rf build && cmake -S . -B build && cmake --build build     # or: make -j4 — zero warnings expected
 bash db/apply-tobin-schema.sh                                   # picks up new/changed migrations (idempotent)
@@ -86,7 +86,7 @@ Restart:
   ```bash
   pkill -x tobin_c; sleep 1
   TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=tobin \
-    setsid nohup ./build/tobin_c > ~/NewMUD/tobin_c.log 2>&1 < /dev/null &
+    setsid nohup ./build/tobin_c > ~/TobinMUD/tobin_c.log 2>&1 < /dev/null &
   ```
 - **Always re-attach gdb immediately after any restart** — see CLAUDE.md's
   gdb block. Re-attach after every rebuild+restart, not just once per
@@ -120,15 +120,15 @@ Only needed if the droplet is ever rebuilt from scratch — see
 key summary:
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/newmud_deploy -N '' -C "$(hostname)-newmud-deploy"
-cat ~/.ssh/newmud_deploy.pub            # register as a read-only deploy key
+ssh-keygen -t ed25519 -f ~/.ssh/tobinmud_deploy -N '' -C "$(hostname)-tobinmud-deploy"
+cat ~/.ssh/tobinmud_deploy.pub            # register as a read-only deploy key
 
-git -C ~/NewMUD remote set-url origin git@github.com:sculpy/NewMUD.git
-git -C ~/NewMUD config core.sshCommand \
-  "ssh -i ~/.ssh/newmud_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+git -C ~/TobinMUD remote set-url origin git@github.com:sculpy/TobinMUD.git
+git -C ~/TobinMUD config core.sshCommand \
+  "ssh -i ~/.ssh/tobinmud_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 ```
 ```bash
-gh repo deploy-key add newmud_deploy.pub --repo sculpy/NewMUD --title "<box name> (read-only)"
+gh repo deploy-key add tobinmud_deploy.pub --repo sculpy/TobinMUD --title "<box name> (read-only)"
 ```
 
 ## Safety checklist before a `reset --hard`
@@ -146,7 +146,7 @@ gh repo deploy-key add newmud_deploy.pub --repo sculpy/NewMUD --title "<box name
   but don't tar-sync raw `.c` for a *committed* build — commit from Windows
   (normalizes to LF) and `git pull` on the droplet.
 - **Quick pre-commit test builds** without committing: `tar cf - <changed
-  files> | ssh mud@tobinmud.com "cd ~/NewMUD/c_port && tar xf -"`, build
+  files> | ssh mud@tobinmud.com "cd ~/TobinMUD/c_port && tar xf -"`, build
   there, iterate, then commit clean and `git reset --hard origin/main` on
   the droplet to reconcile.
 - **`gh` on this Windows machine** is at `C:\Program Files\GitHub CLI\gh.exe`
@@ -155,7 +155,7 @@ gh repo deploy-key add newmud_deploy.pub --repo sculpy/NewMUD --title "<box name
   (`ssh mud@tobinmud.com 'bash -s' < script.sh`) — inline `ssh host "…"`
   strings mangle quotes and choke on literal parentheses.
 - **Watchdog cron**: crontab on the droplet should be
-  `* * * * * /home/mud/NewMUD/c_port/watchdog.sh` (`cd`s to its own
+  `* * * * * /home/mud/TobinMUD/c_port/watchdog.sh` (`cd`s to its own
   directory, appends to `tobin_c.log`, takes a `flock` on
   `/tmp/tobin_watchdog.lock` so only one restart ever runs). Check
   `crontab -l` there if a restart ever seems to double-fire or go missing.

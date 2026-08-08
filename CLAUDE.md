@@ -40,13 +40,13 @@ from the first command of every session, not just at sync time.
 
 - **DO droplet**: `tobinmud.com` (DNS live, A record → `159.223.121.98`),
   hostname `TobinMUD`, user `mud` (key auth set up, passwordless `sudo`),
-  tree at `~/NewMUD/`, MariaDB local, **this is the live production
+  tree at `~/TobinMUD/`, MariaDB local, **this is the live production
   server** — `tobin_c` runs here for real players, telnet `tobinmud.com:4000`
   (bare IP still works too). Deploy changes via `copyover` (below), never
   a raw kill+restart, unless the user explicitly says no one's connected.
 - Both `cmake` and a plain `Makefile` work here (`cmake --version` ->
   4.3.0 present); either build path is fine.
-- **Sync is git**: private repo `github.com/sculpy/NewMUD` (repo root =
+- **Sync is git**: private repo `github.com/sculpy/TobinMUD` (repo root =
   this whole tree). Commit+push when leaving, pull on arrival. The
   droplet's copy can also be updated by `tar cf - ... | ssh ... tar xf -`
   from here for a quick pre-commit test build, same as before.
@@ -56,10 +56,10 @@ from the first command of every session, not just at sync time.
 ## Build / run / test (on the droplet, via ssh)
 
 ```
-cd ~/NewMUD/c_port && make -j4                # or: cmake --build build
+cd ~/TobinMUD/c_port && make -j4                # or: cmake --build build
                                                # zero warnings expected
 TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=tobin \
-  setsid nohup ./build/tobin_c > ~/NewMUD/tobin_c.log 2>&1 < /dev/null &
+  setsid nohup ./build/tobin_c > ~/TobinMUD/tobin_c.log 2>&1 < /dev/null &
 for f in tests/smoke_test*.py; do python3 "$f"; done   # full suite
 ```
 
@@ -69,7 +69,7 @@ for f in tests/smoke_test*.py; do python3 "$f"; done   # full suite
 setsid nohup gdb -p <pid> -batch -ex "set pagination off" \
   -ex "handle SIGPIPE nostop noprint pass" -ex "continue" \
   -ex "echo \n=== CRASH CAUGHT ===\n" -ex "bt full" -ex "info threads" \
-  -ex "thread apply all bt" > ~/NewMUD/gdb_crash.log 2>&1 < /dev/null &
+  -ex "thread apply all bt" > ~/TobinMUD/gdb_crash.log 2>&1 < /dev/null &
 disown
 ```
 No `sudo` needed (`ptrace_scope=0` on these boxes; `mud` owns the process
@@ -87,8 +87,8 @@ First-time DB seed (or to re-seed) is two steps — upstream world first,
 then Tobin's schema on top:
 
 ```
-~/NewMUD/sneezymud-master/db/init-db.sh mud   # fresh tobin + immortal DBs
-~/NewMUD/c_port/db/apply-tobin-schema.sh      # Tobin tables + migrations
+~/TobinMUD/sneezymud-master/db/init-db.sh mud   # fresh tobin + immortal DBs
+~/TobinMUD/c_port/db/apply-tobin-schema.sh      # Tobin tables + migrations
 ```
 
 The second script alone is also the "apply new migrations to an existing

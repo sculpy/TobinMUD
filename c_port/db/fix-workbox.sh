@@ -12,7 +12,7 @@
 #      Work runs both side by side, sharing one DB, see SYNC.md)
 #   5. smoke-test both afterward
 #
-# Run this ON db.kullit.com, as the `mud` user, from ~/NewMUD/c_port:
+# Run this ON db.kullit.com, as the `mud` user, from ~/TobinMUD/c_port:
 #
 #   git pull origin main
 #   bash db/fix-workbox.sh

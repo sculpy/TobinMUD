@@ -1,4 +1,4 @@
-# NewMUD
+# TobinMUD
 
 A Multi-User Dungeon (MUD) written in C/C++.
 

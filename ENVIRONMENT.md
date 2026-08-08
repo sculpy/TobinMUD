@@ -17,10 +17,10 @@ directories around. The droplet's MariaDB is local and stays put.
 
 | Piece | What it is | Where it lives |
 |---|---|---|
-| **NewMUD repo** | The game (`c_port/`) + Tobin's schema. Source of truth. | https://github.com/sculpy/NewMUD.git — branch `main` |
+| **TobinMUD repo** | The game (`c_port/`) + Tobin's schema. Source of truth. | https://github.com/sculpy/TobinMUD.git — branch `main` |
 | **Upstream SneezyMUD reference** | Original code + base world/DB seed. **Gitignored** (`sneezymud-master/`), not in the repo — fetch it separately. | https://github.com/sneezymud/sneezymud.git |
-| **Dev box** | Where you run Claude Code and edit. Windows. | `C:\Users\jhines\NewMUD\` |
-| **Droplet** | Build, test, AND live production. DigitalOcean, `tobinmud.com`. | `mud@tobinmud.com:~/NewMUD` |
+| **Dev box** | Where you run Claude Code and edit. Windows. | `C:\Users\jhines\TobinMUD\` |
+| **Droplet** | Build, test, AND live production. DigitalOcean, `tobinmud.com`. | `mud@tobinmud.com:~/TobinMUD` |
 
 Key facts that make the commands below work:
 - The server runs as OS user **`mud`** and talks to MariaDB as `mud@localhost`
@@ -30,7 +30,7 @@ Key facts that make the commands below work:
 - Default runtime config needs no env vars (host `localhost`, DB `tobin`,
   telnet port `4000`). Overridable: `TOBIN_DB_HOST` / `TOBIN_DB_USER` /
   `TOBIN_DB_PASS` / `TOBIN_DB_NAME` / `TOBIN_PORT`.
-- Server path: **`~/NewMUD/c_port`**.
+- Server path: **`~/TobinMUD/c_port`**.
 - DNS: `tobinmud.com` A record → the droplet's IP. Players telnet to
   `tobinmud.com:4000` (bare IP still works too).
 
@@ -52,12 +52,12 @@ git push origin main
    --id Git.Git -e`).
 2. **Clone the repo**:
    ```sh
-   git clone https://github.com/sculpy/NewMUD.git
+   git clone https://github.com/sculpy/TobinMUD.git
    ```
 3. *(Optional but recommended)* Fetch the upstream reference into the repo
    as `sneezymud-master` (gitignored, never committed):
    ```sh
-   cd NewMUD
+   cd TobinMUD
    git clone https://github.com/sneezymud/sneezymud.git sneezymud-master
    ```
 
@@ -100,43 +100,43 @@ sudo systemctl enable --now mariadb
 ### 3d. Get the code as the `mud` user
 ```sh
 sudo -iu mud
-git clone https://github.com/sculpy/NewMUD.git ~/NewMUD
-git clone https://github.com/sneezymud/sneezymud.git ~/NewMUD/sneezymud-master
-git -C ~/NewMUD config core.autocrlf input
+git clone https://github.com/sculpy/TobinMUD.git ~/TobinMUD
+git clone https://github.com/sneezymud/sneezymud.git ~/TobinMUD/sneezymud-master
+git -C ~/TobinMUD config core.autocrlf input
 ```
 
 Set up the read-only deploy key (the droplet has no interactive GitHub
 login):
 ```sh
-ssh-keygen -t ed25519 -f ~/.ssh/newmud_deploy -N '' -C "$(hostname)-newmud-deploy"
-cat ~/.ssh/newmud_deploy.pub
-git -C ~/NewMUD remote set-url origin git@github.com:sculpy/NewMUD.git
-git -C ~/NewMUD config core.sshCommand \
-  "ssh -i ~/.ssh/newmud_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+ssh-keygen -t ed25519 -f ~/.ssh/tobinmud_deploy -N '' -C "$(hostname)-tobinmud-deploy"
+cat ~/.ssh/tobinmud_deploy.pub
+git -C ~/TobinMUD remote set-url origin git@github.com:sculpy/TobinMUD.git
+git -C ~/TobinMUD config core.sshCommand \
+  "ssh -i ~/.ssh/tobinmud_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 ```
-Register the public key: GitHub → NewMUD → Settings → Deploy keys, or
+Register the public key: GitHub → TobinMUD → Settings → Deploy keys, or
 ```sh
-gh repo deploy-key add newmud_deploy.pub --repo sculpy/NewMUD --title "<box name> (read-only)"
+gh repo deploy-key add tobinmud_deploy.pub --repo sculpy/TobinMUD --title "<box name> (read-only)"
 ```
 
 ### 3e. Seed the databases
 ```sh
-~/NewMUD/sneezymud-master/db/init-db.sh mud     # fresh tobin + immortal, grants mud@localhost
-~/NewMUD/c_port/db/apply-tobin-schema.sh        # Tobin tables + idempotent migrations
+~/TobinMUD/sneezymud-master/db/init-db.sh mud     # fresh tobin + immortal, grants mud@localhost
+~/TobinMUD/c_port/db/apply-tobin-schema.sh        # Tobin tables + idempotent migrations
 ```
 Both safe to re-run. `apply-tobin-schema.sh` is also the "apply new
 migrations after a pull" step going forward.
 
 ### 3f. Build *(as mud)*
 ```sh
-cd ~/NewMUD/c_port
+cd ~/TobinMUD/c_port
 cmake -S . -B build
 cmake --build build                 # must be zero-warning
 ```
 
 ### 3g. First run *(as mud)*
 ```sh
-cd ~/NewMUD/c_port
+cd ~/TobinMUD/c_port
 setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &
 pgrep -x tobin_c && echo "up on :4000"
 ```
@@ -144,7 +144,7 @@ pgrep -x tobin_c && echo "up on :4000"
 ### 3h. Auto-restart via cron *(as mud)*
 ```sh
 crontab -e
-# * * * * * /home/mud/NewMUD/c_port/watchdog.sh
+# * * * * * /home/mud/TobinMUD/c_port/watchdog.sh
 ```
 `watchdog.sh` `cd`s to its own directory, appends to `tobin_c.log`, and
 takes a `flock` on `/tmp/tobin_watchdog.lock` so only one restart ever runs.
@@ -188,7 +188,7 @@ live and the domain resolves.)
 
 ### 3k. Prove it works
 ```sh
-cd ~/NewMUD/c_port
+cd ~/TobinMUD/c_port
 bash tests/sweep.sh                  # expect "SUMMARY: N passed, 0 failed"
 ```
 
@@ -205,13 +205,13 @@ cold-restart rule and the gdb-attach habit.
 ## Quick reference
 
 ```
-Repo:            https://github.com/sculpy/NewMUD.git   (branch main)
+Repo:            https://github.com/sculpy/TobinMUD.git   (branch main)
 Upstream ref:    https://github.com/sneezymud/sneezymud.git → sneezymud-master/  (gitignored, per-location)
-Droplet:         mud@tobinmud.com:~/NewMUD/c_port   (also live production)
+Droplet:         mud@tobinmud.com:~/TobinMUD/c_port   (also live production)
 Databases:       MariaDB `tobin` + `immortal`, unix_socket auth as OS user mud
 Seed a DB:       sneezymud-master/db/init-db.sh mud   &&   c_port/db/apply-tobin-schema.sh
-Build:           cd ~/NewMUD/c_port && cmake -S . -B build && cmake --build build   (or: make -j4)
-Run:             cd ~/NewMUD/c_port && setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &
+Build:           cd ~/TobinMUD/c_port && cmake -S . -B build && cmake --build build   (or: make -j4)
+Run:             cd ~/TobinMUD/c_port && setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &
 Telnet:          tobinmud.com:4000  (or 159.223.121.98:4000)
-Sweep:           cd ~/NewMUD/c_port && bash tests/sweep.sh
+Sweep:           cd ~/TobinMUD/c_port && bash tests/sweep.sh
 ```
