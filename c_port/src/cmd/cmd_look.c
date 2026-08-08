@@ -162,6 +162,56 @@ static bool is_loose(const being_t *ch, const obj_t *o) {
     return true;
 }
 
+/* Renders a container's THING_OBJ contents into `out` (starting at *n,
+ * advancing it), one grouped/stacked line per distinct label -- same
+ * "identical rendered line -> one entry, count it" technique
+ * group_room_items() above already uses for the room floor and
+ * cmd_object.c's cmd_inventory() already uses for carried items (user,
+ * 2026-08-08: "in containers objs should stack and components merge" --
+ * container contents were the one place still listing every single item
+ * on its own line, no grouping, so two potions in the same bag showed as
+ * two identical lines instead of "(x2)"). `indent` is the leading
+ * whitespace ("  " for a top-level container, "    " for the immortal
+ * inventory's one-level-nested view) so both callers below can share
+ * this instead of each keeping their own copy of the grouping loop.
+ * Capped at 32 distinct groups -- containers are small by design (no
+ * bag-of-holding-style capacity in Tobin), so this is generous, not a
+ * real limit. Returns true iff anything was printed (caller decides what
+ * to print for an empty container -- the two callers below phrase it
+ * slightly differently, "(nothing)" vs "Nothing."). */
+static bool render_grouped_contents(thing_t *chain, const char *indent, char *out, size_t outsz, size_t *n) {
+    char lines[32][128];
+    int counts[32] = {0};
+    int groups = 0;
+    for (thing_t *t = chain; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        char capbuf[128];
+        const char *label = cap_first(t->short_descr[0] ? t->short_descr : t->name, capbuf, sizeof(capbuf));
+
+        int i;
+        for (i = 0; i < groups; i++) {
+            if (strcmp(lines[i], label) == 0) {
+                counts[i]++;
+                break;
+            }
+        }
+        if (i == groups && groups < 32) {
+            snprintf(lines[groups], sizeof(lines[groups]), "%s", label);
+            counts[groups] = 1;
+            groups++;
+        }
+    }
+
+    for (int i = 0; i < groups && *n < outsz; i++) {
+        if (counts[i] > 1)
+            *n += (size_t)snprintf(out + *n, outsz - *n, "%s%s (x%d)\r\n", indent, lines[i], counts[i]);
+        else
+            *n += (size_t)snprintf(out + *n, outsz - *n, "%s%s\r\n", indent, lines[i]);
+    }
+    return groups > 0;
+}
+
 /* Immortal-only: renders `tgt`'s loose carried inventory into `out`
  * (starting at *n, advancing it), one level deep into any container
  * among them -- user 2026-07-19: "immortals can see inventory when
@@ -201,17 +251,7 @@ static void render_immortal_inventory(const being_t *tgt, const char *display,
             *n += (size_t)snprintf(out + *n, outsz - *n, "    (closed)\r\n");
             continue;
         }
-        bool any_inner = false;
-        for (thing_t *ct = o->base.stuff_head; ct && *n < outsz; ct = ct->stuff_next) {
-            if (ct->kind != THING_OBJ)
-                continue;
-            any_inner = true;
-            char capbuf2[128];
-            const char *ilabel = cap_first(ct->short_descr[0] ? ct->short_descr : ct->name,
-                                           capbuf2, sizeof(capbuf2));
-            *n += (size_t)snprintf(out + *n, outsz - *n, "    %s\r\n", ilabel);
-        }
-        if (!any_inner && *n < outsz)
+        if (!render_grouped_contents(o->base.stuff_head, "    ", out, outsz, n) && *n < outsz)
             *n += (size_t)snprintf(out + *n, outsz - *n, "    (nothing)\r\n");
     }
     if (!any && *n < outsz)
@@ -395,16 +435,9 @@ bool look_at_target(descriptor_t *d, const char *args) {
             n += snprintf(out + n, sizeof(out) - (size_t)n, "It is closed.\r\n");
         } else {
             n += snprintf(out + n, sizeof(out) - (size_t)n, "It contains:\r\n");
-            bool any = false;
-            for (thing_t *t = o->base.stuff_head; t && (size_t)n < sizeof(out); t = t->stuff_next) {
-                if (t->kind != THING_OBJ)
-                    continue;
-                any = true;
-                char capbuf2[128];
-                const char *label = cap_first(t->short_descr[0] ? t->short_descr : t->name,
-                                              capbuf2, sizeof(capbuf2));
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s\r\n", label);
-            }
+            size_t un = (size_t)n;
+            bool any = render_grouped_contents(o->base.stuff_head, "  ", out, sizeof(out), &un);
+            n = (int)un;
             if (!any && (size_t)n < sizeof(out))
                 n += snprintf(out + n, sizeof(out) - (size_t)n, "  Nothing.\r\n");
         }
