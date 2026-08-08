@@ -71,6 +71,8 @@ bool cmd_affects(descriptor_t *d, const char *args);
 bool cmd_alias(descriptor_t *d, const char *args);
 bool cmd_quit(descriptor_t *d, const char *args);
 bool cmd_color(descriptor_t *d, const char *args);
+bool cmd_email(descriptor_t *d, const char *args);
+bool cmd_mailinglist(descriptor_t *d, const char *args);
 bool cmd_attack(descriptor_t *d, const char *args);
 bool cmd_kill(descriptor_t *d, const char *args);
 bool cmd_hit(descriptor_t *d, const char *args);

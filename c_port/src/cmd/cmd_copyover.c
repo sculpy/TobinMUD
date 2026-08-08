@@ -6,6 +6,7 @@
 
 #include <fcntl.h>
 #include <stdio.h>
+#include <strings.h>
 #include <unistd.h>
 
 #include "game_loop.h"
@@ -94,7 +95,10 @@ static void copyover_dump_room_contents(room_t *r) {
 #define COPYOVER_FILE "copyover.dat"
 
 bool cmd_copyover(descriptor_t *d, const char *args) {
-    (void)args;
+    /* `-now` (user, 2026-08-08): skips the 5-second warning/sleep below
+     * entirely for an immediate copyover -- same recovery-file/exec path
+     * either way, just without the wait. */
+    bool now = args && strcasecmp(args, "-now") == 0;
 
     int listen_fd = game_loop_listen_fd();
     if (listen_fd < 0) {
@@ -115,11 +119,19 @@ bool cmd_copyover(descriptor_t *d, const char *args) {
      * regardless of what anyone is doing, so holding this for catchup
      * would mean their connection just silently drops with no warning at
      * all (the held message would only surface after the copyover already
-     * happened). Same reasoning for the two reborn/reconnect lines below. */
-    for (descriptor_t *it = g_descriptors; it; it = it->next)
-        descriptor_send(it,
-            "\r\n<c>*** COPYOVER in 5 seconds -- the world is about to be reborn. ***<z>\r\n");
-    sleep(5);
+     * happened). Same reasoning for the two reborn/reconnect lines below.
+     * `-now` skips the warning + wait outright -- there's nothing to warn
+     * about a stretch of time that isn't happening. */
+    if (now) {
+        for (descriptor_t *it = g_descriptors; it; it = it->next)
+            descriptor_send(it,
+                "\r\n<c>*** COPYOVER now -- the world is about to be reborn. ***<z>\r\n");
+    } else {
+        for (descriptor_t *it = g_descriptors; it; it = it->next)
+            descriptor_send(it,
+                "\r\n<c>*** COPYOVER in 5 seconds -- the world is about to be reborn. ***<z>\r\n");
+        sleep(5);
+    }
 
     FILE *f = fopen(COPYOVER_FILE, "w");
     if (!f) {

@@ -3084,8 +3084,11 @@ static bool handle_line(descriptor_t *d, const char *line) {
 
         case CONN_GET_TIMEZONE: {
             if (line[0] == '\0') {
-                d->state = CONN_ACCOUNT_MENU;
-                show_account_menu(d);
+                descriptor_send(d,
+                    "\r\nWe will never share your email address for any purpose -- it's "
+                    "used solely for TobinMUD-related communications. Enter your email "
+                    "address, or press Enter to skip: ");
+                d->state = CONN_GET_EMAIL;
                 return true;
             }
 
@@ -3102,6 +3105,37 @@ static bool handle_line(descriptor_t *d, const char *line) {
             account_set_timezone(d->account.account_id, (int)hours);
             descriptor_send(d,
                 "Time zone set. You can change it later with `time <difference>`.\r\n");
+            descriptor_send(d,
+                "\r\nWe will never share your email address for any purpose -- it's "
+                "used solely for TobinMUD-related communications. Enter your email "
+                "address, or press Enter to skip: ");
+            d->state = CONN_GET_EMAIL;
+            return true;
+        }
+
+        case CONN_GET_EMAIL: {
+            /* Blank is a deliberate, silent opt-out (user, 2026-08-08: "allow
+             * someone to opt out of providing email") -- no nagging, no
+             * confirmation needed, account.email just stays empty. */
+            if (line[0] == '\0') {
+                d->state = CONN_ACCOUNT_MENU;
+                show_account_menu(d);
+                return true;
+            }
+
+            /* Minimal sanity check, not real RFC 5322 validation -- just
+             * enough to catch an obvious typo/non-email before it's stored. */
+            const char *at = strchr(line, '@');
+            if (!at || at == line || !at[1] || strchr(at + 1, '.') == NULL) {
+                descriptor_send(d,
+                    "That doesn't look like a valid email address. Try again, "
+                    "or press Enter to skip: ");
+                return true;
+            }
+
+            snprintf(d->account.email, sizeof(d->account.email), "%s", line);
+            account_set_email(d->account.account_id, line);
+            descriptor_send(d, "Email saved. You can change it later with `edaccount email`.\r\n");
             d->state = CONN_ACCOUNT_MENU;
             show_account_menu(d);
             return true;

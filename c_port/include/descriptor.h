@@ -37,6 +37,7 @@ typedef enum {
     CONN_CONFIRM_PASSWORD,
     CONN_GET_COLOR_PREF, /* new-account color on/off prompt */
     CONN_GET_TIMEZONE, /* new-account real-time-zone-offset prompt */
+    CONN_GET_EMAIL, /* new-account optional email prompt (user, 2026-08-08) */
     CONN_ACCOUNT_MENU,
     CONN_CHAR_CREATE_NAME,
     CONN_CHAR_CREATE_RACE,      /* after name: pick one of 6 races */

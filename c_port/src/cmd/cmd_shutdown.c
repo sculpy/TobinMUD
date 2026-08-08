@@ -46,6 +46,13 @@ bool cmd_shutdown(descriptor_t *d, const char *args) {
     }
 
     int seconds = DEFAULT_SHUTDOWN_SECONDS;
+    /* `-now` (user, 2026-08-08, alongside copyover's own -now): an
+     * explicit synonym for "shutdown 0" -- same immediate path, just a
+     * clearer word for it at the keyboard. */
+    if (tok[0] && strcasecmp(tok, "-now") == 0) {
+        seconds = 0;
+        tok[0] = '\0';
+    }
     if (tok[0]) {
         bool all_digits = true;
         for (const char *p = tok; *p; p++) {
@@ -55,7 +62,7 @@ bool cmd_shutdown(descriptor_t *d, const char *args) {
             }
         }
         if (!all_digits) {
-            descriptor_send(d, "Usage: shutdown [seconds|cancel]\r\n");
+            descriptor_send(d, "Usage: shutdown [seconds|-now|cancel]\r\n");
             return true;
         }
         seconds = atoi(tok);

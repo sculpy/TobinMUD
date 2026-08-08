@@ -18,6 +18,9 @@ typedef struct {
     bool color_pref;  /* ANSI color on/off, chosen at account creation */
     int time_adjust;  /* hours offset from server time (Eastern), chosen at
                         * account creation; see cmd_time.c */
+    char email[128];  /* optional, chosen at account creation (user, 2026-08-08);
+                        * empty string means the player opted out. Never
+                        * shared -- MUD-related communications only. */
 } account_t;
 
 /* Case-insensitive by name, mirrors the original's `where name=lower(...)`.
@@ -44,6 +47,11 @@ bool account_set_color(long account_id, bool color_on);
  * the server's own Eastern clock). Backs the creation prompt and the
  * `time <difference>` command. */
 bool account_set_timezone(long account_id, int hours);
+
+/* Persists the account's email address (account.email). An empty string is
+ * a valid, deliberate opt-out, not an error -- backs the creation prompt
+ * and any later self-service change. */
+bool account_set_email(long account_id, const char *email);
 
 /* Renames the account (edaccount, admin-only -- a player never renames
  * their own account, no self-service equivalent exists). Fails if
