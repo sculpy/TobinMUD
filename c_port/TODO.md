@@ -198,7 +198,7 @@ Real candidates for task 14 (stubbed skills) -- skill-shaped roster names with n
 
 
 
-- [ ] **`kick` should be a way to start a fight** -- user, 2026-08-05: "kick should be a way to start a fight." Currently `cmd_kick.c` likely only works against an existing opponent (ch->fighting); needs checking whether kicking a non-fighting target should itself initiate combat, same as `attack`/`hit`/`backstab` etc. already do.
+- [x] **`kick` should be a way to start a fight** -- done 2026-08-08. `kick <target>` now opens a fight from scratch (cmd_attack.c's own target-lookup + fighting-pointer-swap shape) when not already fighting; bare `kick` still hits the current opponent as before. tests/smoke_test_kick_starts_fight.py (3 checks) passes live.
 
 - [ ] **Log player rents, including rent cost** -- user, 2026-08-05: "add a log for a player renting" / "along with rent cost." `cmd_rent.c` exists (offline-regen mechanic) but doesn't appear to game_log() anything currently -- needs a LOG_* entry recording who rented and what it cost them, matching the existing character-delete/quit logging convention (player_repo.c/cmd_quit.c). Needs checking whether `rent` currently charges anything at all (a real gold cost may not exist yet, given TODO.md's Money system is still task 29/unbuilt).
 
