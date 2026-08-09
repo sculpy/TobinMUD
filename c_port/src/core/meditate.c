@@ -61,6 +61,21 @@ void meditate_tick_run(long pulse_num) {
             continue;
         }
 
+        /* Snapshot "was this being actually short on the resource before
+         * this tick's heal?" (regen.c's own was_short_hp/was_short_vit
+         * pattern) -- needed below so the auto-stand-when-topped-off
+         * logic only fires on the tick that ACTUALLY finishes healing
+         * them, not on every tick while they happen to already be full.
+         * Found live (groundfighting smoke test, 2026-08-09): a Monk
+         * who sits down already at full HP/Vitality knows `yoginsa`
+         * (auto_start_meditating(), cmd_position.c) so meditation starts
+         * immediately -- without this guard, topped_off was true on
+         * that very first tick and stood them right back up, so `sit`
+         * never actually stuck for a healthy Monk. */
+        bool was_short = mana_mode
+            ? (ch->progress.mana < ch->progress.max_mana)
+            : (ch->progress.hp < ch->progress.max_hp || ch->progress.vit < ch->progress.max_vit);
+
         int heal = 5 + ch->progress.level / 2;
         if (mana_mode) {
             being_heal_mana(ch, heal);
@@ -107,9 +122,9 @@ void meditate_tick_run(long pulse_num) {
          * above (position change, fighting). Checked last so this
          * tick's own wohlin cure (just above) still applies before
          * standing up. */
-        bool topped_off = mana_mode
+        bool topped_off = was_short && (mana_mode
             ? (ch->progress.mana >= ch->progress.max_mana)
-            : (ch->progress.hp >= ch->progress.max_hp && ch->progress.vit >= ch->progress.max_vit);
+            : (ch->progress.hp >= ch->progress.max_hp && ch->progress.vit >= ch->progress.max_vit));
         if (topped_off) {
             ch->meditating = false;
             ch->position = POSITION_STANDING;
