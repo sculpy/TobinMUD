@@ -1452,7 +1452,22 @@ bool cmd_pray(descriptor_t *d, const char *args) {
      * is the caster's own success chance at THIS specific prayer, and it
      * climbs with every attempt. Immortals always succeed, same "no
      * restrictions" spirit as their other gate bypasses. */
-    if (imm || skill_roll_success(skill_learn_from_doing(ch, sk))) {
+    bool pray_ok = imm || skill_roll_success(skill_learn_from_doing(ch, sk));
+
+    /* `praying` (docs/Spell Assignments.xlsx gap audit, 2026-08-08) --
+     * Cleric's missing counterpart to Mage's own `wizardry`: a zero-
+     * effect passive proficiency stat that trains on every prayer
+     * attempt regardless of which specific prayer or whether it
+     * succeeded, same "gain by doing, win or lose" spirit and same lack
+     * of a direct mechanical read-effect `wizardry` itself already has
+     * (see cmd_cast.c's own doc comment on that skill). */
+    if (!imm) {
+        const skill_def_t *praying_sk = skill_find(CLASS_CLERIC, "praying", false);
+        if (praying_sk && praying_sk != sk)
+            skill_learn_from_doing(ch, praying_sk);
+    }
+
+    if (pray_ok) {
         task_pray(d, ch, target, sk);
     } else {
         char msg[128];

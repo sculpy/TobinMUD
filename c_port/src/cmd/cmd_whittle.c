@@ -12,6 +12,7 @@
 #include "log.h"
 #include "obj.h"
 #include "room.h"
+#include "skill.h"
 #include "thing.h"
 #include "whittle.h"
 
@@ -126,6 +127,12 @@ bool cmd_whittle(descriptor_t *d, const char *args) {
         descriptor_send(d, "You are nowhere.\r\n");
         return true;
     }
+    /* `whittle` skill gate (docs/Spell Assignments.xlsx gap audit,
+     * 2026-08-08) -- this command had no skill check at all before. */
+    if (!being_is_immortal(ch) && !being_knows_skill(ch, "whittle")) {
+        descriptor_send(d, "You don't know how to whittle.\r\n");
+        return true;
+    }
 
     if (!*args) {
         char out[900];
@@ -159,6 +166,15 @@ bool cmd_whittle(descriptor_t *d, const char *args) {
     obj_t *result = obj_create_from_proto(recipe->result_vnum);
     if (result)
         thing_move_to(&result->base, &ch->base);
+
+    /* Learn-by-doing (user, 2026-08-08) -- same "always succeeds once
+     * ingredients are gathered, train on every real use" shape as
+     * cmd_cook.c's own identical hook. */
+    if (!being_is_immortal(ch)) {
+        const skill_def_t *whittle_sk = skill_find(ch->char_class, "whittle", false);
+        if (whittle_sk)
+            skill_learn_from_doing(ch, whittle_sk);
+    }
 
     char msg[160];
     snprintf(msg, sizeof(msg), "You whittle a %s!\r\n", recipe->name);

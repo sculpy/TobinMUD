@@ -536,6 +536,61 @@ static const skill_def_t SKILLS[] = {
     { "focused avoidance",  CLASS_DRUID,   SKILL_TIER_ADVANCED, 30, "See help `focused avoidance` for help." },
     { "focused avoidance",  CLASS_MONK,    SKILL_TIER_ADVANCED, 30, "See help `focused avoidance` for help." },
     { "evaluate",           CLASS_MAGE,    SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
+    /* docs/Spell Assignments.xlsx gap audit, 2026-08-08 (TODO.md,
+     * "Implement missing skills from docs/Spell Assignments.xlsx"):
+     * `cook`/`whittle`/`defense`/`swim` are real upstream SKILL_GENERAL
+     * entries (DISC_ADVENTURING/DISC_DEFENSE in spell_info.cc's
+     * discArray), same "one row per class" cross-class shape `toughness`/
+     * `focused avoidance`/`evaluate` above already established. `cook`/
+     * `whittle` gate Tobin's own already-fully-working cmd_cook.c/
+     * cmd_whittle.c recipe systems, which previously had no skill check
+     * at all -- a real, if minor, gap (anyone could cook/whittle from
+     * level 1 regardless of class). `defense`: real upstream is a flat
+     * passive AC-style bonus (combat.cc); ported as a third, smaller
+     * to-hit-modifier reduction alongside `oomlat`/`focused avoidance`'s
+     * own (combat.c) -- available from level 1, unlike `focused
+     * avoidance`'s level 30, so it's the character's first passive
+     * defensive skill rather than a redundant duplicate of one already
+     * in the roster. `swim`: real upstream mitigates drowning damage
+     * (physics.cc); Tobin's own unconditional underwater-drowning tick
+     * (vitals.c) had nothing mitigating it until now. */
+    { "cook",               CLASS_MAGE,    SKILL_TIER_COMBAT,    1, "See help `cook` for help." },
+    { "cook",               CLASS_CLERIC,  SKILL_TIER_COMBAT,    1, "See help `cook` for help." },
+    { "cook",               CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `cook` for help." },
+    { "cook",               CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `cook` for help." },
+    { "cook",               CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `cook` for help." },
+    { "cook",               CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `cook` for help." },
+    { "whittle",            CLASS_MAGE,    SKILL_TIER_COMBAT,    1, "See help `whittle` for help." },
+    { "whittle",            CLASS_CLERIC,  SKILL_TIER_COMBAT,    1, "See help `whittle` for help." },
+    { "whittle",            CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `whittle` for help." },
+    { "whittle",            CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `whittle` for help." },
+    { "whittle",            CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `whittle` for help." },
+    { "whittle",            CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `whittle` for help." },
+    { "defense",            CLASS_MAGE,    SKILL_TIER_COMBAT,    1, "See help `defense` for help." },
+    { "defense",            CLASS_CLERIC,  SKILL_TIER_COMBAT,    1, "See help `defense` for help." },
+    { "defense",            CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `defense` for help." },
+    { "defense",            CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `defense` for help." },
+    { "defense",            CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `defense` for help." },
+    { "defense",            CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `defense` for help." },
+    { "swim",               CLASS_MAGE,    SKILL_TIER_COMBAT,    1, "See help `swim` for help." },
+    { "swim",               CLASS_CLERIC,  SKILL_TIER_COMBAT,    1, "See help `swim` for help." },
+    { "swim",               CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `swim` for help." },
+    { "swim",               CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `swim` for help." },
+    { "swim",               CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `swim` for help." },
+    { "swim",               CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `swim` for help." },
+    /* `praying`/`casting`: real upstream SKILL_PRAYING (Cleric,
+     * DISC_FAITH) and SKILL_CASTING (Mage, DISC_WIZARDRY) are each a
+     * zero-mana, zero-lag passive proficiency stat with no dedicated
+     * effect body of their own in spell_info.cc's discArray -- same
+     * shape Tobin's own `wizardry` (Mage) already has (trains by doing
+     * on every cast, no direct mechanical read-effect, see cmd_cast.c's
+     * own doc comment). `praying` is Cleric's missing counterpart to
+     * that; `casting` is Mage's own SECOND, genuinely distinct passive
+     * (real upstream keeps SKILL_CASTING and SKILL_WIZARDRY as two
+     * separate stats) -- both wired to train on every prayer/cast
+     * attempt the same way (cmd_pray.c/cmd_cast.c). */
+    { "praying",            CLASS_CLERIC,  SKILL_TIER_CLASS,    25, "See help `praying` for help." },
+    { "casting",            CLASS_MAGE,    SKILL_TIER_CLASS,     9, "See help `casting` for help." },
     { "evaluate",           CLASS_CLERIC,  SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
     { "evaluate",           CLASS_WARRIOR, SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
     { "evaluate",           CLASS_THIEF,   SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },

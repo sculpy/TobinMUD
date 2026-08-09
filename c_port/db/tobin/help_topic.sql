@@ -1140,3 +1140,13 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('trophy', 'Usage: trophy [name]\n\nShows how much XP you will earn the next time you kill each mob\nyou''ve already killed before -- repeat kills of the same mob are\nworth less and less (down to a floor, never zero), so grinding one\nspawn stops paying off after a while. Leave that mob alone and the\npenalty fades back out over time on its own.\n\nWith no argument, lists every mob you have a trophy count for. Add\na name to narrow the list to mobs whose name contains it, e.g.\n`trophy rat`. Related: score', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- docs/Spell Assignments.xlsx gap audit, 2026-08-08 (TODO.md, "Implement
+-- missing skills from docs/Spell Assignments.xlsx"). See
+-- skill.c/combat.c/cmd_pray.c/cmd_cast.c/vitals.c for the actual code.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('defense', 'A passive combat skill, known from level 1 by every class. Improves\nwith use (learn-by-doing) and makes you slightly harder to hit --\nyour first passive defensive skill, alongside `toughness` (damage\nreduction) and `focused avoidance` (also to-hit reduction, unlocked\nlater). No command to use it; it just works. Related: toughness focused avoidance', 'seed'),
+('praying', 'A passive Cleric skill, known from level 25. Improves with use\n(learn-by-doing) every time you `pray` -- your general prayer\nproficiency, separate from any one specific prayer''s own skill.\nNo command to use it; it trains automatically alongside whatever\nyou pray. Related: pray wizardry', 'seed'),
+('casting', 'A passive Mage skill, known from level 9. Improves with use\n(learn-by-doing) every time you `cast` -- a second, separate\nspellcasting-proficiency stat alongside `wizardry`, trained\nautomatically alongside whatever you cast. No command to use it.\nRelated: cast wizardry', 'seed'),
+('swim', 'A passive combat skill, known from level 1 by every class. Improves\nwith use (learn-by-doing) and reduces the damage you take from\ndrowning while underwater without water-breathing -- up to half off\nat full proficiency. No command to use it; it just works when you\nneed it. Related: score', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

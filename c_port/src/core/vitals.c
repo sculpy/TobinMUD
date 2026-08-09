@@ -13,6 +13,7 @@
 #include "descriptor.h"
 #include "player_repo.h"
 #include "room.h"
+#include "skill.h"
 
 /* Periodic hook (registered with the pulse scheduler) that drains hunger
  * and thirst for every connected, non-immortal player, applies starvation/
@@ -55,6 +56,23 @@ static void vitals_tick_impl(long pulse_num, bool affect_players) {
             && !being_has_affect(b, AFFECT_WATERBREATH)
             && !being_has_affect(b, AFFECT_FLYING)) {
             int dmg = 1 + rand() % 10;
+
+            /* `swim` (docs/Spell Assignments.xlsx gap audit, 2026-08-08)
+             * -- real upstream mitigates drowning damage (physics.cc);
+             * this unconditional 1d10 tick had nothing reducing it
+             * before. Up to half off at 100% proficiency, trained on
+             * every roll (win or lose) same as every other passive in
+             * this audit. */
+            if (!being_is_immortal(b) && being_knows_skill(b, "swim")) {
+                const skill_def_t *swim_sk = skill_find(b->char_class, "swim", false);
+                if (swim_sk) {
+                    int swim_prof = skill_learn_from_doing(b, swim_sk);
+                    dmg -= dmg * (swim_prof / 2) / 100;
+                    if (dmg < 1)
+                        dmg = 1;
+                }
+            }
+
             b->progress.hp -= dmg;
             if (b->progress.hp <= 0) {
                 combat_drown_pc(b);

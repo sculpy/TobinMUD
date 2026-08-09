@@ -2472,6 +2472,14 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         const skill_def_t *wizardry_sk = skill_find(CLASS_MAGE, "wizardry", false);
         if (wizardry_sk && wizardry_sk != sk)
             skill_learn_from_doing(ch, wizardry_sk);
+        /* `casting` (docs/Spell Assignments.xlsx gap audit, 2026-08-08)
+         * -- real upstream keeps SKILL_CASTING and SKILL_WIZARDRY as two
+         * genuinely separate passive stats; ported the same "trains on
+         * every cast, no direct read-effect" way as `wizardry` right
+         * above. */
+        const skill_def_t *casting_sk = skill_find(CLASS_MAGE, "casting", false);
+        if (casting_sk && casting_sk != sk)
+            skill_learn_from_doing(ch, casting_sk);
         const skill_def_t *mana_sk = skill_find(CLASS_MAGE, "mana", false);
         if (mana_sk && mana_sk != sk)
             skill_learn_from_doing(ch, mana_sk);

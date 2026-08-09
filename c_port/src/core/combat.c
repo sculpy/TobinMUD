@@ -723,6 +723,19 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             modifier -= skill_learn_from_doing(defender, avoid_sk) / 6;
     }
 
+    /* `defense` (docs/Spell Assignments.xlsx gap audit, 2026-08-08): real
+     * upstream is a flat passive AC-style bonus (combat.cc), available
+     * from level 1 -- unlike `focused avoidance`'s level 30, this is a
+     * character's FIRST passive defensive skill, not a duplicate of one
+     * already in the roster. Same to-hit-modifier-reduction shape and
+     * insertion point as `oomlat`/`focused avoidance` just above, smaller
+     * divisor so it doesn't outweigh either at full proficiency. */
+    if (!being_is_immortal(defender) && being_knows_skill(defender, "defense")) {
+        const skill_def_t *def_sk = skill_find(defender->char_class, "defense", false);
+        if (def_sk)
+            modifier -= skill_learn_from_doing(defender, def_sk) / 10;
+    }
+
     /* Gamewide to-hit modifier (user 2026-07-12's `balance` command) --
      * a PC's own class+race, or a guildmaster mob's known class (mobs
      * have no race). Neutral (0) until an immortal actually balances

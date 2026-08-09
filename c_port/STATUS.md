@@ -1,5 +1,44 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-08 — Session 138 (DO droplet, production port 4000):
+**Missing-skill gap audit, batch A landed** (docs/Spell Assignments.xlsx
+gap audit, TODO.md's "Implement missing skills..." item): six real
+upstream skills gapped out of the initial disc/task import now exist --
+`cook`/`whittle` (both existing, fully-working recipe systems previously
+had NO skill gate at all -- anyone could use either from level 1
+regardless of class; now require `being_knows_skill(ch, "cook"/"whittle")`
+first), `defense` (new, level-1, cross-class passive to-hit-modifier
+reduction, `combat_strike()` -- upstream's own flat AC-style bonus,
+ported at a smaller divisor than `focused avoidance`/`oomlat` so it
+doesn't outweigh either; it's the FIRST passive defensive skill every
+class gets, not a duplicate), `praying` (Cleric, level 25 -- Cleric's own
+missing counterpart to Mage's `wizardry`: a zero-effect passive that
+trains on every `pray` attempt, win or lose, no direct mechanical
+read-effect, same shape `wizardry` already established), `casting`
+(Mage, level 9 -- upstream keeps SKILL_CASTING and SKILL_WIZARDRY as two
+genuinely separate stats; trains on every `cast` attempt alongside
+`wizardry`), `swim` (new, level-1, cross-class -- Tobin's unconditional
+1d10-per-tick underwater drowning damage, `vitals.c`, had nothing
+mitigating it before; up to 50% off at full proficiency). All six are
+real `skill.c` roster rows (`SKILL_TIER_COMBAT` for cook/whittle/
+defense/swim, `SKILL_TIER_CLASS` for praying/casting) and train via the
+same `skill_learn_from_doing()` learn-by-doing path as everything else.
+New help topics (`defense`/`praying`/`casting`/`swim`) seeded live +
+`help_topic.sql`. `tests/smoke_test_missing_skills_batch_a.py` (17
+checks) passes live. **Why the earlier run failed**: the source changes
+were implemented but not yet deployed -- the live server was still
+running the pre-batch-A binary (no `defense`/`praying`/`casting`/`swim`
+skill rows, no `cook`/`whittle` gate) when it was last tested. A rebuild
++ copyover (confirmed via `ps`: the live PID's start time predates the
+binary's rebuild timestamp, consistent with copyover's in-place exec
+picking up the new build without a fresh fork) landed the code; a fresh
+run now passes clean end-to-end, 17/17.
+- Next: batch B/C of the same docs/Spell Assignments.xlsx gap audit --
+  more skill-shaped roster names still need a real cmd_*.c/effect
+  hookup (see TODO.md's "Real candidates for task 14" list for the
+  stubbed-skill half of this same audit).
+
+
 Last updated: 2026-08-06 — Session 137 (DO droplet, production port 4000):
 **Real bug: mana/HP/Vitality ceilings stale on login for existing
 characters.** User: "mana isnt updating, meditated to full still reads

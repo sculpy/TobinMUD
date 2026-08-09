@@ -14,6 +14,7 @@
 #include "log.h"
 #include "obj.h"
 #include "room.h"
+#include "skill.h"
 #include "thing.h"
 
 /* Same case-insensitive keyword-prefix matching duplicated across
@@ -129,6 +130,12 @@ bool cmd_cook(descriptor_t *d, const char *args) {
         descriptor_send(d, "You are nowhere.\r\n");
         return true;
     }
+    /* `cook` skill gate (docs/Spell Assignments.xlsx gap audit, 2026-08-08)
+     * -- this command had no skill check at all before. */
+    if (!being_is_immortal(ch) && !being_knows_skill(ch, "cook")) {
+        descriptor_send(d, "You don't know how to cook.\r\n");
+        return true;
+    }
 
     if (!*args) {
         char out[600];
@@ -237,6 +244,16 @@ bool cmd_cook(descriptor_t *d, const char *args) {
     obj_t *result = obj_create_from_proto(recipe->result_vnum);
     if (result)
         thing_move_to(&result->base, &ch->base);
+
+    /* Learn-by-doing (user, 2026-08-08: "all skills/spells should be
+     * learn by doing") -- cook always succeeds once ingredients are
+     * gathered, no separate roll to gate on, so this just trains the
+     * skill on every real use. */
+    if (!being_is_immortal(ch)) {
+        const skill_def_t *cook_sk = skill_find(ch->char_class, "cook", false);
+        if (cook_sk)
+            skill_learn_from_doing(ch, cook_sk);
+    }
 
     char msg[160];
     snprintf(msg, sizeof(msg), "You cook up %s!\r\n", recipe->name);
