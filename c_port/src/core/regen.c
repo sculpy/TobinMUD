@@ -56,6 +56,18 @@ void regen_tick_run(long pulse_num) {
             being_notify_vitals_changed(b);
             continue;
         }
+        /* Captured before this tick's healing lands, so the auto-stand
+         * check below can tell "just now finished recovering" (was short
+         * of full, now full) apart from "sat down while already at full
+         * HP/vit and is choosing to stay down" -- without this, a fully
+         * healed character who sits (e.g. to fight from the ground for
+         * `groundfighting`/similar non-standing-position skills) gets
+         * stood back up on the very next regen tick, before anyone can
+         * ever land a hit on them while down (missing-skill audit,
+         * 2026-08-09: groundfighting's learn-by-doing hook was
+         * unreachable in live play for exactly this reason). */
+        bool was_short_hp = b->progress.hp < b->progress.max_hp;
+        bool was_short_vit = b->progress.vit < b->progress.max_vit;
         being_heal(b, regen_amount(b));
         /* Vitality (Sneezy → Tobin feature audit, "Vitality stat +
          * Terrain movement cost"): same weight-by-position amount as HP,
@@ -93,7 +105,8 @@ void regen_tick_run(long pulse_num) {
         if (!b->meditating
             && b->position != POSITION_STANDING
             && b->progress.hp >= b->progress.max_hp
-            && b->progress.vit >= b->progress.max_vit) {
+            && b->progress.vit >= b->progress.max_vit
+            && (was_short_hp || was_short_vit)) {
             b->position = POSITION_STANDING;
             descriptor_send(d, "You feel fully rested and stand up.\r\n");
         }
