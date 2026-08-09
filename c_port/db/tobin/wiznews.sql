@@ -1267,3 +1267,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Real bug fixed: max_hp/max_vit/max_mana stale on login for pre-existing characters', 'player_load() was loading these ceilings verbatim from the DB, never recomputing them -- any character whose row predated a formula change (yesterday''s HP/Vitality rework, or mana shipping at all) stayed stuck at the old/zero ceiling forever, regardless of level. Now recomputed on every login, ceiling only (never auto-heals current values up, so this cannot become a free-heal exploit via relogging). score also reformatted to consistent X/Y display for HP/Mana/Move, and Mana now actually shows its real max.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Help files now show discipline as Basic/Combat/Advanced, not a raw percent', 'The Discipline: line at the bottom of spell/skill help topics used to show a leftover raw upstream 0-100 number that meant nothing in Tobin. It now shows the real tier that skill/spell belongs to -- Basic, Combat, or Advanced -- matching the wording skills/practice already use.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

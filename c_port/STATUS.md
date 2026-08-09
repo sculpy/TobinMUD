@@ -1,5 +1,20 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-09 — Session 142 (DO droplet, production port 4000):
+**Help footer: Discipline shown as a tier, not a raw %.** User:
+"helpfiles should report discipline as basic combat or advanced,
+not a %". The `Discipline:` footer line (cmd_help.c) was printing
+the raw upstream discArray[] 0-100 threshold baked into each
+spell/skill help topic's body -- a number with no meaning in Tobin,
+since discipline here is a real basic_disc_pct/combat_disc_pct/
+advanced_disc_pct TIER gate (see `skills`, cmd_skills.c), not a
+per-spell percentage. Now looks the topic up via skill_find() and
+shows its real skill_def_t tier as one of the same three words
+`skills`/practice refusal messages already use: Basic, Combat,
+Advanced. Verified live pre/post copyover against several spell
+and skill topics (accelerate, faerie fire, shatter, immobilize,
+berserk, retreat).
+
 Last updated: 2026-08-08 — Session 141 (DO droplet, production port 4000):
 **Missing-skill gap audit, batch B: `bandage`/`hiking`.** Continuing
 task 12 (docs/Spell Assignments.xlsx gap audit) after batch A. Real
