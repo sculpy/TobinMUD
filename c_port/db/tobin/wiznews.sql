@@ -1271,3 +1271,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Help files now show discipline as Basic/Combat/Advanced, not a raw percent', 'The Discipline: line at the bottom of spell/skill help topics used to show a leftover raw upstream 0-100 number that meant nothing in Tobin. It now shows the real tier that skill/spell belongs to -- Basic, Combat, or Advanced -- matching the wording skills/practice already use.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Batch of stubbed skills wired up (pick lock, shoulder throw, retreat, and more)', 'A big batch of long-defined-but-never-implemented skills now actually do something: pick lock/shoulder throw/set-trap-on-a-container are new commands; retreat/counter steal make flee and steal smarter; groundfighting, close quarters fighting, Oomlat Philosophy, power move, and voplat are passive combat bonuses; dufali resists hostile bind/sleep magic; snofalte eases bleeding; knot is a new Mage escape spell. Sling shot, stunning arrow, two-handed specialization, and the arrow/mine/grenade trap variants stay undone -- they need subsystems (ranged weapons, per-weapon two-handedness) Tobin doesn''t have yet.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

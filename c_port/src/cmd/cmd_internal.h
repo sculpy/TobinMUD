@@ -41,6 +41,8 @@ bool cmd_stabbing(descriptor_t *d, const char *args);
 bool cmd_subterfuge(descriptor_t *d, const char *args);
 bool cmd_chop(descriptor_t *d, const char *args);
 bool cmd_hurl(descriptor_t *d, const char *args);
+bool cmd_pick(descriptor_t *d, const char *args);
+bool cmd_shoulderthrow(descriptor_t *d, const char *args);
 bool cmd_feigndeath(descriptor_t *d, const char *args);
 bool cmd_berserk(descriptor_t *d, const char *args);
 bool cmd_bandage(descriptor_t *d, const char *args);

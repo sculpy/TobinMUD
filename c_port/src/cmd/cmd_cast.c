@@ -16,6 +16,7 @@
 #include "obj.h"
 #include "obj_magic_repo.h"
 #include "liquids.h"
+#include "player_repo.h"
 #include "pulse.h"
 #include "room.h"
 #include "spell_flavor.h"
@@ -104,6 +105,27 @@ static bool ci_contains(const char *haystack, const char *needle) {
         if (strncasecmp(p, needle, nlen) == 0)
             return true;
     return false;
+}
+
+/* `dufali` (Monk, missing-skill audit, 2026-08-09): real upstream help
+ * text -- "a quasi-magic that permits a trained monk to ignore certain
+ * antagonistic magics cast upon the yofuist. Various charms,
+ * paralyzations and holding spells are known to be counterable while
+ * some poisons can also be negated... not a perfect science." Wired in
+ * as a resist check at each hostile bind/sleep/poison application site
+ * that can land on a PC target (cmd_cast.c's own `ensorcer` charm spell
+ * is mob-only, so there's no PC-charm site to hook here). Proficiency-
+ * scaled at half strength ("not a perfect science" -- never a guaranteed
+ * counter even at max skill). */
+static bool dufali_resists(being_t *target) {
+    if (!target || being_is_immortal(target))
+        return false;
+    if (!being_knows_skill(target, "dufali"))
+        return false;
+    const skill_def_t *sk = skill_find(target->char_class, "dufali", false);
+    if (!sk)
+        return false;
+    return skill_roll_success(skill_learn_from_doing(target, sk) / 2);
 }
 
 /* Looks through everything `ch` is carrying, wearing, or holding for
@@ -976,6 +998,14 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             atk_target->fighting = ch;
             being_set_wait(ch, COMBAT_ROUND_PULSES);
         }
+        if (dufali_resists(atk_target)) {
+            snprintf(msg, sizeof(msg), "You cast immobilize, but %s shrugs the magic off through sheer discipline!\r\n",
+                     being_display_name(atk_target));
+            descriptor_send(d, msg);
+            if (atk_target->desc)
+                descriptor_notify(atk_target->desc, "You feel a binding magic take hold, but shrug it off through sheer discipline!\r\n");
+            return;
+        }
         being_apply_affect(atk_target, AFFECT_BIND, 30 * COMBAT_ROUND_PULSES);
         snprintf(msg, sizeof(msg), "You cast immobilize -- %s is rooted to the spot!\r\n",
                  being_display_name(atk_target));
@@ -1327,6 +1357,14 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             descriptor_send(d, msg);
             return;
         }
+        if (dufali_resists(atk_target)) {
+            snprintf(msg, sizeof(msg), "You cast %s at %s, but they shrug the magic off through sheer discipline!\r\n",
+                     sk->name, being_display_name(atk_target));
+            descriptor_send(d, msg);
+            if (atk_target->desc)
+                descriptor_notify(atk_target->desc, "You feel a wave of drowsiness, but shrug it off through sheer discipline!\r\n");
+            return;
+        }
         atk_target->position = POSITION_SLEEPING;
         being_apply_affect(atk_target, AFFECT_SLEEP, 40 + sk->min_level);
         snprintf(msg, sizeof(msg), "You cast %s at %s -- their eyes grow heavy and they collapse into sleep!\r\n",
@@ -1507,6 +1545,14 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             descriptor_send(d, "Cast that at whom?\r\n");
             return;
         }
+        if (dufali_resists(atk_target)) {
+            snprintf(msg, sizeof(msg), "You try to trap %s in a mass of sticky, web-like substance, but they shrug it off!\r\n",
+                     being_display_name(atk_target));
+            descriptor_send(d, msg);
+            if (atk_target->desc)
+                descriptor_notify(atk_target->desc, "A sticky, web-like substance grabs at you, but you shrug it off through sheer discipline!\r\n");
+            return;
+        }
         being_apply_affect(atk_target, AFFECT_BIND, 30);
         snprintf(msg, sizeof(msg), "You trap %s in a mass of sticky, web-like substance!\r\n",
                  being_display_name(atk_target));
@@ -1620,6 +1666,48 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
             snprintf(msg, sizeof(msg), "%s twists and reshapes into a brown bear!\r\n", capbuf);
             descriptor_room_echo(room, NULL, msg);
         }
+    } else if (strcasecmp(sk->name, "knot") == 0) {
+        /* `knot` (Mage, missing-skill audit, 2026-08-09): real upstream
+         * (disc_mage_spirit.cc's knot()) "tears a gap in reality" and
+         * steps the CASTER (self only -- no target argument in the real
+         * source) through to a hardcoded safe room, refusing to work in
+         * a no-escape room or on a murderer. Same fallback-room shape
+         * `word of recall` (Cleric, cmd_pray.c) already established for
+         * "no per-player hometown/recall-point concept in Tobin" --
+         * reuses that identical DEFAULT_LOAD_ROOM_MORTAL destination
+         * rather than a second hardcoded room, since Tobin has no
+         * equivalent of the real room 2387 to port literally. Not
+         * ported: the AFFECT_PLAYERKILL murderer refusal (no PK-murder
+         * flag exists in Tobin, same disclosed gap `word of recall`
+         * already carries). */
+        if (ch->base.roomp && (ch->base.roomp->room_flag & (ROOM_FLAG_ARENA | ROOM_FLAG_NO_ESCAPE))) {
+            descriptor_send(d, "The defenses of this area are too strong -- you can't tear a gap in reality here.\r\n");
+            return;
+        }
+        room_t *dest = world_get_room(DEFAULT_LOAD_ROOM_MORTAL);
+        if (!dest) {
+            dest = room_repo_load(DEFAULT_LOAD_ROOM_MORTAL);
+            if (dest)
+                world_register_room(dest);
+        }
+        if (!dest) {
+            descriptor_send(d, "You tear a gap in reality, but it leads nowhere -- you stay put.\r\n");
+            return;
+        }
+        ch->fighting = NULL;
+        room_t *old_room = ch->base.roomp;
+        char capbuf[128];
+        being_display_name_cap(ch, capbuf, sizeof(capbuf));
+        if (old_room) {
+            snprintf(msg, sizeof(msg), "%s tears a gap in reality and steps through.\r\n", capbuf);
+            descriptor_room_echo(old_room, ch, msg);
+        }
+        descriptor_send(d, "You tear a gap in reality and step through.\r\n");
+        thing_set_room(&ch->base, dest);
+        snprintf(msg, sizeof(msg), "%s steps out of a gap in reality.\r\n", capbuf);
+        descriptor_room_echo(dest, ch, msg);
+        cmd_dispatch(d, "look");
+        return;
     } else {
         snprintf(msg, sizeof(msg),
                  "You cast %s, but nothing happens yet -- its real effect isn't implemented.\r\n",

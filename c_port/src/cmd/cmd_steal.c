@@ -109,6 +109,24 @@ static int steal_check(descriptor_t *d, being_t *ch, being_t *vict) {
     pct += (ch->progress.level - vict->progress.level) * 2;
     if (vict->position == POSITION_SLEEPING)
         pct += 25;
+    /* `counter steal` (Thief, missing-skill audit, 2026-08-09): real
+     * upstream help text -- "gives the thief the ability to detect when
+     * another thief is attempting to steal from them and to block that
+     * attempt. It relies significantly on the thieves knowledge of
+     * stealing." Ported as a straight proficiency-vs-proficiency
+     * subtraction from the attacker's own chance above: the victim's
+     * `counter steal` skill (learned-by-doing like every other roster
+     * entry, "relies... on stealing knowledge" reflected by also
+     * requiring the victim actually knows `steal` itself, real
+     * upstream's own thief-vs-thief framing) directly eats into the
+     * thief's roll, on top of (not instead of) the normal 5-95 clamp
+     * below. */
+    if (!being_is_immortal(vict) && being_knows_skill(vict, "counter steal")
+        && being_knows_skill(vict, "steal")) {
+        const skill_def_t *cs_sk = skill_find(vict->char_class, "counter steal", false);
+        if (cs_sk)
+            pct -= skill_learn_from_doing(vict, cs_sk) / 2;
+    }
     if (pct < 5)
         pct = 5;
     if (pct > 95)

@@ -564,6 +564,26 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     weapon_hitroll += kubo_bonus / 8;
     weapon_damroll += kubo_bonus / 20;
 
+    /* `voplat` (Monk, missing-skill audit, 2026-08-09): real upstream
+     * help text -- "the art of redirecting internal energy to your bare
+     * hands for use in combat... strike at foes that would not normally
+     * be affected by mundane physical attacks... used automatically when
+     * fighting barehanded." Tobin has no "immune to nonmagical damage"
+     * defender flag to bypass (no mob in this port is ever flagged
+     * immune to plain physical hits), so the literal effect has nothing
+     * to hook into -- scoped down to the same "empowered bare-handed
+     * strike" flavor as `kubo`/`cintai` just above/below: a flat
+     * proficiency-scaled hit/damage bonus while fighting unarmed, same
+     * shape and magnitude as `kubo`. */
+    int voplat_bonus = 0;
+    if (!weapon && !being_is_immortal(attacker) && being_knows_skill(attacker, "voplat")) {
+        const skill_def_t *voplat_sk = skill_find(attacker->char_class, "voplat", false);
+        if (voplat_sk)
+            voplat_bonus = skill_learn_from_doing(attacker, voplat_sk);
+    }
+    weapon_hitroll += voplat_bonus / 8;
+    weapon_damroll += voplat_bonus / 20;
+
     /* Cintai (Monk, spell/skill functional-completeness audit continued,
      * level 5): skill.c's own roster text calls it "A passive to-hit
      * bonus while unarmed," but the real upstream's own attackRound()
@@ -679,12 +699,67 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     /* POSITION_MOUNTED excluded -- being on horseback isn't the same
      * "harder to defend yourself" situation as sitting/resting/sleeping
      * (Mount / riding system, Sneezy → Tobin feature audit). */
-    if (defender->position != POSITION_STANDING && defender->position != POSITION_MOUNTED)
+    if (defender->position != POSITION_STANDING && defender->position != POSITION_MOUNTED) {
         modifier += NON_STANDING_HIT_BONUS;
+        /* `groundfighting` (Monk, missing-skill audit, 2026-08-09: real
+         * upstream disc_monk_leverage.cc is a passive that "reduces the
+         * combat penalties normally associated with fighting while
+         * prone... at maximum proficiency, can eliminate these penalties
+         * entirely" -- ported as a direct proficiency-scaled clawback of
+         * the NON_STANDING_HIT_BONUS just applied above, capped so it can
+         * fully cancel the penalty at 100% but never flip it into a net
+         * bonus. */
+        if (!being_is_immortal(defender) && being_knows_skill(defender, "groundfighting")) {
+            const skill_def_t *gf_sk = skill_find(defender->char_class, "groundfighting", false);
+            if (gf_sk) {
+                int gf_prof = skill_learn_from_doing(defender, gf_sk);
+                int clawback = NON_STANDING_HIT_BONUS * gf_prof / 100;
+                modifier -= clawback;
+            }
+        }
+    }
     /* Mounted ATTACKER bonus -- the height/mobility edge of fighting from
      * horseback (Mount / riding system, Sneezy → Tobin feature audit). */
     if (attacker->position == POSITION_MOUNTED)
         modifier += MOUNTED_ATTACK_BONUS;
+    /* `close quarters fighting` (Warrior, missing-skill audit, 2026-08-09):
+     * real upstream (disc_warrior_brawling.cc-family help text) "improves
+     * both offensive and defensive capabilities when fighting multiple
+     * opponents or in cramped quarters." Tobin has no multi-opponent combat
+     * engine (`being_t.fighting` is a single 1v1 pointer, see combat.h) to
+     * hook a literal "how many are attacking you" count into, so this is
+     * scoped to the closest real proxy: whether more than one hostile
+     * (mob or PC, excluding the two combatants themselves) is CURRENTLY
+     * fighting someone in the same room -- a genuine "chaotic melee"
+     * signal Tobin does track (being_t.fighting on other room occupants),
+     * just not a per-attacker threat count. Applies to both sides
+     * symmetrically (a to-hit boost when attacking, a to-hit reduction
+     * when defending), matching the "both offensive and defensive"
+     * wording. */
+    if (defender->base.roomp) {
+        int room_combatants = 0;
+        for (thing_t *t = defender->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+            if (t->kind != THING_PC && t->kind != THING_MOB)
+                continue;
+            being_t *bt = (being_t *)t;
+            if (bt->fighting)
+                room_combatants++;
+        }
+        if (room_combatants > 2) {
+            if (!being_is_immortal(attacker) && attacker->base.kind == THING_PC
+                && being_knows_skill(attacker, "close quarters fighting")) {
+                const skill_def_t *cqf_sk = skill_find(attacker->char_class, "close quarters fighting", false);
+                if (cqf_sk)
+                    modifier += skill_learn_from_doing(attacker, cqf_sk) / 12;
+            }
+            if (!being_is_immortal(defender) && defender->base.kind == THING_PC
+                && being_knows_skill(defender, "close quarters fighting")) {
+                const skill_def_t *cqf_sk = skill_find(defender->char_class, "close quarters fighting", false);
+                if (cqf_sk)
+                    modifier -= skill_learn_from_doing(defender, cqf_sk) / 12;
+            }
+        }
+    }
     /* Armor class (user 2026-07-11: "Armor & protection... complete the
      * to-hit/defense formula depth"): a defender's total worn AC
      * (being_total_ac(), obj.h) makes them harder to hit. Scaled by half
@@ -722,6 +797,23 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         const skill_def_t *avoid_sk = skill_find(defender->char_class, "focused avoidance", false);
         if (avoid_sk)
             modifier -= skill_learn_from_doing(defender, avoid_sk) / 6;
+    }
+
+    /* `Oomlat Philosophy` (Monk, missing-skill audit, 2026-08-09) -- the
+     * advanced-tier sibling of the level-1 `oomlat` skill just above.
+     * Real upstream help text: "concentrate to the utmost during combat...
+     * a hefty defensive bonus, preventing them from being hit as often."
+     * Unlike plain `oomlat`, NOT gated on fighting bare-handed (the
+     * roster text is about mental focus, not an unarmed-AC balance
+     * trade), so it stacks with plain `oomlat`/weapon use alike -- a
+     * bigger divisor than `oomlat`'s own would be redundant, so this
+     * uses the same shape as `focused avoidance` (its closest existing
+     * "flat mental-focus to-hit reduction" analog) with a slightly
+     * larger effect ("hefty" per the roster text). */
+    if (!being_is_immortal(defender) && being_knows_skill(defender, "Oomlat Philosophy")) {
+        const skill_def_t *oomp_sk = skill_find(defender->char_class, "Oomlat Philosophy", false);
+        if (oomp_sk)
+            modifier -= skill_learn_from_doing(defender, oomp_sk) / 5;
     }
 
     /* `defense` (docs/Spell Assignments.xlsx gap audit, 2026-08-08): real
@@ -975,6 +1067,26 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         limb_t reroll = pick_weighted_limb((body_type_t)defender->body_type);
         if (is_major_limb(reroll))
             limb = reroll;
+    }
+    /* `power move` (Warrior, missing-skill audit, 2026-08-09): real
+     * upstream help text describes the Warrior counterpart to the
+     * Monk's `critical hitting` -- "a higher number of their basic
+     * attacks becoming critical hits... even when compared to monks who
+     * learn the critical hitting ability," but with "less of an increase
+     * to their overall number of critical hits" (i.e. hits MORE often
+     * but each one less reliably severe than the Monk's own version).
+     * Ported with the exact same major-limb-reroll mechanic as
+     * `critical hitting` just above (no separate roster text guessed a
+     * different shape for it), gated on `power move`'s own proficiency
+     * so the "achieve it sooner" framing tracks skill growth. */
+    if (attacker->base.kind == THING_PC && !being_is_immortal(attacker)
+        && being_knows_skill(attacker, "power move")) {
+        const skill_def_t *pm_sk = skill_find(attacker->char_class, "power move", false);
+        if (pm_sk && skill_learn_from_doing(attacker, pm_sk) > 0) {
+            limb_t reroll = pick_weighted_limb((body_type_t)defender->body_type);
+            if (is_major_limb(reroll))
+                limb = reroll;
+        }
     }
     /* Focus attack (Warrior, user 2026-08-03: "in tobin its a warrior
      * skill" / "focused attack should be automatic"). Real upstream

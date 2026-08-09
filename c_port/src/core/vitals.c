@@ -103,6 +103,23 @@ static void vitals_tick_impl(long pulse_num, bool affect_players) {
                     dmg -= dmg * (bandage_prof / 2) / 100;
                 }
             }
+            /* `snofalte` (Monk, missing-skill audit, 2026-08-09): real
+             * upstream help text -- "causes bleeding to slow to a
+             * trickle... lessens the damage of bleeding as well as
+             * limits the amount of actual blood-loss... automatically
+             * attempted whenever the practitioner is bleeding." Same
+             * per-tick chip-reduction shape as `bandage`'s own
+             * proficiency-scaled reduction just above -- stacks with it
+             * (a Monk who both self-treats via Snofalte AND gets
+             * bandaged reduces the chip twice, matching the "on top of
+             * real medical attention" framing in the help text). */
+            if (being_knows_skill(b, "snofalte")) {
+                const skill_def_t *snofalte_sk = skill_find(b->char_class, "snofalte", false);
+                if (snofalte_sk) {
+                    int snofalte_prof = skill_learn_from_doing(b, snofalte_sk);
+                    dmg -= dmg * (snofalte_prof / 2) / 100;
+                }
+            }
             if (dmg < 1)
                 dmg = 1;
             b->progress.hp -= dmg;

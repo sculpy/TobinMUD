@@ -637,7 +637,7 @@ static const cmd_entry_t COMMANDS[] = {
      * the mortal tier (where its level says it belongs) the tier rule would
      * put it ahead of `set` and silently reintroduce the exact collision
      * described above. disarmtrap keeps it company for symmetry. */
-    { "settrap", cmd_settrap, "Rig a trap on a closed door (Thief, settrap <direction>).", MORTAL_LEVEL_MIN },
+    { "settrap", cmd_settrap, "Rig a trap on a closed door or container (Thief, settrap <direction|container>).", MORTAL_LEVEL_MIN },
     { "setsev",  cmd_setsev,  "View or flip which log types echo to you.",          IMMORTAL_LEVEL_MIN },
     { "feigndeath", cmd_feigndeath, "Play dead to avoid an aggressive mob's attention.", MORTAL_LEVEL_MIN },
     { "berserk", cmd_berserk, "Fly into a berserk rage -- unparryable, but you can't be rescued either (Warrior).", MORTAL_LEVEL_MIN },
@@ -653,6 +653,8 @@ static const cmd_entry_t COMMANDS[] = {
     { "disguise", cmd_disguise, "Alter your apparent identity (Thief, toggle).", MORTAL_LEVEL_MIN },
     { "garrotte", cmd_garrotte, "Strangle an unaware victim with a cord (Thief, garrotte <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
     { "hurl", cmd_hurl, "Throw your mob opponent bodily out of the room (Monk, must be fighting).", MORTAL_LEVEL_MIN },
+    { "pick", cmd_pick, "Pick a locked door or container without a key (Thief, pick <direction|container>).", MORTAL_LEVEL_MIN },
+    { "shoulderthrow", cmd_shoulderthrow, "Heave your opponent off their feet and onto the ground (Monk, must be fighting).", MORTAL_LEVEL_MIN },
     { "reply",   cmd_reply,   "Tell whoever last told you (reply <message>).",      MORTAL_LEVEL_MIN },
     /* Mortality toggle: `immort` reclaims true immortal rank after `mortal`
      * (immortal tier, below) sets it aside. Registered at MORTAL level

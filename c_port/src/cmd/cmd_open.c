@@ -6,13 +6,16 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
 #include "being.h"
+#include "combat.h"
 #include "obj.h"
 #include "room.h"
 #include "room_repo.h"
+#include "skill.h"
 #include "thing.h"
 #include "world.h"
 
@@ -99,6 +102,26 @@ static bool do_container(descriptor_t *d, being_t *ch, obj_t *o, bool opening) {
             return true;
         }
         o->val[1] &= ~CONT_CLOSED;
+        /* `set trap (container)` (missing-skill audit, 2026-08-09): mirrors
+         * cmd_move.c's own EXIT_COND_TRAPPED door-spring exactly -- "detect
+         * trap" spots and safely steps around it (leaving it rigged for
+         * whoever opens it next), everyone else springs it, one-shot. */
+        if (o->val[1] & CONT_TRAPPED) {
+            if (being_knows_skill(ch, "detect trap")) {
+                descriptor_send(d, "You spot a trap rigged inside and carefully avoid it.\r\n");
+            } else {
+                int dmg = 5 + rand() % 10;
+                limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+                int limb_hp_before = ch->limbs[limb].hp;
+                being_hurt_limb(ch, limb, dmg);
+                char trap_msg[200];
+                snprintf(trap_msg, sizeof(trap_msg),
+                         "A trap rigged inside %s springs! It catches your %s %s!\r\n",
+                         label, limb_name(limb), describe_dam(dmg, limb_hp_before, NULL));
+                descriptor_send(d, trap_msg);
+                o->val[1] &= ~CONT_TRAPPED;
+            }
+        }
     } else {
         if (closed) {
             descriptor_send(d, "It's already closed.\r\n");

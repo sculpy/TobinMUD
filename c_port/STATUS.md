@@ -1,5 +1,105 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-09 — Session 143 (DO droplet, production port 4000):
+**Learn-by-doing roster audit: stubbed-skills batch (TODO.md line 57).**
+Closes out the 2026-08-08 "Learn-by-doing roster audit" scratch list --
+skill-shaped roster names with no `cmd_*.c` handler or combat.c dispatch
+at all, verified one-by-one against real Sneezy source (checked first
+each time). Implemented:
+- `pick lock` -- new `pick <direction|container>` (cmd_pick.c), a
+  single proficiency-scaled attempt to unlock a locked door/container
+  with no key. Disclosed scope-down from real upstream's multi-pulse
+  lockpick-TASK + TOOL_LOCKPICK item requirement (Tobin has neither a
+  lockpick tool type nor a mortal-level multi-tick task-continuation
+  system) -- same "one command, one roll" shape every other audited
+  skill in this batch uses.
+- `shoulder throw` -- new `shoulderthrow` (cmd_shoulderthrow.c), a
+  kneestrike/bash-shaped bonus-damage attack that knocks a non-defeated
+  target to POSITION_SITTING. Real upstream's "same stature" size gate
+  dropped (no body-size stat exists).
+- `set trap (container)` -- extends `settrap`/`disarmtrap` (cmd_trap.c)
+  to containers via a new `CONT_TRAPPED` obj.h flag (ported verbatim as
+  real upstream's own `1<<4`), sprung on `open` (cmd_open.c), same
+  detect-trap/one-shot-damage shape as the existing door trap. `set
+  trap (arrow)`/`(mine)`/`(grenade)` deliberately NOT ported -- real
+  upstream's own targets are ammo-quiver, room-floor, and thrown-
+  explosive mechanics respectively, none of which Tobin has a subsystem
+  for (no ranged/quiver system, no room-floor trap object type, no
+  thrown-weapon command) -- same disclosed-gap pattern as `sling
+  shot`/`stunning arrow` below, not a partial/faked implementation.
+- `retreat` -- `flee` (cmd_flee.c) now checks the roster's `retreat`
+  skill (Warrior/Thief/Monk each have their own tier/level entry):
+  a much lower fumble chance, calmer non-PANIC flavor text, and lets a
+  named real-exit direction argument override the usual random pick
+  ("greater control over which direction"). Tobin has no flee-XP-loss
+  mechanic to "minimize" in the first place, so that part of the roster
+  text is moot, not skipped.
+- `counter steal` -- `steal` (cmd_steal.c)'s success chance now takes a
+  straight subtraction from the VICTIM's own `counter steal`
+  proficiency, gated on the victim also knowing `steal` itself (real
+  upstream's own "relies on the thief's own stealing knowledge"
+  framing).
+- `close quarters fighting` (Warrior) / `groundfighting` (Monk) /
+  `Oomlat Philosophy` (Monk) / `power move` (Warrior) / `voplat` (Monk)
+  -- five passive combat.c to-hit/damage modifiers, all reusing the
+  exact insertion points and flat-proficiency-scaled shape the existing
+  `oomlat`/`focused avoidance`/`defense`/`critical hitting` passives
+  already established. `close quarters fighting` is scoped to Tobin's
+  closest real proxy for "multiple opponents/chaotic melee" (more than
+  2 room occupants currently fighting someone) since Tobin's combat
+  model has no per-attacker threat count. `voplat`'s real "bypasses
+  nonmagical-damage immunity" effect has nothing to hook into (no mob
+  in this port is ever flagged immune to plain physical hits) -- scoped
+  to a flat barehanded hit/damage bonus instead, same shape as `kubo`.
+- `dufali` (Monk) -- a proficiency-scaled resist roll wired into
+  cmd_cast.c's `immobilize`/`bind`/slumber-family hostile-affect sites
+  (the ones that can actually land on a PC target; `ensorcer`'s charm
+  branch is mob-only, so there's no PC-charm site to hook).
+- `snofalte` (Monk) -- an extra proficiency-scaled reduction to the
+  bleeding-limb per-tick HP chip (vitals.c), stacking with `bandage`'s
+  own existing reduction.
+- `knot` (Mage) -- new cast branch (cmd_cast.c): a self-only teleport
+  to DEFAULT_LOAD_ROOM_MORTAL (same real-room fallback `word of recall`,
+  cmd_pray.c, already established for "no per-player hometown concept"),
+  refusing in an ARENA/NO-ESCAPE room. Real upstream's AFFECT_PLAYERKILL
+  murderer refusal not ported (no PK-murder-flag system, same disclosed
+  gap `word of recall` already carries).
+- `Garmul's tail` (the SKILL roster entry) -- verified, NOT re-
+  implemented: it's the exact same roster name cmd_cast.c's pre-existing
+  `ci_contains(sk->name, "garmul")` branch already dispatches (added for
+  the SPELL of the same name, works identically for the skill entry --
+  there aren't two separate code paths to reconcile). The
+  "roster audit" note flagging it as unverified is now resolved: live.
+
+Deliberately skipped, real subsystem gaps (not attempted): `sling
+shot`/`stunning arrow` (Tobin has no ranged/missile-weapon subsystem at
+all -- no throw/bow attack command, no ranged bucket in weapon_verb());
+`two-handed specialization` (Tobin's obj.h weapon val[] only stores
+damage-dice count/sides, no per-weapon two-handed/wield-hands flag to
+gate on, and inventing one wouldn't be porting real Sneezy data);
+`set trap (arrow)`/`(mine)`/`(grenade)` (see above).
+
+tests/smoke_test_missing_skills_task1.py (13 checks: pick lock unlocks
+a door with no key; shoulder throw lands and describes the throw;
+set-trap-container rigs/springs/disarms with real HP cost on spring and
+none after disarm; knot teleports the caster to Center Square; Garmul's
+tail casts as a real spell; retreat picks the named exit and skips
+PANIC; counter steal statistically suppresses a thief's own steal
+attempts more than an untrained victim; dufali statistically resists a
+hostile bind spell without being a guaranteed counter; snofalte reduces
+the bleeding chip vs. an untrained Monk; groundfighting/Oomlat
+Philosophy/voplat/power move all train from a real learn-by-doing hit,
+proving their passive modifiers actually fire) passes live.
+
+TODO.md line 57 flipped to `[x]`; the 2026-08-08 "Learn-by-doing roster
+audit" scratch section folded into this note and removed (its list is
+now fully resolved -- implemented, or disclosed-skipped above).
+
+Task 12's "batch C" remainder (sharpen/smooth, alcoholism, Deikhan
+mounted-combat trio, Ranger beast-charm pair, 5 Shaman/Druid spells) --
+user said "move on with task 12" this session but batch C was NOT
+reached; still open, unstarted.
+
 Last updated: 2026-08-09 — Session 142 (DO droplet, production port 4000):
 **Help footer: Discipline shown as a tier, not a raw %.** User:
 "helpfiles should report discipline as basic combat or advanced,

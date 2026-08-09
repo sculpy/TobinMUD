@@ -6,11 +6,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
+#include "being.h"
 #include "cmd.h"
 #include "mob_ai.h"
 #include "room.h"
 #include "room_repo.h"
+#include "skill.h"
 #include "thing.h"
 #include "world.h"
 
@@ -20,7 +24,6 @@
  * you're whisked to a neighbouring room; on failure you stay locked in
  * combat and eat the next round. */
 bool cmd_flee(descriptor_t *d, const char *args) {
-    (void)args;
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
         descriptor_send(d, "You are nowhere.\r\n");
@@ -44,14 +47,61 @@ bool cmd_flee(descriptor_t *d, const char *args) {
         return true;
     }
 
-    /* ~2-in-3 chance to escape (placeholder odds; the original weighs level
-     * and speed, which Tobin doesn't model yet). */
-    if (rand() % 3 == 0) {
-        descriptor_send(d, "<r>PANIC!<z> You stumble and can't get away!\r\n");
+    /* `retreat` (Warrior/Thief/Monk, missing-skill audit, 2026-08-09):
+     * real upstream help text -- "utilized during a flee from combat to
+     * maintain a fighting withdrawal while escaping. A successful
+     * retreat will not invoke panic... give greater control over which
+     * direction they are able to escape in and minimize the losses...
+     * Retreating is handled automatically anytime you flee." Ported as:
+     * (1) a better escape chance (~2-in-3 -> ~5-in-6, proficiency-scaled
+     * on top of that floor); (2) if the fleeing player named a direction
+     * that's actually a real exit, retreat lets them choose it instead
+     * of the usual random pick ("greater control over which direction");
+     * (3) calmer, non-panicked flavor text instead of the PANIC!
+     * messaging below. Tobin has no flee-XP-loss mechanic to "minimize"
+     * in the first place (checked cmd_flee.c/combat.c -- fleeing never
+     * deducts XP here), so that part of the roster text is moot, not
+     * skipped. */
+    bool imm = being_is_immortal(ch);
+    bool retreating = false;
+    int flee_fail_pct = 33;
+    if (!imm && being_knows_skill(ch, "retreat")) {
+        const skill_def_t *retreat_sk = skill_find(ch->char_class, "retreat", false);
+        if (retreat_sk) {
+            int prof = skill_learn_from_doing(ch, retreat_sk);
+            retreating = true;
+            flee_fail_pct = 15 - prof / 10;
+            if (flee_fail_pct < 2)
+                flee_fail_pct = 2;
+        }
+    }
+
+    if (!imm && rand() % 100 < flee_fail_pct) {
+        descriptor_send(d, retreating
+            ? "<y>You try to withdraw, but can't find an opening!<z>\r\n"
+            : "<r>PANIC!<z> You stumble and can't get away!\r\n");
         return true;
     }
 
     int dir = dirs[rand() % ndirs];
+    if (retreating) {
+        char tok[16];
+        if (sscanf(args, "%15s", tok) == 1) {
+            int req = -1;
+            size_t len = strlen(tok);
+            for (int i = 0; i < ROOM_NUM_EXITS; i++)
+                if (strncasecmp(DIR_NAMES[i], tok, len) == 0) {
+                    req = i;
+                    break;
+                }
+            for (int i = 0; req >= 0 && i < ndirs; i++) {
+                if (dirs[i] == req) {
+                    dir = req;
+                    break;
+                }
+            }
+        }
+    }
     int dest = from->exits[dir];
     room_t *to = world_get_room(dest);
     if (!to) {
@@ -78,7 +128,7 @@ bool cmd_flee(descriptor_t *d, const char *args) {
     }
 
     char msg[128];
-    snprintf(msg, sizeof(msg), "%s panics and flees!\r\n", ch->base.name);
+    snprintf(msg, sizeof(msg), retreating ? "%s makes a fighting withdrawal!\r\n" : "%s panics and flees!\r\n", ch->base.name);
     descriptor_room_echo(from, ch, msg);
 
     thing_set_room(&ch->base, to);
@@ -87,7 +137,10 @@ bool cmd_flee(descriptor_t *d, const char *args) {
      * picked at random above; DIR_NAMES (room.h) is the same lookup
      * `exits`/cmd_move.c use for direction names elsewhere. */
     char fleemsg[64];
-    snprintf(fleemsg, sizeof(fleemsg), "<y>You flee %s, head over heels!<z>\r\n", DIR_NAMES[dir]);
+    if (retreating)
+        snprintf(fleemsg, sizeof(fleemsg), "<y>You retreat %s, keeping your guard up.<z>\r\n", DIR_NAMES[dir]);
+    else
+        snprintf(fleemsg, sizeof(fleemsg), "<y>You flee %s, head over heels!<z>\r\n", DIR_NAMES[dir]);
     descriptor_send(d, fleemsg);
 
     snprintf(msg, sizeof(msg), "%s arrives, panting and out of breath.\r\n", ch->base.name);

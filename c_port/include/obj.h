@@ -267,6 +267,7 @@ typedef struct obj {
 #define CONT_PICKPROOF (1 << 1) /* lock cannot be picked (no lockpicking skill yet) */
 #define CONT_CLOSED    (1 << 2) /* currently shut */
 #define CONT_LOCKED    (1 << 3) /* currently locked -- see cmd_lock.c's `lock`/`unlock` */
+#define CONT_TRAPPED   (1 << 4) /* rigged -- see cmd_trap.c's `settrap`/`disarmtrap` (containers) */
 
 /* Armor class this piece contributes if worn (0 for anything else). The
  * upstream seed's `val0` field ("armor class") is uniformly 0 across
