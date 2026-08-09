@@ -1,5 +1,48 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-08 — Session 140 (DO droplet, tobinmud.com):
+**Searchable help files on the website; real nginx-serving bug fixed.**
+User: "make help files searchable on the website, and make the webpage
+home directory /home/mud/TobinMUD/web in the nginx configuration."
+- New `web/help.html`: a client-side search page over every
+  `help_topic` row (the same text `help <topic>` shows in-game) --
+  type-ahead filter by name or body substring, exact-name matches
+  ranked first, `#topic` deep-linking. Fed by `web/generate_help_json.sh`
+  (`SELECT JSON_ARRAYAGG(JSON_OBJECT(...))` against `help_topic`,
+  written to `web/help_data.json`), on a new cron entry (`*/10 * * * *`,
+  alongside the existing `watchdog.sh` line) so an `edit help` save
+  shows up on the site within 10 minutes with no manual step.
+  `help_topic` has no level gate of its own -- `help <name>` is already
+  readable in-game by any player regardless of the underlying command's
+  min_level (cmd_help.c's own doc comment) -- so publishing every row
+  here is the SAME visibility the game already grants, not new
+  exposure. Linked from `index.html`'s new "Help Files" section.
+- **The real bug**: `/etc/nginx/conf.d/tobinmud.conf`'s `root` already
+  pointed at `/home/mud/TobinMUD/web` (no site content had ever been
+  reachable there before this session, so it went unnoticed) -- but the
+  site was 404ing for literally everyone, index.html included. Root
+  cause #1: `/home/mud` itself was `drwx------` -- nginx's worker
+  (running as the unprivileged `nginx` user, not `mud`) could never
+  traverse INTO the directory tree at all, regardless of what the
+  `root` directive said or how permissive the subdirectories were.
+  Fixed with `chmod o+x /home/mud` (execute/traverse only, no `r` --
+  doesn't grant listing `/home/mud`'s own contents, just entry into a
+  known subpath). Root cause #2, found immediately after (404 became
+  403): this box runs SELinux in Enforcing mode, and everything under
+  `/home/mud` was labeled `user_home_t` -- nginx's `httpd_t` domain has
+  no read policy for that type regardless of Unix permissions. Fixed
+  with a persistent `semanage fcontext -a -t httpd_sys_content_t
+  '/home/mud/TobinMUD/web(/.*)?'` rule + `restorecon -R` -- verified
+  the fix survives regeneration (a fresh `generate_help_json.sh` run
+  produces a new `help_data.json` that inherits `httpd_sys_content_t`
+  from the parent directory automatically, no per-run relabel needed).
+  Verified live end-to-end via `curl --resolve` (proper SNI, since a
+  bare `https://localhost` with a `Host` header alone lands on the
+  wrong SSL vhost): `/`, `/help.html`, `/help_data.json` all now 200,
+  469 real topics served, content spot-checked against the live
+  `egotrip` topic.
+
+
 Last updated: 2026-08-08 — Session 139 (DO droplet, production port 4000):
 **Egotrip follow-up: `damn` subcommand (no XP loss) + mob targeting**
 (user, same day: "bypass xp loss on an egotrip hit" / "make egotrip
