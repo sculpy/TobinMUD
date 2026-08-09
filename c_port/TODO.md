@@ -160,15 +160,8 @@ viewers keep plain names (`news`, `wiznews`).
 
 - [x] **Real data bug found: mob/object descriptions had REVERSED line endings (`\n\r` instead of `\r\n`)** -- done 2026-08-06, user: "look at mob long description inserts blank lines in output". Not a client parsing bug -- confirmed via HEX() that 5097/5156 mob.description rows (98.9%) and 35 obj.long_desc rows had `\n\r` (LF-then-CR) sequences instead of the standard `\r\n`, almost certainly from a reversed byte order during the original seed-data import; room.description (0 affected) and most of obj was clean, so this was scoped to mob/object text specifically. A bare `\n` followed by a `\r` renders as two separate line-break-ish things in a row to a RichEdit-based client (the client's own CRLF-collapse pass, added the same session for the line-doubling bug, only recognizes `\r\n` in the CORRECT order) -- exactly the reported extra blank line. Fixed with a one-time SQL data correction: `REPLACE(col, CONCAT(CHAR(10),CHAR(13)), CONCAT(CHAR(13),CHAR(10)))` against mob.description, obj.long_desc, and obj.action_desc (2 rows). Verified 0 remaining reversed pairs across all three afterward. Not yet swept: other text-bearing columns (player.description, social/skill_help tables) -- those specific table/column names errored out during triage and weren't chased further; worth a quick follow-up sweep if a similar blank-line report comes in from a different screen.
 
-- [ ] **Client batch, logged 2026-08-06 (user, end of session):** 7 items to work through:
+- [ ] **Client batch, logged 2026-08-06 (user, end of session):** 8 items to work through (header originally undercounted as "7"). Items 2-8 done -- see the "Open follow-ups, logged 2026-08-05" entries above (v0.4.21/v0.4.22/v0.4.23: click-to-focus, gauge-strip move, color/toggle fix, mob-description blank lines -- real cause was reversed DB line endings, not the client, per-tick status bar, sound pack remap, and the real music-after-fight fix). Only item 1 remains open:
   1. Trigger and alias editors in the client (in-app GUI, not just hand-editing triggers.txt/aliases.txt + Reload Triggers).
-  2. Clicking the client window should focus the input line and put the cursor there.
-  3. Move the HP/Mana/Move status/gauge bar from between the menu and scrollback down to just above the input line.
-  4. BUG: color got lost in the client display; toggling color on/off does nothing.
-  5. BUG: after a fight ends, combat music keeps playing.
-  6. BUG: looking at a mob's long description inserts blank lines into the output.
-  7. Status/gauge bar needs updating every tick, not just on GMCP Char.Vitals push.
-  8. New class-named sound files uploaded (slash/slash2/slash3, cleric, thief/thief2/backstab, monk1-4, spell/spell2/spell_fireball, hit/hit2/hit3/hit4) -- use per-class at random instead of always hit.wav, and the 6 existing fight-music tracks should rotate without repeating the same track twice in a row.
 
 - [x] **Client v0.4.20: real fix for "title bar still says T"** -- done 2026-08-06, user provided a screenshot confirming it was literal text "T", not the icon, and had already ruled out a stale window (confirmed exiting fully via File menu each time). Real cause: both WndProcs (main window and Preferences window) fell through to the plain `DefWindowProc()` for unhandled messages, which resolves to the ANSI `DefWindowProcA` since neither UNICODE nor _UNICODE is defined anywhere in this build -- but both windows are registered via `RegisterClassW` (genuine Unicode windows). CreateWindowW sets the initial caption via an internal WM_SETTEXT carrying a wide-string pointer; letting that fall through to the ANSI DefWindowProcA misreads it byte-by-byte -- 'T' is 0x54,0x00 in UTF-16LE, and that trailing zero byte reads as an immediate ANSI string terminator, so only the first character ever survives. Classic, well-documented Win32 Unicode/ANSI window mismatch. Fix: both `DefWindowProc(...)` calls changed to `DefWindowProcW(...)`. Confirmed via screenshot-driven diagnosis, not guesswork -- prior theories (stale window, icon-vs-text confusion) were both explicitly ruled out by the user before this was found.
 
@@ -400,14 +393,14 @@ raw checklist, pick from it as capacity allows.
 - [ ] Advanced offense
 - [ ] Alcoholism
 - [ ] Avian (language)
-- [ ] Bandage
+- [x] Bandage -- **Fixed 2026-08-08 (Session 141):** new bleeding-limb mechanic (transient per-limb `bleeding` flag, chipped each vitals tick) + `bandage [target]` command (cmd_bandage.c) that consumes a bandage item to clear it and heal a little.
 - [x] Barehand specialization — **Fixed 2026-08-04:** all 5 weapon specializations (slash/blunt/pierce/ranged/barehand) now implemented (skill.c/combat.c/cmd_skills.c) -- Warrior-only, level 1, auto-known with no guildmaster visit needed, individually learned by doing (Class-tier, uncapped ceiling) as a real passive hit/damage bonus scaling with proficiency, with an extra bump at exactly 100%. Kept genuinely distinct from Tobin's pre-existing "*_proficiency" Combat-tier skills (found live while building this -- those just mirror the shared combat_disc_pct with no individual tracking; specialization is a separate, individually-grindable layer on top). New tests/smoke_test_weapon_spec.py passes live.
 - [x] Blunt specialization
 - [ ] Bullycroak (language)
 - [ ] Climbing
 - [ ] Common (language)
-- [ ] Cook
-- [ ] Defense
+- [x] Cook -- **Fixed 2026-08-08 (Session 138):** the existing recipe system had no skill gate at all; now requires `being_knows_skill(ch, "cook")` (all 6 classes, Combat tier).
+- [x] Defense -- **Fixed 2026-08-08 (Session 138):** new roster entry (all 6 classes, level 1, Combat tier); combat_strike() grants a passive cross-class to-hit-modifier reduction, the first passive defensive skill every class gets.
 - [ ] Dissect
 - [ ] Divine (fortune-telling; distinct from Mage's "divination" spell)
 - [ ] Encamp
@@ -420,7 +413,7 @@ raw checklist, pick from it as capacity allows.
 - [x] Focused avoidance -- **Fixed 2026-08-05:** new roster entry (all 6 classes, generic, Advanced tier); combat.c grants a real passive to-hit-modifier reduction against the defender scaling with proficiency, same insertion point/shape as the existing `oomlat` AC bonus (real upstream's own agility-scaled dodge check has no matching Tobin infrastructure -- disclosed scope-cut).
 - [ ] Gnoll jargon (language)
 - [ ] Gutter cant (language)
-- [ ] Hiking
+- [x] Hiking -- **Fixed 2026-08-08 (Session 141):** new roster entry; reduces cmd_move.c's terrain movement cost up to 50% at full proficiency, stacking with flying/mounted discounts.
 - [ ] Inevitability
 - [ ] Know animal (creature lore)
 - [ ] Know demon
@@ -441,12 +434,12 @@ raw checklist, pick from it as capacity allows.
 - [ ] Skinning (generic, non-Druid classes)
 - [x] Slash specialization
 - [ ] Smooth
-- [ ] Swim
+- [x] Swim -- **Fixed 2026-08-08 (Session 138):** new roster entry (all 6 classes, Combat tier); mitigates Tobin's unconditional underwater drowning damage, up to 50% off at full proficiency.
 - [ ] Tactics
 - [x] Toughness -- **Fixed 2026-08-05:** new roster entry (all 6 classes, generic, Advanced tier); combat.c grants a real passive damage-reduction percentage (up to 20% at 100% proficiency) applied after Sanctuary (real upstream's own per-hit stacking-immunity buff has no matching Tobin infrastructure -- disclosed scope-cut, same "flat passive instead of true stacking" shape `bloodlust` already used).
 - [ ] Troglodyte pidgin (language)
 - [ ] Trollish (language)
-- [ ] Whittle
+- [x] Whittle -- **Fixed 2026-08-08 (Session 138):** the existing recipe system had no skill gate at all; now requires `being_knows_skill(ch, "whittle")` (all 6 classes, Combat tier).
 - [ ] Turn undead (command `turn` -- no display-name string upstream, real and missing regardless)
 
 ### Spell/skill stub audit — roster-listed but mechanically no-op
