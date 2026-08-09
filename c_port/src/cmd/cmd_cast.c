@@ -19,7 +19,7 @@
 #include "player_repo.h"
 #include "pulse.h"
 #include "room.h"
-#include "spell_flavor.h"
+#include "spellcast.h"
 #include "spell_mana.h"
 #include "room_repo.h"
 #include "skill.h"
@@ -331,7 +331,7 @@ static void cast_area_damage(descriptor_t *d, being_t *ch, const skill_def_t *sk
  * needing a subsystem Tobin doesn't have at all yet (teleport/summon/
  * polymorph/invisibility/...) -- those fall through to the same honest
  * "nothing happens yet" placeholder as before. */
-static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill_def_t *sk) {
+void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, const skill_def_t *sk) {
     char msg[192];
     /* Resolved target for the OFFENSIVE (damage) branch only: an
      * explicit target (target != ch) is used as-is; with none given,
@@ -340,19 +340,20 @@ static void task_cast(descriptor_t *d, being_t *ch, being_t *target, const skill
      * is handled with a "who?" message rather than silently doing
      * nothing. Heal/buff branches keep using `target` directly (self by
      * default), unaffected -- see cmd_pray.c's identical atk_target for
-     * the full rationale. */
-    spell_flavor_show(d, ch, false); /* user 2026-08-04/08-05: 3-line flavor text, modeled on real SneezyMUD's per-round sendCastingMessages() -- see spell_flavor.h */
-    /* MSP casting sound (2026-08-07 sound pack, casting1.wav-casting6.wav,
-     * randomized) -- distinct from pick_hit_sound()'s spell-IMPACT pool
-     * (combat.c), this plays at the moment of casting itself, same beat
-     * as the flavor text just above. */
-    if (d) {
-        static const char *casting_pool[] = {
-            "casting1.wav", "casting2.wav", "casting3.wav",
-            "casting4.wav", "casting5.wav", "casting6.wav",
-        };
-        descriptor_send_msp_sound(d, casting_pool[rand() % 6], 100);
-    }
+     * the full rationale.
+     *
+     * Formerly `static void task_cast(...)`, and formerly opened with a
+     * one-shot spell_flavor_show() + MSP casting-sound flourish right
+     * here -- both now live in spellcast.c's spellcast_start()/
+     * spellcast_tick_run() instead (user 2026-08-09: "spell casting
+     * should take 2-3 rounds before hitting with purple colored
+     * messaging... 2-3 lines per casting tick"), shown once per round of
+     * the new multi-round delay rather than once at the moment the
+     * effect below actually lands. This function's own body is
+     * otherwise 100% unchanged -- a pure timing move, not a rewrite of
+     * what any spell DOES. Exposed (non-static) so spellcast.c's
+     * spellcast_tick_run() can call it once a delayed cast's countdown
+     * completes -- see spellcast.h's doc comment. */
     being_t *atk_target = (target != ch) ? target : ch->fighting;
     if (strcasecmp(sk->name, "sorcerer's globe") == 0) {
         /* Level-1 stub-audit fix (2026-08-04, user: "lower level players
@@ -2581,7 +2582,14 @@ bool cmd_cast(descriptor_t *d, const char *args) {
     }
 
     if (cast_ok) {
-        task_cast(d, ch, target, sk);
+        /* Multi-round delay (user 2026-08-09) -- every gate above
+         * (class/level/discipline/mana/component-about-to-be-consumed/
+         * proficiency roll) has already passed; the effect itself is now
+         * deferred 2-3 rounds via spellcast.c instead of landing
+         * instantly. A failed roll (the `else` below) still fizzles
+         * immediately, same as before this change -- there's no
+         * "committed" cast to delay when it was never going to work. */
+        spellcast_start(d, ch, sk, target);
     } else {
         char msg[128];
         snprintf(msg, sizeof(msg), "You fumble the casting of %s -- nothing happens.\r\n", sk->name);

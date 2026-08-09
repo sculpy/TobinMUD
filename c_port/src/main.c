@@ -33,6 +33,7 @@
 #include "copyover.h"
 #include "shutdown.h"
 #include "socials.h"
+#include "spellcast.h"
 #include "tips_repo.h"
 #include "trigger.h"
 #include "trophy.h"
@@ -161,6 +162,7 @@ int main(int argc, char **argv) {
     pulse_register(600, linkdead_purge_tick);    /* ~60s: force-save + destroy any PC linkdead 5+ minutes */
     pulse_register(30, planting_tick_run);       /* ~3s: advance in-progress `plant <seeds>` tasks */
     pulse_register(REGEN_PULSES, meditate_tick_run); /* ~5s: advance an in-progress `yoginsa` meditation */
+    pulse_register(COMBAT_ROUND_PULSES, spellcast_tick_run); /* ~1.2s: advance an in-progress Mage/Druid `cast` delay */
     pulse_register(600, obj_plant_growth_tick);  /* ~60s: age planted crops, occasionally yield fruit */
     pulse_register(600, trophy_pulse_tick);      /* ~60s: decay every player's trophy kill-counts */
 

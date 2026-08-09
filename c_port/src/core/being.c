@@ -301,6 +301,18 @@ void being_destroy(being_t *b) {
             d->character->fighting = NULL;
         if (d->character && d->character->last_heal_target == b)
             d->character->last_heal_target = NULL;
+        /* b was mid-cast's stashed target (spellcast.c's `cast_target`,
+         * being.h) -- the spell fizzles rather than resolving against
+         * freed memory once spellcast_tick_run() next sees `is_casting`
+         * with a NULL target. Mirrors `fighting`'s own dangling-reference
+         * clear just above. */
+        if (d->character && d->character->cast_target == b) {
+            d->character->cast_target = NULL;
+            if (d->character->is_casting) {
+                d->character->is_casting = false;
+                descriptor_send(d, "Your target is gone -- your spell fizzles!\r\n");
+            }
+        }
         /* b was a mount some connected rider was on (b is being destroyed
          * out from under them, e.g. a ridden horse dying in combat) --
          * dismount them so the game loop never dereferences b again. */

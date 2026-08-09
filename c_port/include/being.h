@@ -888,6 +888,36 @@ typedef struct being {
      * in-memory only, same reconnect rule as `fighting`/`sneaking`. */
     bool meditating;
 
+    /* `cast`/`pray` multi-round casting delay (user 2026-08-09: "spell
+     * casting should take 2-3 rounds before hitting with purple colored
+     * messaging... druids should have modified messages that mages have
+     * except those messages should have a forest flavor... druid
+     * messaging should be <y>" -- Cleric's `pray`, cmd_pray.c, is
+     * explicitly NOT in scope and stays instant). Set by cmd_cast.c's
+     * cmd_cast() once every gate (class/level/discipline/mana/component/
+     * proficiency roll) has already passed and been paid -- the caster
+     * has fully committed to the cast, only the EFFECT is deferred.
+     * spellcast_tick_run() (spellcast.c), registered every
+     * COMBAT_ROUND_PULSES alongside combat/meditate, counts
+     * `cast_rounds_left` down to 0, printing that round's Mage-purple/
+     * Druid-yellow flavor lines each tick, then invokes the real spell
+     * effect (cmd_cast_resolve_effect(), the same per-spell dispatch
+     * chain `cast` always used, just moved out from under the instant
+     * path) once the delay completes. `cast_spell_name` is re-looked-up
+     * via skill_find() at resolution time rather than caching a
+     * skill_def_t* directly (being.h can't include skill.h -- circular).
+     * `cast_target` is a raw being_t* (self-casts point at `ch` itself,
+     * never NULL) -- being_destroy() clears it the same way it already
+     * clears `fighting`/`last_heal_target` if the target dies mid-cast,
+     * which spellcast_tick_run() reads as "target vanished, fizzle".
+     * Live in-memory only, same "no reconnect persistence" convention as
+     * `meditating`/`fighting` above. */
+    bool is_casting;
+    int cast_rounds_left;
+    int cast_rounds_total;
+    char cast_spell_name[64];
+    struct being *cast_target;
+
     /* `feign death` (Monk, level 25, level-25 audit batch: "Play dead to
      * avoid detection or attack."). Set by cmd_feigndeath.c; checked by
      * mob_ai.c's mob_try_aggress() to skip a feigning PC when an

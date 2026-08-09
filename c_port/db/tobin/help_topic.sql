@@ -1164,3 +1164,14 @@ ON DUPLICATE KEY UPDATE `name` = `name`;
 
 -- kick can now start a fight (user, 2026-08-05/08). See cmd_kick.c.
 UPDATE `help_topic` SET `body` = 'Usage: kick [target]\n\nAn unarmed kick for bonus damage, on top of the normal automatic\ncombat round. If you''re already fighting, `kick` alone hits your\ncurrent opponent. If you AREN''T fighting yet, `kick <target>` also\nstarts the fight -- same as `attack`, just with a free extra hit\nthe moment it lands.\nRelated: skills practice attack kill\nClasses: Warrior, Thief, Monk (level 1)' WHERE `name` = 'kick';
+
+-- `cast` grew a multi-round delay (user 2026-08-09: "spell casting
+-- should take 2-3 rounds before hitting with purple colored
+-- messaging... druids should have modified messages... forest
+-- flavor... druid messaging should be <y>") -- previously resolved
+-- instantly; the seeded row above predates this, so update it
+-- explicitly, same "no-op on the already-seeded row" precedent as the
+-- offensive-spell-breadth update above. `pray` is unaffected (stays
+-- instant), not touched here.
+UPDATE `help_topic` SET `body` = 'Usage: cast <spell> [target]\n\nMages and Druids only: casts a spell from your class''s roster (see\n`skills`). You need a spell component -- any carried item keyworded\n"component" -- on hand; it is consumed on a successful cast. Also\nneeds enough practiced discipline in that spell''s tier -- see `help\npractice`. Once cast, the spell takes 2-3 rounds to complete -- you\nwill see a few lines of flavor text each round (purple for Mages,\nforest-flavored yellow for Druids) and cannot act again until it\nfinishes, then the spell''s real effect lands. An offensive spell can\ntarget someone else in the room (`cast gust <name>`) and will draw you\ninto a fight with them if you aren''t already fighting anyone; left\nblank, it keeps hitting whoever you''re already fighting. If your\ntarget is gone or you go down before the spell completes, it fizzles.\nClerics use `pray` instead, which resolves instantly.'
+  WHERE `name` = 'cast' AND `updated_by` = 'seed';

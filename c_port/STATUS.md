@@ -1,5 +1,66 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-09 — Session 144 (DO droplet, production port 4000):
+**Multi-round `cast` delay: Mage purple / Druid yellow forest flavor.**
+User: "spell casting should take 2-3 rounds before hitting with purple
+colored messaging about 2-3 lines per casting tick. druids should have
+modified messages that mages have except those messages should have a
+forest flavor to them. druid casting should take about the same amount
+of time" (follow-up correction: "druid messageing should be <y>").
+`cast` (Mage/Druid) used to resolve its real effect the instant the
+command was typed. Every existing gate (class/level/discipline/mana/
+component/proficiency roll) is completely unchanged -- only the moment
+the effect lands moved. New being.h fields (`is_casting`,
+`cast_rounds_left`, `cast_rounds_total`, `cast_spell_name`,
+`cast_target`) model a background task, same "flag + periodic tick"
+shape as `meditating`/meditate_tick_run(). New src/core/spellcast.c
+(spellcast_start()/spellcast_tick_run(), registered every
+COMBAT_ROUND_PULSES alongside combat/meditate in main.c): once a cast
+is committed, the caster is locked out via being_set_wait() for 2 or 3
+rounds (randomized once per cast, same length for both classes), shown
+that round's 3-line flavor text each tick (a random gesture line, a
+random verbal line, a building/completion closer -- purple `<p>` arcane-
+incantation wording for Mage, yellow `<y>` forest-flavor wording for
+Druid, structurally the same beats reskinned per the user's "modified...
+except forest flavor" ask), and once the countdown hits 0, the spell's
+real effect resolves via `cmd_cast_resolve_effect()` -- the exact same
+per-spell dispatch chain `cast` always used (formerly `static void
+task_cast()`, cmd_cast.c), just exposed and moved out from under the
+instant path; its own body is 100% unchanged, a pure timing wrapper.
+Interruption is deliberately narrow (mirrors meditate's own scope, not
+over-engineered): a cast fizzles if the caster disconnects, drops
+unconscious/dead, or their stashed target is destroyed mid-cast
+(being_destroy() now also clears `cast_target`, same dangling-reference
+cleanup `fighting`/`last_heal_target` already get) -- NOT on `ch->fighting`
+alone, since most offensive spells are cast WHILE already fighting.
+Scope: only `cast`'s main dispatch path (the one flowing through
+`cmd_cast_resolve_effect()`) is delayed -- the ~15 special-cased utility
+spells that return early before ever reaching it (telepathy, scribe,
+materialize, ethereal gate, divination, identify, copy, create food/
+water, illuminate, mage repair, charge stave, eyes of Fertuman, farlook)
+stay instant, a disclosed scope-cut (they're one-off object/world
+utilities, not the buildup-then-hit spellcasting beat the user asked
+about). Cleric's `pray` (cmd_pray.c) is explicitly untouched per the
+user's own scoping and stays instant. `spell_flavor.c`'s old one-shot
+flourish is no longer called from `cast` (superseded by spellcast.c's
+per-round text) -- still used by `pray`, unaffected. New
+tests/smoke_test_spell_cast_delay.py (7 checks, green): Mage cast shows
+purple flavor immediately with the effect NOT yet landed, then lands
+2-3 rounds later; same shape for Druid with yellow forest flavor.
+tests/smoke_test_cast_pray_flavor.py's `cast`-side checks updated to
+match the new deferred-effect reality (pray-side checks untouched).
+Found in passing, NOT fixed here (flagged as a separate follow-up task):
+skill.c's `desc` field is now a generic "See help X for help." placeholder
+for the entire roster (help text moved to help_topic at some point),
+which silently dead-codes several `ci_contains(sk->desc, ...)` branches
+in `cmd_cast_resolve_effect()` -- e.g. `gust` now falls to the generic
+"nothing happens yet" placeholder instead of a real damage effect. This
+made tests/smoke_test_castpray.py and tests/smoke_test_immortal_castpray.py
+fail (pre-existing bug, unrelated to this session's timing change --
+verified their assertions don't depend on cast being instant, just on
+`gust` actually dealing damage, which it doesn't anymore for reasons
+predating this session).
+
 Last updated: 2026-08-09 — Session 143 (DO droplet, production port 4000):
 **Learn-by-doing roster audit: stubbed-skills batch (TODO.md line 57).**
 Closes out the 2026-08-08 "Learn-by-doing roster audit" scratch list --

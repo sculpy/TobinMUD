@@ -1,23 +1,36 @@
 #!/usr/bin/env python3
-"""Smoke test for cast/pray flavor messaging (user, 2026-08-04: "Cast/pray
+"""Smoke test for pray flavor messaging (user, 2026-08-04: "Cast/pray
 messaging: 3 lines per task step"; clarified 2026-08-05: "use sneezymuds
 casting task for example"). Covers spell_flavor_show() (spell_flavor.c),
-called once at the top of both task_cast() (cmd_cast.c) and task_pray()
-(cmd_pray.c) -- modeled on real SneezyMUD's TBeing::sendCastingMessages()
-(spelltask.cc), which shows a gesture line, a verbal line, and a
-completion line each casting round; Tobin has no multi-round casting
-task engine, so this ports the STYLE (3 flavor lines) as a one-shot
-flourish before a spell/prayer's real effect, not the full multi-round
-architecture:
+called once at the top of task_pray() (cmd_pray.c) -- modeled on real
+SneezyMUD's TBeing::sendCastingMessages() (spelltask.cc), which shows a
+gesture/symbol line, a verbal line, and a completion line each casting/
+praying round. Cleric's `pray` has no multi-round task engine and is
+explicitly out of scope for the 2026-08-09 `cast` delay below, so this
+still ports the STYLE (3 flavor lines) as a one-shot flourish before a
+prayer's real effect.
 
-  1. `cast <spell>` shows exactly 3 flavor lines before the spell's own
-     effect text (a gesture line, a verbal line, a "you feel your spell
-     taking form" completion line).
-  2. `pray <prayer>` shows the same shape with prayer-flavored text (a
-     symbol line, a verbal line, "you feel your prayer being answered").
+`cast`'s OWN one-shot flavor flourish (this file's original scope) was
+superseded 2026-08-09 (user: "spell casting should take 2-3 rounds
+before hitting with purple colored messaging... druids should have
+modified messages... forest flavor... druid messaging should be <y>")
+by a genuine multi-round delay (spellcast.c) -- see
+smoke_test_spell_cast_delay.py for that behavior's own dedicated
+coverage (purple/yellow, per-round text, the effect landing rounds
+later). This file's `cast`-side checks below were updated to match: a
+successful cast still shows immediate flavor text (now from
+spellcast.c's spellcast_start(), not the old fixed "you feel your spell
+taking form" line), but the spell's real effect no longer appears in the
+same round -- it lands later, unverified here (see the dedicated test).
+
+  1. `cast <spell>` shows immediate per-round flavor text before its
+     real effect, which is now deferred rather than instant.
+  2. `pray <prayer>` still shows the original one-shot 3-line shape with
+     prayer-flavored text (a symbol line, a verbal line, "you feel your
+     prayer being answered"), unaffected by the `cast`-only change.
   3. A gated cast/pray (missing component/symbol) shows NONE of the
-     flavor lines -- the gate is checked before task_cast()/task_pray()
-     ever runs.
+     flavor lines -- the gate is checked before spellcast_start()/
+     task_pray() ever runs.
 
     python3 tests/smoke_test_cast_pray_flavor.py [host] [port]
 """
@@ -74,18 +87,21 @@ s = login(name, pw)
 # --- 1: gated cast (no component) shows NO flavor lines ---
 out = cmd(s, "cast gust")
 check("spell components" in out.lower(), "cast without a component is refused")
-check("feel your spell taking form" not in out.lower(), "no flavor lines on a gated (component-less) cast")
+check("gathers around you" not in out.lower() and "crackles" not in out.lower(),
+      "no flavor lines on a gated (component-less) cast")
 
-# --- 2: cast with a component shows exactly the 3 flavor lines ---
+# --- 2: cast with a component shows immediate round-1 flavor text, but
+# NOT the spell's real effect in the same round (spellcast.c -- the
+# delay this file no longer covers in depth, see
+# smoke_test_spell_cast_delay.py). This character is a Warrior (class 3,
+# immortal bypasses the class gate) -- not Mage/Druid -- so it gets the
+# generic (Mage-shaped, purple) flavor text either way; only the color/
+# wording SPLIT is Mage-vs-Druid, not whether flavor text appears at all. ---
 cmd(s, "load obj 200")  # "a tiny lasso made of basilisk hair" -- real component
 out = cmd(s, "cast gust")
-check("feel your spell taking form" in out.lower(), "cast shows the completion flavor line")
 lines = [l for l in out.splitlines() if l.strip() and l.strip() != "cast gust"]
-# Expect: gesture line, verbal line, completion line, then either an
-# effect line or (with no target/opponent) "Cast that at whom?" -- at
-# least the first 3 non-echo lines are the flavor triad.
-check(len(lines) >= 3, "cast produced at least 3 lines of output")
-check("feel your spell taking form" in lines[2].lower(), "the completion line is the 3rd flavor line")
+check(len(lines) >= 3, "cast produced at least 3 lines of immediate flavor text")
+check("nothing happens yet" not in out.lower(), "the spell's real effect has NOT resolved in the same round")
 
 # --- 3: gated pray (no symbol) shows NO flavor lines ---
 out = cmd(s, "pray sterilize")
