@@ -1,5 +1,49 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-09 — Session 145 (DO droplet, production port 4000):
+**Fixed: `cast`/`pray` keyword dispatch silently broken by the `sk->desc`
+data migration.** User reported `smoke_test_castpray.py`/
+`smoke_test_immortal_castpray.py` failing -- both expect `gust` to
+require a target ("Cast that at whom?") and instead got the generic
+"nothing happens yet" stub. Root cause: `skill.c`'s roster `desc` field
+is a dead `"See help \`X\` for help."` placeholder for all 416 entries
+(the real descriptive prose moved to the `help_topic` table at some
+earlier point in this project's history), but `cmd_cast.c`'s
+`cmd_cast_resolve_effect()` and `cmd_pray.c`'s `task_pray()` still keyword-
+matched against `sk->desc` directly -- any spell without its own bespoke
+`strcasecmp(sk->name, ...)` branch silently fell through to the
+placeholder regardless of what it should actually do. Fixed by having
+both functions look up the live `help_topic` body for the spell's own
+name (`help_topic_load_exact()`, `include/help_repo.h`) at the top of
+each function and matching keywords against that instead of `sk->desc`
+(falls back to `sk->desc` harmlessly if a spell has no help topic yet) --
+the help bodies still carry the same real prose ("damaging attackers",
+"breathe underwater", etc.) the keyword branches were always written
+against, so no branch logic changed, only where its text comes from.
+Considered restructuring the roster into a per-spell effect-category
+enum instead (avoids string-matching entirely) but the keyword set is
+small/closed and the migration-broke-a-lookup root cause is fully
+addressed by fixing the lookup's data source -- didn't touch `skill.c`'s
+roster structure. 37 Mage/Druid + 16 Cleric roster entries were silently
+regressed this way and are working again (gust, mystic darts, chain
+lightning, meteor swarm, ice storm, tornado, tsunami, blizzard, plasma
+mirror, energy drain, protection from energy, levitate, gills of flesh,
+harm light/serious/critical/harm, call lightning, sanctuary, bless,
+armor, spontaneous combust, and more). Also fixed two pre-existing,
+unrelated bugs found while re-running the two named smoke tests live:
+(1) both tests' `cast gust` assertion used the shared `cmd()` helper's
+default 1.0s timeout, too short to observe `cast`'s real effect now that
+it resolves via the 2026-08-09 multi-round cast-delay feature (2-3
+rounds, ~1.2s apart) instead of landing instantly -- bumped those two
+calls to a 6s timeout (test-only change, `spellcast.c` itself untouched).
+(2) `smoke_test_immortal_castpray.py`'s `get pouch`/`get symbol` checks
+ran right after `load obj`, which (since 2026-07-22) drops the item
+straight into the loading immortal's own inventory, not the room floor --
+added the same `drop` step `smoke_test_castpray.py` already had. Both
+tests pass clean; spot-checked 5 more previously-broken spells live
+(mystic darts, chain lightning, levitate, protection from energy,
+tornado) and confirmed each now reaches its real effect.
+
 Last updated: 2026-08-09 — Session 144 (DO droplet, production port 4000):
 **Multi-round `cast` delay: Mage purple / Druid yellow forest flavor.**
 User: "spell casting should take 2-3 rounds before hitting with purple

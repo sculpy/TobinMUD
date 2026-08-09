@@ -142,14 +142,18 @@ cmd(s_imm, "drop pouch")
 out = cmd(sm, "get pouch")
 check("you get" in out.lower(), "the mage picks up the component pouch")
 
-out = cmd(sm, "cast gust")
+out = cmd(sm, "cast gust", 6.0)
 # "gust" is a real offensive spell now (offensive spell breadth,
 # Sneezy -> Tobin feature audit) -- it requires a target, and this mage
 # isn't fighting anyone, so the actual (correct) response is "Cast that
 # at whom?", not a spell effect. That message only appears once the
 # component gate has already passed, which is what this test is really
 # checking -- not what "gust" specifically does (see this test's own
-# note above about spell effects being out of scope here).
+# note above about spell effects being out of scope here). A generous
+# 6s timeout (default is 1.0s) -- this response is now printed by
+# cmd_cast_resolve_effect() only after the multi-round cast delay
+# (spellcast.c, 2026-08-09) finishes resolving, 2-3 rounds x ~1.2s
+# apart, not synchronously at the moment `cast gust` is typed.
 check("Cast that at whom?" in out, "casting with a component succeeds (past the gate; gust itself needs a target)")
 out = cmd(sm, "inventory")
 check("pouch" not in out.lower(), "the component is consumed after a successful cast (even though gust itself refused for lack of a target)")

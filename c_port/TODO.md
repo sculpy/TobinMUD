@@ -462,6 +462,29 @@ literal substring match on "damage" (not "damag(e|es|ing)"), so several
 spells whose own description says "damages"/"damaging" ALSO silently
 miss the damage branch -- flagged inline below.
 
+**2026-08-09 update:** `skill_def_t.desc` (skill.c's roster array) is now
+a dead placeholder ("See help `X` for help.") for all 416 entries -- the
+real descriptive prose this whole audit's keyword branches were matching
+against moved to the `help_topic` table at some point after the audit
+above was written, silently breaking every `ci_contains(sk->desc, ...)`
+branch (any spell without its own bespoke `strcasecmp(sk->name, ...)`
+branch, e.g. `gust`, fell through to the placeholder). Fixed by having
+`cmd_cast_resolve_effect()`/`task_pray()` look up the live `help_topic`
+body for the spell's own name (`help_topic_load_exact()`, falling back
+to `sk->desc` if a spell has no help topic yet) and matching keywords
+against THAT instead -- the help bodies still carry the same prose the
+keyword list below was always written against, so no branch logic
+changed, just its text source. 37 Mage/Druid + 16 Cleric roster entries
+were silently regressed this way and are working again (gust, mystic
+darts, chain lightning, meteor swarm, ice storm, tornado, tsunami,
+blizzard, plasma mirror, energy drain, protection from energy, levitate,
+gills of flesh, harm light/serious/critical/harm, call lightning,
+sanctuary, bless, armor, spontaneous combust, and more -- full list in
+the fix commit). Did NOT restructure the roster into a per-spell effect-
+category enum (the task's "Option B") -- the closed keyword set was
+small enough that fixing the lookup's data SOURCE was the surgical fix,
+not a reason to redesign the dispatch mechanism.
+
 #### Mage (`cmd_cast.c`) — ~32 stubs
 - [x] Sorcerer's globe — **Fixed 2026-08-04:** now a real room-wide AFFECT_SANCTUARY buff (cmd_cast.c), reusing cmd_rally.c's "everyone in the room but immortals" group shape.
 - [x] Mage sight — **Fixed 2026-08-04:** grants real infravision (new AFFECT_INFRAVISION, room_is_dark_for()); true sight/detection dropped (no matching subsystem), a disclosed scope reduction.

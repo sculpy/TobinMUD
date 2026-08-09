@@ -13,6 +13,7 @@
 #include "affect.h"
 #include "cmd.h"
 #include "combat.h"
+#include "help_repo.h"
 #include "obj.h"
 #include "obj_magic_repo.h"
 #include "liquids.h"
@@ -333,6 +334,17 @@ static void cast_area_damage(descriptor_t *d, being_t *ch, const skill_def_t *sk
  * "nothing happens yet" placeholder as before. */
 void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, const skill_def_t *sk) {
     char msg[192];
+    /* skill_def_t's own `desc` field is a generic "See help `X` for
+     * help." placeholder for every roster entry (the real descriptive
+     * text -- "damaging attackers", "breathe underwater", etc. --
+     * migrated to the help_topic table at some point in this project's
+     * history, per `hedit`). The keyword branches below were written
+     * against that real prose and never updated for the move, so they
+     * look up the live help_topic body here (falling back to sk->desc,
+     * harmlessly inert, if a spell has no help topic yet) instead of
+     * trusting the roster's own dead placeholder text. */
+    char help_body[HELP_BODY_MAX];
+    const char *desc = help_topic_load_exact(sk->name, help_body, sizeof(help_body)) ? help_body : sk->desc;
     /* Resolved target for the OFFENSIVE (damage) branch only: an
      * explicit target (target != ch) is used as-is; with none given,
      * falls back to whoever ch is already fighting, same as before this
@@ -594,7 +606,7 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
             if (target->desc && cured)
                 descriptor_notify(target->desc, "Your sickness lifts!\r\n");
         }
-    } else if (ci_contains(sk->desc, "heal")
+    } else if (ci_contains(desc, "heal")
                /* `salve` (Druid, level-12 stub-audit fix): desc "Treats
                 * a minor wound" carries no "heal" keyword despite being
                 * a plain heal-tier spell -- same fix as Cleric's
@@ -616,9 +628,9 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
                 descriptor_notify(target->desc, msg);
             }
         }
-    } else if (ci_contains(sk->desc, "armor bonus") || ci_contains(sk->desc, "reduces incoming damage")
-               || ci_contains(sk->desc, "resistance to") || ci_contains(sk->desc, "reflective shield")
-               || ci_contains(sk->desc, "self-ward") || ci_contains(sk->name, "shield")
+    } else if (ci_contains(desc, "armor bonus") || ci_contains(desc, "reduces incoming damage")
+               || ci_contains(desc, "resistance to") || ci_contains(desc, "reflective shield")
+               || ci_contains(desc, "self-ward") || ci_contains(sk->name, "shield")
                || ci_contains(sk->name, "stone skin") || ci_contains(sk->name, "barkskin")
                || ci_contains(sk->name, "flaming flesh")) {
         /* `flaming flesh` (Mage, level 25, level-25 audit batch) folded in
@@ -638,7 +650,7 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
             if (target->desc)
                 descriptor_notify(target->desc, "A protective ward settles over you!\r\n");
         }
-    } else if (ci_contains(sk->desc, "breathe underwater")) {
+    } else if (ci_contains(desc, "breathe underwater")) {
         /* "gills of flesh" (Sneezy → Tobin feature audit, "Water,
          * drowning, flight") -- a real, longer-than-combat duration
          * (100 rounds, ~2 real minutes) since this is a travel-utility
@@ -647,11 +659,11 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
         being_apply_affect(ch, AFFECT_WATERBREATH, 100);
         snprintf(msg, sizeof(msg), "You cast %s -- gills split open along your neck!\r\n", sk->name);
         descriptor_send(d, msg);
-    } else if (ci_contains(sk->desc, "float above the ground")) {
+    } else if (ci_contains(desc, "float above the ground")) {
         being_apply_affect(ch, AFFECT_FLYING, 100);
         snprintf(msg, sizeof(msg), "You cast %s -- you rise gently off the ground!\r\n", sk->name);
         descriptor_send(d, msg);
-    } else if (ci_contains(sk->desc, "area-effect")) {
+    } else if (ci_contains(desc, "area-effect")) {
         /* Real room-wide effect (breadth work) -- previously fell into
          * the single-target branch below like everything else. */
         cast_area_damage(d, ch, sk);
@@ -1167,19 +1179,19 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
             descriptor_notify(atk_target->desc, msg);
         }
-    } else if (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "damag")
-               || ci_contains(sk->desc, "bolt")
-               || ci_contains(sk->desc, "beam") || ci_contains(sk->desc, "blast")
-               || ci_contains(sk->desc, "strike") || ci_contains(sk->desc, "burst")
-               || ci_contains(sk->desc, "fury") || ci_contains(sk->desc, "flame")
+    } else if (ci_contains(desc, "damage") || ci_contains(desc, "damag")
+               || ci_contains(desc, "bolt")
+               || ci_contains(desc, "beam") || ci_contains(desc, "blast")
+               || ci_contains(desc, "strike") || ci_contains(desc, "burst")
+               || ci_contains(desc, "fury") || ci_contains(desc, "flame")
                /* `hands of flame` (level-4 stub-audit fix): desc says
                 * "fiery" not "flame", missing this branch entirely
                 * despite "flame" already being a tested keyword. */
-               || ci_contains(sk->desc, "fiery")
+               || ci_contains(desc, "fiery")
                /* `shatter` (level-27) / `watery grave` (level-32) stub-
                 * audit fixes: their own desc words aren't in the list
                 * above at all. */
-               || ci_contains(sk->desc, "shatter") || ci_contains(sk->desc, "drowning")) {
+               || ci_contains(desc, "shatter") || ci_contains(desc, "drowning")) {
         /* No longer gated on ch->fighting (breadth work) -- a spell can
          * now OPEN combat against atk_target, same as `attack`/`kill`,
          * rather than only ever being usable on whoever you're already

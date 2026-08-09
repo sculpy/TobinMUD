@@ -13,6 +13,7 @@
 #include "affect.h"
 #include "cmd.h"
 #include "combat.h"
+#include "help_repo.h"
 #include "obj.h"
 #include "player_repo.h"
 #include "liquids.h"
@@ -302,6 +303,14 @@ static void pray_apply_penance(descriptor_t *d, being_t *ch, being_t *target, co
  * prayers so `continue` (cmd_continue.c) can keep repeating them. */
 static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill_def_t *sk) {
     char msg[192];
+    /* skill_def_t's own `desc` field is a generic "See help `X` for
+     * help." placeholder for every roster entry -- see cmd_cast.c's
+     * identical comment. Look up the live help_topic body (which still
+     * carries the real "damaging"/"heals"/etc. prose) instead of
+     * trusting the roster's dead placeholder text, falling back to
+     * sk->desc (harmlessly inert) if a spell has no help topic yet. */
+    char help_body[HELP_BODY_MAX];
+    const char *desc = help_topic_load_exact(sk->name, help_body, sizeof(help_body)) ? help_body : sk->desc;
     /* Resolved target for the OFFENSIVE branches only (poison/disease/
      * damage/area, below): an explicit target (target != ch) is used as-
      * is; with none given, falls back to whoever ch is already fighting,
@@ -1014,7 +1023,7 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
         descriptor_send(d, msg);
     } else if (strcasecmp(sk->name, "penance") == 0) {
         pray_apply_penance(d, ch, target, sk->name);
-    } else if (ci_contains(sk->desc, "heal") || ci_contains(sk->desc, "cure")
+    } else if (ci_contains(desc, "heal") || ci_contains(desc, "cure")
                /* `salve` (level-4 stub-audit fix): desc "Treats a minor
                 * wound" carries neither keyword despite being a plain
                 * heal-tier spell -- folded into this branch by name
@@ -1023,8 +1032,8 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
         pray_apply_heal(d, ch, target, sk->name);
         ch->last_heal_target = target;
         snprintf(ch->last_heal_spell, sizeof(ch->last_heal_spell), "%s", sk->name);
-    } else if (ci_contains(sk->desc, "reduces incoming damage") || ci_contains(sk->desc, "improves armor class")
-               || ci_contains(sk->desc, "improves hit and damage") || ci_contains(sk->desc, "reflective shield")
+    } else if (ci_contains(desc, "reduces incoming damage") || ci_contains(desc, "improves armor class")
+               || ci_contains(desc, "improves hit and damage") || ci_contains(desc, "reflective shield")
                || ci_contains(sk->name, "plasma mirror")) {
         /* Affects system (user 2026-07-11's "buffs/debuffs/status"
          * backlog item) -- flagship example: "sanctuary"'s own
@@ -1046,7 +1055,7 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
             if (target->desc)
                 descriptor_notify(target->desc, "A shimmering aura surrounds you!\r\n");
         }
-    } else if (ci_contains(sk->desc, "area-effect") || strcasecmp(sk->name, "earthquake") == 0) {
+    } else if (ci_contains(desc, "area-effect") || strcasecmp(sk->name, "earthquake") == 0) {
         /* Real room-wide effect (offensive spell breadth) -- previously
          * fell into the single-target branch below like everything
          * else. Cleric's roster doesn't currently have any spell
@@ -1055,16 +1064,16 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
          * so one never accidentally silently degrades to single-target. */
         ch->last_heal_target = NULL;
         pray_area_damage(d, ch, sk);
-    } else if (ci_contains(sk->desc, "damage") || ci_contains(sk->desc, "damag")
-               || ci_contains(sk->desc, "bolt")
-               || ci_contains(sk->desc, "strike")
+    } else if (ci_contains(desc, "damage") || ci_contains(desc, "damag")
+               || ci_contains(desc, "bolt")
+               || ci_contains(desc, "strike")
                /* `flamestrike` (level-13 stub-audit fix): desc "A column
                 * of divine flame" matches none of the above. */
-               || ci_contains(sk->desc, "flame") || ci_contains(sk->desc, "fiery")
+               || ci_contains(desc, "flame") || ci_contains(desc, "fiery")
                /* `spontaneous combust` (level-48 stub-audit fix): desc
                 * "Sets a target ablaze from within" -- "ablaze" isn't
                 * in the list above. */
-               || ci_contains(sk->desc, "ablaze")) {
+               || ci_contains(desc, "ablaze")) {
         /* No longer gated on ch->fighting (offensive spell breadth) --
          * can now open combat against atk_target, same as `attack`/
          * `kill`. If ch is already fighting someone else, this is just

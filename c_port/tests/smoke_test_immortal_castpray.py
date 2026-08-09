@@ -100,14 +100,23 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"VALUES ({COMPONENT},'pouch component reagent','a pouch of spell components',"
     f"'A pouch of spell components is lying here.',12,1,1);")
 check("You conjure" in cmd(s_imm, f"load obj {COMPONENT}"), "the component pouch is loaded")
+# `load obj` (2026-07-22) drops it straight into the loading immortal's
+# OWN inventory, not the room floor -- drop it first so `get` has
+# something on the ground to actually pick back up, same as
+# smoke_test_castpray.py's identical load/drop/get sequence.
+cmd(s_imm, "drop pouch")
 out = cmd(s_imm, "get pouch")
 check("you get" in out.lower(), "the immortal Warrior picks up the component pouch")
 # "gust" is a real offensive spell now (offensive spell breadth,
 # Sneezy -> Tobin feature audit) -- it requires a target, and s_imm isn't
 # fighting anyone, so the actual (correct) response is "Cast that at
 # whom?", which still only appears once the class gate has been bypassed
-# (what this test is actually checking), not once gust deals damage.
-out = cmd(s_imm, "cast gust")
+# (what this test is actually checking), not once gust deals damage. A
+# generous 6s timeout (default is 1.0s) -- this response is now printed
+# by cmd_cast_resolve_effect() only after the multi-round cast delay
+# (spellcast.c, 2026-08-09) finishes resolving, 2-3 rounds x ~1.2s
+# apart, not synchronously at the moment `cast gust` is typed.
+out = cmd(s_imm, "cast gust", 6.0)
 check("Cast that at whom?" in out, "immortal Warrior casts the Mage spell 'gust' despite being a Warrior (gust itself needs a target)")
 
 out = cmd(s_imm, "pray heal light")
@@ -117,6 +126,7 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"VALUES ({SYMBOL},'symbol holy silver','a tarnished silver holy symbol',"
     f"'A tarnished silver holy symbol is lying here.',12,1,1);")
 check("You conjure" in cmd(s_imm, f"load obj {SYMBOL}"), "the holy symbol is loaded")
+cmd(s_imm, "drop symbol")  # same load-drops-to-inventory reasoning as the pouch above
 out = cmd(s_imm, "get symbol")
 check("you get" in out.lower(), "the immortal Warrior picks up the holy symbol")
 out = cmd(s_imm, "pray heal light")
