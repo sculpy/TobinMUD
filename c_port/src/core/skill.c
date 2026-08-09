@@ -578,6 +578,25 @@ static const skill_def_t SKILLS[] = {
     { "swim",               CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `swim` for help." },
     { "swim",               CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `swim` for help." },
     { "swim",               CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `swim` for help." },
+    /* `bandage`/`hiking` (docs/Spell Assignments.xlsx gap audit, batch B,
+     * 2026-08-08): both real upstream SKILL_GENERAL entries under
+     * DISC_ADVENTURING, same cross-class level-1 shape cook/whittle/
+     * defense/swim already established. `bandage` gates the new
+     * `bandage` command (cmd_bandage.c) and its vitals.c bleed-tick
+     * mitigation; `hiking` reduces cmd_move.c's own terrain movement
+     * cost. */
+    { "bandage",            CLASS_MAGE,    SKILL_TIER_COMBAT,    1, "See help `bandage` for help." },
+    { "bandage",            CLASS_CLERIC,  SKILL_TIER_COMBAT,    1, "See help `bandage` for help." },
+    { "bandage",            CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `bandage` for help." },
+    { "bandage",            CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `bandage` for help." },
+    { "bandage",            CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `bandage` for help." },
+    { "bandage",            CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `bandage` for help." },
+    { "hiking",             CLASS_MAGE,    SKILL_TIER_COMBAT,    1, "See help `hiking` for help." },
+    { "hiking",             CLASS_CLERIC,  SKILL_TIER_COMBAT,    1, "See help `hiking` for help." },
+    { "hiking",             CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `hiking` for help." },
+    { "hiking",             CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `hiking` for help." },
+    { "hiking",             CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `hiking` for help." },
+    { "hiking",             CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `hiking` for help." },
     /* `praying`/`casting`: real upstream SKILL_PRAYING (Cleric,
      * DISC_FAITH) and SKILL_CASTING (Mage, DISC_WIZARDRY) are each a
      * zero-mana, zero-lag passive proficiency stat with no dedicated

@@ -1,5 +1,63 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-08 — Session 141 (DO droplet, production port 4000):
+**Missing-skill gap audit, batch B: `bandage`/`hiking`.** Continuing
+task 12 (docs/Spell Assignments.xlsx gap audit) after batch A. Real
+upstream `bandage` (disc_basic_adventuring.cc's doBandage()) treats a
+PART_BLEEDING limb -- a mechanic Tobin never had. Added a transient
+per-limb `bleeding` flag (`limb_state_t`, being.h -- not persisted,
+resets on login same as `fighting`), set the moment a limb crosses
+into `limb_status_text()`'s bad tier (same tier-crossing guard the
+blood-pool spawn already used, now duplicated in both
+`combat_strike()` and the `hurtlimb` debug path so the debug tool can
+still deterministically test it) and chipped by `vitals_tick_impl()`
+every ~60s until treated -- non-lethal, floored at 1, a deliberate
+scope-down from drowning's own lethal shape (drowning's lethality was
+a real, explicit user decision; this is a new passive tick with no
+such ask). New `bandage [target]` command (`cmd_bandage.c`): consumes
+a carried bandage item (real seeded vnum 9, raw obj type 38 --
+`OBJ_BANDAGE_RAW_TYPE`, no symbolic constant existed before now) to
+clear the flag and heal a little on a successful skill roll; PC-only
+target, matching the real doBandage()'s own explicit "Bandage
+non-players... disabled" restriction. `hiking` reduces
+`cmd_move.c`'s own terrain movement cost up to 50% at full
+proficiency (same shape `swim` uses for drowning damage), stacking
+with the flying/mounted discounts. Both are real `skill.c` roster
+rows (`SKILL_TIER_COMBAT`, level 1, all 6 classes, matching the
+xlsx's own "Any" class column) and train via
+`skill_learn_from_doing()`. New help topics (`bandage`/`hiking`)
+seeded live + `help_topic.sql`; `web/generate_help_json.sh` rerun so
+the website's help search picks them up immediately (see
+[[tobin-web-help-sync]]).
+
+Real gotcha hit while testing, worth flagging for future skill-gap
+work: `aitick` (the immortal debug tick-forcer) deliberately EXCLUDES
+player-vitals effects entirely (`cmd_aitick.c`'s own doc comment -- a
+real prior incident where forced ticks silently starved bystanders),
+so any new vitals-tick-driven mechanic (this bleed tick, `swim`'s own
+drowning mitigation) can only be observed live via a REAL ~60s wait,
+never via `aitick`. `tests/smoke_test_missing_skills_batch_b.py` (12
+checks) uses two real `time.sleep(65)` waits for exactly this reason.
+Also re-confirmed a staleness pattern already documented elsewhere in
+this codebase (the mana/HP-ceiling bug, Session 137): a live SQL
+`UPDATE player_progress` after a character is already connected does
+NOT affect their in-memory state -- `combat_disc_pct`/similar test
+setup must happen BEFORE the test's own `relog()`, not after, same as
+`swim`'s own batch-A test already got right.
+
+- Deferred to a later batch, real subsystem/design gaps disclosed, not
+  attempted this session: `sharpen`/`smooth` (SKILL_SHARPEN/SKILL_DULL
+  -- needs a new weapon "sharpness" stat, `extraction.h`'s own comment
+  already discloses none exists); `alcoholism` (SKILL_ALCOHOLISM --
+  no drunk/intoxication affect exists anywhere in Tobin to resist,
+  `drug.h`'s own comment confirms); the Deikhan/Mounted trio (Advanced
+  Riding/Calm Mount/Charge -- `cmd_ride.c` exists but scope needs its
+  own pass); Ranger's Beast Charm/Befriend Beast (needs the tracked
+  Pet/charm system, task 35); 5 Shaman/Druid spells (Flatulence,
+  Living Vines, Raze, Shield Of Mists, Thornflesh -- each a brand-new
+  spell effect, no existing hook).
+
+
 Last updated: 2026-08-08 — Session 140 (DO droplet, tobinmud.com):
 **Searchable help files on the website; real nginx-serving bug fixed.**
 User: "make help files searchable on the website, and make the webpage

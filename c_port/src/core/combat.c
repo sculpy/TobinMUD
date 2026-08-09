@@ -169,6 +169,7 @@ static const char *sever_verb_phrase(const char *verb) {
 static void combat_sever_limb(being_t *attacker, being_t *defender, limb_t limb, const char *verb) {
     if (!defender->base.roomp)
         return;
+    defender->limbs[limb].bleeding = false;
 
     const char *ln = body_limb_name_override((body_type_t)defender->body_type, limb);
     if (!ln)
@@ -1087,6 +1088,12 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             snprintf(msg, sizeof(msg), "Blood pools around %s!\r\n", being_display_name(defender));
             descriptor_room_echo(defender->base.roomp, NULL, msg);
         }
+
+        /* `bandage` (docs/Spell Assignments.xlsx gap audit, 2026-08-08) --
+         * this same tier-crossing (blood pool spawns, once per crossing)
+         * now also marks the limb `bleeding` so vitals_tick_impl() (vitals.c)
+         * can chip away at the owner over time until treated. */
+        defender->limbs[limb].bleeding = true;
     }
 
     bool instadeath = false;
@@ -2283,6 +2290,10 @@ bool combat_debug_set_limb_hp(being_t *actor, being_t *target, limb_t limb, int 
             snprintf(msg, sizeof(msg), "Blood pools around %s!\r\n", being_display_name(target));
             descriptor_room_echo(target->base.roomp, NULL, msg);
         }
+
+        /* Same `bandage` bleeding-flag duplication as the blood pool
+         * just above -- see this function's own doc comment. */
+        target->limbs[limb].bleeding = true;
     }
 
     bool instadeath = false;

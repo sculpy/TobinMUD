@@ -641,6 +641,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "setsev",  cmd_setsev,  "View or flip which log types echo to you.",          IMMORTAL_LEVEL_MIN },
     { "feigndeath", cmd_feigndeath, "Play dead to avoid an aggressive mob's attention.", MORTAL_LEVEL_MIN },
     { "berserk", cmd_berserk, "Fly into a berserk rage -- unparryable, but you can't be rescued either (Warrior).", MORTAL_LEVEL_MIN },
+    { "bandage", cmd_bandage, "Treat a bleeding limb using a carried bandage (bandage [target]).", MORTAL_LEVEL_MIN },
     { "exec",    cmd_exec,    "Run a shell command on the host box (Implementor).", EXEC_MIN_LEVEL },
     { "kneestrike", cmd_kneestrike, "A knee strike against your opponent (Warrior, must be fighting, can't be crawling).", MORTAL_LEVEL_MIN },
     /* Mortal Thief skill (see settrap's note); needs "disarmt"+ now that

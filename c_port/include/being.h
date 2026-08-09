@@ -351,6 +351,14 @@ typedef enum {
 typedef struct {
     int hp;
     int max_hp;
+    /* `bandage` (docs/Spell Assignments.xlsx gap audit, 2026-08-08):
+     * set when this limb crosses into limb_status_text()'s bad tier
+     * (combat.c, same tier-crossing guard the blood-pool spawn already
+     * uses), cleared by a successful `bandage` or a full heal
+     * (being_limbs_full_heal()). Deliberately transient -- not saved to
+     * the DB, resets to false on login, same scope-down precedent as
+     * `fighting`. */
+    bool bleeding;
 } limb_state_t;
 
 /* True iff `b` actually has this limb slot (max_hp > 0) -- false for any

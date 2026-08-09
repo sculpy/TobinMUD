@@ -81,6 +81,36 @@ static void vitals_tick_impl(long pulse_num, bool affect_players) {
             descriptor_send(d, "<r>You struggle against the water, your lungs burning!<z>\r\n");
         }
 
+        /* `bandage` (docs/Spell Assignments.xlsx gap audit, 2026-08-08):
+         * a limb marked `bleeding` (combat.c, set the same moment it
+         * spawns a blood pool) chips a small amount of HP per tick until
+         * treated. Non-lethal, floored at 1 -- same convention hunger/
+         * thirst above use, deliberately NOT drowning's lethal shape
+         * (drowning's own lethality was a real, explicit user decision;
+         * this is a new passive tick with no such ask, so the safe
+         * default applies). `bandage`'s own skill proficiency reduces
+         * the chip, same shape `swim` uses for drowning damage. */
+        int bleeding_limbs = 0;
+        for (int i = 0; i < LIMB_COUNT; i++)
+            if (b->limbs[i].bleeding)
+                bleeding_limbs++;
+        if (bleeding_limbs > 0) {
+            int dmg = bleeding_limbs;
+            if (being_knows_skill(b, "bandage")) {
+                const skill_def_t *bandage_sk = skill_find(b->char_class, "bandage", false);
+                if (bandage_sk) {
+                    int bandage_prof = skill_learn_from_doing(b, bandage_sk);
+                    dmg -= dmg * (bandage_prof / 2) / 100;
+                }
+            }
+            if (dmg < 1)
+                dmg = 1;
+            b->progress.hp -= dmg;
+            if (b->progress.hp < 1)
+                b->progress.hp = 1;
+            descriptor_send(d, "You wince as your wounds bleed.\r\n");
+        }
+
         player_progress_save(b->player_id, &b->progress);
     }
 }

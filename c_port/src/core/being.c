@@ -1259,6 +1259,9 @@ void being_limbs_full_heal(being_t *b) {
         bool active = body_limb_weight(b->body_type, (limb_t)i) > 0;
         b->limbs[i].max_hp = active ? share : 0;
         b->limbs[i].hp = active ? share : 0;
+        /* `bandage` gap-audit (2026-08-08) -- a full heal closes the
+         * wound same as a successful bandage would. */
+        b->limbs[i].bleeding = false;
     }
 }
 

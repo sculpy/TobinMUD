@@ -43,6 +43,7 @@ bool cmd_chop(descriptor_t *d, const char *args);
 bool cmd_hurl(descriptor_t *d, const char *args);
 bool cmd_feigndeath(descriptor_t *d, const char *args);
 bool cmd_berserk(descriptor_t *d, const char *args);
+bool cmd_bandage(descriptor_t *d, const char *args);
 bool cmd_rally(descriptor_t *d, const char *args);
 bool cmd_garrotte(descriptor_t *d, const char *args);
 bool cmd_throatslit(descriptor_t *d, const char *args);

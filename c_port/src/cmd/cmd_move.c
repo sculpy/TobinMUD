@@ -194,6 +194,21 @@ static bool do_move(descriptor_t *d, int dir) {
      * same reasoning as hunger/thirst immunity (being.h). */
     if (!being_is_immortal(ch)) {
         int cost = (sector_move_cost(from->sector) + sector_move_cost(to->sector) + 1) / 2;
+        /* `hiking` (docs/Spell Assignments.xlsx gap audit, 2026-08-08) --
+         * up to 50% off terrain cost at full proficiency, same shape
+         * `swim` uses for drowning damage. Applied to the base terrain
+         * cost before the flying/mounted discounts below so all three
+         * compose naturally (e.g. a hiking-trained rider gets both).
+         * Trains on every real move, win or lose. */
+        if (being_knows_skill(ch, "hiking")) {
+            const skill_def_t *hiking_sk = skill_find(ch->char_class, "hiking", false);
+            if (hiking_sk) {
+                int hiking_prof = skill_learn_from_doing(ch, hiking_sk);
+                cost -= cost * (hiking_prof / 2) / 100;
+                if (cost < 1)
+                    cost = 1;
+            }
+        }
         /* Flying quarters the charge (Sneezy → Tobin feature audit,
          * "Water, drowning, flight") -- same discount the original's
          * canFly()-gated movement math applies, rounded up so it's
