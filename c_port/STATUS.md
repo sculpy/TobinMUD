@@ -1,5 +1,37 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-09 — Session 146 (DO droplet, production port 4000):
+**Fixed: groundfighting/Oomlat Philosophy/voplat never actually trained.**
+Two real, independent bugs, both root-caused live via a temporary debug
+log inside combat_strike() rather than guesswork:
+
+1. meditate.c: a Monk sitting down already at/near full HP/Vitality
+auto-starts yoginsa and could get auto-stood back up on the very next
+tick regardless of whether that tick actually healed them -- added a
+was_short snapshot (mirrors regen.c's own was_short_hp/was_short_vit)
+so the stand-up only fires on the tick that genuinely topped them off.
+
+2. The real, decisive bug: the smoke test itself set the test Monk's
+level to 55 -- above MORTAL_LEVEL_MAX (50) -- so being_is_immortal()
+came back true, and combat.c's groundfighting gate
+(`!being_is_immortal(defender) && being_knows_skill(...)`) correctly
+(by design) exempts immortals from mundane skill training. No amount
+of real combat could ever train it. Fixed the test to level 45 (still
+covers every skill's own requirement in that block, max is 25).
+
+Also fixed two Python timing gaps (`cast knot`/`cast bind` resist
+check) that predated the 2026-08-09 multi-round cast-delay feature.
+
+Known separate issue flagged, not fixed here: `cast knot` now resolves
+to the WRONG spell's effect message ("protective ward" instead of its
+own teleport) -- looks like a branch-ordering conflict between knot's
+bespoke name-check and the sk->desc/help_topic keyword branches
+restored by the concurrent Session 145 dead-desc-dispatch fix. Needs
+its own follow-up in cmd_cast.c.
+
+tests/smoke_test_missing_skills_task1.py: 29/29 passing, confirmed via
+the day's [TEST] finished log line.
+
 Last updated: 2026-08-09 — Session 145 (DO droplet, production port 4000):
 **Fixed: `cast`/`pray` keyword dispatch silently broken by the `sk->desc`
 data migration.** User reported `smoke_test_castpray.py`/
