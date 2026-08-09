@@ -441,7 +441,7 @@ for sk in ("groundfighting", "Oomlat Philosophy", "voplat"):
     check(skill_pct(pv_name, sk) == 0, f"{sk} starts untrained")
 
 cmd(si, f"goto {ROOM}")
-poke_fight(si, pv_name, settle=0.6)
+poke_fight(si, pv_name, settle=1.6)
 
 check(skill_pct(pv_name, "groundfighting") >= 1,
       "groundfighting trains from a real hit taken while not standing")
@@ -467,7 +467,7 @@ sql(f"UPDATE player_progress SET hp=500, max_hp=500 WHERE player_id="
 spm = relog(pm_name, pm_pw)
 check(skill_pct(pm_name, "power move") == 0, "power move starts untrained")
 cmd(si, f"goto {ROOM}")
-poke_fight(spm, imm_name, settle=0.6)
+poke_fight(spm, imm_name, settle=1.6)
 check(skill_pct(pm_name, "power move") >= 1, "power move trains from a real swing")
 spm.close()
 
