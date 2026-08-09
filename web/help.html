@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TobinMUD Help</title>
+<style>
+  :root { color-scheme: dark light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Consolas, "Courier New", monospace;
+    background: #0c0c0c;
+    color: #d8d8d8;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  h1 {
+    font-size: 1.8rem;
+    margin: 0 0 4px;
+    color: #e0c060;
+    letter-spacing: 1px;
+  }
+  .tagline { color: #9a9a9a; margin: 0 0 24px; }
+  a { color: #7fc0ff; }
+  a:hover { color: #a9d8ff; }
+  #q {
+    width: 100%;
+    font: inherit;
+    font-size: 1.1rem;
+    padding: 12px 14px;
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    color: #f0f0f0;
+  }
+  #q:focus { outline: 2px solid #3a6aa8; }
+  #count { color: #6a6a6a; margin: 10px 0 0; font-size: 0.9rem; }
+  #results {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: minmax(160px, 220px) 1fr;
+    gap: 24px;
+  }
+  #list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 70vh;
+    overflow-y: auto;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+  }
+  #list li {
+    border-bottom: 1px solid #202020;
+  }
+  #list li:last-child { border-bottom: none; }
+  #list button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: #d8d8d8;
+    font: inherit;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  #list button:hover, #list button.active { background: #1e1e1e; color: #7fc0ff; }
+  #body {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 20px 24px;
+    white-space: pre-wrap;
+    min-height: 200px;
+  }
+  #body .name {
+    color: #e0c060;
+    font-size: 1.3rem;
+    margin: 0 0 12px;
+    display: block;
+  }
+  #empty { color: #6a6a6a; padding: 40px 0; text-align: center; }
+  .home-link { display: inline-block; margin-bottom: 18px; }
+  @media (max-width: 640px) {
+    #results { grid-template-columns: 1fr; }
+    #list { max-height: 240px; }
+  }
+  @media (prefers-color-scheme: light) {
+    body { background: #f6f6f2; color: #222; }
+    .tagline { color: #555; }
+    #q { background: #fff; border-color: #ccc; color: #222; }
+    #list { border-color: #ddd; }
+    #list li { border-bottom-color: #eee; }
+    #list button { color: #222; }
+    #list button:hover, #list button.active { background: #eee; color: #1a5fa8; }
+    #body { background: #fff; border-color: #ddd; }
+    #body .name { color: #a87a1a; }
+    #count, #empty { color: #888; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home-link" href="/">&larr; TobinMUD</a>
+  <h1>Help Files</h1>
+  <p class="tagline">Search every in-game help topic &mdash; the same text `help &lt;topic&gt;` shows you at the prompt.</p>
+
+  <input id="q" type="text" placeholder="Search help topics&hellip; (e.g. egotrip, swim, kick)" autocomplete="off">
+  <p id="count"></p>
+
+  <div id="results">
+    <ul id="list"></ul>
+    <div id="body"><p id="empty">Pick a topic on the left, or start typing to search.</p></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var listEl = document.getElementById('list');
+  var bodyEl = document.getElementById('body');
+  var qEl = document.getElementById('q');
+  var countEl = document.getElementById('count');
+  var topics = [];
+  var activeBtn = null;
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function showTopic(t, btn) {
+    if (activeBtn) activeBtn.classList.remove('active');
+    if (btn) { btn.classList.add('active'); activeBtn = btn; }
+    bodyEl.innerHTML = '<span class="name">' + escapeHtml(t.name) + '</span>' + escapeHtml(t.body);
+    history.replaceState(null, '', '#' + encodeURIComponent(t.name));
+  }
+
+  function render(filtered) {
+    listEl.innerHTML = '';
+    countEl.textContent = filtered.length + (filtered.length === 1 ? ' topic' : ' topics');
+    filtered.forEach(function (t) {
+      var li = document.createElement('li');
+      var btn = document.createElement('button');
+      btn.textContent = t.name;
+      btn.addEventListener('click', function () { showTopic(t, btn); });
+      li.appendChild(btn);
+      listEl.appendChild(li);
+    });
+  }
+
+  function search(query) {
+    query = query.trim().toLowerCase();
+    if (!query) return topics;
+    return topics.filter(function (t) {
+      return t.name.toLowerCase().indexOf(query) !== -1 || t.body.toLowerCase().indexOf(query) !== -1;
+    }).sort(function (a, b) {
+      var an = a.name.toLowerCase().indexOf(query) === 0 ? 0 : 1;
+      var bn = b.name.toLowerCase().indexOf(query) === 0 ? 0 : 1;
+      return an - bn || a.name.localeCompare(b.name);
+    });
+  }
+
+  qEl.addEventListener('input', function () {
+    render(search(qEl.value));
+  });
+
+  fetch('/help_data.json')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      topics = data;
+      render(topics);
+      var hash = decodeURIComponent(location.hash.replace(/^#/, ''));
+      if (hash) {
+        var match = topics.find(function (t) { return t.name === hash; });
+        if (match) {
+          qEl.value = '';
+          render(topics);
+          var idx = topics.indexOf(match);
+          showTopic(match, listEl.children[idx] ? listEl.children[idx].firstChild : null);
+        }
+      }
+    })
+    .catch(function () {
+      countEl.textContent = 'Could not load help data.';
+    });
+})();
+</script>
+</body>
+</html>
