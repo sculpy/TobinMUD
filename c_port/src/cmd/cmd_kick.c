@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <string.h>
+
+#include "affect.h"
 #include "being.h"
 #include "combat.h"
 #include "pulse.h"
@@ -30,15 +33,50 @@
  * cmd_bash.c -- see that file's header comment for the full rationale
  * (unconditional attacker lag, parallel automatic combat, disclosed
  * placeholder-damage-on-success deviation). No knockdown effect (unlike
- * bash) -- kick's whole point here is the bonus damage. */
+ * bash) -- kick's whole point here is the bonus damage.
+ *
+ * `kick <target>` can also OPEN a fight (user, 2026-08-05: "kick should
+ * be a way to start a fight"), same target-lookup + fighting-pointer-
+ * swap shape cmd_attack.c already uses -- sleeping/feared checks, snap
+ * to standing, `sneaking` cleared on both sides. If already fighting,
+ * a target argument is ignored (kicks the current opponent, same as
+ * every other in-combat skill command here); a target is only required
+ * when NOT already fighting. */
 bool cmd_kick(descriptor_t *d, const char *args) {
-    (void)args;
     being_t *ch = d->character;
-    if (!ch)
+    if (!ch || !ch->base.roomp) {
+        descriptor_send(d, "You are nowhere.\r\n");
         return true;
+    }
+
     if (!ch->fighting) {
-        descriptor_send(d, "Kick whom? You're not fighting anyone.\r\n");
-        return true;
+        char tok[64];
+        if (sscanf(args, "%63s", tok) != 1) {
+            descriptor_send(d, "Kick whom?\r\n");
+            return true;
+        }
+        if (ch->position == POSITION_SLEEPING) {
+            descriptor_send(d, "You can't fight in your sleep!\r\n");
+            return true;
+        }
+        if (being_has_affect(ch, AFFECT_FEAR)) {
+            descriptor_send(d, "You're too afraid to fight!\r\n");
+            return true;
+        }
+        ch->feigning = false;
+        being_t *opener = combat_find_room_target(ch, tok);
+        if (!opener) {
+            descriptor_send(d, "They aren't here.\r\n");
+            return true;
+        }
+        if (ch->position != POSITION_STANDING && ch->position != POSITION_MOUNTED) {
+            ch->position = POSITION_STANDING;
+            descriptor_send(d, "You scramble to your feet.\r\n");
+        }
+        ch->fighting = opener;
+        opener->fighting = ch;
+        ch->sneaking = false;
+        opener->sneaking = false;
     }
 
     bool imm = being_is_immortal(ch);
