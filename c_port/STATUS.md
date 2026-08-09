@@ -828,7 +828,6 @@ still to come.
   manual verification above, with the pre-existing flakiness logged
   as its own follow-up rather than block on it.
 
-Previous update: Last updated: 2026-08-05 — Session 130 (DO droplet, production port 4000):
 Last updated: 2026-08-05 — Session 130 (DO droplet, production port 4000):
 **Missing-skill audit, batch 2 (generic/cross-class): `toughness`,
 `focused avoidance`, `evaluate`.** Continues the same backlog batch 1
