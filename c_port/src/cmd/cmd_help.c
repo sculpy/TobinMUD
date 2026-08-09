@@ -12,6 +12,7 @@
 
 #include "being.h"
 #include "help_repo.h"
+#include "skill.h"
 
 /* qsort() comparator for an array of `const char *` names -- case-insensitive
  * alphabetical order, used to sort help-topic name listings. */
@@ -370,18 +371,37 @@ bool cmd_help(descriptor_t *d, const char *args) {
                         footer_started = true;
                     }
                     if (discipline[0]) {
-                        /* Real upstream misc/spell_info.cc discArray[]
-                         * `start` value (a genuine 0-100 threshold against
-                         * THAT spell's own, unported discipline track --
-                         * user: "along with the % of discipline needed to
-                         * gain the spell/skill", shown as-is per their own
-                         * follow-up choice rather than attempting to
-                         * reconcile it with Tobin's collapsed single
-                         * basic_disc_pct/advanced_disc_pct pair). */
-                        char discfooter[64];
-                        snprintf(discfooter, sizeof(discfooter), "%s<c>   Discipline:<z> %s\r\n",
-                                 footer_started ? "" : "\r\n", discipline);
-                        descriptor_send(d, discfooter);
+                        /* User, 2026-08-09: "helpfiles should report
+                         * discipline as basic combat or advanced, not a
+                         * %" -- the raw upstream discArray[] 0-100 value
+                         * (still parsed above so it's stripped out of the
+                         * body) never mapped onto anything a Tobin player
+                         * could act on, since discipline here is a real
+                         * basic_disc_pct/combat_disc_pct/advanced_disc_pct
+                         * TIER gate (see `skills`, cmd_skills.c), not a
+                         * per-spell percentage. Look the topic's own
+                         * skill_def_t up (first class match is a fine
+                         * approximation -- a skill's tier basically never
+                         * differs across the classes that share it) and
+                         * show its real tier instead: Basic/Combat/
+                         * Advanced, same three words `skills`/practice
+                         * refusal messages already use. */
+                        const char *disc_word = NULL;
+                        const skill_def_t *dsk = skill_find(CLASS_WARRIOR, resolved, true);
+                        if (dsk) {
+                            switch (dsk->tier) {
+                                case SKILL_TIER_COMBAT:   disc_word = "Combat";   break;
+                                case SKILL_TIER_ADVANCED: disc_word = "Advanced"; break;
+                                case SKILL_TIER_CLASS:
+                                default:                  disc_word = "Basic";   break;
+                            }
+                        }
+                        if (disc_word) {
+                            char discfooter[64];
+                            snprintf(discfooter, sizeof(discfooter), "%s<c>   Discipline:<z> %s\r\n",
+                                     footer_started ? "" : "\r\n", disc_word);
+                            descriptor_send(d, discfooter);
+                        }
                     }
                     return true;
                 }
