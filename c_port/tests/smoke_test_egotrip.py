@@ -33,6 +33,7 @@ Covers:
 """
 import re
 import socket
+import subprocess
 import sys
 import time
 from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
@@ -41,6 +42,12 @@ host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 
 _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in range(4))
+MOB_VNUM = 960000 + (int(time.time()) % 30000)
+
+
+def query(stmt):
+    return subprocess.run(["mariadb", "-N", "tobin", "-e", stmt],
+                          check=True, capture_output=True, text=True).stdout.strip()
 
 
 def strip(s):
@@ -135,6 +142,64 @@ si2 = relog(imm2_name, imm2_pw)
 out = strip(cmd(si, f"force {imm2_name} score", timeout=1.5))
 check("shouldn't do that" in out.lower(), "`force` refuses an equal-ranked immortal target")
 si2.close()
+
+# --- 9: damn costs the victim zero XP (2026-08-08, user: "bypass xp
+# loss on an egotrip hit") -- a real kill (corpse, half-heal, "you have
+# been slain" message) but the XP-loss branch inside combat_defeat() is
+# conditioned on the winner NOT being a PC, and an immortal always is
+# one, so nothing should be deducted. ---
+xp_before = int(query(f"SELECT experience FROM player_progress WHERE player_id="
+                       f"(SELECT id FROM player WHERE name='{vic_name}');"))
+out = strip(cmd(si, f"egotrip damn {vic_name}", timeout=1.5))
+check("word of damnation" in out, "`egotrip damn` reports success")
+victim_saw = strip(recv_all(sv, 1.0))
+check("DAMNED" in victim_saw and "slain" in victim_saw.lower(), "the target sees the damnation + death message")
+check("lose" not in victim_saw.lower() or "experience" not in victim_saw.lower(),
+      "no 'you lose N experience' line reaches the target")
+xp_after = int(query(f"SELECT experience FROM player_progress WHERE player_id="
+                      f"(SELECT id FROM player WHERE name='{vic_name}');"))
+check(xp_after == xp_before, f"damn cost zero XP ({xp_before} -> {xp_after})")
+
+# --- 10: damn refuses an immortal target ---
+out = strip(cmd(si, f"egotrip damn {imm_name}", timeout=1.5))
+check("damn yourself" in out.lower(), "`egotrip damn` refuses self-targeting")
+
+# --- 11: mob targeting (2026-08-08, user: "make egotrip usable on mobs
+# too") -- blast/damn/disease previously only scanned g_descriptors
+# (PCs), so a mob name always fell through to 'No one named'. Spawn a
+# disposable mob in the immortal's own room and confirm each subcommand
+# now reaches it via the combat_find_room_target() room-fallback. ---
+mob_tag = f"egomob{_suffix}"
+_mob_cols = {
+    "vnum": MOB_VNUM, "name": f"'{mob_tag}'", "short_desc": f"'a {mob_tag}'",
+    "long_desc": f"'A {mob_tag} stands here.'", "description": "'desc'",
+    "actions": 0, "affects": 0, "faction": 0, "fact_perc": 0,
+    "letter": "'A'", "attacks": 1.0,
+    "class": 0, "level": 1, "tohit": 0, "ac": 0, "hpbonus": -1.7,
+    "damage_level": 0, "damage_precision": 0, "gold": 0, "race": 0,
+    "weight": 0, "height": 0, "str": 0, "bra": 0, "con": 0, "dex": 0,
+    "agi": 0, "intel": 0, "wis": 0, "foc": 0, "per": 0, "cha": 0,
+    "kar": 0, "spe": 0, "pos": 10, "def_position": 10, "sex": 1,
+    "spec_proc": 0, "skin": 0, "vision": 0, "can_be_seen": 1,
+    "max_exist": 100,
+}
+_col_names = ",".join(_mob_cols.keys())
+_col_values = ",".join(str(v) for v in _mob_cols.values())
+sql(f"INSERT INTO mob ({_col_names}) VALUES ({_col_values});")
+out = strip(cmd(si, f"load mob {MOB_VNUM}", timeout=1.5))
+check("You conjure" in out, "the disposable test mob is loaded into the immortal's room")
+
+out = strip(cmd(si, f"egotrip blast {mob_tag}", timeout=1.5))
+check("no one named" not in out.lower(), "`egotrip blast` now reaches a mob in the room")
+
+out = strip(cmd(si, f"egotrip disease {mob_tag} cold", timeout=1.5))
+check("no one named" not in out.lower(), "`egotrip disease` now reaches a mob in the room")
+
+out = strip(cmd(si, f"egotrip damn {mob_tag}", timeout=1.5))
+check("no one named" not in out.lower(), "`egotrip damn` now reaches a mob in the room")
+out = strip(cmd(si, "look", timeout=1.0))
+check(f"{mob_tag} stands here" not in out, "damn actually destroyed the mob (no longer listed as a living being)")
+check("corpse of a " + mob_tag in out, "damn left a real, lootable corpse behind, same as any other kill")
 
 sv.close()
 si.close()

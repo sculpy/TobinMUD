@@ -131,4 +131,22 @@ const char *describe_dam(int dam, int capacity, const char *verb);
  * if `target` isn't eligible or has no minor limb left with HP > 0. */
 bool combat_egotrip_crit(being_t *immortal, being_t *target);
 
+/* egotrip's `damn` subcommand (user follow-up, same day: "bypass xp loss
+ * on an egotrip hit"). Public wrapper around the static combat_defeat(),
+ * same "expose just enough to reach the real pipeline" shape
+ * combat_egotrip_crit() above already established for combat_sever_limb().
+ * Unlike crit, this DOES route through combat_defeat() outside of
+ * combat_process_run()'s own iteration -- proven safe already by
+ * combat_apply_skill_damage()'s many cmd_*.c callers (cast/pray/backstab/
+ * kick/etc.), which do exactly that; the real, previously-traced crash
+ * combat_defeat()'s own doc comment warns about was narrower (the
+ * possess/polymorph revert-then-fall-through combo specifically, already
+ * fixed with an early return). Costs the target zero XP for a genuinely
+ * mechanical reason, not a special case: combat_defeat()'s XP-loss branch
+ * is conditioned on `winner->base.kind != THING_PC`, and the egotrip
+ * caller (an immortal) always IS one. `target` must be in a real room;
+ * caller (cmd_egotrip.c) already guards against an immortal target and
+ * self-targeting. */
+void combat_egotrip_damn(being_t *immortal, being_t *target);
+
 #endif

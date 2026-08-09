@@ -693,7 +693,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* SWAP: continue before consider, so "con" keeps repeating a heal
      * rather than sizing up a fight; consider needs "cons". */
     { "continue", cmd_continue, "Repeat your last heal-type prayer until the target is healed or your holy symbols run out.", MORTAL_LEVEL_MIN },
-    { "egotrip", cmd_egotrip, "Immortal toy-box (blast/disease/cleanse/stupidity/wander/crit -- see HELP EGOTRIP).", EGOTRIP_MIN_LEVEL },
+    { "egotrip", cmd_egotrip, "Immortal toy-box (blast/damn/disease/cleanse/stupidity/wander/crit -- see HELP EGOTRIP).", EGOTRIP_MIN_LEVEL },
     { "dig",     cmd_dig,     "Dig a new room in the current direction, if none exists yet (dig <direction>).", BUILD_MIN_LEVEL },
     { "smoke",   cmd_smoke,   "Smoke a carried drug item (smoke <item>).",          MORTAL_LEVEL_MIN },
     /* "zone" is a full prefix of "zonefile", so it MUST stay ahead of it --

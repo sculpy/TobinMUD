@@ -1,5 +1,50 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-08 — Session 139 (DO droplet, production port 4000):
+**Egotrip follow-up: `damn` subcommand (no XP loss) + mob targeting**
+(user, same day: "bypass xp loss on an egotrip hit" / "make egotrip
+usable on mobs too"). Two related requests off egotrip's own 2026-08-08
+expansion:
+- **New `egotrip damn <target>`**: a real, lethal kill -- routes through
+  the exact same `combat_defeat()` pipeline every other kill uses (real
+  corpse, half-heal, death broadcast) via a new public
+  `combat_egotrip_damn()` wrapper (combat.h/combat.c, same "expose just
+  enough" shape `combat_egotrip_crit()` already established for
+  `combat_sever_limb()`). Costs the target **zero XP** for a genuinely
+  mechanical reason, not a special case: `combat_defeat()`'s XP-loss
+  branch was already conditioned on `winner->base.kind != THING_PC`
+  (2026-08-04's "Player PK should neither gain nor lose experience"
+  rule) -- since the egotrip caller is always an immortal PC, that
+  condition is false and the loss is skipped automatically, no new
+  bypass logic needed. Sneezy's own real `damn` (cmd_egotrip.cc) is
+  actually non-lethal (three curse debuffs, never kills) -- this is a
+  deliberate Tobin-original reinterpretation since the user specifically
+  wanted a lethal toy-box tool; disclosed as a departure from the
+  literal port. Refuses an immortal target (Sneezy `crit`'s own "Bad
+  god, no bone!" guard) and self-targeting.
+- **Mob targeting**: `blast`/`damn`/`disease`/`crit` previously only
+  scanned `g_descriptors` (connected PCs), so a mob name always fell
+  through to "No one named". New shared `egotrip_find_target()`
+  (cmd_egotrip.c) tries that same world-wide PC scan first, then falls
+  back to `combat_find_room_target()` (same helper `kill`/`disarm`/
+  `force` already share) for a mob in the caller's own room -- same
+  room-only mob scope `force` already disclosed (no world-wide mob-by-
+  name index exists). `crit` specifically stays PC-only past the lookup
+  (its own `combat_egotrip_crit()` doc comment already disclosed this --
+  a dying mob is destroyed outright already, no limb-sever step needed)
+  -- the fix here is that a mob name now resolves and gets a real,
+  specific refusal instead of a wrong "No one named" error.
+- Verified live via real copyover (Cpovtitq test account): a real PC
+  `damn` showed 0 -> 0 XP across the operation and no "you lose N
+  experience" line; a disposable seeded test mob was blasted/diseased/
+  damned successfully, with `damn` confirmed to actually destroy it
+  (gone from the room's living-beings listing, real corpse left behind).
+  `tests/smoke_test_egotrip.py` extended from 15 to 25 checks, all
+  passing live. `help egotrip` (live DB row + `help_topic.sql`)
+  rewritten to document both changes; `cmd_table.c`'s one-line
+  description updated to list `damn`.
+
+
 Last updated: 2026-08-08 — Session 138 (DO droplet, production port 4000):
 **Missing-skill gap audit, batch A landed** (docs/Spell Assignments.xlsx
 gap audit, TODO.md's "Implement missing skills..." item): six real

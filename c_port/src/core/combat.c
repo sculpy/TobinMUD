@@ -1621,6 +1621,14 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     }
 }
 
+/* See combat.h's doc comment. */
+void combat_egotrip_damn(being_t *immortal, being_t *target) {
+    if (!target || !target->base.roomp)
+        return;
+    target->progress.hp = 0;
+    combat_defeat(target, immortal, true);
+}
+
 /* Applies `dmg` from a skill/spell (as opposed to an ordinary melee
  * strike) to `defender`'s `limb`, zeroing it for an immortal target,
  * and triggers combat_defeat() if it drops them to 0 HP -- returns true

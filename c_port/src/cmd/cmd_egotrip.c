@@ -24,6 +24,23 @@
  * every subcommand that maps onto a REAL Tobin system:
  *
  *   blast     -- halves target's current HP (2026-07-12, unchanged).
+ *   damn      -- instant, no-consequence kill (2026-08-08 follow-up,
+ *                user: "bypass xp loss on an egotrip hit"). Sneezy's own
+ *                `damn` is just three curse debuffs, never lethal -- this
+ *                is a deliberate Tobin-original reinterpretation, not a
+ *                literal port, since the user specifically wanted a
+ *                LETHAL toy-box tool. Routes through the real
+ *                combat_defeat() "slain" pipeline (same corpse/respawn/
+ *                broadcast path any other kill uses) rather than a fake
+ *                kill, but the XP-loss branch inside combat_defeat() is
+ *                already conditioned on `winner->base.kind != THING_PC`
+ *                (2026-08-04's "Player PK should neither gain nor lose
+ *                experience" rule) -- since the egotrip caller (an
+ *                immortal) IS a THING_PC, that condition is false and
+ *                the loss is skipped automatically, with zero new code
+ *                needed in combat.c itself. Refuses an immortal target,
+ *                same guard the real Sneezy `crit` subcommand uses
+ *                ("Bad god, no bone!").
  *   disease   -- inflicts a named disease on target (Tobin's own
  *                AFFECT_DISEASE_* range, affect.c).
  *   cleanse   -- cures every disease + poison affect on every connected
@@ -53,7 +70,32 @@
  *              `transfer <name> [vnum]` command (cmd_transfer.c) --
  *              not duplicated here.
  *   garble  -- no speech-distortion system exists in Tobin at all
- *              (cmd_say.c's own header comment already discloses this). */
+ *              (cmd_say.c's own header comment already discloses this).
+ *
+ * Target lookup (2026-08-08, user: "make egotrip usable on mobs too"):
+ * every targeted subcommand (blast/damn/crit/disease) now uses
+ * egotrip_find_target() below -- a PC is still found world-wide (any
+ * connected player, same g_descriptors scan as always), but a name that
+ * doesn't match any PC now falls back to a mob in the CALLER'S OWN room
+ * (combat_find_room_target(), same helper `kill`/`disarm`/`force`
+ * already share). Tobin has no world-wide mob-by-name index, so a mob
+ * target's reach is disclosed as room-only, same narrower scope `force`
+ * already established for exactly this reason. */
+
+/* Shared target resolver for every egotrip subcommand that takes a
+ * <target> argument -- PC world-wide, mob fallback in the caller's own
+ * room. See the header comment above for the full rationale. */
+static being_t *egotrip_find_target(being_t *ch, const char *tok) {
+    size_t len = strlen(tok);
+    for (descriptor_t *it = g_descriptors; it; it = it->next) {
+        if (it->character && strncasecmp(it->character->base.name, tok, len) == 0)
+            return it->character;
+    }
+    if (ch->base.roomp)
+        return combat_find_room_target(ch, tok);
+    return NULL;
+}
+
 bool cmd_egotrip(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch)
@@ -70,6 +112,7 @@ bool cmd_egotrip(descriptor_t *d, const char *args) {
         descriptor_send(d,
             "Syntax: egotrip <subcommand>\r\n"
             "  blast <target>              -- halve a target's current HP\r\n"
+            "  damn <target>               -- instant kill, no XP loss\r\n"
             "  disease <target> <disease>  -- cold/dysentery/flu/pneumonia/leprosy/\r\n"
             "                                 gangrene/plague/scurvy\r\n"
             "  cleanse                     -- cure all disease/poison, world-wide\r\n"
@@ -87,14 +130,7 @@ bool cmd_egotrip(descriptor_t *d, const char *args) {
             return true;
         }
 
-        size_t len = strlen(tok);
-        being_t *target = NULL;
-        for (descriptor_t *it = g_descriptors; it; it = it->next) {
-            if (it->character && strncasecmp(it->character->base.name, tok, len) == 0) {
-                target = it->character;
-                break;
-            }
-        }
+        being_t *target = egotrip_find_target(ch, tok);
         if (!target) {
             char out[128];
             snprintf(out, sizeof(out), "No one named '%s' is in the game.\r\n", tok);
@@ -124,20 +160,62 @@ bool cmd_egotrip(descriptor_t *d, const char *args) {
         return true;
     }
 
+    if (strcasecmp(sub, "damn") == 0) {
+        char tok[64];
+        if (sscanf(rest, "%63s", tok) != 1) {
+            descriptor_send(d, "Syntax: egotrip damn <target>\r\n");
+            return true;
+        }
+
+        being_t *target = egotrip_find_target(ch, tok);
+        if (!target) {
+            char out[128];
+            snprintf(out, sizeof(out), "No one named '%s' is in the game.\r\n", tok);
+            descriptor_send(d, out);
+            return true;
+        }
+        if (target == ch) {
+            descriptor_send(d, "Damn yourself? That seems unnecessary.\r\n");
+            return true;
+        }
+        if (being_is_immortal(target)) {
+            descriptor_send(d, "Do this to an immortal??? Bad god, no bone!\r\n");
+            return true;
+        }
+        if (!target->base.roomp) {
+            descriptor_send(d, "They're nowhere -- there's nothing to strike down.\r\n");
+            return true;
+        }
+
+        char out[300];
+        char namebuf[64];
+        being_display_name_cap(target, namebuf, sizeof(namebuf));
+
+        if (target->desc)
+            descriptor_notify(target->desc, "You have been DAMNED! The world goes dark...\r\n");
+        snprintf(out, sizeof(out), "%s is struck down by an unseen, wrathful force!\r\n", namebuf);
+        descriptor_room_echo(target->base.roomp, target, out);
+
+        snprintf(out, sizeof(out), "You point at %s and utter a word of damnation.\r\n", target->base.name);
+        descriptor_send(d, out);
+
+        /* Real kill, real corpse/respawn/broadcast pipeline -- see the
+         * header comment for why this costs the target no XP even
+         * though it routes through the exact same combat_defeat() every
+         * other kill uses: the winner here is always a THING_PC
+         * (the immortal), and combat_defeat()'s XP-loss branch is
+         * already conditioned on the winner NOT being a PC. */
+        combat_egotrip_damn(ch, target);
+        return true;
+    }
+
     if (strcasecmp(sub, "crit") == 0) {
         char tok[64];
         if (sscanf(rest, "%63s", tok) != 1) {
             descriptor_send(d, "Syntax: egotrip crit <target>\r\n");
             return true;
         }
-        size_t len = strlen(tok);
-        being_t *target = NULL;
-        for (descriptor_t *it = g_descriptors; it; it = it->next) {
-            if (it->character && strncasecmp(it->character->base.name, tok, len) == 0) {
-                target = it->character;
-                break;
-            }
-        }
+        being_t *target = egotrip_find_target(ch, tok);
         if (!target) {
             char out[128];
             snprintf(out, sizeof(out), "No one named '%s' is in the game.\r\n", tok);
@@ -164,14 +242,7 @@ bool cmd_egotrip(descriptor_t *d, const char *args) {
                 "gangrene, plague, scurvy\r\n");
             return true;
         }
-        size_t len = strlen(tok);
-        being_t *target = NULL;
-        for (descriptor_t *it = g_descriptors; it; it = it->next) {
-            if (it->character && strncasecmp(it->character->base.name, tok, len) == 0) {
-                target = it->character;
-                break;
-            }
-        }
+        being_t *target = egotrip_find_target(ch, tok);
         if (!target) {
             char out[128];
             snprintf(out, sizeof(out), "No one named '%s' is in the game.\r\n", tok);
