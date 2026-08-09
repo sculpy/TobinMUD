@@ -245,16 +245,7 @@ cmd(si, "cast knot", timeout=0.6)
 # component GATES are immortal-bypassed, not the timing) -- drain the
 # rest of the delay the same way smoke_test_spell_cast_delay.py does.
 out = strip(cmd(si, "", timeout=4.5))
-# TEMP diagnostic bypass (not a real fix): a separate, pre-existing bug
-# in cmd_cast_resolve_effect() (dead sk->desc keyword matching, being
-# fixed by another concurrent session) currently makes `cast knot`
-# resolve to the wrong effect branch. Not this fix's scope -- warn
-# instead of hard-failing so the rest of the suite (groundfighting,
-# etc.) can still run. REVERT this bypass once the dispatch bug lands.
-if "gap in reality" not in out:
-    print(f">>> KNOWN-BROKEN (separate bug, not asserted): `cast knot` gave: {out!r}")
-else:
-    check(True, f"`cast knot` fires: {out!r}")
+check("gap in reality" in out, f"`cast knot` fires: {out!r}")
 out = strip(cmd(si, "score", timeout=1.0))
 # Confirm by asking `goto 100` no-ops (already there) is fragile; use `stat` room instead.
 out2 = strip(cmd(si, "look", timeout=1.0))
