@@ -311,6 +311,33 @@ typedef enum {
      * cmd_cast()/cmd_pray() (both dispatchers), refusing to cast/pray
      * at all while active. Plain flag/timer, no stat modifier. */
     AFFECT_SILENCE,
+    /* `shield of mists` (Shaman/Druid audit batch C, 2026-08-09) -- real
+     * upstream is a big (-60, upstream's "lower is better" convention)
+     * APPLY_ARMOR buff -- "a thick green mist" that makes the target
+     * much harder to hit. Ported as a real, working defender-side to-
+     * hit PENALTY for the attacker (combat.c), same flat-bonus shape as
+     * AFFECT_FAERIE_FIRE just uses in the opposite direction. Plain
+     * flag/timer, no stat modifier. */
+    AFFECT_SHIELD_OF_MISTS,
+    /* `living vines` (Shaman/Druid audit batch C, 2026-08-09) -- real
+     * upstream applies BOTH an AC penalty (aff1, APPLY_ARMOR) and a
+     * hitroll penalty (aff2, APPLY_SPELL_HITROLL) to the victim, plus
+     * AFF_WEB (entangled). Tobin has no separate AC-modifier-by-amount
+     * stat to hang the first on, so this maps onto its two closest REAL
+     * working hooks instead: the exact same "easier to hit" flat bonus
+     * AFFECT_FAERIE_FIRE already grants an attacker (combat.c), plus a
+     * real movement-blocking effect (cmd_move.c), same shape
+     * AFFECT_BIND already uses for its own "stuck in webbing" wording.
+     * Plain flag/timer, no stat modifier. */
+    AFFECT_LIVING_VINES,
+    /* `thornflesh` (Shaman/Druid audit batch C, 2026-08-09) -- real
+     * upstream: "thorns emerge from your body", a genuine damage-
+     * reflection buff (combat.cc's own defender-side check: any melee
+     * hit that lands reflects min(dmg-1, 3) back onto the attacker).
+     * Ported verbatim -- same formula, checked in combat.c right where
+     * a hit's final damage is known. Plain flag/timer, no stat
+     * modifier. */
+    AFFECT_THORNFLESH,
     AFFECT_COUNT,
 } affect_type_t;
 

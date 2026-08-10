@@ -367,7 +367,164 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
      * spellcast_tick_run() can call it once a delayed cast's countdown
      * completes -- see spellcast.h's doc comment. */
     being_t *atk_target = (target != ch) ? target : ch->fighting;
-    if (strcasecmp(sk->name, "sorcerer's globe") == 0) {
+    /* Shaman/Druid audit batch C, 2026-08-09 -- these 5 exact-name checks
+     * (flatulence/raze/shield of mists/living vines/thornflesh) MUST run
+     * before any generic ci_contains(desc/sk->name, ...) catch-all
+     * further down this chain, or they're unreachable dead code: found
+     * live (smoke_test_missing_skills_batchc.py) that `shield of mists`
+     * was silently resolving as a generic "protective ward" self-buff
+     * instead of its own real effect, because the much-earlier generic
+     * armor/ward branch's `ci_contains(sk->name, "shield")` check
+     * matches the substring "shield" inside "shield of mists" and wins
+     * first when this block was placed in file order alongside its
+     * sibling spells (right after `bramble drain`, further down) --
+     * same root-cause SHAPE as the sk->desc/help_topic dead-branch bug
+     * Session 145 fixed, just a fresh substring collision instead of a
+     * stale-data-source one. Moved here, first in the whole dispatch
+     * chain, rather than only relocating `shield of mists` alone --
+     * every exact-name check in an if-else chain like this one is
+     * safest kept ahead of every generic substring check, on principle,
+     * not just the one collision this happened to catch live. */
+    if (strcasecmp(sk->name, "flatulence") == 0) {
+        /* Shaman/Druid audit batch C, 2026-08-09: real upstream
+         * (disc_shaman_skunk.cc) is a room-wide AoE that damages every
+         * non-grouped, non-immortal occupant of the caster's room, with
+         * a crit-fail case that damages the CASTER instead. Ported
+         * faithfully -- same "everyone but your own group" exemption,
+         * same real defensive pre-capture of `stuff_next` cmd_egotrip.c
+         * already established for a room-walk loop that might delete
+         * an occupant mid-pass (a defeated mob). Real upstream's own
+         * suffocation-immunity exemption isn't ported (no per-being
+         * immunity-type system in Tobin) -- a disclosed scope-cut. A
+         * 1-in-10 mishap douses the caster instead, echoing the real
+         * crit-fail case without needing the full crit-success/crit-
+         * fail subsystem. */
+        int dmg = spell_damage_for_level(sk->min_level);
+        if (!(rand() % 10)) {
+            being_hurt_limb_only(ch, (limb_t)(rand() % LIMB_REAL_COUNT), dmg);
+            descriptor_send(d, "Oh no -- that one stuck with you! You choke on your own fumes!\r\n");
+            char rmsg[128], capbuf[128];
+            snprintf(rmsg, sizeof(rmsg), "%s chokes on their own fumes!\r\n",
+                     being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+            descriptor_room_echo(ch->base.roomp, ch, rmsg);
+        } else {
+            descriptor_send(d, "You turn around quickly and pass gas -- noxious fumes fill the room!\r\n");
+            char rmsg[128], capbuf[128];
+            snprintf(rmsg, sizeof(rmsg), "%s turns around quickly and passes gas -- noxious fumes fill the room!\r\n",
+                     being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+            descriptor_room_echo(ch->base.roomp, ch, rmsg);
+            thing_t *t = ch->base.roomp->base.stuff_head;
+            while (t) {
+                thing_t *next = t->stuff_next;
+                if (t->kind == THING_PC || t->kind == THING_MOB) {
+                    being_t *occ = (being_t *)t;
+                    if (occ != ch && !being_is_immortal(occ) && !being_in_group(ch, occ)) {
+                        combat_apply_skill_damage(ch, occ, dmg, (limb_t)(rand() % LIMB_REAL_COUNT));
+                        if (occ->desc)
+                            descriptor_notify(occ->desc, "You are choked by the noxious fumes!\r\n");
+                    }
+                }
+                t = next;
+            }
+        }
+    } else if (strcasecmp(sk->name, "raze") == 0) {
+        /* Shaman/Druid audit batch C, 2026-08-09: real upstream
+         * (disc_shaman_spider.cc) is Shaman's single most powerful
+         * attack spell (LIFEFORCE_400, the heaviest cost in the whole
+         * roster) -- "calls upon the loa to erase any memory of" the
+         * victim, refuses outright against an immortal, and doubles
+         * damage on a critical success. Ported as roughly double the
+         * usual spell_damage_for_level() output (reflecting its real
+         * outsized power relative to every other damage spell this
+         * audit ported) plus a flat 10% chance of doubling again --
+         * a disclosed approximation of the real crit-success mechanic,
+         * not the full crit-success/crit-fail/luck-resist subsystem. */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "You can't do that to an immortal being.\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level) * 2;
+        if (!(rand() % 10))
+            dmg *= 2;
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You call upon the spirits to erase %s's existence -- they are razed %s!\r\n",
+                 being_display_name(atk_target), intensity);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s calls upon the spirits to erase your existence -- you are razed %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "shield of mists") == 0) {
+        /* Shaman/Druid audit batch C, 2026-08-09 -- see
+         * AFFECT_SHIELD_OF_MISTS's own doc comment (affect.h) for the
+         * real-to-Tobin mechanic mapping. Self-castable or castable on
+         * a room-mate, matching real upstream's TAR_CHAR_ROOM |
+         * TAR_FIGHT_SELF target spec. */
+        being_t *recipient = (target != ch) ? target : ch;
+        being_apply_affect(recipient, AFFECT_SHIELD_OF_MISTS, 40 * COMBAT_ROUND_PULSES);
+        if (recipient == ch) {
+            descriptor_send(d, "You are enveloped by a thick green mist!\r\n");
+        } else {
+            snprintf(msg, sizeof(msg), "%s is enveloped by a thick green mist!\r\n",
+                     being_display_name(recipient));
+            descriptor_send(d, msg);
+            if (recipient->desc)
+                descriptor_notify(recipient->desc, "You are enveloped by a thick green mist!\r\n");
+        }
+    } else if (strcasecmp(sk->name, "living vines") == 0) {
+        /* Shaman/Druid audit batch C, 2026-08-09 -- see
+         * AFFECT_LIVING_VINES's own doc comment (affect.h). Outdoor
+         * gate already enforced earlier in cmd_cast() (see that
+         * check's own comment). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        being_apply_affect(atk_target, AFFECT_LIVING_VINES, 30 * COMBAT_ROUND_PULSES);
+        snprintf(msg, sizeof(msg), "Living vines burst from the earth and wrap tight around %s!\r\n",
+                 being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s calls forth living vines, which burst from the earth and wrap tight around you!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)));
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "thornflesh") == 0) {
+        /* Shaman/Druid audit batch C, 2026-08-09 -- see
+         * AFFECT_THORNFLESH's own doc comment (affect.h) and combat.c's
+         * own reflect-damage hook. Self only, matching real upstream's
+         * TAR_SELF_ONLY | TAR_FIGHT_SELF. */
+        if (being_has_affect(ch, AFFECT_THORNFLESH)) {
+            descriptor_send(d, "Your flesh is already armored well enough with thorns.\r\n");
+            return;
+        }
+        being_apply_affect(ch, AFFECT_THORNFLESH, 40 * COMBAT_ROUND_PULSES);
+        descriptor_send(d, "Thorns emerge from your body!\r\n");
+        char rmsg[128], capbuf[128];
+        snprintf(rmsg, sizeof(rmsg), "Thorns emerge from %s's body!\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+        descriptor_room_echo(ch->base.roomp, ch, rmsg);
+    } else if (strcasecmp(sk->name, "sorcerer's globe") == 0) {
         /* Level-1 stub-audit fix (2026-08-04, user: "lower level players
          * should get a full experience"): roster text "A magical shield
          * that buffs the group's defense" -- a genuine ROOM-WIDE
@@ -1599,7 +1756,8 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
                 descriptor_notify(target->desc, "You become much more attuned to your senses! You whiff the aromas of many whom have passed through here.\r\n");
         }
     } else if (ci_contains(sk->name, "conjure elemental") || strcasecmp(sk->name, "animal companion") == 0
-               || strcasecmp(sk->name, "animate") == 0) {
+               || strcasecmp(sk->name, "animate") == 0
+               || strcasecmp(sk->name, "beast charm") == 0 || strcasecmp(sk->name, "befriend beast") == 0) {
         /* Pet/charm (Sneezy → Tobin feature audit): Mage's four
          * "conjure elemental air/earth/fire/water" spells already existed
          * in the roster as CLASS-tier placeholders (real Sneezy names,
@@ -1637,6 +1795,25 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
              * animated to fight for you". */
             vnum = 27;
             flavor = "Stone and iron groan and shift, rising up to answer your call!";
+        } else if (strcasecmp(sk->name, "beast charm") == 0) {
+            /* Ranger/Druid beast-charm pair (missing-skill audit batch
+             * C, 2026-08-09) -- real upstream SKILL_BEAST_CHARM
+             * (disc_ranger_animal.cc) is Ranger's own DISC_ANIMAL
+             * specialty; Tobin folds Ranger's real nature/animal
+             * skills into Druid (skill.c's roster-import doc comment,
+             * same precedent `animal companion` already set). vnum 570
+             * ("a gray wolf") confirmed live as the real seeded
+             * analog. */
+            vnum = 570;
+            flavor = "You call out, and a gray wolf answers, baring its loyalty to you!";
+        } else if (strcasecmp(sk->name, "befriend beast") == 0) {
+            /* Same pair, gentler half -- real upstream SKILL_BEFRIEND_
+             * BEAST is Ranger's basic-tier DISC_RANGER skill (as
+             * opposed to Beast Charm's more advanced DISC_ANIMAL
+             * specialty), same real vnum, distinct flavor text so the
+             * two don't read identically. */
+            vnum = 570;
+            flavor = "You call out gently, and a gray wolf trots over, won over by your friendship!";
         } else {
             vnum = 570;
             flavor = "A loyal beast pads silently out of the wild to your side!";
@@ -2039,6 +2216,16 @@ bool cmd_cast(descriptor_t *d, const char *args) {
     if (strcasecmp(sk->name, "entangling roots") == 0
         && ch->base.roomp && (ch->base.roomp->room_flag & ROOM_FLAG_INDOORS)) {
         descriptor_send(d, "There's no earth to command in here -- entangling roots only works outdoors.\r\n");
+        return true;
+    }
+    /* `living vines` (Shaman/Druid audit batch C, 2026-08-09) -- real
+     * upstream: "You need to be in nature or on land to cast this
+     * spell!" (disc_shaman_spider.cc's own outdoor/land gate). Same
+     * "intercept before the generic component-consumption path" reason
+     * entangling roots' own gate just above already documents. */
+    if (strcasecmp(sk->name, "living vines") == 0
+        && ch->base.roomp && (ch->base.roomp->room_flag & ROOM_FLAG_INDOORS)) {
+        descriptor_send(d, "There's no earth to command in here -- living vines only works outdoors.\r\n");
         return true;
     }
 

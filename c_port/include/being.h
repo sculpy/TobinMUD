@@ -160,6 +160,19 @@ typedef struct {
      * audit item builds a real non-combat death path, not invented here. */
     int hunger;
     int thirst;
+    /* Intoxication (`alcoholism` skill, missing-skill audit batch C,
+     * 2026-08-09). Real upstream's DRUNK condTypeT (0-24, limits.cc's
+     * gainCondition()) rescaled onto the same 0-100 "percent" scale
+     * hunger/thirst already use here, same rationale (plainer to reason
+     * about than the original's cryptic units). Gained by drinking an
+     * alcoholic liquid (liquids.h's liquid_type_t.drunk, cmd_drink.c/
+     * cmd_sip.c), dampened by the real SKILL_ALCOHOLISM formula
+     * (being_gain_drunk(), vitals.c), and sobers up on its own over
+     * time (vitals_tick_run()). No -1 immortal-immune sentinel like
+     * hunger/thirst -- immortals are gated out at every call site
+     * instead (being_is_immortal()), since an immortal never drinks
+     * anything that would set it in the first place. */
+    int drunk;
     /* Age (same audit item). User 2026-07-19 (AskUserQuestion): track +
      * display only, NOT the original's full graf()-interpolated age-based
      * stat-curve system (6 stats, human-equivalent age conversion, opt-in

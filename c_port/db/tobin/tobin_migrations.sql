@@ -661,3 +661,10 @@ ALTER TABLE `idea`
 -- convention as `class`/`race` above (being.h's player_territory_t: 0-2).
 ALTER TABLE `player`
   ADD COLUMN IF NOT EXISTS `territory` tinyint(4) NOT NULL DEFAULT 0;
+
+-- `alcoholism` skill / intoxication stat -- missing-skill audit batch C,
+-- 2026-08-09. New player_progress column, defaulted 0 so every existing
+-- row reads back as "stone sober", exactly correct for a character that
+-- predates this feature. See being.h's progress_t.drunk doc comment.
+ALTER TABLE `player_progress`
+  ADD COLUMN IF NOT EXISTS `drunk` int(11) NOT NULL DEFAULT 0;

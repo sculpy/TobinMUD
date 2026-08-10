@@ -101,8 +101,20 @@ void regen_tick_run(long pulse_num) {
          * restore any mana at all -- meditate.c's own topped_off check
          * (the resource that command actually cares about) is the only
          * one that should decide when a meditating being stands back
-         * up. */
+         * up. Also skipped while too drunk to stand (`alcoholism`
+         * pass-out mechanic, missing-skill audit batch C, 2026-08-09,
+         * vitals.c's own passOut check -- same > 14 threshold): found
+         * live the same way the meditating exemption was -- an idle
+         * PC's HP/Vitality are typically already topped off, so the
+         * very next regen tick after passing out (often within a
+         * couple of real seconds) satisfied "was short, now full" from
+         * ordinary Vitality trickle-back and stood the character right
+         * back up, defeating the whole point of passing out. Same
+         * "the subsystem that put you down decides when you get up"
+         * principle as the meditating case, just for involuntary
+         * unconsciousness instead of a voluntary rest. */
         if (!b->meditating
+            && b->progress.drunk <= 14
             && b->position != POSITION_STANDING
             && b->progress.hp >= b->progress.max_hp
             && b->progress.vit >= b->progress.max_vit

@@ -10,6 +10,7 @@
 #include <strings.h>
 
 #include "being.h"
+#include "vitals.h"
 #include "liquids.h"
 #include "log.h"
 #include "obj.h"
@@ -117,6 +118,9 @@ bool cmd_sip(descriptor_t *d, const char *args) {
             int hunger = ch->progress.hunger + liq->hunger;
             ch->progress.thirst = thirst < 0 ? 0 : (thirst > 100 ? 100 : thirst);
             ch->progress.hunger = hunger < 0 ? 0 : (hunger > 100 ? 100 : hunger);
+            /* `alcoholism` (missing-skill audit batch C, 2026-08-09) --
+             * see being_gain_drunk()'s own doc comment (vitals.h). */
+            being_gain_drunk(ch, liq->drunk);
             player_progress_save(ch->player_id, &ch->progress);
         }
         return true;

@@ -486,6 +486,28 @@ static const skill_def_t SKILLS[] = {
      * Ranger class in Tobin; Druid absorbed its nature-magic flavor).
      * Reuses the real seeded "wolf fierce gray" mob (vnum 570). */
     { "animal companion",  CLASS_DRUID, SKILL_TIER_ADVANCED, 24, "See help `animal companion` for help." },
+    /* Ranger beast-charm pair (missing-skill audit batch C,
+     * 2026-08-09) -- real upstream SKILL_BEAST_CHARM/SKILL_
+     * BEFRIEND_BEAST (disc_ranger_animal.cc), Ranger-only there,
+     * folded onto Druid same as `animal companion` just above (no
+     * Ranger class in Tobin). Real level thresholds (upstream
+     * START_1 for Beast Charm, START_25 for Befriend Beast --
+     * despite the gentler name, real upstream unlocks it LATER)
+     * compressed to fit this range, same relative order kept. */
+    { "beast charm",        CLASS_DRUID, SKILL_TIER_ADVANCED, 18, "See help `beast charm` for help." },
+    { "befriend beast",     CLASS_DRUID, SKILL_TIER_ADVANCED, 22, "See help `befriend beast` for help." },
+    /* 5 Shaman spells (missing-skill audit batch C, 2026-08-09),
+     * folded onto Druid same as `storm call`/`stupidity`/etc above
+     * (Tobin has no Shaman class either). Real level thresholds
+     * (upstream START_15/1/41/80/40) compressed to fit this range,
+     * same relative order kept -- Raze (upstream's single most
+     * expensive spell) lands at the very top, alongside `word of
+     * recall`. See cmd_cast.c/combat.c/cmd_move.c/affect.h. */
+    { "flatulence",         CLASS_DRUID, SKILL_TIER_CLASS,    15, "See help `flatulence` for help." },
+    { "shield of mists",    CLASS_DRUID, SKILL_TIER_CLASS,     8, "See help `shield of mists` for help." },
+    { "thornflesh",         CLASS_DRUID, SKILL_TIER_ADVANCED, 40, "See help `thornflesh` for help." },
+    { "living vines",       CLASS_DRUID, SKILL_TIER_ADVANCED, 41, "See help `living vines` for help." },
+    { "raze",               CLASS_DRUID, SKILL_TIER_ADVANCED, 50, "See help `raze` for help." },
     { "cure blindness",    CLASS_DRUID, SKILL_TIER_ADVANCED, 30, "See help `cure blindness` for help." },
     { "wave crash",        CLASS_DRUID, SKILL_TIER_ADVANCED, 32, "See help `wave crash` for help." },
     { "withering touch",   CLASS_DRUID, SKILL_TIER_ADVANCED, 32, "See help `withering touch` for help." },
@@ -597,6 +619,59 @@ static const skill_def_t SKILLS[] = {
     { "hiking",             CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `hiking` for help." },
     { "hiking",             CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `hiking` for help." },
     { "hiking",             CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `hiking` for help." },
+    /* `sharpen`/`smooth` (missing-skill audit batch C, 2026-08-09) --
+     * real upstream SKILL_SHARPEN/SKILL_DULL (disc_basic_combat.h),
+     * every class gets both, same universal-weapon-maintenance shape
+     * as `repair` above. See cmd_sharpen.c. */
+    { "sharpen",            CLASS_MAGE,    SKILL_TIER_COMBAT,    1, "See help `sharpen` for help." },
+    { "sharpen",            CLASS_CLERIC,  SKILL_TIER_COMBAT,    1, "See help `sharpen` for help." },
+    { "sharpen",            CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `sharpen` for help." },
+    { "sharpen",            CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `sharpen` for help." },
+    { "sharpen",            CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `sharpen` for help." },
+    { "sharpen",            CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `sharpen` for help." },
+    { "smooth",             CLASS_MAGE,    SKILL_TIER_COMBAT,    1, "See help `smooth` for help." },
+    { "smooth",             CLASS_CLERIC,  SKILL_TIER_COMBAT,    1, "See help `smooth` for help." },
+    { "smooth",             CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `smooth` for help." },
+    { "smooth",             CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `smooth` for help." },
+    { "smooth",             CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `smooth` for help." },
+    { "smooth",             CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `smooth` for help." },
+    /* `alcoholism` (missing-skill audit batch C, 2026-08-09) -- real
+     * upstream SKILL_ALCOHOLISM (disc_basic_adventuring.h), every
+     * class gets it, same universal-basic-adventuring shape as
+     * `swim`/`climb` above. See being_gain_drunk() (vitals.c). */
+    { "alcoholism",         CLASS_MAGE,    SKILL_TIER_COMBAT,    1, "See help `alcoholism` for help." },
+    { "alcoholism",         CLASS_CLERIC,  SKILL_TIER_COMBAT,    1, "See help `alcoholism` for help." },
+    { "alcoholism",         CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `alcoholism` for help." },
+    { "alcoholism",         CLASS_THIEF,   SKILL_TIER_COMBAT,    1, "See help `alcoholism` for help." },
+    { "alcoholism",         CLASS_DRUID,   SKILL_TIER_COMBAT,    1, "See help `alcoholism` for help." },
+    { "alcoholism",         CLASS_MONK,    SKILL_TIER_COMBAT,    1, "See help `alcoholism` for help." },
+    /* Deikhan mounted-combat trio (missing-skill audit batch C,
+     * 2026-08-09) -- real upstream SKILL_CALM_MOUNT/SKILL_ADVANCED_
+     * RIDING/SKILL_CHARGE (disc_deikhan_mounted.h) are Deikhan-only;
+     * Tobin has no Deikhan class, so (same as `riding` itself) every
+     * class gets all three. Real level thresholds (upstream START_1/
+     * 46/26) compressed to fit this port's own smaller level range,
+     * same relative ordering preserved (calm mount easiest, charge
+     * next, advanced riding hardest). See cmd_charge.c/cmd_ride.c/
+     * combat.c. */
+    { "calm mount",         CLASS_MAGE,    SKILL_TIER_CLASS,     5, "See help `calm mount` for help." },
+    { "calm mount",         CLASS_CLERIC,  SKILL_TIER_CLASS,     5, "See help `calm mount` for help." },
+    { "calm mount",         CLASS_WARRIOR, SKILL_TIER_CLASS,     5, "See help `calm mount` for help." },
+    { "calm mount",         CLASS_THIEF,   SKILL_TIER_CLASS,     5, "See help `calm mount` for help." },
+    { "calm mount",         CLASS_DRUID,   SKILL_TIER_CLASS,     5, "See help `calm mount` for help." },
+    { "calm mount",         CLASS_MONK,    SKILL_TIER_CLASS,     5, "See help `calm mount` for help." },
+    { "charge",             CLASS_MAGE,    SKILL_TIER_CLASS,    20, "See help `charge` for help." },
+    { "charge",             CLASS_CLERIC,  SKILL_TIER_CLASS,    20, "See help `charge` for help." },
+    { "charge",             CLASS_WARRIOR, SKILL_TIER_CLASS,    20, "See help `charge` for help." },
+    { "charge",             CLASS_THIEF,   SKILL_TIER_CLASS,    20, "See help `charge` for help." },
+    { "charge",             CLASS_DRUID,   SKILL_TIER_CLASS,    20, "See help `charge` for help." },
+    { "charge",             CLASS_MONK,    SKILL_TIER_CLASS,    20, "See help `charge` for help." },
+    { "advanced riding",    CLASS_MAGE,    SKILL_TIER_ADVANCED, 40, "See help `advanced riding` for help." },
+    { "advanced riding",    CLASS_CLERIC,  SKILL_TIER_ADVANCED, 40, "See help `advanced riding` for help." },
+    { "advanced riding",    CLASS_WARRIOR, SKILL_TIER_ADVANCED, 40, "See help `advanced riding` for help." },
+    { "advanced riding",    CLASS_THIEF,   SKILL_TIER_ADVANCED, 40, "See help `advanced riding` for help." },
+    { "advanced riding",    CLASS_DRUID,   SKILL_TIER_ADVANCED, 40, "See help `advanced riding` for help." },
+    { "advanced riding",    CLASS_MONK,    SKILL_TIER_ADVANCED, 40, "See help `advanced riding` for help." },
     /* `praying`/`casting`: real upstream SKILL_PRAYING (Cleric,
      * DISC_FAITH) and SKILL_CASTING (Mage, DISC_WIZARDRY) are each a
      * zero-mana, zero-lag passive proficiency stat with no dedicated

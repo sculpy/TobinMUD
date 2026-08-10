@@ -73,6 +73,7 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
     b->progress.mana = b->progress.max_mana;
     b->progress.hunger = 100;
     b->progress.thirst = 100;
+    b->progress.drunk = 0;
     /* A starting stipend (user 2026-07-28: "let all players start with
      * 7 pracs to spend") -- separate from practice_points_for_level()'s
      * own per-level-up award, so a brand-new character isn't stuck at

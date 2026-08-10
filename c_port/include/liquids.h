@@ -34,6 +34,14 @@ typedef struct {
     int thirst;         /* progress_t.thirst gained per drink/sip, 0-100 scale */
     int hunger;          /* progress_t.hunger delta (some drinks are filling,
                             some -- coffee, whisky -- are dehydrating) */
+    /* progress_t.drunk gained per drink/sip, 0-100 scale (`alcoholism`
+     * skill, missing-skill audit batch C, 2026-08-09) -- real upstream
+     * liquids.cc's own `drunk` field, rescaled by the same x2.5 factor
+     * thirst/hunger above already use. Zero or negative for every non-
+     * alcoholic drink (coffee/tea sober you up slightly, matching real
+     * upstream). See being_gain_drunk() (vitals.h) for how this is
+     * actually applied (dampened by SKILL_ALCOHOLISM, not used raw). */
+    int drunk;
 } liquid_type_t;
 
 /* Returns the liquid_type_t for `type` (any obj.val[2] value), clamped to

@@ -69,7 +69,19 @@ bool cmd_ride(descriptor_t *d, const char *args) {
 
     bool imm = being_is_immortal(ch);
     const skill_def_t *sk = skill_find(ch->char_class, "riding", imm);
-    bool success = imm || !sk || skill_roll_success(skill_learn_from_doing(ch, sk));
+    int riding_prof = imm || !sk ? 100 : skill_learn_from_doing(ch, sk);
+    /* `advanced riding` (Deikhan mounted-combat trio, missing-skill audit
+     * batch C, 2026-08-09) -- real upstream's getRideMod() gives a flat
+     * situational bonus to every riding check for a rider who knows it;
+     * ported as a flat proficiency-scaled bonus added to the mount roll
+     * itself, same disclosed-simplified shape the rest of this trio
+     * uses. */
+    if (!imm && being_knows_skill(ch, "advanced riding")) {
+        const skill_def_t *adv_sk = skill_find(ch->char_class, "advanced riding", false);
+        if (adv_sk)
+            riding_prof += skill_learn_from_doing(ch, adv_sk) / 5;
+    }
+    bool success = imm || !sk || skill_roll_success(riding_prof);
     if (!success) {
         char msg[128];
         snprintf(msg, sizeof(msg), "You try to mount %s, but can't get settled -- you slide right back off.\r\n",

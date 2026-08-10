@@ -27,41 +27,41 @@
  * drunkenness stat, same simplification as Money's "GOLD-COIN-ONLY, no
  * commodities" precedent. */
 static const liquid_type_t LIQUID_TYPES[LIQUID_TYPE_COUNT] = {
-    { "<c>water<1>",                        0,  25 },  /*  0 WATER */
-    { "<o>beer<1>",                        -5,  18 },  /*  1 BEER */
-    { "<W>white wine<1>",                  -3,  15 },  /*  2 WINE */
-    { "<o>ale<1>",                          -8,  13 },  /*  3 ALE */
-    { "<k>dark<1> <o>ale<1>",               -3,  13 },  /*  4 DARKALE */
-    { "<y>whiskey<1>",                       0,   3 },  /*  5 WHISKY */
-    { "<y>lemonade<1>",                      3,  20 },  /*  6 LEMONADE */
-    { "<g>firebreather<1>",                  0,  -8 },  /*  7 FIREBRT */
-    { "local special",                      -3,   5 },  /*  8 LOCALSPC */
-    { "<G>juice<1>",                         3,  20 },  /*  9 SLIME */
-    { "<W>milk<1>",                          5,  15 },  /* 10 MILK */
-    { "<o>tea<1>",                          -3,  15 },  /* 11 TEA */
-    { "<k>coffee<1>",                       -8,  13 },  /* 12 COFFEE */
-    { "<r>blood<1>",                         5,  -3 },  /* 13 BLOOD */
-    { "salt water",                          3, -13 },  /* 14 SALTWATER */
-    { "<k>mead<1>",                          5,  10 },  /* 15 MEAD */
-    { "vodka",                              -8,  -3 },  /* 16 VODKA */
-    { "rum",                                -8,  -3 },  /* 17 RUM */
-    { "<o>brandy<1>",                        3,   8 },  /* 18 BRANDY */
-    { "<R>red wine<1>",                     -3,  15 },  /* 19 RED_WINE */
-    { "<k>warm mead<1>",                     3,  13 },  /* 20 WARM_MEAD */
-    { "champagne",                          -5,  10 },  /* 21 CHAMPAGNE */
-    { "holy water",                          3,  25 },  /* 22 HOLYWATER */
-    { "<R>port<1>",                         -3,  13 },  /* 23 PORT */
-    { "<g>mushroom<1><o> ale<1>",           -3,  13 },  /* 24 MUSHROOM_ALE */
-    { "<G>v<o>o<G>m<o>i<G>t<1>",            -3,  13 },  /* 25 VOMIT */
-    { "<o>cola<1>",                          5,  13 },  /* 26 COLA */
-    { "<r>strawberry margarita<1>",          5,  13 },  /* 27 STRAWBERRY_MARGARITA */
-    { "<b>blue margarita<1>",                5,  13 },  /* 28 BLUE_MARGARITA */
-    { "<Y>gold margarita<1>",                5,  13 },  /* 29 GOLD_MARGARITA */
-    { "<r>strawberry daiquiri<1>",           5,  13 },  /* 30 STRAWBERRY_DAIQUIRI */
-    { "<Y>banana daiquiri<1>",               5,  13 },  /* 31 BANANA_DAIQUIRI */
-    { "<W>pina colada<1>",                   5,  13 },  /* 32 PINA_COLADA */
-    { "<o>tequila sunrise<1>",               5,  13 },  /* 33 TEQUILA_SUNRISE */
-    { "<g>isla verde<1>",                    5,  13 },  /* 34 ISLA_VERDE */
+    { "<c>water<1>",                        0,  25, 0 },  /*  0 WATER */
+    { "<o>beer<1>",                        -5,  18, 13 },  /*  1 BEER */
+    { "<W>white wine<1>",                  -3,  15, 10 },  /*  2 WINE */
+    { "<o>ale<1>",                          -8,  13, 15 },  /*  3 ALE */
+    { "<k>dark<1> <o>ale<1>",               -3,  13, 13 },  /*  4 DARKALE */
+    { "<y>whiskey<1>",                       0,   3, 25 },  /*  5 WHISKY */
+    { "<y>lemonade<1>",                      3,  20, 0 },  /*  6 LEMONADE */
+    { "<g>firebreather<1>",                  0,  -8, 38 },  /*  7 FIREBRT */
+    { "local special",                      -3,   5, 20 },  /*  8 LOCALSPC */
+    { "<G>juice<1>",                         3,  20, 0 },  /*  9 SLIME */
+    { "<W>milk<1>",                          5,  15, 0 },  /* 10 MILK */
+    { "<o>tea<1>",                          -3,  15, -3 },  /* 11 TEA */
+    { "<k>coffee<1>",                       -8,  13, -5 },  /* 12 COFFEE */
+    { "<r>blood<1>",                         5,  -3, 0 },  /* 13 BLOOD */
+    { "salt water",                          3, -13, 0 },  /* 14 SALTWATER */
+    { "<k>mead<1>",                          5,  10, 5 },  /* 15 MEAD */
+    { "vodka",                              -8,  -3, 30 },  /* 16 VODKA */
+    { "rum",                                -8,  -3, 28 },  /* 17 RUM */
+    { "<o>brandy<1>",                        3,   8, 20 },  /* 18 BRANDY */
+    { "<R>red wine<1>",                     -3,  15, 18 },  /* 19 RED_WINE */
+    { "<k>warm mead<1>",                     3,  13, 5 },  /* 20 WARM_MEAD */
+    { "champagne",                          -5,  10, 15 },  /* 21 CHAMPAGNE */
+    { "holy water",                          3,  25, 0 },  /* 22 HOLYWATER */
+    { "<R>port<1>",                         -3,  13, 20 },  /* 23 PORT */
+    { "<g>mushroom<1><o> ale<1>",           -3,  13, 18 },  /* 24 MUSHROOM_ALE */
+    { "<G>v<o>o<G>m<o>i<G>t<1>",            -3,  13, 20 },  /* 25 VOMIT */
+    { "<o>cola<1>",                          5,  13, -3 },  /* 26 COLA */
+    { "<r>strawberry margarita<1>",          5,  13, -3 },  /* 27 STRAWBERRY_MARGARITA */
+    { "<b>blue margarita<1>",                5,  13, -3 },  /* 28 BLUE_MARGARITA */
+    { "<Y>gold margarita<1>",                5,  13, -3 },  /* 29 GOLD_MARGARITA */
+    { "<r>strawberry daiquiri<1>",           5,  13, -3 },  /* 30 STRAWBERRY_DAIQUIRI */
+    { "<Y>banana daiquiri<1>",               5,  13, -3 },  /* 31 BANANA_DAIQUIRI */
+    { "<W>pina colada<1>",                   5,  13, -3 },  /* 32 PINA_COLADA */
+    { "<o>tequila sunrise<1>",               5,  13, -3 },  /* 33 TEQUILA_SUNRISE */
+    { "<g>isla verde<1>",                    5,  13, -3 },  /* 34 ISLA_VERDE */
 };
 
 /* Looks up a liquid_type_t's data (LIQUID_TYPES[] above) by ordinal --

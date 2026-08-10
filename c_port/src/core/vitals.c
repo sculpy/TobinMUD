@@ -41,6 +41,37 @@ static void vitals_tick_impl(long pulse_num, bool affect_players) {
                 b->progress.hp = 1;
         }
 
+        /* `alcoholism` (missing-skill audit batch C, 2026-08-09):
+         * intoxication sobers up on its own over time, same shape
+         * hunger/thirst decay above use. Real upstream has no single
+         * fixed DRUNK decay rate either (it only ever falls via one-off
+         * gainCondition(DRUNK,-1) calls scattered through disease.cc/
+         * combat.c) -- a flat -2/tick here means a drink's real effect
+         * is felt for a while without lingering indefinitely. */
+        if (b->progress.drunk > 0) {
+            b->progress.drunk -= 2;
+            if (b->progress.drunk < 0)
+                b->progress.drunk = 0;
+        }
+
+        /* Passing out from drink -- direct port of real upstream's own
+         * TBeing::passOut() chance formula (periodic.cc), minus its
+         * plotStat(CON)-based scaling (no equivalent stat-curve helper
+         * in Tobin) -- a disclosed simplification, not an invented
+         * number. Only mortals past the real threshold (drunk > 14)
+         * roll; a hit knocks the character straight to sleep, same
+         * "drugged unconscious" shape drug.c's own frogslime overdose
+         * already uses. */
+        if (b->progress.drunk > 14 && b->position != POSITION_SLEEPING) {
+            int over = b->progress.drunk - 14;
+            int chance = (int)(4.17 * over + 8.33);
+            if (chance > 0 && (rand() % 100) < chance) {
+                b->position = POSITION_SLEEPING;
+                if (b->desc)
+                    descriptor_notify(b->desc, "<y>The room spins -- you pass out from too much drink.<z>\r\n");
+            }
+        }
+
         /* Drowning (Sneezy → Tobin feature audit, "Water, drowning,
          * flight"): the original's procCharDrowning deals 1d10 to a PC
          * underwater without AFF_WATERBREATH every 3.6 real seconds via
@@ -141,4 +172,22 @@ void vitals_tick_run(long pulse_num) {
  * starved and nearly killed a bystander player). */
 void vitals_tick_force_world_only(long pulse_num) {
     vitals_tick_impl(pulse_num, false);
+}
+
+/* See vitals.h's own doc comment for the full formula rationale. */
+void being_gain_drunk(being_t *ch, int raw_value) {
+    if (!ch || being_is_immortal(ch) || raw_value == 0)
+        return;
+
+    int value = raw_value;
+    if (value > 0 && being_knows_skill(ch, "alcoholism")) {
+        const skill_def_t *sk = skill_find(ch->char_class, "alcoholism", false);
+        if (sk) {
+            int prof = skill_learn_from_doing(ch, sk);
+            value = (int)((double)value * (double)(105 - prof) / 100.0);
+        }
+    }
+
+    int drunk = ch->progress.drunk + value;
+    ch->progress.drunk = drunk < 0 ? 0 : (drunk > 100 ? 100 : drunk);
 }

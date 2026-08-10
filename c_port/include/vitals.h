@@ -42,4 +42,21 @@ void vitals_tick_force_world_only(long pulse_num);
  * to reach 0 without eating or drinking -- present, not naggy. */
 #define VITALS_PULSES 600
 
+struct being;
+
+/* Applies a real intoxication gain to `ch` -- `raw_value` is the
+ * liquid's own per-unit `drunk` field (liquids.h), already multiplied
+ * by however many units were drunk, same convention cmd_drink.c/
+ * cmd_sip.c already use for thirst/hunger. Dampened by the real
+ * SKILL_ALCOHOLISM formula (limits.cc's own gainCondition() DRUNK case:
+ * `value *= (105 - skill) / 100` -- a trained drinker gets less drunk
+ * per drink) and clamped to progress.drunk's 0-100 range. Trains the
+ * skill on any POSITIVE gain (real upstream's own `if (getLiqDrunk() >
+ * 0) ch->bSuccess(SKILL_ALCOHOLISM);`, obj_food.cc) -- a sobering drink
+ * (raw_value <= 0, e.g. coffee) doesn't train it, same as the real
+ * rule. No-op for immortals (callers already gate on
+ * being_is_immortal() before calling this, but it stays self-contained
+ * in case a future caller doesn't). */
+void being_gain_drunk(struct being *ch, int raw_value);
+
 #endif

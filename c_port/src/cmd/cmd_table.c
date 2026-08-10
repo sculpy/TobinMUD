@@ -581,6 +581,9 @@ static const cmd_entry_t COMMANDS[] = {
      * folded into the edit dispatcher above. */
     { "wiznews", cmd_wiznews, "Read the immortal news channel.",                    IMMORTAL_LEVEL_MIN },
     { "repair",  cmd_repair,  "Mend a damaged item yourself (Warrior, repair <item>).", MORTAL_LEVEL_MIN },
+    { "sharpen", cmd_sharpen, "Sharpen a held edged weapon using a carried whetstone.", MORTAL_LEVEL_MIN },
+    { "smooth",  cmd_smooth,  "Smooth the nicks from a held blunt weapon using a carried file.", MORTAL_LEVEL_MIN },
+    { "charge",  cmd_charge,  "Charge down a target while mounted, opening a fight with a bonus hit (must be mounted).", MORTAL_LEVEL_MIN },
     { "debride", cmd_debride, "Undo some of an item's accumulated wear (Warrior, debride <item>).", MORTAL_LEVEL_MIN },
     /* Full spell/skill/prayer roster import (user 2026-07-26): "sac" is
      * unambiguous -- say already owns "sa", save "sav". */

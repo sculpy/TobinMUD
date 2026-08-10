@@ -677,6 +677,20 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         modifier -= being_knows_skill(attacker, "blindfighting")
                      ? DESTROYED_LIMB_HIT_PENALTY / 2 : DESTROYED_LIMB_HIT_PENALTY;
     }
+    /* `alcoholism` (missing-skill audit batch C, 2026-08-09): real
+     * upstream continuously scales DOWN crit chance while drunk
+     * (`critChance -= 2 * getCond(DRUNK)`, crit_combat.cc) -- Tobin has
+     * no separate crit-chance stat to subtract from (its own crit
+     * mechanic is a second weighted-limb draw, see `critical hitting`'s
+     * own comment below), so this lands as the closest real equivalent:
+     * a continuously-scaling flat to-hit penalty instead, same shape as
+     * the destroyed-limb/blindness penalties just above. Zero at
+     * drunk=0, up to a full DESTROYED_LIMB_HIT_PENALTY at drunk=100.
+     * SKILL_ALCOHOLISM's own real job is reducing how drunk you get in
+     * the first place (being_gain_drunk(), vitals.c), not blunting this
+     * penalty directly -- same division of labor real upstream uses. */
+    if (attacker->progress.drunk > 0)
+        modifier -= (attacker->progress.drunk * DESTROYED_LIMB_HIT_PENALTY) / 100;
     /* Meaningful limb damage (TODO.md, user: "make individual limb hits
      * actually hurt"): the mirror image of the attacker-side penalty just
      * above -- a destroyed limb doesn't just throw off YOUR swing, it
@@ -689,6 +703,14 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * no particular reason for reusing the same number, just consistency
      * with every other flat to-hit modifier in this function. */
     if (being_has_affect(defender, AFFECT_FAERIE_FIRE))
+        modifier += DESTROYED_LIMB_HIT_PENALTY;
+    /* `shield of mists` (Shaman/Druid audit batch C, 2026-08-09) -- see
+     * AFFECT_SHIELD_OF_MISTS's own doc comment (affect.h). */
+    if (being_has_affect(defender, AFFECT_SHIELD_OF_MISTS))
+        modifier -= DESTROYED_LIMB_HIT_PENALTY;
+    /* `living vines` (Shaman/Druid audit batch C, 2026-08-09) -- see
+     * AFFECT_LIVING_VINES's own doc comment (affect.h). */
+    if (being_has_affect(defender, AFFECT_LIVING_VINES))
         modifier += DESTROYED_LIMB_HIT_PENALTY;
     /* Positions polish (TODO backlog): a defender who isn't standing --
      * sitting, resting, sleeping, or any of the lower reserved-for-future
@@ -979,14 +1001,25 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     }
     attacker->off_hand_next = !attacker->off_hand_next;
 
-    /* Weapon sharpness (user 2026-07-12, weapon depth): an edged/
-     * piercing weapon (anything weapon_verb() calls slice/chop/stab/
-     * pierce, not the blunt "bludgeon"/bare-handed "hit") lands a
-     * cleaner, more consistent wound than a blunt one -- a small flat
-     * bonus, reusing the verb classification already computed above
-     * for messaging rather than adding a new weapon property. */
-    if (weapon && strcmp(verb, "bludgeon") != 0)
-        dmg += 1;
+    /* Weapon sharpness (user 2026-07-12, weapon depth; extended by the
+     * `sharpen`/`smooth` skills, missing-skill audit batch C,
+     * 2026-08-09): an edged/piercing weapon (anything weapon_verb()
+     * calls slice/chop/stab/pierce, not the blunt "bludgeon"/bare-
+     * handed "hit") lands a cleaner, more consistent wound than a
+     * dull one. Originally a flat +1; now scaled by the weapon's own
+     * mutable obj_t.sharpness (0-100, SHARPNESS_DEFAULT=50 out of the
+     * box) so `sharpen` raising it actually pays off -- still +1 at
+     * the old default, up to +2 at max sharpness. A blunt weapon now
+     * gets the SAME scaling off the SAME field (raised by `smooth`
+     * instead) rather than a second, separate stat -- real upstream's
+     * own curSharp is exactly this, just relabeled "bluntness" for a
+     * blunt weapon (obj_base_weapon.cc's changeBaseWeaponValue1()) --
+     * a deliberate, disclosed rebalance: blunt weapons previously got
+     * ZERO bonus from this mechanic at all, `smooth` now gives them
+     * the parallel benefit `sharpen` already gave edged weapons. Bare
+     * hands (weapon == NULL) still get nothing, unchanged. */
+    if (weapon)
+        dmg += weapon->sharpness / 50;
 
     if (dmg < 1)
         dmg = 1;
@@ -1053,6 +1086,65 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * deals zero damage, applied last so nothing above can un-zero it. */
     if (being_is_immortal(defender))
         dmg = 0;
+
+    /* `calm mount` (Deikhan mounted-combat trio, missing-skill audit
+     * batch C, 2026-08-09) -- see this block's own doc comment above
+     * the function for the real-vs-Tobin mechanic gap this closes.
+     * Every real landed hit on a mounted PC defender has a flat 12%
+     * base chance of unseating them; `calm mount` (plus a smaller
+     * `advanced riding` contribution, matching real upstream's own
+     * averaging of the two skills in advancedRidingBonus()) reduces
+     * that all the way to 0% at full combined proficiency. */
+    if (dmg > 0 && defender->position == POSITION_MOUNTED && defender->mount
+        && defender->base.kind == THING_PC && !being_is_immortal(defender)) {
+        int spook_chance = 12;
+        if (being_knows_skill(defender, "calm mount")) {
+            const skill_def_t *calm_sk = skill_find(defender->char_class, "calm mount", false);
+            if (calm_sk) {
+                int calm_prof = skill_learn_from_doing(defender, calm_sk);
+                int adv_prof = 0;
+                if (being_knows_skill(defender, "advanced riding")) {
+                    const skill_def_t *adv_sk = skill_find(defender->char_class, "advanced riding", false);
+                    if (adv_sk)
+                        adv_prof = skill_learn_from_doing(defender, adv_sk);
+                }
+                spook_chance -= ((calm_prof * 2 + adv_prof) / 3) * spook_chance / 100;
+                if (spook_chance < 0)
+                    spook_chance = 0;
+            }
+        }
+        if (spook_chance > 0 && (rand() % 100) < spook_chance) {
+            being_t *spooked_mount = defender->mount;
+            defender->mount = NULL;
+            spooked_mount->rider = NULL;
+            defender->position = POSITION_SITTING;
+            spooked_mount->position = POSITION_STANDING;
+            if (defender->desc)
+                descriptor_notify(defender->desc, "<y>Your mount panics at the blow and throws you to the ground!<z>\r\n");
+        }
+    }
+
+    /* `thornflesh` (Shaman/Druid audit batch C, 2026-08-09) -- direct
+     * port of real upstream's own defender-side reflection check
+     * (combat.cc): min(dmg-1, 3) of whatever this hit just dealt
+     * bounces back onto the attacker, floored at 0 (a miss/zero-damage
+     * hit reflects nothing). Checked here so it uses the FINAL, fully-
+     * modified dmg value -- same reasoning Sanctuary's halving above
+     * this function already documents. */
+    if (dmg > 0 && being_has_affect(defender, AFFECT_THORNFLESH) && !being_is_immortal(attacker)) {
+        int reflected = dmg - 1;
+        if (reflected > 3)
+            reflected = 3;
+        if (reflected > 0) {
+            attacker->progress.hp -= reflected;
+            if (attacker->progress.hp < 1)
+                attacker->progress.hp = 1;
+            if (attacker->desc)
+                descriptor_notify(attacker->desc, "<o>The thorns on their body bite into you as you land the hit!<z>\r\n");
+            if (defender->desc)
+                descriptor_notify(defender->desc, "<o>Your thorns bite into your attacker!<z>\r\n");
+        }
+    }
 
     limb_t limb = pick_weighted_limb((body_type_t)defender->body_type);
     /* `critical hitting` (Monk, level 25, level-25 audit batch:

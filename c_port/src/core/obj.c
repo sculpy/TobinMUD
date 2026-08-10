@@ -446,6 +446,10 @@ obj_t *obj_create_from_proto(int vnum) {
     o->cur_struct = proto.cur_struct;
     o->material = proto.material;
     o->can_be_seen = proto.can_be_seen;
+    /* Weapon sharpness -- not persisted (see obj.h's own doc comment on
+     * obj_t.sharpness), so every freshly-spawned instance (including a
+     * reload after reconnect) simply starts back at the default. */
+    o->sharpness = SHARPNESS_DEFAULT;
     o->decay_time = proto.decay_time;
 
     /* Material property system (Sneezy → Tobin feature audit) -- a

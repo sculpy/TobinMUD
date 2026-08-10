@@ -1177,3 +1177,43 @@ UPDATE `help_topic` SET `body` = 'Usage: cast <spell> [target]\n\nMages and Drui
   WHERE `name` = 'cast' AND `updated_by` = 'seed';
 
 UPDATE `help_topic` SET `body` = 'Usage: cast knot\n\nTears a gap in reality and steps you through it to safety -- an\nemergency escape, not a defensive ward. Self only, no target.\nWon''t work in an area whose defenses are too strong to tear.\nRequires: any item keyworded "component" (e.g., a pouch of spell components) (`cast`)\nRelated: skills practice cast pray affects\nApprox. Level: 50\nDiscipline: 85%\nClasses: Mage' WHERE `name` = 'knot';
+
+-- `sharpen`/`smooth` -- missing-skill audit batch C, 2026-08-09. See
+-- obj.h/cmd_sharpen.c/combat.c for the actual code.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('sharpen', 'Usage: sharpen\n\nAn active skill, known from level 1 by every class. Sharpens whatever\nedged or piercing weapon you are wielding using a carried whetstone,\nraising its condition toward a maximum -- a sharper weapon lands a\nslightly harder hit. Has no effect on blunt weapons (see `smooth`\ninstead) and refuses while fighting. Improves with use. Requires a\ncarried whetstone.\nRelated: smooth skills wield', 'seed'),
+('smooth', 'Usage: smooth\n\nAn active skill, known from level 1 by every class. Files the nicks\nand dents out of whatever blunt weapon you are wielding using a\ncarried file, raising its condition toward a maximum -- a smoother\nweapon lands a slightly harder hit. Has no effect on edged or piercing\nweapons (see `sharpen` instead) and refuses while fighting. Improves\nwith use. Requires a carried file.\nRelated: sharpen skills wield', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- `alcoholism` -- missing-skill audit batch C, 2026-08-09. See
+-- being.h/vitals.c/liquids.c/cmd_drink.c/cmd_sip.c/combat.c.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('alcoholism', 'A passive skill, known from level 1 by every class. Reduces how\nintoxicated you get from a single alcoholic drink -- an experienced\ndrinker can hold their liquor. Improves with use (every alcoholic\ndrink you finish is a chance to train it). Intoxication itself fades\non its own over time; a fighter who is too far gone swings less\naccurately, and drinking far too much can knock you out cold. Related:\ndrink sip score', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Deikhan mounted-combat trio (`calm mount`/`charge`/`advanced riding`) --
+-- missing-skill audit batch C, 2026-08-09. See cmd_charge.c/cmd_ride.c/
+-- combat.c/skill.c.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('calm mount', 'A passive skill, known from level 1 by every class. When a real hit\nlands on you while mounted, your mount has a chance to panic and\nthrow you to the ground -- this skill (and, to a lesser extent,\n`advanced riding`) reduces that chance, down to none at full\nproficiency. Improves with use. Related: ride charge advanced riding', 'seed'),
+('charge', 'Usage: charge <target>\n\nAn active skill, known from level 20 by every class. Requires being\nmounted (`ride`) and not already fighting -- a charge only works as an\nopening move. On a successful roll, delivers a heavy bonus-damage hit\nthat knocks the target down; a failed roll still starts the fight,\njust without the bonus. `advanced riding` adds extra damage. Related:\nride advanced riding calm mount', 'seed'),
+('advanced riding', 'A passive skill, known from level 40 by every class. Improves with use.\nGrants a real bonus to your chance of successfully mounting a creature\n(`ride`), adds extra damage to `charge`, and helps `calm mount` keep you\nin the saddle. Related: ride charge calm mount', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Ranger beast-charm pair (`beast charm`/`befriend beast`) -- missing-
+-- skill audit batch C, 2026-08-09. See cmd_cast.c/skill.c.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('beast charm', 'Usage: cast beast charm\n\nDruid only. Calls a loyal gray wolf to your side, obedient to your\nwill for a while -- the same charmed-companion mechanic `animal\ncompanion` uses. Self only, no target. Requires: any item keyworded\n"component"\nRelated: skills practice cast animal companion befriend beast', 'seed'),
+('befriend beast', 'Usage: cast befriend beast\n\nDruid only. The gentler half of the beast-charm pair -- calls a loyal\ngray wolf to your side through friendship rather than command,\nobedient to your will for a while. Self only, no target. Requires:\nany item keyworded "component"\nRelated: skills practice cast animal companion beast charm', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- 5 Shaman/Druid spells (flatulence/shield of mists/thornflesh/living
+-- vines/raze) -- missing-skill audit batch C, 2026-08-09. See
+-- cmd_cast.c/combat.c/cmd_move.c/affect.h/skill.c.
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('flatulence', 'Usage: cast flatulence\n\nDruid only. A room-wide attack -- noxious fumes damage every occupant\nof your room except your own group and any immortal. No target needed.\nA rare mishap chokes you instead. Requires: any item keyworded\n"component"\nRelated: skills practice cast raze', 'seed'),
+('shield of mists', 'Usage: cast shield of mists [target]\n\nDruid only. Wraps you (or a willing room-mate) in a thick green mist,\nmaking the recipient noticeably harder to hit for a while. Defaults to\nyourself if no target is given. Requires: any item keyworded\n"component"\nRelated: skills practice cast thornflesh living vines', 'seed'),
+('thornflesh', 'Usage: cast thornflesh\n\nDruid only. Self only. Real thorns emerge from your body -- any melee\nattacker who lands a hit on you takes a bite of that same damage back.\nRefuses if already active. Requires: any item keyworded "component"\nRelated: skills practice cast shield of mists', 'seed'),
+('living vines', 'Usage: cast living vines <target>\n\nDruid only. Outdoors only. Vines burst from the earth around the\ntarget, wrapping their legs (can''t move) and throwing off their\nfooting (easier to hit). Requires: any item keyworded "component"\nRelated: skills practice cast entangling roots raze', 'seed'),
+('raze', 'Usage: cast raze <target>\n\nDruid only. The single most powerful attack spell on the Druid\nroster -- calls upon ancient spirits to erase the target''s very\nexistence, dealing severe damage with a real chance of doubling\nagain. Refuses against an immortal. Requires: any item keyworded\n"component"\nRelated: skills practice cast flatulence', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

@@ -178,6 +178,25 @@ typedef struct obj {
     int price;
     int max_struct;
     int cur_struct;
+    /* Weapon sharpness (`sharpen`/`smooth` skills, missing-skill audit
+     * batch C, 2026-08-09). Real upstream (obj_base_weapon.cc) tracks a
+     * per-weapon curSharp/maxSharp pair, raised toward the ceiling by
+     * `sharpen` (a whetstone, edged/piercing weapons only) or `dull`
+     * (a file, blunt weapons only -- Tobin names this skill `smooth`
+     * instead, since the real mechanic pushes curSharp UP for a blunt
+     * weapon too, same as sharpen does for an edged one; "dull" is a
+     * misleading name for what it actually does). Tobin scope-down: one
+     * FLAT ceiling for every weapon (SHARPNESS_MAX below) rather than
+     * the original's per-vnum editable "max sharpness" data (no schema
+     * column exists to hold a per-vnum value, and inventing 30+ per-
+     * weapon numbers wouldn't be porting real data), and NOT persisted
+     * across a reconnect/reload (resets to SHARPNESS_DEFAULT on every
+     * fresh spawn from the prototype, same "transient, not worth a
+     * migration for a decorative-leaning combat stat" precedent as
+     * drug.h's own `effect_ticks_left`). Read by combat.c's per-swing
+     * damage bonus -- see that call site's own comment for the exact
+     * scaling. */
+    int sharpness;
     int material;
     bool can_be_seen;
 
@@ -268,6 +287,13 @@ typedef struct obj {
 #define CONT_CLOSED    (1 << 2) /* currently shut */
 #define CONT_LOCKED    (1 << 3) /* currently locked -- see cmd_lock.c's `lock`/`unlock` */
 #define CONT_TRAPPED   (1 << 4) /* rigged -- see cmd_trap.c's `settrap`/`disarmtrap` (containers) */
+
+/* Weapon sharpness range (obj_t.sharpness above) -- every weapon starts
+ * at the default, `sharpen`/`smooth` (cmd_sharpen.c) raise it toward the
+ * max in flat steps. */
+#define SHARPNESS_DEFAULT 50
+#define SHARPNESS_MAX     100
+#define SHARPNESS_GAIN_PER_USE 15
 
 /* Armor class this piece contributes if worn (0 for anything else). The
  * upstream seed's `val0` field ("armor class") is uniformly 0 across

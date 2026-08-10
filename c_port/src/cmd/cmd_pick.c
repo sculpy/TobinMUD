@@ -130,10 +130,10 @@ bool cmd_pick(descriptor_t *d, const char *args) {
         descriptor_send(d, "This lock is far too intricate to pick.\r\n");
         return true;
     }
-    char roommsg[192];
+    char roommsg[320];
     snprintf(roommsg, sizeof(roommsg), "%s begins fiddling with a lock on %s.\r\n", ch->base.name, label);
     descriptor_room_echo(ch->base.roomp, ch, roommsg);
-    char selfmsg[192];
+    char selfmsg[320];
     snprintf(selfmsg, sizeof(selfmsg), "You begin fiddling with the lock on %s.\r\n", label);
     descriptor_send(d, selfmsg);
     if (!skill_roll_success(prof)) {

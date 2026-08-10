@@ -164,6 +164,12 @@ static bool do_move(descriptor_t *d, int dir) {
         descriptor_send(d, "You're stuck fast in a mass of sticky webbing!\r\n");
         return true;
     }
+    if (being_has_affect(ch, AFFECT_LIVING_VINES)) {
+        /* `living vines` (Shaman/Druid audit batch C, 2026-08-09) -- see
+         * AFFECT_LIVING_VINES's own doc comment (affect.h). */
+        descriptor_send(d, "Living vines have wrapped tight around your legs -- you can't move!\r\n");
+        return true;
+    }
 
     room_t *from = ch->base.roomp;
     int dest = from->exits[dir];
