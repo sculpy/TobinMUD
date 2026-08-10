@@ -33,7 +33,7 @@ keep the race-only perks neutral):
 - Tier 3 talent (race only): one enum per race (Ogre brawler, Hobbit
   woodland stealth, Gnome innate detect-magic, Human adaptable skill-gain).
 
-- [ ] **Phase 1 — data model + seed + menu rework + Tier 0/Tier 2 apply.**
+- [x] **Phase 1 — data model + seed + menu rework + Tier 0/Tier 2 apply.**
       Schema migration (balance.sql) + balance_mod_t/balance_repo for all new
       columns; seed scaled Sneezy values for the 6 races; apply mana_mult
       (being_calc_max_mana), move_mult (being_calc_max_vit), food/drink_mult
@@ -42,12 +42,12 @@ keep the race-only perks neutral):
       one-line "what it does", neutral baseline, current value, and a
       live-effect line, split into Combat / Vitals / Resistances / Senses /
       Talent sections (race) vs Combat only (class). Smoke test.
-- [ ] **Phase 2 — Tier 1 resistance application.** being_race_resist(type)
+- [x] **Phase 2 — Tier 1 resistance application.** being_race_resist(type)
       helper; apply at the existing hooks (charm/sleep via the affect save,
       poison via drink/sip). Elemental types (heat/cold/energy/paralysis)
       stored + editable now, applied where/when such damage sources exist
       (disclosed-pending, shown as such in the menu). Smoke test.
-- [ ] **Phase 3 — Tier 3 talents.** Wire the concrete talents: Gnome innate
+- [x] **Phase 3 — Tier 3 talents.** Wire the concrete talents: Gnome innate
       detect-magic, Hobbit sneak/hide/search bonus, Ogre brawling-skill
       bonus, Human across-the-board learn-by-doing bonus. Smoke test +
       docs/RACE_PERKS.md finalized.
