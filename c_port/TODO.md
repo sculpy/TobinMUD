@@ -288,7 +288,7 @@ raw checklist, pick from it as capacity allows.
 
 #### Ranger (6) — no Ranger class in Tobin
 - [ ] Creeping doom
-- [ ] Living vines
+- [x] Living vines -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Roots + easier-to-hit debuff, outdoors only (folded onto Druid).
 - [ ] Root control
 - [ ] Shapeshift
 - [ ] Sticks to snakes
@@ -325,22 +325,22 @@ raw checklist, pick from it as capacity allows.
 - [ ] Enthrall ghast
 - [ ] Enthrall ghoul
 - [ ] Enthrall spectre
-- [ ] Flatulence
+- [x] Flatulence -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Room-wide damage sparing the caster's group (Druid).
 - [ ] Healing grasp
 - [ ] Hypnosis
 - [ ] Intimidate
 - [ ] Legba's guidance
 - [ ] Lich touch
 - [ ] Life leech
-- [ ] Raze
+- [x] Raze -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Hardest-hitting single strike on the Druid roster, refuses on an immortal.
 - [ ] Resurrection
 - [ ] Romble
 - [ ] Sense presence
 - [ ] Shadow walk
-- [ ] Shield of mists
+- [x] Shield of mists -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** A real defensive to-hit debuff on the caster (Druid).
 - [ ] Soul twister
 - [ ] Squish
-- [ ] Thornflesh
+- [x] Thornflesh -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Self buff that damages anyone landing a melee hit on you (Druid).
 - [ ] Vampiric touch
 - [ ] Voodoo
 
@@ -366,9 +366,9 @@ raw checklist, pick from it as capacity allows.
 
 #### Ranger (6) — no Ranger class in Tobin
 - [ ] Apply herbs
-- [ ] Beast charm
+- [x] Beast charm -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Wired into the charmed-pet system (Druid); upstream's own version is a stub.
 - [ ] Beast summon
-- [ ] Befriend beast
+- [x] Befriend beast -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Wired into the charmed-pet system (Druid); upstream's own version is a stub.
 - [ ] Transfix
 - [ ] Transform limb
 
@@ -379,15 +379,15 @@ raw checklist, pick from it as capacity allows.
 
 #### Deikhan (24) — no Deikhan (paladin) class in Tobin
 - [ ] 2h specialization (Deikhan variant)
-- [ ] Advanced riding
+- [x] Advanced riding -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Improves mount success and charge damage; every class, no Deikhan class needed.
 - [ ] Aura of absolution
 - [ ] Aura of might
 - [ ] Aura of regeneration
 - [ ] Aura of the guardian
 - [ ] Aura of vengeance
 - [ ] Bash (Deikhan variant)
-- [ ] Calm mount
-- [ ] Charge
+- [x] Calm mount -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Unseat-resist on a landed hit; every class.
+- [x] Charge -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Bonus-damage + knockdown opening strike, mounted only; every class.
 - [ ] Chivalry
 - [ ] Deikhan repair
 - [ ] Divine grace
@@ -420,7 +420,7 @@ raw checklist, pick from it as capacity allows.
 #### Generic / cross-class (50)
 - [ ] Advanced defense
 - [ ] Advanced offense
-- [ ] Alcoholism
+- [x] Alcoholism -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** New drunk stat from real per-liquid values, to-hit penalty + pass-out, sobers over time.
 - [ ] Avian (language)
 - [x] Bandage -- **Fixed 2026-08-08 (Session 141):** new bleeding-limb mechanic (transient per-limb `bleeding` flag, chipped each vitals tick) + `bandage [target]` command (cmd_bandage.c) that consumes a bandage item to clear it and heal a little.
 - [x] Barehand specialization — **Fixed 2026-08-04:** all 5 weapon specializations (slash/blunt/pierce/ranged/barehand) now implemented (skill.c/combat.c/cmd_skills.c) -- Warrior-only, level 1, auto-known with no guildmaster visit needed, individually learned by doing (Class-tier, uncapped ceiling) as a real passive hit/damage bonus scaling with proficiency, with an extra bump at exactly 100%. Kept genuinely distinct from Tobin's pre-existing "*_proficiency" Combat-tier skills (found live while building this -- those just mirror the shared combat_disc_pct with no individual tracking; specialization is a separate, individually-grindable layer on top). New tests/smoke_test_weapon_spec.py passes live.
@@ -459,10 +459,10 @@ raw checklist, pick from it as capacity allows.
 - [x] Ranged specialization
 - [ ] Read magic
 - [ ] Seekwater
-- [ ] Sharpen
+- [x] Sharpen -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** New mutable weapon sharpness stat, whetstone-gated, feeds the combat condition bonus.
 - [ ] Skinning (generic, non-Druid classes)
 - [x] Slash specialization
-- [ ] Smooth
+- [x] Smooth -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Blunt-weapon counterpart to sharpen (file-gated); also fixed blunt weapons getting no condition bonus at all.
 - [x] Swim -- **Fixed 2026-08-08 (Session 138):** new roster entry (all 6 classes, Combat tier); mitigates Tobin's unconditional underwater drowning damage, up to 50% off at full proficiency.
 - [ ] Tactics
 - [x] Toughness -- **Fixed 2026-08-05:** new roster entry (all 6 classes, generic, Advanced tier); combat.c grants a real passive damage-reduction percentage (up to 20% at 100% proficiency) applied after Sanctuary (real upstream's own per-hit stacking-immunity buff has no matching Tobin infrastructure -- disclosed scope-cut, same "flat passive instead of true stacking" shape `bloodlust` already used).
