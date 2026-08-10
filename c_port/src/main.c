@@ -30,6 +30,7 @@
 #include "practice.h"
 #include "pulse.h"
 #include "regen.h"
+#include "rent.h"
 #include "copyover.h"
 #include "shutdown.h"
 #include "socials.h"
@@ -124,6 +125,7 @@ int main(int argc, char **argv) {
     weather_load();   /* restore the persisted world weather state */
     balance_cache_load(); /* class/race balance modifiers (cmd_balance.c) */
     wisdom_practice_load(); /* wisdom->practice-points scalar (practice.c) */
+    rent_config_load(); /* rent tax / free-level settings (rent.c) */
     social_cache_load(); /* socials (emotes) -- checked on nearly every unmatched
                              player command, see socials.h for why this is cached */
     game_loop_boot_poll(BOOT_HOLD_MSG);

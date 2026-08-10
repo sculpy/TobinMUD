@@ -10,6 +10,7 @@
 #include <strings.h>
 
 #include "practice.h"
+#include "rent.h"
 
 /* `balance class|race <name>` (Implementor-only, 60+ -- user 2026-07-12:
  * "a balance command (60) where you take args: balance <class|race>
@@ -32,7 +33,7 @@ bool cmd_balance(descriptor_t *d, const char *args) {
     sscanf(args, "%15s %31s", kind, name);
 
     if (!kind[0]) {
-        descriptor_send(d, "Usage: balance class <name>  |  balance race <name>  |  balance wisdom [<value>]\r\n");
+        descriptor_send(d, "Usage: balance class <name> | balance race <name> | balance wisdom [<value>] | balance rent [tax|free <n>]\r\n");
         return true;
     }
 
@@ -51,6 +52,47 @@ bool cmd_balance(descriptor_t *d, const char *args) {
             snprintf(buf, sizeof(buf), "Wisdom practice modifier set to <c>%g<z>.\r\n", v);
             descriptor_send(d, buf);
         }
+        return true;
+    }
+
+    /* `balance rent [tax|free <value>]` -- view or set the gamewide rent-cost
+     * settings (rent.h): the max-level tax and the free-below level. With no
+     * subcommand it displays the current values and example costs. Needs >=2
+     * letters so bare "r" still resolves to `balance race`, not rent. */
+    if (strlen(kind) >= 2 && strncasecmp(kind, "rent", strlen(kind)) == 0) {
+        char sub[16] = "", valstr[24] = "";
+        sscanf(args, "%*s %15s %23s", sub, valstr);
+        if (sub[0] && (strncasecmp(sub, "tax", strlen(sub)) == 0
+                       || strncasecmp(sub, "free", strlen(sub)) == 0)) {
+            if (!valstr[0]) {
+                descriptor_send(d, "Usage: balance rent tax <gold>   |   balance rent free <level>\r\n");
+                return true;
+            }
+            char buf[128];
+            if (strncasecmp(sub, "tax", strlen(sub)) == 0) {
+                rent_tax_at_max_set(atoi(valstr));
+                snprintf(buf, sizeof(buf), "Rent tax at max level set to <c>%d<z> gold.\r\n", rent_tax_at_max());
+            } else {
+                rent_free_level_set(atoi(valstr));
+                snprintf(buf, sizeof(buf), "Rent is now free at or below level <c>%d<z>.\r\n", rent_free_level());
+            }
+            descriptor_send(d, buf);
+            return true;
+        }
+        int tax = rent_tax_at_max();
+        long denom = (long)MORTAL_LEVEL_MAX * MORTAL_LEVEL_MAX * MORTAL_LEVEL_MAX;
+        int c10 = (int)((long)tax * 10 * 10 * 10 / denom);
+        int c25 = (int)((long)tax * 25 * 25 * 25 / denom);
+        int c40 = (int)((long)tax * 40 * 40 * 40 / denom);
+        char buf[512];
+        snprintf(buf, sizeof(buf),
+            "\r\n<c>Rent settings (gamewide, live):<z>\r\n"
+            "  <p>Tax at max level (L%d)<z> : <c>%d<z> gold   (balance rent tax <n>)\r\n"
+            "  <p>Free at/below level<z>    : <c>%d<z>       (balance rent free <n>)\r\n"
+            "  Cost scales with level cubed; paid from wallet, then bank for any shortfall.\r\n"
+            "  Examples at the current tax: L10 ~%d, L25 ~%d, L40 ~%d, L%d %d gold.\r\n",
+            MORTAL_LEVEL_MAX, tax, rent_free_level(), c10, c25, c40, MORTAL_LEVEL_MAX, tax);
+        descriptor_send(d, buf);
         return true;
     }
 
