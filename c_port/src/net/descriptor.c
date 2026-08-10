@@ -2489,23 +2489,106 @@ bool descriptor_medit_begin(descriptor_t *d, int vnum) {
     return true;
 }
 
-/* Renders the CONN_BALANCE_MENU top-level screen for the balance_work
- * snapshot (a class or race's balance_mod_t, per balance_is_class): HP/
- * damage multipliers, to-hit/AC modifiers, and an "* unsaved changes *"
- * marker when balance_dirty. */
+/* Human-readable name for a race talent (balance_mod_t.talent enum). Kept
+ * in sync with the talent legend in balance_prompt_field() below and the
+ * seeded values in db/tobin/balance.sql. */
+static const char *balance_talent_name(int t) {
+    switch (t) {
+        case 1: return "Adaptable (faster skill gain)";
+        case 2: return "Brawler (bonus to brawling skills)";
+        case 3: return "Woodland Stealth (better sneak/hide/search)";
+        case 4: return "Detect Magic (innate)";
+        default: return "(none)";
+    }
+}
+
+/* Prompts for a new value for balance-editor field `id` (1-17), records
+ * which field is being edited, and drops into CONN_BALANCE_EDIT. Each
+ * prompt spells out units and the neutral value so the immortal knows
+ * exactly what the number means before typing it. */
+static void balance_prompt_field(descriptor_t *d, int id) {
+    static const char *const P[] = {
+        "",
+        "HP multiplier -- x max hit points (1.00 = neutral, e.g. 1.10)",
+        "Damage multiplier -- x melee damage dealt (1.00 = neutral)",
+        "To-hit modifier -- whole number added to attack rolls (0 = neutral)",
+        "AC modifier -- whole number; lower AC is better (0 = neutral)",
+        "Mana multiplier -- x max mana, casters only (1.00 = neutral)",
+        "Move multiplier -- x max movement points (1.00 = neutral)",
+        "Food/hunger rate -- hunger decay speed (1.00 = neutral, 0.75 = eats less)",
+        "Drink/thirst rate -- thirst decay speed (1.00 = neutral, 0.75 = drinks less)",
+        "Poison resistance -- % chance to shrug off, 0-100 (0 = none)",
+        "Charm resistance -- % chance to shrug off, 0-100",
+        "Sleep resistance -- % chance to shrug off, 0-100",
+        "Paralysis resistance -- % chance to shrug off, 0-100",
+        "Energy resistance -- % chance to shrug off, 0-100",
+        "Heat resistance -- % chance to shrug off, 0-100",
+        "Cold resistance -- % chance to shrug off, 0-100",
+        "Infravision -- 1 = innate dark-vision ON, 0 = off",
+        "Talent -- 0 none, 1 Adaptable, 2 Brawler, 3 Woodland Stealth, 4 Detect Magic",
+    };
+    if (id < 1 || id > 17)
+        return;
+    char buf[200];
+    snprintf(buf, sizeof(buf), "\r\n<c>Set:<z> %s\r\nNew value (blank line to cancel): ", P[id]);
+    descriptor_send(d, buf);
+    d->balance_field = id;
+    d->state = CONN_BALANCE_EDIT;
+}
+
+/* Renders the CONN_BALANCE_MENU screen for the balance_work snapshot.
+ * Combat modifiers (1-4) apply to both classes and races and always
+ * show; the PC-race perk fields (5-17: vitals, resistances, senses,
+ * talent) show only when balancing a race. Every line names its unit and
+ * neutral value so it is unambiguous what is being changed and by how
+ * much. Marks "* unsaved changes *" when balance_dirty. */
 static void show_balance_menu(descriptor_t *d) {
-    const char *kind = d->balance_is_class ? "class" : "race";
-    const char *name = d->balance_is_class ? class_name((player_class_t)d->balance_index)
-                                            : race_name((player_race_t)d->balance_index);
+    bool is_class = d->balance_is_class;
+    const char *kind = is_class ? "CLASS" : "RACE";
+    const char *name = is_class ? class_name((player_class_t)d->balance_index)
+                                : race_name((player_race_t)d->balance_index);
     balance_mod_t *w = &d->balance_work;
-    char out[512];
-    snprintf(out, sizeof(out),
-             "\r\n<c>Balancing %s:<z> %s\r\n\r\n"
-             "   <c>1)<z> <p>HP multiplier<z>: %.2f          <c>2)<z> <p>Damage multiplier<z>: %.2f\r\n"
-             "   <c>3)<z> <p>To-hit modifier<z>: %+d         <c>4)<z> <p>AC modifier<z>: %+d\r\n\r\n"
-             "   <c>S)<z> <p>Save<z>    <c>Q)<z> <p>Quit<z>%s\r\n[balance %s] ",
-             kind, name, (double)w->hp_mult, (double)w->dmg_mult, w->tohit_mod, w->ac_mod,
-             d->balance_dirty ? "\r\n   <c>* unsaved changes *<z>" : "", kind);
+    char out[2600];
+    int n = 0;
+    n += snprintf(out + n, sizeof(out) - n,
+        "\r\n<c>=== Balancing %s: %s ===<z>\r\n"
+        "Applies gamewide and live to every %s. 1.00x / +0 / 0%% = no change.\r\n"
+        "\r\n<c>-- Combat (classes and races) --<z>\r\n"
+        "  <c>1)<z> <p>HP multiplier<z>     : %.2f   x max hit points\r\n"
+        "  <c>2)<z> <p>Damage multiplier<z> : %.2f   x melee damage dealt\r\n"
+        "  <c>3)<z> <p>To-hit modifier<z>   : %+d     added to attack rolls\r\n"
+        "  <c>4)<z> <p>AC modifier<z>       : %+d     added to armor class (lower = better)\r\n",
+        kind, name, name,
+        (double)w->hp_mult, (double)w->dmg_mult, w->tohit_mod, w->ac_mod);
+    if (!is_class) {
+        n += snprintf(out + n, sizeof(out) - n,
+            "\r\n<c>-- Vitals & upkeep (race only) --<z>\r\n"
+            "  <c>5)<z> <p>Mana multiplier<z>   : %.2f   x max mana (casters only)\r\n"
+            "  <c>6)<z> <p>Move multiplier<z>   : %.2f   x max movement points\r\n"
+            "  <c>7)<z> <p>Food/hunger rate<z>  : %.2f   hunger decay (<1 = eats less)\r\n"
+            "  <c>8)<z> <p>Drink/thirst rate<z> : %.2f   thirst decay (<1 = drinks less)\r\n"
+            "\r\n<c>-- Resistances: %% chance to shrug off (race only) --<z>\r\n"
+            "  <c> 9)<z> <p>Poison<z>    : %d%%\r\n"
+            "  <c>10)<z> <p>Charm<z>     : %d%%\r\n"
+            "  <c>11)<z> <p>Sleep<z>     : %d%%\r\n"
+            "  <c>12)<z> <p>Paralysis<z> : %d%%\r\n"
+            "  <c>13)<z> <p>Energy<z>    : %d%%\r\n"
+            "  <c>14)<z> <p>Heat<z>      : %d%%\r\n"
+            "  <c>15)<z> <p>Cold<z>      : %d%%\r\n"
+            "\r\n<c>-- Senses & talent (race only) --<z>\r\n"
+            "  <c>16)<z> <p>Infravision<z>      : %s   sees in the dark, no light needed\r\n"
+            "  <c>17)<z> <p>Talent<z>           : %s\r\n",
+            (double)w->mana_mult, (double)w->move_mult, (double)w->food_mult, (double)w->drink_mult,
+            w->resist_poison, w->resist_charm, w->resist_sleep, w->resist_paralysis,
+            w->resist_energy, w->resist_heat, w->resist_cold,
+            w->infravision ? "ON " : "off",
+            balance_talent_name(w->talent));
+    }
+    n += snprintf(out + n, sizeof(out) - n,
+        "\r\n  <c>S)<z> <p>Save<z>   <c>Q)<z> <p>Quit<z>%s\r\n[balance %s] ",
+        d->balance_dirty ? "   <c>* unsaved changes *<z>" : "",
+        is_class ? "class" : "race");
+    (void)n;
     descriptor_send(d, out);
     d->state = CONN_BALANCE_MENU;
 }
@@ -5721,28 +5804,16 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_BALANCE_MENU: {
+            const char *pick = d->balance_is_class ? "Pick 1-4, or S/Q.\r\n"
+                                                   : "Pick 1-17, or S/Q.\r\n";
             if (isdigit((unsigned char)line[0])) {
-                switch (atoi(line)) {
-                    case 1:
-                        descriptor_send(d, "\r\nEnter new HP multiplier, e.g. 1.25 (blank to cancel): ");
-                        d->state = CONN_BALANCE_HP_MULT;
-                        break;
-                    case 2:
-                        descriptor_send(d, "\r\nEnter new damage multiplier, e.g. 0.9 (blank to cancel): ");
-                        d->state = CONN_BALANCE_DMG_MULT;
-                        break;
-                    case 3:
-                        descriptor_send(d, "\r\nEnter new to-hit modifier, e.g. -5 or 10 (blank to cancel): ");
-                        d->state = CONN_BALANCE_TOHIT_MOD;
-                        break;
-                    case 4:
-                        descriptor_send(d, "\r\nEnter new AC modifier, e.g. -5 or 10 (blank to cancel): ");
-                        d->state = CONN_BALANCE_AC_MOD;
-                        break;
-                    default:
-                        descriptor_send(d, "Pick a menu number (1-4), or S/Q.\r\n");
-                        show_balance_menu(d);
-                        break;
+                int id = atoi(line);
+                int maxid = d->balance_is_class ? 4 : 17;
+                if (id >= 1 && id <= maxid) {
+                    balance_prompt_field(d, id);
+                } else {
+                    descriptor_send(d, pick);
+                    show_balance_menu(d);
                 }
                 return true;
             }
@@ -5761,69 +5832,76 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     }
                     break;
                 default:
-                    descriptor_send(d, "Pick a menu number (1-4), or S/Q.\r\n");
+                    descriptor_send(d, pick);
                     show_balance_menu(d);
                     break;
             }
             return true;
         }
 
-        case CONN_BALANCE_HP_MULT: {
-            if (line[0]) {
-                char *end;
-                double v = strtod(line, &end);
-                if (end != line && v > 0) {
-                    d->balance_work.hp_mult = (float)v;
-                    d->balance_dirty = true;
-                } else {
-                    descriptor_send(d, "HP multiplier must be a positive number.\r\n");
-                }
+        case CONN_BALANCE_EDIT: {
+            if (!line[0]) {          /* blank line cancels, leaves field unchanged */
+                show_balance_menu(d);
+                return true;
             }
-            show_balance_menu(d);
-            return true;
-        }
-
-        case CONN_BALANCE_DMG_MULT: {
-            if (line[0]) {
-                char *end;
-                double v = strtod(line, &end);
-                if (end != line && v > 0) {
-                    d->balance_work.dmg_mult = (float)v;
-                    d->balance_dirty = true;
-                } else {
-                    descriptor_send(d, "Damage multiplier must be a positive number.\r\n");
+            int id = d->balance_field;
+            balance_mod_t *w = &d->balance_work;
+            char *end;
+            bool ok = true;
+            switch (id) {
+                case 1: case 2: case 5: case 6: case 7: case 8: {  /* positive floats */
+                    double v = strtod(line, &end);
+                    if (end == line || v <= 0) { ok = false; break; }
+                    switch (id) {
+                        case 1: w->hp_mult = (float)v; break;
+                        case 2: w->dmg_mult = (float)v; break;
+                        case 5: w->mana_mult = (float)v; break;
+                        case 6: w->move_mult = (float)v; break;
+                        case 7: w->food_mult = (float)v; break;
+                        case 8: w->drink_mult = (float)v; break;
+                    }
+                    break;
                 }
-            }
-            show_balance_menu(d);
-            return true;
-        }
-
-        case CONN_BALANCE_TOHIT_MOD: {
-            if (line[0]) {
-                char *end;
-                long v = strtol(line, &end, 10);
-                if (end != line) {
-                    d->balance_work.tohit_mod = (int)v;
-                    d->balance_dirty = true;
-                } else {
-                    descriptor_send(d, "To-hit modifier must be a whole number.\r\n");
+                case 3: case 4: {  /* any whole number */
+                    long v = strtol(line, &end, 10);
+                    if (end == line) { ok = false; break; }
+                    if (id == 3) w->tohit_mod = (int)v; else w->ac_mod = (int)v;
+                    break;
                 }
-            }
-            show_balance_menu(d);
-            return true;
-        }
-
-        case CONN_BALANCE_AC_MOD: {
-            if (line[0]) {
-                char *end;
-                long v = strtol(line, &end, 10);
-                if (end != line) {
-                    d->balance_work.ac_mod = (int)v;
-                    d->balance_dirty = true;
-                } else {
-                    descriptor_send(d, "AC modifier must be a whole number.\r\n");
+                case 9: case 10: case 11: case 12: case 13: case 14: case 15: {  /* 0-100% */
+                    long v = strtol(line, &end, 10);
+                    if (end == line) { ok = false; break; }
+                    if (v < 0) v = 0;
+                    if (v > 100) v = 100;
+                    switch (id) {
+                        case 9:  w->resist_poison = (int)v; break;
+                        case 10: w->resist_charm = (int)v; break;
+                        case 11: w->resist_sleep = (int)v; break;
+                        case 12: w->resist_paralysis = (int)v; break;
+                        case 13: w->resist_energy = (int)v; break;
+                        case 14: w->resist_heat = (int)v; break;
+                        case 15: w->resist_cold = (int)v; break;
+                    }
+                    break;
                 }
+                case 16: {  /* 0/1 */
+                    long v = strtol(line, &end, 10);
+                    if (end == line || (v != 0 && v != 1)) { ok = false; break; }
+                    w->infravision = (int)v;
+                    break;
+                }
+                case 17: {  /* talent enum 0-4 */
+                    long v = strtol(line, &end, 10);
+                    if (end == line || v < 0 || v > 4) { ok = false; break; }
+                    w->talent = (int)v;
+                    break;
+                }
+                default: ok = false; break;
             }
+            if (ok)
+                d->balance_dirty = true;
+            else
+                descriptor_send(d, "That value wasn't valid for this field -- nothing changed.\r\n");
             show_balance_menu(d);
             return true;
         }

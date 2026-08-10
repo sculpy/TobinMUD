@@ -546,6 +546,12 @@ bool room_is_dark_for(const struct room *r, const being_t *ch) {
         return false;
     if (being_has_affect((being_t *)ch, AFFECT_INFRAVISION))
         return false;
+    /* Innate racial dark-vision (race_balance.infravision, `balance`):
+     * Dwarf/Hobbit/Gnome see in the dark with no light or spell. PC-only --
+     * a mob's `race` is a player_race_t default of 0 (Human, no infravision),
+     * so this never lights the world for mobs. */
+    if (ch->base.kind != THING_MOB && race_balance_get(ch->race)->infravision)
+        return false;
     return !being_has_active_light(ch);
 }
 
@@ -742,7 +748,11 @@ int being_calc_max_vit(const being_t *b) {
         if (sk)
             iron_legs_bonus = skill_proficiency(b, sk) * 2.0;
     }
-    return (int)(100.0 + 15.0 + b->progress.level + con_bonus + iron_legs_bonus);
+    /* Race stamina perk (race_balance.move_mult, `balance` command):
+     * long-legged races (Ogre/Hobbit/Elf) carry more move, stubbier ones
+     * less. Neutral 1.0 until balanced. */
+    return (int)((100.0 + 15.0 + b->progress.level + con_bonus + iron_legs_bonus)
+                 * race_balance_get(b->race)->move_mult);
 }
 
 /* Real Mage mana formula, ported from SneezyMUD's own
@@ -774,7 +784,9 @@ int being_calc_max_mana(const being_t *b) {
         return 0;
     const skill_def_t *mana_sk = skill_find(CLASS_MAGE, "mana", false);
     int pct = mana_sk ? skill_proficiency(b, mana_sk) : 0;
-    return 100 + pct * 3;
+    /* Race mana-pool perk (race_balance.mana_mult, `balance` command):
+     * Gnome/Elf run deeper, Dwarf shallower. Neutral 1.0 until balanced. */
+    return (int)((100 + pct * 3) * race_balance_get(b->race)->mana_mult);
 }
 
 static const char *LIMB_NAMES[LIMB_COUNT] = {

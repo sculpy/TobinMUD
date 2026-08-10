@@ -149,6 +149,7 @@ typedef enum {
     CONN_BALANCE_DMG_MULT,
     CONN_BALANCE_TOHIT_MOD,
     CONN_BALANCE_AC_MOD,
+    CONN_BALANCE_EDIT,
     CONN_BALANCE_QUIT_CONFIRM,
     /* Menu-driven account editor (edaccount, TODO.md: "rename, password
      * reset, list chars"). Unlike edplayer/edzone/balance above, NOT a
@@ -693,6 +694,7 @@ typedef struct descriptor {
     int balance_index;
     balance_mod_t balance_work;
     bool balance_dirty;
+    int balance_field;  /* which menu field CONN_BALANCE_EDIT is editing (1-17) */
 
     /* Menu-driven account editor (CONN_EDACCOUNT_*, TODO.md: "rename,
      * password reset, list chars"). Just the id, not a working-copy

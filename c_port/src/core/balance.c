@@ -9,7 +9,13 @@ static balance_mod_t g_race_balance[RACE_COUNT];
 
 /* The "nothing has been changed" values -- every class/race behaves
  * completely normally until an immortal actually balances it. */
-static const balance_mod_t NEUTRAL = { 1.0f, 1.0f, 0, 0 };
+static const balance_mod_t NEUTRAL = {
+    .hp_mult = 1.0f, .dmg_mult = 1.0f, .tohit_mod = 0, .ac_mod = 0,
+    .mana_mult = 1.0f, .move_mult = 1.0f, .food_mult = 1.0f, .drink_mult = 1.0f,
+    .resist_poison = 0, .resist_charm = 0, .resist_sleep = 0, .resist_paralysis = 0,
+    .resist_energy = 0, .resist_heat = 0, .resist_cold = 0,
+    .infravision = 0, .talent = 0,
+};
 
 /* Loads every class's and race's balance settings from the database
  * into memory, once, when the server starts up. Combat looks at this

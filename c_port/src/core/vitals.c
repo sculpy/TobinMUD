@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "affect.h"
+#include "balance.h"
 #include "being.h"
 #include "combat.h"
 #include "descriptor.h"
@@ -20,6 +21,21 @@
  * dehydration chip damage once either hits zero, rolls underwater drowning
  * damage (routed through combat_drown_pc() since this one can actually
  * kill), and persists the resulting progress. */
+/* How many hunger/thirst points to drain this tick given a race upkeep
+ * multiplier (race_balance.food_mult/drink_mult): the whole-number part
+ * always drains, the fractional part drains probabilistically. 1.0 =>
+ * exactly 1/tick (unchanged); 0.75 => 1 about three ticks in four; 1.5 =>
+ * 1 or 2. Neutral for every race until balanced. */
+static int upkeep_decay(float mult) {
+    if (mult <= 0.0f)
+        return 0;
+    int whole = (int)mult;
+    float frac = mult - (float)whole;
+    if (frac > 0.0f && (rand() % 1000) < (int)(frac * 1000.0f))
+        whole++;
+    return whole;
+}
+
 static void vitals_tick_impl(long pulse_num, bool affect_players) {
     (void)pulse_num;
     if (!affect_players)
@@ -30,9 +46,10 @@ static void vitals_tick_impl(long pulse_num, bool affect_players) {
         if (!b || being_is_immortal(b))
             continue;
 
-        if (b->progress.hunger > 0)
+        const balance_mod_t *rb = race_balance_get(b->race);
+        for (int n = upkeep_decay(rb->food_mult); n > 0 && b->progress.hunger > 0; n--)
             b->progress.hunger--;
-        if (b->progress.thirst > 0)
+        for (int n = upkeep_decay(rb->drink_mult); n > 0 && b->progress.thirst > 0; n--)
             b->progress.thirst--;
 
         if (b->progress.hunger == 0 || b->progress.thirst == 0) {
