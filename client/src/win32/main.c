@@ -23,18 +23,30 @@
  * own comment.
  *
  * A `File` menu (user, 2026-08-05) offers Connect/Reconnect/
- * Disconnect/Preferences/Reload Triggers/Exit; a `Help` menu has
- * About. Reload Triggers re-reads triggers.txt (next to the exe) --
- * plain, case-insensitive substring-match triggers against incoming
- * lines, each optionally sending a command and/or gagging the line
- * (user, 2026-08-06: "make triggers simple, not lua based" -- see
- * load_triggers()'s own comment for the file format). The input box
- * refocuses itself whenever the window is (re)activated, and hitting
- * Enter on an empty input line resends the last real command instead
- * of doing nothing (same user request). Preferences lets the window
- * size and font size be adjusted and persists them to a small INI file
- * next to the exe (`prefs.ini`, via the standard Win32
- * Get/WritePrivateProfileString APIs) so they survive a restart. */
+ * Disconnect/Preferences/Edit Triggers/Reload Triggers/Edit Aliases/
+ * Reload Aliases/Exit; a `Help` menu has About. Triggers are plain,
+ * case-insensitive substring-match rules against incoming lines, each
+ * optionally sending a command and/or gagging the line (user,
+ * 2026-08-06: "make triggers simple, not lua based" -- see
+ * load_triggers()'s own comment for the on-disk triggers.txt format);
+ * aliases expand a typed first word into a longer command (see
+ * load_aliases()'s own comment for aliases.txt's format). Both are
+ * hand-editable text files next to the exe AND now editable in-app
+ * (client backlog, logged 2026-08-06) via Edit Triggers.../Edit
+ * Aliases... -- a SysListView32 grid of existing entries plus Add/
+ * Update Selected/Delete Selected/Save controls, see
+ * open_trigger_editor()/open_alias_editor()'s own comments; Save
+ * writes straight back to the same tab-delimited file and reloads it
+ * live (no separate Reload needed after using the editor -- Reload
+ * Triggers/Reload Aliases stay in the menu for the "hand-edit the file
+ * in Notepad, then reload" workflow, which never opens a window at
+ * all). The input box refocuses itself whenever the window is
+ * (re)activated, and hitting Enter on an empty input line resends the
+ * last real command instead of doing nothing (same user request).
+ * Preferences lets the window size and font size be adjusted and
+ * persists them to a small INI file next to the exe (`prefs.ini`, via
+ * the standard Win32 Get/WritePrivateProfileString APIs) so they
+ * survive a restart. */
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
@@ -45,6 +57,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <wchar.h>
 
 #include "telnet_client.h"
 #include "ansi_client.h"
@@ -72,6 +85,8 @@
 #define ID_MENU_FILE_RELOAD_TRIGGERS 207
 #define ID_MENU_FILE_RELOAD_ALIASES 208
 #define ID_MENU_HELP_ABOUT 206
+#define ID_MENU_FILE_EDIT_TRIGGERS 209
+#define ID_MENU_FILE_EDIT_ALIASES 210
 
 #define ID_PREFS_FONTSIZE_EDIT 301
 #define ID_PREFS_WIDTH_EDIT 302
@@ -79,6 +94,32 @@
 #define ID_PREFS_OK 304
 #define ID_PREFS_CANCEL 305
 #define ID_PREFS_FULLSCREEN_CHECK 306
+
+/* Trigger/alias GUI editors (client backlog, logged 2026-08-06 --
+ * "an in-client GUI editor for triggers and aliases"). Both editors
+ * share the same shape: a report-view SysListView32 of existing
+ * entries, a couple of EDIT fields + buttons to Add/Update/Delete a
+ * row, then Save (writes back to triggers.txt/aliases.txt and
+ * reloads the live in-memory tables) or Cancel. See
+ * open_trigger_editor()/open_alias_editor()'s own comments. */
+#define ID_TRIGEDIT_LIST 601
+#define ID_TRIGEDIT_PATTERN_EDIT 602
+#define ID_TRIGEDIT_ACTION_EDIT 603
+#define ID_TRIGEDIT_GAG_CHECK 604
+#define ID_TRIGEDIT_ADD 605
+#define ID_TRIGEDIT_UPDATE 606
+#define ID_TRIGEDIT_DELETE 607
+#define ID_TRIGEDIT_SAVE 608
+#define ID_TRIGEDIT_CANCEL 609
+
+#define ID_ALIASEDIT_LIST 701
+#define ID_ALIASEDIT_NAME_EDIT 702
+#define ID_ALIASEDIT_EXPANSION_EDIT 703
+#define ID_ALIASEDIT_ADD 704
+#define ID_ALIASEDIT_UPDATE 705
+#define ID_ALIASEDIT_DELETE 706
+#define ID_ALIASEDIT_SAVE 707
+#define ID_ALIASEDIT_CANCEL 708
 
 /* Sensible defaults + clamps for the two preferences -- guards against
  * a hand-edited/corrupt prefs.ini producing an unusable (zero-size or
@@ -98,7 +139,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.24"
+#define CLIENT_VERSION "0.4.25"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -146,6 +187,8 @@ typedef struct {
     HWND hwnd_output;
     HWND hwnd_input;
     HWND hwnd_prefs; /* non-NULL while the Preferences window is open */
+    HWND hwnd_trigedit; /* non-NULL while the trigger editor is open */
+    HWND hwnd_aliasedit; /* non-NULL while the alias editor is open */
     SOCKET sock;
     telnet_client_t *telnet;
     ansi_client_t *ansi;
@@ -193,6 +236,19 @@ typedef struct {
     int trigger_count;
     alias_t aliases[ALIAS_MAX];
     int alias_count;
+    /* Leading #-comment/blank lines load_triggers()/load_aliases() found
+     * before the first real entry, re-emitted verbatim by
+     * save_triggers()/save_aliases() so a file's header commentary (the
+     * seeded example text, or anything a player hand-writes there)
+     * survives a round trip through the GUI editor. Comments that
+     * appear AFTER the first real entry are NOT preserved -- a
+     * deliberate scope-down, since round-tripping interspersed comments
+     * through a row-oriented list editor would need to tie each comment
+     * to a specific row and re-detect where it belonged on save, far
+     * more machinery than this "simple, not lua based" feature
+     * warrants. */
+    char trigger_comment_header[2048];
+    char alias_comment_header[2048];
     char pending_line_text[TRIGGER_LINE_BUF];
     size_t pending_line_len;
     int line_start_offset;
@@ -343,6 +399,7 @@ static bool ci_contains(const char *hay, const char *needle) {
  * nothing, so the feature is discoverable without external docs. */
 static void load_triggers(void) {
     g_app.trigger_count = 0;
+    g_app.trigger_comment_header[0] = '\0';
     char path[MAX_PATH + 32];
     triggers_path(path, sizeof(path));
     FILE *f = fopen(path, "r");
@@ -366,12 +423,29 @@ static void load_triggers(void) {
         return;
     }
     char line[512];
+    bool seen_entry = false;
+    size_t hdr_len = 0;
     while (g_app.trigger_count < TRIGGER_MAX && fgets(line, sizeof(line), f)) {
         size_t n = strlen(line);
         while (n > 0 && (line[n - 1] == '\n' || line[n - 1] == '\r'))
             line[--n] = '\0';
-        if (n == 0 || line[0] == '#')
+        if (n == 0 || line[0] == '#') {
+            /* Leading comment/blank line -- stash it verbatim (see
+             * trigger_comment_header's own comment) as long as no real
+             * trigger has been seen yet. */
+            if (!seen_entry && hdr_len < sizeof(g_app.trigger_comment_header)) {
+                int added = snprintf(g_app.trigger_comment_header + hdr_len,
+                                      sizeof(g_app.trigger_comment_header) - hdr_len,
+                                      "%s\r\n", line);
+                if (added > 0) {
+                    hdr_len += (size_t)added;
+                    if (hdr_len >= sizeof(g_app.trigger_comment_header))
+                        hdr_len = sizeof(g_app.trigger_comment_header) - 1;
+                }
+            }
             continue;
+        }
+        seen_entry = true;
         char *tab1 = strchr(line, '\t');
         if (!tab1)
             continue;
@@ -458,6 +532,7 @@ static void aliases_path(char *out, size_t outsize) {
  * First run with no file present seeds a commented example. */
 static void load_aliases(void) {
     g_app.alias_count = 0;
+    g_app.alias_comment_header[0] = '\0';
     char path[MAX_PATH + 32];
     aliases_path(path, sizeof(path));
     FILE *f = fopen(path, "r");
@@ -478,12 +553,29 @@ static void load_aliases(void) {
         return;
     }
     char line[512];
+    bool seen_entry = false;
+    size_t hdr_len = 0;
     while (g_app.alias_count < ALIAS_MAX && fgets(line, sizeof(line), f)) {
         size_t n = strlen(line);
         while (n > 0 && (line[n - 1] == '\n' || line[n - 1] == '\r'))
             line[--n] = '\0';
-        if (n == 0 || line[0] == '#')
+        if (n == 0 || line[0] == '#') {
+            /* Leading comment/blank line -- stash it verbatim (see
+             * alias_comment_header's own comment) as long as no real
+             * alias has been seen yet. */
+            if (!seen_entry && hdr_len < sizeof(g_app.alias_comment_header)) {
+                int added = snprintf(g_app.alias_comment_header + hdr_len,
+                                      sizeof(g_app.alias_comment_header) - hdr_len,
+                                      "%s\r\n", line);
+                if (added > 0) {
+                    hdr_len += (size_t)added;
+                    if (hdr_len >= sizeof(g_app.alias_comment_header))
+                        hdr_len = sizeof(g_app.alias_comment_header) - 1;
+                }
+            }
             continue;
+        }
+        seen_entry = true;
         char *tab = strchr(line, '\t');
         if (!tab)
             continue;
@@ -524,6 +616,47 @@ static void expand_alias(const char *input, char *out, size_t outsize) {
         return;
     }
     snprintf(out, outsize, "%s", input);
+}
+
+/* Writes g_app.triggers/trigger_count back to triggers.txt in the exact
+ * same tab-delimited PATTERN<TAB>ACTION[<TAB>g] format load_triggers()
+ * reads, so the file stays hand-editable even after being saved from
+ * the GUI editor (see open_trigger_editor()). Any leading #-comment/
+ * blank lines load_triggers() captured into trigger_comment_header are
+ * re-emitted verbatim first -- see that field's own comment for what's
+ * NOT preserved (comments after the first real trigger line). */
+static bool save_triggers(void) {
+    char path[MAX_PATH + 32];
+    triggers_path(path, sizeof(path));
+    FILE *f = fopen(path, "w");
+    if (!f)
+        return false;
+    if (g_app.trigger_comment_header[0])
+        fputs(g_app.trigger_comment_header, f);
+    for (int i = 0; i < g_app.trigger_count; i++) {
+        trigger_t *t = &g_app.triggers[i];
+        fprintf(f, "%s\t%s%s\r\n", t->pattern, t->action, t->gag ? "\tg" : "");
+    }
+    fclose(f);
+    return true;
+}
+
+/* Same idea as save_triggers(), for aliases.txt's NAME<TAB>EXPANSION
+ * format (see open_alias_editor()). */
+static bool save_aliases(void) {
+    char path[MAX_PATH + 32];
+    aliases_path(path, sizeof(path));
+    FILE *f = fopen(path, "w");
+    if (!f)
+        return false;
+    if (g_app.alias_comment_header[0])
+        fputs(g_app.alias_comment_header, f);
+    for (int i = 0; i < g_app.alias_count; i++) {
+        alias_t *a = &g_app.aliases[i];
+        fprintf(f, "%s\t%s\r\n", a->name, a->expansion);
+    }
+    fclose(f);
+    return true;
 }
 
 static void ansi_emit_cb(void *ctx, const char *text, size_t len, int color_index, int bold) {
@@ -1331,6 +1464,518 @@ static void open_preferences(HWND parent) {
     SetFocus(e1);
 }
 
+/* -- Trigger/alias GUI editors (client backlog, logged 2026-08-06 --
+ * "an in-client GUI editor for triggers and aliases") --
+ *
+ * Same hand-built-popup-window approach as Preferences above (no RC/
+ * dialog-template step wired up in CMakeLists.txt), sized up to fit a
+ * report-view SysListView32 of the existing entries plus a small
+ * add/edit form underneath. Editing happens against a private staging
+ * copy (s_trig_edit_buf/s_trig_edit_count below) rather than the live
+ * g_app.triggers[] array directly -- the poll timer keeps running while
+ * this window is open (EnableWindow(parent, FALSE) blocks player input
+ * but not WM_TIMER), so incoming MUD text could otherwise be matched
+ * against a half-edited trigger list mid-edit. The staging copy is only
+ * committed to g_app.triggers[]/written to disk on Save; Cancel (or the
+ * window's own close box) just discards it. */
+static trigger_t s_trig_edit_buf[TRIGGER_MAX];
+static int s_trig_edit_count;
+
+static void trigedit_setup_columns(HWND list) {
+    LVCOLUMNW col;
+    ZeroMemory(&col, sizeof(col));
+    col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+    col.iSubItem = 0;
+    col.cx = 220;
+    col.pszText = (LPWSTR)L"Pattern";
+    SendMessageW(list, LVM_INSERTCOLUMNW, 0, (LPARAM)&col);
+    col.iSubItem = 1;
+    col.cx = 230;
+    col.pszText = (LPWSTR)L"Action";
+    SendMessageW(list, LVM_INSERTCOLUMNW, 1, (LPARAM)&col);
+    col.iSubItem = 2;
+    col.cx = 50;
+    col.pszText = (LPWSTR)L"Gag";
+    SendMessageW(list, LVM_INSERTCOLUMNW, 2, (LPARAM)&col);
+}
+
+static void trigedit_refresh_list(HWND list) {
+    SendMessageW(list, LVM_DELETEALLITEMS, 0, 0);
+    for (int i = 0; i < s_trig_edit_count; i++) {
+        trigger_t *t = &s_trig_edit_buf[i];
+        wchar_t wpat[TRIGGER_PATTERN_MAX], wact[TRIGGER_ACTION_MAX];
+        MultiByteToWideChar(CP_UTF8, 0, t->pattern, -1, wpat, TRIGGER_PATTERN_MAX);
+        MultiByteToWideChar(CP_UTF8, 0, t->action, -1, wact, TRIGGER_ACTION_MAX);
+
+        LVITEMW item;
+        ZeroMemory(&item, sizeof(item));
+        item.mask = LVIF_TEXT;
+        item.iItem = i;
+        item.iSubItem = 0;
+        item.pszText = wpat;
+        SendMessageW(list, LVM_INSERTITEMW, 0, (LPARAM)&item);
+
+        item.iSubItem = 1;
+        item.pszText = wact;
+        SendMessageW(list, LVM_SETITEMTEXTW, (WPARAM)i, (LPARAM)&item);
+
+        item.iSubItem = 2;
+        item.pszText = t->gag ? (LPWSTR)L"Yes" : (LPWSTR)L"";
+        SendMessageW(list, LVM_SETITEMTEXTW, (WPARAM)i, (LPARAM)&item);
+    }
+}
+
+static void trigedit_populate_fields(HWND hwnd, int idx) {
+    if (idx < 0 || idx >= s_trig_edit_count)
+        return;
+    trigger_t *t = &s_trig_edit_buf[idx];
+    wchar_t wpat[TRIGGER_PATTERN_MAX], wact[TRIGGER_ACTION_MAX];
+    MultiByteToWideChar(CP_UTF8, 0, t->pattern, -1, wpat, TRIGGER_PATTERN_MAX);
+    MultiByteToWideChar(CP_UTF8, 0, t->action, -1, wact, TRIGGER_ACTION_MAX);
+    SetDlgItemTextW(hwnd, ID_TRIGEDIT_PATTERN_EDIT, wpat);
+    SetDlgItemTextW(hwnd, ID_TRIGEDIT_ACTION_EDIT, wact);
+    CheckDlgButton(hwnd, ID_TRIGEDIT_GAG_CHECK, t->gag ? BST_CHECKED : BST_UNCHECKED);
+}
+
+static int trigedit_get_selected(HWND list) {
+    return (int)SendMessageW(list, LVM_GETNEXTITEM, (WPARAM)-1, MAKELPARAM(LVNI_SELECTED, 0));
+}
+
+static LRESULT CALLBACK TrigEditWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+    case WM_NOTIFY: {
+        NMHDR *nm = (NMHDR *)lp;
+        if (nm->idFrom == ID_TRIGEDIT_LIST && nm->code == LVN_ITEMCHANGED) {
+            NMLISTVIEW *nmlv = (NMLISTVIEW *)lp;
+            if ((nmlv->uChanged & LVIF_STATE) && (nmlv->uNewState & LVIS_SELECTED))
+                trigedit_populate_fields(hwnd, nmlv->iItem);
+        }
+        return 0;
+    }
+    case WM_COMMAND: {
+        int id = LOWORD(wp);
+        HWND list = GetDlgItem(hwnd, ID_TRIGEDIT_LIST);
+        switch (id) {
+        case ID_TRIGEDIT_ADD: {
+            if (s_trig_edit_count >= TRIGGER_MAX) {
+                MessageBoxW(hwnd, L"Maximum number of triggers reached.", L"Triggers", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            wchar_t wpat[TRIGGER_PATTERN_MAX], wact[TRIGGER_ACTION_MAX];
+            GetDlgItemTextW(hwnd, ID_TRIGEDIT_PATTERN_EDIT, wpat, TRIGGER_PATTERN_MAX);
+            GetDlgItemTextW(hwnd, ID_TRIGEDIT_ACTION_EDIT, wact, TRIGGER_ACTION_MAX);
+            if (wpat[0] == 0) {
+                MessageBoxW(hwnd, L"Pattern cannot be empty.", L"Triggers", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            trigger_t *t = &s_trig_edit_buf[s_trig_edit_count++];
+            WideCharToMultiByte(CP_UTF8, 0, wpat, -1, t->pattern, (int)sizeof(t->pattern), NULL, NULL);
+            t->pattern[sizeof(t->pattern) - 1] = '\0';
+            WideCharToMultiByte(CP_UTF8, 0, wact, -1, t->action, (int)sizeof(t->action), NULL, NULL);
+            t->action[sizeof(t->action) - 1] = '\0';
+            t->gag = IsDlgButtonChecked(hwnd, ID_TRIGEDIT_GAG_CHECK) == BST_CHECKED;
+            trigedit_refresh_list(list);
+            SetDlgItemTextW(hwnd, ID_TRIGEDIT_PATTERN_EDIT, L"");
+            SetDlgItemTextW(hwnd, ID_TRIGEDIT_ACTION_EDIT, L"");
+            CheckDlgButton(hwnd, ID_TRIGEDIT_GAG_CHECK, BST_UNCHECKED);
+            SetFocus(GetDlgItem(hwnd, ID_TRIGEDIT_PATTERN_EDIT));
+            return 0;
+        }
+        case ID_TRIGEDIT_UPDATE: {
+            int sel = trigedit_get_selected(list);
+            if (sel < 0) {
+                MessageBoxW(hwnd, L"Select a trigger to update first.", L"Triggers", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            wchar_t wpat[TRIGGER_PATTERN_MAX], wact[TRIGGER_ACTION_MAX];
+            GetDlgItemTextW(hwnd, ID_TRIGEDIT_PATTERN_EDIT, wpat, TRIGGER_PATTERN_MAX);
+            GetDlgItemTextW(hwnd, ID_TRIGEDIT_ACTION_EDIT, wact, TRIGGER_ACTION_MAX);
+            if (wpat[0] == 0) {
+                MessageBoxW(hwnd, L"Pattern cannot be empty.", L"Triggers", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            trigger_t *t = &s_trig_edit_buf[sel];
+            WideCharToMultiByte(CP_UTF8, 0, wpat, -1, t->pattern, (int)sizeof(t->pattern), NULL, NULL);
+            t->pattern[sizeof(t->pattern) - 1] = '\0';
+            WideCharToMultiByte(CP_UTF8, 0, wact, -1, t->action, (int)sizeof(t->action), NULL, NULL);
+            t->action[sizeof(t->action) - 1] = '\0';
+            t->gag = IsDlgButtonChecked(hwnd, ID_TRIGEDIT_GAG_CHECK) == BST_CHECKED;
+            trigedit_refresh_list(list);
+            return 0;
+        }
+        case ID_TRIGEDIT_DELETE: {
+            int sel = trigedit_get_selected(list);
+            if (sel < 0) {
+                MessageBoxW(hwnd, L"Select a trigger to delete first.", L"Triggers", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            for (int i = sel; i < s_trig_edit_count - 1; i++)
+                s_trig_edit_buf[i] = s_trig_edit_buf[i + 1];
+            s_trig_edit_count--;
+            trigedit_refresh_list(list);
+            SetDlgItemTextW(hwnd, ID_TRIGEDIT_PATTERN_EDIT, L"");
+            SetDlgItemTextW(hwnd, ID_TRIGEDIT_ACTION_EDIT, L"");
+            CheckDlgButton(hwnd, ID_TRIGEDIT_GAG_CHECK, BST_UNCHECKED);
+            return 0;
+        }
+        case ID_TRIGEDIT_SAVE: {
+            g_app.trigger_count = s_trig_edit_count;
+            for (int i = 0; i < s_trig_edit_count; i++)
+                g_app.triggers[i] = s_trig_edit_buf[i];
+            bool ok = save_triggers();
+            EnableWindow(GetParent(g_app.hwnd_output), TRUE);
+            DestroyWindow(hwnd);
+            SetFocus(g_app.hwnd_input);
+            char msg[80];
+            int mlen;
+            if (ok)
+                mlen = snprintf(msg, sizeof(msg), "Saved %d trigger(s) to triggers.txt.\r\n", g_app.trigger_count);
+            else
+                mlen = snprintf(msg, sizeof(msg), "Failed to save triggers.txt!\r\n");
+            append_output(msg, (size_t)mlen, ok ? 3 : 1, 0);
+            g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
+            g_app.pending_line_len = 0;
+            return 0;
+        }
+        case ID_TRIGEDIT_CANCEL:
+            EnableWindow(GetParent(g_app.hwnd_output), TRUE);
+            DestroyWindow(hwnd);
+            SetFocus(g_app.hwnd_input);
+            return 0;
+        }
+        break;
+    }
+    case WM_CLOSE:
+        EnableWindow(GetParent(g_app.hwnd_output), TRUE);
+        DestroyWindow(hwnd);
+        SetFocus(g_app.hwnd_input);
+        return 0;
+    case WM_DESTROY:
+        g_app.hwnd_trigedit = NULL;
+        return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+
+static void open_trigger_editor(HWND parent) {
+    if (g_app.hwnd_trigedit) {
+        SetForegroundWindow(g_app.hwnd_trigedit);
+        return;
+    }
+    load_triggers(); /* pick up any hand-edits made outside the client since it started */
+    s_trig_edit_count = g_app.trigger_count;
+    for (int i = 0; i < s_trig_edit_count; i++)
+        s_trig_edit_buf[i] = g_app.triggers[i];
+
+    static bool cls_registered = false;
+    if (!cls_registered) {
+        WNDCLASSW wc = { 0 };
+        wc.lpfnWndProc = TrigEditWndProc;
+        wc.hInstance = GetModuleHandleW(NULL);
+        wc.lpszClassName = L"TobinMUDTrigEditWindow";
+        wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+        wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
+        RegisterClassW(&wc);
+        cls_registered = true;
+    }
+
+    const int win_w = 600, win_h = 430;
+    RECT pr;
+    GetWindowRect(parent, &pr);
+    int x = pr.left + ((pr.right - pr.left) - win_w) / 2;
+    int y = pr.top + ((pr.bottom - pr.top) - win_h) / 2;
+
+    HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME, L"TobinMUDTrigEditWindow", L"Edit Triggers",
+        WS_POPUP | WS_CAPTION | WS_SYSMENU, x, y, win_w, win_h, parent, NULL, GetModuleHandleW(NULL), NULL);
+    g_app.hwnd_trigedit = hwnd;
+
+    HFONT dlgfont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+
+    HWND list = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",
+        WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL, 16, 16, 552, 190,
+        hwnd, (HMENU)(INT_PTR)ID_TRIGEDIT_LIST, NULL, NULL);
+    SendMessageW(list, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
+    trigedit_setup_columns(list);
+    trigedit_refresh_list(list);
+
+    HWND lbl1 = CreateWindowW(L"STATIC", L"Pattern:", WS_CHILD | WS_VISIBLE,
+        16, 216, 60, 20, hwnd, NULL, NULL, NULL);
+    HWND e1 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+        80, 214, 220, 22, hwnd, (HMENU)(INT_PTR)ID_TRIGEDIT_PATTERN_EDIT, NULL, NULL);
+    HWND lbl2 = CreateWindowW(L"STATIC", L"Action:", WS_CHILD | WS_VISIBLE,
+        312, 216, 50, 20, hwnd, NULL, NULL, NULL);
+    HWND e2 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+        366, 214, 200, 22, hwnd, (HMENU)(INT_PTR)ID_TRIGEDIT_ACTION_EDIT, NULL, NULL);
+    HWND chk = CreateWindowW(L"BUTTON", L"Gag (hide the matched line)", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+        16, 244, 260, 20, hwnd, (HMENU)(INT_PTR)ID_TRIGEDIT_GAG_CHECK, NULL, NULL);
+
+    HWND add = CreateWindowW(L"BUTTON", L"Add", WS_CHILD | WS_VISIBLE,
+        16, 276, 90, 26, hwnd, (HMENU)(INT_PTR)ID_TRIGEDIT_ADD, NULL, NULL);
+    HWND upd = CreateWindowW(L"BUTTON", L"Update Selected", WS_CHILD | WS_VISIBLE,
+        114, 276, 130, 26, hwnd, (HMENU)(INT_PTR)ID_TRIGEDIT_UPDATE, NULL, NULL);
+    HWND del = CreateWindowW(L"BUTTON", L"Delete Selected", WS_CHILD | WS_VISIBLE,
+        252, 276, 130, 26, hwnd, (HMENU)(INT_PTR)ID_TRIGEDIT_DELETE, NULL, NULL);
+
+    HWND save = CreateWindowW(L"BUTTON", L"Save", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+        400, 320, 80, 28, hwnd, (HMENU)(INT_PTR)ID_TRIGEDIT_SAVE, NULL, NULL);
+    HWND cancel = CreateWindowW(L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE,
+        488, 320, 80, 28, hwnd, (HMENU)(INT_PTR)ID_TRIGEDIT_CANCEL, NULL, NULL);
+
+    HWND ctrls[] = { lbl1, e1, lbl2, e2, chk, add, upd, del, save, cancel };
+    for (size_t i = 0; i < sizeof(ctrls) / sizeof(ctrls[0]); i++)
+        SendMessageW(ctrls[i], WM_SETFONT, (WPARAM)dlgfont, TRUE);
+    SendMessageW(list, WM_SETFONT, (WPARAM)dlgfont, TRUE);
+
+    EnableWindow(parent, FALSE);
+    ShowWindow(hwnd, SW_SHOW);
+    SetFocus(e1);
+}
+
+/* -- Alias GUI editor -- same shape as the trigger editor above, just
+ * two columns (Name/Expansion) and no gag checkbox. See
+ * open_trigger_editor()'s own comment for the staging-copy rationale. */
+static alias_t s_alias_edit_buf[ALIAS_MAX];
+static int s_alias_edit_count;
+
+static void aliasedit_setup_columns(HWND list) {
+    LVCOLUMNW col;
+    ZeroMemory(&col, sizeof(col));
+    col.mask = LVCF_TEXT | LVCF_WIDTH | LVCF_SUBITEM;
+    col.iSubItem = 0;
+    col.cx = 140;
+    col.pszText = (LPWSTR)L"Name";
+    SendMessageW(list, LVM_INSERTCOLUMNW, 0, (LPARAM)&col);
+    col.iSubItem = 1;
+    col.cx = 380;
+    col.pszText = (LPWSTR)L"Expansion";
+    SendMessageW(list, LVM_INSERTCOLUMNW, 1, (LPARAM)&col);
+}
+
+static void aliasedit_refresh_list(HWND list) {
+    SendMessageW(list, LVM_DELETEALLITEMS, 0, 0);
+    for (int i = 0; i < s_alias_edit_count; i++) {
+        alias_t *a = &s_alias_edit_buf[i];
+        wchar_t wname[ALIAS_NAME_MAX], wexp[ALIAS_EXPANSION_MAX];
+        MultiByteToWideChar(CP_UTF8, 0, a->name, -1, wname, ALIAS_NAME_MAX);
+        MultiByteToWideChar(CP_UTF8, 0, a->expansion, -1, wexp, ALIAS_EXPANSION_MAX);
+
+        LVITEMW item;
+        ZeroMemory(&item, sizeof(item));
+        item.mask = LVIF_TEXT;
+        item.iItem = i;
+        item.iSubItem = 0;
+        item.pszText = wname;
+        SendMessageW(list, LVM_INSERTITEMW, 0, (LPARAM)&item);
+
+        item.iSubItem = 1;
+        item.pszText = wexp;
+        SendMessageW(list, LVM_SETITEMTEXTW, (WPARAM)i, (LPARAM)&item);
+    }
+}
+
+static void aliasedit_populate_fields(HWND hwnd, int idx) {
+    if (idx < 0 || idx >= s_alias_edit_count)
+        return;
+    alias_t *a = &s_alias_edit_buf[idx];
+    wchar_t wname[ALIAS_NAME_MAX], wexp[ALIAS_EXPANSION_MAX];
+    MultiByteToWideChar(CP_UTF8, 0, a->name, -1, wname, ALIAS_NAME_MAX);
+    MultiByteToWideChar(CP_UTF8, 0, a->expansion, -1, wexp, ALIAS_EXPANSION_MAX);
+    SetDlgItemTextW(hwnd, ID_ALIASEDIT_NAME_EDIT, wname);
+    SetDlgItemTextW(hwnd, ID_ALIASEDIT_EXPANSION_EDIT, wexp);
+}
+
+static LRESULT CALLBACK AliasEditWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+    case WM_NOTIFY: {
+        NMHDR *nm = (NMHDR *)lp;
+        if (nm->idFrom == ID_ALIASEDIT_LIST && nm->code == LVN_ITEMCHANGED) {
+            NMLISTVIEW *nmlv = (NMLISTVIEW *)lp;
+            if ((nmlv->uChanged & LVIF_STATE) && (nmlv->uNewState & LVIS_SELECTED))
+                aliasedit_populate_fields(hwnd, nmlv->iItem);
+        }
+        return 0;
+    }
+    case WM_COMMAND: {
+        int id = LOWORD(wp);
+        HWND list = GetDlgItem(hwnd, ID_ALIASEDIT_LIST);
+        switch (id) {
+        case ID_ALIASEDIT_ADD: {
+            if (s_alias_edit_count >= ALIAS_MAX) {
+                MessageBoxW(hwnd, L"Maximum number of aliases reached.", L"Aliases", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            wchar_t wname[ALIAS_NAME_MAX], wexp[ALIAS_EXPANSION_MAX];
+            GetDlgItemTextW(hwnd, ID_ALIASEDIT_NAME_EDIT, wname, ALIAS_NAME_MAX);
+            GetDlgItemTextW(hwnd, ID_ALIASEDIT_EXPANSION_EDIT, wexp, ALIAS_EXPANSION_MAX);
+            if (wname[0] == 0 || wexp[0] == 0) {
+                MessageBoxW(hwnd, L"Both Name and Expansion are required.", L"Aliases", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            if (wcschr(wname, L' ')) {
+                MessageBoxW(hwnd, L"Alias name cannot contain spaces.", L"Aliases", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            alias_t *a = &s_alias_edit_buf[s_alias_edit_count++];
+            WideCharToMultiByte(CP_UTF8, 0, wname, -1, a->name, (int)sizeof(a->name), NULL, NULL);
+            a->name[sizeof(a->name) - 1] = '\0';
+            WideCharToMultiByte(CP_UTF8, 0, wexp, -1, a->expansion, (int)sizeof(a->expansion), NULL, NULL);
+            a->expansion[sizeof(a->expansion) - 1] = '\0';
+            aliasedit_refresh_list(list);
+            SetDlgItemTextW(hwnd, ID_ALIASEDIT_NAME_EDIT, L"");
+            SetDlgItemTextW(hwnd, ID_ALIASEDIT_EXPANSION_EDIT, L"");
+            SetFocus(GetDlgItem(hwnd, ID_ALIASEDIT_NAME_EDIT));
+            return 0;
+        }
+        case ID_ALIASEDIT_UPDATE: {
+            int sel = (int)SendMessageW(list, LVM_GETNEXTITEM, (WPARAM)-1, MAKELPARAM(LVNI_SELECTED, 0));
+            if (sel < 0) {
+                MessageBoxW(hwnd, L"Select an alias to update first.", L"Aliases", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            wchar_t wname[ALIAS_NAME_MAX], wexp[ALIAS_EXPANSION_MAX];
+            GetDlgItemTextW(hwnd, ID_ALIASEDIT_NAME_EDIT, wname, ALIAS_NAME_MAX);
+            GetDlgItemTextW(hwnd, ID_ALIASEDIT_EXPANSION_EDIT, wexp, ALIAS_EXPANSION_MAX);
+            if (wname[0] == 0 || wexp[0] == 0) {
+                MessageBoxW(hwnd, L"Both Name and Expansion are required.", L"Aliases", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            if (wcschr(wname, L' ')) {
+                MessageBoxW(hwnd, L"Alias name cannot contain spaces.", L"Aliases", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            alias_t *a = &s_alias_edit_buf[sel];
+            WideCharToMultiByte(CP_UTF8, 0, wname, -1, a->name, (int)sizeof(a->name), NULL, NULL);
+            a->name[sizeof(a->name) - 1] = '\0';
+            WideCharToMultiByte(CP_UTF8, 0, wexp, -1, a->expansion, (int)sizeof(a->expansion), NULL, NULL);
+            a->expansion[sizeof(a->expansion) - 1] = '\0';
+            aliasedit_refresh_list(list);
+            return 0;
+        }
+        case ID_ALIASEDIT_DELETE: {
+            int sel = (int)SendMessageW(list, LVM_GETNEXTITEM, (WPARAM)-1, MAKELPARAM(LVNI_SELECTED, 0));
+            if (sel < 0) {
+                MessageBoxW(hwnd, L"Select an alias to delete first.", L"Aliases", MB_OK | MB_ICONWARNING);
+                return 0;
+            }
+            for (int i = sel; i < s_alias_edit_count - 1; i++)
+                s_alias_edit_buf[i] = s_alias_edit_buf[i + 1];
+            s_alias_edit_count--;
+            aliasedit_refresh_list(list);
+            SetDlgItemTextW(hwnd, ID_ALIASEDIT_NAME_EDIT, L"");
+            SetDlgItemTextW(hwnd, ID_ALIASEDIT_EXPANSION_EDIT, L"");
+            return 0;
+        }
+        case ID_ALIASEDIT_SAVE: {
+            g_app.alias_count = s_alias_edit_count;
+            for (int i = 0; i < s_alias_edit_count; i++)
+                g_app.aliases[i] = s_alias_edit_buf[i];
+            bool ok = save_aliases();
+            EnableWindow(GetParent(g_app.hwnd_output), TRUE);
+            DestroyWindow(hwnd);
+            SetFocus(g_app.hwnd_input);
+            char msg[80];
+            int mlen;
+            if (ok)
+                mlen = snprintf(msg, sizeof(msg), "Saved %d alias(es) to aliases.txt.\r\n", g_app.alias_count);
+            else
+                mlen = snprintf(msg, sizeof(msg), "Failed to save aliases.txt!\r\n");
+            append_output(msg, (size_t)mlen, ok ? 3 : 1, 0);
+            g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
+            g_app.pending_line_len = 0;
+            return 0;
+        }
+        case ID_ALIASEDIT_CANCEL:
+            EnableWindow(GetParent(g_app.hwnd_output), TRUE);
+            DestroyWindow(hwnd);
+            SetFocus(g_app.hwnd_input);
+            return 0;
+        }
+        break;
+    }
+    case WM_CLOSE:
+        EnableWindow(GetParent(g_app.hwnd_output), TRUE);
+        DestroyWindow(hwnd);
+        SetFocus(g_app.hwnd_input);
+        return 0;
+    case WM_DESTROY:
+        g_app.hwnd_aliasedit = NULL;
+        return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+
+static void open_alias_editor(HWND parent) {
+    if (g_app.hwnd_aliasedit) {
+        SetForegroundWindow(g_app.hwnd_aliasedit);
+        return;
+    }
+    load_aliases(); /* pick up any hand-edits made outside the client since it started */
+    s_alias_edit_count = g_app.alias_count;
+    for (int i = 0; i < s_alias_edit_count; i++)
+        s_alias_edit_buf[i] = g_app.aliases[i];
+
+    static bool cls_registered = false;
+    if (!cls_registered) {
+        WNDCLASSW wc = { 0 };
+        wc.lpfnWndProc = AliasEditWndProc;
+        wc.hInstance = GetModuleHandleW(NULL);
+        wc.lpszClassName = L"TobinMUDAliasEditWindow";
+        wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+        wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
+        RegisterClassW(&wc);
+        cls_registered = true;
+    }
+
+    const int win_w = 600, win_h = 390;
+    RECT pr;
+    GetWindowRect(parent, &pr);
+    int x = pr.left + ((pr.right - pr.left) - win_w) / 2;
+    int y = pr.top + ((pr.bottom - pr.top) - win_h) / 2;
+
+    HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME, L"TobinMUDAliasEditWindow", L"Edit Aliases",
+        WS_POPUP | WS_CAPTION | WS_SYSMENU, x, y, win_w, win_h, parent, NULL, GetModuleHandleW(NULL), NULL);
+    g_app.hwnd_aliasedit = hwnd;
+
+    HFONT dlgfont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+
+    HWND list = CreateWindowExW(WS_EX_CLIENTEDGE, WC_LISTVIEWW, L"",
+        WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL, 16, 16, 552, 190,
+        hwnd, (HMENU)(INT_PTR)ID_ALIASEDIT_LIST, NULL, NULL);
+    SendMessageW(list, LVM_SETEXTENDEDLISTVIEWSTYLE, LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
+    aliasedit_setup_columns(list);
+    aliasedit_refresh_list(list);
+
+    HWND lbl1 = CreateWindowW(L"STATIC", L"Name:", WS_CHILD | WS_VISIBLE,
+        16, 216, 60, 20, hwnd, NULL, NULL, NULL);
+    HWND e1 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+        80, 214, 120, 22, hwnd, (HMENU)(INT_PTR)ID_ALIASEDIT_NAME_EDIT, NULL, NULL);
+    HWND lbl2 = CreateWindowW(L"STATIC", L"Expansion:", WS_CHILD | WS_VISIBLE,
+        216, 216, 70, 20, hwnd, NULL, NULL, NULL);
+    HWND e2 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+        290, 214, 276, 22, hwnd, (HMENU)(INT_PTR)ID_ALIASEDIT_EXPANSION_EDIT, NULL, NULL);
+
+    HWND add = CreateWindowW(L"BUTTON", L"Add", WS_CHILD | WS_VISIBLE,
+        16, 246, 90, 26, hwnd, (HMENU)(INT_PTR)ID_ALIASEDIT_ADD, NULL, NULL);
+    HWND upd = CreateWindowW(L"BUTTON", L"Update Selected", WS_CHILD | WS_VISIBLE,
+        114, 246, 130, 26, hwnd, (HMENU)(INT_PTR)ID_ALIASEDIT_UPDATE, NULL, NULL);
+    HWND del = CreateWindowW(L"BUTTON", L"Delete Selected", WS_CHILD | WS_VISIBLE,
+        252, 246, 130, 26, hwnd, (HMENU)(INT_PTR)ID_ALIASEDIT_DELETE, NULL, NULL);
+
+    HWND save = CreateWindowW(L"BUTTON", L"Save", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+        400, 288, 80, 28, hwnd, (HMENU)(INT_PTR)ID_ALIASEDIT_SAVE, NULL, NULL);
+    HWND cancel = CreateWindowW(L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE,
+        488, 288, 80, 28, hwnd, (HMENU)(INT_PTR)ID_ALIASEDIT_CANCEL, NULL, NULL);
+
+    HWND ctrls[] = { lbl1, e1, lbl2, e2, add, upd, del, save, cancel };
+    for (size_t i = 0; i < sizeof(ctrls) / sizeof(ctrls[0]); i++)
+        SendMessageW(ctrls[i], WM_SETFONT, (WPARAM)dlgfont, TRUE);
+    SendMessageW(list, WM_SETFONT, (WPARAM)dlgfont, TRUE);
+
+    EnableWindow(parent, FALSE);
+    ShowWindow(hwnd, SW_SHOW);
+    SetFocus(e1);
+}
+
 static HMENU build_menu(void) {
     HMENU hMenuBar = CreateMenu();
 
@@ -1340,7 +1985,10 @@ static HMENU build_menu(void) {
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_DISCONNECT, L"&Disconnect");
     AppendMenuW(hFile, MF_SEPARATOR, 0, NULL);
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_PREFERENCES, L"&Preferences...");
+    AppendMenuW(hFile, MF_SEPARATOR, 0, NULL);
+    AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_EDIT_TRIGGERS, L"Edit &Triggers...");
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_RELOAD_TRIGGERS, L"&Reload Triggers");
+    AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_EDIT_ALIASES, L"Edit A&liases...");
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_RELOAD_ALIASES, L"Reload &Aliases");
     AppendMenuW(hFile, MF_SEPARATOR, 0, NULL);
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_EXIT, L"E&xit");
@@ -1364,7 +2012,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         }
 
         {
-            INITCOMMONCONTROLSEX icc = { sizeof(icc), ICC_PROGRESS_CLASS };
+            INITCOMMONCONTROLSEX icc = { sizeof(icc), ICC_PROGRESS_CLASS | ICC_LISTVIEW_CLASSES };
             InitCommonControlsEx(&icc);
         }
         /* HP/Mana/Move gauge strip -- one (label, progress bar) pair per
@@ -1555,6 +2203,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             g_app.pending_line_len = 0;
             return 0;
         }
+        case ID_MENU_FILE_EDIT_TRIGGERS:
+            open_trigger_editor(hwnd);
+            return 0;
+        case ID_MENU_FILE_EDIT_ALIASES:
+            open_alias_editor(hwnd);
+            return 0;
         case ID_MENU_FILE_EXIT:
             DestroyWindow(hwnd);
             return 0;

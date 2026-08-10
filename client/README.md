@@ -46,9 +46,28 @@ PATTERN<TAB>ACTION[<TAB>g]
 blank to just gag (hide) the line. A trailing `g` in the optional
 third field gags the matched line in addition to sending `ACTION`.
 Lines starting with `#` are comments. A first run with no file present
-seeds a commented example. Edit the file in any text editor, then
-reload it in the running client via File > Reload Triggers -- no
-restart needed.
+seeds a commented example.
+
+**Editing** (client backlog, logged 2026-08-06 -- "an in-client GUI
+editor for triggers and aliases"): File > Edit Triggers... opens a
+window with a grid of the current triggers (Pattern/Action/Gag
+columns) plus Pattern/Action fields, a Gag checkbox, and Add/Update
+Selected/Delete Selected buttons -- click a row to load it into the
+fields for editing, or fill the fields and hit Add for a new one.
+Save writes the whole list straight back to `triggers.txt` in the
+same tab-delimited format above (so it stays just as hand-editable
+with a plain text editor) and reloads it live -- no separate reload
+step needed afterward. Cancel (or the window's close box) discards
+any in-progress edits. Leading `#`-comment/blank lines at the top of
+the file (the seeded example text, or anything hand-written there)
+round-trip through a save; comments placed *after* the first real
+trigger line do not (a deliberate scope-down -- preserving those would
+need tying each comment to a specific row in a list-based editor,
+more machinery than this feature warrants).
+
+Alternatively, edit the file directly in any text editor, then reload
+it in the running client via File > Reload Triggers -- no restart, and
+no editor window, needed either way.
 
 ## Aliases
 
@@ -63,8 +82,16 @@ Typing `NAME` as the first word of an input line sends `EXPANSION`
 instead, with anything else typed after `NAME` carried through
 unchanged (e.g. `k` -> `kill` turns `k rat` into `kill rat`). Matching
 is case-insensitive and whole-word only (typing `kill` never
-accidentally matches an alias named `k`). Reload via File > Reload
-Aliases.
+accidentally matches an alias named `k`).
+
+**Editing**: File > Edit Aliases... opens the same style of editor as
+Edit Triggers above -- a Name/Expansion grid plus Name/Expansion
+fields and Add/Update Selected/Delete Selected/Save/Cancel controls
+(the GUI editor also rejects a Name containing a space, since that
+would never actually match anything). Save writes back to
+`aliases.txt` and reloads it live; leading comment lines round-trip
+the same way triggers.txt's do. Or hand-edit the file directly and use
+File > Reload Aliases, same as before.
 
 ## Building (on the droplet, per CLAUDE.md's droplet-only rule -- never locally)
 
