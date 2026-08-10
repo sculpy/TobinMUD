@@ -25,10 +25,14 @@ _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in rang
 
 
 def recv_all_bytes(sock, timeout=1.0):
-    sock.settimeout(timeout)
+    _deadline = time.monotonic() + max(8.0, timeout * 8)
     chunks = []
     try:
         while True:
+            _remaining = _deadline - time.monotonic()
+            if _remaining <= 0:
+                break
+            sock.settimeout(min(timeout, _remaining))
             data = sock.recv(4096)
             if not data:
                 break

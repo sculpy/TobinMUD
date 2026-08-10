@@ -7997,39 +7997,25 @@ now done. Same menu-driven working-copy pattern as `edplayer`/`edroom`/
       piece would still need to be developed/built on the droplet like
       everything else.
 
-- [ ] **Intermittent scripted-input desync/hang -- broader than first
-      thought** (found 2026-08-05 while building/testing the GMCP/MSDP/
-      MSP protocol layer and the MSP fight-music feature; re-confirmed
-      hitting it again during the fight-music smoke test). Originally
-      characterized as quit-then-reconnect hangs -- now confirmed the
-      real pattern is wider: **any multi-step scripted input sequence
-      sent close together can occasionally desync**, including plain
-      fresh character CREATION with no reconnect involved at all (name
-      -> race -> homeland -> class -> done -> done). When it desyncs,
-      one send lands on the wrong prompt and every subsequent one shifts
-      by one step from then on (symptom: a later command like `hit
-      dummy` gets swallowed as if it were an answer to a leftover
-      `Enter a number (1-6)` race prompt) -- not always a hang, sometimes
-      a silent misinterpretation instead. Separately, one variant IS a
-      genuine indefinite hang with no data ever arriving (confirmed via
-      `poll_schedule_timeout` in the blocked process's kernel wchan -- a
-      real bounded wait that just never fires). **Confirmed pre-existing
-      and unrelated to either the GMCP/MSDP/MSP or fight-music work**:
-      reproduced identically against a from-scratch clean build of the
-      code from before either feature existed. Not consistently
-      reproducible -- passed cleanly on some runs, desynced/hung on
-      others with IDENTICAL code/inputs and delays inserted between
-      every send (ruled out just needs more pacing as the fix). Got
-      noticeably MORE flaky while a long-running `tests/sweep.sh` full
-      regression pass was executing concurrently (272 tests, ~5 hour
-      run) -- resource contention (single-threaded `select()` game loop
-      + shared MariaDB instance under concurrent load) is A theory, but
-      it also happened with nothing else running, so it isn't the whole
-      story. Not root-caused or fixed -- logged for a dedicated
-      investigation session, ideally with packet-level capture
-      (tcpdump/wireshark on loopback) to see exactly what byte sequence
-      the server actually received right before a desync, since every
-      attempt at guessing from behavior alone has been inconclusive.
+- [x] **Scripted-input desync/hang -- root-caused 2026-08-10, fixed.**
+      Turned out to be TWO harness bugs (`tests/mud_test_utils.py`), not
+      a server bug -- the server's input path was stress-tested under
+      three adversarial byte-framings (single-write burst, telnet
+      negotiation spliced mid-name, byte-at-a-time trickle) and stayed
+      correct under all three. See STATUS.md Session 149 for the full
+      investigation and fix. Two small disclosed follow-ups left, not
+      urgent: (1) `tests/mud_creation.py`'s `finish_char_creation()`
+      still trusts a fixed `recv_all()` per creation step rather than
+      confirming each prompt's own text actually arrived -- the
+      hang risk it could hit is already closed (recv_all is bounded
+      everywhere now), what's left is pure alignment hardening, lower
+      value and higher-risk to retrofit blind since the function
+      deliberately accepts any test's own passed-in I/O helpers; (2) one
+      unproven, never-reproduced hypothesis specific to reconnect
+      (`descriptor.c`'s `pending_destroy` reaping happening on the
+      current vs. next game-loop iteration depending on descriptor-list
+      order) -- worth a look only if a desync ever reproduces with
+      reconnect specifically, after the harness fix above.
 
 ## Chores / infra
 

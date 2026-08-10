@@ -1,5 +1,83 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-10 — Session 149 (DO droplet, production port 4000):
+**Root-caused and fixed the "intermittent scripted-input desync/hang"
+item.** Turned out to be two separate bugs in the Python test harness
+(`tests/mud_test_utils.py`), not a server bug -- `descriptor.c`'s input
+path was stress-tested under three adversarial byte-framings (a full
+multi-line command sequence arriving in one TCP segment, a telnet
+IAC/GMCP subnegotiation spliced mid-name, and a byte-at-a-time trickle)
+and stayed correct under all three; 887 `look` round-trips over 180s
+crossing three heavy-tick boundaries measured p99 0.001s, and the log
+shows zero `output backlog full` events since the 2026-07-17 retry fix.
+
+**The hang**: `recv_all()`'s `sock.settimeout(timeout)` re-armed on
+EVERY byte received, with no absolute cap -- a socket kept "warm" by
+any steady trickle (a nearby fight, a telnet keepalive NOP, another
+test's characters sharing a room) never satisfied the idle gap and
+blocked forever. A controlled repro proved a 45x overshoot. This is
+also the real explanation for the original kernel-wchan evidence
+(`poll_schedule_timeout`) that earlier sessions read as "a bounded wait
+that never fires" -- CPython implements `settimeout` as a re-armed
+`poll()`, so a socket that keeps receiving data sits in exactly that
+wchan indefinitely, correctly. Fixed by adding an absolute `deadline`
+parameter (default: the greater of 8s or 8x the idle timeout) to the
+shared `recv_all()`, and to the identical unbounded loop in 12 test
+files that still carried a local pre-fix copy (another ~12 had already
+independently discovered and fixed this exact bug back on 2026-07-18
+with an `idle_gap` parameter -- left alone, already correct).
+
+**The desync**: the harness has no command/response framing at all --
+`cmd()` just returns whatever showed up in a 1-second quiet window.
+Three confirmed misalignment sources, no server bug needed to explain
+any of them: telnet keepalive NOPs (`descriptor_keepalive()`, ~12s
+interval) landing mid-window and shifting it; the login prompt not
+being 1:1 with commands (`game_loop.c` sends one prompt per loop
+iteration, so two commands in the same ~100ms tick collapse to one);
+and undrained sockets after a multi-character scene -- the exact live
+instance from this session's Batch C work, where a socket still holding
+combat spam answered the next command with that stale spam instead of
+its real reply. New opt-in helpers in `mud_test_utils.py` for tests
+that need real alignment instead of the 1s-quiet heuristic: `drain()`
+(discard until quiet, for every participant after a combat/async
+burst), `read_until()` (accumulate until a specific pattern actually
+appears, with a real deadline), `cmd_until()` (send + read_until, the
+alignment-safe replacement for `cmd()` when precision matters), and
+`sync()` (an in-band positive boundary marker -- sends a random token
+and waits for the server's own echo of it, guaranteeing every prior
+byte has been consumed; the only non-heuristic option of the four).
+`cmd()`'s own default behavior is deliberately UNCHANGED -- 280+
+existing tests already tolerate its heuristics, and at least one
+(`smoke_test_reply.py`) relies on `cmd(sock, "")` harvesting previously-
+queued async output on purpose, so a blind pre-send flush would have
+broken it.
+
+Deliberately left alone, both lower-value and higher-risk to touch
+right now: `smoke_test_missing_skills_batchc.py`'s own multi-socket
+`drain(*socks)` (already correct, already tested, just a nicer-shaped
+duplicate of the new shared one -- not broken, no reason to touch a
+passing test for style); `mud_creation.py`'s `finish_char_creation()`
+(the hang risk it could hit is already closed at the `recv_all` layer,
+what's left is pure alignment hardening, and it deliberately accepts
+any test's own I/O helpers rather than a fixed pair -- retrofitting it
+safely needs its own pass, not a blind edit here).
+
+Verified: `smoke_test_practice.py`'s full 40 checks pass against the
+patched shared harness; 2 of the 12 patched files (`smoke_test.py`,
+`smoke_test_login.py`) run clean; all 12 syntax-check clean. No full
+sweep run (house rule) -- this change's real blast radius is "every
+test that calls recv_all", so a representative sample plus the one file
+with the richest existing coverage is the right-sized check, not 289
+files.
+
+Investigation used client-side timestamped raw-byte dumps as a
+substitute for packet capture (`tcpdump` isn't installed on this
+droplet and wasn't installed on production for this) -- equivalent
+evidence in both directions: it's exactly where the keepalive NOP bytes
+above were caught, and the server-side stress tests prove what the real
+server does with adversarial wire bytes regardless of how they were
+captured.
+
 Last updated: 2026-08-10 — Session 148 (DO droplet, production port 4000):
 **All-classes immortals, cross-class `practice` browsing, and a new
 login log line.** Three related user requests this session.

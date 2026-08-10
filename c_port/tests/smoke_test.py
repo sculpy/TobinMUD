@@ -8,6 +8,7 @@ needed, see STATUS.md) -- run by hand against a live tobin_c + seeded DB:
 """
 import socket
 import sys
+import time
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
@@ -15,10 +16,14 @@ name = sys.argv[3] if len(sys.argv) > 3 else "SmokeTester"
 
 
 def recv_all(sock, timeout=1.0):
-    sock.settimeout(timeout)
+    _deadline = time.monotonic() + max(8.0, timeout * 8)
     chunks = []
     try:
         while True:
+            _remaining = _deadline - time.monotonic()
+            if _remaining <= 0:
+                break
+            sock.settimeout(min(timeout, _remaining))
             data = sock.recv(4096)
             if not data:
                 break

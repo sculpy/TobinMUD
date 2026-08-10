@@ -43,10 +43,14 @@ _suffix = "".join(random.choice("abcdefghijklmnopqrstuvwxyz") for _ in range(4))
 
 
 def recv_all(sock, timeout=1.5):
-    sock.settimeout(timeout)
+    _deadline = time.monotonic() + max(8.0, timeout * 8)
     chunks = []
     try:
         while True:
+            _remaining = _deadline - time.monotonic()
+            if _remaining <= 0:
+                break
+            sock.settimeout(min(timeout, _remaining))
             data = sock.recv(4096)
             if not data:
                 break

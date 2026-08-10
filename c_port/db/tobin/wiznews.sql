@@ -1297,3 +1297,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New login log line: which room someone actually entered', 'The existing has-connected/has-reconnected lines only ever said someone showed up, never where. There is now a companion log line naming the exact room a character lands in every time they enter the world -- fresh login, reconnect, or brand-new character alike -- logged right before that placement happens.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fixed: the long-standing "test hangs/desyncs" mystery -- it was the test tool, not the game', 'The scripted-test tool used to check features had two bugs of its own: it could wait forever if anything kept talking on a socket, and it had no reliable way to tell "this is the real reply" from "this is old leftover chatter" -- which sometimes made a perfectly working feature look broken. Both fixed. The game server itself was checked three different adversarial ways and held up cleanly every time -- this was never a game bug.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
