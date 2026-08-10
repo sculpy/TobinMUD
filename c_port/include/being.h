@@ -559,10 +559,13 @@ bool mob_class_mask_to_tobin(int mask, player_class_t *out);
 /* Player races (user 2026-07-11: "implement races, 6 player races: human,
  * elf, ogre, dwarf, hobbit, gnome. The rest of the sneezy races are for
  * mobs only"). Chosen at character creation, persisted in player.race as
- * 0-5. New design (Tobin has no race stat-modifier system to port --
- * SneezyMUD's race table wasn't found carrying attribute bonuses either,
- * see TODO.md), following the same "one dominant trait, net-zero bonus/
- * penalty" shape as classes above. Human is the deliberate baseline: no
+ * 0-5. Each race's net-zero attribute bonus is DERIVED from SneezyMUD's
+ * own per-race stat table (sneezymud-master/lib/races/RACE_*): its 12
+ * stats fold into Tobin's 6 (brawn->CON, agility+speed->DEX, focus split
+ * INT/WIS, perception+karma->CHA), centered per race to net zero and
+ * scaled 1 point per 10% -- see docs/RACE_STATS.md and race_stat_bonus().
+ * (Corrects an earlier note here that wrongly said that table carried no
+ * attribute data -- it does.) Human is the deliberate baseline: no
  * modifier at all, matching the classic MUD "versatile, unremarkable"
  * convention. */
 typedef enum {

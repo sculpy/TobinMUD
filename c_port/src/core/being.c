@@ -1075,33 +1075,54 @@ bool mob_race_is_animal(int idx) {
 void race_stat_bonus(player_race_t r, attrs_t *a) {
     if (!a)
         return;
+    /* Derived from SneezyMUD's per-race stat table (see docs/RACE_STATS.md):
+     * the upstream 12 stats fold into Tobin's 6 (brawn->CON, agility+speed->
+     * DEX, focus split INT/WIS, perception+karma->CHA), each race centered to
+     * net zero and scaled 1 point per 10% of deviation. Human is the flat
+     * all-105 baseline, so it nets to no modifier at all. Every case sums to
+     * zero (verified by tests/smoke_test_race_stats.py). */
     switch (r) {
         case RACE_HUMAN:
             break; /* versatile baseline -- no modifier */
         case RACE_ELF:
+            a->strength -= 2;
             a->dexterity += 2;
-            a->intelligence += 2;
-            a->constitution -= 4;
+            a->constitution -= 6;
+            a->intelligence += 3;
+            a->wisdom += 5;
+            a->charisma -= 2;
             break;
         case RACE_OGRE:
-            a->strength += 4;
+            a->strength += 6;
+            a->dexterity -= 3;
+            a->constitution += 3;
             a->intelligence -= 2;
-            a->charisma -= 2;
+            a->wisdom -= 3;
+            a->charisma -= 1;
             break;
         case RACE_DWARF:
+            a->strength += 2;
+            a->dexterity -= 3;
             a->constitution += 4;
-            a->dexterity -= 2;
-            a->charisma -= 2;
+            a->intelligence -= 1;
+            a->wisdom -= 1;
+            a->charisma -= 1;
             break;
         case RACE_HOBBIT:
-            a->dexterity += 4;
-            a->strength -= 2;
+            a->strength -= 4;
+            a->dexterity += 6;
             a->constitution -= 2;
+            a->intelligence -= 1;
+            a->wisdom -= 1;
+            a->charisma += 2;
             break;
         case RACE_GNOME:
-            a->intelligence += 4;
-            a->strength -= 2;
+            a->strength -= 3;
+            a->dexterity -= 3;
             a->constitution -= 2;
+            a->intelligence += 4;
+            a->wisdom += 3;
+            a->charisma += 1;
             break;
         default:
             break;
