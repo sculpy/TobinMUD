@@ -30,6 +30,15 @@ SELECT 'The TobinMUD Team', t.body FROM (
   UNION ALL SELECT 'Set a wimpy level and you will flee automatically once your health drops below it -- the cheapest life insurance there is.'
   UNION ALL SELECT 'limbs shows the condition of each part of your body; a badly hurt limb costs you in a fight until it is treated.'
   UNION ALL SELECT 'who -l lists everyone by level, which makes it easy to find someone close enough to yours to group with.'
-  UNION ALL SELECT 'help rules is worth reading once -- it covers what is and is not allowed here, and ignorance is not much of a defence.'
+  UNION ALL SELECT 'help rules is worth reading once -- it covers what is and is not allowed here, and ignorance is not much of a defence.'  UNION ALL SELECT 'Stuck on something these tips do not cover? Type newbie <message> to ask on the newbie help channel -- experienced players and staff watch it.'
+  UNION ALL SELECT 'New gear does nothing sitting in your pack. wear all puts on everything you can equip at once; wear <item> handles just one piece.'
+  UNION ALL SELECT 'equipment -- or just eq -- shows everything you are wearing and wielding, and what condition each piece is in.'
+  UNION ALL SELECT 'inventory (inv for short) lists what you are carrying but have not yet put on.'
+  UNION ALL SELECT 'remove <item> takes a piece of worn gear back off -- you often need to before you can wear something new in that slot.'
+  UNION ALL SELECT 'say <message> speaks aloud to everyone in your room; tell <name> <message> reaches someone anywhere in the world.'
+  UNION ALL SELECT 'Etiquette: if another player reached a room before you, the mobs there are theirs to pull first -- do not jump their fight.'
+  UNION ALL SELECT 'Not sure where to train a discipline? goto <discipline> gives directions -- for example goto combat walks you toward the combat trainer.'
+  UNION ALL SELECT 'goto surplus points you to a heap of cast-off equipment -- always worth a rummage for a lucky find.'
+  UNION ALL SELECT 'Seen enough of these? toggle tips turns them off. To read one on demand any time, just type tips.'
 ) t
 WHERE NOT EXISTS (SELECT 1 FROM `tip` WHERE `tip`.`body` = t.body);
