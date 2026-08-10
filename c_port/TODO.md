@@ -418,8 +418,8 @@ raw checklist, pick from it as capacity allows.
 - [ ] Telepathic vision
 
 #### Generic / cross-class (50)
-- [ ] Advanced defense
-- [ ] Advanced offense
+- [x] Advanced defense -- **Done 2026-08-10 (Session 150):** new roster entry (all 6 classes), real passive wired into combat.c, learn-by-doing; verified live.
+- [x] Advanced offense -- **Done 2026-08-10 (Session 150):** new roster entry (all 6 classes), real passive wired into combat.c, learn-by-doing; verified live.
 - [x] Alcoholism -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** New drunk stat from real per-liquid values, to-hit penalty + pass-out, sobers over time.
 - [ ] Avian (language)
 - [x] Bandage -- **Fixed 2026-08-08 (Session 141):** new bleeding-limb mechanic (transient per-limb `bleeding` flag, chipped each vitals tick) + `bandage [target]` command (cmd_bandage.c) that consumes a bandage item to clear it and heal a little.
@@ -434,7 +434,7 @@ raw checklist, pick from it as capacity allows.
 - [ ] Divine (fortune-telling; distinct from Mage's "divination" spell)
 - [ ] Encamp
 - [x] Evaluate -- **Fixed 2026-08-05:** new roster entry (all 6 classes, generic) + new `evaluate <item>` command (cmd_evaluate.c) -- real upstream (cmd_compare.cc) gates a `compare` command Tobin never had; ported as its own new command instead, tiered by proficiency: a fuzzed price guess always, condition at 30%+, exact price + material tier at 60%+.
-- [ ] Fast heal
+- [x] Fast heal -- **Done 2026-08-10 (Session 150):** new roster entry (all 6 classes); real upstream SKILL_FAST_HEAL has no traced regen formula in this source snapshot, ported as a passive rest-healing bonus scaling with proficiency (regen.c), disclosed name-driven.
 - [ ] Fast load
 - [ ] Fish burble (language)
 - [ ] Fishing
@@ -443,7 +443,7 @@ raw checklist, pick from it as capacity allows.
 - [ ] Gnoll jargon (language)
 - [ ] Gutter cant (language)
 - [x] Hiking -- **Fixed 2026-08-08 (Session 141):** new roster entry; reduces cmd_move.c's terrain movement cost up to 50% at full proficiency, stacking with flying/mounted discounts.
-- [ ] Inevitability
+- [x] Inevitability -- **Done 2026-08-10 (Session 150):** new roster entry (all 6 classes); real upstream is a repeatedly-activated stacking +hitroll buff (cap +50), ported as a flat passive to-hit bonus scaling with proficiency (combat.c) -- same disclosed scope-cut toughness/bloodlust used.
 - [ ] Know animal (creature lore)
 - [ ] Know demon
 - [ ] Know giantkin
@@ -454,7 +454,7 @@ raw checklist, pick from it as capacity allows.
 - [ ] Know veggie
 - [ ] Lumberjack
 - [ ] Mend
-- [ ] Offense
+- [x] Offense -- **Done 2026-08-10 (Session 150):** new roster entry (all 6 classes), real passive wired into combat.c, learn-by-doing; verified live.
 - [x] Pierce specialization
 - [x] Ranged specialization
 - [ ] Read magic
@@ -464,7 +464,7 @@ raw checklist, pick from it as capacity allows.
 - [x] Slash specialization
 - [x] Smooth -- **Done 2026-08-10 (Batch C, Session 148 aftermath) -- see STATUS.md Session 147.** Blunt-weapon counterpart to sharpen (file-gated); also fixed blunt weapons getting no condition bonus at all.
 - [x] Swim -- **Fixed 2026-08-08 (Session 138):** new roster entry (all 6 classes, Combat tier); mitigates Tobin's unconditional underwater drowning damage, up to 50% off at full proficiency.
-- [ ] Tactics
+- [x] Tactics -- **Done 2026-08-10 (Session 150):** new roster entry (all 6 classes). Real upstream carries NO traced mechanical effect (only a learnable/displayed stat); ported as a small learn-by-doing to-hit nudge (combat.c), disclosed name-driven, same shape as wizardry/casting/praying.
 - [x] Toughness -- **Fixed 2026-08-05:** new roster entry (all 6 classes, generic, Advanced tier); combat.c grants a real passive damage-reduction percentage (up to 20% at 100% proficiency) applied after Sanctuary (real upstream's own per-hit stacking-immunity buff has no matching Tobin infrastructure -- disclosed scope-cut, same "flat passive instead of true stacking" shape `bloodlust` already used).
 - [ ] Troglodyte pidgin (language)
 - [ ] Trollish (language)

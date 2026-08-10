@@ -690,6 +690,72 @@ static const skill_def_t SKILLS[] = {
     { "evaluate",           CLASS_THIEF,   SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
     { "evaluate",           CLASS_DRUID,   SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
     { "evaluate",           CLASS_MONK,    SKILL_TIER_CLASS,     1, "See help `evaluate` for help." },
+    /* Generic combat passives (missing-skill audit, generic/cross-class,
+     * 2026-08-10). All real upstream SKILL_GENERAL (spell_info.cc's
+     * discArray: offense/tactics under DISC_ADVENTURING, advanced
+     * defense under DISC_DEFENSE, advanced offense/inevitability under
+     * DISC_OFFENSE), START_1 -- every class, same cross-class shape as
+     * defense/focused avoidance/toughness above. `offense` (combat.cc:
+     * bonus += level*skillValue/100): a passive to-hit bonus scaling
+     * with proficiency (combat.c). `advanced offense` (combat.cc:
+     * bonus += skillValue/4*3, 0-75): a larger passive to-hit bonus.
+     * `advanced defense` (combat.cc: a defense-mode AC bonus): a
+     * passive to-hit-modifier reduction on the defender, same shape as
+     * `focused avoidance`. `inevitability` (combat.cc's doInevitability:
+     * a repeatedly-activated stacking +hitroll self-buff capping at
+     * +50): ported as a flat passive to-hit bonus scaling with
+     * proficiency -- same 'flat passive instead of true stacking'
+     * disclosed scope-cut toughness/bloodlust already used, Tobin
+     * having no per-round stacking-affect layer. `tactics`: real
+     * upstream carries NO traced mechanical effect at all (only a
+     * learnable/displayed stat, verified across the whole tree) --
+     * ported as a small learn-by-doing to-hit nudge so the skill is
+     * live rather than purely decorative, a disclosed name-driven
+     * choice, same 'no effect body upstream' shape wizardry/casting/
+     * praying already carry. See combat.c. */
+    { "offense",              CLASS_MAGE, SKILL_TIER_COMBAT,    1, "See help `offense` for help." },
+    { "offense",              CLASS_CLERIC, SKILL_TIER_COMBAT,    1, "See help `offense` for help." },
+    { "offense",              CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `offense` for help." },
+    { "offense",              CLASS_THIEF, SKILL_TIER_COMBAT,    1, "See help `offense` for help." },
+    { "offense",              CLASS_DRUID, SKILL_TIER_COMBAT,    1, "See help `offense` for help." },
+    { "offense",              CLASS_MONK, SKILL_TIER_COMBAT,    1, "See help `offense` for help." },
+    { "tactics",              CLASS_MAGE, SKILL_TIER_COMBAT,    1, "See help `tactics` for help." },
+    { "tactics",              CLASS_CLERIC, SKILL_TIER_COMBAT,    1, "See help `tactics` for help." },
+    { "tactics",              CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `tactics` for help." },
+    { "tactics",              CLASS_THIEF, SKILL_TIER_COMBAT,    1, "See help `tactics` for help." },
+    { "tactics",              CLASS_DRUID, SKILL_TIER_COMBAT,    1, "See help `tactics` for help." },
+    { "tactics",              CLASS_MONK, SKILL_TIER_COMBAT,    1, "See help `tactics` for help." },
+    { "advanced defense",     CLASS_MAGE, SKILL_TIER_ADVANCED,  30, "See help `advanced defense` for help." },
+    { "advanced defense",     CLASS_CLERIC, SKILL_TIER_ADVANCED,  30, "See help `advanced defense` for help." },
+    { "advanced defense",     CLASS_WARRIOR, SKILL_TIER_ADVANCED,  30, "See help `advanced defense` for help." },
+    { "advanced defense",     CLASS_THIEF, SKILL_TIER_ADVANCED,  30, "See help `advanced defense` for help." },
+    { "advanced defense",     CLASS_DRUID, SKILL_TIER_ADVANCED,  30, "See help `advanced defense` for help." },
+    { "advanced defense",     CLASS_MONK, SKILL_TIER_ADVANCED,  30, "See help `advanced defense` for help." },
+    { "advanced offense",     CLASS_MAGE, SKILL_TIER_ADVANCED,  30, "See help `advanced offense` for help." },
+    { "advanced offense",     CLASS_CLERIC, SKILL_TIER_ADVANCED,  30, "See help `advanced offense` for help." },
+    { "advanced offense",     CLASS_WARRIOR, SKILL_TIER_ADVANCED,  30, "See help `advanced offense` for help." },
+    { "advanced offense",     CLASS_THIEF, SKILL_TIER_ADVANCED,  30, "See help `advanced offense` for help." },
+    { "advanced offense",     CLASS_DRUID, SKILL_TIER_ADVANCED,  30, "See help `advanced offense` for help." },
+    { "advanced offense",     CLASS_MONK, SKILL_TIER_ADVANCED,  30, "See help `advanced offense` for help." },
+    { "inevitability",        CLASS_MAGE, SKILL_TIER_ADVANCED,  30, "See help `inevitability` for help." },
+    { "inevitability",        CLASS_CLERIC, SKILL_TIER_ADVANCED,  30, "See help `inevitability` for help." },
+    { "inevitability",        CLASS_WARRIOR, SKILL_TIER_ADVANCED,  30, "See help `inevitability` for help." },
+    { "inevitability",        CLASS_THIEF, SKILL_TIER_ADVANCED,  30, "See help `inevitability` for help." },
+    { "inevitability",        CLASS_DRUID, SKILL_TIER_ADVANCED,  30, "See help `inevitability` for help." },
+    { "inevitability",        CLASS_MONK, SKILL_TIER_ADVANCED,  30, "See help `inevitability` for help." },
+    /* `fast heal` (missing-skill audit, generic/cross-class,
+     * 2026-08-10): real upstream SKILL_FAST_HEAL (DISC_ADVENTURING,
+     * START_1, every class) carries no traced regen formula in this
+     * source snapshot (verified: only displayed/learnable), but its
+     * name is unambiguous -- ported as a passive HP-regen bonus scaling
+     * with proficiency (regen.c), the least-invented reading, disclosed
+     * as name-driven since upstream leaves it unwired. */
+    { "fast heal",            CLASS_MAGE, SKILL_TIER_COMBAT,    1, "See help `fast heal` for help." },
+    { "fast heal",            CLASS_CLERIC, SKILL_TIER_COMBAT,    1, "See help `fast heal` for help." },
+    { "fast heal",            CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `fast heal` for help." },
+    { "fast heal",            CLASS_THIEF, SKILL_TIER_COMBAT,    1, "See help `fast heal` for help." },
+    { "fast heal",            CLASS_DRUID, SKILL_TIER_COMBAT,    1, "See help `fast heal` for help." },
+    { "fast heal",            CLASS_MONK, SKILL_TIER_COMBAT,    1, "See help `fast heal` for help." },
 };
 
 #define SKILL_TOTAL (int)(sizeof(SKILLS) / sizeof(SKILLS[0]))

@@ -549,3 +549,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Practice Now Lets You Browse Any Class''s Skills', '`practice` used to only ever show your own class''s skill listing. Now typing a class name -- your own or anyone else''s, e.g. `practice warrior` -- shows that class''s Basic skill listing by default, or add a discipline word for Combat or Advanced. Browsing a class that isn''t yours is a read-only look at what''s available, not something you can spend practice points on.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Fighters Grow Sharper: New Passive Combat Skills', 'Your character now quietly gets better at fighting just by fighting. A new set of passive skills -- offense and advanced offense sharpen your accuracy, advanced defense makes you harder to pin down, tactics lends a general edge in a brawl, and inevitability lends the grim certainty that your blow will land. None of them need a command; they train themselves as you trade blows. Wounded adventurers also mend faster now: fast heal speeds how quickly your hurts close while you rest, sit, or sleep.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -6,6 +6,7 @@
 
 #include "being.h"
 #include "descriptor.h"
+#include "skill.h"
 
 /* Placeholder regen formula: 1 HP baseline + 1 per 20 points of
  * constitution above ATTR_BASE. Not the original's level/CON/room-driven
@@ -68,7 +69,18 @@ void regen_tick_run(long pulse_num) {
          * unreachable in live play for exactly this reason). */
         bool was_short_hp = b->progress.hp < b->progress.max_hp;
         bool was_short_vit = b->progress.vit < b->progress.max_vit;
-        being_heal(b, regen_amount(b));
+        int fh_bonus = 0;
+        /* `fast heal` (missing-skill audit, generic/cross-class,
+         * 2026-08-10): a passive HP-regen bonus scaling with
+         * proficiency. Learn-by-doing self-limits via its own 30s gain
+         * cooldown, so calling it each rest tick does not over-train.
+         * Only applies to HP (the skill's name), not vitality/mana. */
+        if (was_short_hp && !b->meditating && being_knows_skill(b, "fast heal")) {
+            const skill_def_t *fh_sk = skill_find(b->char_class, "fast heal", false);
+            if (fh_sk)
+                fh_bonus = skill_learn_from_doing(b, fh_sk) / 20;
+        }
+        being_heal(b, regen_amount(b) + fh_bonus);
         /* Vitality (Sneezy → Tobin feature audit, "Vitality stat +
          * Terrain movement cost"): same weight-by-position amount as HP,
          * per TODO.md's own note this item closed out ("the regen tick

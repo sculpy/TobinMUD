@@ -602,6 +602,38 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             weapon_hitroll += skill_learn_from_doing(attacker, cintai_sk) * 3 / 20;
     }
 
+    /* Generic combat passives (missing-skill audit, generic/cross-class,
+     * 2026-08-10) -- all-class attacker-side to-hit bonuses, same
+     * learn-by-doing shape as kubo/cintai just above. `offense` (real
+     * combat.cc: bonus += level*skillValue/100) folds into a modest
+     * proficiency-scaled hitroll. `advanced offense` (real combat.cc:
+     * bonus += skillValue/4*3, 0-75) is larger. `inevitability` (real
+     * combat.cc: a repeatedly-activated stacking +hitroll buff capping
+     * at +50) ports as a flat passive hitroll instead of true stacking
+     * -- same disclosed scope-cut toughness/bloodlust use. `tactics`
+     * has no traced upstream effect at all, ported as a small nudge so
+     * it is not purely decorative (disclosed). */
+    if (!being_is_immortal(attacker) && being_knows_skill(attacker, "offense")) {
+        const skill_def_t *off_sk = skill_find(attacker->char_class, "offense", false);
+        if (off_sk)
+            weapon_hitroll += skill_learn_from_doing(attacker, off_sk) / 10;
+    }
+    if (!being_is_immortal(attacker) && being_knows_skill(attacker, "advanced offense")) {
+        const skill_def_t *aoff_sk = skill_find(attacker->char_class, "advanced offense", false);
+        if (aoff_sk)
+            weapon_hitroll += skill_learn_from_doing(attacker, aoff_sk) / 6;
+    }
+    if (!being_is_immortal(attacker) && being_knows_skill(attacker, "inevitability")) {
+        const skill_def_t *inev_sk = skill_find(attacker->char_class, "inevitability", false);
+        if (inev_sk)
+            weapon_hitroll += skill_learn_from_doing(attacker, inev_sk) / 8;
+    }
+    if (!being_is_immortal(attacker) && being_knows_skill(attacker, "tactics")) {
+        const skill_def_t *tac_sk = skill_find(attacker->char_class, "tactics", false);
+        if (tac_sk)
+            weapon_hitroll += skill_learn_from_doing(attacker, tac_sk) / 12;
+    }
+
     /* Weapon specializations (missing-skill audit, "all level 1 ... all
      * of those should be automatic", user 2026-08-04) -- same passive,
      * learn-by-doing shape as kubo/cintai just above: `verb` (already
@@ -849,6 +881,18 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         const skill_def_t *def_sk = skill_find(defender->char_class, "defense", false);
         if (def_sk)
             modifier -= skill_learn_from_doing(defender, def_sk) / 10;
+    }
+
+    /* `advanced defense` (missing-skill audit, generic/cross-class,
+     * 2026-08-10): real upstream (combat.cc) is a defense-combat-mode
+     * AC bonus scaling with proficiency. Tobin has no combat modes, so
+     * ported as a passive to-hit-modifier reduction on the defender,
+     * same shape/insertion point as `focused avoidance`/`defense` just
+     * above, a touch larger (it is the advanced-tier counterpart). */
+    if (!being_is_immortal(defender) && being_knows_skill(defender, "advanced defense")) {
+        const skill_def_t *adef_sk = skill_find(defender->char_class, "advanced defense", false);
+        if (adef_sk)
+            modifier -= skill_learn_from_doing(defender, adef_sk) / 6;
     }
 
     /* Gamewide to-hit modifier (user 2026-07-12's `balance` command) --

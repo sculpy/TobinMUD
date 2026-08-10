@@ -1,5 +1,31 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-10 — Session 150 (DO droplet, production port 4000):
+**Generic combat passives + fast heal (missing-skill audit, generic/
+cross-class).** Six long-open general skills from the roster, all
+available to every class, verified against real upstream first:
+- **offense**/**advanced offense** -- attacker-side to-hit bonuses (real
+  combat.cc formulas: level*skillValue/100 and skillValue/4*3), ported
+  as proficiency-scaled hitroll bonuses in combat.c, learn-by-doing.
+- **advanced defense** -- defender-side to-hit reduction, same shape as
+  the existing focused avoidance/defense passives.
+- **inevitability** -- real upstream is a repeatedly-activated stacking
+  +hitroll buff capping at +50; ported as a flat passive to-hit bonus,
+  the same disclosed 'flat instead of true stacking' scope-cut
+  toughness/bloodlust already used (no per-round stacking-affect layer).
+- **tactics** -- real upstream carries NO traced mechanical effect at all
+  (only a learnable/displayed stat, verified across the whole tree);
+  ported as a small learn-by-doing to-hit nudge rather than left purely
+  decorative, disclosed name-driven, same shape as wizardry/casting/
+  praying.
+- **fast heal** -- real upstream SKILL_FAST_HEAL has no wired regen
+  formula in this snapshot; ported as a passive rest-healing bonus
+  scaling with proficiency (regen.c), disclosed name-driven.
+Help topics + one combined news + one wiznews entry, all applied live and
+appended to the seed .sql. New tests/smoke_test_combat_passives_generic.py
+(18 checks, green live): each passive starts untrained and trains from a
+real swing/hit-taken/rest tick, and every new help topic loads.
+
 Last updated: 2026-08-10 — Session 149 (DO droplet, production port 4000):
 **Root-caused and fixed the "intermittent scripted-input desync/hang"
 item.** Turned out to be two separate bugs in the Python test harness
