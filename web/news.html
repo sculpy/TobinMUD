@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TobinMUD News</title>
+<style>
+  :root { color-scheme: dark light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Consolas, "Courier New", monospace;
+    background: #0c0c0c;
+    color: #d8d8d8;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  h1 {
+    font-size: 1.8rem;
+    margin: 0 0 4px;
+    color: #e0c060;
+    letter-spacing: 1px;
+  }
+  .tagline { color: #9a9a9a; margin: 0 0 24px; }
+  a { color: #7fc0ff; }
+  a:hover { color: #a9d8ff; }
+  .home-link { display: inline-block; margin-bottom: 18px; }
+  #q {
+    width: 100%;
+    font: inherit;
+    font-size: 1.05rem;
+    padding: 11px 14px;
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    color: #f0f0f0;
+    margin-bottom: 6px;
+  }
+  #q:focus { outline: 2px solid #3a6aa8; }
+  #count { color: #6a6a6a; margin: 4px 0 20px; font-size: 0.9rem; }
+  .entry {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 18px 22px;
+    margin: 0 0 18px;
+  }
+  .entry h2 {
+    color: #e0c060;
+    font-size: 1.25rem;
+    margin: 0 0 4px;
+  }
+  .meta {
+    color: #7a7a7a;
+    font-size: 0.85rem;
+    margin: 0 0 12px;
+  }
+  .meta .author { color: #7fc0ff; }
+  .entry .body { white-space: pre-wrap; }
+  #empty { color: #6a6a6a; padding: 40px 0; text-align: center; }
+  @media (prefers-color-scheme: light) {
+    body { background: #f6f6f2; color: #222; }
+    .tagline { color: #555; }
+    #q { background: #fff; border-color: #ccc; color: #222; }
+    .entry { background: #fff; border-color: #ddd; }
+    .entry h2 { color: #a87a1a; }
+    .meta { color: #888; }
+    .meta .author { color: #1a5fa8; }
+    #count, #empty { color: #888; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home-link" href="/">&larr; TobinMUD</a>
+  <h1>News</h1>
+  <p class="tagline">Updates from the realm &mdash; the same posts <code>news</code> shows you at the prompt, newest first.</p>
+
+  <input id="q" type="text" placeholder="Search news&hellip;" autocomplete="off">
+  <p id="count"></p>
+
+  <div id="feed"><p id="empty">Loading news&hellip;</p></div>
+</div>
+
+<script>
+(function () {
+  var feedEl = document.getElementById('feed');
+  var qEl = document.getElementById('q');
+  var countEl = document.getElementById('count');
+  var posts = [];
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function render(list) {
+    countEl.textContent = list.length + (list.length === 1 ? ' post' : ' posts');
+    if (!list.length) {
+      feedEl.innerHTML = '<p id="empty">No news posts match your search.</p>';
+      return;
+    }
+    feedEl.innerHTML = list.map(function (p) {
+      var author = p.author ? ' &middot; <span class="author">' + escapeHtml(p.author) + '</span>' : '';
+      return '<article class="entry">' +
+        '<h2>' + escapeHtml(p.title) + '</h2>' +
+        '<p class="meta"><time datetime="' + escapeHtml(p.iso || '') + '">' + escapeHtml(p.date || '') + '</time>' + author + '</p>' +
+        '<div class="body">' + escapeHtml(p.body) + '</div>' +
+      '</article>';
+    }).join('');
+  }
+
+  function search(query) {
+    query = query.trim().toLowerCase();
+    if (!query) return posts;
+    return posts.filter(function (p) {
+      return (p.title && p.title.toLowerCase().indexOf(query) !== -1) ||
+             (p.body && p.body.toLowerCase().indexOf(query) !== -1);
+    });
+  }
+
+  qEl.addEventListener('input', function () { render(search(qEl.value)); });
+
+  fetch('/news_data.json')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      posts = Array.isArray(data) ? data : [];
+      render(posts);
+    })
+    .catch(function () {
+      feedEl.innerHTML = '<p id="empty">Could not load news.</p>';
+      countEl.textContent = '';
+    });
+})();
+</script>
+</body>
+</html>

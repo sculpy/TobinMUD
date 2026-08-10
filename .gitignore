@@ -118,3 +118,4 @@ client/build-win64/
 # Generated help-search data for the website (regenerated on a cron from
 # the live help_topic table -- see web/generate_help_json.sh).
 web/help_data.json
+web/news_data.json
