@@ -321,6 +321,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "stat",    cmd_stat,    "See every field of an obj/mob/room prototype, or a player (stat <obj|mob|room> <vnum> | stat player <name>).", STAT_MIN_LEVEL },
     { "tickets", cmd_tickets, "List your pending claim tickets at a repair shop.",  MORTAL_LEVEL_MIN },
     { "time",    cmd_time,    "Show the current mud clock, weekday, and date.",     MORTAL_LEVEL_MIN },
+    { "timeshift", cmd_timeshift, "Shift the shared game clock (59+; timeshift <amount> [minutes|hours|days|months]).", 59 },
     { "gametog", cmd_gametog, "View or flip global game-wide switches (58+).",      GAMETOG_MIN_LEVEL },
     { "hurtlimb", cmd_hurtlimb, "Debug: set a target's limb HP directly (hurtlimb <target> <limb> <hp>).", IMMORTAL_LEVEL_MIN },
     { "restore", cmd_restore, "Fully heal an online target and clear their spell affects (restore <target>).", IMMORTAL_LEVEL_MIN },

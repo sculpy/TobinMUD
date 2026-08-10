@@ -10,6 +10,7 @@
 #include "log.h"
 #include "player_repo.h"
 #include "rent.h"
+#include "treasury_repo.h"
 
 /* `rent`: Sneezy port (user 2026-07-12: "make rent work from sneezy").
  * Per the original's own help text, renting stores your belongings and
@@ -45,8 +46,16 @@ bool cmd_rent(descriptor_t *d, const char *args) {
     int cost = rent_cost_for(ch);
     int bank_used = 0;
     int paid = rent_apply_charge(ch, cost, &bank_used);
-    if (paid > 0)
+    /* The innkeeper keeps a cut of the rent tax (user 2026-08-10); the rest
+     * flows into the crown's coffers (treasury), where 95%% is spent monthly
+     * on improvement projects (treasury.c). */
+    int keeper = paid * rent_innkeeper_pct() / 100;
+    int to_coffers = paid - keeper;
+    if (paid > 0) {
+        if (to_coffers > 0)
+            treasury_repo_add_gold(to_coffers);
         player_progress_save(ch->player_id, &ch->progress);
+    }
 
     ch->progress.rented_at = (long)time(NULL);
 
@@ -70,8 +79,8 @@ bool cmd_rent(descriptor_t *d, const char *args) {
         snprintf(rmsg, sizeof(rmsg), "%s rents a room and disappears.\r\n", ch->base.name);
         descriptor_room_echo(ch->base.roomp, ch, rmsg);
     }
-    log_info("%s has rented for %d gold (%d from bank). [%s]",
-             ch->base.name, paid, bank_used, descriptor_display_host(d));
+    log_info("%s has rented for %d gold (%d from bank; %d to coffers, %d innkeeper). [%s]",
+             ch->base.name, paid, bank_used, to_coffers, keeper, descriptor_display_host(d));
 
     descriptor_leave_to_menu(d);
     return true;

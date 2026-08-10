@@ -44,6 +44,16 @@ void gametime_load(void);
  * an unclean restart never loses more than ~60s of progress. */
 void gametime_tick(long pulse_num);
 
+/* Broadcasts `msg` to every playing connection (held for anyone mid-edit),
+ * the shared world-announcement primitive -- used by the clock's own noon/
+ * midnight/new-year lines and by other systems (the monthly treasury
+ * allocation, treasury.c). */
+void gametime_announce(const char *msg);
+
+/* Shifts the shared clock by `delta_minutes` (negative rewinds), handling
+ * rollover and persistence. The `timeshift` command (59+) is the caller. */
+void gametime_shift_minutes(long delta_minutes);
+
 int gametime_hour(void);    /* 0-23 */
 int gametime_minute(void);  /* 0,15,30,45 */
 int gametime_day(void);     /* 0-27 (0-indexed internally; display as +1) */

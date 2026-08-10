@@ -31,6 +31,7 @@
 #include "pulse.h"
 #include "regen.h"
 #include "rent.h"
+#include "treasury.h"
 #include "copyover.h"
 #include "shutdown.h"
 #include "socials.h"
@@ -150,6 +151,7 @@ int main(int argc, char **argv) {
     pulse_register(600, zone_process_run);       /* ~60s: age zones by 1 minute, top up any that hit their lifespan */
     pulse_register(600, gametime_tick);          /* ~60s: advance the game clock 15 mud-minutes */
     pulse_register(600, bank_interest_tick);     /* ~60s: apply bank interest once per in-game day */
+    pulse_register(600, treasury_monthly_tick);  /* ~60s: once per game-month, spend 95% of coffers on improvement projects */
     pulse_register(600, heartbeat_tick);         /* ~60s: real-time half-hour blank-line tick */
     pulse_register(600, mob_ai_tick);            /* ~60s: mob wander/scavenge (mob.actions bits) */
     pulse_register(600, obj_pool_decay_tick);    /* ~60s: ground puddles shrink, then vanish */

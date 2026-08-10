@@ -14,6 +14,7 @@
 #include "player_repo.h"
 #include "shop_repo.h"
 #include "thing.h"
+#include "treasury.h"
 #include "treasury_repo.h"
 
 /* Money system v2 (Sneezy → Tobin feature audit, "Money system v2
@@ -121,7 +122,28 @@ bool cmd_bank(descriptor_t *d, const char *args) {
  * pot (see the money-system-v2 note at the top of this file for why it's
  * one shared treasury rather than per-shop ledgers). */
 bool cmd_treasury(descriptor_t *d, const char *args) {
-    (void)args;
+    being_t *ch = d->character;
+    char first[16] = "";
+    sscanf(args, "%15s", first);
+    /* `treasury allocate` (immortal): force the monthly improvement-projects
+     * spend now, rather than waiting for the game-month rollover. Same spend
+     * + world announcement the automatic tick does (treasury.c). */
+    if (first[0] && strncasecmp(first, "allocate", strlen(first)) == 0) {
+        if (!ch || !being_is_immortal(ch)) {
+            descriptor_send(d, "Only an immortal may allocate the treasury.\r\n");
+            return true;
+        }
+        int spent = treasury_spend_monthly_improvements();
+        char msg[160];
+        if (spent > 0)
+            snprintf(msg, sizeof(msg),
+                     "You allocate the improvement-projects budget: %d gold spent, %d gold remains.\r\n",
+                     spent, treasury_repo_get_gold());
+        else
+            snprintf(msg, sizeof(msg), "The treasury is empty -- nothing to allocate.\r\n");
+        descriptor_send(d, msg);
+        return true;
+    }
     char msg[96];
     snprintf(msg, sizeof(msg), "The crown's treasury holds %d gold in collected taxes.\r\n",
              treasury_repo_get_gold());

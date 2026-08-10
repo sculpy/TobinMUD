@@ -12,9 +12,11 @@
  * rent_config_load(); the rent hot path never hits the DB. */
 static int g_rent_tax_at_max = RENT_TAX_AT_MAX_DEFAULT;
 static int g_rent_free_level = RENT_FREE_LEVEL_DEFAULT;
+static int g_rent_innkeeper_pct = RENT_INNKEEPER_PCT_DEFAULT;
 
 int rent_tax_at_max(void) { return g_rent_tax_at_max; }
 int rent_free_level(void) { return g_rent_free_level; }
+int rent_innkeeper_pct(void) { return g_rent_innkeeper_pct; }
 
 /* Upsert one integer game_config row. */
 static void rent_config_persist(const char *name, int value) {
@@ -57,9 +59,19 @@ void rent_free_level_set(int value) {
     rent_config_persist("rent_free_level", value);
 }
 
+void rent_innkeeper_pct_set(int value) {
+    if (value < 0)
+        value = 0;
+    if (value > 100)
+        value = 100;
+    g_rent_innkeeper_pct = value;
+    rent_config_persist("rent_innkeeper_pct", value);
+}
+
 void rent_config_load(void) {
     g_rent_tax_at_max = rent_config_read("rent_tax_at_max", RENT_TAX_AT_MAX_DEFAULT);
     g_rent_free_level = rent_config_read("rent_free_level", RENT_FREE_LEVEL_DEFAULT);
+    g_rent_innkeeper_pct = rent_config_read("rent_innkeeper_pct", RENT_INNKEEPER_PCT_DEFAULT);
 }
 
 int rent_cost_for(const being_t *ch) {

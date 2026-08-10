@@ -16,11 +16,14 @@
  * See cmd_rent.c (charge) and cmd_balance.c (`balance rent`, the editor). */
 #define RENT_TAX_AT_MAX_DEFAULT 2000   /* gold a level-50 mortal pays */
 #define RENT_FREE_LEVEL_DEFAULT 5      /* levels 1..this rent for free */
+#define RENT_INNKEEPER_PCT_DEFAULT 10  /* %% of each rent tax the innkeeper keeps */
 
 int rent_tax_at_max(void);
 int rent_free_level(void);
 void rent_tax_at_max_set(int value);
 void rent_free_level_set(int value);
+int rent_innkeeper_pct(void);      /* innkeeper's cut of each rent tax, 0-100 */
+void rent_innkeeper_pct_set(int value);
 void rent_config_load(void);
 
 /* Full gold cost for `ch` to rent right now: 0 for an immortal or a

@@ -121,7 +121,7 @@ bool gametime_is_daytime(void) {
 /* Sends `msg` to every playing connection, held (not lost) for anyone
  * mid-edit -- same descriptor_notify() convention as the death taunt and
  * every other world-wide broadcast (combat.c). */
-static void gametime_announce(const char *msg) {
+void gametime_announce(const char *msg) {
     for (descriptor_t *it = g_descriptors; it; it = it->next) {
         if (!it->character)
             continue;
@@ -135,6 +135,30 @@ static void gametime_announce(const char *msg) {
  * connected player along the way (gametime_announce() above), and
  * persisting the new time (gametime_save()) after every call so a
  * server restart doesn't lose progress. */
+/* Shifts the shared clock by `delta_minutes` (negative to rewind),
+ * cascading through hour/day/month/year and snapping the minute back onto
+ * the 15-minute grid the clock advances on. Persists the result. Used by
+ * the `timeshift` command (cmd_timeshift.c). Does NOT emit the per-step
+ * noon/midnight/new-year lines -- it is a jump, not a tick; the daily/
+ * monthly economy ticks detect the change themselves on their next run. */
+void gametime_shift_minutes(long delta_minutes) {
+    long total = ((((long)g_time.year * MONTHS_PER_YEAR + g_time.month) * DAYS_PER_MONTH
+                   + g_time.day) * 24 + g_time.hour) * 60 + g_time.minute;
+    total += delta_minutes;
+    if (total < 0)
+        total = 0;
+    g_time.minute = (int)(total % 60) / 15 * 15;
+    total /= 60;
+    g_time.hour = (int)(total % 24);
+    total /= 24;
+    g_time.day = (int)(total % DAYS_PER_MONTH);
+    total /= DAYS_PER_MONTH;
+    g_time.month = (int)(total % MONTHS_PER_YEAR);
+    total /= MONTHS_PER_YEAR;
+    g_time.year = (int)total;
+    gametime_save();
+}
+
 void gametime_tick(long pulse_num) {
     (void)pulse_num;
 
