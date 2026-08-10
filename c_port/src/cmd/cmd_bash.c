@@ -15,6 +15,7 @@
 #include "obj.h"
 #include "pulse.h"
 #include "skill.h"
+#include "spellcast.h"
 
 /* Same local-copy convention every other cmd_*.c using this helper
  * already follows (cmd_cast.c, cmd_say.c, ...). */
@@ -135,6 +136,7 @@ bool cmd_bash(descriptor_t *d, const char *args) {
     int dmg = 1 + (ch->attrs.strength - ATTR_BASE) / 4 + rand() % 4;
     if (dmg < 1)
         dmg = 1;
+    spellcast_distract(target, 2); /* bash distracts a caster mid-`cast` (Sneezy: bash 1-2) */
     bool defeated = combat_apply_skill_damage(ch, target, dmg, LIMB_BODY);
     if (!defeated) {
         target->position = POSITION_SITTING;

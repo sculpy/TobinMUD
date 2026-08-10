@@ -173,6 +173,58 @@ void spellcast_tick_run(long pulse_num) {
             continue;
         }
 
+        /* Distraction (Sneezy spelltask parity, user 2026-08-10): a
+         * disruptive maneuver (bash/kick/trip/grapple) landed on the
+         * caster since the last tick may shatter the in-progress spell.
+         * Rolled once per round and cleared, exactly like upstream's
+         * spelltask CONTINUE distraction check -- `(2*distract) >= 1d20`
+         * breaks, otherwise the caster shakes it off but the cast takes a
+         * round longer. Wisdom steadies the caster (upstream ties
+         * concentration to STAT_WIS, not the wizardry skill -- wizardry
+         * only governs component/gesture/mantra requirements). Plain melee
+         * never sets this, matching upstream. */
+        if (ch->cast_distracted > 0) {
+            int distract = ch->cast_distracted;
+            ch->cast_distracted = 0;
+            const char *dcol = (ch->char_class == CLASS_DRUID) ? "<y>" : "<p>";
+            int wis = (ch->attrs.wisdom - ATTR_BASE) / 20; /* ~0..6 steadying */
+            if (wis < 0) wis = 0;
+            int eff = distract * 2 - wis;
+            if (eff < 1) eff = 1;          /* a landed disruption always threatens */
+            if (eff >= (rand() % 20) + 1) {
+                ch->is_casting = false;
+                ch->cast_target = NULL;
+                ch->cast_rounds_left = 0;
+                ch->cast_rounds_total = 0;
+                if (ch->desc) {
+                    char m[224];
+                    snprintf(m, sizeof(m),
+                             "%sThe distraction is too much -- your half-formed spell slips away!<z>\r\n", dcol);
+                    descriptor_send(ch->desc, m);
+                }
+                if (ch->base.roomp) {
+                    char capbuf[128], rm[288];
+                    snprintf(rm, sizeof(rm),
+                             "%s%s loses concentration, and %s half-formed spell fizzles apart.<z>\r\n",
+                             dcol, being_display_name_cap(ch, capbuf, sizeof(capbuf)), gender_possess(ch->gender));
+                    descriptor_room_echo(ch->base.roomp, ch, rm);
+                }
+                continue;
+            }
+            /* Shook it off -- but the interruption costs a round (upstream
+             * adds rounds on a recovered distraction). Re-extend the input
+             * lockout so the caster stays locked for the new duration. */
+            ch->cast_rounds_left++;
+            ch->cast_rounds_total++;
+            being_set_wait(ch, ch->cast_rounds_left * COMBAT_ROUND_PULSES);
+            if (ch->desc) {
+                char m[224];
+                snprintf(m, sizeof(m),
+                         "%sYou almost lose your focus, but slowly manage to keep the spell together.<z>\r\n", dcol);
+                descriptor_send(ch->desc, m);
+            }
+        }
+
         /* Round 1's flavor was already shown synchronously at cast time
          * (spellcast_start()) so the caster gets immediate feedback
          * instead of ~1.2s of silence -- this tick advances to round 2,
@@ -203,4 +255,20 @@ void spellcast_tick_run(long pulse_num) {
         }
         cmd_cast_resolve_effect(d, ch, target, sk);
     }
+}
+
+/* Distraction hook (Sneezy spelltask parity, user 2026-08-10): a
+ * disruptive combat maneuver that landed on a caster mid-`cast` adds to
+ * their distraction counter, which spellcast_tick_run() then rolls at the
+ * next round (see being.h's cast_distracted doc + the tick's own block).
+ * A no-op unless `ch` is actually casting; immortals are never distracted,
+ * same spirit as their other gate bypasses. Called from cmd_bash/cmd_kick/
+ * cmd_trip/cmd_grapple on a successful landing -- upstream's own callers
+ * (bash 1-2, kick 1-2, trip 1-2, grapple 1). Plain melee never calls it. */
+void spellcast_distract(being_t *ch, int amt) {
+    if (!ch || !ch->is_casting || amt <= 0)
+        return;
+    if (being_is_immortal(ch))
+        return;
+    ch->cast_distracted += amt;
 }

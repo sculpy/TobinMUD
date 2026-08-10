@@ -53,7 +53,7 @@ void meditate_tick_run(long pulse_num) {
          * meditate ended instantly claiming "fully rested" because it
          * was checking already-full HP/Vit instead of their actual
          * (not-full) mana. */
-        bool mana_mode = ch->char_class == CLASS_MAGE;
+        bool mana_mode = ch->char_class == CLASS_MAGE || ch->char_class == CLASS_DRUID; /* Druid Lifeforce mirrors mana (user 2026-08-10) */
         const skill_def_t *sk = skill_find(ch->char_class, mana_mode ? "meditate" : "yoginsa", imm);
         bool success = imm || !sk || skill_roll_success(skill_learn_from_doing(ch, sk));
         if (!success) {

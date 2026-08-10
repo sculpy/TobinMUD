@@ -11,6 +11,7 @@
 #include "combat.h"
 #include "pulse.h"
 #include "skill.h"
+#include "spellcast.h"
 
 /* `trip` (spell/skill functional-completeness audit, 2026-07-27: Warrior
  * roster entry "Knock an opponent to the ground.", skill.c level 1,
@@ -81,6 +82,7 @@ bool cmd_trip(descriptor_t *d, const char *args) {
         descriptor_send(target->desc, msg);
     }
 
+    spellcast_distract(target, 1); /* trip distracts a caster mid-`cast` (Sneezy: trip 1-2) */
     target->position = POSITION_SITTING;
     being_set_wait(target, COMBAT_ROUND_PULSES);
     return true;

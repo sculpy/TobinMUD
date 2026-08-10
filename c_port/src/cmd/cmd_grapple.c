@@ -10,6 +10,7 @@
 #include "combat.h"
 #include "pulse.h"
 #include "skill.h"
+#include "spellcast.h"
 
 /* `grapple` (spell/skill functional-completeness audit, 2026-07-27:
  * Warrior roster entry "Grab and hold an opponent, restricting what
@@ -71,6 +72,7 @@ bool cmd_grapple(descriptor_t *d, const char *args) {
      * the defender (you can't grapple someone without also being tied
      * up yourself). */
     being_set_wait(ch, 3 * COMBAT_ROUND_PULSES);
+    spellcast_distract(target, 1); /* grapple distracts a caster mid-`cast` (Sneezy: grapple 1) */
     being_set_wait(target, 3 * COMBAT_ROUND_PULSES);
 
     snprintf(msg, sizeof(msg), "You grab hold of %s, pinning them down!\r\n",

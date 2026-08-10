@@ -14,6 +14,7 @@
 #include "combat.h"
 #include "pulse.h"
 #include "skill.h"
+#include "spellcast.h"
 
 /* `kick` (Sneezy → Tobin feature audit, "Skill-based combat"). Checked
  * Sneezy's own cmd/cmd_kick.cc first: the real version rolls a random
@@ -119,6 +120,7 @@ bool cmd_kick(descriptor_t *d, const char *args) {
     int dmg = 1 + (ch->attrs.dexterity - ATTR_BASE) / 4 + rand() % 4;
     if (dmg < 1)
         dmg = 1;
+    spellcast_distract(target, 1); /* kick distracts a caster mid-`cast` (Sneezy: kick 1-2) */
     combat_apply_skill_damage(ch, target, dmg, LIMB_BODY);
     return true;
 }

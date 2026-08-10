@@ -73,6 +73,12 @@ bool cmd_rent(descriptor_t *d, const char *args) {
                      "The receptionist collects %d gold for your stay.\r\n", paid);
         descriptor_send(d, cmsg);
     }
+    if (to_coffers > 0) {
+        char tmsg[96];
+        snprintf(tmsg, sizeof(tmsg),
+                 "Of that, %d gold is set aside for the crown's tax coffers.\r\n", to_coffers);
+        descriptor_send(d, tmsg);
+    }
 
     if (ch->base.roomp) {
         char rmsg[128];

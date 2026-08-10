@@ -780,9 +780,15 @@ int being_calc_max_mana(const being_t *b) {
      * in the game a Mage-shaped mana pool it will never use. */
     if (b->base.kind == THING_MOB && !b->mob_class_known)
         return 0;
-    if (b->char_class != CLASS_MAGE)
+    if (b->char_class != CLASS_MAGE && b->char_class != CLASS_DRUID)
         return 0;
-    const skill_def_t *mana_sk = skill_find(CLASS_MAGE, "mana", false);
+    /* Druid mirrors Mage's mana machinery but its pool is labelled
+     * "Lifeforce" (score/prompt) -- user 2026-08-10: "druid use life
+     * force but it mirrors mana". Druid has no "mana" skill of its own,
+     * so skill_find() returns NULL and pct stays 0 -> a flat 100 base
+     * pool (times any race mult), spent by casting and restored by
+     * meditate/regen exactly like a Mage's. */
+    const skill_def_t *mana_sk = skill_find(b->char_class, "mana", false);
     int pct = mana_sk ? skill_proficiency(b, mana_sk) : 0;
     /* Race mana-pool perk (race_balance.mana_mult, `balance` command):
      * Gnome/Elf run deeper, Dwarf shallower. Neutral 1.0 until balanced. */

@@ -155,8 +155,8 @@ bool cmd_score(descriptor_t *d, const char *args) {
               * is Mage-only regardless -- Monk never gets a real pool in
               * Tobin -- so this now matches that exactly rather than
               * re-adding a Monk branch that would always read 0 anyway. */
-             ch->char_class == CLASS_MAGE ? p->mana : 0,
-             ch->char_class == CLASS_MAGE ? p->max_mana : 0,
+             (ch->char_class == CLASS_MAGE || ch->char_class == CLASS_DRUID) ? p->mana : 0,
+             (ch->char_class == CLASS_MAGE || ch->char_class == CLASS_DRUID) ? p->max_mana : 0,
              p->vit, p->max_vit,
              a->strength, a->intelligence, a->dexterity,
              a->wisdom, a->constitution, a->charisma,

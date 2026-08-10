@@ -678,7 +678,8 @@ int game_loop_run(int port, const char *copyover_file) {
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Vit: %d ",
                                                p->character->progress.vit);
                     if (p->character->prompt_flags & PROMPT_FLAG_MANA)
-                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Mana: %d ",
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "%s: %d ",
+                                               p->character->char_class == CLASS_DRUID ? "LF" : "Mana",
                                                p->character->progress.mana);
                     if (p->character->prompt_flags & PROMPT_FLAG_EXP)
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Exp: %ld ",

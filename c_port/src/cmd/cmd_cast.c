@@ -2743,12 +2743,13 @@ bool cmd_cast(descriptor_t *d, const char *args) {
      * first, THEN find out if it worked) -- an immortal never pays,
      * same "no restrictions" spirit as every other immortal bypass in
      * this function. */
-    if (!imm && ch->char_class == CLASS_MAGE) {
+    if (!imm && (ch->char_class == CLASS_MAGE || ch->char_class == CLASS_DRUID)) {
         int cost = spell_mana_cost(sk->name, sk->min_level);
         if (ch->progress.mana < cost) {
-            char lowmsg[96];
-            snprintf(lowmsg, sizeof(lowmsg), "You don't have enough mana to cast %s (need %d).\r\n",
-                     sk->name, cost);
+            const char *rlabel = ch->char_class == CLASS_DRUID ? "Lifeforce" : "mana";
+            char lowmsg[112];
+            snprintf(lowmsg, sizeof(lowmsg), "You don't have enough %s to cast %s (need %d).\r\n",
+                     rlabel, sk->name, cost);
             descriptor_send(d, lowmsg);
             return true;
         }

@@ -946,6 +946,15 @@ typedef struct being {
     int cast_rounds_total;
     char cast_spell_name[64];
     struct being *cast_target;
+    /* Distraction counter (Sneezy spelltask parity, user 2026-08-10):
+     * disruptive maneuvers landed on a caster mid-`cast` (bash/kick/trip/
+     * grapple) add to this via spellcast_distract(); spellcast_tick_run()
+     * rolls it each round -- a high enough distraction shatters the
+     * in-progress spell, otherwise the caster shakes it off but the cast
+     * takes a round longer. Wisdom-mitigated (Sneezy ties concentration
+     * to WIS, not to the wizardry skill). Plain melee does NOT distract,
+     * matching upstream. Cleared to 0 each round it's rolled. */
+    int cast_distracted;
 
     /* `feign death` (Monk, level 25, level-25 audit batch: "Play dead to
      * avoid detection or attack."). Set by cmd_feigndeath.c; checked by

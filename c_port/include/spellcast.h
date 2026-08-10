@@ -38,6 +38,14 @@
 void spellcast_start(descriptor_t *d, being_t *ch, const skill_def_t *sk, being_t *target);
 void spellcast_tick_run(long pulse_num);
 
+/* Distraction hook -- a disruptive maneuver (bash/kick/trip/grapple)
+ * landed on a caster mid-`cast` adds `amt` to their distraction counter;
+ * spellcast_tick_run() rolls it each round and may shatter the spell
+ * (Sneezy spelltask parity, user 2026-08-10). No-op unless `ch` is
+ * casting. Plain melee never calls this, matching upstream (concentration
+ * is WIS-gated, not broken by every hit). See spellcast.c for the roll. */
+void spellcast_distract(being_t *ch, int amt);
+
 /* The real per-spell effect dispatch (cmd_cast.c) -- was `static void
  * task_cast(...)`, renamed and exposed here so spellcast_tick_run() can
  * invoke it once a delayed cast's countdown completes. Unchanged body/
