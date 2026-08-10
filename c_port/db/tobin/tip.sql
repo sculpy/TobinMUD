@@ -27,5 +27,9 @@ SELECT 'The TobinMUD Team', t.body FROM (
   UNION ALL SELECT 'Resting heals faster than standing around; sleeping heals fastest of all, but you see nothing while asleep.'
   UNION ALL SELECT 'kill 2.mob (or look 2.board, get 2.sword, ...) reaches the second match when more than one thing shares a name.'
   UNION ALL SELECT 'affects shows any buff, debuff, disease, or poison currently active on you, and how long it has left.'
+  UNION ALL SELECT 'Set a wimpy level and you will flee automatically once your health drops below it -- the cheapest life insurance there is.'
+  UNION ALL SELECT 'limbs shows the condition of each part of your body; a badly hurt limb costs you in a fight until it is treated.'
+  UNION ALL SELECT 'who -l lists everyone by level, which makes it easy to find someone close enough to yours to group with.'
+  UNION ALL SELECT 'help rules is worth reading once -- it covers what is and is not allowed here, and ignorance is not much of a defence.'
 ) t
 WHERE NOT EXISTS (SELECT 1 FROM `tip` WHERE `tip`.`body` = t.body);

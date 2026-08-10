@@ -1,5 +1,65 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-10 — Session 147 (DO droplet, production port 4000):
+**Task 12 batch C: the last five gaps from the docs/Spell Assignments.xlsx
+audit.** Batches A and B landed in Sessions 138/141; this closes the item.
+All five were previously disclosed as open *because* they needed real
+subsystems Tobin lacked, so each one carries a deliberate scope decision:
+
+- **sharpen/smooth** -- new mutable `obj_t.sharpness` on weapons, gated on a
+  carried whetstone (sharpen) or file (smooth) and on edged-vs-blunt weapon
+  type, feeding the existing combat damage bonus. Sharpness is a flat
+  ceiling and is not persisted across a reload -- both disclosed cuts,
+  since a persisted per-instance weapon stat would need its own object-save
+  column. Also fixed a real fidelity gap found on the way in: blunt weapons
+  were getting no condition bonus at all.
+- **alcoholism** -- new `progress_t.drunk` stat (new `player_progress`
+  column, applied via tobin_migrations.sql). Drunkenness comes from
+  liquids.c's own real per-liquid drunk values, which were already in the
+  seeded data and had simply been dropped on the floor until now; the
+  skill dampens it via upstream's real SKILL_ALCOHOLISM formula, it decays
+  over time, and it carries a real to-hit penalty plus upstream's own
+  `passOut()` chance formula.
+- **Deikhan mounted-combat trio** -- new `cmd_charge.c` (bonus damage plus a
+  knockdown, restricted to an opening move), a calm-mount unseat-resist
+  roll in combat.c, and advanced riding improving both mount success and
+  charge damage. Tobin has no Deikhan class, so all three are granted to
+  every class, exactly as riding itself already was.
+- **Ranger beast-charm pair** -- both wired into the charmed-pet system
+  `animal companion` already uses, each with its own flavor. Two notes: the
+  TODO's "blocked on the Pet/charm system, task 35" was stale (that system
+  has been built for some time), and upstream's own versions of both skills
+  are stubs, so there was no real formula to port in the first place.
+- **Five Shaman spells folded onto Druid** (flatulence, raze, shield of
+  mists, living vines, thornflesh) -- three carry real new affect types
+  with genuine combat.c / cmd_move.c hooks rather than flavor text.
+
+**Real production bug fixed, found while testing this batch:** the five new
+spell branches sat *after* an older generic self-ward branch whose
+`ci_contains(sk->name, "shield")` check matches the substring inside "shield
+of mists" -- so that spell was dead code and had never once resolved. All
+exact-name checks now run ahead of every generic substring branch. This is
+the same root-cause shape as Session 145's `cast gust` dead-branch bug, and
+the second time it has bitten: substring dispatch over a growing roster is
+fragile by construction, which is why TODO.md now carries a typed
+`effect_kind` proposal for `skill_def_t`.
+
+**Test-harness lesson, worth recording.** `tests/smoke_test_missing_skills_batchc.py`
+cost far more than the feature work did, and nine of the ten bugs found
+while writing it were test-side, not game-side: a level-51 tester silently
+counting as immortal (which zeroes incoming melee damage and would have
+quietly invalidated the thornflesh reflect trial), untrained skills rolling
+at the ~1% first-attempt floor, a sandbox room with no exits making `flee`
+impossible, and multi-round cast delays needing longer per-command timeouts
+(the same class of bug as Session 145's). The one that ate the most time:
+after a long scripted melee, a command sent on a socket nobody had drained
+returns the *previous* backlog rather than its own response, so an
+assertion fails while the command it names actually succeeded. That is the
+same failure family as TODO.md's open "intermittent scripted-input desync"
+item, and it argues that item may be a harness bug rather than a server bug
+— worth settling before the next big test-writing push, since it has now
+taxed several sessions in a row.
+
 Last updated: 2026-08-09 — Session 146 (DO droplet, production port 4000):
 **Fixed: groundfighting/Oomlat Philosophy/voplat never actually trained.**
 Two real, independent bugs, both root-caused live via a temporary debug

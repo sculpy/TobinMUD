@@ -106,14 +106,13 @@ def drunk_of(name):
 
 
 def hp_of(sock):
-    """Live (in-memory, not DB) current HP via `score`, retried a few
-    times -- a `score` reply can occasionally arrive split across the
-    shared `cmd()` helper's default 1.0s read window if the socket still
-    has unrelated leftover output queued (e.g. a room-broadcast from
-    another tester's action landing in the same short window), which
-    would otherwise surface as a confusing regex-returned-None crash
-    instead of a real test failure."""
+    """Live (in-memory, not DB) current HP via `score`. Drains first,
+    then retries: this is routinely called on a socket that's mid-fight
+    and streaming a combat round every ~1.2s, so without the drain the
+    `score` read comes back holding queued combat text instead of the
+    score table (see drain()'s own doc comment for the mechanism)."""
     for _ in range(5):
+        drain(sock)
         m = re.search(r"HP:\s*(\d+)", strip(cmd(sock, "score")))
         if m:
             return int(m.group(1))
@@ -228,7 +227,18 @@ check("BatchC" in cmd(si, f"goto {ROOM_OUT}"), "the immortal goto's into the out
 warr_name, warr_pw = f"Bcwarr{_suffix}", "bcwarrpw123"
 sw = make_char(warr_name, warr_pw)
 cmd(sw, "quit!"); sw.close()
-set_level_class(warr_name, 30, CLASS_WARRIOR)
+# Level 45, not 30: `advanced riding` is a level-40 skill (skill.c), and
+# being_knows_skill() gates on level regardless of what a player_skill
+# row says -- so at level 30 a set_skill(..., "advanced riding", 100)
+# was silently a no-op and combat.c's calm-mount formula only ever saw
+# adv_prof=0. That left spook_chance at 5% rather than 0% even "fully
+# trained", making the trained sub-trial below a coin-flip across a
+# 15-second burst of hits (found live -- it failed intermittently for
+# exactly this reason, and the mechanic itself was correct all along).
+# 45 keeps every other skill this test uses in range (charge is the next
+# highest at 20) and stays under MORTAL_LEVEL_MAX (50), so the tester
+# does not accidentally read as immortal.
+set_level_class(warr_name, 45, CLASS_WARRIOR)
 sw = relog(warr_name, warr_pw)
 check("BatchC" in cmd(sw, "look"), "the warrior tester lands in the outdoor sandbox")
 # PK opt-in (combat.c's combat_pk_allowed(), TODO.md: "BOTH players must
@@ -270,8 +280,14 @@ component_iter = iter(range(COMPONENT_BASE, COMPONENT_BASE + 8))
 
 def give_component(caster_sock):
     cv = next(component_iter)
+    # Both sockets drained first: this helper is called repeatedly from
+    # inside combat-heavy sections, and either side holding queued
+    # combat text answers `load`/`get` with that instead of the real
+    # reply (drain()'s own doc comment has the mechanism).
+    drain(si, caster_sock)
     check("You conjure" in cmd(si, f"load obj {cv}"), f"component {cv} loaded")
     cmd(si, "drop pouch")
+    drain(caster_sock)
     got = cmd(caster_sock, "get pouch")
     if "you get" not in got.lower():
         # Print what actually came back before failing -- a bare "the
@@ -445,17 +461,21 @@ set_skill(warr_name, "charge", 100)
 set_skill(warr_name, "calm mount", 100)
 set_skill(warr_name, "advanced riding", 100)
 before_foe_hp = hp_of(sf)
+drain(sw)
 charge_out = cmd(sw, f"charge {foe_name}")
 check("charge" in charge_out.lower() and ("trampling" in charge_out.lower() or "dodges" in charge_out.lower()),
       "`charge` while mounted resolves (hit or dodge)")
 
-# Immediately back-to-back with the charge above -- checking real HP
-# loss (below) between the two would add just enough round-trip delay
-# for a couple of extra ordinary combat rounds to land in between,
-# risking foe actually going down (combat_defeat() clears BOTH sides'
-# `fighting`) before this second attempt, which would silently let it
-# through as a fresh charge instead of the real "already fighting"
-# refusal this line means to exercise.
+# The successful charge above OPENED a fight, so `sw` is now streaming a
+# combat round roughly every 1.2s -- without draining that first, this
+# next read comes back holding queued combat text rather than the
+# refusal it's asserting on (drain()'s own doc comment has the full
+# mechanism). Kept back-to-back with the charge otherwise: putting the
+# real HP-loss check (moved below) in between would let extra combat
+# rounds land, risking foe actually going down (combat_defeat() clears
+# BOTH sides' `fighting`) and turning this into a fresh charge instead
+# of the "already fighting" refusal it means to exercise.
+drain(sw)
 out2 = cmd(sw, f"charge {foe_name}")
 check("opening move" in out2.lower(), "a second charge while already fighting is refused (opening-move-only rule)")
 
@@ -513,6 +533,10 @@ trained_buf = collect_for(si, 0.3, f"hit {warr_name}")
 trained_buf += collect_for(sw, 15, None)
 trained_panic = "mount panics" in trained_buf.lower()
 
+# Fully trained, this is a real 0% -- combat.c's formula subtracts
+# ((calm*2 + adv)/3) percent of the 12% base, which reaches the entire
+# 12% only when BOTH skills are genuinely known and maxed (hence the
+# level-45 tester above).
 check(not trained_panic, "fully-trained `calm mount` + `advanced riding` keeps the rider in the saddle across a burst of real hits")
 if not untrained_panic:
     print(">>> NOTE: untrained calm-mount panic didn't fire in this run (12% per-hit chance, statistical) -- not a hard failure")
@@ -553,12 +577,15 @@ for _sk in ("beast charm", "befriend beast", "flatulence", "raze",
     set_skill(dru_name, _sk, 100)
 
 give_component(sd)
+drain(sd)
 out = cmd(sd, "cast beast charm", timeout=6.0)
 check("gray wolf answers" in out.lower(), "`cast beast charm` summons the real seeded gray wolf with its own flavor text")
+drain(sd)
 look_out = cmd(sd, "look")
 check("gray wolf" in look_out.lower(), "the charmed wolf is really standing in the room")
 
 give_component(sd)
+drain(sd)
 out = cmd(sd, "cast befriend beast", timeout=6.0)
 check("gray wolf trots over" in out.lower() or "already have a charmed" in out.lower(),
       "`cast befriend beast` uses its own distinct flavor text (or correctly refuses a second charmed pet)")
@@ -568,47 +595,74 @@ check("gray wolf trots over" in out.lower() or "already have a charmed" in out.l
 # ---------------------------------------------------------------------------
 # shield of mists -- self
 give_component(sd)
+drain(sd)
 out = cmd(sd, "cast shield of mists", timeout=6.0)
 check("green mist" in out.lower(), "`cast shield of mists` (self) lands")
+drain(sd)
 aff = cmd(sd, "affects").lower()
 check("shield of mists" in aff, "the caster really carries the Shield Of Mists affect")
 
 # shield of mists -- on another occupant
 give_component(sd)
+drain(sd)
 out = cmd(sd, f"cast shield of mists {foe_name}", timeout=6.0)
 check("green mist" in out.lower(), "`cast shield of mists <target>` lands on someone else")
+drain(sf)
 foe_aff = cmd(sf, "affects").lower()
 check("shield of mists" in foe_aff, "the OTHER occupant (not just the caster) carries Shield Of Mists")
 
-# living vines -- indoor refusal, then real outdoor effect
+# living vines -- indoor refusal, then real outdoor effect. give_component()
+# hands the pouch over via the room floor (immortal drops, caster gets), so
+# the immortal MUST be in the same room as the caster for it to work -- these
+# two goto's are load-bearing setup, not navigation flavor, and are asserted
+# accordingly. Found live: an unasserted goto here failed silently and the
+# next give_component() reported the genuinely-correct "You don't see that
+# here." (pouch dropped in the room the immortal was still standing in),
+# which read as a mystery pickup failure rather than a missed move.
 sql(f"UPDATE player SET load_room={ROOM_IN} WHERE name IN ('{dru_name}','{foe_name}');")
 sd.close(); sd = relog(dru_name, dru_pw)
 sf.close(); sf = relog(foe_name, foe_pw)
-cmd(si, f"goto {ROOM_IN}")
+drain(si)
+check("BatchC Indoor" in cmd(si, f"goto {ROOM_IN}"), "immortal goto's into the INDOOR sandbox for the living-vines refusal check")
+check("BatchC Indoor" in cmd(sd, "look"), "the druid tester is really in the indoor sandbox too")
 give_component(sd)
+drain(sd)
 out = cmd(sd, f"cast living vines {foe_name}", timeout=6.0)
 check("only works outdoors" in out.lower(), "`cast living vines` is refused indoors, per its own real upstream gate")
 
 sql(f"UPDATE player SET load_room={ROOM_OUT} WHERE name IN ('{dru_name}','{foe_name}');")
 sd.close(); sd = relog(dru_name, dru_pw)
 sf.close(); sf = relog(foe_name, foe_pw)
-cmd(si, f"goto {ROOM_OUT}")
+drain(si)
+check("BatchC Outdoor" in cmd(si, f"goto {ROOM_OUT}"), "immortal goto's back into the outdoor sandbox for the real living-vines effect")
+check("BatchC Outdoor" in cmd(sd, "look"), "the druid tester is really back in the outdoor sandbox too")
 give_component(sd)
+drain(sd)
 out = cmd(sd, f"cast living vines {foe_name}", timeout=6.0)
 check("wrap tight around" in out.lower(), "`cast living vines <target>` lands outdoors")
+# living vines OPENS combat between sd and sf (cmd_cast.c sets both
+# `fighting` pointers), so from here to the end of this section both
+# sockets stream a combat round every ~1.2s -- every read below drains
+# first, or it comes back holding queued combat text instead of the
+# reply it asserts on (drain()'s own doc comment has the mechanism).
+drain(sf)
 foe_aff2 = cmd(sf, "affects").lower()
 check("living vines" in foe_aff2, "the target really carries the Living Vines affect")
+drain(sf)
 move_out = cmd(sf, "north")
 check("can't move" in move_out.lower() or "vines" in move_out.lower(),
       "a Living-Vines-affected target is really refused normal movement")
 
 # thornflesh -- self buff + real damage reflection off a landed melee hit
 give_component(sd)
+drain(sd)
 out = cmd(sd, "cast thornflesh", timeout=6.0)
 check("thorns emerge" in out.lower(), "`cast thornflesh` lands")
+drain(sd)
 aff3 = cmd(sd, "affects").lower()
 check("thornflesh" in aff3, "the caster really carries the Thornflesh affect")
 give_component(sd)
+drain(sd)
 out2 = cmd(sd, "cast thornflesh", timeout=6.0)
 check("armored well enough" in out2.lower(), "casting thornflesh again while already active is refused, not stacked")
 
@@ -633,6 +687,7 @@ foe_hp_before = hp_of(sf)
 landed = False
 for _ in range(5):
     give_component(sd)
+    drain(sd)
     cmd(sd, "cast flatulence", timeout=6.0)
     foe_hp_now = hp_of(sf)
     if foe_hp_now < foe_hp_before:
@@ -643,11 +698,13 @@ check(landed, "`cast flatulence` damages another occupant of the room across a f
 
 # raze -- single-target heavy nuke, refuses vs immortal
 give_component(sd)
+drain(sd)
 out = cmd(sd, f"cast raze {imm_name}", timeout=6.0)
 check("can't do that to an immortal" in out.lower(), "`cast raze` refuses to target an immortal")
 
 give_component(sd)
 foe_hp_before2 = hp_of(sf)
+drain(sd)
 out = cmd(sd, f"cast raze {foe_name}", timeout=6.0)
 check("razed" in out.lower(), "`cast raze <target>` lands its real effect")
 foe_hp_after2 = hp_of(sf)
