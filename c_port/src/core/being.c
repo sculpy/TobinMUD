@@ -1179,6 +1179,12 @@ bool being_race_resists(const being_t *b, resist_type_t type) {
     return pct > 0 && (rand() % 100) < pct;
 }
 
+int being_race_talent(const being_t *b) {
+    if (!b || b->base.kind == THING_MOB)
+        return RACE_TALENT_NONE;
+    return race_balance_get(b->race)->talent;
+}
+
 void territory_stat_bonus(player_territory_t t, attrs_t *a) {
     if (!a)
         return;

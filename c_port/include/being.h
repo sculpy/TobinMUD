@@ -1218,6 +1218,20 @@ typedef enum {
 } resist_type_t;
 bool being_race_resists(const being_t *b, resist_type_t type);
 
+/* race_balance.talent enum (docs/RACE_PERKS.md). being_race_talent()
+ * returns a PC's race talent (0/none for a mob). Adaptable speeds every
+ * skill's learn-by-doing; Brawler/Woodland speed their themed skills
+ * (skill.c); Detect Magic is applied as an innate affect at login
+ * (enter_world, descriptor.c). */
+enum {
+    RACE_TALENT_NONE = 0,
+    RACE_TALENT_ADAPTABLE,
+    RACE_TALENT_BRAWLER,
+    RACE_TALENT_WOODLAND,
+    RACE_TALENT_DETECT_MAGIC,
+};
+int being_race_talent(const being_t *b);
+
 int being_calc_max_hp(const being_t *b);
 
 /* Direct port of real SneezyMUD's getMaxMove()/moveLimit()

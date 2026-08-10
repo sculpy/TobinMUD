@@ -49,13 +49,18 @@ vitals.c) so e.g. 0.75 drains one point about three ticks in four.
   move (`being_calc_max_vit`), food/drink decay (`vitals.c`).
 - **Tier 2 (applied):** infravision — exempts the race from `room_is_dark_for()`,
   i.e. innate dark-vision with no light or spell.
-- **Tier 1 (Phase 2):** resistances applied at the effect-roll sites that exist
-  (charm/sleep via the affect save, poison via drink/sip). Elemental types
-  (energy/heat/cold/paralysis) are stored + tunable now and take effect where
-  such damage sources are added — disclosed-pending.
-- **Tier 3 (Phase 3):** talents — Gnome innate detect-magic, Hobbit
-  sneak/hide/search bonus, Ogre brawling-skill bonus, Human across-the-board
-  learn-by-doing bonus.
+- **Tier 1 (applied):** resistances roll at the effect sites via
+  being_race_resists() — poison on drinking/sipping a tainted puddle
+  (cmd_drink/cmd_sip), charm/sleep on being cast at (cmd_cast). Elemental
+  types (energy/heat/cold/paralysis) are stored + tunable now and take effect
+  where such damage sources are added — disclosed-pending.
+- **Tier 3 (applied):** talents via being_race_talent(). Gnome Detect Magic is
+  an innate affect applied at login (enter_world); Human Adaptable, Ogre
+  Brawler, and Hobbit Woodland Stealth each widen learn-by-doing gain chance
+  by 25% for every / brawling / stealth skill respectively
+  (skill_learn_from_doing). Note: the innate affect is added at login and
+  never strips a detect-magic a Mage may have cast, so changing a race talent
+  later does not retroactively remove it from already-affected characters.
 
 ## Not imported
 

@@ -1388,6 +1388,13 @@ static void enter_world(descriptor_t *d, being_t *b, bool is_new) {
     b->desc = d;
     d->character = b;
 
+    /* Innate racial talents that are permanent affects (docs/RACE_PERKS.md):
+     * a Gnome's Detect Magic is always on, refreshed (re-applied) each
+     * login with a very long duration. Harmless for other races (their
+     * talent isn't Detect Magic). */
+    if (being_race_talent(b) == RACE_TALENT_DETECT_MAGIC)
+        being_apply_affect(b, AFFECT_DETECT_MAGIC, 1000000);
+
     int room_vnum;
     if (linkdead_room_vnum >= 0) {
         room_vnum = linkdead_room_vnum;

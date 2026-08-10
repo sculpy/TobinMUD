@@ -1012,6 +1012,19 @@ const char *skill_proficiency_word_colored(int pct) {
  * path as every other tier now -- combat.c's per-swing hook calls it with
  * combat_disc_pct as the ceiling (skill_ceiling()), same as any other
  * discipline-gated skill. */
+/* Case-insensitive substring test for talent skill-name matching (below).
+ * strcasestr is GNU-only, so do it by hand -- same reason cmd_cast.c has
+ * its own ci_contains(). */
+static bool sk_name_has(const char *name, const char *sub) {
+    size_t nl = strlen(name), sl = strlen(sub);
+    if (sl > nl)
+        return false;
+    for (size_t i = 0; i + sl <= nl; i++)
+        if (strncasecmp(name + i, sub, sl) == 0)
+            return true;
+    return false;
+}
+
 int skill_learn_from_doing(being_t *ch, const skill_def_t *sk) {
     int ceiling = skill_ceiling(ch, sk);
     if (ceiling <= 0)
@@ -1055,6 +1068,26 @@ int skill_learn_from_doing(being_t *ch, const skill_def_t *sk) {
     int chance = (int)(1000.0 * chance_ratio);
     if (chance < 15)
         chance = 15;
+
+    /* PC-race talents (race_balance.talent, docs/RACE_PERKS.md): Adaptable
+     * (Human) speeds every skill; Brawler (Ogre) speeds brawling/barehand/
+     * kick; Woodland Stealth (Hobbit) speeds sneak/hide/search. A themed
+     * match widens the per-attempt gain chance by 25%. */
+    int tal = being_race_talent(ch);
+    bool themed =
+        tal == RACE_TALENT_ADAPTABLE
+        || (tal == RACE_TALENT_BRAWLER
+            && (sk_name_has(sk->name, "brawl") || sk_name_has(sk->name, "barehand")
+                || sk_name_has(sk->name, "kick") || sk_name_has(sk->name, "bash")
+                || sk_name_has(sk->name, "punch")))
+        || (tal == RACE_TALENT_WOODLAND
+            && (sk_name_has(sk->name, "sneak") || sk_name_has(sk->name, "hide")
+                || sk_name_has(sk->name, "search")));
+    if (themed) {
+        chance = chance * 5 / 4;
+        if (chance > 1000)
+            chance = 1000;
+    }
 
     if (rand() % 1000 < chance) {
         int before = sp.pct;
