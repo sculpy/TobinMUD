@@ -1,5 +1,74 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-10 — Session 148 (DO droplet, production port 4000):
+**All-classes immortals, cross-class `practice` browsing, and a new
+login log line.** Three related user requests this session.
+
+**All-classes immortals.** `promote <name> [level]` now sets the
+target's stored class to a new `CLASS_ALL` sentinel (`player_class_t`,
+being.h -- declared equal to `CLASS_COUNT` on purpose, so every existing
+`for (c = 0; c < CLASS_COUNT; c++)` loop already excludes it with zero
+changes needed: `class_balance`'s bounds check, `skills`'s immortal
+branch, etc.) whenever the resulting level crosses into immortal range
+(51+). `being_knows_skill()` already granted immortals every skill in
+every class regardless of their stored class -- this makes that stored
+value honest instead of leaving it at whatever class they had the moment
+before promotion. `class_name()` shows "Immortal" for it; `class_stat_bonus()`
+gives it no bonus either way (immortals aren't balance-constrained, same
+reasoning `balance` already established). One-time backfill
+(tobin_migrations.sql) set every existing character whose true rank
+(true_level if set, else level) is already 51+ to CLASS_ALL -- ~600 rows
+on this DB, overwhelmingly test fixtures from past sessions plus the
+real admin account. Demotion back to mortal deliberately does NOT
+restore a pre-promotion class (that value no longer exists once
+overwritten) -- disclosed scope-down, needs `set class` by hand if it
+ever comes up for real.
+
+**`practice <class>` cross-class browsing.** Any class name (not just
+your own) now works as a `practice` argument, e.g. `practice warrior`,
+defaulting to the Basic tier if no discipline word follows ("let prac
+class also count for prac basic") -- same shorthand your own class name
+already had. Browsing a class that isn't yours (`cmd_practice.c`) shows
+a plain reference listing (skill name + minimum level only, no
+proficiency, no spend, no guildmaster hint -- you don't have access, so
+a percentage would be fiction) rather than being refused outright, per
+the user: "morts should be able to see what skill is offered in classes
+they are not, so this works for immorts and morts alike." An all-classes
+immortal (CLASS_ALL) gets the FULL proficiency-style listing for
+whatever class they ask for instead, since they genuinely have access to
+every one of them -- this is also now their only way to see any single
+class's roster at all, since they have no one class of their own.
+`help practice` rewritten to document the new form (both the live topic
+and its `help_topic.sql` seed row, which had also drifted stale from
+BEFORE the 2026-07-17 discipline-percentage redesign -- fixed while
+touching this row anyway, unrelated pre-existing gap).
+
+**New login log line.** `[PIO] <name> has entered the game in room
+<vnum>. [host]` (`descriptor.c`'s `enter_world()`), logged right before
+the load-room mechanic resolves/places the character, so it fires once
+for every path through that function -- fresh login, linkdead reconnect,
+and brand-new creation alike. Complements, doesn't replace, the existing
+has-connected/has-reconnected/has-been-created lines just below it,
+which describe the CONNECTION event rather than which room they actually
+landed in.
+
+`tests/smoke_test_practice.py` extended with 6 new checks (reference-vs-
+full listing, class-name-defaults-to-basic, spend-refused-on-a-foreign-
+class, promote sets CLASS_ALL, an all-classes immortal gets the full
+view for any class) -- all 40 checks in the file pass live. The login-
+log line was verified live via a disposable throwaway character
+(deleted after) rather than a dedicated automated test -- it's a single
+`game_log()` call with no branching logic, verified directly against
+the real log output as sufficient coverage. Deployed via copyover
+(zero-warning clean rebuild); gdb re-attached fresh after the earlier
+cold-restart mishap during Batch C's aftermath left it briefly
+undertraced.
+
+Also logged, not started: **Add news to tobinmud website** (user,
+2026-08-10) -- show the in-game `news` feed publicly, each entry with
+its date, likely mirroring `web/generate_help_json.sh`'s existing
+pattern. See TODO.md.
+
 Last updated: 2026-08-10 — Session 147 (DO droplet, production port 4000):
 **Task 12 batch C: the last five gaps from the docs/Spell Assignments.xlsx
 audit.** Batches A and B landed in Sessions 138/141; this closes the item.

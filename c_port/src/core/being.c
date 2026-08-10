@@ -881,6 +881,8 @@ static const char *const CLASS_NAMES[CLASS_COUNT] = {
 /* Display name for a PC class (CLASS_NAMES[] above) -- falls back to
  * "Mage" for an out-of-range value. */
 const char *class_name(player_class_t c) {
+    if (c == CLASS_ALL)
+        return "Immortal";
     if (c < 0 || c >= CLASS_COUNT)
         return "Mage";
     return CLASS_NAMES[c];
@@ -937,6 +939,11 @@ void class_stat_bonus(player_class_t c, attrs_t *a) {
             a->strength += 2;
             a->constitution += 2;
             a->charisma -= 4;
+            break;
+        case CLASS_ALL:
+            /* Deliberate: no bonus either way. Immortals aren't
+             * balance-constrained (see `balance`), so there's no real
+             * class affinity to model here. */
             break;
         default:
             break;

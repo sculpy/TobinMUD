@@ -70,6 +70,22 @@ bool cmd_promote(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* All-classes immortals (user, 2026-08-10): promotion into immortal
+     * range grants every class's skills/spells at once --
+     * being_knows_skill() already bypasses the class gate for any
+     * immortal, this just makes the stored class honest about it so
+     * score/who/practice don't keep showing a stale single class.
+     * Demotion back to mortal deliberately does NOT restore the
+     * pre-promotion class (that value no longer exists once
+     * overwritten) -- a real demotion needs the class reassigned by
+     * hand, same as any other mortal attribute an admin corrects after
+     * the fact. */
+    if (level >= IMMORTAL_LEVEL_MIN) {
+        player_set_class_by_name(target ? target->base.name : name, CLASS_ALL);
+        if (target)
+            target->char_class = CLASS_ALL;
+    }
+
     const char *title = being_level_title(level);
     char msg[160];
     if (target) {

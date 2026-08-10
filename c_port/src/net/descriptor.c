@@ -1402,6 +1402,16 @@ static void enter_world(descriptor_t *d, being_t *b, bool is_new) {
             room_vnum = DEFAULT_LOAD_ROOM_IMMORTAL;
     }
 
+    /* Typed player-io event (user, 2026-08-10), logged right before the
+     * load-room mechanic actually resolves/places the character -- one
+     * consistent line for every path through this function (fresh
+     * login, linkdead reconnect, and brand-new creation all reach here),
+     * complementing rather than replacing the has-connected/reconnected/
+     * been-created lines just below, which describe the CONNECTION
+     * event, not which room they landed in. */
+    game_log(LOG_PIO, "%s has entered the game in room %d. [%s]",
+             b->base.name, room_vnum, descriptor_display_host(d));
+
     room_t *r = world_get_room(room_vnum);
     if (!r) {
         r = room_repo_load(room_vnum);

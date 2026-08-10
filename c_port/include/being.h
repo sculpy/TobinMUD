@@ -477,7 +477,20 @@ typedef enum {
     CLASS_THIEF,
     CLASS_DRUID,
     CLASS_MONK,
-    CLASS_COUNT
+    CLASS_COUNT,
+    /* All-classes immortals (user, 2026-08-10): `promote` sets this on
+     * crossing into immortal level range instead of leaving the
+     * character's pre-promotion class stale. Declared AFTER CLASS_COUNT
+     * and equal to it on purpose, so every existing `for (c = 0; c <
+     * CLASS_COUNT; c++)` loop (class_balance, `skills`'s immortal
+     * branch, etc.) already excludes it with no change needed -- it's
+     * a real, storable player_class_t value, just never a real class's
+     * own row in any per-class table. being_knows_skill() already
+     * grants immortals every skill in every class regardless of this
+     * field's value (it bypasses the class check entirely for any
+     * immortal); this exists so score/who/practice describe that
+     * honestly instead of showing a stale single class. */
+    CLASS_ALL = CLASS_COUNT,
 } player_class_t;
 
 /* Display name ("Mage", "Cleric", ...), capitalized -- score/who. */

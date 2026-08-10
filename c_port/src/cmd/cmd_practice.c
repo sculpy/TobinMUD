@@ -124,9 +124,42 @@ static const char *spell_reagent_note(player_class_t cls, skill_tier_t sktier) {
  * with percentage of proficiency unless in front of a guildmaster then
  * the offer to practice still applies"). `has_guildmaster` adds the
  * training reminder at the end when one is actually present. */
-static void practice_show_discipline(descriptor_t *d, being_t *ch, int tier, bool has_guildmaster) {
-    player_class_t cls = ch->char_class;
+static void practice_show_discipline(descriptor_t *d, being_t *ch, player_class_t view_cls, int tier, bool has_guildmaster) {
     skill_tier_t sktier = guild_tier_to_skill_tier(tier);
+    /* Full, proficiency-aware view for the caller's own class, or for
+     * ANY class if the caller is an all-classes immortal (CLASS_ALL --
+     * being_knows_skill() already treats them as knowing everything in
+     * every class, so a bare reference listing would be misleadingly
+     * modest about what they actually have access to). A genuine mortal
+     * asking to see a class that isn't their own gets the plain
+     * reference listing below instead -- they don't have access, so a
+     * proficiency number would be fiction. */
+    if (view_cls != ch->char_class && ch->char_class != CLASS_ALL) {
+        char out[8192];
+        size_t n = 0;
+        n += (size_t)snprintf(out + n, sizeof(out) - n,
+                              "\r\n<c>-- %s %s discipline (reference) --<z>\r\n",
+                              class_name(view_cls), tier_name(tier));
+        const char *ref_reagent = spell_reagent_note(view_cls, sktier);
+        if (ref_reagent)
+            n += (size_t)snprintf(out + n, sizeof(out) - n, "  <y>(%s to invoke any of these)<z>\r\n", ref_reagent);
+        int ref_shown = 0;
+        int ref_count = skill_count();
+        for (int i = 0; i < ref_count && n < sizeof(out) - 128; i++) {
+            const skill_def_t *sk = skill_at(i);
+            if (sk->cls != view_cls || sk->tier != sktier)
+                continue;
+            ref_shown++;
+            n += (size_t)snprintf(out + n, sizeof(out) - n,
+                                  "  %-26s (level %d)\r\n", sk->name, sk->min_level);
+        }
+        if (ref_shown == 0)
+            n += (size_t)snprintf(out + n, sizeof(out) - n, "  (none)\r\n");
+        descriptor_page_start(d, out, 0);
+        return;
+    }
+
+    player_class_t cls = view_cls;
     /* Immortals see every skill as available regardless of character
      * level (999 sentinel, same precedent `skills`'s own immortal
      * branch already uses in cmd_skills.c) -- consistent with
@@ -270,21 +303,69 @@ bool cmd_practice(descriptor_t *d, const char *args) {
 
     size_t wlen = strlen(word);
     int tier;
+    player_class_t view_cls = ch->char_class;
+    bool not_own_class = false;
     if (wlen && strncasecmp(word, "basic", wlen) == 0)
         tier = GUILD_LEVEL_BASIC;
     else if (wlen && strncasecmp(word, "combat", wlen) == 0)
         tier = GUILD_LEVEL_COMBAT;
     else if (wlen && strncasecmp(word, "advanced", wlen) == 0)
         tier = GUILD_LEVEL_ADVANCED;
-    else if (wlen && strncasecmp(word, class_name(ch->char_class), wlen) == 0)
+    else if (wlen && ch->char_class != CLASS_ALL
+             && strncasecmp(word, class_name(ch->char_class), wlen) == 0)
         /* Basic's skills tier is labeled by class name elsewhere (`skills`
          * shows "Warrior Skills", not "Basic Skills"), so accept the
          * caller's own class name here too -- "practice warrior" reads
          * more naturally than "practice basic" for most players. */
         tier = GUILD_LEVEL_BASIC;
     else {
-        descriptor_send(d, "Practice what? Try '<c>practice basic<z>', '<c>practice combat<z>', or '<c>practice advanced<z>'.\r\n");
-        return true;
+        /* Any OTHER class name browses that discipline's skill listing
+         * (user, 2026-08-10: works for mortals and immortals alike --
+         * "morts should be able to see what skill is offered in classes
+         * they are not"). With no tier word following, defaults to
+         * Basic ("let prac class also count for prac basic"), same
+         * shorthand the caller's own class name already gets above. An
+         * all-classes immortal (CLASS_ALL) has no single class of their
+         * own, so this is also their only way to pick which class's
+         * listing to see -- see practice_show_discipline()'s own
+         * comment for why that still renders the full proficiency view
+         * rather than the read-only one a mortal gets browsing someone
+         * else's discipline. */
+        int found = -1;
+        for (player_class_t c = 0; c < CLASS_COUNT; c++) {
+            if (wlen && strncasecmp(word, class_name(c), wlen) == 0) {
+                found = (int)c;
+                break;
+            }
+        }
+        if (found < 0) {
+            descriptor_send(d, "Practice what? Try '<c>practice basic<z>', '<c>practice combat<z>', '<c>practice advanced<z>', or a class name like '<c>practice mage<z>'.\r\n");
+            return true;
+        }
+        view_cls = (player_class_t)found;
+
+        char word2[32] = "";
+        const char *rest2 = rest;
+        int j = 0;
+        while (*rest2 && *rest2 != ' ' && j < (int)sizeof(word2) - 1)
+            word2[j++] = *rest2++;
+        word2[j] = '\0';
+        size_t w2len = strlen(word2);
+        if (w2len == 0 || strncasecmp(word2, "basic", w2len) == 0)
+            tier = GUILD_LEVEL_BASIC;
+        else if (strncasecmp(word2, "combat", w2len) == 0)
+            tier = GUILD_LEVEL_COMBAT;
+        else if (strncasecmp(word2, "advanced", w2len) == 0)
+            tier = GUILD_LEVEL_ADVANCED;
+        else {
+            /* Anything else after a class name (a number, or garbage) is
+             * someone trying to spend points on a discipline that isn't
+             * theirs -- refuse cleanly rather than silently defaulting. */
+            descriptor_send(d, "You can't spend practice points on a discipline that isn't your own -- try '<c>practice <class><z>' or '<c>practice <class> <tier><z>' to see the listing.\r\n");
+            return true;
+        }
+        has_count = false;
+        not_own_class = (view_cls != ch->char_class);
     }
 
     being_t *gm = find_guildmaster(ch, tier);
@@ -294,7 +375,7 @@ bool cmd_practice(descriptor_t *d, const char *args) {
      * an explicit count actually spends points, which still needs one
      * present (checked below). */
     if (!has_count) {
-        practice_show_discipline(d, ch, tier, gm != NULL);
+        practice_show_discipline(d, ch, view_cls, tier, not_own_class ? false : gm != NULL);
         return true;
     }
 

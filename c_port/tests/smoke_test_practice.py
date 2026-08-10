@@ -241,7 +241,66 @@ check(fumbles >= 5, f"a freshly-floored (~1%) spell fumbles most attempts ({fumb
 out = cmd_paged(sc, "skills")
 check("[100%]" in out, "skills shows the forced 100% proficiency for heal light")
 
+# --- 10: browsing a class that isn't your own is read-only, not a spend
+# path (user, 2026-08-10: "morts should be able to see what skill is
+# offered in classes they are not") ---
+out = cmd_paged(sc, "practice warrior")
+check("(reference)" in out, "`practice <other class>` labels itself a reference listing")
+check("%" not in out.split("--")[1].split("\n")[0] if "--" in out else True,
+      "the reference header carries no percentage (nothing to be proficient in)")
+check("bash" in out.lower() or "kick" in out.lower() or "disarm" in out.lower(),
+      "the reference listing actually names real Warrior skills")
+
+out = cmd_paged(sc, "practice warrior")
+before_pts = cmd(sc, "practice").count("Practice Points")
+out2 = cmd(sc, "practice warrior 3")
+check("can't spend practice points on a discipline that isn't your own" in out2,
+      "spending on a class that isn't yours is refused, not silently ignored")
+
+# --- 11: a bare class name defaults to Basic, same shorthand the
+# caller's own class name already got ("let prac class also count for
+# prac basic") ---
+out_bare = cmd_paged(sc, "practice warrior")
+out_explicit = cmd_paged(sc, "practice warrior basic")
+check(("(none)" in out_bare) == ("(none)" in out_explicit)
+      and ("reference" in out_bare) == ("reference" in out_explicit),
+      "`practice <class>` alone matches `practice <class> basic`")
+out_combat = cmd_paged(sc, "practice warrior combat")
+check("Warrior Combat discipline" in out_combat, "an explicit tier after the class name is honored")
+
+# --- 12: all-classes immortals (user, 2026-08-10) -- promotion sets
+# class=CLASS_ALL, and `practice <any class>` then renders the FULL
+# proficiency view (not the mortal reference-only one), since an
+# all-classes immortal genuinely has access to every class. ---
+allcls_name = f"Pracall{_suffix}"
+allcls_pw = "practiceallpw1"
+sa = make_char(allcls_name, allcls_pw, "3")  # class: warrior at creation, overwritten by promote below
+sql(f"UPDATE player SET load_room={ROOM} WHERE name='{allcls_name}';")
+cmd(sa, "quit!")
+sa = socket.create_connection((host, port), timeout=5)
+recv_all(sa)
+send_line(sa, allcls_name); recv_all(sa)
+send_line(sa, allcls_pw); recv_all(sa)
+send_line(sa, "1"); recv_all(sa)
+cmd(sa, "color off")
+
+out = cmd(s_imm, f"promote {allcls_name} 51")
+check("promoted" in out.lower() or f"{allcls_name} is now level 51" in out,
+      "an immortal can promote another player into immortal range")
+
+cls_val = subprocess.run(
+    ["mariadb", "tobin", "-N", "-e", f"SELECT class FROM player WHERE name='{allcls_name}';"],
+    check=True, capture_output=True, text=True).stdout.strip()
+check(cls_val == "6", "promotion into immortal range sets the stored class to CLASS_ALL (6)")
+
+out_full = cmd_paged(sa, "practice warrior")
+check("(reference)" not in out_full and "discipline:" in out_full.lower(),
+      "an all-classes immortal browsing ANY class gets the full proficiency view, not the reference one")
+out_full_mage = cmd_paged(sa, "practice mage")
+check("(reference)" not in out_full_mage, "...and that's true for every class, not just one")
+
 s_imm.close()
 sc.close()
+sa.close()
 announce_done("smoke_test_practice", host, port)
 print("=== ALL CHECKS PASSED ===")

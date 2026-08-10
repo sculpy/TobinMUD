@@ -13,6 +13,26 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
+## User batch 2026-08-10 — done same session
+- [x] **All-classes immortals** -- "make all immortals all classes upon
+      promotion to immortal and update current immortal characters to be
+      all classes." New `CLASS_ALL` sentinel; `promote` sets it on
+      crossing into immortal range; existing immortals backfilled live.
+      See STATUS.md Session 148.
+- [x] **`practice <class>` browses any class's skill listing** -- "morts
+      should be able to see what skill is offered in classes they are
+      not, so this works for immorts and morts alike" / "let prac class
+      also count for prac basic." See STATUS.md Session 148.
+- [x] **Login log line** -- "[PIO] <N> has entered the game in room
+      <vnum>. [host], just before load room fires." See STATUS.md
+      Session 148.
+
+- [ ] **Add news to tobinmud website** -- user, 2026-08-10: show the
+      in-game `news` feed on the public site, each entry carrying its
+      date. Likely mirrors `web/generate_help_json.sh`'s existing
+      pattern (news.sql/`news` table -> a generated page under
+      `~/TobinMUD/web/`) -- not yet scoped further.
+
 ## User batch 2026-08-08 — logged, working these now
 - [x] Searchable help files on the website + nginx web root pointed at
       /home/mud/TobinMUD/web -- done 2026-08-08 (Session 140). The

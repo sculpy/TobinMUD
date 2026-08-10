@@ -668,3 +668,16 @@ ALTER TABLE `player`
 -- predates this feature. See being.h's progress_t.drunk doc comment.
 ALTER TABLE `player_progress`
   ADD COLUMN IF NOT EXISTS `drunk` int(11) NOT NULL DEFAULT 0;
+
+-- All-classes immortals (user, 2026-08-10): promotion into immortal
+-- range now sets `player`.`class` to CLASS_ALL (6, being.h) instead of
+-- leaving the pre-promotion class stale (see cmd_promote.c). This is
+-- the one-time backfill for characters who were already immortal
+-- before that code existed. "True rank" mirrors the existing
+-- mortal/immortal-toggle convention elsewhere in this codebase:
+-- true_level if it's been set (nonzero), else level. Safe to re-run --
+-- setting class=6 on an already-6 row is a no-op.
+UPDATE `player` p
+JOIN `player_progress` pp ON pp.player_id = p.id
+SET p.class = 6
+WHERE (IF(pp.true_level > 0, pp.true_level, pp.level)) >= 51;
