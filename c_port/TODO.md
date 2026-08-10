@@ -13,6 +13,45 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
+## PC-race perk system + menu-driven `balance` rework (user 2026-08-10: "do it all")
+Turns the Sneezy RACE_* per-race data (hp/mana/move/food/drink mods,
+IMMUNE_* resistances, infravision, talents) into real, tunable PC-race
+perks, delivered through the existing data-driven `race_balance` table so
+every value stays live-editable via `balance`. Decisions taken (per the
+design discussion): net-zero across a race's whole identity (upside paired
+with a drawback, not per-subsystem), Human keeps a signature "adaptable"
+flex perk, magnitudes scaled down from Sneezy (all tunable live anyway).
+See docs/RACE_STATS.md (stat layer) + docs/RACE_PERKS.md (this).
+
+Extended balance_mod_t / class_balance+race_balance columns (class rows
+keep the race-only perks neutral):
+- Tier 0 numeric: mana_mult, move_mult (scale max mana / max move, mirror
+  the existing hp_mult), food_mult, drink_mult (hunger/thirst decay rate).
+- Tier 1 resistances (0-100% each, race only): resist_poison, resist_charm,
+  resist_sleep, resist_paralysis, resist_energy, resist_heat, resist_cold.
+- Tier 2 senses (race only): infravision (0/1 innate dark-vision).
+- Tier 3 talent (race only): one enum per race (Ogre brawler, Hobbit
+  woodland stealth, Gnome innate detect-magic, Human adaptable skill-gain).
+
+- [ ] **Phase 1 — data model + seed + menu rework + Tier 0/Tier 2 apply.**
+      Schema migration (balance.sql) + balance_mod_t/balance_repo for all new
+      columns; seed scaled Sneezy values for the 6 races; apply mana_mult
+      (being_calc_max_mana), move_mult (being_calc_max_vit), food/drink_mult
+      (vitals.c decay), infravision (room_is_dark_for). Rework the `balance`
+      editor into fully self-documenting menu screens: per-field label,
+      one-line "what it does", neutral baseline, current value, and a
+      live-effect line, split into Combat / Vitals / Resistances / Senses /
+      Talent sections (race) vs Combat only (class). Smoke test.
+- [ ] **Phase 2 — Tier 1 resistance application.** being_race_resist(type)
+      helper; apply at the existing hooks (charm/sleep via the affect save,
+      poison via drink/sip). Elemental types (heat/cold/energy/paralysis)
+      stored + editable now, applied where/when such damage sources exist
+      (disclosed-pending, shown as such in the menu). Smoke test.
+- [ ] **Phase 3 — Tier 3 talents.** Wire the concrete talents: Gnome innate
+      detect-magic, Hobbit sneak/hide/search bonus, Ogre brawling-skill
+      bonus, Human across-the-board learn-by-doing bonus. Smoke test +
+      docs/RACE_PERKS.md finalized.
+
 ## User batch 2026-08-10 — done same session
 - [x] **All-classes immortals** -- "make all immortals all classes upon
       promotion to immortal and update current immortal characters to be
