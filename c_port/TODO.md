@@ -27,7 +27,7 @@ viewers keep plain names (`news`, `wiznews`).
       <vnum>. [host], just before load room fires." See STATUS.md
       Session 148.
 
-- [ ] **Add news to tobinmud website** -- user, 2026-08-10: show the
+- [x] **Add news to tobinmud website** -- user, 2026-08-10: show the
       in-game `news` feed on the public site, each entry carrying its
       date. Likely mirrors `web/generate_help_json.sh`'s existing
       pattern (news.sql/`news` table -> a generated page under
