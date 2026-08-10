@@ -35,5 +35,6 @@
  * CORPSE_HALF_BUTCHERED -- a disclosed simplification). */
 #define CORPSE_SKINNED   (1 << 0)
 #define CORPSE_BUTCHERED (1 << 1)
+#define CORPSE_DISSECTED (1 << 2)
 
 #endif

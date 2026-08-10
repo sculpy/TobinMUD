@@ -8,6 +8,7 @@
 #include <stdio.h>
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "affect.h"
 #include "being.h"
@@ -213,6 +214,30 @@ static bool do_move(descriptor_t *d, int dir) {
                 cost -= cost * (hiking_prof / 2) / 100;
                 if (cost < 1)
                     cost = 1;
+            }
+        }
+        /* `climbing` (missing-skill audit, generic/cross-class,
+         * 2026-08-10): real upstream (physics.cc's climb()) is a
+         * pass-or-fall check when moving through vertical terrain.
+         * Dropping/refusing a live player on a failed roll is punitive on
+         * a production server, so -- same shape as `hiking` just above --
+         * climbing grants an ADDITIONAL cost reduction that applies only
+         * when the source or destination is a mountain/climbing sector,
+         * the exact vertical terrain the skill is about. Stacks with
+         * hiking. Disclosed scope-cut from the original's fall gate. */
+        {
+            const char *fn = sector_name(from->sector);
+            const char *tn = sector_name(to->sector);
+            bool vertical = strstr(fn, "MOUNTAIN") || strstr(fn, "CLIMBING")
+                         || strstr(tn, "MOUNTAIN") || strstr(tn, "CLIMBING");
+            if (vertical && being_knows_skill(ch, "climbing")) {
+                const skill_def_t *climb_sk = skill_find(ch->char_class, "climbing", false);
+                if (climb_sk) {
+                    int climb_prof = skill_learn_from_doing(ch, climb_sk);
+                    cost -= cost * (climb_prof / 2) / 100;
+                    if (cost < 1)
+                        cost = 1;
+                }
             }
         }
         /* Flying quarters the charge (Sneezy → Tobin feature audit,

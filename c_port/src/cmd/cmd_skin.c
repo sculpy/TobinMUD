@@ -70,7 +70,7 @@ bool cmd_skin(descriptor_t *d, const char *args) {
         return true;
     }
 
-    const skill_def_t *sk = skill_find(CLASS_DRUID, "skin", false);
+    const skill_def_t *sk = skill_find(ch->char_class, "skin", being_is_immortal(ch));
     int pct = sk ? skill_learn_from_doing(ch, sk) : 0;
     corpse->val[3] |= CORPSE_SKINNED;
 

@@ -264,6 +264,25 @@ bool cmd_use(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* `read magic` (missing-skill audit, generic/cross-class,
+     * 2026-08-10): real upstream (other.cc's doRecite) gates a scroll's
+     * success on SKILL_READ_MAGIC, Mages effectively always succeeding.
+     * Ported the same way for SCROLLS: deciphering rolls read magic
+     * (learn-by-doing); a Mage's own training always succeeds; immortals
+     * are exempt. On a failed roll the arcane script won't fire -- but,
+     * unlike upstream (which consumes the scroll on a flub), Tobin does
+     * NOT destroy it (a disclosed, player-kinder scope-cut). Wands/staves
+     * are devices, not written script, so they are unaffected. */
+    if (is_scroll && !being_is_immortal(ch) && ch->char_class != CLASS_MAGE) {
+        const skill_def_t *rm_sk = skill_find(ch->char_class, "read magic", true);
+        if (rm_sk && !skill_roll_success(skill_learn_from_doing(ch, rm_sk))) {
+            char rmsg[224];
+            snprintf(rmsg, sizeof(rmsg), "You stumble over the arcane script on %s; the magic doesn't fire.\r\n", label);
+            descriptor_send(d, rmsg);
+            return true;
+        }
+    }
+
     if (is_staff) {
         use_area_damage(d, ch, sk, label);
     } else {

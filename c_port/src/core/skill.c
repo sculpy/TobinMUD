@@ -756,6 +756,56 @@ static const skill_def_t SKILLS[] = {
     { "fast heal",            CLASS_THIEF, SKILL_TIER_COMBAT,    1, "See help `fast heal` for help." },
     { "fast heal",            CLASS_DRUID, SKILL_TIER_COMBAT,    1, "See help `fast heal` for help." },
     { "fast heal",            CLASS_MONK, SKILL_TIER_COMBAT,    1, "See help `fast heal` for help." },
+    /* Extraction / movement / utility generics (missing-skill audit,
+     * generic/cross-class, 2026-08-10). All real upstream SKILL_GENERAL
+     * (spell_info.cc): climbing/dissect/read magic/lumberjack under
+     * DISC_ADVENTURING at START_1; skin(ning)/mend at START_26 (mapped
+     * to the advanced tier here). `skin` already existed for Druid --
+     * these add it for the other five classes (upstream SKILL_SKIN is
+     * SKILL_GENERAL, not Druid-only), reusing the exact same cmd_skin.c
+     * command. `mend` (real repair.cc repairGeneric) is the every-class
+     * basic field-repair, distinct from Warrior's blacksmith `repair`.
+     * `dissect` (cmd_dissect.cc) carves a corpse for a generic reagent,
+     * same corpse-extraction family as skin/butcher. `climbing`
+     * (physics.cc) discounts vertical-terrain movement cost. `lumberjack`
+     * (SKILL_LOGGING) fells wood logs in wooded terrain, feeding whittle.
+     * `read magic` (other.cc doRecite) gates scroll-recite success. See
+     * cmd_move.c/cmd_dissect.c/cmd_repair.c/cmd_lumberjack.c/cmd_use.c. */
+    { "climbing",             CLASS_MAGE, SKILL_TIER_COMBAT,    1, "See help `climbing` for help." },
+    { "climbing",             CLASS_CLERIC, SKILL_TIER_COMBAT,    1, "See help `climbing` for help." },
+    { "climbing",             CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `climbing` for help." },
+    { "climbing",             CLASS_THIEF, SKILL_TIER_COMBAT,    1, "See help `climbing` for help." },
+    { "climbing",             CLASS_DRUID, SKILL_TIER_COMBAT,    1, "See help `climbing` for help." },
+    { "climbing",             CLASS_MONK, SKILL_TIER_COMBAT,    1, "See help `climbing` for help." },
+    { "dissect",              CLASS_MAGE, SKILL_TIER_COMBAT,    1, "See help `dissect` for help." },
+    { "dissect",              CLASS_CLERIC, SKILL_TIER_COMBAT,    1, "See help `dissect` for help." },
+    { "dissect",              CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `dissect` for help." },
+    { "dissect",              CLASS_THIEF, SKILL_TIER_COMBAT,    1, "See help `dissect` for help." },
+    { "dissect",              CLASS_DRUID, SKILL_TIER_COMBAT,    1, "See help `dissect` for help." },
+    { "dissect",              CLASS_MONK, SKILL_TIER_COMBAT,    1, "See help `dissect` for help." },
+    { "read magic",           CLASS_MAGE, SKILL_TIER_COMBAT,    1, "See help `read magic` for help." },
+    { "read magic",           CLASS_CLERIC, SKILL_TIER_COMBAT,    1, "See help `read magic` for help." },
+    { "read magic",           CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `read magic` for help." },
+    { "read magic",           CLASS_THIEF, SKILL_TIER_COMBAT,    1, "See help `read magic` for help." },
+    { "read magic",           CLASS_DRUID, SKILL_TIER_COMBAT,    1, "See help `read magic` for help." },
+    { "read magic",           CLASS_MONK, SKILL_TIER_COMBAT,    1, "See help `read magic` for help." },
+    { "lumberjack",           CLASS_MAGE, SKILL_TIER_COMBAT,    1, "See help `lumberjack` for help." },
+    { "lumberjack",           CLASS_CLERIC, SKILL_TIER_COMBAT,    1, "See help `lumberjack` for help." },
+    { "lumberjack",           CLASS_WARRIOR, SKILL_TIER_COMBAT,    1, "See help `lumberjack` for help." },
+    { "lumberjack",           CLASS_THIEF, SKILL_TIER_COMBAT,    1, "See help `lumberjack` for help." },
+    { "lumberjack",           CLASS_DRUID, SKILL_TIER_COMBAT,    1, "See help `lumberjack` for help." },
+    { "lumberjack",           CLASS_MONK, SKILL_TIER_COMBAT,    1, "See help `lumberjack` for help." },
+    { "skin",                 CLASS_MAGE, SKILL_TIER_ADVANCED,  25, "See help `skin` for help." },
+    { "skin",                 CLASS_CLERIC, SKILL_TIER_ADVANCED,  25, "See help `skin` for help." },
+    { "skin",                 CLASS_WARRIOR, SKILL_TIER_ADVANCED,  25, "See help `skin` for help." },
+    { "skin",                 CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `skin` for help." },
+    { "skin",                 CLASS_MONK, SKILL_TIER_ADVANCED,  25, "See help `skin` for help." },
+    { "mend",                 CLASS_MAGE, SKILL_TIER_ADVANCED,  25, "See help `mend` for help." },
+    { "mend",                 CLASS_CLERIC, SKILL_TIER_ADVANCED,  25, "See help `mend` for help." },
+    { "mend",                 CLASS_WARRIOR, SKILL_TIER_ADVANCED,  25, "See help `mend` for help." },
+    { "mend",                 CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `mend` for help." },
+    { "mend",                 CLASS_DRUID, SKILL_TIER_ADVANCED,  25, "See help `mend` for help." },
+    { "mend",                 CLASS_MONK, SKILL_TIER_ADVANCED,  25, "See help `mend` for help." },
 };
 
 #define SKILL_TOTAL (int)(sizeof(SKILLS) / sizeof(SKILLS[0]))

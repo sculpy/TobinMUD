@@ -585,6 +585,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "smooth",  cmd_smooth,  "Smooth the nicks from a held blunt weapon using a carried file.", MORTAL_LEVEL_MIN },
     { "charge",  cmd_charge,  "Charge down a target while mounted, opening a fight with a bonus hit (must be mounted).", MORTAL_LEVEL_MIN },
     { "debride", cmd_debride, "Undo some of an item's accumulated wear (Warrior, debride <item>).", MORTAL_LEVEL_MIN },
+    { "mend",    cmd_mend,    "Field-repair a damaged item without a shop (any class, mend <item>).", MORTAL_LEVEL_MIN },
     /* Full spell/skill/prayer roster import (user 2026-07-26): "sac" is
      * unambiguous -- say already owns "sa", save "sav". */
     { "sacrifice", cmd_sacrifice, "Ritually sacrifice a corpse to the loa (Druid, sacrifice <corpse>).", MORTAL_LEVEL_MIN },
@@ -683,7 +684,9 @@ static const cmd_entry_t COMMANDS[] = {
     { "butcher", cmd_butcher, "Carve meat from a slain animal's corpse (Druid).",   MORTAL_LEVEL_MIN },
     /* Crafting & extraction (Sneezy -> Tobin feature audit, Druid). "ski"
      * is unambiguous -- no collision with "skills" ("skil"). */
-    { "skin",    cmd_skin,    "Strip a hide from a slain animal's corpse (Druid).", MORTAL_LEVEL_MIN },
+    { "skin",    cmd_skin,    "Strip a hide from a slain animal's corpse (any class).", MORTAL_LEVEL_MIN },
+    { "dissect", cmd_dissect, "Dissect a corpse for a usable reagent (any class).",  MORTAL_LEVEL_MIN },
+    { "lumberjack", cmd_lumberjack, "Fell timber for wood logs in wooded terrain (any class).", MORTAL_LEVEL_MIN },
     /* No existing "ch*" command -- unclaimed abbreviation, confirmed via
      * cmd_abbrev_check.py before landing. */
     { "chi",     cmd_chi,     "Unleash a chi-powered strike against a foe (Monk, chi [<target>]; defaults to your current opponent).", MORTAL_LEVEL_MIN },

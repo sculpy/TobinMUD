@@ -417,3 +417,63 @@ bool cmd_debride(descriptor_t *d, const char *args) {
     }
     return true;
 }
+
+/* `mend <item>` (missing-skill audit, generic/cross-class, 2026-08-10):
+ * real upstream SKILL_MEND (repair.cc's repairGeneric()) is the basic,
+ * every-class version of item repair, distinct from the Warrior's
+ * material-specific blacksmithing `repair`. Ported as a free, no-shop,
+ * no-monogram field fix: a successful skill roll restores cur_struct up
+ * to the item's effective ceiling at the cost of one more point of
+ * depreciation (crude field work wears it a little, same as any repair).
+ * No gold cost. Same instant-resolve simplification as repair/debride
+ * (upstream's multi-tick TASK_MEND has no Tobin equivalent). */
+bool cmd_mend(descriptor_t *d, const char *args) {
+    being_t *ch = d->character;
+    if (!ch)
+        return true;
+    bool imm = being_is_immortal(ch);
+    if (!imm && !being_knows_skill(ch, "mend")) {
+        descriptor_send(d, "You don't know how to mend equipment.\r\n");
+        return true;
+    }
+    char tok[64] = "";
+    sscanf(args, "%63s", tok);
+    if (!*tok) {
+        descriptor_send(d, "Mend what?\r\n");
+        return true;
+    }
+    obj_t *o = find_any_obj(ch, tok);
+    if (!o) {
+        descriptor_send(d, "You don't have that.\r\n");
+        return true;
+    }
+    if (o->max_struct <= 0) {
+        descriptor_send(d, "That isn't the sort of thing that can be damaged or repaired.\r\n");
+        return true;
+    }
+    int ceiling = effective_max_struct(o);
+    if (o->cur_struct >= ceiling) {
+        descriptor_send(d, "It's already in about as good a shape as you can manage.\r\n");
+        return true;
+    }
+    const skill_def_t *sk = skill_find(ch->char_class, "mend", imm);
+    bool success = imm || !sk || skill_roll_success(skill_learn_from_doing(ch, sk));
+    const char *label = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+    char msg[256];
+    if (!success) {
+        snprintf(msg, sizeof(msg), "You fumble the job and can't make %s any sturdier.\r\n", label);
+        descriptor_send(d, msg);
+        return true;
+    }
+    o->cur_struct = ceiling;
+    o->depreciation += 1;
+    snprintf(msg, sizeof(msg), "You mend %s back to working order.\r\n", label);
+    descriptor_send(d, msg);
+    if (ch->base.roomp) {
+        char capbuf[128], room_msg[224];
+        snprintf(room_msg, sizeof(room_msg), "%s mends %s.\r\n",
+                 being_display_name_cap(ch, capbuf, sizeof(capbuf)), label);
+        descriptor_room_echo(ch->base.roomp, ch, room_msg);
+    }
+    return true;
+}
