@@ -1420,6 +1420,14 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
             descriptor_send(d, "You already have too many followers to take on another.\r\n");
             return;
         }
+        if (being_race_resists(atk_target, RESIST_CHARM)) {
+            snprintf(msg, sizeof(msg), "You cast ensorcer at %s, but its will proves too strong to bend!\r\n",
+                     being_display_name(atk_target));
+            descriptor_send(d, msg);
+            if (atk_target->desc)
+                descriptor_notify(atk_target->desc, "A foreign will claws at your mind, but your kind throws it off!\r\n");
+            return;
+        }
         ch->followers[slot] = atk_target;
         atk_target->master = ch;
         being_apply_affect(atk_target, AFFECT_CHARMED, 60 * COMBAT_ROUND_PULSES);
@@ -1533,6 +1541,14 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
             descriptor_send(d, msg);
             if (atk_target->desc)
                 descriptor_notify(atk_target->desc, "You feel a wave of drowsiness, but shrug it off through sheer discipline!\r\n");
+            return;
+        }
+        if (being_race_resists(atk_target, RESIST_SLEEP)) {
+            snprintf(msg, sizeof(msg), "You cast %s at %s, but their kind shrugs off the drowsiness!\r\n",
+                     sk->name, being_display_name(atk_target));
+            descriptor_send(d, msg);
+            if (atk_target->desc)
+                descriptor_notify(atk_target->desc, "A wave of drowsiness washes over you, but your kind resists it!\r\n");
             return;
         }
         atk_target->position = POSITION_SLEEPING;

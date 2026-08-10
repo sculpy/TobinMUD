@@ -206,10 +206,14 @@ bool cmd_drink(descriptor_t *d, const char *args) {
     }
 
     if (!being_is_immortal(ch) && rand() % 100 < DRINK_POISON_CHANCE_PCT) {
-        being_apply_affect(ch, AFFECT_POISON, DRINK_POISON_DURATION);
-        descriptor_send(d, "You feel a sharp pain as poison courses through you!\r\n");
-        game_log(LOG_SILENT, "%s was poisoned drinking %s (vnum %d) in room %d",
-                 ch->base.name, label, pool->vnum, ch->base.roomp->vnum);
+        if (being_race_resists(ch, RESIST_POISON)) {
+            descriptor_send(d, "Your hardy blood throws off the taint before it takes hold.\r\n");
+        } else {
+            being_apply_affect(ch, AFFECT_POISON, DRINK_POISON_DURATION);
+            descriptor_send(d, "You feel a sharp pain as poison courses through you!\r\n");
+            game_log(LOG_SILENT, "%s was poisoned drinking %s (vnum %d) in room %d",
+                     ch->base.name, label, pool->vnum, ch->base.roomp->vnum);
+        }
     } else {
         descriptor_send(d, "Thankfully, it doesn't seem to have made you sick.\r\n");
     }

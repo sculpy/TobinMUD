@@ -157,13 +157,17 @@ bool cmd_sip(descriptor_t *d, const char *args) {
     }
 
     if (rand() % 100 < SIP_POISON_CHANCE_PCT) {
-        int dmg = SIP_POISON_MIN_DMG + rand() % (SIP_POISON_MAX_DMG - SIP_POISON_MIN_DMG + 1);
-        ch->progress.hp -= dmg;
-        if (ch->progress.hp < 1)
-            ch->progress.hp = 1;
-        descriptor_send(d, "You feel a faint twinge -- that wasn't entirely safe!\r\n");
-        game_log(LOG_SILENT, "%s was mildly poisoned sipping %s (vnum %d) in room %d",
-                 ch->base.name, label, pool->vnum, ch->base.roomp->vnum);
+        if (being_race_resists(ch, RESIST_POISON)) {
+            descriptor_send(d, "You catch the off taste, and your blood shrugs it aside.\r\n");
+        } else {
+            int dmg = SIP_POISON_MIN_DMG + rand() % (SIP_POISON_MAX_DMG - SIP_POISON_MIN_DMG + 1);
+            ch->progress.hp -= dmg;
+            if (ch->progress.hp < 1)
+                ch->progress.hp = 1;
+            descriptor_send(d, "You feel a faint twinge -- that wasn't entirely safe!\r\n");
+            game_log(LOG_SILENT, "%s was mildly poisoned sipping %s (vnum %d) in room %d",
+                     ch->base.name, label, pool->vnum, ch->base.roomp->vnum);
+        }
     } else {
         descriptor_send(d, "It doesn't seem to have hurt you.\r\n");
     }

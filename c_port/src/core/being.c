@@ -1162,6 +1162,23 @@ const char *territory_name(player_territory_t t) {
  * (matches real upstream's own Urban Dweller table exactly in direction);
  * Wilds is Urban's mirror image; Rural sits in between, favoring dexterity/
  * wisdom over raw charisma. */
+bool being_race_resists(const being_t *b, resist_type_t type) {
+    if (!b || b->base.kind == THING_MOB || being_is_immortal((being_t *)b))
+        return false;
+    const balance_mod_t *rb = race_balance_get(b->race);
+    int pct = 0;
+    switch (type) {
+        case RESIST_POISON:    pct = rb->resist_poison; break;
+        case RESIST_CHARM:     pct = rb->resist_charm; break;
+        case RESIST_SLEEP:     pct = rb->resist_sleep; break;
+        case RESIST_PARALYSIS: pct = rb->resist_paralysis; break;
+        case RESIST_ENERGY:    pct = rb->resist_energy; break;
+        case RESIST_HEAT:      pct = rb->resist_heat; break;
+        case RESIST_COLD:      pct = rb->resist_cold; break;
+    }
+    return pct > 0 && (rand() % 100) < pct;
+}
+
 void territory_stat_bonus(player_territory_t t, attrs_t *a) {
     if (!a)
         return;

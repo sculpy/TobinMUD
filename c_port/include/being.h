@@ -1206,6 +1206,18 @@ void being_set_wait(being_t *b, int pulses);
  * own `balance` command multiplier is folded into the class-level term
  * on top of this real formula. User 2026-08-06: "sneezy had good
  * balance, no sense reinventing the wheel." */
+/* PC-race effect resistances (race_balance resist_*, docs/RACE_PERKS.md).
+ * being_race_resists() rolls the race's percentage for `type` and returns
+ * true if the effect should be shrugged off this time. Mobs and immortals
+ * never benefit (always false). Applied at the poison (cmd_drink/cmd_sip)
+ * and charm/sleep (cmd_cast) effect sites; the elemental types are stored
+ * and tunable now, applied where such damage sources are added. */
+typedef enum {
+    RESIST_POISON, RESIST_CHARM, RESIST_SLEEP, RESIST_PARALYSIS,
+    RESIST_ENERGY, RESIST_HEAT, RESIST_COLD
+} resist_type_t;
+bool being_race_resists(const being_t *b, resist_type_t type);
+
 int being_calc_max_hp(const being_t *b);
 
 /* Direct port of real SneezyMUD's getMaxMove()/moveLimit()
