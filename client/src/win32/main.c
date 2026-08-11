@@ -139,7 +139,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.25"
+#define CLIENT_VERSION "0.4.26"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -1234,7 +1234,7 @@ static void apply_font(void) {
 
     g_app.font = CreateFontW(px, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                               DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                              CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, L"DejaVu Sans Mono");
+                              CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, L"Courier New");
 
     if (g_app.hwnd_input)
         SendMessageW(g_app.hwnd_input, WM_SETFONT, (WPARAM)g_app.font, TRUE);
@@ -1244,7 +1244,7 @@ static void apply_font(void) {
         ZeroMemory(&cf, sizeof(cf));
         cf.cbSize = sizeof(cf);
         cf.dwMask = CFM_FACE | CFM_SIZE;
-        wcscpy(cf.szFaceName, L"DejaVu Sans Mono");
+        wcscpy(cf.szFaceName, L"Courier New");
         cf.yHeight = g_app.font_pt * 20; /* twips (1/20 pt) */
 
         /* Second, smaller contributor to "still some space" (user,

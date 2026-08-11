@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play TobinMUD</title>
+<style>
+  :root { --bg:#0b0e0c; --fg:#c9d1c9; --dim:#7c8a7c; --accent:#7ac07a; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 15px/1.35 "DejaVu Sans Mono", "Consolas", "Lucida Console", monospace;
+    display: flex; flex-direction: column;
+  }
+  header {
+    padding: 6px 12px; border-bottom: 1px solid #1c241c;
+    display: flex; align-items: center; gap: 12px; flex: 0 0 auto;
+  }
+  header .title { color: var(--accent); font-weight: bold; letter-spacing: .5px; }
+  header .status { color: var(--dim); font-size: 13px; }
+  header .status.on { color: var(--accent); }
+  header .spacer { flex: 1; }
+  header button {
+    background: #16201a; color: var(--fg); border: 1px solid #2a3a2a;
+    padding: 4px 10px; border-radius: 5px; cursor: pointer; font: inherit; font-size: 13px;
+  }
+  header button:hover { border-color: var(--accent); }
+  #screen {
+    flex: 1 1 auto; overflow-y: auto; padding: 10px 12px;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  #inputrow { flex: 0 0 auto; display: flex; border-top: 1px solid #1c241c; }
+  #prompt { padding: 8px 4px 8px 12px; color: var(--accent); }
+  #cmd {
+    flex: 1; background: transparent; color: var(--fg); border: 0; outline: 0;
+    font: inherit; padding: 8px 12px 8px 4px;
+  }
+  /* ANSI palette (normal + bright) */
+  .fg30{color:#3b3b3b}.fg31{color:#d05a5a}.fg32{color:#6fbf6f}.fg33{color:#c7a95a}
+  .fg34{color:#5a86d0}.fg35{color:#b56fb5}.fg36{color:#5ab5b5}.fg37{color:#c9d1c9}
+  .fg90{color:#6d6d6d}.fg91{color:#ff7b7b}.fg92{color:#93e493}.fg93{color:#efd47b}
+  .fg94{color:#7ba7ff}.fg95{color:#e493e4}.fg96{color:#7be4e4}.fg97{color:#ffffff}
+  .bg40{background:#000}.bg41{background:#5a1a1a}.bg42{background:#1a3a1a}.bg43{background:#3a341a}
+  .bg44{background:#1a2540}.bg45{background:#331a33}.bg46{background:#1a3333}.bg47{background:#3a3a3a}
+  .b{font-weight:bold}
+</style>
+</head>
+<body>
+  <header>
+    <span class="title">TobinMUD</span>
+    <span id="status" class="status">disconnected</span>
+    <span class="spacer"></span>
+    <button id="reconnect">Reconnect</button>
+    <a href="/" style="color:var(--dim);text-decoration:none;font-size:13px;">&larr; site</a>
+  </header>
+  <div id="screen" aria-live="polite"></div>
+  <div id="inputrow">
+    <span id="prompt">&gt;</span>
+    <input id="cmd" autocomplete="off" autocapitalize="off" autocorrect="off"
+           spellcheck="false" placeholder="type a command, press Enter">
+  </div>
+
+<script>
+(function () {
+  "use strict";
+  var screenEl = document.getElementById("screen");
+  var cmdEl = document.getElementById("cmd");
+  var statusEl = document.getElementById("status");
+  var ws = null, passwordMode = false;
+  var history = [], histIdx = -1;
+
+  function setStatus(t, on) { statusEl.textContent = t; statusEl.className = "status" + (on ? " on" : ""); }
+
+  // ---- ANSI SGR renderer -------------------------------------------------
+  var cur = { fg: null, bg: null, bold: false };
+  var pending = "";        // partial ESC sequence carried across chunks
+  function styleClass() {
+    var c = [];
+    if (cur.bold) c.push("b");
+    if (cur.fg !== null) c.push("fg" + cur.fg);
+    if (cur.bg !== null) c.push("bg" + cur.bg);
+    return c.join(" ");
+  }
+  function applySGR(codes) {
+    for (var i = 0; i < codes.length; i++) {
+      var n = codes[i] | 0;
+      if (n === 0) { cur.fg = null; cur.bg = null; cur.bold = false; }
+      else if (n === 1) cur.bold = true;
+      else if (n === 22) cur.bold = false;
+      else if (n === 39) cur.fg = null;
+      else if (n === 49) cur.bg = null;
+      else if ((n >= 30 && n <= 37) || (n >= 90 && n <= 97)) cur.fg = n;
+      else if ((n >= 40 && n <= 47) || (n >= 100 && n <= 107)) cur.bg = (n >= 100 ? n - 60 : n);
+    }
+  }
+  function emit(text) {
+    if (!text) return;
+    var atBottom = (screenEl.scrollTop + screenEl.clientHeight >= screenEl.scrollHeight - 4);
+    var span = document.createElement("span");
+    var cls = styleClass();
+    if (cls) span.className = cls;
+    span.appendChild(document.createTextNode(text));
+    screenEl.appendChild(span);
+    if (atBottom) screenEl.scrollTop = screenEl.scrollHeight;
+  }
+  // Feed already-telnet-stripped, UTF-8-decoded text through the ANSI parser.
+  function render(str) {
+    str = pending + str.replace(/\r/g, "");
+    pending = "";
+    var out = "", i = 0;
+    while (i < str.length) {
+      var ch = str[i];
+      if (ch === "\x1b") {
+        var m = /^\x1b\[([0-9;]*)([A-Za-z])/.exec(str.slice(i));
+        if (m) {
+          if (out) { emit(out); out = ""; }
+          if (m[2] === "m") applySGR(m[1] === "" ? [0] : m[1].split(";"));
+          i += m[0].length; continue;
+        }
+        // incomplete escape at end of chunk -> carry over
+        if (str.indexOf("\x1b", i) === i && str.length - i < 12) { pending = str.slice(i); break; }
+        i++; continue; // unknown/oversized escape, drop the ESC
+      }
+      out += ch; i++;
+    }
+    if (out) emit(out);
+  }
+
+  // ---- Telnet stripping (IAC negotiation) --------------------------------
+  var IAC = 255, SB = 250, SE = 240, WILL = 251, WONT = 252, DO = 253, DONT = 254, OPT_ECHO = 1;
+  var tnState = 0, tnCmd = 0, sbActive = false, sbPrevIAC = false;
+  var decoder = new TextDecoder("utf-8");
+  function feed(bytes) {
+    var clean = [];
+    for (var i = 0; i < bytes.length; i++) {
+      var b = bytes[i];
+      if (sbActive) { // inside subnegotiation, swallow until IAC SE
+        if (sbPrevIAC) { if (b === SE) sbActive = false; sbPrevIAC = false; }
+        else if (b === IAC) sbPrevIAC = true;
+        continue;
+      }
+      if (tnState === 0) {
+        if (b === IAC) tnState = 1; else clean.push(b);
+      } else if (tnState === 1) {
+        if (b === IAC) { clean.push(IAC); tnState = 0; }        // escaped 0xFF
+        else if (b === SB) { sbActive = true; sbPrevIAC = false; tnState = 0; }
+        else if (b === WILL || b === WONT || b === DO || b === DONT) { tnCmd = b; tnState = 2; }
+        else tnState = 0;                                       // 2-byte cmd (GA/NOP/...)
+      } else if (tnState === 2) {
+        if (tnCmd === WILL && b === OPT_ECHO) setPassword(true);   // server hides input
+        else if (tnCmd === WONT && b === OPT_ECHO) setPassword(false);
+        tnState = 0;
+      }
+    }
+    if (clean.length) render(decoder.decode(new Uint8Array(clean), { stream: true }));
+  }
+
+  function setPassword(on) {
+    passwordMode = on;
+    cmdEl.type = on ? "password" : "text";
+    cmdEl.placeholder = on ? "(hidden)" : "type a command, press Enter";
+  }
+
+  // ---- Connection --------------------------------------------------------
+  function connect() {
+    if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+    var proto = (location.protocol === "https:") ? "wss://" : "ws://";
+    setStatus("connecting…");
+    ws = new WebSocket(proto + location.host + "/play/ws");
+    ws.binaryType = "arraybuffer";
+    ws.onopen = function () { setStatus("connected", true); cmdEl.focus(); };
+    ws.onmessage = function (ev) {
+      if (typeof ev.data === "string") feed(new TextEncoder().encode(ev.data));
+      else feed(new Uint8Array(ev.data));
+    };
+    ws.onclose = function () { setStatus("disconnected"); setPassword(false);
+      render("\x1b[90m\n*** connection closed — press Reconnect ***\x1b[0m\n"); };
+    ws.onerror = function () { setStatus("error"); };
+  }
+  function send(line) {
+    if (!ws || ws.readyState !== 1) return;
+    ws.send(new TextEncoder().encode(line + "\r\n"));
+  }
+
+  cmdEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      var line = cmdEl.value;
+      if (!passwordMode && line.trim() !== "") {
+        history.push(line); if (history.length > 200) history.shift();
+        emit("\n");           // local echo of the typed line
+        var pv = cur; cur = { fg: 90, bg: null, bold: false }; emit("> " + line + "\n"); cur = pv;
+      }
+      histIdx = history.length;
+      send(line); cmdEl.value = "";
+      e.preventDefault();
+    } else if (e.key === "ArrowUp") {
+      if (histIdx > 0) { histIdx--; cmdEl.value = history[histIdx]; }
+      e.preventDefault();
+    } else if (e.key === "ArrowDown") {
+      if (histIdx < history.length - 1) { histIdx++; cmdEl.value = history[histIdx]; }
+      else { histIdx = history.length; cmdEl.value = ""; }
+      e.preventDefault();
+    }
+  });
+  document.getElementById("reconnect").addEventListener("click", function () { screenEl.innerHTML = ""; connect(); });
+  document.getElementById("screen").addEventListener("click", function () { cmdEl.focus(); });
+
+  connect();
+})();
+</script>
+</body>
+</html>
