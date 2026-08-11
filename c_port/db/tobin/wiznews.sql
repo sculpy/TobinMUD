@@ -1317,3 +1317,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Play in your browser now; Windows client font is Courier New (v0.4.26)', 'You can now play TobinMUD straight from a web browser -- no download, no setup. Head to https://tobinmud.com and click ''Play in Your Browser''. It connects to the same live world as telnet and the Windows client, with full colour and command history. (Under the hood: a WebSocket bridge forwards the browser to the game port.) Also: the Druid guild trainers and their kin no longer read as Ranger, Shaman, Deikhan, or voodoo -- they are all Druids now. And the Windows client''s font has been changed to Courier New, shipping as v0.4.26 (auto-updates on next launch).')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Cast/pray shortcuts, and immortals no longer need components or holy symbols', 'A few quality-of-life additions. You can now abbreviate a multi-word spell or prayer word by word -- ''cast sorc globe'' finds sorcerer''s globe, ''pray heal light'' finds heal light, and so on. Immortals no longer need to carry (or spend) spell components or holy symbols to cast and pray. And ''put all <container>'' / ''put all.<name> <container>'' now works, so you can sweep every matching item into a bag in one command (identical spell components stack together as they go in).')
+ON DUPLICATE KEY UPDATE `title` = `title`;
