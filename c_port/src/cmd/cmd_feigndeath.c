@@ -54,6 +54,14 @@ bool cmd_feigndeath(descriptor_t *d, const char *args) {
 
     ch->feigning = true;
     descriptor_send(d, "You go limp and play dead.\r\n");
+    /* Learn-by-doing: using the skill trains it toward its discipline
+     * ceiling (skill_learn_from_doing() self-throttles via its own
+     * cooldown). PCs only; immortals already read as maxed. */
+    if (!being_is_immortal(ch) && ch->base.kind == THING_PC) {
+        const skill_def_t *learn_sk = skill_find(ch->char_class, "feign death", true);
+        if (learn_sk)
+            skill_learn_from_doing(ch, learn_sk);
+    }
     if (ch->base.roomp) {
         char msg[128], capbuf[128];
         snprintf(msg, sizeof(msg), "%s suddenly goes limp and appears dead!\r\n",

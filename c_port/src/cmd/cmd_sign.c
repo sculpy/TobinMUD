@@ -67,6 +67,15 @@ bool cmd_sign(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* Learn-by-doing: using the skill trains it toward its discipline
+     * ceiling (skill_learn_from_doing() self-throttles via its own
+     * cooldown). PCs only; immortals already read as maxed. */
+    if (!being_is_immortal(ch) && ch->base.kind == THING_PC) {
+        const skill_def_t *learn_sk = skill_find(ch->char_class, "sign", true);
+        if (learn_sk)
+            skill_learn_from_doing(ch, learn_sk);
+    }
+
     char msg[336];
     snprintf(msg, sizeof(msg), "<m>You sign, \"<z>%s<m>\"<z>\r\n", args);
     descriptor_send(d, msg);

@@ -77,5 +77,13 @@ bool cmd_switchopp(descriptor_t *d, const char *args) {
     snprintf(msg, sizeof(msg), "You break off from %s and turn on %s instead!\r\n",
              being_display_name(old), being_display_name(target));
     descriptor_send(d, msg);
+    /* Learn-by-doing: using the skill trains it toward its discipline
+     * ceiling (skill_learn_from_doing() self-throttles via its own
+     * cooldown). PCs only; immortals already read as maxed. */
+    if (!being_is_immortal(ch) && ch->base.kind == THING_PC) {
+        const skill_def_t *learn_sk = skill_find(ch->char_class, "switch opponents", true);
+        if (learn_sk)
+            skill_learn_from_doing(ch, learn_sk);
+    }
     return true;
 }

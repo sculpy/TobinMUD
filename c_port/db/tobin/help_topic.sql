@@ -1227,3 +1227,13 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('inevitability', 'A passive combat skill, known by every class in the advanced tier.\nThe grim certainty that your blow will land -- a to-hit bonus that\ngrows as you press an attack. No command to use it; it trains and\napplies automatically in combat. Related: advanced offense', 'seed'),
 ('fast heal', 'A passive skill, known from level 1 by every class. Speeds how\nquickly your wounds close while you rest -- a well-practiced healer\nrecovers hit points noticeably faster when sitting, resting, or\nsleeping. No command to use it; it just works while you recover.\nRelated: score', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Druid spell batch (2026-08-11): six Shaman spells folded onto Druid.
+INSERT INTO help_topic (name, body, updated_by) VALUES
+('healing grasp', 'Usage: cast healing grasp [target]\n\nDruid only. Lays a restorative touch on a target (yourself by default), closing wounds for a solid amount of HP. Requires: any item keyworded "component"\nRelated: skills practice cast salve', 'seed'),
+('life leech', 'Usage: cast life leech <target>\n\nDruid only. Drains the life from a target for damage, drawing three-quarters of it back to you as HP. Refuses against an immortal. Requires: any item keyworded "component"\nRelated: skills practice cast bramble drain vampiric touch', 'seed'),
+('vampiric touch', 'Usage: cast vampiric touch <target>\n\nDruid only. A full life-transfer drain -- damages the target and heals you for the whole amount dealt. Refuses against an immortal. Requires: any item keyworded "component"\nRelated: skills practice cast life leech', 'seed'),
+('squish', 'Usage: cast squish <target>\n\nDruid only. Crushes a target beneath a sudden weight for damage. Refuses against an immortal. Requires: any item keyworded "component"\nRelated: skills practice cast raze', 'seed'),
+('boiling blood', 'Usage: cast boiling blood <target>\n\nDruid only. Superheats a target''s blood, dealing heavy damage. Refuses against an immortal. Requires: any item keyworded "component"\nRelated: skills practice cast coronary', 'seed'),
+('coronary', 'Usage: cast coronary <target>\n\nDruid only. Stops a target''s heart -- the heaviest single strike on the Druid roster. Refuses against an immortal. Requires: any item keyworded "component"\nRelated: skills practice cast boiling blood raze', 'seed')
+ON DUPLICATE KEY UPDATE `name` = `name`;

@@ -109,6 +109,14 @@ static bool do_container(descriptor_t *d, being_t *ch, obj_t *o, bool opening) {
         if (o->val[1] & CONT_TRAPPED) {
             if (being_knows_skill(ch, "detect trap")) {
                 descriptor_send(d, "You spot a trap rigged inside and carefully avoid it.\r\n");
+                /* Learn-by-doing: using the skill trains it toward its discipline
+                 * ceiling (skill_learn_from_doing() self-throttles via its own
+                 * cooldown). PCs only; immortals already read as maxed. */
+                if (!being_is_immortal(ch) && ch->base.kind == THING_PC) {
+                    const skill_def_t *learn_sk = skill_find(ch->char_class, "detect trap", true);
+                    if (learn_sk)
+                        skill_learn_from_doing(ch, learn_sk);
+                }
             } else {
                 int dmg = 5 + rand() % 10;
                 limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);

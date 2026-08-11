@@ -72,6 +72,14 @@ bool cmd_disguise(descriptor_t *d, const char *args) {
 
     snprintf(ch->base.short_descr, sizeof(ch->base.short_descr), "a hooded stranger");
     descriptor_send(d, "You pull up your hood and become a hooded stranger.\r\n");
+    /* Learn-by-doing: using the skill trains it toward its discipline
+     * ceiling (skill_learn_from_doing() self-throttles via its own
+     * cooldown). PCs only; immortals already read as maxed. */
+    if (!being_is_immortal(ch) && ch->base.kind == THING_PC) {
+        const skill_def_t *learn_sk = skill_find(ch->char_class, "disguise", true);
+        if (learn_sk)
+            skill_learn_from_doing(ch, learn_sk);
+    }
     snprintf(msg, sizeof(msg), "%s pulls up %s hood, becoming a hooded stranger!\r\n",
              ch->base.name, gender_possess(ch->gender));
     descriptor_room_echo(r, ch, msg);

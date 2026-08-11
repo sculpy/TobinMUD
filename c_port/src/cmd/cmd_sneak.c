@@ -35,5 +35,10 @@ bool cmd_sneak(descriptor_t *d, const char *args) {
         descriptor_send(d, "You start moving quietly, trying not to draw attention.\r\n");
     else
         descriptor_send(d, "You stop sneaking around.\r\n");
+    if (ch->sneaking && !being_is_immortal(ch) && ch->base.kind == THING_PC) {
+        const skill_def_t *learn_sk = skill_find(ch->char_class, "sneak", true);
+        if (learn_sk)
+            skill_learn_from_doing(ch, learn_sk);
+    }
     return true;
 }

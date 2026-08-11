@@ -491,6 +491,205 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (strcasecmp(sk->name, "healing grasp") == 0) {
+        /* Druid batch, 2026-08-11: real upstream disc_shaman_healing.cc
+         * healingGrasp -- a straight restorative laid on a target (self
+         * by default; TAR_CHAR_ROOM | TAR_FIGHT_SELF upstream). Same
+         * being_heal() shape as the cure-light/salve branch below, sized
+         * a notch above salve to match its higher roster slot. */
+        int amount = 20 + ch->progress.level;
+        being_heal(target, amount);
+        if (target == ch) {
+            snprintf(msg, sizeof(msg), "You lay a healing grasp upon yourself and feel restored! (+%d HP)\r\n", amount);
+            descriptor_send(d, msg);
+        } else {
+            snprintf(msg, sizeof(msg), "You lay a healing grasp upon %s -- their wounds close. (+%d HP)\r\n",
+                     being_display_name(target), amount);
+            descriptor_send(d, msg);
+            if (target->desc) {
+                char tcapbuf[128];
+                snprintf(msg, sizeof(msg), "%s lays a healing grasp upon you -- your wounds close! (+%d HP)\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), amount);
+                descriptor_notify(target->desc, msg);
+            }
+        }
+    } else if (strcasecmp(sk->name, "life leech") == 0) {
+        /* Druid batch, 2026-08-11: real upstream disc_shaman_skunk.cc
+         * lifeLeech -- damage plus a life-drain heal-back to the caster,
+         * same being-target/combat_apply_skill_damage()+being_heal()
+         * shape as bramble drain, with a larger 3/4 transfer (a heavier
+         * drain than bramble's "small amount"). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "You can't do that to an immortal being.\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        int drained = dmg * 3 / 4;
+        if (drained < 1)
+            drained = 1;
+        being_heal(ch, drained);
+        snprintf(msg, sizeof(msg),
+                 "You leech the life from %s %s, drawing it into yourself! (+%d HP)\r\n",
+                 being_display_name(atk_target), intensity, drained);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s leeches the life from you %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "vampiric touch") == 0) {
+        /* Druid batch, 2026-08-11: real upstream disc_shaman_skunk.cc
+         * vampiricTouch -- a full life-transfer drain (heal-back equal
+         * to the damage dealt, vs life leech's 3/4), same shape as life
+         * leech above. */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "You can't do that to an immortal being.\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        int drained = dmg;
+        if (drained < 1)
+            drained = 1;
+        being_heal(ch, drained);
+        snprintf(msg, sizeof(msg),
+                 "Your vampiric touch drains %s %s, and their life floods into you! (+%d HP)\r\n",
+                 being_display_name(atk_target), intensity, drained);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s's vampiric touch drains you %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "squish") == 0) {
+        /* Druid batch, 2026-08-11: real upstream disc_shaman_spider.cc
+         * squish -- a crushing single-target strike. Ported as a
+         * standard spell_damage_for_level() hit (Tobin has no crit-
+         * success subsystem to port the real doubling into -- the same
+         * disclosed scope-cut as raze). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "You can't do that to an immortal being.\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You squish %s beneath a sudden crushing weight %s!\r\n",
+                 being_display_name(atk_target), intensity);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s squishes you beneath a sudden crushing weight %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "boiling blood") == 0) {
+        /* Druid batch, 2026-08-11: real upstream disc_shaman_skunk.cc
+         * bloodBoil -- superheats the target's blood for heavy damage
+         * (LIFEFORCE_150 upstream). Ported as a slightly-above-baseline
+         * strike; Tobin has no heat damage-type or over-time burn to
+         * port the real periodic effect into (disclosed scope-cut, same
+         * as inferno's own note). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "You can't do that to an immortal being.\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level) * 5 / 4;
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You set %s's blood boiling %s!\r\n",
+                 being_display_name(atk_target), intensity);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s sets your blood boiling %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "coronary") == 0) {
+        /* Druid batch, 2026-08-11: real upstream disc_shaman_skunk.cc
+         * cardiacStress ("coronary") -- a heart attack, the batch's
+         * heaviest single strike (TASK_DANGEROUS, LAG_4, LIFEFORCE_240
+         * upstream, near the top of the Shaman roster). Ported at 7/4
+         * baseline, between an ordinary strike and raze's outsized 2x;
+         * refuses against an immortal with upstream's own quip. */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "Gods don't have heart attacks -- they don't have hearts.\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level) * 7 / 4;
+        limb_t limb = LIMB_BODY;
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "%s clutches their chest and keels over as you stop their heart %s!\r\n",
+                 being_display_name(atk_target), intensity);
+        msg[0] = (char)toupper((unsigned char)msg[0]);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s stops your heart -- the pain is INTENSE %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
     } else if (strcasecmp(sk->name, "shield of mists") == 0) {
         /* Shaman/Druid audit batch C, 2026-08-09 -- see
          * AFFECT_SHIELD_OF_MISTS's own doc comment (affect.h) for the

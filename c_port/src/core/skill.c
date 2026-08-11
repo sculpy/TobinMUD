@@ -508,6 +508,21 @@ static const skill_def_t SKILLS[] = {
     { "thornflesh",         CLASS_DRUID, SKILL_TIER_ADVANCED, 40, "See help `thornflesh` for help." },
     { "living vines",       CLASS_DRUID, SKILL_TIER_ADVANCED, 41, "See help `living vines` for help." },
     { "raze",               CLASS_DRUID, SKILL_TIER_ADVANCED, 50, "See help `raze` for help." },
+    /* Druid batch (2026-08-11): six more Shaman spells folded onto Druid
+     * (Tobin has no Shaman class), same precedent as raze/flatulence/
+     * thornflesh above. Real upstream sources: life leech / vampiric
+     * touch / coronary / boiling blood in disc_shaman_skunk.cc, squish
+     * in disc_shaman_spider.cc, healing grasp in disc_shaman_healing.cc.
+     * Levels keep upstream's relative START_ order (life leech START_3
+     * and healing grasp START_1 lowest; vampiric touch START_80 and
+     * coronary START_81 highest) compressed into Tobin's range. See
+     * cmd_cast.c for each effect. */
+    { "healing grasp",     CLASS_DRUID, SKILL_TIER_CLASS,    10, "See help `healing grasp` for help." },
+    { "life leech",        CLASS_DRUID, SKILL_TIER_CLASS,    12, "See help `life leech` for help." },
+    { "squish",            CLASS_DRUID, SKILL_TIER_CLASS,    18, "See help `squish` for help." },
+    { "boiling blood",     CLASS_DRUID, SKILL_TIER_CLASS,    24, "See help `boiling blood` for help." },
+    { "vampiric touch",    CLASS_DRUID, SKILL_TIER_ADVANCED, 44, "See help `vampiric touch` for help." },
+    { "coronary",          CLASS_DRUID, SKILL_TIER_ADVANCED, 50, "See help `coronary` for help." },
     { "cure blindness",    CLASS_DRUID, SKILL_TIER_ADVANCED, 30, "See help `cure blindness` for help." },
     { "wave crash",        CLASS_DRUID, SKILL_TIER_ADVANCED, 32, "See help `wave crash` for help." },
     { "withering touch",   CLASS_DRUID, SKILL_TIER_ADVANCED, 32, "See help `withering touch` for help." },
@@ -999,7 +1014,7 @@ const char *skill_proficiency_word_colored(int pct) {
     if (pct >= 50)  return "<y>adept<z>";
     if (pct >= 25)  return "<o>competent<z>";
     if (pct >= 1)   return "<r>novice<z>";
-    return "<k>untrained<z>";
+    return "<c>learned<z>";
 }
 
 /* Learn-by-doing gain check: called after `ch` uses skill `sk`, this may
