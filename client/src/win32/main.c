@@ -24,7 +24,7 @@
  *
  * A `File` menu (user, 2026-08-05) offers Connect/Reconnect/
  * Disconnect/Preferences/Edit Triggers/Reload Triggers/Edit Aliases/
- * Reload Aliases/Exit; a `Help` menu has About. Triggers are plain,
+ * Reload Aliases/Exit; a `Help` menu has Check for Updates (manual re-check of the update host, same install path as the silent startup check) and About. Triggers are plain,
  * case-insensitive substring-match rules against incoming lines, each
  * optionally sending a command and/or gagging the line (user,
  * 2026-08-06: "make triggers simple, not lua based" -- see
@@ -43,7 +43,7 @@
  * all). The input box refocuses itself whenever the window is
  * (re)activated, and hitting Enter on an empty input line resends the
  * last real command instead of doing nothing (same user request).
- * Preferences lets the window size and font size be adjusted and
+ * Preferences lets the window size, font size, and font family (via the standard Choose Font dialog) be adjusted and
  * persists them to a small INI file next to the exe (`prefs.ini`, via
  * the standard Win32 Get/WritePrivateProfileString APIs) so they
  * survive a restart. */
@@ -54,6 +54,7 @@
 #include <commctrl.h>
 #include <mmsystem.h>
 #include <wininet.h>
+#include <commdlg.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -85,6 +86,7 @@
 #define ID_MENU_FILE_RELOAD_TRIGGERS 207
 #define ID_MENU_FILE_RELOAD_ALIASES 208
 #define ID_MENU_HELP_ABOUT 206
+#define ID_MENU_HELP_CHECK_UPDATE 211
 #define ID_MENU_FILE_EDIT_TRIGGERS 209
 #define ID_MENU_FILE_EDIT_ALIASES 210
 
@@ -94,6 +96,8 @@
 #define ID_PREFS_OK 304
 #define ID_PREFS_CANCEL 305
 #define ID_PREFS_FULLSCREEN_CHECK 306
+#define ID_PREFS_FONT_FACE_STATIC 307
+#define ID_PREFS_FONT_CHOOSE 308
 
 /* Trigger/alias GUI editors (client backlog, logged 2026-08-06 --
  * "an in-client GUI editor for triggers and aliases"). Both editors
@@ -139,7 +143,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.26"
+#define CLIENT_VERSION "0.4.27"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -285,6 +289,8 @@ typedef struct {
      * (and saved back to) prefs.ini. Window size is only read at
      * startup (CreateWindowW needs it up front); font size is also
      * re-applied live if changed via the Preferences window. */
+    char font_face[64]; /* display font family (Preferences "Choose..."),
+                           Courier New default -- see apply_font() */
     int font_pt;
     int win_w;
     int win_h;
@@ -299,6 +305,7 @@ typedef struct {
 
 static app_state_t g_app;
 static void debug_log(const char *msg); /* defined near check_and_apply_update(); forward-declared for play_msp()'s MCI-failure fallback log */
+static void check_for_updates_interactive(HWND owner); /* Help > Check for Updates...; defined with the other update helpers below */
 
 static void append_output(const char *text, size_t len, int color_index, int bold) {
     if (len == 0)
@@ -1194,6 +1201,11 @@ static void load_prefs(void) {
     if (g_app.font_pt < PREFS_MIN_FONT_PT) g_app.font_pt = PREFS_MIN_FONT_PT;
     if (g_app.font_pt > PREFS_MAX_FONT_PT) g_app.font_pt = PREFS_MAX_FONT_PT;
 
+    GetPrivateProfileStringA("Prefs", "FontFace", "Courier New",
+                             g_app.font_face, sizeof(g_app.font_face), path);
+    if (g_app.font_face[0] == '\0')
+        strcpy(g_app.font_face, "Courier New");
+
     g_app.win_w = GetPrivateProfileIntA("Prefs", "WindowWidth", PREFS_DEFAULT_WIN_W, path);
     if (g_app.win_w < PREFS_MIN_WIN_W) g_app.win_w = PREFS_MIN_WIN_W;
 
@@ -1210,6 +1222,7 @@ static void save_prefs(void) {
     char buf[32];
     snprintf(buf, sizeof(buf), "%d", g_app.font_pt);
     WritePrivateProfileStringA("Prefs", "FontSize", buf, path);
+    WritePrivateProfileStringA("Prefs", "FontFace", g_app.font_face, path);
     snprintf(buf, sizeof(buf), "%d", g_app.win_w);
     WritePrivateProfileStringA("Prefs", "WindowWidth", buf, path);
     snprintf(buf, sizeof(buf), "%d", g_app.win_h);
@@ -1232,9 +1245,14 @@ static void apply_font(void) {
     int px = -MulDiv(g_app.font_pt, GetDeviceCaps(hdc, LOGPIXELSY), 72);
     ReleaseDC(NULL, hdc);
 
+    wchar_t wface[LF_FACESIZE];
+    MultiByteToWideChar(CP_ACP, 0,
+                        g_app.font_face[0] ? g_app.font_face : "Courier New", -1,
+                        wface, LF_FACESIZE);
+
     g_app.font = CreateFontW(px, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                               DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                              CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, L"Courier New");
+                              CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, wface);
 
     if (g_app.hwnd_input)
         SendMessageW(g_app.hwnd_input, WM_SETFONT, (WPARAM)g_app.font, TRUE);
@@ -1244,7 +1262,7 @@ static void apply_font(void) {
         ZeroMemory(&cf, sizeof(cf));
         cf.cbSize = sizeof(cf);
         cf.dwMask = CFM_FACE | CFM_SIZE;
-        wcscpy(cf.szFaceName, L"Courier New");
+        wcscpy(cf.szFaceName, wface);
         cf.yHeight = g_app.font_pt * 20; /* twips (1/20 pt) */
 
         /* Second, smaller contributor to "still some space" (user,
@@ -1318,10 +1336,48 @@ static void apply_fullscreen(HWND hwnd, bool enable) {
  * change than the feature itself warrants. Modal-ish: disables the
  * main window while open and re-enables it on close either way, same
  * user-facing effect as a real modal dialog. */
+static wchar_t g_prefs_pending_face[LF_FACESIZE]; /* font family picked via
+    the Preferences "Choose..." button (ChooseFontW), held between that
+    click and OK; seeded from g_app.font_face in open_preferences(). */
+
 static LRESULT CALLBACK PrefsWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
     case WM_COMMAND: {
         int id = LOWORD(wp);
+        if (id == ID_PREFS_FONT_CHOOSE) {
+            /* Standard font common dialog, seeded with the current face
+             * and the size currently in the box; its OK feeds both the
+             * face (kept in g_prefs_pending_face) and size back in. */
+            LOGFONTW lf;
+            ZeroMemory(&lf, sizeof(lf));
+            wcsncpy(lf.lfFaceName, g_prefs_pending_face, LF_FACESIZE - 1);
+            wchar_t sb[16];
+            GetDlgItemTextW(hwnd, ID_PREFS_FONTSIZE_EDIT, sb, 16);
+            int pt = _wtoi(sb);
+            if (pt < PREFS_MIN_FONT_PT || pt > PREFS_MAX_FONT_PT)
+                pt = g_app.font_pt;
+            HDC hdc = GetDC(hwnd);
+            lf.lfHeight = -MulDiv(pt, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+            ReleaseDC(hwnd, hdc);
+            CHOOSEFONTW cf;
+            ZeroMemory(&cf, sizeof(cf));
+            cf.lStructSize = sizeof(cf);
+            cf.hwndOwner = hwnd;
+            cf.lpLogFont = &lf;
+            cf.Flags = CF_INITTOLOGFONTSTRUCT | CF_SCREENFONTS | CF_FORCEFONTEXIST;
+            if (ChooseFontW(&cf)) {
+                wcsncpy(g_prefs_pending_face, lf.lfFaceName, LF_FACESIZE - 1);
+                g_prefs_pending_face[LF_FACESIZE - 1] = L'\0';
+                SetDlgItemTextW(hwnd, ID_PREFS_FONT_FACE_STATIC, g_prefs_pending_face);
+                int chosen_pt = cf.iPointSize / 10;
+                if (chosen_pt >= PREFS_MIN_FONT_PT && chosen_pt <= PREFS_MAX_FONT_PT) {
+                    wchar_t nb[16];
+                    swprintf(nb, 16, L"%d", chosen_pt);
+                    SetDlgItemTextW(hwnd, ID_PREFS_FONTSIZE_EDIT, nb);
+                }
+            }
+            return 0;
+        }
         if (id == ID_PREFS_OK) {
             wchar_t buf[16];
             int font_pt = g_app.font_pt, win_w = g_app.win_w, win_h = g_app.win_h;
@@ -1346,6 +1402,10 @@ static LRESULT CALLBACK PrefsWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
             g_app.font_pt = font_pt;
             g_app.win_w = win_w;
             g_app.win_h = win_h;
+            WideCharToMultiByte(CP_ACP, 0, g_prefs_pending_face, -1,
+                                g_app.font_face, sizeof(g_app.font_face), NULL, NULL);
+            if (g_app.font_face[0] == '\0')
+                strcpy(g_app.font_face, "Courier New");
             apply_font();
             HWND main_hwnd = GetParent(g_app.hwnd_output);
             if (fullscreen) {
@@ -1410,7 +1470,7 @@ static void open_preferences(HWND parent) {
         cls_registered = true;
     }
 
-    const int win_w = 300, win_h = 222;
+    const int win_w = 320, win_h = 256;
     RECT pr;
     GetWindowRect(parent, &pr);
     int x = pr.left + ((pr.right - pr.left) - win_w) / 2;
@@ -1420,6 +1480,13 @@ static void open_preferences(HWND parent) {
         WS_POPUP | WS_CAPTION | WS_SYSMENU, x, y, win_w, win_h, parent, NULL, GetModuleHandleW(NULL), NULL);
     g_app.hwnd_prefs = hwnd;
 
+    /* Seed the pending font family from the saved preference so the
+     * "Choose..." dialog and the face label both start on the current
+     * font even if the user never opens the picker. */
+    MultiByteToWideChar(CP_ACP, 0,
+                        g_app.font_face[0] ? g_app.font_face : "Courier New", -1,
+                        g_prefs_pending_face, LF_FACESIZE);
+
     HFONT dlgfont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
 
     HWND lbl1 = CreateWindowW(L"STATIC", L"Font size (points):", WS_CHILD | WS_VISIBLE,
@@ -1427,19 +1494,31 @@ static void open_preferences(HWND parent) {
     wchar_t buf[16];
     swprintf(buf, 16, L"%d", g_app.font_pt);
     HWND e1 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", buf, WS_CHILD | WS_VISIBLE | ES_NUMBER,
-        180, 14, 90, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_FONTSIZE_EDIT, NULL, NULL);
+        190, 14, 90, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_FONTSIZE_EDIT, NULL, NULL);
+
+    /* Font family picker (user: "in preferences to choose your own font
+     * for display") -- the current face name plus a Choose... button
+     * that opens the standard ChooseFontW dialog (handled in
+     * PrefsWndProc). Face is applied on OK from g_prefs_pending_face. */
+    HWND lblF = CreateWindowW(L"STATIC", L"Font:", WS_CHILD | WS_VISIBLE,
+        16, 50, 40, 20, hwnd, NULL, NULL, NULL);
+    HWND faceLbl = CreateWindowExW(WS_EX_CLIENTEDGE, L"STATIC", g_prefs_pending_face,
+        WS_CHILD | WS_VISIBLE | SS_CENTERIMAGE | SS_PATHELLIPSIS,
+        58, 48, 116, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_FONT_FACE_STATIC, NULL, NULL);
+    HWND chooseBtn = CreateWindowW(L"BUTTON", L"Choose...", WS_CHILD | WS_VISIBLE,
+        190, 47, 90, 24, hwnd, (HMENU)(INT_PTR)ID_PREFS_FONT_CHOOSE, NULL, NULL);
 
     HWND lbl2 = CreateWindowW(L"STATIC", L"Window width (px):", WS_CHILD | WS_VISIBLE,
-        16, 48, 150, 20, hwnd, NULL, NULL, NULL);
+        16, 84, 150, 20, hwnd, NULL, NULL, NULL);
     swprintf(buf, 16, L"%d", g_app.win_w);
     HWND e2 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", buf, WS_CHILD | WS_VISIBLE | ES_NUMBER,
-        180, 46, 90, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_WIDTH_EDIT, NULL, NULL);
+        190, 82, 90, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_WIDTH_EDIT, NULL, NULL);
 
     HWND lbl3 = CreateWindowW(L"STATIC", L"Window height (px):", WS_CHILD | WS_VISIBLE,
-        16, 80, 150, 20, hwnd, NULL, NULL, NULL);
+        16, 116, 150, 20, hwnd, NULL, NULL, NULL);
     swprintf(buf, 16, L"%d", g_app.win_h);
     HWND e3 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", buf, WS_CHILD | WS_VISIBLE | ES_NUMBER,
-        180, 78, 90, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_HEIGHT_EDIT, NULL, NULL);
+        190, 114, 90, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_HEIGHT_EDIT, NULL, NULL);
 
     /* User, 2026-08-06: "a full screen option should be in
      * preferences" -- ignores the width/height fields above while
@@ -1447,15 +1526,15 @@ static void open_preferences(HWND parent) {
      * geometry), but they stay saved/editable for whenever it's
      * unchecked again. */
     HWND chk1 = CreateWindowW(L"BUTTON", L"Full Screen", WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
-        16, 112, 150, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_FULLSCREEN_CHECK, NULL, NULL);
+        16, 148, 150, 22, hwnd, (HMENU)(INT_PTR)ID_PREFS_FULLSCREEN_CHECK, NULL, NULL);
     SendMessageW(chk1, BM_SETCHECK, g_app.fullscreen ? BST_CHECKED : BST_UNCHECKED, 0);
 
     HWND ok = CreateWindowW(L"BUTTON", L"OK", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-        90, 162, 80, 26, hwnd, (HMENU)(INT_PTR)ID_PREFS_OK, NULL, NULL);
+        100, 194, 80, 26, hwnd, (HMENU)(INT_PTR)ID_PREFS_OK, NULL, NULL);
     HWND cancel = CreateWindowW(L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE,
-        180, 162, 80, 26, hwnd, (HMENU)(INT_PTR)ID_PREFS_CANCEL, NULL, NULL);
+        190, 194, 80, 26, hwnd, (HMENU)(INT_PTR)ID_PREFS_CANCEL, NULL, NULL);
 
-    HWND ctrls[] = { lbl1, e1, lbl2, e2, lbl3, e3, chk1, ok, cancel };
+    HWND ctrls[] = { lbl1, e1, lblF, faceLbl, chooseBtn, lbl2, e2, lbl3, e3, chk1, ok, cancel };
     for (size_t i = 0; i < sizeof(ctrls) / sizeof(ctrls[0]); i++)
         SendMessageW(ctrls[i], WM_SETFONT, (WPARAM)dlgfont, TRUE);
 
@@ -1995,6 +2074,8 @@ static HMENU build_menu(void) {
     AppendMenuW(hMenuBar, MF_POPUP, (UINT_PTR)hFile, L"&File");
 
     HMENU hHelp = CreatePopupMenu();
+    AppendMenuW(hHelp, MF_STRING, ID_MENU_HELP_CHECK_UPDATE, L"Check for &Updates...");
+    AppendMenuW(hHelp, MF_SEPARATOR, 0, NULL);
     AppendMenuW(hHelp, MF_STRING, ID_MENU_HELP_ABOUT, L"&About TobinMUD Client");
     AppendMenuW(hMenuBar, MF_POPUP, (UINT_PTR)hHelp, L"&Help");
 
@@ -2212,6 +2293,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case ID_MENU_FILE_EXIT:
             DestroyWindow(hwnd);
             return 0;
+        case ID_MENU_HELP_CHECK_UPDATE:
+            check_for_updates_interactive(hwnd);
+            return 0;
         case ID_MENU_HELP_ABOUT: {
             wchar_t msg[128];
             swprintf(msg, 128, L"%ls\n\nA native client for TobinMUD.", CLIENT_TITLE_BASE);
@@ -2282,7 +2366,9 @@ static void debug_log(const char *msg) {
     }
 }
 
-static bool check_and_apply_update(void) {
+static bool fetch_remote_version(char *out, size_t outsize) {
+    if (outsize)
+        out[0] = '\0';
     HINTERNET hInternet = InternetOpenA("TobinMUDClient", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hInternet) {
         debug_log("update: InternetOpenA FAILED");
@@ -2305,25 +2391,35 @@ static bool check_and_apply_update(void) {
         snprintf(errbuf, sizeof(errbuf), "update: InternetOpenUrlA FAILED, GetLastError=%lu", (unsigned long)GetLastError());
         debug_log(errbuf);
     }
+    InternetCloseHandle(hInternet);
+
     for (char *p = remote_version; *p; p++) {
         if (*p == '\r' || *p == '\n') {
             *p = '\0';
             break;
         }
     }
-
-    {
-        char cmpbuf[160];
-        snprintf(cmpbuf, sizeof(cmpbuf), "update: remote_version=\"%s\" CLIENT_VERSION=\"%s\"", remote_version, CLIENT_VERSION);
-        debug_log(cmpbuf);
-    }
-
-    if (remote_version[0] == '\0' || strcmp(remote_version, CLIENT_VERSION) == 0) {
-        debug_log("update: up to date (or check failed) -- skipping update");
-        InternetCloseHandle(hInternet); /* up to date, or the check itself failed -- either way, nothing to do */
+    if (remote_version[0] == '\0')
         return false;
-    }
-    debug_log("update: versions differ -- proceeding to download+install");
+    strncpy(out, remote_version, outsize - 1);
+    out[outsize - 1] = '\0';
+    return true;
+}
+
+/* Downloads UPDATE_MSI_URL to a temp file, installs it silently via
+ * msiexec (waiting up to 60s), then launches the freshly-installed exe
+ * from the per-user install path. Returns true only once the new exe
+ * has actually launched -- the caller must then exit (so the new
+ * process owns the window, and so msiexec could replace this locked
+ * .exe in the first place). Any failure at any step returns false,
+ * leaving the current install running and its window to be shown. */
+static bool download_and_install_update(void) {
+    HINTERNET hInternet = InternetOpenA("TobinMUDClient", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    if (!hInternet)
+        return false;
+    DWORD timeout_ms = 3000;
+    InternetSetOptionA(hInternet, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout_ms, sizeof(timeout_ms));
+    InternetSetOptionA(hInternet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout_ms, sizeof(timeout_ms));
 
     char temp_dir[MAX_PATH], temp_msi[MAX_PATH + 32];
     GetTempPathA(MAX_PATH, temp_dir);
@@ -2404,6 +2500,74 @@ static bool check_and_apply_update(void) {
     CloseHandle(pi2.hThread);
     CloseHandle(pi2.hProcess);
     return true;
+}
+
+/* Silent startup auto-update (user, 2026-08-05): compares the published
+ * version.txt to CLIENT_VERSION and, if they differ, downloads+installs
+ * the new MSI and launches it. Returns true only once the new exe is
+ * launched -- WinMain then exits without showing its own window. Any
+ * network/install failure returns false and normal startup continues.
+ * See fetch_remote_version()/download_and_install_update() above, and
+ * check_for_updates_interactive() below for the manual Help-menu path. */
+static bool check_and_apply_update(void) {
+    char remote_version[64] = { 0 };
+    if (!fetch_remote_version(remote_version, sizeof(remote_version))) {
+        debug_log("update: version check failed -- skipping update");
+        return false;
+    }
+    {
+        char cmpbuf[160];
+        snprintf(cmpbuf, sizeof(cmpbuf), "update: remote_version=\"%s\" CLIENT_VERSION=\"%s\"", remote_version, CLIENT_VERSION);
+        debug_log(cmpbuf);
+    }
+    if (strcmp(remote_version, CLIENT_VERSION) == 0) {
+        debug_log("update: up to date -- skipping update");
+        return false;
+    }
+    debug_log("update: versions differ -- proceeding to download+install");
+    return download_and_install_update();
+}
+
+/* Manual "Help > Check for Updates..." (user request). Unlike the
+ * silent startup path, this always reports back: an unreachable server,
+ * an up-to-date install, or a found update the user is asked to confirm
+ * before anything downloads. On a confirmed, successful update it hands
+ * off to the freshly-installed exe and tears this window down. */
+static void check_for_updates_interactive(HWND owner) {
+    char remote_version[64] = { 0 };
+    if (!fetch_remote_version(remote_version, sizeof(remote_version))) {
+        MessageBoxW(owner,
+            L"Could not reach the update server.\n\nPlease check your internet connection and try again.",
+            L"Check for Updates", MB_OK | MB_ICONWARNING);
+        return;
+    }
+
+    if (strcmp(remote_version, CLIENT_VERSION) == 0) {
+        MessageBoxW(owner,
+            L"You are running the latest version (" WIDEN(CLIENT_VERSION) L").",
+            L"Check for Updates", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    wchar_t wremote[64];
+    MultiByteToWideChar(CP_ACP, 0, remote_version, -1, wremote, 64);
+    wchar_t prompt[256];
+    swprintf(prompt, 256,
+        L"A new version is available.\n\nInstalled: %ls\nAvailable: %ls\n\nDownload and install it now?",
+        WIDEN(CLIENT_VERSION), wremote);
+    if (MessageBoxW(owner, prompt, L"Check for Updates", MB_YESNO | MB_ICONQUESTION) != IDYES)
+        return;
+
+    if (download_and_install_update()) {
+        /* New exe launched -- tear this window down (its WM_DESTROY
+         * cleanup runs and PostQuitMessage ends the loop) so the fresh
+         * install takes over and this locked .exe is released. */
+        DestroyWindow(owner);
+    } else {
+        MessageBoxW(owner,
+            L"The update could not be installed.\n\nYou can try again later, or reinstall from tobinmud.com.",
+            L"Check for Updates", MB_OK | MB_ICONERROR);
+    }
 }
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {
