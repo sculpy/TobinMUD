@@ -23,8 +23,8 @@ static void rent_config_persist(const char *name, int value) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return;
-    db_query(db, "insert into game_config (name, value) values ('%s', '%d') "
-                 "on duplicate key update value='%d'",
+    db_query(db, "insert into game_config (name, value) values ('%s', '%i') "
+                 "on duplicate key update value='%i'",
              name, value, value);
     db_close(db);
 }

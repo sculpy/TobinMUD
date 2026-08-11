@@ -183,14 +183,16 @@ def strip_color_tags(text):
 
 def component_short_descs():
     """The real seed-data pool pick_random_component_vnum() (being.c)
-    draws from -- used to confirm the spellbag's contents is actually
+    (now any real type-30 component / component-keyword item, since
+    per-spell mob loading gives Druids their own shaman/ranger reagents,
+    not just the Mage pool) -- used to confirm the spellbag's contents is actually
     ONE of those real components, not just "something", and not a
     literal 'component' substring in player-facing flavor text (that's
     a keyword-list convention invisible in rendered output, see
     cmd_cast.c's find_keyword_item())."""
     raw = subprocess.run(
         ["mariadb", "tobin", "-N", "-e",
-         "SELECT short_desc FROM obj WHERE name LIKE '%component mage%';"],
+         "SELECT short_desc FROM obj WHERE type=30 OR name LIKE '%component%';"],
         check=True, capture_output=True, text=True).stdout
     return [strip_color_tags(line).strip().lower() for line in raw.splitlines() if line.strip()]
 

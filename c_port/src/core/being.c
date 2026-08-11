@@ -24,6 +24,7 @@
 #include "obj.h"
 #include "room.h"
 #include "skill.h"
+#include "spell_component.h"
 #include "world.h"
 
 /* Maps a stat token (full name or 3-letter abbreviation, either case) to
@@ -177,12 +178,19 @@ static void being_grant_class_casting_supplies(being_t *b) {
                                   comment for why zone-spawned/starting content
                                   overrides decay */
 
-        int comp_vnum = pick_random_component_vnum();
-        if (comp_vnum > 0) {
-            obj_t *comp = obj_create_from_proto(comp_vnum);
-            if (comp) {
-                comp->decay_time = -1;
-                thing_move_to(&comp->base, &bag->base);
+        /* Load reagents for spells this mob can cast at (or up to 2
+         * levels above -- "saving up for future spells", user
+         * 2026-08-10) its level, nested inside the spellbag --
+         * per-spell component system (spell_component.c). Falls back
+         * to one random reagent if the binding index is empty. */
+        if (spell_component_grant_caster(b, &bag->base, 3) == 0) {
+            int comp_vnum = pick_random_component_vnum();
+            if (comp_vnum > 0) {
+                obj_t *comp = obj_create_from_proto(comp_vnum);
+                if (comp) {
+                    comp->decay_time = -1;
+                    thing_move_to(&comp->base, &bag->base);
+                }
             }
         }
         thing_move_to(&bag->base, &b->base);

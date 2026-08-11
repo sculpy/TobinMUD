@@ -15,6 +15,7 @@
 #include "log.h"
 #include "mob_ai.h"
 #include "obj.h"
+#include "spell_component.h"
 #include "obj_repo.h"
 #include "player_repo.h"
 #include "room.h"
@@ -193,6 +194,7 @@ static bool get_all_from_room(descriptor_t *d, being_t *ch, const char *name_fil
                 continue;
             }
             thing_move_to(&item->base, &ch->base);
+            spell_component_merge_siblings(item);
             gotten++;
 
             game_log(LOG_SILENT, "%s gets %s (vnum %d) in room %d",
@@ -301,6 +303,7 @@ bool cmd_get(descriptor_t *d, const char *args) {
                 continue;
             }
             thing_move_to(&item->base, &ch->base);
+            spell_component_merge_siblings(item);
             gotten++;
 
             game_log(LOG_SILENT, "%s gets %s (vnum %d) from %s (vnum %d) in room %d",
@@ -360,6 +363,7 @@ bool cmd_get(descriptor_t *d, const char *args) {
         if (pick_up_money(d, ch, item))
             return true;
         thing_move_to(&item->base, &ch->base);
+        spell_component_merge_siblings(item);
         player_inventory_save(ch->player_id, ch);
         /* Dispute-research log (user: "anytime a char gets an item ... i
          * want those logged into the game log ... these should not be
@@ -392,6 +396,7 @@ bool cmd_get(descriptor_t *d, const char *args) {
         return true;
 
     thing_move_to(&o->base, &ch->base);
+    spell_component_merge_siblings(o);
     player_inventory_save(ch->player_id, ch);
     game_log(LOG_SILENT, "%s gets %s (vnum %d) in room %d",
              ch->base.name, o->base.short_descr, o->vnum, ch->base.roomp->vnum);
@@ -462,6 +467,7 @@ bool cmd_put(descriptor_t *d, const char *args) {
     }
 
     thing_move_to(&item->base, &cont->base);
+    spell_component_merge_siblings(item);
     player_inventory_save(ch->player_id, ch);
 
     char msg[512];
@@ -534,6 +540,7 @@ bool cmd_drop(descriptor_t *d, const char *args) {
                     continue;
                 }
                 thing_move_to(&o->base, &ch->base.roomp->base);
+                spell_component_merge_siblings(o);
                 game_log(LOG_SILENT, "%s drops %s (vnum %d) in room %d",
                          ch->base.name, o->base.short_descr, o->vnum, ch->base.roomp->vnum);
                 char msg[256];
@@ -563,6 +570,7 @@ bool cmd_drop(descriptor_t *d, const char *args) {
     }
 
     thing_move_to(&o->base, &ch->base.roomp->base);
+    spell_component_merge_siblings(o);
     player_inventory_save(ch->player_id, ch);
     game_log(LOG_SILENT, "%s drops %s (vnum %d) in room %d",
              ch->base.name, o->base.short_descr, o->vnum, ch->base.roomp->vnum);

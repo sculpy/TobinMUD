@@ -94,9 +94,9 @@ INSERT INTO `suit_item` (suit_id, obj_vnum, quantity)
 SELECT s.id, v.vnum, v.qty FROM `suit` s
 JOIN (
   SELECT 'mage_newbie' AS suit_name, 321 AS vnum, 1 AS qty UNION ALL
-  SELECT 'mage_newbie', 200, 1 UNION ALL
-  SELECT 'mage_newbie', 201, 1 UNION ALL
-  SELECT 'mage_newbie', 202, 1 UNION ALL
+  SELECT 'mage_newbie', 258, 1 UNION ALL
+  SELECT 'mage_newbie', 213, 1 UNION ALL
+  SELECT 'mage_newbie', 234, 1 UNION ALL
   SELECT 'druid_newbie', 321, 1 UNION ALL
   SELECT 'druid_newbie', 200, 1 UNION ALL
   SELECT 'druid_newbie', 201, 1 UNION ALL

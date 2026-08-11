@@ -67,14 +67,13 @@ sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
     f"VALUES ({ROOM},0,0,0,'Charges Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
 check("Charges Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the sandbox room")
+cmd(s, "drop all")  # clear starting gear so ONLY the test component/symbol is carried
 
 # --- 1: a component lasts exactly 10 attempts, then is destroyed ---
 sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen,val0,val1) "
     f"VALUES ({COMPONENT},'pouch component reagent','a pouch of spell components',"
     f"'A pouch of spell components is lying here.',12,1,1,10,10);")
 check("You conjure" in cmd(s, f"load obj {COMPONENT}"), "the component is loaded")
-out = cmd(s, "get pouch")
-check("you get" in out.lower(), "the component is picked up")
 
 used_up_on = None
 for i in range(1, 12):
@@ -94,8 +93,6 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen
     f"VALUES ({SYMBOL},'symbol holy silver','a tarnished silver holy symbol',"
     f"'A tarnished silver holy symbol is lying here.',12,1,1,10,10);")
 check("You conjure" in cmd(s, f"load obj {SYMBOL}"), "the holy symbol is loaded")
-out = cmd(s, "get symbol")
-check("you get" in out.lower(), "the holy symbol is picked up")
 
 shattered_on = None
 for i in range(1, 16):

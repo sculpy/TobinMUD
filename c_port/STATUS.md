@@ -1,5 +1,101 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-10 — Session 151 (DO droplet, production port 4000):
+**Per-spell spell-component system + Druid class-naming cleanup.**
+User: "you need the right component to cast that particular spell" /
+"component loads on mobs of a level that can cast the spell" / "adjust
+the mob level component load by 2 levels, as if they're saving up for
+future spells" / "spell components should load inside spellbags" /
+"change all references to Deikhan or Shaman to Druid ... give the casting
+text for druids a more forresty flavor, don't reference loa or any other
+voodoo type reference".
+
+Ported the portable core of real SneezyMUD's obj_component.cc (the world
+component_placement spawn table was deliberately skipped -- hundreds of
+Sneezy-vnum/weather-specific rows). New src/core/spell_component.c +
+include/spell_component.h + generated src/core/spell_component_data.h
+(filenum->spell-name map from Sneezy's mapFileToSpellnum()).
+  - **Binding data reused, not invented:** every ITEM_COMPONENT (obj.type
+    =30) row still carries val2 = the Sneezy file-spell-number it is a
+    reagent FOR (val3 = usage flags), imported verbatim. spell_component_init()
+    (called from main.c next to balance_cache_load, runs on cold boot AND
+    copyover) indexes 198 spell->vnum bindings from the live obj table.
+  - **Cast gate (cmd_cast.c):** new component_for_cast(ch, spell, imm) --
+    a bound spell needs its OWN reagent (searched carried/worn/held + one
+    level into a spellbag, via spell_component_find_for); a spell with no
+    bound reagent keeps the old generic "any component-keyword item"
+    fallback (non-breaking). The central gate names the exact reagent the
+    mortal is missing ("You need <short_desc> to cast that."). Immortals
+    (NOHASSLE) fall back to any component -- matches real useComponent().
+    All 14 find_keyword_item(ch,"component") gate sites rewired.
+  - **Merge (doMerge):** spell_component_merge_siblings() folds same-vnum
+    components sitting together (summed charges cap 100, charge-weighted
+    decay, -1/never-decay preserved) -- hooked into get/put/drop
+    (cmd_object.c) and the mob/newbie loaders.
+  - **Mob loading (being.c):** being_grant_class_casting_supplies now calls
+    spell_component_grant_caster(mob, bag, 3) -- loads up to 3 reagents for
+    spells the mob's class can cast at level+2 ("saving up"), nested in the
+    spellbag; falls back to the old random pick if the index is empty.
+  - **Newbie Mage gear (newbie_gear_race.sql + live suit_item):** swapped
+    the old generic 200/201/202 for 258/213/234 -- the reagents for a new
+    Mage's earliest bound spells (mage sight L1, illuminate L2, flare L3).
+  - **db_query %d gotcha:** this codebase's db_query only supports %i/%s/%f/
+    %r, NOT %d -- the first boot indexed 0 bindings until the query used %i.
+  - **Druid naming/flavor:** only mob class-mask 128 (Sneezy Ranger) maps to
+    CLASS_DRUID, so the Druid guildmasters/trainers (class 128) had 'ranger'
+    renamed to 'druid' (mob 204 short_desc is now 'the druid guildmaster' --
+    the goto druid target the user hit); the orphaned shaman/deikhan
+    GUILDMASTER mobs, the class component objects (component shaman/ranger/
+    deikhan -> component druid), and 8 artifact short_descs were likewise
+    renamed to Druid. Flavor MONSTER NPCs (orc/elven/gremlin shaman, voodoo
+    priests, 'Johan the mighty ranger', scout ranger, etc.) were LEFT --
+    they aren't the Druid class; DEFERRED, ask the user if they want those
+    too. raze's player message no longer 'calls upon the spirits' ('the
+    wrath of the wild'); sacrifice help no longer says 'to the loa'. The
+    Druid CASTING flavor was already forest-themed in spellcast.c (vine/
+    leaf/moss, no voodoo) from Session ~150 and verified working -- a
+    spell_flavor.c edit made here was reverted as dead code (that path is
+    prayer-only now; casting flavor lives in spellcast.c).
+  - **Tests:** new tests/smoke_test_spell_component_binding.py (7 checks:
+    exact-reagent refusal + naming, wrong/other reagent rejected, right
+    reagent accepted, immortal bypass, 2->1 merge) PASSES.
+    tests/smoke_test_mob_casting_supplies.py updated (its component pool
+    widened from '%component mage%' to all real components, since Druids now
+    get their own shaman/ranger-lineage reagents) -- PASSES.
+  - **Pre-existing stale tests (NOT regressions, left as-is):** smoke_test_
+    mana.py check 1 greps 'Mana: 0' but score now renders 'Mana:   0/0';
+    smoke_test_component_charges.py assumes `load obj` drops to the floor but
+    it lands in inventory. Both fail independently of this change.
+  - Also closed the TODO curation gate (user defined the spell/skill port
+    list in an Excel sheet, marked done).
+
+
+**Session 151 follow-ups (same day):**
+  - **game_config/rent persistence bug FIXED.** rent.c's rent_config_persist()
+    built its upsert with printf %d, but this codebase's db_query() only
+    supports %i/%s/%f/%r (%d hits the default case and the whole query is
+    rejected) -- so `balance rent tax/free/keeper <n>` silently never
+    persisted. Changed both %d -> %i. Verified live: `balance rent tax 5000`
+    now writes rent_tax_at_max=5000 to game_config with no error. Deployed
+    via copyover. (Spotted in passing during the component work.)
+  - **Two pre-existing stale tests fixed** (both failed independently of any
+    code change): smoke_test_mana.py greps for the OLD 'Mana: 0' score text
+    but score renders 'Mana:  N/M' now (fixed all 4 Mana checks to regex,
+    tolerant of the max-mana-recomputed-on-login and regen drift, and drained
+    the descriptor pager on the long `skills` listing) -- 7/7 pass;
+    smoke_test_component_charges.py assumed `load obj` drops to the floor but
+    it lands in inventory (dropped the stale `get` steps; also added a
+    `drop all` to isolate the test component from the Mage's now-loose newbie
+    reagents that would otherwise satisfy `gust` past the 10-charge limit) --
+    9/9 pass, confirming the component-charge lifecycle still works.
+  - **Client caught up to v0.4.25.** Source was at 0.4.25 (the in-client
+    trigger/alias editors, done earlier 2026-08-10) but the deployed MSI was
+    still 0.4.24 (never published). Cross-compiled the exe (mingw64),
+    repackaged the MSI (wixl), and deployed MSI + version.txt=0.4.25 to
+    /usr/share/nginx/html/tobinclient/. Confirmed http://tobinmud.com/
+    tobinclient/version.txt now serves 0.4.25 and the MSI is 200 OK, so every
+    running 0.4.24 client auto-updates on next launch.
+
 Last updated: 2026-08-10 — Session 150 (DO droplet, production port 4000):
 **Generic combat passives + fast heal (missing-skill audit, generic/
 cross-class).** Six long-open general skills from the roster, all

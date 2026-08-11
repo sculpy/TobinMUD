@@ -73,7 +73,7 @@ warrior = f"Manawar{_suffix}"
 make_char(warrior, pw, "3")
 sw = login(warrior, pw)
 out = cmd(sw, "score")
-check("Mana: 0" in out, "a Warrior's score shows Mana: 0 (no pool)")
+check(re.search(r"Mana:\s*0/0", out) is not None, "a Warrior's score shows Mana: 0/0 (no pool)")
 sw.close()
 
 # --- Mage fixture, promoted to immortal so casts always succeed
@@ -98,7 +98,9 @@ def set_progress_and_reconnect(sql_set_clause):
 sm = set_progress_and_reconnect("level=51, mana=10, max_mana=100")
 
 out = cmd(sm, "score")
-check("Mana: 10" in out, "a Mage's score shows their real current mana")
+_m2 = re.search(r"Mana:\s*(\d+)/(\d+)", out)
+check(_m2 is not None and 5 <= int(_m2.group(1)) <= 20 and int(_m2.group(2)) >= 100,
+      "a Mage's score shows their real current mana (a real pool, not a hardcoded 0)")
 
 # --- 2: prompt toggle ---
 out = cmd(sm, "prompt mana")
@@ -118,7 +120,7 @@ sm = set_progress_and_reconnect("level=20, basic_disc_pct=100, mana=10, max_mana
 cmd(sm, "load obj 200")  # a real "component mage" reagent
 cmd(sm, "cast gust")
 out = cmd(sm, "score")
-m = re.search(r"Mana: (-?\d+)", out)
+m = re.search(r"Mana:\s*(-?\d+)", out)
 mana_after = int(m.group(1)) if m else None
 check(mana_after is not None and mana_after <= 2,
       f"gust's real 10-mana cost was deducted from a 10-mana pool (mana now {mana_after}, allowing a little passive regen drift)")
@@ -154,11 +156,20 @@ check("focus returns" in out.lower(), "a meditate tick actually restored mana")
 check("your meditation is broken" not in out.lower(),
       "meditation wasn't cut short by the unrelated HP/Vit auto-stand check")
 out = cmd(sm, "score")
-check("Mana: 10" not in out, "mana genuinely increased above the starting 10")
+_mm = re.search(r"Mana:\s*(\d+)/", out)
+check(_mm is not None and int(_mm.group(1)) > 10, "mana genuinely increased above the starting 10")
 cmd(sm, "meditate")  # stop it cleanly
 
 # --- 7: wizardry/mana skill proficiency both grow from casting ---
-out = cmd(sm, "skills")
+# The immortal skills listing is long enough to trip the descriptor pager,
+# so drain every page (ENTER advances it) before scanning the full text.
+chunk = cmd(sm, "skills")
+out = chunk
+_tries = 0
+while "ENTER for more" in chunk and _tries < 40:
+    chunk = cmd(sm, "")
+    out += chunk
+    _tries += 1
 check("wizardry" in out.lower(), "wizardry appears in the skills listing at all")
 check("mana" in out.lower(), "mana appears in the skills listing at all")
 

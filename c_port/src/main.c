@@ -36,6 +36,7 @@
 #include "shutdown.h"
 #include "socials.h"
 #include "spellcast.h"
+#include "spell_component.h"
 #include "tips_repo.h"
 #include "trigger.h"
 #include "trophy.h"
@@ -125,6 +126,7 @@ int main(int argc, char **argv) {
     gametime_load();  /* restore the persisted game clock */
     weather_load();   /* restore the persisted world weather state */
     balance_cache_load(); /* class/race balance modifiers (cmd_balance.c) */
+    spell_component_init(); /* per-spell reagent bindings (spell_component.c) */
     wisdom_practice_load(); /* wisdom->practice-points scalar (practice.c) */
     rent_config_load(); /* rent tax / free-level settings (rent.c) */
     social_cache_load(); /* socials (emotes) -- checked on nearly every unmatched

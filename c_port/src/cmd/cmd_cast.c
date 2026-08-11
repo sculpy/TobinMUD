@@ -24,6 +24,7 @@
 #include "spell_mana.h"
 #include "room_repo.h"
 #include "skill.h"
+#include "spell_component.h"
 #include "thing.h"
 #include "weather.h"
 #include "world.h"
@@ -139,6 +140,28 @@ static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
             return (obj_t *)t;
     }
     return NULL;
+}
+
+/* Component gate for a cast (per-spell binding, ported from real
+ * SneezyMUD's findComponent()). If the spell has a seeded reagent bound to
+ * it (obj.val2, see spell_component.c), the caster must be holding THAT
+ * reagent -- searched carried/worn/held plus one level into a spellbag.
+ * A spell with no bound reagent anywhere (Tobin-original / unseeded) keeps
+ * the old generic "any component-keyword item" behavior so nothing that
+ * cast before still refuses. Returns the component to consume, or NULL. */
+static obj_t *component_for_cast(being_t *ch, const char *spell, bool imm) {
+    if (spell_bound_component_vnum(spell) > 0) {
+        obj_t *c = spell_component_find_for(ch, spell);
+        if (c)
+            return c;
+        /* Real Sneezy exempts NOHASSLE immortals from the exact-reagent
+         * rule (useComponent() returns TRUE for them) -- let an immortal
+         * fall back to any component-keyword item they happen to carry. */
+        if (imm)
+            return find_keyword_item(ch, "component");
+        return NULL;
+    }
+    return find_keyword_item(ch, "component");
 }
 
 /* Skips a leading inline color tag ("<o>a torch<1>") before capitalizing
@@ -459,12 +482,12 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
         int limb_hp_before = atk_target->limbs[limb].hp;
         bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
         const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
-        snprintf(msg, sizeof(msg), "You call upon the spirits to erase %s's existence -- they are razed %s!\r\n",
+        snprintf(msg, sizeof(msg), "You call upon the wrath of the wild to erase %s's existence -- they are razed %s!\r\n",
                  being_display_name(atk_target), intensity);
         descriptor_send(d, msg);
         if (!defeated && atk_target->desc) {
             char tcapbuf[128];
-            snprintf(msg, sizeof(msg), "%s calls upon the spirits to erase your existence -- you are razed %s!\r\n",
+            snprintf(msg, sizeof(msg), "%s calls upon the wrath of the wild to erase your existence -- you are razed %s!\r\n",
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
             descriptor_notify(atk_target->desc, msg);
         }
@@ -1984,7 +2007,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
             descriptor_send(d, "You haven't practiced your Basic discipline yet -- visit a guildmaster.\r\n");
             return true;
         }
-        obj_t *tcomp = find_keyword_item(ch, "component");
+        obj_t *tcomp = component_for_cast(ch, "telepathy", imm);
         if (!tcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2048,7 +2071,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
             descriptor_send(d, "Scribe which spell onto a scroll?\r\n");
             return true;
         }
-        obj_t *scomp = find_keyword_item(ch, "component");
+        obj_t *scomp = component_for_cast(ch, "scribe", imm);
         if (!scomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2137,7 +2160,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
             descriptor_send(d, "Master your Basic and Combat disciplines, and begin Advanced practice, before this.\r\n");
             return true;
         }
-        obj_t *egcomp = find_keyword_item(ch, "component");
+        obj_t *egcomp = component_for_cast(ch, "ethereal gate", imm);
         if (!egcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2250,7 +2273,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * resolution, same "identify" precedent just below -- scoped to
          * the object half of "reveals information about an object or
          * being" (disclosed gap: no being-inspection mechanic exists). */
-        obj_t *divcomp = find_keyword_item(ch, "component");
+        obj_t *divcomp = component_for_cast(ch, "divination", imm);
         if (!divcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2285,7 +2308,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * identify` just adds the spell-specific component gate on top
          * of the same real logic every player can already reach via
          * the bare `identify` command. */
-        obj_t *idcomp = find_keyword_item(ch, "component");
+        obj_t *idcomp = component_for_cast(ch, "identify", imm);
         if (!idcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2317,7 +2340,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * (cost forced to 1, same "let's not make this a gold creating
          * bug" comment as the original) copy, not a real duplication
          * exploit. */
-        obj_t *ccomp = find_keyword_item(ch, "component");
+        obj_t *ccomp = component_for_cast(ch, "copy", imm);
         if (!ccomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2378,7 +2401,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * the caster's hands, not just a hunger-meter bump -- matches
          * the roster text literally (an ITEM appears), and the food can
          * be carried, given away, or eaten later like any other food. */
-        obj_t *cfcomp = find_keyword_item(ch, "component");
+        obj_t *cfcomp = component_for_cast(ch, "create food", imm);
         if (!cfcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2412,7 +2435,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * refusal cmd_fill.c already enforces) -- unlike `fill`, needs
          * no room-side water source, since the whole point is conjuring
          * it from nothing. */
-        obj_t *cwcomp = find_keyword_item(ch, "component");
+        obj_t *cwcomp = component_for_cast(ch, "create water", imm);
         if (!cwcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2463,7 +2486,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * LIGHT_UNREFUELABLE concept cmd_light.c's refuel already
          * checks, duplicated here rather than exported since it's one
          * field read). */
-        obj_t *ilcomp = find_keyword_item(ch, "component");
+        obj_t *ilcomp = component_for_cast(ch, "illuminate", imm);
         if (!ilcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2516,7 +2539,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
     }
 
     if (strcasecmp(sk->name, "mage repair") == 0) {
-        obj_t *mrcomp = find_keyword_item(ch, "component");
+        obj_t *mrcomp = component_for_cast(ch, "mage repair", imm);
         if (!mrcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2572,7 +2595,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * a scroll (single-use, nothing to recharge) or wand (a
          * deliberate scope-cut, not a bug: staves are the AREA-effect
          * device tier, matching this being a level-25 ADVANCED spell). */
-        obj_t *chcomp = find_keyword_item(ch, "component");
+        obj_t *chcomp = component_for_cast(ch, "charge stave", imm);
         if (!chcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2626,7 +2649,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * carried in inventory, so those are honestly out of scope here
          * rather than reported with a wrong location). Still a real,
          * useful world-wide search, not a fake stub. */
-        obj_t *fecomp = find_keyword_item(ch, "component");
+        obj_t *fecomp = component_for_cast(ch, "eyes of Fertuman", imm);
         if (!fecomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2681,7 +2704,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * "shows everyone in that room what THEY see too" broadcast (no
          * clean Tobin equivalent without a temporary viewpoint-swap
          * mechanism this v1 doesn't have). */
-        obj_t *fcomp = find_keyword_item(ch, "component");
+        obj_t *fcomp = component_for_cast(ch, "farlook", imm);
         if (!fcomp) {
             descriptor_send(d, "You don't have the spell components to cast that.\r\n");
             return true;
@@ -2727,9 +2750,15 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         }
     }
 
-    obj_t *component = find_keyword_item(ch, "component");
+    obj_t *component = component_for_cast(ch, sk->name, imm);
     if (!component) {
-        descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+        const char *needname = spell_bound_component_name(sk->name);
+        char needmsg[192];
+        if (needname)
+            snprintf(needmsg, sizeof(needmsg), "You need %s to cast that.\r\n", needname);
+        else
+            snprintf(needmsg, sizeof(needmsg), "You don't have the spell components to cast that.\r\n");
+        descriptor_send(d, needmsg);
         return true;
     }
 
