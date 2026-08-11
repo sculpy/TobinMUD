@@ -104,7 +104,20 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
  * last of it. A pre-existing/never-charged item (val[0]==0) is treated
  * as a single fallback point so it still works once instead of refusing
  * outright. */
+/* A non-shatterable stand-in returned for immortals, so no prayer's
+ * "no holy symbol" gate ever refuses an immortal and consume_symbol()
+ * never touches it (user: immortals do not require holy symbols). */
+static obj_t g_immortal_symbol_sentinel;
+
+static obj_t *find_holy_symbol(const being_t *ch) {
+    if (being_is_immortal(ch))
+        return &g_immortal_symbol_sentinel;
+    return find_keyword_item(ch, "symbol");
+}
+
 static void consume_symbol(descriptor_t *d, obj_t *symbol) {
+    if (!symbol || symbol == &g_immortal_symbol_sentinel)
+        return;
     int strength = symbol->val[0] > 0 ? symbol->val[0] : 1;
     int decay = 1 + rand() % 2;
     if (strength > decay) {
@@ -122,14 +135,44 @@ static void consume_symbol(descriptor_t *d, obj_t *symbol) {
 /* `any_class` (immortals -- user 2026-07-12: "immortals can use any
  * skill or spell in game, no class restrictions") searches the whole
  * roster instead of just `cls`. */
+/* Per-word prefix match, so a multi-word spell/prayer name can be
+ * abbreviated word-by-word ("sorc globe" -> "sorcerer's globe"), not only
+ * by a single leading prefix of the whole string (which "sorc globe"
+ * fails, diverging at "sorc " vs "sorce", so the old whole-string
+ * strncasecmp wrongly peeled "globe" off as a target). Each
+ * whitespace-delimited token of `query` must prefix the matching token of
+ * `full`, in order; a query with MORE tokens than `full` fails, so a real
+ * trailing target word is still left for find_spell_and_target() to peel. */
+static bool spell_name_matches(const char *full, const char *query) {
+    while (*query == ' ')
+        query++;
+    while (*query) {
+        while (*full == ' ')
+            full++;
+        if (*full == '\0')
+            return false; /* query still has a token but `full` ran out */
+        while (*query && *query != ' ') {
+            if (*full == ' ' || *full == '\0'
+                || tolower((unsigned char)*full) != tolower((unsigned char)*query))
+                return false;
+            query++;
+            full++;
+        }
+        while (*full && *full != ' ')
+            full++; /* skip the rest of this `full` token */
+        while (*query == ' ')
+            query++;
+    }
+    return true;
+}
+
 static const skill_def_t *find_spell(player_class_t cls, const char *name, bool any_class) {
-    size_t len = strlen(name);
     int count = skill_count();
     for (int i = 0; i < count; i++) {
         const skill_def_t *sk = skill_at(i);
         if ((!any_class && sk->cls != cls) || sk->tier == SKILL_TIER_COMBAT)
             continue;
-        if (strncasecmp(sk->name, name, len) == 0)
+        if (spell_name_matches(sk->name, name))
             return sk;
     }
     return NULL;
@@ -387,7 +430,7 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
          * has -- a disclosed gap, not new to this fix. Requires an
          * actual holy symbol like every other prayer here. */
         ch->last_heal_target = NULL;
-        obj_t *symbol = find_keyword_item(ch, "symbol");
+        obj_t *symbol = find_holy_symbol(ch);
         if (!symbol) {
             descriptor_send(d, "You have no holy symbol to attune.\r\n");
             return;
@@ -1191,7 +1234,7 @@ bool cmd_pray(descriptor_t *d, const char *args) {
             descriptor_send(d, "Master your Basic and Combat disciplines, and begin Advanced practice, before this.\r\n");
             return true;
         }
-        obj_t *awsym = find_keyword_item(ch, "symbol");
+        obj_t *awsym = find_holy_symbol(ch);
         if (!awsym) {
             descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
             return true;
@@ -1330,7 +1373,7 @@ bool cmd_pray(descriptor_t *d, const char *args) {
             return true;
         }
 
-        obj_t *summ_symbol = find_keyword_item(ch, "symbol");
+        obj_t *summ_symbol = find_holy_symbol(ch);
         if (!summ_symbol) {
             descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
             return true;
@@ -1378,7 +1421,7 @@ bool cmd_pray(descriptor_t *d, const char *args) {
      * (find_keyword_item(ch, "symbol")/consume_symbol()), not the
      * Mage/Druid spell-component pouch. */
     if (strcasecmp(sk->name, "create food") == 0) {
-        obj_t *cfsym = find_keyword_item(ch, "symbol");
+        obj_t *cfsym = find_holy_symbol(ch);
         if (!cfsym) {
             descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
             return true;
@@ -1402,7 +1445,7 @@ bool cmd_pray(descriptor_t *d, const char *args) {
     }
 
     if (strcasecmp(sk->name, "create water") == 0) {
-        obj_t *cwsym = find_keyword_item(ch, "symbol");
+        obj_t *cwsym = find_holy_symbol(ch);
         if (!cwsym) {
             descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
             return true;
@@ -1450,7 +1493,7 @@ bool cmd_pray(descriptor_t *d, const char *args) {
         }
     }
 
-    obj_t *symbol = find_keyword_item(ch, "symbol");
+    obj_t *symbol = find_holy_symbol(ch);
     if (!symbol) {
         descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
         return true;

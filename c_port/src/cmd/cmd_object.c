@@ -437,6 +437,71 @@ bool cmd_put(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* `put all <container>` / `put all.<name> <container>` -- the bulk
+     * form get/drop/remove/sell already support (user: "put all.comp
+     * spell" put nothing). Resolve and validate the container once, then
+     * move every matching loose carried item into it, same is_loose()/
+     * obj_name_matches() idiom as `drop all[.<name>]` above. */
+    if (strcasecmp(itemtok, "all") == 0
+        || (strncasecmp(itemtok, "all.", 4) == 0 && itemtok[4] != '\0')) {
+        const char *name_filter = (itemtok[3] == '.') ? itemtok + 4 : NULL;
+        size_t filter_len = name_filter ? strlen(name_filter) : 0;
+
+        obj_t *cont = find_obj(ch->base.stuff_head, conttok, NULL);
+        if (!cont)
+            cont = find_obj(ch->base.roomp->base.stuff_head, conttok, NULL);
+        if (!cont) {
+            descriptor_send(d, "You don't see that container here.\r\n");
+            return true;
+        }
+        if (!obj_is_container(cont)) {
+            descriptor_send(d, "That's not a container.\r\n");
+            return true;
+        }
+        if (obj_container_closed(cont)) {
+            descriptor_send(d, "It's closed.\r\n");
+            return true;
+        }
+
+        thing_t *t = ch->base.stuff_head;
+        int moved = 0;
+        bool full = false;
+        while (t) {
+            thing_t *next = t->stuff_next; /* thing_move_to() relinks t out of ch's chain */
+            if (t->kind == THING_OBJ && (obj_t *)t != cont && is_loose(ch, (obj_t *)t)) {
+                obj_t *o = (obj_t *)t;
+                if (!name_filter || obj_name_matches(o->base.name, name_filter, filter_len)) {
+                    if (cont->val[0] > 0
+                        && obj_contained_weight(cont) + o->weight > (double)cont->val[0]) {
+                        full = true;
+                        t = next;
+                        continue;
+                    }
+                    thing_move_to(&o->base, &cont->base);
+                    spell_component_merge_siblings(o);
+                    char m[512];
+                    const char *il = o->base.short_descr[0] ? o->base.short_descr : o->base.name;
+                    const char *cl = cont->base.short_descr[0] ? cont->base.short_descr : cont->base.name;
+                    snprintf(m, sizeof(m), "You put %s in %s.\r\n", il, cl);
+                    descriptor_send(d, m);
+                    snprintf(m, sizeof(m), "%s puts %s in %s.\r\n", ch->base.name, il, cl);
+                    descriptor_room_echo(ch->base.roomp, ch, m);
+                    moved++;
+                }
+            }
+            t = next;
+        }
+        if (moved == 0) {
+            descriptor_send(d, full
+                ? "None of it will fit.\r\n"
+                : (name_filter ? "You aren't carrying any of those.\r\n"
+                               : "You aren't carrying anything to put there.\r\n"));
+        } else {
+            player_inventory_save(ch->player_id, ch);
+        }
+        return true;
+    }
+
     obj_t *item = find_obj(ch->base.stuff_head, itemtok, ch);
     if (!item) {
         descriptor_send(d, "You aren't carrying that.\r\n");

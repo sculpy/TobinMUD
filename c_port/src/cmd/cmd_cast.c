@@ -149,7 +149,14 @@ static obj_t *find_keyword_item(const being_t *ch, const char *keyword) {
  * A spell with no bound reagent anywhere (Tobin-original / unseeded) keeps
  * the old generic "any component-keyword item" behavior so nothing that
  * cast before still refuses. Returns the component to consume, or NULL. */
+/* A non-consumable stand-in returned for immortals, so no cast's
+ * component gate ever refuses an immortal and consume_component()
+ * never touches it (user: immortals don't require spell components). */
+static obj_t g_immortal_component_sentinel;
+
 static obj_t *component_for_cast(being_t *ch, const char *spell, bool imm) {
+    if (imm)
+        return &g_immortal_component_sentinel;
     if (spell_bound_component_vnum(spell) > 0) {
         obj_t *c = spell_component_find_for(ch, spell);
         if (c)
@@ -183,6 +190,8 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
  * something loaded before this system existed) is treated as a single
  * fallback charge so it still works once instead of refusing outright. */
 static void consume_component(descriptor_t *d, obj_t *component) {
+    if (!component || component == &g_immortal_component_sentinel)
+        return;
     int charges = component->val[0] > 0 ? component->val[0] : 1;
     if (charges > 1) {
         component->val[0] = charges - 1;
@@ -202,14 +211,44 @@ static void consume_component(descriptor_t *d, obj_t *component) {
  * as command/skill-name matching elsewhere. `any_class` (immortals --
  * user 2026-07-12: "immortals can use any skill or spell in game, no
  * class restrictions") searches the whole roster instead of just `cls`. */
+/* Per-word prefix match, so a multi-word spell/prayer name can be
+ * abbreviated word-by-word ("sorc globe" -> "sorcerer's globe"), not only
+ * by a single leading prefix of the whole string (which "sorc globe"
+ * fails, diverging at "sorc " vs "sorce", so the old whole-string
+ * strncasecmp wrongly peeled "globe" off as a target). Each
+ * whitespace-delimited token of `query` must prefix the matching token of
+ * `full`, in order; a query with MORE tokens than `full` fails, so a real
+ * trailing target word is still left for find_spell_and_target() to peel. */
+static bool spell_name_matches(const char *full, const char *query) {
+    while (*query == ' ')
+        query++;
+    while (*query) {
+        while (*full == ' ')
+            full++;
+        if (*full == '\0')
+            return false; /* query still has a token but `full` ran out */
+        while (*query && *query != ' ') {
+            if (*full == ' ' || *full == '\0'
+                || tolower((unsigned char)*full) != tolower((unsigned char)*query))
+                return false;
+            query++;
+            full++;
+        }
+        while (*full && *full != ' ')
+            full++; /* skip the rest of this `full` token */
+        while (*query == ' ')
+            query++;
+    }
+    return true;
+}
+
 static const skill_def_t *find_spell(player_class_t cls, const char *name, bool any_class) {
-    size_t len = strlen(name);
     int count = skill_count();
     for (int i = 0; i < count; i++) {
         const skill_def_t *sk = skill_at(i);
         if ((!any_class && sk->cls != cls) || sk->tier == SKILL_TIER_COMBAT)
             continue;
-        if (strncasecmp(sk->name, name, len) == 0)
+        if (spell_name_matches(sk->name, name))
             return sk;
     }
     return NULL;
@@ -408,7 +447,49 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
      * every exact-name check in an if-else chain like this one is
      * safest kept ahead of every generic substring check, on principle,
      * not just the one collision this happened to catch live. */
-    if (strcasecmp(sk->name, "flatulence") == 0) {
+    if (strcasecmp(sk->name, "knot") == 0) {
+        /* `knot` (Mage, missing-skill audit, 2026-08-09): real upstream
+         * (disc_mage_spirit.cc's knot()) "tears a gap in reality" and
+         * steps the CASTER (self only -- no target argument in the real
+         * source) through to a hardcoded safe room, refusing to work in
+         * a no-escape room or on a murderer. Same fallback-room shape
+         * `word of recall` (Cleric, cmd_pray.c) already established for
+         * "no per-player hometown/recall-point concept in Tobin" --
+         * reuses that identical DEFAULT_LOAD_ROOM_MORTAL destination
+         * rather than a second hardcoded room, since Tobin has no
+         * equivalent of the real room 2387 to port literally. Not
+         * ported: the AFFECT_PLAYERKILL murderer refusal (no PK-murder
+         * flag exists in Tobin, same disclosed gap `word of recall`
+         * already carries). */
+        if (ch->base.roomp && (ch->base.roomp->room_flag & (ROOM_FLAG_ARENA | ROOM_FLAG_NO_ESCAPE))) {
+            descriptor_send(d, "The defenses of this area are too strong -- you can't tear a gap in reality here.\r\n");
+            return;
+        }
+        room_t *dest = world_get_room(DEFAULT_LOAD_ROOM_MORTAL);
+        if (!dest) {
+            dest = room_repo_load(DEFAULT_LOAD_ROOM_MORTAL);
+            if (dest)
+                world_register_room(dest);
+        }
+        if (!dest) {
+            descriptor_send(d, "You tear a gap in reality, but it leads nowhere -- you stay put.\r\n");
+            return;
+        }
+        ch->fighting = NULL;
+        room_t *old_room = ch->base.roomp;
+        char capbuf[128];
+        being_display_name_cap(ch, capbuf, sizeof(capbuf));
+        if (old_room) {
+            snprintf(msg, sizeof(msg), "%s tears a gap in reality and steps through.\r\n", capbuf);
+            descriptor_room_echo(old_room, ch, msg);
+        }
+        descriptor_send(d, "You tear a gap in reality and step through.\r\n");
+        thing_set_room(&ch->base, dest);
+        snprintf(msg, sizeof(msg), "%s steps out of a gap in reality.\r\n", capbuf);
+        descriptor_room_echo(dest, ch, msg);
+        cmd_dispatch(d, "look");
+        return;
+    } else if (strcasecmp(sk->name, "flatulence") == 0) {
         /* Shaman/Druid audit batch C, 2026-08-09: real upstream
          * (disc_shaman_skunk.cc) is a room-wide AoE that damages every
          * non-grouped, non-immortal occupant of the caster's room, with
@@ -2094,48 +2175,6 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
             snprintf(msg, sizeof(msg), "%s twists and reshapes into a brown bear!\r\n", capbuf);
             descriptor_room_echo(room, NULL, msg);
         }
-    } else if (strcasecmp(sk->name, "knot") == 0) {
-        /* `knot` (Mage, missing-skill audit, 2026-08-09): real upstream
-         * (disc_mage_spirit.cc's knot()) "tears a gap in reality" and
-         * steps the CASTER (self only -- no target argument in the real
-         * source) through to a hardcoded safe room, refusing to work in
-         * a no-escape room or on a murderer. Same fallback-room shape
-         * `word of recall` (Cleric, cmd_pray.c) already established for
-         * "no per-player hometown/recall-point concept in Tobin" --
-         * reuses that identical DEFAULT_LOAD_ROOM_MORTAL destination
-         * rather than a second hardcoded room, since Tobin has no
-         * equivalent of the real room 2387 to port literally. Not
-         * ported: the AFFECT_PLAYERKILL murderer refusal (no PK-murder
-         * flag exists in Tobin, same disclosed gap `word of recall`
-         * already carries). */
-        if (ch->base.roomp && (ch->base.roomp->room_flag & (ROOM_FLAG_ARENA | ROOM_FLAG_NO_ESCAPE))) {
-            descriptor_send(d, "The defenses of this area are too strong -- you can't tear a gap in reality here.\r\n");
-            return;
-        }
-        room_t *dest = world_get_room(DEFAULT_LOAD_ROOM_MORTAL);
-        if (!dest) {
-            dest = room_repo_load(DEFAULT_LOAD_ROOM_MORTAL);
-            if (dest)
-                world_register_room(dest);
-        }
-        if (!dest) {
-            descriptor_send(d, "You tear a gap in reality, but it leads nowhere -- you stay put.\r\n");
-            return;
-        }
-        ch->fighting = NULL;
-        room_t *old_room = ch->base.roomp;
-        char capbuf[128];
-        being_display_name_cap(ch, capbuf, sizeof(capbuf));
-        if (old_room) {
-            snprintf(msg, sizeof(msg), "%s tears a gap in reality and steps through.\r\n", capbuf);
-            descriptor_room_echo(old_room, ch, msg);
-        }
-        descriptor_send(d, "You tear a gap in reality and step through.\r\n");
-        thing_set_room(&ch->base, dest);
-        snprintf(msg, sizeof(msg), "%s steps out of a gap in reality.\r\n", capbuf);
-        descriptor_room_echo(dest, ch, msg);
-        cmd_dispatch(d, "look");
-        return;
     } else {
         snprintf(msg, sizeof(msg),
                  "You cast %s, but nothing happens yet -- its real effect isn't implemented.\r\n",
