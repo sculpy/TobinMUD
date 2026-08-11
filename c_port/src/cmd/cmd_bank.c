@@ -63,7 +63,7 @@ bool cmd_bank(descriptor_t *d, const char *args) {
     char rest[32] = "";
     sscanf(args, "%31s %31s", verb, rest);
 
-    if (!*verb || strcasecmp(verb, "balance") == 0) {
+    if (!*verb || strncasecmp(verb, "balance", strlen(verb)) == 0) {
         char msg[160];
         snprintf(msg, sizeof(msg), "You have %d gold in your wallet and %d gold in the bank.\r\n",
                  ch->progress.gold, ch->progress.bank_gold);
@@ -72,9 +72,9 @@ bool cmd_bank(descriptor_t *d, const char *args) {
     }
 
     bool depositing;
-    if (strcasecmp(verb, "deposit") == 0)
+    if (strncasecmp(verb, "deposit", strlen(verb)) == 0)
         depositing = true;
-    else if (strcasecmp(verb, "withdraw") == 0)
+    else if (strncasecmp(verb, "withdraw", strlen(verb)) == 0)
         depositing = false;
     else {
         descriptor_send(d, "Usage: bank [balance | deposit <amount> | withdraw <amount>]\r\n");
