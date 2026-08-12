@@ -13,11 +13,6 @@ end of every session. [c_port/TODO.md](c_port/TODO.md) tracks what's next.
 
 ## Where am I?
 
-**Single location now (2026-07-27+): the DigitalOcean droplet.** The
-former Home VM (`192.168.254.200`) and Work box (db.kullit.com) are
-retired — user is disabling the Home VM and consolidating everything,
-dev and production alike, onto DO. Don't ask "Home or Work" anymore.
-
 **No local development copies, anywhere, ever (user, 2026-08-04).** All
 editing, building, testing, and running happens exclusively via `ssh` on
 the droplet — never in a local checkout on whatever machine Claude
@@ -27,16 +22,6 @@ checkout of this repo (if one exists at all) is read-only reference,
 kept in sync by `git pull`, nothing more — if a session finds itself
 about to `Edit`/`Write` a source file outside the droplet, or accumulate
 real uncommitted work there, stop and do the edit over `ssh` instead.
-This was learned the hard way: a session that developed locally,
-committed, and pushed while genuinely substantial parallel work already
-existed as unpushed commits directly on the droplet produced a real,
-messy git divergence (real content conflicts across `mob_ai.c`,
-`skill.c`, `cmd_look.c`, and 15+ test files, both sides having
-independently reimplemented the same recent features) that had to be
-resolved by force-pushing the droplet's history as authoritative and
-manually recreating the local session's one genuinely new fix on top.
-The droplet is the one and only development copy — treat it that way
-from the first command of every session, not just at sync time.
 
 - **DO droplet**: `tobinmud.com` (DNS live, A record → `159.223.121.98`),
   hostname `TobinMUD`, user `mud` (key auth set up, passwordless `sudo`),
@@ -142,12 +127,6 @@ freeze makes tests flake).
   redit), 54+ log reading, 56+ help editing (hedit), 58+ promote/users, 59+
   operations (copyover, log rotate). Commands above the caller's level
   are invisible, not refused.
-- **Editors are unified under `edit <noun> [args]`** (user 2026-07-11,
-  superseding the earlier separate `ed<noun>`/`*edit` verbs): `edit room`,
-  `edit zone`, `edit player`, `edit help`, `edit news`, `edit wiznews`,
-  `edit rules`, `edit trigger` (dispatch in `cmd_edit.c`); `edit object`/
-  `edit mob`/`edit account` planned. All **menu-driven**, like character
-  creation — **the user provides a wireframe for each**. Read-only viewers
-  keep plain names (`news`, `wiznews`).
 - **Colorize tastefully with LOWERCASE color codes** — player/immortal
   output gets tinted with the lowercase (dim) tags by habit.
+- Be less verbose. Only report final brief reports, otherwise, silence.

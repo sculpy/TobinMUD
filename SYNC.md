@@ -11,8 +11,7 @@ rules) and [ENVIRONMENT.md](ENVIRONMENT.md) (droplet setup-from-scratch).
 Keep all responses ultra-concise and direct — this travels with the repo
 (git-synced):
 
-- Strip all greetings, preambles, and filler text.
-- Omit concluding summaries and offers for further assistance.
+- Work in silence. Final reports can be delivered if brief, otherwise complete silence.
 - Use short sentences, bullet points, or tables.
 - Delete any phrase that does not add new, critical information.
 
@@ -33,9 +32,6 @@ on the droplet's working copy to carry changes back — it is derived, not
 authoritative, even though it's also production.
 
 - **Repo:** `github.com/sculpy/TobinMUD` (private), branch `main`.
-- **Migrated 2026-07-09** from the old `sculpy/tobin-mud` (frozen, do not
-  push to it). TobinMUD carries its full history through `c18d592` plus
-  everything since.
 
 ```bash
 # dev machine, when leaving:
@@ -88,9 +84,6 @@ Restart:
   TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=tobin \
     setsid nohup ./build/tobin_c > ~/TobinMUD/tobin_c.log 2>&1 < /dev/null &
   ```
-- **Always re-attach gdb immediately after any restart** — see CLAUDE.md's
-  gdb block. Re-attach after every rebuild+restart, not just once per
-  session.
 
 Then test:
 ```bash
