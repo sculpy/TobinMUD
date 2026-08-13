@@ -716,6 +716,21 @@ durations where warranted, and a cooldown where warranted. Audit findings
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.
 
+## Buildable now
+
+- Lifeforce in the client status bar reports mana, change to lifeforce for druids
+- Druid casting is using random components for the same spell. The right component per spell, no other component should work.
+- Player display in character selection menu should be listed in level order from highest to lowest
+- Mage and druid mobs arent casting, mages druids and clerics should be taking advantage of their spells, and every class should be taking advantage of their skills, fix it so mobs use skills/spells available to them 
+- Sell all.X should get from containers too to sell all
+- In the client triggers and aliases save to file but they never fire in game
+- Mobs should have a chance to join the fights depending on alignment, assist friends
+- Should be able to fight more than one mob and vice versa
+- Guard mobs in rooms should assist each other. When you attack a guard you attack _ALL_ guards.
+- Can't find a definition of TRACK_COUNT
+- Slash specialization (77/71) skilled, shouldnt go past max potential, limited by the % of discipline gained
+
+
 ## Standing rules (learned)
 
 - No new full sweeps. Full sweep takes 5+ hours to complete. Targeted testing only.
