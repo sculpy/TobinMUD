@@ -726,9 +726,12 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - In the client triggers and aliases save to file but they never fire in game
 - Mobs should have a chance to join the fights depending on alignment, assist friends
 - Should be able to fight more than one mob and vice versa
-- Guard mobs in rooms should assist each other. When you attack a guard you attack _ALL_ guards.
+- Guard mobs in rooms should assist each other. When you attack a guard you attack _ALL_ guards. Check how sneezy handles this.
 - Can't find a definition of TRACK_COUNT
 - Slash specialization (77/71) skilled, shouldnt go past max potential, limited by the % of discipline gained
+- Examine mana gain and recovery, apply those sneezy fixes to druids and mages.
+- low level automated skills gain too fast, it should take 25 levels to max out skills in basic and combat disciplines and it should take until 50 to max advanced discipline. Scale all skills to gain at this speed.
+- spell failures should take a bit of casting to fail, not instant fail. And mana cost should be divided by the number of rounds it takes to cast.
 
 
 ## Standing rules (learned)
