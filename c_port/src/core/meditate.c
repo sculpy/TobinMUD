@@ -79,11 +79,11 @@ void meditate_tick_run(long pulse_num) {
         int heal = 5 + ch->progress.level / 2;
         if (mana_mode) {
             being_heal_mana(ch, heal);
-            descriptor_send(d, "<g>Meditating clears your mind, and your focus returns!<z>\r\n");
+            descriptor_send(d, "<G>Meditating focuses your mind!<z>\r\n");
         } else {
             being_heal(ch, heal);
             being_heal_vit(ch, heal);
-            descriptor_send(d, "<g>Meditating refreshes your inner harmonies!<z>\r\n");
+            descriptor_send(d, "<G>Meditating focuses your inner harmonies!<z>\r\n");
         }
 
         /* `wohlin meditation` (Monk, level 25, level-25 audit batch:
@@ -109,7 +109,7 @@ void meditate_tick_run(long pulse_num) {
                 }
             }
             if (cured_something)
-                descriptor_send(d, "<g>Your meditation burns away poison and sickness alike!<z>\r\n");
+                descriptor_send(d, "<G>Your meditation burns away poison and sickness alike!<z>\r\n");
         }
 
         /* User 2026-08-03: "when completely rested or when yoginsa or
@@ -128,7 +128,7 @@ void meditate_tick_run(long pulse_num) {
         if (topped_off) {
             ch->meditating = false;
             ch->position = POSITION_STANDING;
-            descriptor_send(d, "You feel fully rested and stand up.\r\n");
+            descriptor_send(d, "You feel completely focused and stand up.\r\n");
         }
     }
 }
