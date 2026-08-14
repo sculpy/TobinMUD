@@ -2355,6 +2355,10 @@ void combat_music_tick(long pulse_num) {
          * new tracks (music6-9.wav), 2026-08-07 sound pack. */
         "music1.wav", "music2.wav", "music3.wav", "music4.wav",
         "music5.wav", "music6.wav", "music7.wav", "music8.wav", "music9.wav",
+        "music10.wav", "music11.wav", "music12.wav", "music13.wav", "music14.wav",
+        "music15.wav", "music16.wav", "music17.wav", "music18.wav", "music19.wav",
+        "music20.wav", "music21.wav", "music22.wav", "music23.wav", "music24.wav",
+        "music25.wav",
     };
     const int TRACK_COUNT = (int)(sizeof(TRACKS) / sizeof(TRACKS[0]));
 

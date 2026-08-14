@@ -137,6 +137,54 @@
       <Component Id="Sound_music9_wav" Guid="c419ff49-a639-410b-b5b4-e53d45677abc">
         <File Id="Sound_music9_wav_File" Source="sounds/music9.wav" KeyPath="yes" />
       </Component>
+      <Component Id="Sound_music10_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music10_wav_File" Source="sounds/music10.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music11_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music11_wav_File" Source="sounds/music11.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music12_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music12_wav_File" Source="sounds/music12.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music13_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music13_wav_File" Source="sounds/music13.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music14_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music14_wav_File" Source="sounds/music14.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music15_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music15_wav_File" Source="sounds/music15.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music16_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music16_wav_File" Source="sounds/music16.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music17_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music17_wav_File" Source="sounds/music17.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music18_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music18_wav_File" Source="sounds/music18.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music19_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music19_wav_File" Source="sounds/music19.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music20_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music20_wav_File" Source="sounds/music20.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music21_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music21_wav_File" Source="sounds/music21.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music22_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music22_wav_File" Source="sounds/music22.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music23_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music23_wav_File" Source="sounds/music23.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music24_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music24_wav_File" Source="sounds/music24.wav" KeyPath="yes" />
+      </Component>
+      <Component Id="Sound_music25_wav" Guid="01a712ac-97e3-4574-851f-ac5a524b1988">
+        <File Id="Sound_music25_wav_File" Source="sounds/music25.wav" KeyPath="yes" />
+      </Component>
       <Component Id="Sound_slash1_wav" Guid="5b7993d6-c1f4-443c-a924-0a5a17e4d116">
         <File Id="Sound_slash1_wav_File" Source="sounds/slash1.wav" KeyPath="yes" />
       </Component>

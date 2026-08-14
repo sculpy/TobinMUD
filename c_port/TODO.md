@@ -735,6 +735,7 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - archive old news and wiznews items, and provide a way to read the archived *news items. Leave only three weeks worth of entries in the file before they get archived.
 - You arrive from the up. Those move in and move out messages for up and down should read from above or from below.
 - Add left margin navigation to the website
+- At level 13 the basic discipline is learned to 100%, it should take twice as long
 
 
 ## Standing rules (learned)
