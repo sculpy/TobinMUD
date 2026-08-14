@@ -732,6 +732,9 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - Examine mana gain and recovery, apply those sneezy fixes to druids and mages.
 - low level automated skills gain too fast, it should take 25 levels to max out skills in basic and combat disciplines and it should take until 50 to max advanced discipline. Scale all skills to gain at this speed.
 - spell failures should take a bit of casting to fail, not instant fail. And mana cost should be divided by the number of rounds it takes to cast.
+- archive old news and wiznews items, and provide a way to read the archived *news items. Leave only three weeks worth of entries in the file before they get archived.
+- You arrive from the up. Those move in and move out messages for up and down should read from above or from below.
+- Add left margin navigation to the website
 
 
 ## Standing rules (learned)
@@ -749,3 +752,5 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - Continue progressing rapidly through the backlog without waiting for additional instructions unless blocked by missing requirements.
 - Document all completed changes, database updates, VNUM allocations, and implementation notes.
 - Help me conserve tokens. Go absolutly silent unless acknowledging an instruction, or giving a brief report on an item just finished. Otherwise, silence.
+- As each item gets built and tested clean, remove that entry in TODO.md
+
