@@ -736,7 +736,7 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - You arrive from the up. Those move in and move out messages for up and down should read from above or from below.
 - Add left margin navigation to the website
 - At level 13 the basic discipline is learned to 100%, it should take twice as long
-
+- when a player rents his load room should change to the room he rented in
 
 ## Standing rules (learned)
 
