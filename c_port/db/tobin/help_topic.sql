@@ -1359,3 +1359,14 @@ Druid class skill governing the `apply` command. Higher proficiency mends
 more of a wound. See `apply`.
 
 Related: apply forage skills practice','seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+
+-- sticks to snakes (Druid), 2026-08-15
+INSERT INTO help_topic (name, body, updated_by) VALUES ('sticks to snakes','Usage: cast sticks to snakes <target>
+
+Druid only. A tossed stick twists into a living serpent that springs to
+attack your foe and fights at your side. The snake''s strength scales with
+your level (a tiny rattlesnake at first, a gigantic one at high levels).
+You can only maintain one conjured or charmed creature at a time. Refuses
+against an immortal.
+
+Related: cast befriend beast animal companion skills practice','seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';

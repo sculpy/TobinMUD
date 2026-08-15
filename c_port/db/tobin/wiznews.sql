@@ -1337,3 +1337,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Druids can `apply` healing herbs', 'Druids have a new field-medicine skill: `apply [herbs] [target]` presses a poultice of gathered herbs to a wound, mending hit points on yourself or an ally with no mana and no reagent. How much it heals scales with your level and herbalism proficiency, with a short pause between uses -- steady woodland healing, not an instant full cure. New Druid class skill ''apply herbs'' (level 2), a thematic companion to foraging and the wild-component system. First of the Tier-2 Druid ports.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'New Druid spell: sticks to snakes', 'Druids can now `cast sticks to snakes <target>` -- a tossed stick twists into a living serpent that springs at your foe and fights at your side. The snake''s strength scales with your level (a tiny rattlesnake early on, a gigantic one at high levels), reusing the same one-pet-at-a-time charmed-companion system as the elemental and beast summons. Ported from Sneezy''s sticksToSnakes(). New Druid spell ''sticks to snakes'' (level 15). (Beast summon, its Tier-2 neighbor, is on hold -- it needs cross-room monster pathfinding the engine doesn''t have yet.)')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -453,6 +453,7 @@ static const skill_def_t SKILLS[] = {
     { "sacrifice",         CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `sacrifice` for help." },
     { "barkskin",          CLASS_DRUID, SKILL_TIER_CLASS,  3, "See help `barkskin` for help." },
     { "apply herbs",       CLASS_DRUID, SKILL_TIER_CLASS,  2, "See help `apply herbs` for help." },
+    { "sticks to snakes",  CLASS_DRUID, SKILL_TIER_CLASS,  15, "See help `sticks to snakes` for help." },
     { "entangling roots",  CLASS_DRUID, SKILL_TIER_CLASS,  5, "See help `entangling roots` for help." },
     { "know animal",        CLASS_DRUID, SKILL_TIER_CLASS,  4, "See help `know animal` for help." },
     { "know demon",         CLASS_DRUID, SKILL_TIER_CLASS,  4, "See help `know demon` for help." },

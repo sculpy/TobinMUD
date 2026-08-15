@@ -2153,6 +2153,51 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
         snprintf(roommsg, sizeof(roommsg), "%s casts %s, and %s appears, obedient to their will!\r\n",
                  being_display_name_cap(ch, capbuf, sizeof(capbuf)), sk->name, pet->base.short_descr);
         descriptor_room_echo(ch->base.roomp, ch, roommsg);
+    } else if (strcasecmp(sk->name, "sticks to snakes") == 0) {
+        /* Druid conjuration (Tier-2 port; Sneezy sticksToSnakes(),
+         * disc_shaman_spider.cc -- DISC_SHAMAN upstream, folded into
+         * Tobin's Druid like the rest of the shaman/ranger nature line).
+         * A tossed stick becomes a level-scaled serpent that springs at
+         * your foe. Reuses the same one-at-a-time charmed-pet machinery as
+         * the elemental/beast summons above; the snake mob vnums
+         * (7855-7859, "rattlesnake ...") are real seeded content, chosen
+         * by caster level to mirror Sneezy's own SNAKES25/30/35/40/50
+         * strength tiers. */
+        if (!atk_target) {
+            descriptor_send(d, "Set your conjured serpent upon whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "Your serpent recoils from a god.\r\n");
+            return;
+        }
+        if (being_find_charmed_pet(ch)) {
+            descriptor_send(d, "You already have a charmed creature under your control.\r\n");
+            return;
+        }
+        int lvl = ch->progress.level;
+        int snake_vnum = lvl < 26 ? 7855 : lvl < 31 ? 7856 : lvl < 36 ? 7857
+                       : lvl < 41 ? 7858 : 7859;
+        being_t *snake = being_summon_charmed_pet(ch, snake_vnum, PET_CHARM_DURATION_ROUNDS);
+        if (!snake) {
+            descriptor_send(d, "The stick refuses to take the shape of a snake.\r\n");
+            return;
+        }
+        descriptor_send(d, "A strange yellow mist gathers and coils into a hissing serpent!\r\n");
+        {
+            char capbuf[128], roommsg[256];
+            snprintf(roommsg, sizeof(roommsg),
+                     "%s casts sticks to snakes, and a serpent coils up from a yellow mist!\r\n",
+                     being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+            descriptor_room_echo(ch->base.roomp, ch, roommsg);
+        }
+        /* Loose the serpent on the victim (the pet fights for the caster). */
+        if (!atk_target->fighting)
+            atk_target->fighting = snake;
+        snake->fighting = atk_target;
+        snprintf(msg, sizeof(msg), "The serpent bares its fangs and springs at %s!\r\n",
+                 being_display_name(atk_target));
+        descriptor_send(d, msg);
     } else if (strcasecmp(sk->name, "polymorph") == 0) {
         /* Transformation (Sneezy → Tobin feature audit). Scoped via
          * AskUserQuestion, 2026-07-26: a FIXED form (a brown bear, real

@@ -74,10 +74,10 @@ raw checklist, pick from it as capacity allows.
 - [ ] Creeping doom
 - [ ] Root control
 - [ ] Shapeshift
-- [ ] Sticks to snakes
+- [x] Sticks to snakes -- DONE 2026-08-15 (cast branch, cmd_cast.c; Druid spell, level 15)
 - [ ] Stormy skies
 - [x] Apply herbs -- DONE 2026-08-15 (cmd_apply.c, Druid `apply` command)
-- [ ] Beast summon
+- [ ] Beast summon -- DEFERRED 2026-08-15: needs a cross-tick mob hunting/pathfinding subsystem (Sneezy's beastSummon() makes distant zone animals hunt/path to the caster; mob_ai.c deliberately has no hunting pointer or pathfinding). A room-only pet scope-down would just duplicate `befriend beast`. Revisit if/when pathfinding lands.
 - [ ] Transfix
 - [ ] Transform limb
 
