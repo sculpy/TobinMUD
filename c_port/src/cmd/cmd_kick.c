@@ -108,11 +108,11 @@ bool cmd_kick(descriptor_t *d, const char *args) {
         return true;
     }
 
-    snprintf(msg, sizeof(msg), "You land a solid kick on %s!\r\n", being_display_name(target));
+    snprintf(msg, sizeof(msg), "You boot %s in the head!\r\n", being_display_name(target));
     descriptor_send(d, msg);
     if (target->desc) {
         char capbuf[128];
-        snprintf(msg, sizeof(msg), "%s lands a solid kick on you!\r\n",
+        snprintf(msg, sizeof(msg), "%s boots you in the head!\r\n",
                  being_display_name_cap(ch, capbuf, sizeof(capbuf)));
         descriptor_send(target->desc, msg);
     }
