@@ -34,11 +34,13 @@ release: $(BIN)
 
 $(BIN): $(OBJS)
 	@mkdir -p $(dir $@)
-	$(CC) $(OBJS) -o $@ $(LDLIBS)
+	@echo "  Linking $@"
+	@$(CC) $(OBJS) -o $@ $(LDLIBS)
 
 build/obj/%.o: src/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(ALL_CFLAGS) -MMD -MP -c $< -o $@
+	@echo "  Compiling $<"
+	@$(CC) $(ALL_CFLAGS) -MMD -MP -c $< -o $@
 
 -include $(DEPS)
 
