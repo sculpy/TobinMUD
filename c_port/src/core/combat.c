@@ -337,9 +337,12 @@ static const char *pick_hit_sound(const being_t *attacker, const char *verb) {
      * instead, so a Thief's sound now reflects the weapon they're
      * actually using (dagger->stab, sword->slash, etc) same as a
      * Warrior's, rather than being fixed regardless of weapon. */
-    static const char *cleric_pool[] = { "cleric.wav" };
-    static const char *monk_pool[] = { "monk1.wav", "monk2.wav", "monk3.wav", "monk4.wav" };
-    static const char *mage_pool[] = { "spell.wav", "spell2.wav", "spell3.wav" };
+    static const char *cleric_pool[] = { "cleric.wav", "cleric2.wav", "cleric3.wav", "cleric4.wav", 
+					 "cleric5.wav", "cleric6.wav", "cleric7.wav" };
+    static const char *monk_pool[] = { "monk1.wav", "monk2.wav", "monk3.wav", "monk4.wav",
+					"barehand1.wav", "barehand2.wav", "barehand3.wav", "barehand4.wav", "barehand5.wav" };
+    static const char *mage_pool[] = { "spell.wav", "spell2.wav", "spell3.wav", "spell4.wav", "spell5.wav", "spell6.wav",
+					"spell7.wav", "spell8.wav", "spell9.wav", "spell10.wav", "spell11.wav" };
     static const char *slash_pool[] = {
         "slash1.wav", "slash2.wav", "slash3.wav", "slash4.wav",
         "slash5.wav", "slash6.wav", "slash7.wav", "slash8.wav",
@@ -347,7 +350,7 @@ static const char *pick_hit_sound(const being_t *attacker, const char *verb) {
     static const char *stab_pool[] = {
         "stab1.wav", "stab2.wav", "stab3.wav", "stab4.wav", "stab5.wav", "backstab.wav",
     };
-    static const char *staff_pool[] = { "staff1.wav" };
+    static const char *staff_pool[] = { "staff1.wav", "smash1.wav", "smash2.wav", "smash3.wav", "smash4.wav", "smash5.wav" };
     static const char *generic_pool[] = {
         "barehand1.wav", "barehand2.wav", "barehand3.wav", "barehand4.wav", "barehand5.wav",
     };
