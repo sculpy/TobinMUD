@@ -13,82 +13,39 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 (players); future `edit object`/`edit mob`/`edit account`. Read-only
 viewers keep plain names (`news`, `wiznews`).
 
-## PC-race perk system + menu-driven `balance` rework (user 2026-08-10: "do it all")
-
-Turns the Sneezy RACE_* per-race data (hp/mana/move/food/drink mods,
-IMMUNE_* resistances, infravision, talents) into real, tunable PC-race
-perks, delivered through the existing data-driven `race_balance` table so
-every value stays live-editable via `balance`. Decisions taken (per the
-design discussion): net-zero across a race's whole identity (upside paired
-with a drawback, not per-subsystem), Human keeps a signature "adaptable"
-flex perk, magnitudes scaled down from Sneezy (all tunable live anyway).
-See docs/RACE_STATS.md (stat layer) + docs/RACE_PERKS.md (this).
-
-Extended balance_mod_t / class_balance+race_balance columns (class rows
-keep the race-only perks neutral):
-
-- Tier 0 numeric: mana_mult, move_mult (scale max mana / max move, mirror
-  the existing hp_mult), food_mult, drink_mult (hunger/thirst decay rate).
-
-- Tier 1 resistances (0-100% each, race only): resist_poison, resist_charm,
-  resist_sleep, resist_paralysis, resist_energy, resist_heat, resist_cold.
-
-- Tier 2 senses (race only): infravision (0/1 innate dark-vision).
-
-- Tier 3 talent (race only): one enum per race (Ogre brawler, Hobbit
-  woodland stealth, Gnome innate detect-magic, Human adaptable skill-gain).
-
-- [x] **Phase 1 — data model + seed + menu rework + Tier 0/Tier 2 apply.**
-  
-      Schema migration (balance.sql) + balance_mod_t/balance_repo for all new
-      columns; seed scaled Sneezy values for the 6 races; apply mana_mult
-      (being_calc_max_mana), move_mult (being_calc_max_vit), food/drink_mult
-      (vitals.c decay), infravision (room_is_dark_for). Rework the `balance`
-      editor into fully self-documenting menu screens: per-field label,
-      one-line "what it does", neutral baseline, current value, and a
-      live-effect line, split into Combat / Vitals / Resistances / Senses /
-      Talent sections (race) vs Combat only (class). Smoke test.
-
-- [x] **Phase 2 — Tier 1 resistance application.** being_race_resist(type)
-  
-      helper; apply at the existing hooks (charm/sleep via the affect save,
-      poison via drink/sip). Elemental types (heat/cold/energy/paralysis)
-      stored + editable now, applied where/when such damage sources exist
-      (disclosed-pending, shown as such in the menu). Smoke test.
-
-- [x] **Phase 3 — Tier 3 talents.** Wire the concrete talents: Gnome innate
-  
-      detect-magic, Hobbit sneak/hide/search bonus, Ogre brawling-skill
-      bonus, Human across-the-board learn-by-doing bonus. Smoke test +
-      docs/RACE_PERKS.md finalized.
-
-## User batch 2026-08-10 — done same session
-- [x] **All-classes immortals** -- "make all immortals all classes upon
-      promotion to immortal and update current immortal characters to be
-      all classes." New `CLASS_ALL` sentinel; `promote` sets it on
-      crossing into immortal range; existing immortals backfilled live.
-      See STATUS.md Session 148.
-- [x] **`practice <class>` browses any class's skill listing** -- "morts
-      should be able to see what skill is offered in classes they are
-      not, so this works for immorts and morts alike" / "let prac class
-      also count for prac basic." See STATUS.md Session 148.
-- [x] **Login log line** -- "[PIO] <N> has entered the game in room
-      <vnum>. [host], just before load room fires." See STATUS.md
-      Session 148.
-
-- [x] **Add news to tobinmud website** -- user, 2026-08-10: show the
-      in-game `news` feed on the public site, each entry carrying its
-      date. Likely mirrors `web/generate_help_json.sh`'s existing
-      pattern (news.sql/`news` table -> a generated page under
-      `~/TobinMUD/web/`) -- not yet scoped further.
-
-## Sneezy spell-component system, disclosed follow-up from the container-stacking task (2026-08-08)
-
-- [x] **DONE.** Both halves of obj_component.cc are now ported. The merge/decay/charge-cap + per-spell binding + mob-loading half shipped earlier (spell_component.c, commits a25ae67/e9f17c6). The component_placement room/weather spawn-table half shipped 2026-08-15 as **component_placement.c/.h** + the DB table **component_placement** (db/tobin/component_placement.sql): a per-pulse engine (COMP_PLACEMENT_PULSES ~60s) that spawns/removes reagent objects into room ranges on hour + world-weather windows so casters can forage components in the wild. Ported DATA-DRIVEN (rules live in the DB table, not a hardcoded C array) deliberately -- user 2026-08-15 flagged the world rooms are slated to be deleted+rebuilt, so a hardcoded room-vnum table would be throwaway; re-seeding rows after the rebuild needs no recompile. Trimmed vs Sneezy: Tobin has one world-wide sky state + a plain 0-23 clock (no sunrise/moon/season/per-room weather region), and mob-carried placement + sound cues dropped (ground foraging is the point). Small thematic seed set (6 rules); smoke_test_component_placement.py (3 checks: place fires, cap honored) passes live.
-
 ## Open follow-ups, logged 2026-08-04
 
 - [ ] **Examine how spells are formed in real SneezyMUD and port the approach here** -- user, 2026-08-04, no further detail yet. Likely means reviewing `sneezymud-master/code/code/misc/spell_info.cc`'s discArray[]/spell-casting architecture (already the source used for the spell/skill audit's roster data) for structural/mechanical patterns Tobin's `cmd_cast.c`/`cmd_pray.c` keyword-dispatch approach doesn't currently capture -- scope not yet defined.
+
+## Port priority order (ranked 2026-08-15)
+
+Ranking of the open spell/skill port backlog below by value x unblocked /
+effort (checks done 2026-08-15: no language subsystem exists, no Know-X
+handlers, no `turn` command, CLASS_DRUID is real so the Druid list are real
+gaps). Work top-down; user curates which entry to start.
+
+- **Tier 1 -- high ROI, unblocked, batchable (IN PROGRESS):**
+  1. Know-X lore cluster (8: animal, demon, giantkin, other, people,
+     reptile, undead, veggie) -- one "identify a creature" handler + 8
+     registrations, reusing cmd_identify/consider. No new subsystem.
+  2. Turn undead (Cleric `turn` command) -- one real combat command,
+     reuses skill_roll + affect/damage machinery.
+- **Tier 2 -- Druid class identity (real gaps; Tobin has CLASS_DRUID):**
+  3. Apply herbs (heal; pairs with the wild-component foraging engine).
+  4. Beast summon, Sticks to snakes (summon/transform a mob).
+  5. Root control, Transfix, Transform limb (crowd-control affects -- need
+     new AFFECT_* enum entries first, same blocker as the placeholder audit).
+  6. Shapeshift, Creeping doom, Stormy skies (bigger/novel mechanics).
+- **Tier 3 -- self-contained utility skills:**
+  7. Fishing / Fishlore / Seekwater (foraging mini-loop).
+  8. Mend (object repair), Skinning/Dissect (reuse butcher/skin), Read magic.
+  9. Climbing, Encamp, Lumberjack, Fast load, Divine (misc).
+- **Tier 4 -- blocked, defer:** the 8 language skills (Avian, Bullycroak,
+  Common, Fish burble, Gnoll jargon, Gutter cant, Troglodyte pidgin,
+  Trollish) -- no speak-a-language subsystem exists; build that first.
+- **Tier 5 -- scope-out (not real gaps):** Mage "Death mist" (actually
+  DISC_SHAMAN, no Shaman class -- close it); "Examine how spells are formed
+  in SneezyMUD" (no defined deliverable -- fold into the Tier 2 Druid work).
 
 ## Spell/skill/spec-proc coverage audit — logged 2026-08-04
 
