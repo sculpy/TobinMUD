@@ -1323,3 +1323,22 @@ command picks this skill automatically when you study a matching
 creature.
 
 Related: know consider skills practice', 'seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+
+-- turn undead (Cleric), 2026-08-15
+INSERT INTO help_topic (name, body, updated_by) VALUES ('turn','Usage: turn <creature>
+
+Cleric ability. Channel your holy will against a minion of darkness -- one
+of the undead, or a demon or devil. On success the creature is seared for
+holy damage scaled by your level and sent fleeing in terror; on failure
+your will falters, but the attempt still provokes a fight. Demons resist a
+turning far harder than the mindless undead. If you are already fighting,
+`turn` targets your current opponent.
+
+Related: turn undead pray cast skills practice','seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+INSERT INTO help_topic (name, body, updated_by) VALUES ('turn undead','Usage: turn <creature>
+
+Cleric class skill governing the `turn` command. Higher proficiency means
+a better chance to sear and rout the undead (and, more grudgingly, demons
+and devils) with holy will. See `turn`.
+
+Related: turn pray skills practice','seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';

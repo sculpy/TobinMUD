@@ -31,6 +31,7 @@ bool cmd_rescue(descriptor_t *d, const char *args);
 bool cmd_taunt(descriptor_t *d, const char *args);
 bool cmd_backstab(descriptor_t *d, const char *args);
 bool cmd_know(descriptor_t *d, const char *args);
+bool cmd_turn(descriptor_t *d, const char *args);
 bool cmd_steal(descriptor_t *d, const char *args);
 bool cmd_sneak(descriptor_t *d, const char *args);
 bool cmd_grapple(descriptor_t *d, const char *args);

@@ -24,7 +24,7 @@ effort (checks done 2026-08-15: no language subsystem exists, no Know-X
 handlers, no `turn` command, CLASS_DRUID is real so the Druid list are real
 gaps). Work top-down; user curates which entry to start.
 
-- **Tier 1 -- high ROI, unblocked, batchable (know-X DONE 2026-08-15; turn undead next):**
+- **Tier 1 -- high ROI, unblocked, batchable (COMPLETE 2026-08-15: know-X + turn undead):**
   1. Know-X lore cluster (8: animal, demon, giantkin, other, people,
      reptile, undead, veggie) -- one "identify a creature" handler + 8
      registrations, reusing cmd_identify/consider. No new subsystem.
@@ -111,7 +111,7 @@ raw checklist, pick from it as capacity allows.
 - [ ] Skinning (generic, non-Druid classes)
 - [ ] Troglodyte pidgin (language)
 - [ ] Trollish (language)
-- [ ] Turn undead (command `turn` -- no display-name string upstream, real and missing regardless)
+- [x] Turn undead (command `turn`) -- DONE 2026-08-15 (cmd_turn.c, Cleric skill 'turn undead')
 
 ### Spell/skill stub audit — roster-listed but mechanically no-op
 

@@ -236,6 +236,7 @@ static const skill_def_t SKILLS[] = {
     { "ranged proficiency",   CLASS_CLERIC, SKILL_TIER_ADVANCED, 25, "See help `ranged proficiency` for help." },
     { "heal light",       CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `heal light` for help." },
     { "harm light",       CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `harm light` for help." },
+    { "turn undead",      CLASS_CLERIC, SKILL_TIER_CLASS,  6, "See help `turn undead` for help." },
     { "armor",            CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `armor` for help." },
     { "bless",            CLASS_CLERIC, SKILL_TIER_CLASS,  1, "See help `bless` for help." },
     { "attune",           CLASS_CLERIC, SKILL_TIER_ADVANCED,  25, "See help `attune` for help." },
