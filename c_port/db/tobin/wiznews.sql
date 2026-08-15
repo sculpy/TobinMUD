@@ -1333,3 +1333,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Clerics can now `turn` the undead', 'The classic Cleric ability is in: `turn <creature>` channels holy will to sear and rout the undead -- and, more grudgingly, demons and devils. Success burns the minion for level-scaled holy damage and sends it fleeing in terror; failure just provokes the fight. Ported from real Sneezy''s doTurn() (its disabled instant-destroy/blind/stun ladder left out, matching live upstream). New Cleric class skill ''turn undead'' at level 6. Second item off the Tier-1 port list -- which is now clear.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Druids can `apply` healing herbs', 'Druids have a new field-medicine skill: `apply [herbs] [target]` presses a poultice of gathered herbs to a wound, mending hit points on yourself or an ally with no mana and no reagent. How much it heals scales with your level and herbalism proficiency, with a short pause between uses -- steady woodland healing, not an instant full cure. New Druid class skill ''apply herbs'' (level 2), a thematic companion to foraging and the wild-component system. First of the Tier-2 Druid ports.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

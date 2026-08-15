@@ -1342,3 +1342,20 @@ a better chance to sear and rout the undead (and, more grudgingly, demons
 and devils) with holy will. See `turn`.
 
 Related: turn pray skills practice','seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+
+-- apply herbs (Druid), 2026-08-15
+INSERT INTO help_topic (name, body, updated_by) VALUES ('apply','Usage: apply [herbs] [target]
+
+Druid skill. Press a poultice of gathered healing herbs to a wound,
+restoring hit points to yourself or an ally in the room. No reagent is
+consumed and it costs no mana; how much it mends grows with your level and
+your herbalism proficiency, and there is a brief pause after each use. You
+can tend wounds even while badly hurt, but not in your sleep.
+
+Related: apply herbs forage skills practice','seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+INSERT INTO help_topic (name, body, updated_by) VALUES ('apply herbs','Usage: apply [herbs] [target]
+
+Druid class skill governing the `apply` command. Higher proficiency mends
+more of a wound. See `apply`.
+
+Related: apply forage skills practice','seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';

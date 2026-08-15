@@ -76,7 +76,7 @@ raw checklist, pick from it as capacity allows.
 - [ ] Shapeshift
 - [ ] Sticks to snakes
 - [ ] Stormy skies
-- [ ] Apply herbs
+- [x] Apply herbs -- DONE 2026-08-15 (cmd_apply.c, Druid `apply` command)
 - [ ] Beast summon
 - [ ] Transfix
 - [ ] Transform limb
