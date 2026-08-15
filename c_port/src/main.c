@@ -43,6 +43,7 @@
 #include "vitals.h"
 #include "wait_tick.h"
 #include "weather.h"
+#include "component_placement.h"
 #include "world.h"
 #include "zone.h"
 
@@ -127,6 +128,7 @@ int main(int argc, char **argv) {
     weather_load();   /* restore the persisted world weather state */
     balance_cache_load(); /* class/race balance modifiers (cmd_balance.c) */
     spell_component_init(); /* per-spell reagent bindings (spell_component.c) */
+    component_placement_load(); /* wild reagent-foraging placement rules (component_placement.c) */
     wisdom_practice_load(); /* wisdom->practice-points scalar (practice.c) */
     rent_config_load(); /* rent tax / free-level settings (rent.c) */
     social_cache_load(); /* socials (emotes) -- checked on nearly every unmatched
@@ -162,6 +164,7 @@ int main(int argc, char **argv) {
     pulse_register(VITALS_PULSES, vitals_tick_run); /* ~60s: hunger/thirst drain + starvation */
     pulse_register(600, drug_tick_run);          /* ~60s: expire active doses, apply/refresh withdrawal */
     pulse_register(WEATHER_PULSES, weather_tick_run); /* ~60s: world weather transitions */
+    pulse_register(COMP_PLACEMENT_PULSES, component_placement_tick); /* ~60s: spawn/remove wild spell-component reagents */
     pulse_register(600, trigger_random_tick);    /* ~60s: mob/room "random" scripted triggers */
     pulse_register(10, trigger_pending_tick);    /* ~1s: resume `wait`-paused trigger scripts */
     pulse_register(6000, tips_pulse_tick);       /* ~10min: echo a random tip to newbie-flagged players */
