@@ -16,6 +16,12 @@ WARN     := -Wall -Wextra
 MARIADB_CFLAGS := $(shell pkg-config --cflags libmariadb)
 MARIADB_LIBS   := $(shell pkg-config --libs libmariadb)
 
+BOLD_GREEN  := \033[1;32m
+BOLD_RED    := \033[1;31m
+BOLD_CYAN   := \033[1;36m
+BOLD_WHITE := \033[1;37m
+COLOR_OFF  := \033[0m
+
 CFLAGS   ?= -g -O0
 ALL_CFLAGS = $(CFLAGS) $(STD) $(WARN) -Iinclude $(MARIADB_CFLAGS)
 LDLIBS   := $(MARIADB_LIBS) -lcrypt -lm
@@ -34,12 +40,12 @@ release: $(BIN)
 
 $(BIN): $(OBJS)
 	@mkdir -p $(dir $@)
-	@echo "  Linking $@"
+	@echo "  Linking: $@"
 	@$(CC) $(OBJS) -o $@ $(LDLIBS)
 
 build/obj/%.o: src/%.c
 	@mkdir -p $(dir $@)
-	@echo "  Compiling $<"
+	@echo -e "$(BOLD_RED)  Compiling:$(COLOR_OFF) $<"
 	@$(CC) $(ALL_CFLAGS) -MMD -MP -c $< -o $@
 
 -include $(DEPS)
