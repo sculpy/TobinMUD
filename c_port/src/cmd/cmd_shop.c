@@ -694,38 +694,51 @@ static int sell_one_item(being_t *ch, being_t *keeper, const shop_t *shop, obj_t
 static bool sell_all_from_inventory(descriptor_t *d, being_t *ch, being_t *keeper, const shop_t *shop, const char *name_filter) {
     int sold = 0, refused = 0, total_net = 0, total_tax = 0;
 
-    thing_t *t = ch->base.stuff_head;
-    while (t) {
-        thing_t *next = t->stuff_next; /* thing_move_to() relinks t out of the chain on a sale */
-        if (t->kind != THING_OBJ) {
-            t = next;
+    /* Gather every sellable object first, THEN sell -- selling relinks an
+     * item out of its chain (thing_move_to to the keeper), so collecting
+     * pointers up front lets us safely reach into carried containers too
+     * (user: `sell all`/`sell all.<name>` should pull matching items out
+     * of bags as well, not just loose-carried ones). One container level
+     * deep, matching the same depth `get`/component lookups use; a
+     * container's own contents are enqueued before the container itself. */
+    obj_t *cand[512];
+    int ncand = 0;
+    for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
             continue;
-        }
         obj_t *item = (obj_t *)t;
-        if (ch->held[0] == item || ch->held[1] == item) {
-            t = next;
-            continue;
-        }
+        bool held = (ch->held[0] == item || ch->held[1] == item);
         bool worn = false;
         for (int i = 0; i < LIMB_COUNT && !worn; i++)
             if (ch->equipment[i] == item)
                 worn = true;
-        if (worn) {
-            t = next;
-            continue;
+        /* Contents of a carried container (skip a worn/held container's
+         * own contents too? no -- a bag you're holding still sells from). */
+        for (thing_t *c = item->base.stuff_head; c; c = c->stuff_next) {
+            if (c->kind != THING_OBJ)
+                continue;
+            obj_t *inner = (obj_t *)c;
+            if (name_filter && !keyword_matches(inner->base.name, name_filter))
+                continue;
+            if (ncand < (int)(sizeof(cand) / sizeof(cand[0])))
+                cand[ncand++] = inner;
         }
-        if (name_filter && !keyword_matches(item->base.name, name_filter)) {
-            t = next;
+        if (held || worn)
             continue;
-        }
+        if (name_filter && !keyword_matches(item->base.name, name_filter))
+            continue;
+        if (ncand < (int)(sizeof(cand) / sizeof(cand[0])))
+            cand[ncand++] = item;
+    }
 
+    for (int ci = 0; ci < ncand; ci++) {
+        obj_t *item = cand[ci];
         char capbuf[128];
         const char *label = cap_first(item->base.short_descr[0] ? item->base.short_descr : item->base.name,
                                       capbuf, sizeof(capbuf));
         int net = sell_one_item(ch, keeper, shop, item, &total_tax);
         if (net < 0) {
             refused++;
-            t = next;
             continue;
         }
         total_net += net;
@@ -734,8 +747,6 @@ static bool sell_all_from_inventory(descriptor_t *d, being_t *ch, being_t *keepe
         char msg[OBJ_LONG_DESCR_LEN + 32];
         snprintf(msg, sizeof(msg), "You sell %s for %d gold.\r\n", label, net);
         descriptor_send(d, msg);
-
-        t = next;
     }
 
     if (sold == 0) {

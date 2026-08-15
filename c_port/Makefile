@@ -10,6 +10,8 @@
 #   make release    # optimized build
 #   make clean
 
+SHELL    := /bin/bash
+
 CC       ?= cc
 STD      := -std=gnu11
 WARN     := -Wall -Wextra
@@ -40,12 +42,12 @@ release: $(BIN)
 
 $(BIN): $(OBJS)
 	@mkdir -p $(dir $@)
-	@echo "  Linking: $@"
+	@echo -e "$(BOLD_GREEN)  Linking:$(BOLD_WHITE) $@$(COLOR_OFF)"
 	@$(CC) $(OBJS) -o $@ $(LDLIBS)
 
 build/obj/%.o: src/%.c
 	@mkdir -p $(dir $@)
-	@echo -e "$(BOLD_RED)  Compiling:$(COLOR_OFF) $<"
+	@echo -e "$(BOLD_RED)  Compiling:$(BOLD_CYAN) $<$(COLOR_OFF)"
 	@$(CC) $(ALL_CFLAGS) -MMD -MP -c $< -o $@
 
 -include $(DEPS)
