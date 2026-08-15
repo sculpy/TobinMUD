@@ -1237,3 +1237,89 @@ INSERT INTO help_topic (name, body, updated_by) VALUES
 ('boiling blood', 'Usage: cast boiling blood <target>\n\nDruid only. Superheats a target''s blood, dealing heavy damage. Refuses against an immortal. Requires: any item keyworded "component"\nRelated: skills practice cast coronary', 'seed'),
 ('coronary', 'Usage: cast coronary <target>\n\nDruid only. Stops a target''s heart -- the heaviest single strike on the Druid roster. Refuses against an immortal. Requires: any item keyworded "component"\nRelated: skills practice cast boiling blood raze', 'seed')
 ON DUPLICATE KEY UPDATE `name` = `name`;
+
+-- Know-X monster-lore cluster (know command + 8 lore skills), 2026-08-15
+INSERT INTO help_topic (name, body, updated_by) VALUES ('know', 'Usage: know <creature>
+
+Study a creature you can see, drawing on your monster-lore skills. What
+you learn depends on the creature''s kind -- animals, the undead, dragons
+and reptiles, giantkin, demons, plants and fungi, the civilized peoples,
+or stranger things -- and on how practiced you are in that lore. A novice
+makes out only what the creature IS; with growing skill you also gauge its
+vitality, then its defenses, then its disposition. You must know the
+matching lore skill (see `know animal`, `know undead`, and the rest);
+immortals read everything.
+
+Related: consider know animal know undead know reptile know demon skills', 'seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+INSERT INTO help_topic (name, body, updated_by) VALUES ('know animal', 'Usage: know <creature>
+
+Druid monster-lore skill. Lets you study beasts and animals with the `know`
+command and, as your proficiency grows, read their vitality, then
+defenses, then disposition -- not just their race. The `know`
+command picks this skill automatically when you study a matching
+creature.
+
+Related: know consider skills practice', 'seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+INSERT INTO help_topic (name, body, updated_by) VALUES ('know demon', 'Usage: know <creature>
+
+Druid monster-lore skill. Lets you study demons, devils, and aberrations with the `know`
+command and, as your proficiency grows, read their vitality, then
+defenses, then disposition -- not just their race. The `know`
+command picks this skill automatically when you study a matching
+creature.
+
+Related: know consider skills practice', 'seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+INSERT INTO help_topic (name, body, updated_by) VALUES ('know giantkin', 'Usage: know <creature>
+
+Druid monster-lore skill. Lets you study giantkin and the goblinoid line with the `know`
+command and, as your proficiency grows, read their vitality, then
+defenses, then disposition -- not just their race. The `know`
+command picks this skill automatically when you study a matching
+creature.
+
+Related: know consider skills practice', 'seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+INSERT INTO help_topic (name, body, updated_by) VALUES ('know other', 'Usage: know <creature>
+
+Druid monster-lore skill. Lets you study outsiders and stranger creatures with the `know`
+command and, as your proficiency grows, read their vitality, then
+defenses, then disposition -- not just their race. The `know`
+command picks this skill automatically when you study a matching
+creature.
+
+Related: know consider skills practice', 'seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+INSERT INTO help_topic (name, body, updated_by) VALUES ('know people', 'Usage: know <creature>
+
+Druid monster-lore skill. Lets you study the civilized humanoid peoples with the `know`
+command and, as your proficiency grows, read their vitality, then
+defenses, then disposition -- not just their race. The `know`
+command picks this skill automatically when you study a matching
+creature.
+
+Related: know consider skills practice', 'seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+INSERT INTO help_topic (name, body, updated_by) VALUES ('know reptile', 'Usage: know <creature>
+
+Druid monster-lore skill. Lets you study reptiles, serpents, and dragonkind with the `know`
+command and, as your proficiency grows, read their vitality, then
+defenses, then disposition -- not just their race. The `know`
+command picks this skill automatically when you study a matching
+creature.
+
+Related: know consider skills practice', 'seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+INSERT INTO help_topic (name, body, updated_by) VALUES ('know undead', 'Usage: know <creature>
+
+Druid monster-lore skill. Lets you study undead horrors with the `know`
+command and, as your proficiency grows, read their vitality, then
+defenses, then disposition -- not just their race. The `know`
+command picks this skill automatically when you study a matching
+creature.
+
+Related: know consider skills practice', 'seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+INSERT INTO help_topic (name, body, updated_by) VALUES ('know veggie', 'Usage: know <creature>
+
+Druid monster-lore skill. Lets you study plants, oozes, and fungal life with the `know`
+command and, as your proficiency grows, read their vitality, then
+defenses, then disposition -- not just their race. The `know`
+command picks this skill automatically when you study a matching
+creature.
+
+Related: know consider skills practice', 'seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';

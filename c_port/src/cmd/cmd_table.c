@@ -395,6 +395,7 @@ static const cmd_entry_t COMMANDS[] = {
      * trip are listed in their own alphabetical R/T comments below since
      * they DO collide with existing short abbreviations there. */
     { "backstab", cmd_backstab, "A devastating opening sneak attack (Thief, backstab <target>; only works to start a fight).", MORTAL_LEVEL_MIN },
+    { "know", cmd_know, "Study a creature using your monster-lore skills (know <creature>; reveals more as your lore proficiency grows).", MORTAL_LEVEL_MIN },
     /* Spell/skill functional-completeness audit (2026-07-27). "ste" is
      * unambiguous against stand's "sta" and stop's "sto" at 3 chars, so
      * no ordering conflict with either despite the shared "st" prefix. */

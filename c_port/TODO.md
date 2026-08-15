@@ -24,7 +24,7 @@ effort (checks done 2026-08-15: no language subsystem exists, no Know-X
 handlers, no `turn` command, CLASS_DRUID is real so the Druid list are real
 gaps). Work top-down; user curates which entry to start.
 
-- **Tier 1 -- high ROI, unblocked, batchable (IN PROGRESS):**
+- **Tier 1 -- high ROI, unblocked, batchable (know-X DONE 2026-08-15; turn undead next):**
   1. Know-X lore cluster (8: animal, demon, giantkin, other, people,
      reptile, undead, veggie) -- one "identify a creature" handler + 8
      registrations, reusing cmd_identify/consider. No new subsystem.
@@ -96,14 +96,14 @@ raw checklist, pick from it as capacity allows.
 - [ ] Fishlore
 - [ ] Gnoll jargon (language)
 - [ ] Gutter cant (language)
-- [ ] Know animal (creature lore)
-- [ ] Know demon
-- [ ] Know giantkin
-- [ ] Know other
-- [ ] Know people
-- [ ] Know reptile
-- [ ] Know undead
-- [ ] Know veggie
+- [x] Know animal (creature lore) -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
+- [x] Know demon -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
+- [x] Know giantkin -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
+- [x] Know other -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
+- [x] Know people -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
+- [x] Know reptile -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
+- [x] Know undead -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
+- [x] Know veggie -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
 - [ ] Lumberjack
 - [ ] Mend
 - [ ] Read magic

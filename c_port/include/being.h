@@ -536,6 +536,30 @@ bool mob_race_is_animal(int idx);
  * touching any caller. */
 bool mob_race_is_rideable(int idx);
 
+/* Monster-lore kingdoms -- the eight creature categories behind the Know-X
+ * lore skills and the `know` command (mob_lore.c / cmd_know.c). Ported from
+ * Sneezy's per-race `lore` keyword (Race::Kingdom). LORE_DEMON is Sneezy's
+ * "diabolic". */
+typedef enum {
+    LORE_ANIMAL,
+    LORE_VEGGIE,
+    LORE_DEMON,
+    LORE_REPTILE,
+    LORE_UNDEAD,
+    LORE_GIANT,
+    LORE_PEOPLE,
+    LORE_OTHER,
+} mob_lore_t;
+
+/* The lore kingdom of a MOB_RACE_NAMES[] index (exhaustive; out-of-range ->
+ * LORE_OTHER). */
+mob_lore_t mob_race_lore_category(int idx);
+
+/* The roster skill name ("know animal" ...) and a short field phrase
+ * ("animals" ...) for a lore category. */
+const char *mob_lore_skill_name(mob_lore_t cat);
+const char *mob_lore_field_name(mob_lore_t cat);
+
 /* Applies `c`'s fixed stat bonus/penalty to `*a` IN PLACE (added on top of
  * whatever the player already point-bought) -- called once, at character
  * creation. Every class's bonuses and penalties net to zero. Loosely
