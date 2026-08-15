@@ -1341,3 +1341,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'New Druid spell: sticks to snakes', 'Druids can now `cast sticks to snakes <target>` -- a tossed stick twists into a living serpent that springs at your foe and fights at your side. The snake''s strength scales with your level (a tiny rattlesnake early on, a gigantic one at high levels), reusing the same one-pet-at-a-time charmed-companion system as the elemental and beast summons. Ported from Sneezy''s sticksToSnakes(). New Druid spell ''sticks to snakes'' (level 15). (Beast summon, its Tier-2 neighbor, is on hold -- it needs cross-room monster pathfinding the engine doesn''t have yet.)')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Quality-of-life batch: char menu order, rent home, clearer move lines', 'A few fixes from the buildable-now list: (1) the character-selection menu now lists your characters highest level first instead of alphabetically; (2) renting now makes the inn your new load room -- rent somewhere and that''s where you wake up next login; (3) wandering mobs going up or down now read naturally ("walks in from above/below", "walks upward/downward") instead of "from the up".')
+ON DUPLICATE KEY UPDATE `title` = `title`;

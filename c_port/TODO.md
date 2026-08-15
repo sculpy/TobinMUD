@@ -675,25 +675,25 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 
 ## Buildable now
 
-- Lifeforce in the client status bar reports mana, change to lifeforce for druids
+- Lifeforce in the client status bar reports mana, change to lifeforce for druids -- DEFERRED 2026-08-15: not a simple relabel. Tobin has no real Lifeforce resource pool (druid max_mana is always 0; score/cast only relabel the word -- see resource_pool_label()/cmd_cast.c:3061), and the status bar lives in the Windows client (needs an MSI rebuild). Proper fix = build a Lifeforce resource, then relabel client-side. Revisit with the mana/casting items (#689/#691).
 - Druid casting is using random components for the same spell. The right component per spell, no other component should work.
-- Player display in character selection menu should be listed in level order from highest to lowest
+- [x] DONE 2026-08-15: character-selection menu now lists characters highest level first (player_repo.c order-by level desc).
 - Mage and druid mobs arent casting, mages druids and clerics should be taking advantage of their spells, and every class should be taking advantage of their skills, fix it so mobs use skills/spells available to them 
 - Sell all.X should get from containers too to sell all
 - In the client triggers and aliases save to file but they never fire in game
 - Mobs should have a chance to join the fights depending on alignment, assist friends
 - Should be able to fight more than one mob and vice versa
 - Guard mobs in rooms should assist each other. When you attack a guard you attack _ALL_ guards. Check how sneezy handles this.
-- Can't find a definition of TRACK_COUNT
+- [x] RESOLVED 2026-08-15: TRACK_COUNT is defined at combat.c:2366 as a function-local `const int` = sizeof(TRACKS)/sizeof(TRACKS[0]) (the MSP fight-music track array). Nothing missing; no code change needed.
 - Slash specialization (77/71) skilled, shouldnt go past max potential, limited by the % of discipline gained
 - Examine mana gain and recovery, apply those sneezy fixes to druids and mages.
 - low level automated skills gain too fast, it should take 25 levels to max out skills in basic and combat disciplines and it should take until 50 to max advanced discipline. Scale all skills to gain at this speed.
 - spell failures should take a bit of casting to fail, not instant fail. And mana cost should be divided by the number of rounds it takes to cast.
 - archive old news and wiznews items, and provide a way to read the archived *news items. Leave only three weeks worth of entries in the file before they get archived.
-- You arrive from the up. Those move in and move out messages for up and down should read from above or from below.
+- [x] DONE 2026-08-15: mob up/down move-in/out lines now read "from above"/"from below" and "walks upward/downward" (mob_ai.c DEPART_PHRASE/ARRIVE_PHRASE tables). (The only directional move strings were the mob wander lines; player arrival has no direction.)
 - Add left margin navigation to the website
 - At level 13 the basic discipline is learned to 100%, it should take twice as long
-- when a player rents his load room should change to the room he rented in
+- [x] DONE 2026-08-15: renting now sets your load room to the rent room (cmd_rent.c -> player_set_load_room). smoke_test_rent_loadroom.py passes live.
 
 ## Standing rules (learned)
 

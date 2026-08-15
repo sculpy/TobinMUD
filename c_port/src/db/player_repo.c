@@ -267,7 +267,7 @@ bool player_list_by_account(long account_id, char names[][PLAYER_NAME_LEN], int 
     bool ok = db_query(db,
                        "select p.name, coalesce(pp.level, 1) as level"
                        " from player p left join player_progress pp on pp.player_id = p.id"
-                       " where p.account_id=%i order by p.name limit %i",
+                       " where p.account_id=%i order by coalesce(pp.level, 1) desc, p.name limit %i",
                        (int)account_id, max);
     if (ok) {
         while (*count < max && db_fetch_row(db)) {

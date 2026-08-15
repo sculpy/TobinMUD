@@ -9,6 +9,7 @@
 
 #include "log.h"
 #include "player_repo.h"
+#include "room.h"
 #include "rent.h"
 #include "treasury_repo.h"
 
@@ -58,6 +59,13 @@ bool cmd_rent(descriptor_t *d, const char *args) {
     }
 
     ch->progress.rented_at = (long)time(NULL);
+
+    /* Renting relocates where you next enter the world: your rent room
+     * becomes your new load room (user request), so you wake up where
+     * you stored your belongings rather than at your old home room. */
+    if (ch->base.roomp)
+        player_set_load_room(ch->base.name, d->account.account_id,
+                             ch->base.roomp->vnum);
 
     descriptor_send(d,
         "You rent a room and store your belongings safely away.\r\n"

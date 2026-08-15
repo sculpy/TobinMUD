@@ -175,14 +175,33 @@ static void mob_try_wander(being_t *m, bool force) {
      * phrasing (cmd_move.c). */
     char capbuf[128];
     char msg[256];
-    snprintf(msg, sizeof(msg), "%s walks to the %s.\r\n",
-             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), DIR_NAMES[dir]);
+    /* Movement phrasing that reads naturally for the vertical exits
+     * (user: up/down move-in/out lines should say "from above"/"from
+     * below", not "from the up"/"from the down"), matching cmd_move.c's
+     * own EXIT_PHRASES treatment of up/down. Compass directions keep the
+     * plain "the <dir>" form. The arrival table is indexed by
+     * REV_DIR[dir] (you leave going up, so you arrive from below). */
+    static const char *const DEPART_PHRASE[ROOM_NUM_EXITS] = {
+        "walks to the north", "walks to the east", "walks to the south",
+        "walks to the west", "walks upward", "walks downward",
+        "walks to the northeast", "walks to the northwest",
+        "walks to the southeast", "walks to the southwest",
+    };
+    static const char *const ARRIVE_PHRASE[ROOM_NUM_EXITS] = {
+        "walks in from the north", "walks in from the east",
+        "walks in from the south", "walks in from the west",
+        "walks in from above", "walks in from below",
+        "walks in from the northeast", "walks in from the northwest",
+        "walks in from the southeast", "walks in from the southwest",
+    };
+    snprintf(msg, sizeof(msg), "%s %s.\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), DEPART_PHRASE[dir]);
     descriptor_room_echo(from, NULL, msg);
 
     thing_set_room(&m->base, to);
 
-    snprintf(msg, sizeof(msg), "%s walks in from the %s.\r\n",
-             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), DIR_NAMES[REV_DIR[dir]]);
+    snprintf(msg, sizeof(msg), "%s %s.\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), ARRIVE_PHRASE[REV_DIR[dir]]);
     descriptor_room_echo(to, NULL, msg);
 }
 
