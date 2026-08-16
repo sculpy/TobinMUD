@@ -19,7 +19,7 @@ import socket
 import subprocess
 import sys
 import time
-from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
+from mud_test_utils import send_line, recv_all, check, sql, cmd, cmd_until, sync, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
@@ -110,48 +110,60 @@ obj_insert(HEAVY, "anvil", "a heavy anvil", "A heavy anvil is lying here.",
 obj_insert(LIGHT, "feather", "a light feather", "A light feather is lying here.",
            TYPE_TRINKET, WEAR_TAKE, weight=2)
 
-check("Container Sandbox" in cmd(s, f"goto {ROOM}"), "goto lands in the sandbox room")
+check("Container Sandbox" in cmd_until(s, f"goto {ROOM}", "Container Sandbox"), "goto lands in the sandbox room")
+# Mages now spawn carrying a spellbag+components (newbie-gear change); junk it
+# so it can't collide with the test's own containers or bloat inventory reads.
+cmd(s, "junk spellbag")
 
 # --- 1: a closed container reads as closed and blocks access ---
 cmd(s, f"load obj {CHEST}")
-check("It is closed." in cmd(s, "look chest"), "look on a closed container says it is closed")
+# load now drops into inventory (2026-07-22); this test needs a room-floor
+# container, so put the chest on the floor.
+cmd(s, "drop chest")
+check("It is closed." in cmd_until(s, "look chest", "It is closed."), "look on a closed container says it is closed")
 cmd(s, f"load obj {GEM}")
-check("You get" in cmd(s, "get gem"), "pick up the gem")
-check("It's closed." in cmd(s, "put gem chest"), "put into a closed container is refused")
+cmd(s, "drop gem")
+check("You get" in cmd_until(s, "get gem", "You get"), "pick up the gem off the floor")
+check("It's closed." in cmd_until(s, "put gem chest", "It's closed."), "put into a closed container is refused")
 
 # --- 2: open clears CONT_CLOSED; contents now visible ---
-check("You open" in cmd(s, "open chest"), "open a closeable container")
-check("It contains" in cmd(s, "look chest"), "an open container shows its (empty) contents")
+check("You open" in cmd_until(s, "open chest", "You open"), "open a closeable container")
+check("It contains" in cmd_until(s, "look chest", "It contains"), "an open container shows its (empty) contents")
 
 # --- 3: put / look-inside / get from a room-floor container ---
-check("You put" in cmd(s, "put gem chest"), "put the gem into the open chest")
-check("gem" in cmd(s, "look chest"), "look lists the gem inside the chest")
-check("gem" not in cmd(s, "inventory"), "the gem is no longer loose in inventory")
-check("You get" in cmd(s, "get gem chest"), "get the gem back out of the chest")
-check("gem" in cmd(s, "inventory"), "the gem is loose in inventory again")
+check("You put" in cmd_until(s, "put gem chest", "You put"), "put the gem into the open chest")
+check("gem" in cmd_until(s, "look chest", "gem"), "look lists the gem inside the chest")
+inv3 = cmd_until(s, "inventory", "carrying")
+sync(s)
+check("gem" not in inv3, "the gem is no longer loose in inventory")
+check("You get" in cmd_until(s, "get gem chest", "You get"), "get the gem back out of the chest")
+check("gem" in cmd_until(s, "inventory", "gem"), "the gem is loose in inventory again")
+sync(s)
 
 # --- 4: not-a-container / self refusals ---
-cmd(s, f"load obj {COIN}")
-cmd(s, "get coin")
-check("not a container" in cmd(s, "put coin gem"), "put into a non-container is refused")
+cmd(s, f"load obj {COIN}")  # lands in inventory, already carried
+check("not a container" in cmd_until(s, "put coin gem", "not a container"), "put into a non-container is refused")
 
 # --- 5: weight capacity on a carried container ---
-cmd(s, f"load obj {BAG}"); cmd(s, "get bag")
-cmd(s, f"load obj {HEAVY}"); cmd(s, "get anvil")
-check("won't fit" in cmd(s, "put anvil bag"), "an over-capacity item won't fit")
-cmd(s, f"load obj {LIGHT}"); cmd(s, "get feather")
-check("You put" in cmd(s, "put feather bag"), "a light item fits within capacity")
-check("feather" in cmd(s, "look bag"), "look lists the feather inside the carried bag")
+cmd(s, f"load obj {BAG}")  # already carried
+cmd(s, f"load obj {HEAVY}")  # already carried
+check("won't fit" in cmd_until(s, "put anvil bag", "won't fit"), "an over-capacity item won't fit")
+cmd(s, f"load obj {LIGHT}")  # already carried
+check("You put" in cmd_until(s, "put feather bag", "You put"), "a light item fits within capacity")
+check("feather" in cmd_until(s, "look bag", "feather"), "look lists the feather inside the carried bag")
 
 # --- 6: close re-shuts and blocks access ---
-check("You close" in cmd(s, "close bag"), "close a closeable container")
-check("It's closed." in cmd(s, "get feather bag"), "a re-closed container blocks get")
+check("You close" in cmd_until(s, "close bag", "You close"), "close a closeable container")
+check("It's closed." in cmd_until(s, "get feather bag", "It's closed."), "a re-closed container blocks get")
 
 # --- 7: contents survive a relog (reload loose, never lost) ---
 s.close()
 s = login(imm_name, imm_pw)
-check("feather" in cmd(s, "inventory"), "the bagged feather survived a relog (reloaded loose)")
-check("bag" in cmd(s, "inventory"), "the bag itself survived the relog too")
+# `look <item>` (single-item, never paginated) instead of the full inventory,
+# which the newbie starting gear makes long enough to trigger the 20-line pager.
+check("feather" in cmd_until(s, "look feather", "feather").lower(), "the bagged feather survived a relog (reloaded loose)")
+sync(s)
+check("bag" in cmd_until(s, "look bag", "bag").lower(), "the bag itself survived the relog too")
 
 s.close()
 announce_done("smoke_test_containers", host, port)

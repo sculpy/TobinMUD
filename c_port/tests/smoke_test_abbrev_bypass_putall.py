@@ -20,7 +20,7 @@
 import socket
 import sys
 import time
-from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
+from mud_test_utils import send_line, recv_all, check, sql, cmd, cmd_until, sync, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
@@ -70,13 +70,24 @@ out = cmd(s, "pray armor")
 check("holy symbol" not in out.lower(),
       "an immortal prays with no holy symbol (NOHASSLE bypass)")
 
-# 4. `put all.<name> <container>` moves every match into the bag (and merges)
+# 4. `put all.<name> <container>` moves every match into the bag (and merges).
+# Do this in a fresh, empty scratch room so no stray dropped spellbag on the
+# immortal spawn-room floor can shadow the carried one. Mages now spawn
+# carrying a spellbag+components (newbie-gear change); junk the starting bag so
+# `spellbag` unambiguously names the loaded test container.
+SCRATCH = 899000 + (int(time.time()) % 80000)
+sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
+    f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
+    f"VALUES ({SCRATCH},0,0,0,'Putall Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
+cmd_until(s, f"goto {SCRATCH}", "Putall Sandbox")
+cmd(s, "junk spellbag")
+sync(s)
 cmd(s, "load obj 321")   # a small spellbag (container)
 cmd(s, "load obj 200")   # two identical components
 cmd(s, "load obj 200")
-out = cmd(s, "put all.lasso spellbag")
+out = cmd_until(s, "put all.lasso spellbag", "You put a tiny lasso")
 check("You put a tiny lasso" in out, "put all.<name> moves the matching items into the container")
-inside = cmd(s, "look in spellbag")
+inside = cmd_until(s, "look in spellbag", "basilisk hair")
 check("basilisk hair" in inside.lower(),
       "the components are now inside the spellbag")
 # both went in and merged -> the bag lists the lasso exactly once
@@ -84,5 +95,6 @@ check(inside.lower().count("basilisk hair") == 1,
       "the two put-away components merged into a single stack inside the bag")
 s.close()
 
+sql(f"DELETE FROM room WHERE vnum={SCRATCH};")
 announce_done("smoke_test_abbrev_bypass_putall", host, port)
 print("PASS: smoke_test_abbrev_bypass_putall")
