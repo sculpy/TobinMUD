@@ -94,11 +94,10 @@ void regen_tick_run(long pulse_num) {
             vit_amount = 1;
         being_heal_vit(b, vit_amount);
 
-        /* Mana (user 2026-08-06: "add mana to prompt" -- once the pool
-         * itself shipped, it needs a regen tick same as HP/Vitality).
-         * being_heal_mana() is already a no-op for max_mana == 0, so
-         * this line costs nothing for the classes that don't have one. */
-        being_heal_mana(b, regen_amount(b));
+        /* Mana and piety are NOT restored here -- they recover on the
+         * slower, position-independent mana_piety_regen_tick_run()
+         * (MANA_REGEN_PULSES, ~36s), matching real SneezyMUD's own
+         * updateHalfTickStuff() cadence. */
 
         /* User 2026-08-03: "when completely rested ... you should
          * automatically stand" -- reaching full HP AND vitality while
@@ -135,5 +134,36 @@ void regen_tick_run(long pulse_num) {
             descriptor_send(d, "You feel fully rested and stand up.\r\n");
         }
         being_notify_vitals_changed(b);
+    }
+}
+
+/* Mana/piety recovery on a slower 36-second cadence (MANA_REGEN_PULSES)
+ * than the 5-second HP/Vitality tick above. Real SneezyMUD restores
+ * both once per Pulse::UPDATE (36s) in updateHalfTickStuff(), with flat,
+ * position-independent amounts (being_mana_gain()/being_piety_gain()),
+ * unlike HP/Vitality's rest-weighted trickle. Skips the dead/incap/
+ * stunned (Sneezy's "position > STUNNED"), the drunk (>= 15), and anyone
+ * fighting. */
+void mana_piety_regen_tick_run(long pulse_num) {
+    (void)pulse_num;
+    for (descriptor_t *d = g_descriptors; d; d = d->next) {
+        being_t *b = d->character;
+        if (!b || b->fighting)
+            continue;
+        if (b->position <= POSITION_STUNNED)
+            continue;
+        if (b->progress.drunk >= 15)
+            continue;
+        bool changed = false;
+        if (b->progress.max_mana > 0 && b->progress.mana < b->progress.max_mana) {
+            being_heal_mana(b, being_mana_gain(b));
+            changed = true;
+        }
+        if (b->progress.max_piety > 0 && b->progress.piety < b->progress.max_piety) {
+            being_heal_piety(b, being_piety_gain(b));
+            changed = true;
+        }
+        if (changed)
+            being_notify_vitals_changed(b);
     }
 }

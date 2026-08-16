@@ -681,3 +681,7 @@ UPDATE `player` p
 JOIN `player_progress` pp ON pp.player_id = p.id
 SET p.class = 6
 WHERE (IF(pp.true_level > 0, pp.true_level, pp.level)) >= 51;
+
+-- Cleric piety pool + persisted current mana/piety (mana/piety gain-and-recovery port, 2026-08-16).
+ALTER TABLE player_progress ADD COLUMN IF NOT EXISTS piety INT NOT NULL DEFAULT 0;
+ALTER TABLE player_progress ADD COLUMN IF NOT EXISTS max_piety INT NOT NULL DEFAULT 0;

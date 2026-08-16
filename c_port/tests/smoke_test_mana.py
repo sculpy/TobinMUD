@@ -122,10 +122,24 @@ cmd(sm, "cast gust")
 out = cmd(sm, "score")
 m = re.search(r"Mana:\s*(-?\d+)", out)
 mana_after = int(m.group(1)) if m else None
-check(mana_after is not None and mana_after <= 2,
-      f"gust's real 10-mana cost was deducted from a 10-mana pool (mana now {mana_after}, allowing a little passive regen drift)")
+# gust deducts its real 10 from the 10-mana pool -> 0. Mana now regenerates
+# passively (this session's new ~36s Sneezy mana tick), and that tick is
+# asynchronous to the test: it may or may not fire in the couple of seconds
+# between the cast resolving and this score read. For this fixed human-race
+# Mage the tick adds exactly 48, so the deduction is provable either way --
+# an undisturbed read is ~0, a read just after one stray tick is ~48; an
+# UNdeducted pool would instead read 10 (no tick) or 58 (one tick), both
+# outside these bands.
+check(mana_after is not None and (mana_after <= 2 or 46 <= mana_after <= 50),
+      f"gust's real 10-mana cost was deducted from a 10-mana pool "
+      f"(mana now {mana_after}: ~0 undisturbed, or ~48 after one async regen tick -- either way the 10 was spent)")
 
-# --- 4: insufficient mana refuses outright ---
+# --- 4: insufficient mana refuses outright. Reset mana to 0 with a fresh
+# reconnect right before the cast -- mana now regenerates fast enough
+# (real Sneezy manaGain, ~36s tick) that relying on the leftover ~0 from
+# case 3 could be topped back up by a regen tick mid-test. ---
+sm.close()
+sm = set_progress_and_reconnect("level=20, basic_disc_pct=100, mana=0, max_mana=100")
 cmd(sm, "load obj 200")
 out = cmd(sm, "cast gust")
 check("don't have enough mana" in out.lower(), "casting with 0 mana is refused before any attempt")
@@ -150,9 +164,9 @@ check("begin meditating" in out.lower(), "meditate starts the background task")
 out = ""
 for _ in range(6):
     out += cmd(sm, "", timeout=1.0)
-    if "focus returns" in out.lower():
+    if "focuses your mind" in out.lower():
         break
-check("focus returns" in out.lower(), "a meditate tick actually restored mana")
+check("focuses your mind" in out.lower(), "a meditate tick actually restored mana")
 check("your meditation is broken" not in out.lower(),
       "meditation wasn't cut short by the unrelated HP/Vit auto-stand check")
 out = cmd(sm, "score")

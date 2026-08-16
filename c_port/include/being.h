@@ -217,6 +217,12 @@ typedef struct {
      * weighting as HP/Vitality (regen.c). */
     int mana;
     int max_mana;
+    /* Piety: the Cleric's divine casting resource (Tobin's analogue
+     * to a Mage's mana), a flat 0..100 pool spent by `pray` and
+     * regenerated on the mana/piety tick -- being_calc_max_piety(),
+     * being_piety_gain(). 0 for every non-Cleric. */
+    int piety;
+    int max_piety;
 } progress_t;
 
 /* Prompt customization bits (player.prompt_flags, cmd_prompt.c; rendered
@@ -1280,6 +1286,9 @@ int being_calc_max_vit(const being_t *b);
  * Returns 0 for any class/kind with no mana pool at all (most of the
  * roster). */
 int being_calc_max_mana(const being_t *b);
+int being_calc_max_piety(const being_t *b);
+int being_mana_gain(const being_t *b);
+int being_piety_gain(const being_t *b);
 
 /* (Re)sets every limb's max_hp from b->progress.max_hp (split evenly across
  * LIMB_COUNT, placeholder -- the original weights per-slot max via
@@ -1331,6 +1340,8 @@ void being_heal_mana(being_t *b, int amount);
  * "spend, don't gate" division of responsibility being_spend_vit()
  * already uses (cmd_move.c does its own affordability check). */
 void being_spend_mana(being_t *b, int amount);
+void being_heal_piety(being_t *b, int amount);
+void being_spend_piety(being_t *b, int amount);
 
 /* GMCP/MSDP push on vitals change (TobinMUD Client project, 2026-08-05).
  * No-op unless `b` is a connected PC (`b->desc`) with the matching

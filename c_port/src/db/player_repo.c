@@ -145,6 +145,9 @@ being_t *player_load(const char *name, long account_id) {
         b->progress.max_mana = being_calc_max_mana(b);
         if (b->progress.mana > b->progress.max_mana)
             b->progress.mana = b->progress.max_mana;
+        b->progress.max_piety = being_calc_max_piety(b);
+        if (b->progress.piety > b->progress.max_piety)
+            b->progress.piety = b->progress.max_piety;
         player_inventory_load(b->player_id, b); /* recreates carried/worn/held instances, see obj_repo.h */
         ensure_jesus_level(b);
     }
@@ -209,6 +212,8 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
             b->progress.vit = b->progress.max_vit;
             b->progress.max_mana = being_calc_max_mana(b);
             b->progress.mana = b->progress.max_mana;
+            b->progress.max_piety = being_calc_max_piety(b);
+            b->progress.piety = b->progress.max_piety;
             player_attrs_save(player_id, &b->attrs);
             player_progress_save(player_id, &b->progress);
             /* Newbie equipment suit (user 2026-07-26): "load on the
@@ -508,7 +513,7 @@ bool player_progress_load(long player_id, progress_t *out) {
     if (db_query(db, "select level, experience, hp, max_hp, true_level, alignment, "
                       "basic_disc_pct, advanced_disc_pct, combat_disc_pct, practice_points, "
                       "rented_at, gold, bank_gold, hunger, thirst, drunk, birth_time, vit, max_vit, "
-                      "mana, max_mana "
+                      "mana, max_mana, piety, max_piety "
                       "from player_progress where player_id=%i",
                  (int)player_id)
         && db_fetch_row(db)) {
@@ -533,6 +538,8 @@ bool player_progress_load(long player_id, progress_t *out) {
         out->max_vit = atoi(db_get(db, "max_vit"));
         out->mana = atoi(db_get(db, "mana"));
         out->max_mana = atoi(db_get(db, "max_mana"));
+        out->piety = atoi(db_get(db, "piety"));
+        out->max_piety = atoi(db_get(db, "max_piety"));
         found = true;
     }
 
@@ -552,17 +559,17 @@ bool player_progress_save(long player_id, const progress_t *progress) {
     bool ok = db_query(db,
         "insert into player_progress (player_id, level, experience, hp, max_hp, true_level, alignment, "
         "basic_disc_pct, advanced_disc_pct, combat_disc_pct, practice_points, rented_at, gold, bank_gold, "
-        "hunger, thirst, drunk, birth_time, vit, max_vit, mana, max_mana) "
-        "values (%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i) "
+        "hunger, thirst, drunk, birth_time, vit, max_vit, mana, max_mana, piety, max_piety) "
+        "values (%i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i) "
         "on duplicate key update level=%i, experience=%i, hp=%i, max_hp=%i, true_level=%i, alignment=%i, "
         "basic_disc_pct=%i, advanced_disc_pct=%i, combat_disc_pct=%i, practice_points=%i, rented_at=%i, gold=%i, bank_gold=%i, "
-        "hunger=%i, thirst=%i, drunk=%i, birth_time=%i, vit=%i, max_vit=%i, mana=%i, max_mana=%i",
+        "hunger=%i, thirst=%i, drunk=%i, birth_time=%i, vit=%i, max_vit=%i, mana=%i, max_mana=%i, piety=%i, max_piety=%i",
         (int)player_id, progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment,
         progress->basic_disc_pct, progress->advanced_disc_pct, progress->combat_disc_pct, progress->practice_points, (int)progress->rented_at, progress->gold, progress->bank_gold,
-        progress->hunger, progress->thirst, progress->drunk, (int)progress->birth_time, progress->vit, progress->max_vit, progress->mana, progress->max_mana,
+        progress->hunger, progress->thirst, progress->drunk, (int)progress->birth_time, progress->vit, progress->max_vit, progress->mana, progress->max_mana, progress->piety, progress->max_piety,
         progress->level, (int)progress->experience, progress->hp, progress->max_hp, progress->true_level, progress->alignment,
         progress->basic_disc_pct, progress->advanced_disc_pct, progress->combat_disc_pct, progress->practice_points, (int)progress->rented_at, progress->gold, progress->bank_gold,
-        progress->hunger, progress->thirst, progress->drunk, (int)progress->birth_time, progress->vit, progress->max_vit, progress->mana, progress->max_mana);
+        progress->hunger, progress->thirst, progress->drunk, (int)progress->birth_time, progress->vit, progress->max_vit, progress->mana, progress->max_mana, progress->piety, progress->max_piety);
 
     db_close(db);
     return ok;

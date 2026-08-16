@@ -565,3 +565,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Mastery Comes Slower, Specializations Become Advanced Training', 'Honing your disciplines now rewards dedication over haste. Practicing a discipline advances more gradually, so reaching full mastery of your Basic and Combat training is a noticeably longer road, and true Advanced mastery longer still. Weapon specializations have moved into that Advanced training: you must first master your Basic and Combat disciplines and begin Advanced study before a specialization will start to develop, and a specialization can then only sharpen as far as your Advanced discipline itself has grown. Your everyday weapon proficiencies stay part of your Combat training as before.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Clerics Draw on Piety; Casters Feel Their Power Return', 'Divine and arcane might now ebb and flow the way they should. Clerics call on Piety -- a divine reserve shown in your score -- to power their prayers, and a prayer will falter if your Piety runs dry, refilling steadily as you travel and rest. Mages and Druids recover their casting power faster and more naturally than before, and Monks now share in it with a real pool of their own that deepens as they grow.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

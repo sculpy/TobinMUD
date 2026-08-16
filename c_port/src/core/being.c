@@ -72,6 +72,8 @@ being_t *being_create_pc(const char *name, long account_id, long player_id) {
     b->progress.vit = b->progress.max_vit;
     b->progress.max_mana = being_calc_max_mana(b);
     b->progress.mana = b->progress.max_mana;
+    b->progress.max_piety = being_calc_max_piety(b);
+    b->progress.piety = b->progress.max_piety;
     b->progress.hunger = 100;
     b->progress.thirst = 100;
     b->progress.drunk = 0;
@@ -788,19 +790,23 @@ int being_calc_max_mana(const being_t *b) {
      * in the game a Mage-shaped mana pool it will never use. */
     if (b->base.kind == THING_MOB && !b->mob_class_known)
         return 0;
-    if (b->char_class != CLASS_MAGE && b->char_class != CLASS_DRUID)
-        return 0;
-    /* Druid mirrors Mage's mana machinery but its pool is labelled
-     * "Lifeforce" (score/prompt) -- user 2026-08-10: "druid use life
-     * force but it mirrors mana". Druid has no "mana" skill of its own,
-     * so skill_find() returns NULL and pct stays 0 -> a flat 100 base
-     * pool (times any race mult), spent by casting and restored by
-     * meditate/regen exactly like a Mage's. */
-    const skill_def_t *mana_sk = skill_find(b->char_class, "mana", false);
-    int pct = mana_sk ? skill_proficiency(b, mana_sk) : 0;
-    /* Race mana-pool perk (race_balance.mana_mult, `balance` command):
-     * Gnome/Elf run deeper, Dwarf shallower. Neutral 1.0 until balanced. */
-    return (int)((100 + pct * 3) * race_balance_get(b->race)->mana_mult);
+    double mult = race_balance_get(b->race)->mana_mult;
+    /* Real SneezyMUD TPerson::manaLimit(): Mage is 100 + their own
+     * learn-by-doing "mana" skill * 3; Ranger/Monk get 100 + level * 3.
+     * Tobin folds Ranger into Druid but Druid has no "mana" skill, so it
+     * stays a flat 100, labelled "Lifeforce" in score/prompt (user
+     * 2026-08-10). Monk joined the mana classes 2026-08-16 with the
+     * level*3 branch. The race mana_mult scales the pool either way. */
+    if (b->char_class == CLASS_MAGE) {
+        const skill_def_t *mana_sk = skill_find(CLASS_MAGE, "mana", false);
+        int pct = mana_sk ? skill_proficiency(b, mana_sk) : 0;
+        return (int)((100 + pct * 3) * mult);
+    }
+    if (b->char_class == CLASS_DRUID)
+        return (int)(100 * mult);
+    if (b->char_class == CLASS_MONK)
+        return (int)((100 + b->progress.level * 3) * mult);
+    return 0;
 }
 
 static const char *LIMB_NAMES[LIMB_COUNT] = {
@@ -1606,6 +1612,59 @@ void being_spend_mana(being_t *b, int amount) {
     b->progress.mana -= amount;
     if (b->progress.mana < 0)
         b->progress.mana = 0;
+}
+
+/* Cleric's piety pool -- Tobin's divine casting resource, a flat
+ * 0..100 like real SneezyMUD's pietyLimit(). Clerics only. */
+int being_calc_max_piety(const being_t *b) {
+    if (!b)
+        return 0;
+    if (b->base.kind == THING_MOB && !b->mob_class_known)
+        return 0;
+    return b->char_class == CLASS_CLERIC ? 100 : 0;
+}
+
+/* Mana restored per 36s mana/piety tick, ported from SneezyMUD's
+ * TPerson::manaGain(): graf() with real-aging disabled is a constant 6,
+ * times its arbitrary x4 = 24; Mages double it to 48. Tobin has no
+ * additive race mana mod, so the race mana_mult (which sizes the pool)
+ * scales the regen proportionally. Quartered while starving or parched
+ * (Sneezy's !getCond(FULL)/!getCond(THIRST)). */
+int being_mana_gain(const being_t *b) {
+    if (!b || b->progress.max_mana <= 0)
+        return 0;
+    int gain = 24;
+    if (b->char_class == CLASS_MAGE)
+        gain *= 2;
+    gain = (int)(gain * race_balance_get(b->race)->mana_mult);
+    if (b->progress.hunger == 0 || b->progress.thirst == 0)
+        gain >>= 2;
+    return gain < 1 ? 1 : gain;
+}
+
+/* Piety restored per 36s tick, ported from SneezyMUD's TBeing::piety-
+ * Gain() faction-less path: (150 + modif) / 18, with modif (a piety-
+ * discipline bonus Tobin doesn't model) at 0 -> ~8/tick. The 100 cap is
+ * enforced by being_heal_piety(). */
+int being_piety_gain(const being_t *b) {
+    if (!b || b->progress.max_piety <= 0)
+        return 0;
+    return 150 / 18; /* 8 */
+}
+
+void being_heal_piety(being_t *b, int amount) {
+    if (!b || amount <= 0 || b->progress.max_piety <= 0)
+        return;
+    b->progress.piety += amount;
+    if (b->progress.piety > b->progress.max_piety)
+        b->progress.piety = b->progress.max_piety;
+}
+void being_spend_piety(being_t *b, int amount) {
+    if (!b || amount <= 0)
+        return;
+    b->progress.piety -= amount;
+    if (b->progress.piety < 0)
+        b->progress.piety = 0;
 }
 
 /* See being.h. GMCP/MSDP project (2026-08-05). */

@@ -149,6 +149,7 @@ int main(int argc, char **argv) {
     pulse_register(COMBAT_ROUND_PULSES, combat_music_tick); /* MSP fight music start/stop */
     pulse_register(COMBAT_ROUND_PULSES, affect_tick_run); /* counts down active buffs/debuffs every round */
     pulse_register(REGEN_PULSES, regen_tick_run);
+    pulse_register(MANA_REGEN_PULSES, mana_piety_regen_tick_run);
     pulse_register(100, descriptor_held_expire); /* ~10s: expire held msgs past TTL */
     pulse_register(120, descriptor_keepalive);   /* ~12s: telnet NOP anti-idle (aggressive, survives tight NAT windows) */
     pulse_register(600, descriptor_idle_timeout);/* ~60s: idle-out mortals (immortals immune) */

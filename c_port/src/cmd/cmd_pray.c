@@ -14,6 +14,7 @@
 #include "cmd.h"
 #include "combat.h"
 #include "help_repo.h"
+#include "spell_mana.h"
 #include "obj.h"
 #include "player_repo.h"
 #include "liquids.h"
@@ -108,6 +109,31 @@ static const char *cap_first(const char *label, char *buf, size_t bufsz) {
  * "no holy symbol" gate ever refuses an immortal and consume_symbol()
  * never touches it (user: immortals do not require holy symbols). */
 static obj_t g_immortal_symbol_sentinel;
+
+/* Piety cost of a prayer -- Tobin makes piety the Cleric's casting
+ * resource (a Mage spends mana on `cast`; a Cleric spends piety on
+ * `pray`), reusing the spell's real SneezyMUD mana value (spell_mana.c)
+ * as that cost. */
+static int pray_piety_cost(const skill_def_t *sk) {
+    return spell_mana_cost(sk->name, sk->min_level);
+}
+
+/* Central piety gate: refuses (with a message) if a mortal Cleric lacks
+ * the piety for `sk`, otherwise spends it. Immortals never pay. Returns
+ * false when the prayer should be refused. */
+static bool pray_spend_piety(descriptor_t *d, being_t *ch, const skill_def_t *sk, bool imm) {
+    if (imm)
+        return true;
+    int cost = pray_piety_cost(sk);
+    if (ch->progress.piety < cost) {
+        char msg[112];
+        snprintf(msg, sizeof(msg), "You lack the piety to pray for %s (need %d).\r\n", sk->name, cost);
+        descriptor_send(d, msg);
+        return false;
+    }
+    being_spend_piety(ch, cost);
+    return true;
+}
 
 static obj_t *find_holy_symbol(const being_t *ch) {
     if (being_is_immortal(ch))
@@ -1257,6 +1283,8 @@ bool cmd_pray(descriptor_t *d, const char *args) {
             consume_symbol(d, awsym);
             return true;
         }
+        if (!pray_spend_piety(d, ch, awsk, imm))
+            return true;
         room_t *aworigin = ch->base.roomp;
         char awmsg[128];
         snprintf(awmsg, sizeof(awmsg), "You pray for %s -- a shimmering portal tears open before you!\r\n", awsk->name);
@@ -1309,6 +1337,21 @@ bool cmd_pray(descriptor_t *d, const char *args) {
             descriptor_send(d, "Master your Basic and Combat disciplines, and begin Advanced practice, before this.\r\n");
             return true;
         }
+    }
+
+    /* Piety is the Cleric's casting resource (Tobin's analogue to a
+     * Mage's mana): every prayer costs piety equal to the spell's real
+     * SneezyMUD mana value, spent up front like cast's mana. Checked
+     * after confirming a holy symbol is present, so a symbol-less refusal
+     * never burns piety; immortals pay neither. Covers `summon`, create
+     * food/water, and the general prayer path below. */
+    if (!imm) {
+        if (!find_holy_symbol(ch)) {
+            descriptor_send(d, "You need a holy symbol to pray successfully.\r\n");
+            return true;
+        }
+        if (!pray_spend_piety(d, ch, sk, imm))
+            return true;
     }
 
     /* `summon` (Cleric, level 19, audit continued): unlike every other

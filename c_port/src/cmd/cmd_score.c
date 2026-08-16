@@ -69,6 +69,24 @@ static int compute_age_years(long birth_time) {
  * resource pool at all (see this file's top-of-file doc comment); only
  * the label changes, so a Cleric player sees a name they recognize even
  * though nothing is spent from it yet. */
+/* The current/max value of the class's casting resource pool shown
+ * next to resource_pool_label(): Cleric -> piety, Mage/Druid/Monk ->
+ * mana, everyone else 0. */
+static int resource_pool_cur(const being_t *ch) {
+    if (ch->char_class == CLASS_CLERIC)
+        return ch->progress.piety;
+    if (ch->char_class == CLASS_MAGE || ch->char_class == CLASS_DRUID || ch->char_class == CLASS_MONK)
+        return ch->progress.mana;
+    return 0;
+}
+static int resource_pool_max(const being_t *ch) {
+    if (ch->char_class == CLASS_CLERIC)
+        return ch->progress.max_piety;
+    if (ch->char_class == CLASS_MAGE || ch->char_class == CLASS_DRUID || ch->char_class == CLASS_MONK)
+        return ch->progress.max_mana;
+    return 0;
+}
+
 static const char *resource_pool_label(player_class_t c) {
     switch (c) {
         case CLASS_CLERIC: return "Piety";
@@ -155,8 +173,8 @@ bool cmd_score(descriptor_t *d, const char *args) {
               * is Mage-only regardless -- Monk never gets a real pool in
               * Tobin -- so this now matches that exactly rather than
               * re-adding a Monk branch that would always read 0 anyway. */
-             (ch->char_class == CLASS_MAGE || ch->char_class == CLASS_DRUID) ? p->mana : 0,
-             (ch->char_class == CLASS_MAGE || ch->char_class == CLASS_DRUID) ? p->max_mana : 0,
+             resource_pool_cur(ch),
+             resource_pool_max(ch),
              p->vit, p->max_vit,
              a->strength, a->intelligence, a->dexterity,
              a->wisdom, a->constitution, a->charisma,
