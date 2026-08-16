@@ -117,6 +117,30 @@ static void spellcast_show_round(descriptor_t *d, being_t *ch, int round_num, in
         descriptor_send_msp_sound(d, CASTING_SOUND_POOL[rand() % 6], 100);
 }
 
+/* Per-round mana draw (user 2026-08-16). A delayed cast pays its cost a
+ * proportional slice at a time: by the end of `round_num` of
+ * `cast_rounds_total` rounds the caster should have paid
+ * round(cost * round_num / total), so each call charges only the
+ * not-yet-paid remainder up to that mark. Recomputing against the
+ * (possibly distraction-extended) total every round keeps the running
+ * total exact -- the final round always squares up to the full cost, and
+ * a cast shattered early simply stops calling this, leaving the rest
+ * unpaid. Immortals and non-mana classes carry cast_mana_cost == 0, so
+ * this is a no-op for them. */
+static void spellcast_pay_round(being_t *ch, int round_num) {
+    if (ch->cast_mana_cost <= 0)
+        return;
+    int total = ch->cast_rounds_total < 1 ? 1 : ch->cast_rounds_total;
+    int target_paid = (int)((long)ch->cast_mana_cost * round_num / total);
+    if (target_paid > ch->cast_mana_cost)
+        target_paid = ch->cast_mana_cost;
+    int due = target_paid - ch->cast_mana_paid;
+    if (due > 0) {
+        being_spend_mana(ch, due);
+        ch->cast_mana_paid += due;
+    }
+}
+
 void spellcast_start(descriptor_t *d, being_t *ch, const skill_def_t *sk, being_t *target) {
     /* 2 or 3 rounds (user: "2-3 rounds... druid casting should take
      * about the same amount of time") -- randomized once per cast
@@ -135,6 +159,7 @@ void spellcast_start(descriptor_t *d, being_t *ch, const skill_def_t *sk, being_
     being_set_wait(ch, ch->cast_rounds_total * COMBAT_ROUND_PULSES);
 
     spellcast_show_round(d, ch, 1, ch->cast_rounds_total);
+    spellcast_pay_round(ch, 1);
 }
 
 /* Periodic hook that advances every connected, currently-casting
@@ -163,6 +188,8 @@ void spellcast_tick_run(long pulse_num) {
             || ch->position == POSITION_SLEEPING) {
             ch->is_casting = false;
             ch->cast_target = NULL;
+            ch->cast_mana_cost = 0;
+            ch->cast_mana_paid = 0;
             descriptor_send(d, "Your concentration is broken -- the spell fizzles!\r\n");
             continue;
         }
@@ -170,6 +197,8 @@ void spellcast_tick_run(long pulse_num) {
             /* being_destroy() already cleared this and sent its own
              * fizzle message (being.c) -- just finish the cancellation. */
             ch->is_casting = false;
+            ch->cast_mana_cost = 0;
+            ch->cast_mana_paid = 0;
             continue;
         }
 
@@ -196,6 +225,8 @@ void spellcast_tick_run(long pulse_num) {
                 ch->cast_target = NULL;
                 ch->cast_rounds_left = 0;
                 ch->cast_rounds_total = 0;
+                ch->cast_mana_cost = 0;
+                ch->cast_mana_paid = 0;
                 if (ch->desc) {
                     char m[224];
                     snprintf(m, sizeof(m),
@@ -234,6 +265,7 @@ void spellcast_tick_run(long pulse_num) {
         ch->cast_rounds_left--;
         int round_num = ch->cast_rounds_total - ch->cast_rounds_left;
         spellcast_show_round(d, ch, round_num, ch->cast_rounds_total);
+        spellcast_pay_round(ch, round_num);
         if (ch->cast_rounds_left > 0)
             continue;
 
@@ -247,6 +279,8 @@ void spellcast_tick_run(long pulse_num) {
         snprintf(spell_name, sizeof(spell_name), "%s", ch->cast_spell_name);
         ch->is_casting = false;
         ch->cast_target = NULL;
+        ch->cast_mana_cost = 0;
+        ch->cast_mana_paid = 0;
 
         const skill_def_t *sk = skill_find(ch->char_class, spell_name, being_is_immortal(ch));
         if (!sk) {

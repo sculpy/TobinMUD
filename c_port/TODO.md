@@ -684,7 +684,7 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - Guard mobs in rooms should assist each other. When you attack a guard you attack _ALL_ guards. Check how sneezy handles this.
 - [x] RESOLVED 2026-08-15: TRACK_COUNT is defined at combat.c:2366 as a function-local `const int` = sizeof(TRACKS)/sizeof(TRACKS[0]) (the MSP fight-music track array). Nothing missing; no code change needed.
 - [x] DONE 2026-08-16: Ported Sneezy mana gain/recovery to Mages, Druids and Monks (Monk newly gains mana), added a Cleric Piety pool (regen + pray spends it), on a dedicated ~36s tick. See smoke_test_mana_piety.py.
-- spell failures should take a bit of casting to fail, not instant fail. And mana cost should be divided by the number of rounds it takes to cast.
+- spell failures should take a bit of casting to fail, not instant fail. [ mana-division half DONE 2026-08-16: delayed casts now spend mana per round (spellcast.c), so a cast broken mid-way only pays for rounds elapsed; see smoke_test_cast_perround.py. REMAINING: a proficiency FUMBLE still fizzles instantly for its full cost -- make that failure play out over a round or two too. ]
 - [x] DONE 2026-08-15: mob up/down move-in/out lines now read "from above"/"from below" and "walks upward/downward" (mob_ai.c DEPART_PHRASE/ARRIVE_PHRASE tables). (The only directional move strings were the mob wander lines; player arrival has no direction.)
 - Add left margin navigation to the website
 - [x] DONE 2026-08-15: renting now sets your load room to the rent room (cmd_rent.c -> player_set_load_room). smoke_test_rent_loadroom.py passes live.
@@ -703,6 +703,5 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - Complete the current task fully before moving to the next.
 - Continue progressing rapidly through the backlog without waiting for additional instructions unless blocked by missing requirements.
 - Document all completed changes, database updates, VNUM allocations, and implementation notes.
-- Help me conserve tokens. Go absolutly silent unless acknowledging an instruction, or giving a brief report on an item just finished. Otherwise, silence.
-- As each item gets built and tested clean, remove that entry in TODO.md
-
+- Help me conserve tokens. No narration, just complete silence. Only exception to this rule is when finished with a task, you can give a brief report. Otherwise, be absolutely quiet.
+- As each item gets built and tested clean, remove that entry in TODO.md. Keep TODO.md and STATUS.md as trimmed as possible.

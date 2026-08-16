@@ -569,3 +569,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Clerics Draw on Piety; Casters Feel Their Power Return', 'Divine and arcane might now ebb and flow the way they should. Clerics call on Piety -- a divine reserve shown in your score -- to power their prayers, and a prayer will falter if your Piety runs dry, refilling steadily as you travel and rest. Mages and Druids recover their casting power faster and more naturally than before, and Monks now share in it with a real pool of their own that deepens as they grow.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Interrupted Spells No Longer Cost Full Power', 'A spell that takes several rounds to weave now draws on your power gradually, round by round, rather than all at once the moment you begin. If your concentration shatters partway through -- knocked about in a fight, or your target slips away -- you only pay for the rounds you actually managed, keeping the rest of your mana. Cast a spell through to the end and it costs exactly what it always has.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

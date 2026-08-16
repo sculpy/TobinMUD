@@ -976,6 +976,17 @@ typedef struct being {
     int cast_rounds_total;
     char cast_spell_name[64];
     struct being *cast_target;
+    /* Per-round mana payment (user 2026-08-16: "mana should deplete for
+     * each round of casting ... that way if they lose concentration it
+     * doesn't cost the same as a full cast"). A delayed Mage/Druid cast
+     * no longer pays its whole cost up front -- `cast_mana_cost` is the
+     * full spell cost fixed at cast time, and `cast_mana_paid` tracks how
+     * much spellcast_tick_run() has drawn so far as it charges a
+     * proportional share each round. A cast shattered mid-way leaves the
+     * remainder unpaid; a completed cast has paid exactly the full cost.
+     * Both 0 for immortals and non-mana classes (nothing to charge). */
+    int cast_mana_cost;
+    int cast_mana_paid;
     /* Distraction counter (Sneezy spelltask parity, user 2026-08-10):
      * disruptive maneuvers landed on a caster mid-`cast` (bash/kick/trip/
      * grapple) add to this via spellcast_distract(); spellcast_tick_run()

@@ -3050,11 +3050,16 @@ bool cmd_cast(descriptor_t *d, const char *args) {
      * built Lifeforce resource in the real game, see
      * being_calc_max_mana()'s own doc comment), so gating Druid's cast
      * on mana here would wrongly refuse every Druid spell outright
-     * (max_mana is always 0 for them). Checked and spent before the
-     * skill roll below, same order real spellcasting tasks use (pay
-     * first, THEN find out if it worked) -- an immortal never pays,
-     * same "no restrictions" spirit as every other immortal bypass in
-     * this function. */
+     * (max_mana is always 0 for them). You must still be able to afford
+     * the WHOLE spell to begin it, but the cost is no longer drawn all at
+     * once here (user 2026-08-16: "mana should deplete for each round of
+     * casting ... if they lose concentration it doesn't cost the same as
+     * a full cast") -- a successful cast hands `cast_cost` to the
+     * multi-round task below, which charges a proportional slice each
+     * round; only a fumble (no rounds to prorate) still pays in full. An
+     * immortal never pays, same "no restrictions" spirit as every other
+     * immortal bypass in this function. */
+    int cast_cost = 0;
     if (!imm && (ch->char_class == CLASS_MAGE || ch->char_class == CLASS_DRUID)) {
         int cost = spell_mana_cost(sk->name, sk->min_level);
         if (ch->progress.mana < cost) {
@@ -3065,7 +3070,7 @@ bool cmd_cast(descriptor_t *d, const char *args) {
             descriptor_send(d, lowmsg);
             return true;
         }
-        being_spend_mana(ch, cost);
+        cast_cost = cost;
     }
 
     /* Per-skill proficiency (Sneezy-style learn-by-doing, user 2026-07-17)
@@ -3117,8 +3122,20 @@ bool cmd_cast(descriptor_t *d, const char *args) {
          * instantly. A failed roll (the `else` below) still fizzles
          * immediately, same as before this change -- there's no
          * "committed" cast to delay when it was never going to work. */
+        /* Hand the full cost to the casting task, which draws it a
+         * proportional share at a time as the rounds tick by (user
+         * 2026-08-16) -- a cast broken by lost concentration only ever
+         * pays for the rounds it actually spent. */
+        ch->cast_mana_cost = cast_cost;
+        ch->cast_mana_paid = 0;
         spellcast_start(d, ch, sk, target);
     } else {
+        /* A fumbled incantation never enters the multi-round task, so
+         * there are no rounds to prorate across -- it still burns the
+         * whole cost, the same "a wasted cast costs mana" rule as
+         * before per-round charging existed. */
+        if (cast_cost > 0)
+            being_spend_mana(ch, cast_cost);
         char msg[128];
         snprintf(msg, sizeof(msg), "You fumble the casting of %s -- nothing happens.\r\n", sk->name);
         descriptor_send(d, msg);
