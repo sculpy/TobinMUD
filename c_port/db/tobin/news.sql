@@ -573,3 +573,23 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Interrupted Spells No Longer Cost Full Power', 'A spell that takes several rounds to weave now draws on your power gradually, round by round, rather than all at once the moment you begin. If your concentration shatters partway through -- knocked about in a fight, or your target slips away -- you only pay for the rounds you actually managed, keeping the rest of your mana. Cast a spell through to the end and it costs exactly what it always has.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Botched Spell Fails More Gracefully', 'When a spell slips out of your grasp, the failure now plays out over a moment or two of fumbled gestures rather than winking out the instant you begin. Because the casting draws on your power round by round, a botched incantation that you never finish costs you only the little you had spent when it fell apart -- not the full price of a spell that was never going to land.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Spellcasting Foes Now Fight Back With Magic', 'Mage, Druid, and Cleric creatures no longer just trade punches. In a fight they now call on the spells their kind actually knows -- a mage hurls bolts and blasts, a druid calls down the fury of the wild, a cleric invokes harm upon you -- striking as hard as an adventurer of the same skill would. A wounded cleric will even pause to mend its own wounds. Casters among the monsters have become a good deal more dangerous, so think twice before wading into a robed foe.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Warriors, Monks and Thieves Among the Foe Fight Dirty', 'It is not only the spellcasters who have wised up. Warrior creatures now bash you off your feet, boot you in the head, and sweep your legs out from under you; monks snap spinning kicks; and thieves slip in close to drive a blade home -- the same maneuvers an adventurer of their trade would use, landing just as hard. Every kind of foe now brings its craft to the fight, so no enemy is quite the simple punching bag it used to be.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Watch Your Step: Deadly Rooms and Private Chambers', 'Two kinds of room now behave the way they always should have. A death-trap room is truly deadly again -- a mortal who wanders in is slain on the spot, dropping a corpse with their belongings, so tread carefully in dangerous places. And a private chamber now lives up to its name: once two people are inside, a third finds no room to enter until someone leaves. Immortals, as ever, come and go as they please.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Doored Exits Now Stand Out in Red', 'Telling a plain opening from a door is easier now. In both the room [Exits:] line and the exits command, any direction that has a door is drawn in red, while ordinary exits keep their usual color. A quick glance now tells you which ways out you may have to open first.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

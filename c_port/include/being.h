@@ -997,6 +997,20 @@ typedef struct being {
      * matching upstream. Cleared to 0 each round it's rolled. */
     int cast_distracted;
 
+    /* Delayed fumble (user 2026-08-16: "a proficiency FUMBLE still
+     * fizzles instantly for its full cost -- make that failure play out
+     * over a round or two too"). When the proficiency roll in cmd_cast()
+     * FAILS, the cast still enters the multi-round spellcast task (a
+     * round or two, shorter than a real 2-3 round cast) with this flag
+     * set, so the caster visibly strains through the incantation and
+     * pays mana per round like a real cast -- but on the final round
+     * spellcast_tick_run() shows a fizzle instead of calling
+     * cmd_cast_resolve_effect(). A fumble broken mid-way (concentration
+     * lost, distraction) thus costs only the rounds it spent, exactly
+     * like the successful per-round-charged path. Cleared everywhere the
+     * other cast_* fields are. */
+    bool cast_fumble;
+
     /* `feign death` (Monk, level 25, level-25 audit batch: "Play dead to
      * avoid detection or attack."). Set by cmd_feigndeath.c; checked by
      * mob_ai.c's mob_try_aggress() to skip a feigning PC when an

@@ -85,6 +85,13 @@ void combat_drown_pc(being_t *victim);
  * combat_defeat(). No-op for anything but a PC. */
 void combat_fall_kill_pc(being_t *victim);
 
+/* Death-trap room kill (user 2026-08-16, "room flags ... intended effects
+ * from sneezy"): called from cmd_move.c's do_move() when a mortal PC steps
+ * into a ROOM_FLAG_DEATH room (real upstream ROOM_DEATH). Same
+ * "environmental death, no winner" shape as combat_drown_pc()/
+ * combat_fall_kill_pc() above. No-op for anything but a PC. */
+void combat_death_room_kill_pc(being_t *victim);
+
 /* Shared "deal skill-combat damage, then handle defeat" pipeline for
  * bash/kick (cmd_bash.c/cmd_kick.c, Skill-based combat, Sneezy → Tobin
  * feature audit) -- these are EXTRA player-triggered actions layered on

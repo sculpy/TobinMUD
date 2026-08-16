@@ -48,8 +48,13 @@ bool cmd_exits(descriptor_t *d, const char *args) {
             if (to)
                 world_register_room(to);
         }
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-9s - %s\r\n",
-                      DIR_NAMES[i], to ? to->base.name : "somewhere unknown");
+        /* A doored exit's direction is shown in red so it stands out from
+         * the plain openings (user 2026-08-16), matching `look`'s own
+         * [Exits:] line. */
+        const char *dcol = r->exit_door[i] != 0 ? "<r>" : "";
+        const char *dend = r->exit_door[i] != 0 ? "<z>" : "";
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %s%-9s%s - %s\r\n",
+                      dcol, DIR_NAMES[i], dend, to ? to->base.name : "somewhere unknown");
     }
     if (!any && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "  none!\r\n");

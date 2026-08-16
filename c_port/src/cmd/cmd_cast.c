@@ -3130,15 +3130,21 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         ch->cast_mana_paid = 0;
         spellcast_start(d, ch, sk, target);
     } else {
-        /* A fumbled incantation never enters the multi-round task, so
-         * there are no rounds to prorate across -- it still burns the
-         * whole cost, the same "a wasted cast costs mana" rule as
-         * before per-round charging existed. */
-        if (cast_cost > 0)
-            being_spend_mana(ch, cast_cost);
+        /* A fumbled incantation now ALSO plays out over the multi-round
+         * task (user 2026-08-16: "make that failure play out over a round
+         * or two too") -- a shorter 1-2 round botched cast that draws its
+         * mana a slice at a time (spellcast_pay_round) and fizzles at the
+         * end instead of resolving an effect. Broken mid-way (lost
+         * concentration/distraction), it therefore costs only the rounds
+         * it spent, exactly like the successful per-round-charged path,
+         * rather than the old instant full-cost burn. Immortals never
+         * reach here (imm forces cast_ok true). */
         char msg[128];
-        snprintf(msg, sizeof(msg), "You fumble the casting of %s -- nothing happens.\r\n", sk->name);
+        snprintf(msg, sizeof(msg), "The words of %s tangle on your tongue...\r\n", sk->name);
         descriptor_send(d, msg);
+        ch->cast_mana_cost = cast_cost;
+        ch->cast_mana_paid = 0;
+        spellcast_start_fumble(d, ch, sk);
     }
     consume_component(d, component);
     return true;

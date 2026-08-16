@@ -592,7 +592,7 @@ bool cmd_look(descriptor_t *d, const char *args) {
      * colored like name") -- `bright`, the same tag the room NAME above
      * already uses, not a fixed color. */
     {
-        char exits_buf[128] = "";
+        char exits_buf[256] = "";
         size_t en = 0;
         int any_exit = 0;
         for (int i = 0; i < ROOM_NUM_EXITS; i++) {
@@ -604,11 +604,21 @@ bool cmd_look(descriptor_t *d, const char *args) {
             char dirbuf[16];
             snprintf(dirbuf, sizeof(dirbuf), "%s", DIR_NAMES[i]);
             dirbuf[0] = (char)toupper((unsigned char)dirbuf[0]);
-            en += (size_t)snprintf(exits_buf + en, sizeof(exits_buf) - en, "%s%s", en ? " " : "", dirbuf);
+            /* An exit with a door is shown in red so doored exits stand out
+             * at a glance (user 2026-08-16); a plain exit keeps the room's
+             * own bright sector color like the rest of the list. Each
+             * direction now carries its own color tag, so the whole list is
+             * no longer wrapped in a single color below. */
+            if (r->exit_door[i] != 0)
+                en += (size_t)snprintf(exits_buf + en, sizeof(exits_buf) - en,
+                                       "%s<r>%s<z>", en ? " " : "", dirbuf);
+            else
+                en += (size_t)snprintf(exits_buf + en, sizeof(exits_buf) - en,
+                                       "%s<%c>%s<z>", en ? " " : "", bright, dirbuf);
         }
         if ((size_t)n < sizeof(out)) {
             if (any_exit)
-                n += snprintf(out + n, sizeof(out) - (size_t)n, "<c>[Exits:]<z> <%c>%s<z>\r\n", bright, exits_buf);
+                n += snprintf(out + n, sizeof(out) - (size_t)n, "<c>[Exits:]<z> %s\r\n", exits_buf);
             else
                 n += snprintf(out + n, sizeof(out) - (size_t)n, "<c>[Exits:]<z> none\r\n");
         }

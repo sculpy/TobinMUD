@@ -22,8 +22,10 @@
 #include "obj_repo.h"
 #include "player_repo.h"
 #include "practice.h"
+#include "pulse.h"
 #include "room.h"
 #include "skill.h"
+#include "spellcast.h"
 #include "thing.h"
 #include "trigger.h"
 #include "trophy.h"
@@ -2079,6 +2081,80 @@ void combat_fall_kill_pc(being_t *victim) {
         descriptor_leave_to_menu(victim->desc);
 }
 
+/* Death-trap room (user 2026-08-16, "room flags ... intended effects from
+ * sneezy"): a mortal who steps into a ROOM_FLAG_DEATH room is slain on the
+ * spot -- real upstream ROOM_DEATH. Called from cmd_move.c's do_move()
+ * right after the victim enters such a room. Same "environmental death, no
+ * winner" shape as combat_drown_pc()/combat_fall_kill_pc() above (a third
+ * sibling, deliberately duplicating that PC-relevant slice with its own
+ * flavor rather than reusing combat_defeat(), same as they do). No-op for
+ * anything but a PC; the caller already excludes immortals. */
+void combat_death_room_kill_pc(being_t *victim) {
+    if (!victim || victim->base.kind != THING_PC)
+        return;
+
+    victim->fighting = NULL;
+    victim->progress.hp = victim->progress.max_hp / 2;
+    if (victim->progress.hp < 1)
+        victim->progress.hp = 1;
+    being_limbs_full_heal(victim);
+
+    if (!being_is_immortal(victim) && victim->progress.experience > 0) {
+        long base_loss = victim->progress.experience / 5;
+        long level_floor = progress_xp_for_level(victim->progress.level);
+        long max_loss = victim->progress.experience - level_floor;
+        if (max_loss < 0)
+            max_loss = 0;
+        long xp_loss = base_loss < max_loss ? base_loss : max_loss;
+        if (xp_loss > 0) {
+            victim->progress.experience -= xp_loss;
+            tell(victim, "You lose %ld experience point%s.\r\n", xp_loss, xp_loss == 1 ? "" : "s");
+        }
+    }
+
+    tell(victim, "The unseen hazards of this place close in around you -- everything goes black. You have DIED!\r\n");
+
+    room_t *scene = victim->base.roomp;
+    if (scene) {
+        char namebuf[64], msg[128];
+        being_display_name_cap(victim, namebuf, sizeof(namebuf));
+        snprintf(msg, sizeof(msg), "%s staggers, then crumples to the ground, lifeless.\r\n", namebuf);
+        descriptor_room_echo(scene, victim, msg);
+
+        char short_descr[128], long_descr[200];
+        snprintf(short_descr, sizeof(short_descr), "the corpse of %s", being_display_name(victim));
+        snprintf(long_descr, sizeof(long_descr), "The lifeless corpse of %s lies crumpled here.", being_display_name(victim));
+        obj_t *corpse = obj_create_ephemeral("corpse", short_descr, long_descr, OBJ_CAT_CONTAINER);
+        if (corpse) {
+            corpse->wear_flag = 0;
+            corpse->val[0] = 0;
+            corpse->val[1] = 0;
+            corpse->val[2] = victim->mob_race;
+            corpse->weight = 50;
+            thing_move_to(&corpse->base, &scene->base);
+        }
+        thing_t *t = victim->base.stuff_head;
+        while (t) {
+            thing_t *next = t->stuff_next;
+            if (t->kind == THING_OBJ)
+                thing_move_to(t, corpse ? &corpse->base : &scene->base);
+            t = next;
+        }
+        for (int i = 0; i < LIMB_COUNT; i++)
+            victim->equipment[i] = NULL;
+        for (int i = 0; i < 2; i++)
+            victim->held[i] = NULL;
+        player_inventory_save(victim->player_id, victim);
+    }
+
+    log_info("%s has died to a death-trap room. [%s]", being_display_name(victim),
+             victim->desc ? descriptor_display_host(victim->desc) : "?");
+
+    player_progress_save(victim->player_id, &victim->progress);
+    if (victim->desc)
+        descriptor_leave_to_menu(victim->desc);
+}
+
 /* SPEC_TUSK_GORING (spec_mobs_goring.cc's `tuskGoring`) -- id 153, the
  * first proc ported under the new per-round mob combat-action hook
  * above (SPEC_PROCS.md previously logged this hook as entirely missing,
@@ -2128,6 +2204,247 @@ static bool mob_spec_tusk_goring_combat(being_t *m, being_t *victim) {
     if (!defeated)
         victim->position = POSITION_SITTING;
     return defeated;
+}
+
+/* Caster-mob per-round combat spellcasting (user 2026-08-16: "Mage and
+ * druid mobs arent casting, mages druids and clerics should be taking
+ * advantage of their spells ... fix it so mobs use skills/spells
+ * available to them" -- the casters-first slice of that item). A
+ * Mage/Druid/Cleric mob now has a per-round chance to throw a real class
+ * spell at whoever it's fighting, ON TOP OF its normal melee swing (the
+ * same additive per-round-action shape as the SPEC_TUSK_GORING proc
+ * above), instead of only ever punching.
+ *
+ * The spell is a genuine roster entry the mob's class + level actually
+ * qualifies for (skill_find()/min_level gate), and its damage comes from
+ * the same spell_damage_for_level() formula a PC casting that spell uses
+ * (a local copy of cmd_cast.c's helper, following this codebase's
+ * small-static-helper duplication convention -- see cmd_use.c's own copy
+ * and its note) -- so a caster mob hits as hard as an equivalent player.
+ * A wounded
+ * Cleric mob (below half HP, and high enough level to actually know
+ * `heal`) mends itself instead of attacking -- the one healer behavior
+ * that makes a cleric mob feel different from a mage.
+ *
+ * Deliberately scoped for this first pass: only fires for a mob fighting
+ * a PC (combat_process_run()'s PC-centric walk calls this with the PC as
+ * `victim`); no component/mana gate (mobs have never paid those for their
+ * innate attacks); no multi-round cast delay (a mob's spell lands the
+ * round it's rolled, like every other mob combat action); and no
+ * per-spell affect fidelity (blind/curse/slow/etc.) -- a caster mob's
+ * spells resolve as their damage/heal CORE only. Non-caster mobs return
+ * immediately, so the per-round cost for everyone else is a single class
+ * check. */
+/* Local copy of cmd_cast.c's per-spell damage formula (this codebase
+ * duplicates this tiny helper per file rather than sharing it -- see
+ * cmd_use.c's identical copy and its comment). Scaled by the spell's own
+ * min_level so a caster mob's spell hits exactly as hard as a PC's. */
+static int spell_damage_for_level(int min_level) {
+    return 4 + min_level + (rand() % (min_level / 3 + 4));
+}
+
+static const char *const MAGE_MOB_SPELLS[] = {
+    "gust", "flare", "mystic darts", "fireball", "ice storm",
+    "lightning bolt", "chain lightning",
+};
+static const char *const DRUID_MOB_SPELLS[] = {
+    "harm light", "thorn barrage", "storm call", "feral wrath",
+    "nature's wrath",
+};
+static const char *const CLERIC_MOB_SPELLS[] = {
+    "harm light", "harm serious", "harm critical", "harm", "call lightning",
+};
+
+static bool mob_cast_combat(being_t *m, being_t *victim) {
+    player_class_t cls = m->char_class;
+    if (cls != CLASS_MAGE && cls != CLASS_DRUID && cls != CLASS_CLERIC)
+        return false;
+    /* ~1-in-3 rounds the mob reaches for a spell; the rest of the time it
+     * just fights normally (its melee already resolved this round before
+     * this hook ran). */
+    if (rand() % 3 != 0)
+        return false;
+
+    char capbuf[128];
+
+    /* Wounded Cleric mob mends itself -- only once high enough level to
+     * know `heal` (keeping the named spell honest), same being_heal() the
+     * PC heal branch uses. */
+    if (cls == CLASS_CLERIC && m->progress.max_hp > 0
+        && m->progress.hp * 2 < m->progress.max_hp
+        && m->progress.level >= 17) {
+        int amt = spell_damage_for_level(17) + m->progress.level;
+        being_heal(m, amt);
+        if (m->base.roomp) {
+            char rmsg[224];
+            snprintf(rmsg, sizeof(rmsg),
+                     "%s intones a healing prayer, and %s wounds knit closed.\r\n",
+                     being_display_name_cap(m, capbuf, sizeof(capbuf)), gender_possess(m->gender));
+            descriptor_room_echo(m->base.roomp, m, rmsg);
+        }
+        if (victim->desc) {
+            char vmsg[224];
+            snprintf(vmsg, sizeof(vmsg),
+                     "%s intones a healing prayer, and %s wounds knit closed.\r\n",
+                     being_display_name_cap(m, capbuf, sizeof(capbuf)), gender_possess(m->gender));
+            descriptor_notify(victim->desc, vmsg);
+        }
+        return false; /* healed, nobody defeated */
+    }
+
+    /* Pick a random offensive spell the mob's class + level qualifies for. */
+    const char *const *pool;
+    int pool_n;
+    if (cls == CLASS_MAGE) {
+        pool = MAGE_MOB_SPELLS;
+        pool_n = (int)(sizeof(MAGE_MOB_SPELLS) / sizeof(MAGE_MOB_SPELLS[0]));
+    } else if (cls == CLASS_DRUID) {
+        pool = DRUID_MOB_SPELLS;
+        pool_n = (int)(sizeof(DRUID_MOB_SPELLS) / sizeof(DRUID_MOB_SPELLS[0]));
+    } else {
+        pool = CLERIC_MOB_SPELLS;
+        pool_n = (int)(sizeof(CLERIC_MOB_SPELLS) / sizeof(CLERIC_MOB_SPELLS[0]));
+    }
+
+    const skill_def_t *qualifying[16];
+    int qn = 0;
+    for (int i = 0; i < pool_n && qn < (int)(sizeof(qualifying) / sizeof(qualifying[0])); i++) {
+        const skill_def_t *sk = skill_find(cls, pool[i], false);
+        if (sk && m->progress.level >= sk->min_level)
+            qualifying[qn++] = sk;
+    }
+    if (qn == 0)
+        return false; /* too low-level for any of its class's spells -- just melee */
+
+    const skill_def_t *sk = qualifying[rand() % qn];
+    int dmg = spell_damage_for_level(sk->min_level);
+    limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+    int limb_hp_before = victim->limbs[limb].hp;
+
+    const char *verb = (cls == CLASS_MAGE) ? "hurls"
+                     : (cls == CLASS_DRUID) ? "calls down"
+                                            : "invokes";
+
+    /* Announce before applying (same order as SPEC_TUSK_GORING above), so
+     * the spell is named even on a killing blow; describe_dam() reads the
+     * pre-hit limb HP captured just above. */
+    if (victim->desc) {
+        char vmsg[256];
+        snprintf(vmsg, sizeof(vmsg), "%s %s %s at you, and it catches you %s!\r\n",
+                 being_display_name_cap(m, capbuf, sizeof(capbuf)), verb, sk->name,
+                 describe_dam(dmg, limb_hp_before, NULL));
+        descriptor_notify(victim->desc, vmsg);
+    }
+    if (m->base.roomp) {
+        char rmsg[256];
+        snprintf(rmsg, sizeof(rmsg), "%s %s %s at %s!\r\n",
+                 being_display_name_cap(m, capbuf, sizeof(capbuf)), verb, sk->name,
+                 being_display_name(victim));
+        descriptor_room_echo(m->base.roomp, m, rmsg);
+    }
+
+    return combat_apply_skill_damage(m, victim, dmg, limb);
+}
+
+/* Non-caster mob per-round combat SKILLS (user 2026-08-16, the second
+ * half of "mobs use skills/spells available to them" -- the caster half
+ * is mob_cast_combat() above). A Warrior/Thief/Monk mob now has a ~1-in-3
+ * per-round chance to use one of its class's real combat maneuvers against
+ * its PC opponent, on top of its melee, instead of only ever swinging --
+ * the same additive per-round shape mob_cast_combat() and the spec-proc
+ * hook use.
+ *
+ * Each maneuver reuses the EXACT effect core its PC command
+ * (cmd_bash.c/cmd_kick.c/cmd_trip.c) applies -- the same str/dex-scaled
+ * damage formula off the mob's own attrs (so a mob's bash hits as hard as
+ * a PC's), the same POSITION_SITTING knockdown + one-round victim lag, and
+ * the same spellcast_distract() nudge that a landed bash/kick/trip gives a
+ * PC caster mid-spell -- rather than routing through the descriptor-bound
+ * cmd_* handlers (mobs have no descriptor). Deliberately scoped like the
+ * caster pass: no skill-roll miss branch (a mob's maneuver just lands, the
+ * way its spec-proc and spell actions do), no disarm/object-manipulation
+ * maneuver, and only fires for a mob fighting a PC. Non-Warrior/Thief/Monk
+ * mobs return immediately. */
+static bool mob_skill_combat(being_t *m, being_t *victim) {
+    player_class_t cls = m->char_class;
+    if (cls != CLASS_WARRIOR && cls != CLASS_THIEF && cls != CLASS_MONK)
+        return false;
+    if (rand() % 3 != 0)
+        return false;
+
+    int str_dmg = 1 + (m->attrs.strength - ATTR_BASE) / 4 + rand() % 4;
+    if (str_dmg < 1) str_dmg = 1;
+    int dex_dmg = 1 + (m->attrs.dexterity - ATTR_BASE) / 4 + rand() % 4;
+    if (dex_dmg < 1) dex_dmg = 1;
+
+    char capbuf[128];
+    const char *self_room = NULL;  /* "%s <does something> to <victim>." */
+    const char *at_you = NULL;     /* "%s <does something> to you." */
+    int dmg = 0;
+    bool knockdown = false;
+    int distract = 0;
+
+    if (cls == CLASS_WARRIOR) {
+        /* bash (knockdown + str dmg), kick (str dmg), or trip (knockdown,
+         * no dmg) -- the three low-level Warrior combat maneuvers, same
+         * effects cmd_bash/cmd_kick/cmd_trip apply. */
+        switch (rand() % 3) {
+        case 0:
+            self_room = "%s bashes into %s, knocking them to the ground!\r\n";
+            at_you    = "%s bashes into you, knocking you to the ground!\r\n";
+            dmg = str_dmg; knockdown = true; distract = 2;
+            break;
+        case 1:
+            self_room = "%s boots %s in the head!\r\n";
+            at_you    = "%s boots you in the head!\r\n";
+            dmg = str_dmg; distract = 1;
+            break;
+        default:
+            self_room = "%s sweeps %s's legs out, dropping them to the ground!\r\n";
+            at_you    = "%s sweeps your legs out from under you!\r\n";
+            dmg = 0; knockdown = true; distract = 1;
+            break;
+        }
+    } else if (cls == CLASS_MONK) {
+        /* Monks fight barehanded -- a dex-scaled kick, cmd_kick's own core. */
+        self_room = "%s snaps a spinning kick into %s!\r\n";
+        at_you    = "%s snaps a spinning kick into you!\r\n";
+        dmg = dex_dmg; distract = 1;
+    } else { /* CLASS_THIEF */
+        /* A quick opportunistic knife strike -- heavier dex-scaled damage
+         * than a plain kick, no knockdown (a thief stabs, it doesn't
+         * grapple). */
+        self_room = "%s slips in close and drives a blade into %s!\r\n";
+        at_you    = "%s slips in close and drives a blade into you!\r\n";
+        dmg = dex_dmg * 2; distract = 1;
+    }
+
+    /* Announce before applying (same order as the spec-proc/cast paths). */
+    if (victim->desc) {
+        char vmsg[256];
+        snprintf(vmsg, sizeof(vmsg), at_you, being_display_name_cap(m, capbuf, sizeof(capbuf)));
+        descriptor_notify(victim->desc, vmsg);
+    }
+    if (m->base.roomp) {
+        char rmsg[256];
+        snprintf(rmsg, sizeof(rmsg), self_room,
+                 being_display_name_cap(m, capbuf, sizeof(capbuf)), being_display_name(victim));
+        descriptor_room_echo(m->base.roomp, m, rmsg);
+    }
+
+    if (distract > 0)
+        spellcast_distract(victim, distract); /* a landed maneuver rattles a PC mid-cast */
+
+    if (dmg > 0) {
+        bool defeated = combat_apply_skill_damage(m, victim, dmg, LIMB_BODY);
+        if (defeated)
+            return true;
+    }
+    if (knockdown && victim->position != POSITION_SITTING) {
+        victim->position = POSITION_SITTING;
+        being_set_wait(victim, COMBAT_ROUND_PULSES);
+    }
+    return false;
 }
 
 /* The mob-side per-round combat-action dispatch table -- id -> function,
@@ -2234,6 +2551,26 @@ void combat_process_run(long pulse_num) {
          * defeat above would already have `continue`d). */
         if (b->base.kind == THING_MOB && b->mob_spec_proc) {
             if (mob_spec_dispatch_combat(b, a))
+                continue;
+        }
+
+        /* Caster-mob per-round spellcasting (user 2026-08-16) -- a
+         * Mage/Druid/Cleric mob throws a real class spell at its PC
+         * opponent some rounds, on top of its melee. Returns true iff that
+         * spell defeated `a` (combat_apply_skill_damage handles the kill),
+         * so skip the rest of this round's bookkeeping just like the spec
+         * hook above. A no-op for non-caster mobs. */
+        if (b->base.kind == THING_MOB) {
+            if (mob_cast_combat(b, a))
+                continue;
+        }
+
+        /* Non-caster mob per-round combat skills (user 2026-08-16) -- a
+         * Warrior/Thief/Monk mob uses a real class maneuver (bash/kick/
+         * trip/stab) some rounds, on top of its melee. Same defeat/skip
+         * contract as the hooks above; a no-op for caster mobs. */
+        if (b->base.kind == THING_MOB) {
+            if (mob_skill_combat(b, a))
                 continue;
         }
 

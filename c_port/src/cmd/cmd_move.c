@@ -192,6 +192,23 @@ static bool do_move(descriptor_t *d, int dir) {
         return true;
     }
 
+    /* PRIVATE room (ROOM_FLAG_PRIVATE, user 2026-08-16 "room flags ...
+     * intended effects from sneezy") -- a private room holds at most two
+     * players (real upstream ROOM_PRIVATE); a third is refused entry.
+     * Immortals ignore the cap (same "no restrictions" spirit as their
+     * other gate bypasses). Counts real players only -- a mob sharing the
+     * room (shopkeeper, guard) shouldn't lock players out. */
+    if (!being_is_immortal(ch) && (to->room_flag & ROOM_FLAG_PRIVATE)) {
+        int players = 0;
+        for (thing_t *t = to->base.stuff_head; t; t = t->stuff_next)
+            if (t->kind == THING_PC)
+                players++;
+        if (players >= 2) {
+            descriptor_send(d, "That room is private -- there's no room for you right now.\r\n");
+            return true;
+        }
+    }
+
     /* Terrain movement cost (Sneezy → Tobin feature audit, "Vitality
      * stat + Terrain movement cost"): average of the source and
      * destination sector's cost, same average-of-two-sectors rule the
@@ -373,6 +390,22 @@ static bool do_move(descriptor_t *d, int dir) {
         descriptor_room_echo(to, ch, msg);
 
     mob_ai_greet_newbie_equipper(ch, to);
+
+    /* Death-trap room (ROOM_FLAG_DEATH, user 2026-08-16 "room flags ...
+     * intended effects from sneezy") -- a mortal who steps in is slain on
+     * the spot (real upstream ROOM_DEATH), losing XP and dropping a corpse
+     * with their gear, then ejected to the account menu. Checked right
+     * after arrival (so the room sees them arrive, then die) and before
+     * followers are pulled in, so followers don't get dragged to their
+     * death too. combat_death_room_kill_pc() frees d->character via
+     * descriptor_leave_to_menu(), same "check d->character after" guard as
+     * the fatal fall_check() below. Immortals pass unharmed. */
+    if (!being_is_immortal(ch) && ch->base.kind == THING_PC
+        && (to->room_flag & ROOM_FLAG_DEATH)) {
+        combat_death_room_kill_pc(ch);
+        if (!d->character)
+            return true;
+    }
 
     /* Leader/follower movement (TODO.md priority item, user 2026-07-30) --
      * see move_followers_along()'s own doc comment above do_move() for

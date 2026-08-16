@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "spellcast.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -94,8 +95,11 @@ static void show_cast_line(descriptor_t *d, being_t *ch, const cast_line_t *p) {
 
 /* Shows one casting-tick round's worth of flavor (a random gesture line,
  * a random verbal line, then a fixed building/completion line -- the
- * completion wording only on the FINAL round) plus its casting sound. */
-static void spellcast_show_round(descriptor_t *d, being_t *ch, int round_num, int total_rounds) {
+ * triumphant "ready to be unleashed" completion wording only when
+ * `is_final` is set) plus its casting sound. A delayed FUMBLE
+ * (spellcast_tick_run) always passes is_final=false, so a doomed cast
+ * never shows the completion boast right before it fizzles. */
+static void spellcast_show_round(descriptor_t *d, being_t *ch, bool is_final) {
     bool druid = ch->char_class == CLASS_DRUID;
     const cast_line_t *gestures = druid ? DRUID_GESTURE : MAGE_GESTURE;
     const cast_line_t *verbals = druid ? DRUID_VERBAL : MAGE_VERBAL;
@@ -107,8 +111,8 @@ static void spellcast_show_round(descriptor_t *d, being_t *ch, int round_num, in
     show_cast_line(d, ch, &gestures[rand() % gcount]);
     show_cast_line(d, ch, &verbals[rand() % vcount]);
 
-    const char *closing = (round_num >= total_rounds) ? (druid ? DRUID_COMPLETE : MAGE_COMPLETE)
-                                                        : (druid ? DRUID_BUILDING : MAGE_BUILDING);
+    const char *closing = is_final ? (druid ? DRUID_COMPLETE : MAGE_COMPLETE)
+                                    : (druid ? DRUID_BUILDING : MAGE_BUILDING);
     char msg[224];
     snprintf(msg, sizeof(msg), "%s\r\n", closing);
     descriptor_send(d, msg);
@@ -150,6 +154,7 @@ void spellcast_start(descriptor_t *d, being_t *ch, const skill_def_t *sk, being_
     ch->cast_rounds_left = ch->cast_rounds_total;
     snprintf(ch->cast_spell_name, sizeof(ch->cast_spell_name), "%s", sk->name);
     ch->cast_target = target;
+    ch->cast_fumble = false;
     ch->is_casting = true;
 
     /* Locks out further commands for the whole delay, same lag/lockout
@@ -158,7 +163,30 @@ void spellcast_start(descriptor_t *d, being_t *ch, const skill_def_t *sk, being_
      * reads 0 for them). */
     being_set_wait(ch, ch->cast_rounds_total * COMBAT_ROUND_PULSES);
 
-    spellcast_show_round(d, ch, 1, ch->cast_rounds_total);
+    spellcast_show_round(d, ch, false);
+    spellcast_pay_round(ch, 1);
+}
+
+/* Delayed FUMBLE (user 2026-08-16). A failed proficiency roll no longer
+ * fizzles instantly for the whole cost -- it enters the same multi-round
+ * task, so the caster visibly strains through the botched incantation and
+ * pays mana a slice at a time. Shorter than a real cast ("a round or
+ * two", 1-2 rounds vs a success's 2-3) and marked cast_fumble, so
+ * spellcast_tick_run() shows a fizzle at the end instead of resolving the
+ * effect. `cast_target` is pointed at `ch` itself only to keep the tick's
+ * "target vanished" guard from silently cancelling it -- no real target
+ * is used, the cast is doomed regardless. */
+void spellcast_start_fumble(descriptor_t *d, being_t *ch, const skill_def_t *sk) {
+    ch->cast_rounds_total = 1 + (rand() % 2);
+    ch->cast_rounds_left = ch->cast_rounds_total;
+    snprintf(ch->cast_spell_name, sizeof(ch->cast_spell_name), "%s", sk->name);
+    ch->cast_target = ch;
+    ch->cast_fumble = true;
+    ch->is_casting = true;
+
+    being_set_wait(ch, ch->cast_rounds_total * COMBAT_ROUND_PULSES);
+
+    spellcast_show_round(d, ch, false);
     spellcast_pay_round(ch, 1);
 }
 
@@ -188,6 +216,7 @@ void spellcast_tick_run(long pulse_num) {
             || ch->position == POSITION_SLEEPING) {
             ch->is_casting = false;
             ch->cast_target = NULL;
+            ch->cast_fumble = false;
             ch->cast_mana_cost = 0;
             ch->cast_mana_paid = 0;
             descriptor_send(d, "Your concentration is broken -- the spell fizzles!\r\n");
@@ -197,6 +226,7 @@ void spellcast_tick_run(long pulse_num) {
             /* being_destroy() already cleared this and sent its own
              * fizzle message (being.c) -- just finish the cancellation. */
             ch->is_casting = false;
+            ch->cast_fumble = false;
             ch->cast_mana_cost = 0;
             ch->cast_mana_paid = 0;
             continue;
@@ -223,6 +253,7 @@ void spellcast_tick_run(long pulse_num) {
             if (eff >= (rand() % 20) + 1) {
                 ch->is_casting = false;
                 ch->cast_target = NULL;
+                ch->cast_fumble = false;
                 ch->cast_rounds_left = 0;
                 ch->cast_rounds_total = 0;
                 ch->cast_mana_cost = 0;
@@ -264,10 +295,40 @@ void spellcast_tick_run(long pulse_num) {
          * then the effect resolves the same tick, right after it. */
         ch->cast_rounds_left--;
         int round_num = ch->cast_rounds_total - ch->cast_rounds_left;
-        spellcast_show_round(d, ch, round_num, ch->cast_rounds_total);
+        bool is_final = ch->cast_rounds_left <= 0;
+        /* A doomed fumble never shows the triumphant completion boast. */
+        spellcast_show_round(d, ch, is_final && !ch->cast_fumble);
         spellcast_pay_round(ch, round_num);
         if (ch->cast_rounds_left > 0)
             continue;
+
+        /* Countdown complete on a delayed fumble -- the botched
+         * incantation has now played out over its round or two (and been
+         * charged mana per round, so an interrupted fumble paid less);
+         * fizzle here instead of resolving any effect (user 2026-08-16). */
+        if (ch->cast_fumble) {
+            char spell_name[64];
+            snprintf(spell_name, sizeof(spell_name), "%s", ch->cast_spell_name);
+            ch->is_casting = false;
+            ch->cast_target = NULL;
+            ch->cast_fumble = false;
+            ch->cast_mana_cost = 0;
+            ch->cast_mana_paid = 0;
+            char msg[192];
+            snprintf(msg, sizeof(msg),
+                     "Your grip on the magic slips at the last moment -- %s fizzles into nothing.\r\n",
+                     spell_name);
+            descriptor_send(d, msg);
+            if (ch->base.roomp) {
+                const char *dcol = (ch->char_class == CLASS_DRUID) ? "<y>" : "<p>";
+                char capbuf[128], rm[288];
+                snprintf(rm, sizeof(rm),
+                         "%s%s's half-formed spell sputters and fizzles into nothing.<z>\r\n",
+                         dcol, being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+                descriptor_room_echo(ch->base.roomp, ch, rm);
+            }
+            continue;
+        }
 
         /* Countdown complete -- resolve the real effect now, through the
          * SAME per-spell dispatch chain `cast` always used
@@ -279,6 +340,7 @@ void spellcast_tick_run(long pulse_num) {
         snprintf(spell_name, sizeof(spell_name), "%s", ch->cast_spell_name);
         ch->is_casting = false;
         ch->cast_target = NULL;
+        ch->cast_fumble = false;
         ch->cast_mana_cost = 0;
         ch->cast_mana_paid = 0;
 

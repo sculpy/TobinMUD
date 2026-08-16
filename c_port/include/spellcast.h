@@ -36,6 +36,18 @@
  * dispatch chain `cast` always used (100% unchanged effect behavior),
  * just moved out from under the instant path. */
 void spellcast_start(descriptor_t *d, being_t *ch, const skill_def_t *sk, being_t *target);
+
+/* Delayed FUMBLE (user 2026-08-16: "a proficiency FUMBLE still fizzles
+ * instantly for its full cost -- make that failure play out over a round
+ * or two too"). Called from cmd_cast()'s failed-proficiency-roll branch
+ * instead of the old instant fizzle: enters the same multi-round task (a
+ * shorter 1-2 rounds) with being.h's cast_fumble set, so the caster
+ * visibly strains through the botched incantation and pays mana per round
+ * (an interrupted fumble costs less), then spellcast_tick_run() shows a
+ * fizzle at the end rather than resolving any effect. No target is used
+ * -- the cast is doomed regardless. */
+void spellcast_start_fumble(descriptor_t *d, being_t *ch, const skill_def_t *sk);
+
 void spellcast_tick_run(long pulse_num);
 
 /* Distraction hook -- a disruptive maneuver (bash/kick/trip/grapple)
