@@ -35,7 +35,7 @@ import re
 import socket
 import sys
 import time
-from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
+from mud_test_utils import send_line, recv_all, check, sql, cmd, cmd_until, sync, drain, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
@@ -168,9 +168,18 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,weight,can_
     f"VALUES ({WEAPON_VNUM},'sword','a steel sword','A steel sword is lying here.',"
     f"{TYPE_WEAPON},{WEAR_TAKE | WEAR_HOLD},5,1);")
 cmd(si, f"load obj {WEAPON_VNUM}")
-cmd(si, "drop sword")
-cmd(sA, "get sword")
-cmd(sA, "wield sword")
+# The immortal's drop and sA's get land on the same input pulse otherwise --
+# a race where sA reaches for a sword not yet on the floor, gets nothing,
+# and then swings BARE-HANDED (weapon_verb() -> "hit"), training no slash
+# proficiency at all. Confirm the drop's RESULT message ("You drop ...", not
+# the bare "drop sword" echo) before getting, and wait for the pickup/wield
+# result the same way -- cmd_until() also presync-drains the stale `practice
+# combat` backlog still sitting on sA's socket from case 3, which a plain
+# cmd() would otherwise hand back in place of the real response.
+cmd_until(si, "drop sword", "You drop")
+sync(sA)  # flush case-3's leftover `practice combat` listing off sA deterministically
+cmd_until(sA, "get sword", "You get", presync=False)
+cmd_until(sA, "wield sword", "You wield")
 
 attack_and_settle(sA, nameB)
 
@@ -194,9 +203,11 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,weight,can_
     f"VALUES ({WEAPON_VNUM2},'saber','a curved saber','A curved saber is lying here.',"
     f"{TYPE_WEAPON},{WEAR_TAKE | WEAR_HOLD},5,1);")
 cmd(si, f"load obj {WEAPON_VNUM2}")
-cmd(si, "drop saber")
-cmd(sC, "get saber")
-cmd(sC, "wield saber")
+# Same drop/get pulse race + stale-backlog sync as case 4 above.
+cmd_until(si, "drop saber", "You drop")
+sync(sC)
+cmd_until(sC, "get saber", "You get", presync=False)
+cmd_until(sC, "wield saber", "You wield")
 
 attack_and_settle(sC, nameD, rounds=3)
 
