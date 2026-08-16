@@ -683,13 +683,10 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - Should be able to fight more than one mob and vice versa
 - Guard mobs in rooms should assist each other. When you attack a guard you attack _ALL_ guards. Check how sneezy handles this.
 - [x] RESOLVED 2026-08-15: TRACK_COUNT is defined at combat.c:2366 as a function-local `const int` = sizeof(TRACKS)/sizeof(TRACKS[0]) (the MSP fight-music track array). Nothing missing; no code change needed.
-- Slash specialization (77/71) skilled, shouldnt go past max potential, limited by the % of discipline gained
 - Examine mana gain and recovery, apply those sneezy fixes to druids and mages.
-- low level automated skills gain too fast, it should take 25 levels to max out skills in basic and combat disciplines and it should take until 50 to max advanced discipline. Scale all skills to gain at this speed.
 - spell failures should take a bit of casting to fail, not instant fail. And mana cost should be divided by the number of rounds it takes to cast.
 - [x] DONE 2026-08-15: mob up/down move-in/out lines now read "from above"/"from below" and "walks upward/downward" (mob_ai.c DEPART_PHRASE/ARRIVE_PHRASE tables). (The only directional move strings were the mob wander lines; player arrival has no direction.)
 - Add left margin navigation to the website
-- At level 13 the basic discipline is learned to 100%, it should take twice as long
 - [x] DONE 2026-08-15: renting now sets your load room to the rent room (cmd_rent.c -> player_set_load_room). smoke_test_rent_loadroom.py passes live.
 
 ## Standing rules (learned)

@@ -94,20 +94,6 @@ static void print_tier(descriptor_t *d, const being_t *ch, player_class_t cls, s
         if (tier == SKILL_TIER_CLASS) {
             disc_ok = basic_pct > 0;
             disc_reason = "practice Basic discipline";
-            /* Weapon specializations are auto-known (user, 2026-08-04:
-             * "all of those should be automatic") -- being_knows_skill()
-             * and skill_ceiling() (skill.c) already bypass the
-             * guildmaster gate for these in actual combat; this listing
-             * needs the same bypass, or it would misleadingly show them
-             * as "not yet practiced" while they're silently already
-             * working. */
-            if (cls == CLASS_WARRIOR
-                && (strcasecmp(sk->name, "slash specialization") == 0
-                    || strcasecmp(sk->name, "blunt specialization") == 0
-                    || strcasecmp(sk->name, "pierce specialization") == 0
-                    || strcasecmp(sk->name, "ranged specialization") == 0
-                    || strcasecmp(sk->name, "barehand specialization") == 0))
-                disc_ok = true;
         } else if (tier == SKILL_TIER_COMBAT) {
             disc_ok = combat_pct > 0;
             disc_reason = "practice Combat discipline";

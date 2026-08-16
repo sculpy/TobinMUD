@@ -641,13 +641,16 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * of those should be automatic", user 2026-08-04) -- same passive,
      * learn-by-doing shape as kubo/cintai just above: `verb` (already
      * computed) picks which of the 5 specializations applies to
-     * whatever `attacker` is currently wielding (or bare hands), and if
-     * they know it (always true for a Warrior, see being_knows_skill()),
-     * proficiency grows on every swing and folds straight into this same
-     * round's hit/damage bonus, exactly like kubo/cintai do. weapon_verb()
-     * has no "ranged" bucket (Tobin has no ranged-weapon combat yet), so
-     * "ranged specialization" tracks proficiency (still auto-known, still
-     * learnable in principle) but never actually applies a bonus here --
+     * whatever `attacker` is currently wielding (or bare hands). The
+     * specializations are Advanced-tier now (user: "specialization skills
+     * in advanced"), so their ceiling is advanced_disc_pct -- until the
+     * Warrior has mastered Basic+Combat and begun Advanced practice,
+     * skill_learn_from_doing() returns 0 here (zero ceiling) and no bonus
+     * or gain applies; once unlocked, proficiency grows on every swing and
+     * folds straight into this same round's hit/damage bonus, like
+     * kubo/cintai do. weapon_verb() has no "ranged" bucket (Tobin has no
+     * ranged-weapon combat yet), so "ranged specialization" tracks
+     * proficiency but never actually applies a bonus here --
      * a disclosed gap, not an oversight, tracked for when ranged combat
      * exists. "lash" (whip/flail) is approximated as blunt -- closer to
      * a flail's real classification than either of the other two. At

@@ -184,10 +184,10 @@ out = cmd(sc, "practice basic 1")
 check("no practice points" in out, "spending is refused with 0 practice points")
 
 # --- 5: grant practice points via `set` (this session's new field), then spend ---
-out = cmd(s_imm, f"set {cleric_name} practices 200")
-check("practice points are now 200" in out, "`set <name> practices <n>` grants practice points")
+out = cmd(s_imm, f"set {cleric_name} practices 400")
+check("practice points are now 400" in out, "`set <name> practices <n>` grants practice points")
 
-out = cmd(sc, "practice basic 200")
+out = cmd(sc, "practice basic 400")
 check("Basic discipline: 100%" in out, "spending enough points reaches 100% Basic discipline")
 
 out = cmd(sc, "practice basic 1")
@@ -203,7 +203,7 @@ check("Master your Basic and Combat disciplines first" in out,
 
 out = cmd(s_imm, f"set {cleric_name} combat 100")
 check("combat discipline is now 100" in out, "`set <name> combat <pct>` raises Combat discipline live")
-out = cmd(sc, "practice advanced 1")
+out = cmd(sc, "practice advanced 2")
 check("Advanced discipline:" in out and "already mastered" not in out,
       "practice advanced succeeds once Basic and Combat both reached 100%")
 

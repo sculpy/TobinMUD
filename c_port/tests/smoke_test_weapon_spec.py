@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""Smoke test for the 5 weapon specialization skills (missing-skill
-audit, "Generic / cross-class" list; user, 2026-08-04: "all level 1 ...
-all of those should be automatic"). Warrior-only (matching real
-SneezyMUD's SKILL_WARRIOR ownership), auto-known from character
-creation with no guildmaster visit needed, proficiency climbing purely
-by landing hits with a matching weapon (or bare-handed), same
-learn-by-doing shape as Monk's kubo/cintai.
+"""Smoke test for the 5 weapon specialization skills after they were moved
+to the Advanced discipline (user: "specialization skills in advanced";
+the weapon *proficiency* skills stay in the Combat discipline). Warrior-only
+(real SneezyMUD's SKILL_WARRIOR ownership). No longer auto-known: a spec is
+locked until the Warrior has mastered Basic AND Combat and begun Advanced
+practice, and its learn-by-doing proficiency is then capped by
+advanced_disc_pct (the "max potential" the skills/practice views show) --
+this is the fix for "slash specialization 77/71 ... shouldn't go past max
+potential".
 
 Covers:
-  1. A fresh, never-practiced Warrior's `skills` listing shows all 5
-     specializations as already known (a real [N%] line, not grayed out
-     "practice Combat discipline first") -- combat_disc_pct is 0 for a
-     brand-new character, so this proves the auto-known bypass, not
-     coincidental normal practice.
-  2. A non-Warrior class (Mage) does NOT get these -- class-restricted,
-     matching real upstream.
-  3. Landing hits with a slashing weapon raises "slash specialization"
-     proficiency from 0%, proving the passive learn-by-doing hook in
-     combat_strike() actually fires.
+  1. A fresh Warrior's `skills` shows the specializations under the Advanced
+     tier, LOCKED ("master Basic and Combat first"), not as a live [N%].
+  2. A non-Warrior class (Mage) does NOT get these at all.
+  3. A Warrior who has mastered Basic+Combat and started Advanced sees the
+     specializations as KNOWN [N%], and `practice advanced` shows their max
+     potential equal to advanced_disc_pct (the ceiling), not 100.
+  4. Landing hits with a slashing weapon (once unlocked) raises slash
+     specialization proficiency above 0%.
 
     python3 tests/smoke_test_weapon_spec.py [host] [port]
 """
@@ -40,6 +40,9 @@ WEAR_TAKE = 1
 WEAR_HOLD = 16384
 TYPE_WEAPON = 5
 
+SPECS = ("slash specialization", "blunt specialization", "pierce specialization",
+         "ranged specialization", "barehand specialization")
+
 
 def make_char(name, pw, class_choice):
     s = socket.create_connection((host, port), timeout=5)
@@ -48,31 +51,66 @@ def make_char(name, pw, class_choice):
         send_line(s, step)
         recv_all(s)
     create_character(s, name, send_line, recv_all, char_class=class_choice)
+    cmd(s, "color off")
+    return s
+
+
+def feed(sock, command):
+    """Read a full (possibly long, paginated) listing, draining every page.
+    Uses raw socket reads with a settle window -- the skills roster is long
+    enough that a bare cmd()/idle-timeout drain truncates it mid-page."""
+    send_line(sock, command)
+    buf = ""
+    for _ in range(80):
+        time.sleep(0.2)
+        sock.settimeout(0.5)
+        try:
+            while True:
+                d = sock.recv(8192)
+                if not d:
+                    break
+                buf += d.decode(errors="replace")
+        except socket.timeout:
+            pass
+        if "more" in buf[-40:].lower():
+            send_line(sock, "")
+        else:
+            break
+    return buf
+
+
+def relog(name, pw):
+    s = socket.create_connection((host, port), timeout=5)
+    recv_all(s)
+    for step in (name, pw, "1"):
+        send_line(s, step)
+        recv_all(s)
+    cmd(s, "color off")
     return s
 
 
 announce("smoke_test_weapon_spec", host, port)
 
-# --- 1: a fresh Warrior already shows all 5 specializations known ---
+# --- 1: a fresh Warrior's specializations are LOCKED under Advanced ---
 war_name, war_pw = f"Wspwar{_suffix}", "wspwarpw12345"
 sw = make_char(war_name, war_pw, "3")
-out = cmd(sw, "skills")
-if "ENTER for more" in out:
-    out += cmd(sw, "")
-for spec in ("slash specialization", "blunt specialization", "pierce specialization",
-             "ranged specialization", "barehand specialization"):
-    m = re.search(re.escape(spec) + r".*?\[(\d+)%\]", out, re.IGNORECASE)
-    check(m is not None, f"a fresh Warrior's skills list shows '{spec}' as known (not grayed out)")
+out = feed(sw, "skills")
+for spec in SPECS:
+    m = re.search(re.escape(spec) + r"[^\r\n]*", out, re.IGNORECASE)
+    check(m is not None, f"a fresh Warrior's skills list still lists '{spec}' (under Advanced)")
+    check("%]" not in m.group(0),
+          f"'{spec}' shows no live [N%] percentage for a fresh, un-disciplined Warrior (it is locked)")
+check(re.search(r"slash specialization[^\r\n]*master Basic and Combat", out, re.IGNORECASE) is not None,
+      "a fresh Warrior's slash specialization shows the Advanced lock reason (master Basic and Combat first)")
 
 # --- 2: a Mage does NOT get these ---
 mage_name, mage_pw = f"Wspmag{_suffix}", "wspmagpw12345"
 sm = make_char(mage_name, mage_pw, "1")
-out = cmd(sm, "skills")
-if "ENTER for more" in out:
-    out += cmd(sm, "")
+out = feed(sm, "skills")
 check("slash specialization" not in out.lower(), "a Mage's own skills list has no weapon specializations")
+sm.close()
 
-# --- 3: landing hits raises slash specialization proficiency ---
+# --- bootstrap sandbox room + sword + dummy for the combat check ---
 sql(f"INSERT INTO room (vnum,x,y,z,name,description,zone,room_flag,sector,"
     f"teletime,teletarg,telelook,river_speed,river_dir,capacity,height,spec) "
     f"VALUES ({ROOM},0,0,0,'WeaponSpec Sandbox','A bare sandbox room.\\n',NULL,1,0,0,0,0,0,0,0,0,0);")
@@ -91,50 +129,47 @@ imm_name, imm_pw = f"Wspimm{_suffix}", "wspimmpw12345"
 si = make_char(imm_name, imm_pw, "1")
 cmd(si, "quit!"); si.close()
 sql(f"UPDATE player_progress SET level=51 WHERE player_id=(SELECT id FROM player WHERE name='{imm_name}');")
-si = socket.create_connection((host, port), timeout=5)
-recv_all(si)
-for step in (imm_name, imm_pw, "1"):
-    send_line(si, step)
-    recv_all(si)
-cmd(si, "color off")
-
+si = relog(imm_name, imm_pw)
 check("WeaponSpec" in cmd(si, f"goto {ROOM}"), "the immortal goto's into the sandbox room")
 check("You conjure" in cmd(si, f"load obj {SWORD}"), "the sword is loaded")
 cmd(si, "drop sword")
 check("You conjure" in cmd(si, f"load mob {DUMMY}"), "the harmless practice dummy is loaded")
 
-# Fresh, distinct Warrior for the combat check (not `sw` from part 1,
-# which already had a live interactive session at Center Square before
-# this point -- found live that a character's room placement via
-# `UPDATE player SET load_room=...` only reliably takes effect if it
-# lands BEFORE that character's first real interactive command, not
-# just before their next quit/relog).
+# --- 3: a Warrior who has mastered Basic+Combat and begun Advanced sees the
+#        specializations as KNOWN, with max potential == advanced_disc_pct ---
 war2_name, war2_pw = f"Wspwtw{_suffix}", "wspwtwpw12345"
 sw2 = make_char(war2_name, war2_pw, "3")
-sql(f"UPDATE player SET load_room={ROOM} WHERE name='{war2_name}';")
 cmd(sw2, "quit!"); sw2.close()
-sw2 = socket.create_connection((host, port), timeout=5)
-recv_all(sw2)
-for step in (war2_name, war2_pw, "1"):
-    send_line(sw2, step)
-    recv_all(sw2)
-cmd(sw2, "color off")
-check("WeaponSpec" in cmd(sw2, "look"), "the fresh warrior lands in the sandbox room")
+# Mortal (level 50 so discipline gates still apply), Basic+Combat mastered,
+# Advanced started at 40 -> specializations unlock and their ceiling is 40.
+sql(f"UPDATE player_progress SET level=50, basic_disc_pct=100, combat_disc_pct=100, "
+    f"advanced_disc_pct=40 WHERE player_id=(SELECT id FROM player WHERE name='{war2_name}');")
+sql(f"UPDATE player SET load_room={ROOM} WHERE name='{war2_name}';")
+sw2 = relog(war2_name, war2_pw)
+check("WeaponSpec" in cmd(sw2, "look"), "the disciplined warrior lands in the sandbox room")
+
+out = feed(sw2, "skills")
+m = re.search(r"slash specialization[^\r\n]*\[(\d+)%\]", out, re.IGNORECASE)
+check(m is not None, "a Basic+Combat-mastered, Advanced-started Warrior sees slash specialization as KNOWN [N%]")
+
+pav = feed(sw2, "practice advanced")
+check(re.search(r"slash specialization[^\r\n]*\(\d+/40\)", pav, re.IGNORECASE) is not None,
+      "practice advanced shows slash specialization's max potential as advanced_disc_pct (40), not 100")
+
+# --- 4: landing hits (now unlocked) raises slash specialization above 0% ---
 check("you get" in cmd(sw2, "get sword").lower(), "the warrior picks up the sword")
 check("wield" in cmd(sw2, "wield sword").lower(), "the warrior wields the sword")
-
-for _ in range(8):
+for _ in range(6):
     cmd(sw2, "kill dummy", timeout=1.5)
-    time.sleep(1.5)
-
-out = cmd(sw2, "skills")
-if "ENTER for more" in out:
-    out += cmd(sw2, "")
-m = re.search(r"slash specialization.*?\[(\d+)%\]", out, re.IGNORECASE)
+    time.sleep(1.2)
+out = feed(sw2, "skills")
+m = re.search(r"slash specialization[^\r\n]*\[(\d+)%\]", out, re.IGNORECASE)
 check(m is not None and int(m.group(1)) > 0,
-      "landing hits with a slashing weapon raised slash specialization's proficiency above 0%")
+      "landing hits with a slashing weapon raised slash specialization above 0% (learn-by-doing hook fires once unlocked)")
+check(m is not None and int(m.group(1)) <= 40,
+      "slash specialization proficiency stays at or below its advanced_disc_pct ceiling (40)")
 
-sw.close(); sw2.close(); sm.close(); si.close()
+sw.close(); sw2.close(); si.close()
 
 sql(f"DELETE FROM room WHERE vnum={ROOM};")
 sql(f"DELETE FROM obj WHERE vnum={SWORD};")

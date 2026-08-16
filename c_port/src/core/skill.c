@@ -37,11 +37,11 @@ static const skill_def_t SKILLS[] = {
      * 2026-08-04, on what 100% proficiency should do: "bigger passive
      * bonus" -- no separate "advanced" skill unlock, just a stronger
      * bonus curve once mastered (see combat_strike()'s own comment). */
-    { "slash specialization",    CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `slash specialization` for help." },
-    { "blunt specialization",    CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `blunt specialization` for help." },
-    { "pierce specialization",   CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `pierce specialization` for help." },
-    { "ranged specialization",   CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `ranged specialization` for help." },
-    { "barehand specialization", CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `barehand specialization` for help." },
+    { "slash specialization",    CLASS_WARRIOR, SKILL_TIER_ADVANCED, 1, "See help `slash specialization` for help." },
+    { "blunt specialization",    CLASS_WARRIOR, SKILL_TIER_ADVANCED, 1, "See help `blunt specialization` for help." },
+    { "pierce specialization",   CLASS_WARRIOR, SKILL_TIER_ADVANCED, 1, "See help `pierce specialization` for help." },
+    { "ranged specialization",   CLASS_WARRIOR, SKILL_TIER_ADVANCED, 1, "See help `ranged specialization` for help." },
+    { "barehand specialization", CLASS_WARRIOR, SKILL_TIER_ADVANCED, 1, "See help `barehand specialization` for help." },
     { "sign",                    CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `sign` for help." },
     { "bash",                    CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `bash` for help." },
     { "berserk",                 CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `berserk` for help." },
@@ -54,7 +54,7 @@ static const skill_def_t SKILLS[] = {
     { "doorbash",                CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `doorbash` for help." },
     { "dual wield",              CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `dual wield` for help." },
     { "power move",              CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `power move` for help." },
-    { "two-handed specialization", CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `two-handed specialization` for help." },
+    { "two-handed specialization", CLASS_WARRIOR, SKILL_TIER_ADVANCED, 1, "See help `two-handed specialization` for help." },
     { "fortify",                 CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `fortify` for help." },
     { "rescue",                  CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `rescue` for help." },
     { "repair",                  CLASS_WARRIOR, SKILL_TIER_CLASS, 5, "See help `repair` for help." },
@@ -879,21 +879,6 @@ bool being_knows_skill(const being_t *b, const char *name) {
         if (kick_sk && skill_proficiency(b, kick_sk) >= 100)
             return true;
     }
-    /* Weapon specializations are auto-known (user, 2026-08-04: "all of
-     * those should be automatic") -- skip straight past the level check
-     * and the normal combat_disc_pct guildmaster gate every other
-     * Combat-tier skill needs. Still class-restricted (Warrior only,
-     * matching real upstream) and still off for a level below 1 (never
-     * true in practice, kept for consistency with every other gate
-     * here). */
-    if (!imm && b->char_class == CLASS_WARRIOR && b->progress.level >= 1
-        && (strcasecmp(name, "slash specialization") == 0
-            || strcasecmp(name, "blunt specialization") == 0
-            || strcasecmp(name, "pierce specialization") == 0
-            || strcasecmp(name, "ranged specialization") == 0
-            || strcasecmp(name, "barehand specialization") == 0)) {
-        return true;
-    }
     int count = skill_count();
     for (int i = 0; i < count; i++) {
         const skill_def_t *sk = skill_at(i);
@@ -960,19 +945,6 @@ const skill_def_t *skill_find(player_class_t cls, const char *name, bool any_cla
 static int skill_ceiling(const being_t *ch, const skill_def_t *sk) {
     if (sk->tier == SKILL_TIER_COMBAT)   return ch->progress.combat_disc_pct;
     if (sk->tier == SKILL_TIER_ADVANCED) return ch->progress.advanced_disc_pct;
-    /* Weapon specializations (user, 2026-08-04: "all of those should be
-     * automatic") -- Class-tier otherwise caps at basic_disc_pct, which
-     * sits at 0 for a never-practiced character and would leave these
-     * permanently stuck at their 1% floor despite landing real hits.
-     * Uncapped ceiling instead, same "no guildmaster gate at all" spirit
-     * as being_knows_skill()'s own bypass for these 5 names. */
-    if (sk->cls == CLASS_WARRIOR
-        && (strcasecmp(sk->name, "slash specialization") == 0
-            || strcasecmp(sk->name, "blunt specialization") == 0
-            || strcasecmp(sk->name, "pierce specialization") == 0
-            || strcasecmp(sk->name, "ranged specialization") == 0
-            || strcasecmp(sk->name, "barehand specialization") == 0))
-        return 100;
     return ch->progress.basic_disc_pct;
 }
 

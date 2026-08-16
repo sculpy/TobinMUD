@@ -411,17 +411,26 @@ bool cmd_practice(descriptor_t *d, const char *args) {
         return true;
     }
 
-    /* Spend up to `count` points, each awarding random 1-2%. */
+    /* Spend up to `count` points. Each +1-2% step now costs TWO points
+     * (user: automatic skill/discipline gain was too fast -- maxing a
+     * Basic or Combat discipline should take ~25 levels and Advanced
+     * ~50, roughly twice the old pace; the old average was ~1.5% per
+     * point, now ~0.75%). Both points feed the same step, so none is
+     * wasted -- a lone leftover point simply carries over until it can
+     * pair up on the next visit. */
     int spent = 0;
-    for (int p = 0; p < count; p++) {
-        if (ch->progress.practice_points <= 0 || cur >= 100)
-            break;
-        ch->progress.practice_points--;
+    while (spent + 2 <= count && ch->progress.practice_points >= 2 && cur < 100) {
+        ch->progress.practice_points -= 2;
         int gain = 1 + (rand() % 2);
         cur += gain;
         if (cur > 100)
             cur = 100;
-        spent++;
+        spent += 2;
+    }
+    if (spent == 0) {
+        descriptor_send(d, "Practice now advances two points at a time -- you need at "
+                          "least two points, and to ask to spend at least two.\r\n");
+        return true;
     }
     disc_pct_set(ch, tier, cur);
 
