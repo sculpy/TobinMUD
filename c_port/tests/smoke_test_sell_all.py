@@ -33,6 +33,8 @@ _suffix = "".join(chr(ord("a") + (int(time.time()) // 26**i) % 26) for i in rang
 SHOP_ROOM = 559
 DAGGER_VNUM = 958000 + (int(time.time()) % 900)
 SWORD_VNUM = 957000 + (int(time.time()) % 900)
+BAG_VNUM = 956000 + (int(time.time()) % 900)
+TYPE_BAG = 27  # ITEM_BAG -> OBJ_CAT_CONTAINER
 TYPE_WEAPON = 5
 WEAR_TAKE = 1
 WEAR_HOLD = 16384
@@ -68,6 +70,9 @@ sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,price,mater
 sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,price,material,can_be_seen) "
     f"VALUES ({SWORD_VNUM},'sellall sword','a sellall test sword','A sellall test sword lies here.',"
     f"{TYPE_WEAPON},{WEAR_TAKE | WEAR_HOLD},700,0,1);")
+sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,price,material,can_be_seen) "
+    f"VALUES ({BAG_VNUM},'sellall bag','a sellall test bag','A sellall test bag lies here.',"
+    f"{TYPE_BAG},{WEAR_TAKE},10,0,1);")
 
 s = make_char(name, pw, 3)  # Warrior (level 51+ needed for `load`)
 cmd(s, "quit!"); s.close()
@@ -97,13 +102,24 @@ check("sellall test sword" in out.lower(), "the bare `sell all` sells the remain
 inv2 = cmd(s, "inventory")
 check("sellall test sword" not in inv2.lower(), "the sword is gone from inventory after `sell all`")
 
+# --- 3: sell all.<name> reaches into a carried container ---
+check("You conjure" in cmd(s, f"load obj {BAG_VNUM}"), "the test bag is loaded")
+check("You conjure" in cmd(s, f"load obj {DAGGER_VNUM}"), "a fresh dagger is loaded for the bag case")
+cmd(s, "put dagger bag")
+binv = cmd(s, "inventory")
+check("sellall test dagger" not in binv.lower(), "the dagger is inside the bag, not loose in inventory")
+out3 = cmd(s, "sell all.dagger")
+check("sellall test dagger" in out3.lower(), "sell all.<name> pulls the dagger out of the bag and sells it")
+lookin = cmd(s, "look in bag")
+check("sellall test dagger" not in lookin.lower(), "the bag is empty after the container sale")
+
 s.close()
 
 sql(f"DELETE FROM player_inventory WHERE player_id=(SELECT id FROM player WHERE name='{name}');")
 sql(f"DELETE FROM player_progress WHERE player_id=(SELECT id FROM player WHERE name='{name}');")
 sql(f"DELETE FROM player_attrs WHERE player_id=(SELECT id FROM player WHERE name='{name}');")
 sql(f"DELETE FROM player WHERE name='{name}';")
-sql(f"DELETE FROM obj WHERE vnum IN ({DAGGER_VNUM}, {SWORD_VNUM});")
+sql(f"DELETE FROM obj WHERE vnum IN ({DAGGER_VNUM}, {SWORD_VNUM}, {BAG_VNUM});")
 
 announce_done("smoke_test_sell_all", host, port)
 print("=== ALL CHECKS PASSED ===")

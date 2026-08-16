@@ -679,7 +679,6 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - Druid casting is using random components for the same spell. The right component per spell, no other component should work.
 - [x] DONE 2026-08-15: character-selection menu now lists characters highest level first (player_repo.c order-by level desc).
 - Mage and druid mobs arent casting, mages druids and clerics should be taking advantage of their spells, and every class should be taking advantage of their skills, fix it so mobs use skills/spells available to them 
-- Sell all.X should get from containers too to sell all
 - In the client triggers and aliases save to file but they never fire in game
 - Mobs should have a chance to join the fights depending on alignment, assist friends
 - Should be able to fight more than one mob and vice versa

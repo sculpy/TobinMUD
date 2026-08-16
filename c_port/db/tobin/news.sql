@@ -553,3 +553,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Fighters Grow Sharper: New Passive Combat Skills', 'Your character now quietly gets better at fighting just by fighting. A new set of passive skills -- offense and advanced offense sharpen your accuracy, advanced defense makes you harder to pin down, tactics lends a general edge in a brawl, and inevitability lends the grim certainty that your blow will land. None of them need a command; they train themselves as you trade blows. Wounded adventurers also mend faster now: fast heal speeds how quickly your hurts close while you rest, sit, or sleep.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Sell All Now Empties Your Bags Too', 'The `sell all` and `sell all.<item>` shortcuts at a shop now reach inside the bags and containers you are carrying, not just your loose inventory. Fill a pouch with loot, walk up to a shopkeeper, and a single `sell all` clears both your hands and your bags of everything that shop is willing to buy.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
