@@ -2466,17 +2466,135 @@ static bool mob_spec_dispatch_combat(being_t *m, being_t *victim) {
  * every charmed pet's own strike against whatever it's fighting (see
  * the large comment below for why pets are handled in a separate pass
  * here rather than through mob_ai's own slower pulse). */
+/* Multi-attacker support (user 2026-08-16, "fight more than one mob" +
+ * "assist friends"). Returns the first LIVE mob in `pc`'s room that is
+ * engaging `pc` (its fighting pointer aims at `pc`) other than `except`,
+ * or NULL. Tobin's combat is a strict 1v1 `fighting` pointer pair, so a
+ * PC only ever swings at ONE foe; but several mobs can each aim their own
+ * fighting pointer at the PC (set by combat_recruit_assist() below), and
+ * this lets the PC re-engage a lingering attacker once its current foe
+ * dies, and lets the extra-attacker pass find them. */
+static being_t *combat_next_attacker(being_t *pc, being_t *except) {
+    if (!pc || !pc->base.roomp)
+        return NULL;
+    for (thing_t *t = pc->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_MOB)
+            continue;
+        being_t *m = (being_t *)t;
+        if (m == except || m->fighting != pc)
+            continue;
+        if (m->progress.hp > 0 && m->position != POSITION_DEAD
+            && m->position != POSITION_MORTALLYW && m->position != POSITION_INCAP)
+            return m;
+    }
+    return NULL;
+}
+
+/* True for a "guard"-type mob, recognized by its keywords -- Tobin never
+ * ported an ACT_ guardian flag, so the guard concept lives in the mob's
+ * name/keyword list (e.g. "guard city", "castle guard"). Guards defend one
+ * another unconditionally (see combat_recruit_assist()). */
+static bool being_is_guard(const being_t *m) {
+    const char *nm = m ? m->base.name : NULL;
+    if (!nm)
+        return false;
+    for (const char *p = nm; *p; p++)
+        if ((*p == 'g' || *p == 'G') && strncasecmp(p, "guard", 5) == 0)
+            return true;
+    return false;
+}
+
+/* Assist recruitment (user 2026-08-16: "Mobs should have a chance to join
+ * the fights depending on alignment, assist friends" + "Guard mobs ...
+ * assist each other. When you attack a guard you attack ALL guards"). When
+ * a PC is fighting `victim_mob`, each un-engaged mob in the room that
+ * qualifies leaps to its defense by aiming its OWN fighting pointer at the
+ * PC (the PC's own fighting pointer is left alone -- the newcomers become
+ * EXTRA attackers resolved by the multi-attacker pass in
+ * combat_process_run(), not the PC's melee target). A charmed pet (the
+ * PC's own ally) never assists against its master.
+ *
+ * Two ways to qualify, with different odds:
+ *   - GUARDS: if both the newcomer and the mob under attack are guards
+ *     (being_is_guard), the newcomer ALWAYS joins (user 2026-08-16:
+ *     "guarenteed for guards") -- attack one guard and you take on every
+ *     guard in the room, whatever their exact vnum.
+ *   - Aligned ALLIES: a mob sharing the victim's non-zero alignment joins
+ *     on a per-round RANDOM ROLL, never guaranteed (user 2026-08-16: "the
+ *     assist shouldnt be 100% it should have a random chance of assist/
+ *     fail"). A failed roll is simply re-rolled next round while the mob
+ *     stays un-engaged, so an aligned brawl builds up unevenly. */
+static void combat_recruit_assist(being_t *pc, being_t *victim_mob) {
+    if (!pc || !pc->base.roomp || pc->progress.hp <= 0)
+        return;
+    if (victim_mob->base.kind != THING_MOB)
+        return;
+    for (thing_t *t = pc->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_MOB)
+            continue;
+        being_t *f = (being_t *)t;
+        if (f == victim_mob || f->fighting)
+            continue;
+        if (f->progress.hp <= 0 || f->position == POSITION_SLEEPING
+            || f->position == POSITION_DEAD || f->position == POSITION_MORTALLYW
+            || f->position == POSITION_INCAP || f->position == POSITION_STUNNED)
+            continue;
+        if (being_has_affect(f, AFFECT_CHARMED))
+            continue; /* the PC's own summoned pet -- never turns on its master */
+        bool both_guards = being_is_guard(f) && being_is_guard(victim_mob);
+        bool ally = f->mob_align != 0 && f->mob_align == victim_mob->mob_align;
+        if (!both_guards && !ally)
+            continue;
+        /* Guards defend their own for certain; an aligned ally only joins
+         * on a successful per-round roll (re-rolled next round on a miss). */
+        if (!both_guards && (rand() % 100) >= 35)
+            continue;
+
+        f->fighting = pc;   /* engage the PC as an EXTRA attacker; pc->fighting untouched */
+        being_set_wait(f, COMBAT_ROUND_PULSES);
+        char capf[128], capv[128];
+        if (pc->desc) {
+            char m[256];
+            snprintf(m, sizeof(m), "<o>%s rushes to %s's aid and joins the attack on you!<z>\r\n",
+                     being_display_name_cap(f, capf, sizeof(capf)), being_display_name(victim_mob));
+            descriptor_notify(pc->desc, m);
+        }
+        if (pc->base.roomp) {
+            char m[256];
+            snprintf(m, sizeof(m), "%s rushes to %s's aid and joins the fight!\r\n",
+                     being_display_name_cap(f, capf, sizeof(capf)),
+                     being_display_name_cap(victim_mob, capv, sizeof(capv)));
+            descriptor_room_echo(pc->base.roomp, pc, m);
+        }
+    }
+}
+
 void combat_process_run(long pulse_num) {
     for (descriptor_t *d = g_descriptors; d; d = d->next) {
         being_t *a = d->character;
-        if (!a || !a->fighting)
+        if (!a)
             continue;
+        if (!a->fighting) {
+            /* Multi-mob re-target (user 2026-08-16): the PC's foe died last
+             * round but other mobs are still swinging at it -- re-engage
+             * one so the fight continues instead of ending early. */
+            being_t *nxt = combat_next_attacker(a, NULL);
+            if (!nxt)
+                continue;
+            a->fighting = nxt;
+        }
         if (a->last_combat_pulse == pulse_num)
             continue; /* already resolved this round via the other participant */
 
         being_t *b = a->fighting;
         a->last_combat_pulse = pulse_num;
         b->last_combat_pulse = pulse_num;
+
+        /* Allies/kin of the mob under attack leap in as extra attackers
+         * (see combat_recruit_assist()); they're resolved by the
+         * multi-attacker pass further down this same round. */
+        if (b->base.kind == THING_MOB)
+            combat_recruit_assist(a, b);
 
         bool b_decapitated = combat_strike(a, b);
         if (b->progress.hp <= 0 || b_decapitated) {
@@ -2572,6 +2690,43 @@ void combat_process_run(long pulse_num) {
         if (b->base.kind == THING_MOB) {
             if (mob_skill_combat(b, a))
                 continue;
+        }
+
+        /* Multi-attacker pass (user 2026-08-16: "fight more than one mob"
+         * + "assist friends"). Beyond `a`'s primary foe `b`, every OTHER
+         * mob in the room whose fighting pointer aims at `a` (assist
+         * recruits, or a leftover from a re-target) gets its own strike
+         * plus its spec/spell/skill action against `a` this round. This is
+         * the incoming side of multi-mob combat -- `a` still swings only at
+         * `b` (the strict-1v1 offense), but can now be ganged up on. If any
+         * extra attacker fells `a`, combat_defeat() ejects the PC (freeing
+         * d->character) -- guarded right after, same as every defeat above.
+         * `next` is saved before each iteration in case a strike relocates
+         * or removes something from the room's contents list. */
+        if (a->base.roomp) {
+            for (thing_t *t = a->base.roomp->base.stuff_head; t;) {
+                thing_t *next = t->stuff_next;
+                if (t->kind == THING_MOB) {
+                    being_t *e = (being_t *)t;
+                    if (e != b && e->fighting == a && e->progress.hp > 0
+                        && e->position != POSITION_DEAD && e->position != POSITION_MORTALLYW) {
+                        bool a_dead = combat_strike(e, a);
+                        if (a->progress.hp <= 0 || a_dead) {
+                            combat_defeat(a, e, a_dead);
+                            break;
+                        }
+                        if (e->mob_spec_proc && mob_spec_dispatch_combat(e, a))
+                            break;
+                        if (mob_cast_combat(e, a))
+                            break;
+                        if (mob_skill_combat(e, a))
+                            break;
+                    }
+                }
+                t = next;
+            }
+            if (!d->character)
+                continue; /* a PC was felled by an extra attacker above */
         }
 
         /* Vitality drain (user 2026-08-03: "vitality should decrease when
