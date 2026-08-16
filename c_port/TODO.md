@@ -676,7 +676,6 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 ## Buildable now
 
 - Lifeforce in the client status bar reports mana, change to lifeforce for druids -- DEFERRED 2026-08-15: not a simple relabel. Tobin has no real Lifeforce resource pool (druid max_mana is always 0; score/cast only relabel the word -- see resource_pool_label()/cmd_cast.c:3061), and the status bar lives in the Windows client (needs an MSI rebuild). Proper fix = build a Lifeforce resource, then relabel client-side. Revisit with the mana/casting items (#689/#691).
-- Druid casting is using random components for the same spell. The right component per spell, no other component should work.
 - [x] DONE 2026-08-15: character-selection menu now lists characters highest level first (player_repo.c order-by level desc).
 - Mage and druid mobs arent casting, mages druids and clerics should be taking advantage of their spells, and every class should be taking advantage of their skills, fix it so mobs use skills/spells available to them 
 - In the client triggers and aliases save to file but they never fire in game

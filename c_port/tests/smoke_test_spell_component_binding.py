@@ -20,6 +20,10 @@ used here as the "wrong / generic" component.
      component on hand -- the exact-reagent rule is waived for them.
   5. doMerge: two same-vnum components brought together on the floor merge
      into a single stacked object (real TComponent::doMerge()).
+  6. Druid (user's report): a bound Druid spell (sticks to snakes, L15,
+     reagent vnum 284 "some serpentine amber") demands its OWN reagent --
+     the newbie spellbag's other-spell components do not satisfy it; the
+     right reagent lifts the refusal.
 
     python3 tests/smoke_test_spell_component_binding.py [host] [port]
 """
@@ -130,6 +134,38 @@ g2 = cmd(sw, "get lasso")
 check("don't see" in g2.lower(),
       "only ONE object remained on the floor -- the two components merged (2 -> 1)")
 sw.close()
+
+# --- Druid case: the user's actual report -- "Druid casting is using random
+#     components for the same spell; the right component per spell, no other
+#     component should work." A bound Druid spell must demand its OWN reagent.
+#     sticks to snakes (Druid L15) is bound to vnum 284 "some serpentine amber";
+#     the Druid spawns with a spellbag of components for OTHER spells. ---
+dru = f"Compdru{_sfx}"
+make_char(dru, pw, "5")  # Druid
+sql("UPDATE player_progress SET level=20, basic_disc_pct=100, mana=100, max_mana=100 "
+    f"WHERE player_id=(SELECT id FROM player WHERE name='{dru}');")
+sd = login(dru, pw)
+out = cmd(sd, "cast sticks to snakes")
+check("serpentine amber" in out.lower(),
+      "a Druid carrying only other-spell components is told the exact reagent "
+      "(serpentine amber) sticks to snakes needs -- generic components no longer satisfy it")
+sd.close()
+
+# Right reagent (vnum 284) added by SQL; reconnect so the live being_t reloads
+# inventory. The component refusal must lift (any later mana/Lifeforce message
+# is fine -- it is not a component refusal).
+sql("INSERT INTO player_inventory (player_id, vnum, slot) VALUES "
+    f"((SELECT id FROM player WHERE name='{dru}'), 284, -1);")
+sd = login(dru, pw)
+out = cmd(sd, "cast sticks to snakes")
+check("serpentine amber" not in out.lower() and "don't have the spell components" not in out.lower(),
+      "holding the right reagent (serpentine amber) removes the Druid's component refusal")
+sd.close()
+
+sql(f"DELETE FROM player_inventory WHERE player_id=(SELECT id FROM player WHERE name='{dru}');")
+sql(f"DELETE FROM player_progress WHERE player_id=(SELECT id FROM player WHERE name='{dru}');")
+sql(f"DELETE FROM player_attrs WHERE player_id=(SELECT id FROM player WHERE name='{dru}');")
+sql(f"DELETE FROM player WHERE name='{dru}';")
 
 announce_done("smoke_test_spell_component_binding", host, port)
 print("PASS: smoke_test_spell_component_binding")
