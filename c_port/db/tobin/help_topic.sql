@@ -1370,3 +1370,10 @@ You can only maintain one conjured or charmed creature at a time. Refuses
 against an immortal.
 
 Related: cast befriend beast animal companion skills practice','seed') ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by='seed';
+
+-- Migration: news/wiznews gained a three-week archive split (news archived).
+UPDATE `help_topic` SET `body` = 'Usage: news [archived] [lines-per-page]\n\nShows the game news feed -- announcements of new features, command\nchanges, and additions to the world, newest first -- a page at a time.\nAt a "more" prompt, press ENTER for the next page or Q to stop. Give a\nnumber (news 10, 20, 50, or 100) to set the page size; the default is 20.\n\nItems older than three weeks drop out of this feed into the archive:\n`news archived` (or `news old`) shows them, and a page size may follow\n(e.g. news archived 50).'
+  WHERE `name` = 'news' AND `updated_by` = 'seed';
+
+UPDATE `help_topic` SET `body` = 'Usage: wiznews [archived] [lines-per-page]\n\nLevel 51+ only: the immortals'' news channel -- read like `news` (whole\nfeed, newest first, a page at a time), but for matters that concern\nimmortals. Post to it with `edwiznews`. Items older than three weeks move\nto the archive, shown by `wiznews archived` (or `wiznews old`).'
+  WHERE `name` = 'wiznews' AND `updated_by` = 'seed';

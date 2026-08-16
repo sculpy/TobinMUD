@@ -12,7 +12,7 @@
 /* Formats the most recent news (or wiznews, when wiz is true) items,
  * newest first, into a single ready-to-send text block, up to limit items.
  * Returns false if there are none. */
-bool news_repo_recent(bool wiz, char *out, size_t size, int limit) {
+bool news_repo_recent(bool wiz, bool archived, char *out, size_t size, int limit) {
     db_conn_t *db = db_open(DB_TOBIN);
     if (!db)
         return false;
@@ -22,13 +22,28 @@ bool news_repo_recent(bool wiz, char *out, size_t size, int limit) {
     bool any = false;
 
     /* Newest first. No dates rendered -- news items carry no numbers at all
-     * (user rule), and the ordering conveys recency. Two literal queries
-     * (not a %s table name) keep the build warning-free. */
-    bool got = wiz
-        ? db_query(db, "select author, title, body from wiznews "
-                       "order by created_at desc, id desc limit %i", limit)
-        : db_query(db, "select author, title, body from news "
-                       "order by created_at desc, id desc limit %i", limit);
+     * (user rule), and the ordering conveys recency. `archived` splits the
+     * feed at a three-week (21-day) cutoff: the live feed shows items posted
+     * within the window, the archive shows everything older. Four fully
+     * literal queries (never a %s table name or interpolated interval) keep
+     * the build warning-free, same reason as the original two. */
+    bool got;
+    if (wiz && archived)
+        got = db_query(db, "select author, title, body from wiznews "
+                           "where created_at < now() - interval 21 day "
+                           "order by created_at desc, id desc limit %i", limit);
+    else if (wiz)
+        got = db_query(db, "select author, title, body from wiznews "
+                           "where created_at >= now() - interval 21 day "
+                           "order by created_at desc, id desc limit %i", limit);
+    else if (archived)
+        got = db_query(db, "select author, title, body from news "
+                           "where created_at < now() - interval 21 day "
+                           "order by created_at desc, id desc limit %i", limit);
+    else
+        got = db_query(db, "select author, title, body from news "
+                           "where created_at >= now() - interval 21 day "
+                           "order by created_at desc, id desc limit %i", limit);
     if (got) {
         while (db_fetch_row(db)) {
             const char *author = db_get(db, "author");

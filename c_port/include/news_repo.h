@@ -8,11 +8,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* Renders the most recent `limit` items (newest first) from the news channel
- * into `out` as ready-to-send text (title / body / author per item). `wiz`
+/* Renders up to `limit` items (newest first) from the news channel into
+ * `out` as ready-to-send text (title / body / author per item). `wiz`
  * selects the immortal `wiznews` table instead of the public `news` table.
- * Returns false if there are no items. */
-bool news_repo_recent(bool wiz, char *out, size_t size, int limit);
+ * `archived` splits the feed by age at a three-week cutoff: false yields
+ * the current items (posted within the last three weeks), true yields the
+ * older, archived ones. Returns false if there are no matching items. */
+bool news_repo_recent(bool wiz, bool archived, char *out, size_t size, int limit);
 
 /* Inserts an item into the news (`wiz` false) or wiznews (`wiz` true) channel,
  * or -- since `title` is UNIQUE per channel -- overwrites the body/author of

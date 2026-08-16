@@ -557,3 +557,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Sell All Now Empties Your Bags Too', 'The `sell all` and `sell all.<item>` shortcuts at a shop now reach inside the bags and containers you are carrying, not just your loose inventory. Fill a pouch with loot, walk up to a shopkeeper, and a single `sell all` clears both your hands and your bags of everything that shop is willing to buy.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Old News Tucked Into an Archive', 'The news feed now keeps itself tidy. Once an announcement has been up for more than three weeks it slips out of the main list into an archive, so `news` stays focused on what is recent. To browse the older bulletins any time, type `news archived` (or `news old`); you can add a page size just like the regular feed.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

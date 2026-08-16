@@ -688,7 +688,6 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 - Examine mana gain and recovery, apply those sneezy fixes to druids and mages.
 - low level automated skills gain too fast, it should take 25 levels to max out skills in basic and combat disciplines and it should take until 50 to max advanced discipline. Scale all skills to gain at this speed.
 - spell failures should take a bit of casting to fail, not instant fail. And mana cost should be divided by the number of rounds it takes to cast.
-- archive old news and wiznews items, and provide a way to read the archived *news items. Leave only three weeks worth of entries in the file before they get archived.
 - [x] DONE 2026-08-15: mob up/down move-in/out lines now read "from above"/"from below" and "walks upward/downward" (mob_ai.c DEPART_PHRASE/ARRIVE_PHRASE tables). (The only directional move strings were the mob wander lines; player arrival has no direction.)
 - Add left margin navigation to the website
 - At level 13 the basic discipline is learned to 100%, it should take twice as long
