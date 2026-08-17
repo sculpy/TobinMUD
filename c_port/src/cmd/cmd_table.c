@@ -649,6 +649,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "setsev",  cmd_setsev,  "View or flip which log types echo to you.",          IMMORTAL_LEVEL_MIN },
     { "feigndeath", cmd_feigndeath, "Play dead to avoid an aggressive mob's attention.", MORTAL_LEVEL_MIN },
     { "hide", cmd_hide, "Conceal yourself from view; broken by moving, attacking, or casting (Thief).", MORTAL_LEVEL_MIN },
+    { "quiveringpalm", cmd_quiveringpalm, "The fabled death touch -- a devastating strike against a humanoid foe (Monk, level 42).", MORTAL_LEVEL_MIN },
     { "berserk", cmd_berserk, "Fly into a berserk rage -- unparryable, but you can't be rescued either (Warrior).", MORTAL_LEVEL_MIN },
     { "bandage", cmd_bandage, "Treat a bleeding limb using a carried bandage (bandage [target]).", MORTAL_LEVEL_MIN },
     { "apply", cmd_apply, "Apply a poultice of healing herbs to yourself or an ally (Druid, apply [herbs] [target]).", MORTAL_LEVEL_MIN },

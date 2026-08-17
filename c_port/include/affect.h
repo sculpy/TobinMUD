@@ -392,6 +392,13 @@ typedef enum {
      * divineMe()) puts a SKILL_DIVINATION recast timer on the dowser so
      * they can't refill a waterskin every round. Same shape here. */
     AFFECT_DIVINE_COOLDOWN,
+    /* `quivering palm` recast timer (Monk spec-proc, level 42) --
+     * upstream (cmd_quivpalm.cc) blocks a re-attempt via an
+     * affectedBySpell(SKILL_QUIV_PALM) self-affect until the monk
+     * re-centers. Tobin has no mana pool for a monk to spend as its
+     * cost (being.c: Monk max_mana is 0; see cmd_chi.c), so this
+     * cooldown is the SOLE balancing gate on the death-touch. */
+    AFFECT_QUIVERING_PALM_COOLDOWN,
     AFFECT_COUNT,
 } affect_type_t;
 
@@ -442,6 +449,13 @@ affect_type_t affect_random_disease(void);
 /* `fish` cooldown -- same magnitude/spirit as FORAGE_COOLDOWN_ROUNDS
  * (a gathering skill shouldn't be spammable every round), Tier-3 port. */
 #define FISH_COOLDOWN_ROUNDS 50
+
+/* `quivering palm` recast timers (Monk spec-proc). No mana cost exists
+ * in Tobin to gate the death-touch, so these are the only brake: a long
+ * lockout after a landed strike, a shorter one after a miss. Rounds are
+ * COMBAT_ROUND_PULSES (~1.2s) each -- ~2 min / ~48s. */
+#define QUIV_COOLDOWN_ROUNDS 100
+#define QUIV_COOLDOWN_FAIL_ROUNDS 40
 
 /* `divine` water-dowsing recast timer -- a bit longer than the gathering
  * cooldowns since pulling drinkable water out of thin air is meant to be
