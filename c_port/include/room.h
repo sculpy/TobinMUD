@@ -64,6 +64,41 @@ char sector_color(int sector);
  * mirroring the original's own average-of-two-sectors rawMove() rule. */
 int sector_move_cost(int sector);
 
+/* Per-sector hunger/thirst drain weight (1-6), the (c) per-sector-effects
+ * slice of the room-flag TODO. Straight in spirit from the original's
+ * TerrainInfo hunger/thirst columns (misc/constants.cc) fed to
+ * TBeing::foodNDrink() (obj/obj_food.cc): a higher number means that
+ * sector burns that vital faster (desert thirst=6, savannah=5; arid/hot
+ * terrain parches, cold/exertion terrain starves). Same substring
+ * bucketing precedent as sector_move_cost() above rather than a full
+ * 61-row port -- deserts/savannah/veldt drive thirst, mountains/climbing/
+ * forest drive hunger; ordinary terrain sits at the baseline 2, matching
+ * the flat 2/2 every temperate/arctic row carries upstream. Consumed by
+ * vitals.c's drain tick. Baseline 2 == no change from the old flat rate. */
+int sector_thirst_rate(int sector);
+int sector_hunger_rate(int sector);
+
+/* Ambient heat of a sector (Tobin-original heat subsystem, user
+ * 2026-08-17) -- a DELIBERATE INVENTION, not a port: SneezyMUD defines a
+ * TerrainInfo heat column (misc/constants.cc) but nothing in that engine
+ * ever reads it, so there is no upstream behaviour to mirror. Values
+ * reuse the original data's own scale for familiarity (lava ~140, desert
+ * 120, tropics ~100, temperate ~60, arctic <=0), bucketed by the same
+ * sector-name substring precedent as sector_move_cost() above. Consumed
+ * by vitals.c (heatstroke/hypothermia HP chip past the DAMAGE thresholds
+ * below, outdoors only, saved by a race heat/cold resist roll) and
+ * cmd_move.c (a cosmetic sweat/shiver cue past the STRESS thresholds). */
+int sector_heat(int sector);
+
+/* Heat-subsystem thresholds (see sector_heat()). STRESS = cosmetic
+ * discomfort cue on entry; DAMAGE = a 1-HP chip per drain tick. Shared by
+ * vitals.c and cmd_move.c so the two layers agree on where "extreme"
+ * begins. Temperate baseline (~60) sits comfortably between them. */
+#define HEAT_STRESS_HOT   95
+#define HEAT_STRESS_COLD  15
+#define HEAT_DAMAGE_HOT   120
+#define HEAT_DAMAGE_COLD  0
+
 /* True for a genuinely UNDERWATER sector (e.g. "TEMPERATE UNDERWATER"),
  * false for surface water (OCEAN/RIVER SURFACE/ICEFLOW -- swimmable,
  * not a drowning risk) or anything dry. Sneezy → Tobin feature audit,

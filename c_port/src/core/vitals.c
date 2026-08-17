@@ -52,6 +52,51 @@ static void vitals_tick_impl(long pulse_num, bool affect_players) {
         for (int n = upkeep_decay(rb->drink_mult); n > 0 && b->progress.thirst > 0; n--)
             b->progress.thirst--;
 
+        /* (c) per-sector effects: hot/arid and hard-travel terrain burn
+         * thirst/hunger faster, on top of the race-based drain above. In
+         * spirit from the original's TerrainInfo thirst/hunger columns fed
+         * to TBeing::foodNDrink() (obj/obj_food.cc): the baseline rate 2
+         * every ordinary sector carries contributes nothing (over<=0), so
+         * behaviour outside deserts/mountains is unchanged. Probability
+         * rises ~15%/step above baseline -- a desert (thirst 6) sheds an
+         * extra thirst point ~60% of ticks; mountains (hunger 4) an extra
+         * food point ~30%. Guarded by the same >0 floor as the race drain. */
+        if (b->base.roomp) {
+            int sector = b->base.roomp->sector;
+            int t_over = sector_thirst_rate(sector) - 2;
+            int h_over = sector_hunger_rate(sector) - 2;
+            if (t_over > 0 && b->progress.thirst > 0 && (rand() % 100) < t_over * 15)
+                b->progress.thirst--;
+            if (h_over > 0 && b->progress.hunger > 0 && (rand() % 100) < h_over * 15)
+                b->progress.hunger--;
+        }
+
+        /* Tobin-original heat subsystem (user 2026-08-17) -- a deliberate
+         * INVENTION, not a port (upstream defines TerrainInfo heat but no
+         * engine code reads it; see room.h). Outdoors in a temperature
+         * extreme, the sector bites once per drain tick: heatstroke past
+         * HEAT_DAMAGE_HOT (deserts/lava), hypothermia at/below
+         * HEAT_DAMAGE_COLD (deep arctic). A 1-HP chip, non-lethal and
+         * floored at 1 -- the same convention starvation uses above.
+         * ROOM_FLAG_INDOORS shelters entirely; the race heat/cold resist
+         * roll (being_race_resists) is a per-tick save, so a heat-resistant
+         * race can shrug off the desert sun. The milder STRESS band is a
+         * cosmetic sweat/shiver cue in cmd_move.c, not a drain effect. */
+        if (b->base.roomp && !(b->base.roomp->room_flag & ROOM_FLAG_INDOORS)) {
+            int heat = sector_heat(b->base.roomp->sector);
+            if (heat >= HEAT_DAMAGE_HOT && !being_race_resists(b, RESIST_HEAT)) {
+                b->progress.hp--;
+                if (b->progress.hp < 1)
+                    b->progress.hp = 1;
+                descriptor_send(d, "<R>The blistering heat sears your skin.<z>\r\n");
+            } else if (heat <= HEAT_DAMAGE_COLD && !being_race_resists(b, RESIST_COLD)) {
+                b->progress.hp--;
+                if (b->progress.hp < 1)
+                    b->progress.hp = 1;
+                descriptor_send(d, "<C>The bitter cold bites deep into your bones.<z>\r\n");
+            }
+        }
+
         if (b->progress.hunger == 0 || b->progress.thirst == 0) {
             b->progress.hp--;
             if (b->progress.hp < 1)

@@ -573,8 +573,11 @@ bool cmd_look(descriptor_t *d, const char *args) {
      * see the plain name. */
     if (being_is_immortal(d->character)) {
         char flagbuf[256];
-        n = snprintf(out, sizeof(out), "\r\n[%d] <%c>%s<z> <c>[ %s ]<z> <p>%s<z>\r\n<%c>%s<z>\r\n",
+        n = snprintf(out, sizeof(out), "\r\n[%d] <%c>%s<z> <c>[ %s | mv%d thr%d hun%d heat%d ]<z> <p>%s<z>\r\n<%c>%s<z>\r\n",
                      r->vnum, bright, r->base.name, sector_name(r->sector),
+                     sector_move_cost(r->sector), sector_thirst_rate(r->sector),
+                     sector_hunger_rate(r->sector),
+                     sector_heat(r->sector),
                      room_flag_names(r->room_flag, flagbuf, sizeof(flagbuf)),
                      dim, desc);
     } else {

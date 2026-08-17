@@ -424,6 +424,20 @@ static bool do_move(descriptor_t *d, int dir) {
     if (!d->character)
         return true;
 
+    /* Tobin-original heat subsystem (user 2026-08-17): a cosmetic comfort
+     * cue when a mortal steps into an outdoor temperature-extreme sector --
+     * the STRESS band below the DAMAGE thresholds vitals.c chips at. Fires
+     * on entry only (not per drain tick), sheltered indoors. See
+     * sector_heat() (room.c) for why this layer is a labelled invention. */
+    if (d->character && !being_is_immortal(ch) && ch->base.kind == THING_PC
+        && !(to->room_flag & ROOM_FLAG_INDOORS)) {
+        int amb = sector_heat(to->sector);
+        if (amb >= HEAT_STRESS_HOT)
+        descriptor_send(d, "<o>The heat here is oppressive; you break into a sweat.<z>\r\n");
+        else if (amb <= HEAT_STRESS_COLD)
+        descriptor_send(d, "<c>The air here is bitterly cold; you shiver.<z>\r\n");
+    }
+
     return cmd_dispatch(d, "look");
 }
 

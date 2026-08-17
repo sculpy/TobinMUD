@@ -1,5 +1,37 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-17 — Session 155 (DO droplet, production port 4000):
+**Per-sector effects (c) + Tobin-original heat subsystem.** Closes the
+last slice of the "room flags + sector types have their Sneezy effects"
+TODO, then adds an invented temperature layer on top (user's call).
+  - **(c) Per-sector thirst/hunger:** sector_thirst_rate/sector_hunger_rate
+    (room.c), ported in spirit from the original TerrainInfo thirst/hunger
+    columns (misc/constants.cc) fed to TBeing::foodNDrink(): deserts (thr6)
+    and savannah/veldt parch, mountains/climbing/forest (hun4/3) starve;
+    the baseline 2 every ordinary sector carries adds nothing, so drain
+    outside extremes is byte-for-byte unchanged. Wired into vitals.c's drain
+    tick as an extra ~15%/step-above-baseline point. smoke_test_sector_effects.py
+    (4 checks).
+  - **Heat subsystem (Tobin-ORIGINAL, not a port):** upstream defines a
+    TerrainInfo heat column but NO engine code ever reads it, so there was
+    nothing to port -- built as a labelled invention at the user's request.
+    sector_heat() (room.c) buckets ambient heat on the original data's own
+    scale (lava 140, desert 120, tropics ~100, temperate 60, arctic -30).
+    vitals.c chips 1 HP/tick (non-lethal, floored) past HEAT_DAMAGE_HOT
+    (120) / HEAT_DAMAGE_COLD (0) outdoors -- heatstroke / hypothermia --
+    with a race RESIST_HEAT/COLD roll as a per-tick save and ROOM_FLAG_INDOORS
+    as full shelter. cmd_move.c adds a cosmetic sweat/shiver cue on entry
+    past the milder STRESS band (95 / 15). Immortal look header (cmd_look.c)
+    now reads [ NAME | mvN thrN hunN heatN ]. smoke_test_heat.py (8 checks,
+    incl. a behavioural mortal walk into desert/arctic). DEFERRED within
+    this: gear insulation, weather coupling.
+  - Dropped from the original (c) wishlist: "no-mob/peaceful sectors" --
+    ROOM_FLAG_NO_MOB already exists and is enforced in mob wandering
+    (mob_ai.c:165), and upstream has no peaceful-SECTOR concept (peaceful is
+    a room flag there, not a sector), so there was nothing to add.
+  - Build clean (zero warnings); deployed via copyover. Regression: room
+    flags / room-flags-combat / tier3 / sector-effects / heat all green.
+
 Last updated: 2026-08-17 — Session 154 (DO droplet, production port 4000):
 **Website left-margin nav + mob-alignment seed (data task).** Two backlog
 items from the user's autonomous run.

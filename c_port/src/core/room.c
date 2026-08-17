@@ -103,6 +103,69 @@ int sector_move_cost(int sector) {
     return 1;
 }
 
+/* (c) per-sector-effects: how fast a sector parches you. Mirrors the
+ * original's TerrainInfo thirst column (misc/constants.cc): desert 6,
+ * savannah 5, veldt 4, tropical 3; everything temperate/arctic/wet sits
+ * at the flat baseline 2 that most upstream rows carry. Underwater/river
+ * surfaces run drier-benefit (1) upstream but Tobin keeps them at the 2
+ * baseline -- its drowning path (vitals.c) already dominates there. */
+int sector_thirst_rate(int sector) {
+    const char *name = sector_name(sector);
+    if (strstr(name, "DESERT"))
+        return 6;
+    if (strstr(name, "SAVANNAH"))
+        return 5;
+    if (strstr(name, "VELDT"))
+        return 4;
+    if (strstr(name, "LAVA") || strstr(name, "FIRE") || strstr(name, "JUNGLE")
+        || strstr(name, "RAINFOREST") || strstr(name, "TROPICAL"))
+        return 3;
+    return 2;
+}
+
+/* (c) per-sector-effects: how fast a sector burns food. Mirrors the
+ * original's TerrainInfo hunger column: mountains/climbing 4, and the
+ * broad 3-tier of forest/hills/jungle/cave-climbing exertion terrain;
+ * ordinary terrain sits at the flat baseline 2. Desert is also a 4-5
+ * upstream (hunger 5) -- hard travel country burns both vitals. */
+int sector_hunger_rate(int sector) {
+    const char *name = sector_name(sector);
+    if (strstr(name, "DESERT") || strstr(name, "MOUNTAIN") || strstr(name, "CLIMBING"))
+        return 4;
+    if (strstr(name, "FOREST") || strstr(name, "HILLS") || strstr(name, "JUNGLE")
+        || strstr(name, "RAINFOREST") || strstr(name, "WASTE") || strstr(name, "DEAD WOODS"))
+        return 3;
+    return 2;
+}
+
+/* Ambient heat of a sector -- see room.h for why this Tobin-original layer
+ * exists (upstream defines the data but never reads it). Buckets by name,
+ * reusing the original TerrainInfo heat values for scale: lava/fire the
+ * hottest (140), desert 120, tropics/jungle ~100, savannah/veldt 90;
+ * deep-arctic wastes/high peaks/solid ice the coldest (-30); other arctic/
+ * tundra/iceflow near freezing (0); everything temperate at a comfortable
+ * baseline 60. The deep-cold test runs before the generic ARCTIC catch so
+ * an arctic peak reads colder than an arctic road. Indoor shelter is the
+ * caller's job (ROOM_FLAG_INDOORS), not encoded here. */
+int sector_heat(int sector) {
+    const char *name = sector_name(sector);
+    if (strstr(name, "LAVA") || strstr(name, "FIRE"))
+        return 140;
+    if (strstr(name, "DESERT"))
+        return 120;
+    if (strstr(name, "JUNGLE") || strstr(name, "RAINFOREST") || strstr(name, "TROPICAL"))
+        return 100;
+    if (strstr(name, "SAVANNAH") || strstr(name, "VELDT"))
+        return 90;
+    if (strstr(name, "SUBARCTIC") || strstr(name, "WASTE") || strstr(name, "SOLID ICE")
+        || (strstr(name, "ARCTIC") && strstr(name, "MOUNTAIN")))
+        return -30;
+    if (strstr(name, "ARCTIC") || strstr(name, "TUNDRA") || strstr(name, "ICEFLOW")
+        || strstr(name, "COLD BEACH"))
+        return 0;
+    return 60;
+}
+
 /* True for any sector whose name contains "UNDERWATER" (temperate/tropical
  * underwater sectors) -- used to gate things like breathing/swim checks. */
 bool sector_is_underwater(int sector) {
