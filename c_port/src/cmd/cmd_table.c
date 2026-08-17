@@ -420,6 +420,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "rescue",  cmd_rescue,  "Swap places with an ally in combat, pulling their attacker onto you (Warrior, rescue <ally>).", MORTAL_LEVEL_MIN },
     /* Skill-based combat (Sneezy → Tobin feature audit, Thief/Monk). */
     { "kick",    cmd_kick,    "Kick for bonus damage -- kick <target> also starts a fight (Warrior/Thief/Monk).", MORTAL_LEVEL_MIN },
+    { "shoot",   cmd_shoot,   "Fire a wielded bow/crossbow/sling at a target, spending ammo (shoot <target>).", MORTAL_LEVEL_MIN },
     { "stomp",   cmd_stomp,   "A crushing stomp attack (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
     { "evaluate", cmd_evaluate, "Appraise an item's worth, condition, and material (evaluate <item>).", MORTAL_LEVEL_MIN },
     /* SWAP: pray before practice, so "p"/"pr" stay a Cleric's spell verb;

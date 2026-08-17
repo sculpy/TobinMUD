@@ -41,6 +41,16 @@ static const skill_def_t SKILLS[] = {
     { "blunt specialization",    CLASS_WARRIOR, SKILL_TIER_ADVANCED, 1, "See help `blunt specialization` for help." },
     { "pierce specialization",   CLASS_WARRIOR, SKILL_TIER_ADVANCED, 1, "See help `pierce specialization` for help." },
     { "ranged specialization",   CLASS_WARRIOR, SKILL_TIER_ADVANCED, 1, "See help `ranged specialization` for help." },
+    /* Fast load (ranged combat, Sneezy fastLoad(),
+     * disc_ranger_weapons.cc) -- accelerates reloading a ranged
+     * weapon after a shot (cmd_shoot.c cuts the reload lag from
+     * RANGED_RELOAD_PULSES to one round on a successful roll). Was
+     * deferred until Tobin HAD a ranged-combat system to attach it
+     * to; now that shoot exists, it lands. Real upstream is a
+     * Ranger skill; Tobin has no Ranger, so it goes to the martial
+     * classes that actually loose arrows -- Warrior and Thief. */
+    { "fast load",               CLASS_WARRIOR, SKILL_TIER_CLASS, 6, "See help `fast load` for help." },
+    { "fast load",               CLASS_THIEF, SKILL_TIER_CLASS, 6, "See help `fast load` for help." },
     { "barehand specialization", CLASS_WARRIOR, SKILL_TIER_ADVANCED, 1, "See help `barehand specialization` for help." },
     { "sign",                    CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `sign` for help." },
     { "bash",                    CLASS_WARRIOR, SKILL_TIER_CLASS, 1, "See help `bash` for help." },
