@@ -105,6 +105,39 @@ backlog items.
     registration" -- the 32-slot pulse table is full and silently dropping
     a periodic process. Worth raising the cap / auditing registrations.
 
+Last updated: 2026-08-17 — Session 153 (DO droplet, production port 4000):
+**Combat spec-procs + three previously-blocked subsystems.**
+
+- Spec-procs (item 1): hide (Thief), quivering palm (Monk), scribe
+  (Mage inscribes a known spell onto an ephemeral handwritten scroll;
+  cmd_use honours obj_t.scribed_spell ahead of the vnum-keyed table).
+- **Mob pathfinding** (mob_ai.c): bounded BFS mob_path_next_dir over
+  the open/non-NO_MOB exit graph + cross-tick being_t.hunting state
+  advanced one hop per combat round by a new mob_hunt_tick pulse; on
+  arrival a hunter engages or (hunt_befriend) becomes a charmed pet.
+  being_destroy scrubs the hunting pointer. Druid **beast summon** is
+  the spell it was built for: spawns a wolf a few rooms away that paths
+  back and joins as a pet (vs befriend beast popping one into the room).
+- **Ranged combat** (cmd_shoot): `shoot <target>` fires a wielded
+  bow/crossbow/sling at a same-room target, spends matching ammo, and
+  imposes a reload lag. **Fast load** (Warrior/Thief) cuts the reload to
+  one round. Bows/arrows are already-seeded content (ITEM_BOW/ITEM_ARROW).
+- **Druid Lifeforce** is now a real scaling pool (a learn-by-doing
+  lifeforce skill drives being_calc_max_mana(); cmd_cast trains it and
+  recomputes the max), not a flat-100 placeholder. class_resource_label()
+  is the single source of truth for the pool name and is published over
+  GMCP Char.Vitals (manalabel) + MSDP (MANA_LABEL); the Windows client
+  gauge titles itself from it (Druid->Lifeforce, Cleric->Piety). Client
+  rebuilt (mingw-w64 + wixl), MSI republished, version.txt 0.4.31.
+- New smoke tests: scribe, beast_summon, shoot, lifeforce (all pass).
+  Two pre-existing stale tests noted (NOT regressions): castpray expects
+  immortals to be refused for components (they bypass by design), and
+  gmcp_msdp_msp expects the old hit.wav (renamed to barehand1.wav in the
+  2026-08-06 sound-pack reorg). Deployed via copyover.
+
+---
+
+
 Last updated: 2026-08-16 — Session 152 (DO droplet, production port 4000):
 **Tier 4: speak-a-language subsystem + 8 tongues.** The last non-blocked
 entry in the ranked spell/skill port backlog.
