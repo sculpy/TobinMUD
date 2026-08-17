@@ -404,6 +404,43 @@ typedef enum {
      * a short cooldown stands in as the anti-spam cost for minting a
      * handwritten scroll (cmd_scribe.c). */
     AFFECT_SCRIBE_COOLDOWN,
+    /* Ward-buff split (2026-08-17): the family of "protective ward"
+     * spells (armor, bless, stone skin, barkskin, shield, flaming
+     * flesh, plasma mirror, protection from *) all used to funnel into
+     * the single AFFECT_SANCTUARY halve-damage effect -- a disclosed v1
+     * scope-cut ("one real shared buff, not ~30 bespoke systems"). Now
+     * that the affect system is mature each distinct upstream mechanic
+     * gets its own affect, mapped by affect_ward_for() (affect.c).
+     * AFFECT_SANCTUARY itself stays the pure damage-halver
+     * (sanctuary/sorcerer's globe/trance of blades).
+     *
+     * AFFECT_ARMOR -- upstream APPLY_ARMOR (improves AC). Tobin has no
+     * AC-by-amount stat, so it lands as a real defender-side to-hit
+     * PENALTY on the attacker (combat.c), same shape/precedent as
+     * AFFECT_SHIELD_OF_MISTS. Covers armor/stone skin/barkskin/shield/
+     * flaming flesh and any "armor bonus"/"self-ward" ward -- also the
+     * default for any ward not matched more specifically. */
+    AFFECT_ARMOR,
+    /* AFFECT_BLESS -- upstream bless is a hitroll+save buff (offensive).
+     * Ported as an attacker-side to-hit bonus PLUS a small flat damage
+     * bonus (combat.c). Carried by whoever will ATTACK (self by default,
+     * or an ally the caster blesses); covers bless and the holy group
+     * buffs consecrate/crusade. */
+    AFFECT_BLESS,
+    /* AFFECT_PROTECTION -- upstream "protection from *"/resistance:
+     * reduces damage taken. Tobin has no per-element resist stat, so it
+     * lands as a flat percentage damage reduction (combat.c), distinct
+     * from Sanctuary's halving (the two stack). Covers protection from
+     * earth (and the protection-from family) and any "resistance to"
+     * ward. */
+    AFFECT_PROTECTION,
+    /* AFFECT_DAMAGE_MIRROR -- upstream plasma mirror / reflective
+     * shield: bounces damage back at the attacker. Ported as a real
+     * percentage melee-damage reflection (combat.c), same defender-side
+     * reflect shape as AFFECT_THORNFLESH but %-based rather than
+     * thornflesh's flat min(dmg-1,3). Covers plasma mirror and any
+     * "reflective shield" ward. */
+    AFFECT_DAMAGE_MIRROR,
     AFFECT_COUNT,
 } affect_type_t;
 
@@ -479,6 +516,24 @@ affect_type_t affect_random_disease(void);
  * -- a modest flat bonus on top of the normal rest-weighted amount, the
  * camper-only stand-in for upstream's camp regen boost. */
 #define ENCAMP_REGEN_BONUS 2
+
+/* Ward-buff split magnitudes (2026-08-17). WARD_DURATION_ROUNDS is the
+ * old shared AFFECT_SANCTUARY duration (COMBAT_ROUND_PULSES each, ~1.2s).
+ * The to-hit deltas reuse the same flat scale every other combat to-hit
+ * modifier in combat.c uses (DESTROYED_LIMB_HIT_PENALTY = 15). */
+#define WARD_DURATION_ROUNDS 12
+#define ARMOR_HIT_PENALTY 15   /* AFFECT_ARMOR: attacker to-hit penalty */
+#define BLESS_HIT_BONUS 10     /* AFFECT_BLESS: attacker to-hit bonus */
+#define BLESS_DAM_BONUS 2      /* AFFECT_BLESS: attacker flat damage bonus */
+#define PROTECTION_DAM_PCT 25  /* AFFECT_PROTECTION: % incoming damage removed */
+#define DAMAGE_MIRROR_PCT 25   /* AFFECT_DAMAGE_MIRROR: % damage reflected */
+
+/* Ward-buff split (2026-08-17): maps a protective/blessing spell (by its
+ * roster name + resolved help/desc keywords) to the specific ward affect
+ * it should apply, replacing the old "everything is AFFECT_SANCTUARY"
+ * funnel. See the AFFECT_ARMOR..AFFECT_DAMAGE_MIRROR block above. Either
+ * argument may be NULL. */
+affect_type_t affect_ward_for(const char *name, const char *desc);
 
 #define MAX_ACTIVE_AFFECTS 4
 

@@ -1178,7 +1178,7 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
          * "damaging attackers" flavor text -- no reflect-damage mechanic
          * in the real spell at all, same kind of flavor-text correction
          * this audit has made before (chi/jirin/cintai, teleport). */
-        being_apply_affect(target, AFFECT_SANCTUARY, 12);
+        being_apply_affect(target, affect_ward_for(sk->name, desc), WARD_DURATION_ROUNDS);
         if (target == ch) {
             snprintf(msg, sizeof(msg), "You cast %s -- a protective ward settles over you!\r\n", sk->name);
             descriptor_send(d, msg);
@@ -1418,7 +1418,7 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
             being_t *occ = (being_t *)t;
             if (being_is_immortal(occ))
                 continue;
-            being_apply_affect(occ, AFFECT_SANCTUARY, 60);
+            being_apply_affect(occ, AFFECT_PROTECTION, 60);
             pehit++;
         }
         (void)pehit;

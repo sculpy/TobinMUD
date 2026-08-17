@@ -1,5 +1,42 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-17 — Session 156 (DO droplet, production port 4000):
+**Ward-buff family split into distinct affects.** The whole "protective
+ward" spell family used to funnel into one AFFECT_SANCTUARY halve-damage
+buff -- a documented v1 scope-cut ("one real shared buff, not ~30 bespoke
+systems"). Split into five distinct affects now that the affect system is
+mature, routed by a new affect_ward_for(name, desc) mapper (affect.c) that
+keys off the spell's roster name + its live help-topic keywords (the same
+keywords the old inline cast/pray branches already matched).
+  - **AFFECT_SANCTUARY** stays the pure damage-halver -- sanctuary plus its
+    group/stance kin sorcerer's globe and trance of blades.
+  - **AFFECT_ARMOR** (armor / stone skin / barkskin / shield / flaming
+    flesh / any "armor bonus"/"self-ward"): upstream APPLY_ARMOR. Tobin has
+    no AC-by-amount stat, so it lands as a flat attacker-side to-hit PENALTY
+    (combat.c), same shape as AFFECT_SHIELD_OF_MISTS. Also the default for
+    any ward not matched more specifically.
+  - **AFFECT_BLESS** (bless / consecrate / crusade): offensive -- an
+    attacker to-hit bonus PLUS a small flat damage bonus (combat.c). Carried
+    by whoever will attack.
+  - **AFFECT_PROTECTION** (protection from *, "resistance to"): a flat %
+    damage cut, distinct from Sanctuary's halving; the two stack.
+  - **AFFECT_DAMAGE_MIRROR** (plasma mirror / reflective shield): reflects a
+    % of each landed melee blow back onto the attacker (like AFFECT_THORNFLESH
+    but %-based; skips an immortal attacker).
+  - New `affects` display names: Armored / Blessed / Protected / Reflecting.
+    No new spells -- only the existing ones' mechanics. The buff help topics
+    already described these distinct effects ("improves armor class",
+    "improves hit and damage", "reflective shield"), so no help changes.
+  - Touched: include/affect.h (enum + magnitudes + affect_ward_for decl),
+    src/core/affect.c (names + mapper), src/core/combat.c (4 hooks),
+    cmd_cast.c / cmd_pray.c / cmd_use.c (route the ward branches).
+  - Build clean (zero warnings, full rm -rf build); deployed via copyover.
+    smoke_test_ward_split.py (10 checks: all five distinct affects + the
+    damage-mirror combat hook firing). NOTE: the pre-existing smoke_test_affects
+    /affect_persistence fail on a STALE `score` regex (score now prints
+    "HP: n/max", not the old "HP: n (max)") -- unrelated to this change.
+
+
 Last updated: 2026-08-17 — Session 155 (DO droplet, production port 4000):
 **Per-sector effects (c) + Tobin-original heat subsystem.** Closes the
 last slice of the "room flags + sector types have their Sneezy effects"

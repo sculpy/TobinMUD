@@ -189,14 +189,16 @@ durations where warranted, and a cooldown where warranted. Audit findings
 (full report given in chat, not duplicated here):
 
 - **Placeholder-only spells** (cast/pray fall through to "...but nothing
-  happens yet"): blindness, slumber, fear, curse, paralyze/paralyze limb,
-  invisibility, teleport, summon, word of recall, telepathy, dispel
-  magic/invisible, identify, materialize, farlook, scribe, bind, silence.
-  Root cause: `include/affect.h`'s `AFFECT_*` enum has no blind/sleep/
-  paralyze/fear/curse/invisible entry to even apply -- needs the enum
-  extended before any of these can get a real per-spell effect (same
-  "new subsystem needed first" shape the Stupidity affect took, see the
-  roster-import section above).
+  happens yet") -- MOSTLY RESOLVED as the affect enum was extended over
+  the level-5+/21/23/24/25/28/48 audit batches. DONE (each has a real
+  AFFECT_* now): blindness, slumber (sleep), fear, curse, invisibility,
+  dispel invisible (detect invisibility), scribe (cooldown), bind,
+  silence. Still open (genuine remaining gaps, not enum-blocked in the
+  same way): paralyze (33, a full-body hold like transfix -- not yet
+  built), and the one-shot ACTIONS that were never affect-shaped anyway
+  (teleport is DONE; summon, word of recall, telepathy, dispel magic,
+  identify, materialize, farlook remain, but these are commands/effects,
+  not lingering affects).
 - **Skill roster entries with literally no handler** (fall through to
   "Command not found"), sorted by min_level ascending -- this is the
   active work list, lowest level first per the user's instruction:
@@ -695,12 +697,14 @@ durations where warranted, and a cooldown where warranted. Audit findings
     `load_room`, since that's the same pre-existing bug, not a new one.
     Not yet started: whirlwind/kneestrike/farlook/scribe/bind (25), hide
     (31), paralyze (33), quivering palm (42), silence (48).
-- **Buff spells that conflate distinct effects**: sanctuary/armor/bless/
-  stone skin/barkskin/protection-from-* all currently reuse the identical
-  `AFFECT_SANCTUARY` buff rather than each having its own effect --
-  functional (not a stub), but a disclosed simplification worth a
-  separate pass once the placeholder-spell affects above get their own
-  enum entries.
+- **Buff spells that conflate distinct effects** -- DONE 2026-08-17
+  (Session 156). sanctuary/armor/bless/stone skin/barkskin/protection-from-*/
+  plasma mirror no longer all reuse `AFFECT_SANCTUARY`; split into
+  AFFECT_ARMOR (to-hit penalty), AFFECT_BLESS (attacker hit+damage buff),
+  AFFECT_PROTECTION (flat % damage cut), AFFECT_DAMAGE_MIRROR (melee
+  reflect), with AFFECT_SANCTUARY kept as the pure damage-halver. Routed by
+  affect_ward_for() (affect.c). smoke_test_ward_split.py; see STATUS
+  Session 156.
 
 Self-contained — no need for the object/mob systems. Keep working through
 these; each ships with a smoke test + (if player-facing) a news entry.

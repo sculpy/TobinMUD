@@ -865,7 +865,7 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
             being_t *occ = (being_t *)t;
             if (being_is_immortal(occ))
                 continue;
-            being_apply_affect(occ, AFFECT_SANCTUARY, 60);
+            being_apply_affect(occ, AFFECT_BLESS, 60);
             cshit++;
         }
         (void)cshit;
@@ -1113,7 +1113,7 @@ static void task_pray(descriptor_t *d, being_t *ch, being_t *target, const skill
          * same shared mechanic, an honest scope-down from three bespoke
          * ones (see cmd_cast.c's matching comment). */
         ch->last_heal_target = NULL;
-        being_apply_affect(target, AFFECT_SANCTUARY, 12);
+        being_apply_affect(target, affect_ward_for(sk->name, desc), WARD_DURATION_ROUNDS);
         if (target == ch) {
             snprintf(msg, sizeof(msg), "You pray for %s -- a shimmering aura surrounds you!\r\n", sk->name);
             descriptor_send(d, msg);

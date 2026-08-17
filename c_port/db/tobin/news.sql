@@ -601,3 +601,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Spellcasting foes turn cunning', 'The realm''s hostile spellcasters have grown craftier in a fight. Enemy priests and mages no longer merely scorch and smite -- expect a curse to sap your strength, a word to strike you blind, a spell of dread to freeze your sword arm, or a silence to still your own incantations. Come prepared, and do not count on trading blows alone.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Protective Wards Come Into Their Own', 'The blessings and wards of priests and mages no longer all feel alike. A sanctuary still softens every blow, as ever. But armor, stone skin and barkskin now turn attacks aside by making you harder to strike; a blessing sharpens your own aim and bite; wards of protection shrug off a share of whatever harm still lands; and a plasma mirror hurls part of an attacker''s own blow back into their face. Pick the ward that suits the fight.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

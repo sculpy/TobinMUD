@@ -748,6 +748,17 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * AFFECT_SHIELD_OF_MISTS's own doc comment (affect.h). */
     if (being_has_affect(defender, AFFECT_SHIELD_OF_MISTS))
         modifier -= DESTROYED_LIMB_HIT_PENALTY;
+    /* Ward-buff split (2026-08-17): AFFECT_ARMOR (armor/stone skin/
+     * barkskin/shield/flaming flesh/...) improves the defender's AC --
+     * ported as a flat attacker to-hit penalty, same defender-side
+     * shape as AFFECT_SHIELD_OF_MISTS just above. */
+    if (being_has_affect(defender, AFFECT_ARMOR))
+        modifier -= ARMOR_HIT_PENALTY;
+    /* AFFECT_BLESS (bless/consecrate/crusade) sharpens the ATTACKER's
+     * swing -- an offensive to-hit bonus (its damage half lands in the
+     * damage block below). */
+    if (being_has_affect(attacker, AFFECT_BLESS))
+        modifier += BLESS_HIT_BONUS;
     /* `living vines` (Shaman/Druid audit batch C, 2026-08-09) -- see
      * AFFECT_LIVING_VINES's own doc comment (affect.h). */
     if (being_has_affect(defender, AFFECT_LIVING_VINES))
@@ -1078,6 +1089,11 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
 
     /* Gamewide damage multiplier (user 2026-07-12's `balance` command) --
      * same class/race rule as the to-hit modifier above. */
+    /* AFFECT_BLESS damage half (its to-hit half is in the modifier
+     * block above) -- a small flat pre-multiplier bonus. */
+    if (being_has_affect(attacker, AFFECT_BLESS))
+        dmg += BLESS_DAM_BONUS;
+
     float dmg_mult = 1.0f;
     if (attacker->base.kind == THING_PC) {
         dmg_mult = class_balance_get(attacker->char_class)->dmg_mult
@@ -1104,6 +1120,16 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * modifiers above. */
     if (being_has_affect(defender, AFFECT_SANCTUARY)) {
         dmg /= 2;
+        if (dmg < 1)
+            dmg = 1;
+    }
+
+    /* AFFECT_PROTECTION (protection from */ /* ... / resistance) -- a
+     * flat percentage cut, distinct from Sanctuary's halving; both
+     * stack (a sanctuary'd AND protected defender gets both), applied
+     * right after Sanctuary same as toughness below. */
+    if (being_has_affect(defender, AFFECT_PROTECTION)) {
+        dmg -= dmg * PROTECTION_DAM_PCT / 100;
         if (dmg < 1)
             dmg = 1;
     }
@@ -1195,6 +1221,24 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
                 descriptor_notify(attacker->desc, "<o>The thorns on their body bite into you as you land the hit!<z>\r\n");
             if (defender->desc)
                 descriptor_notify(defender->desc, "<o>Your thorns bite into your attacker!<z>\r\n");
+        }
+    }
+
+    /* AFFECT_DAMAGE_MIRROR (plasma mirror / reflective shield) -- bounces
+     * a percentage of the final hit back onto the attacker, same
+     * defender-side reflect plumbing as AFFECT_THORNFLESH just above but
+     * %-based rather than a flat min(dmg-1,3). Uses the FINAL modified
+     * dmg for the same reason. Never harms an immortal attacker. */
+    if (dmg > 0 && being_has_affect(defender, AFFECT_DAMAGE_MIRROR) && !being_is_immortal(attacker)) {
+        int reflected = dmg * DAMAGE_MIRROR_PCT / 100;
+        if (reflected > 0) {
+            attacker->progress.hp -= reflected;
+            if (attacker->progress.hp < 1)
+                attacker->progress.hp = 1;
+            if (attacker->desc)
+                descriptor_notify(attacker->desc, "<c>Your blow rebounds off a shimmering mirror shield and strikes you!<z>\r\n");
+            if (defender->desc)
+                descriptor_notify(defender->desc, "<c>Your mirror shield hurls the attack back at its source!<z>\r\n");
         }
     }
 

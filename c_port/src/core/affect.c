@@ -6,6 +6,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
 #include "being.h"
 #include "descriptor.h"
@@ -77,6 +79,10 @@ static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "Divining",
     "Quivering Palm",
     "Scribing",
+    "Armored",
+    "Blessed",
+    "Protected",
+    "Reflecting",
 };
 
 /* HP drained per damage sub-tick for AFFECT_POISON -- its own faster gate
@@ -186,6 +192,47 @@ int affect_cure_price(affect_type_t type) {
 affect_type_t affect_random_disease(void) {
     int span = AFFECT_DISEASE_EXTREME_PAIN - AFFECT_DISEASE_COLD + 1;
     return (affect_type_t)(AFFECT_DISEASE_COLD + rand() % span);
+}
+
+/* Case-insensitive substring test -- local to affect_ward_for(). affect.c
+ * is a core module with no shared string-util dependency (the cmd layer's
+ * own ci_contains() lives behind per-file static linkage), so this stays
+ * private here rather than pulling one in. */
+static bool aff_ci_contains(const char *hay, const char *needle) {
+    if (!hay || !needle)
+        return false;
+    size_t nl = strlen(needle);
+    if (nl == 0)
+        return true;
+    for (const char *p = hay; *p; p++)
+        if (strncasecmp(p, needle, nl) == 0)
+            return true;
+    return false;
+}
+
+/* Ward-buff split (2026-08-17) -- see the AFFECT_ARMOR..AFFECT_DAMAGE_MIRROR
+ * enum block (affect.h). Routes a protective/blessing spell to the ward
+ * affect it should apply, matched most-specific first, by roster name and
+ * (where cmd_cast/cmd_pray pass it) the live help-topic body keywords the
+ * old inline branches always keyed off. */
+affect_type_t affect_ward_for(const char *name, const char *desc) {
+    /* Reflect: plasma mirror / any reflective-shield ward. */
+    if (aff_ci_contains(name, "plasma mirror") || aff_ci_contains(desc, "reflective shield"))
+        return AFFECT_DAMAGE_MIRROR;
+    /* Blessing: offensive hit+damage buff (bless + holy group buffs). */
+    if (aff_ci_contains(name, "bless") || aff_ci_contains(name, "consecrate")
+        || aff_ci_contains(name, "crusade") || aff_ci_contains(desc, "improves hit and damage"))
+        return AFFECT_BLESS;
+    /* Protection / resistance: flat damage reduction. */
+    if (aff_ci_contains(name, "protection from") || aff_ci_contains(desc, "resistance to"))
+        return AFFECT_PROTECTION;
+    /* Pure damage-halver: sanctuary and its group/stance kin. */
+    if (aff_ci_contains(name, "sanctuary") || aff_ci_contains(name, "sorcerer's globe")
+        || aff_ci_contains(name, "trance of blades") || aff_ci_contains(desc, "reduces incoming damage"))
+        return AFFECT_SANCTUARY;
+    /* Default: armor-class family (armor/stone skin/barkskin/shield/
+     * flaming flesh/"armor bonus"/"self-ward"). */
+    return AFFECT_ARMOR;
 }
 
 /* Checks whether `b` currently has a given buff/debuff active by

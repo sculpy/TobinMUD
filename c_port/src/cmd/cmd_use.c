@@ -154,7 +154,7 @@ static void apply_item_effect(descriptor_t *d, being_t *ch, being_t *target,
                || ci_contains(sk->desc, "resistance to") || ci_contains(sk->desc, "reflective shield")
                || ci_contains(sk->desc, "self-ward") || ci_contains(sk->name, "shield")
                || ci_contains(sk->name, "stone skin") || ci_contains(sk->name, "barkskin")) {
-        being_apply_affect(target, AFFECT_SANCTUARY, 12);
+        being_apply_affect(target, affect_ward_for(sk->name, sk->desc), WARD_DURATION_ROUNDS);
         if (target == ch)
             snprintf(msg, sizeof(msg), "You use %s -- %s wards you!\r\n", item_label, sk->name);
         else
