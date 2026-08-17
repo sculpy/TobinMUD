@@ -605,3 +605,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Protective Wards Come Into Their Own', 'The blessings and wards of priests and mages no longer all feel alike. A sanctuary still softens every blow, as ever. But armor, stone skin and barkskin now turn attacks aside by making you harder to strike; a blessing sharpens your own aim and bite; wards of protection shrug off a share of whatever harm still lands; and a plasma mirror hurls part of an attacker''s own blow back into their face. Pick the ward that suits the fight.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The World''s Slow Clockwork Turns Again', 'A few of the realm''s quieter rhythms had, without anyone noticing, fallen still. Seeds pressed into the earth were no longer ripening into crops, and the tally of old kills that trims itself back over time had stopped fading. Both have been wound up and set ticking once more -- plant and wait, and your garden will bear; rest on your laurels, and they will slowly yield to newer deeds.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

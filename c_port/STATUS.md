@@ -1,5 +1,30 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-17 — Session 157 (DO droplet, production port 4000):
+**Pulse scheduler cap fix + two stale tests refreshed.** Housekeeping pass
+on the loose ends from Session 156's report.
+  - **Pulse cap 32 -> 64 (src/core/pulse.c):** boot registers 34 tick
+    systems (main.c) against a cap of 32, so pulse_register()'s overflow
+    guard was dropping the LAST two -- obj_plant_growth_tick and
+    trophy_pulse_tick -- at every boot (each boot logged two
+    "MAX_PULSE_PROCESSES (32) exceeded" errors). Real player-facing effect:
+    planted crops never ripened/yielded and trophy kill-counts never
+    decayed. mob_hunt_tick (the earlier suspect) was never the victim --
+    it registers 7th, well inside the cap. Raised to 64 for genuine
+    headroom (history: 8 -> 16 -> 24 -> 32 -> 64). Verified: the post-fix
+    22:52 boot logs no pulse error, unlike every prior boot. news +
+    wiznews added.
+  - **Stale tests fixed:** smoke_test_affects / smoke_test_affect_persistence
+    keyed off a `score` HP regex expecting the old "HP: n (max)" format;
+    score prints "HP: n/max" now, so both failed at "read the target's
+    starting HP via score". Regex `\(` -> `/`; both green again. Bonus:
+    they double as a Sanctuary damage-halving regression and confirm it
+    still works after Session 156's ward-buff split (4.30->3.38 and
+    7.70->3.25 HP/round with Sanctuary up).
+  - No engine behaviour change beyond restoring the two dropped ticks;
+    build clean, deployed via copyover.
+
+
 Last updated: 2026-08-17 — Session 156 (DO droplet, production port 4000):
 **Ward-buff family split into distinct affects.** The whole "protective
 ward" spell family used to funnel into one AFFECT_SANCTUARY halve-damage

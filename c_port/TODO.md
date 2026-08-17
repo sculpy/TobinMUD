@@ -695,8 +695,9 @@ durations where warranted, and a cooldown where warranted. Audit findings
     around in the test itself with `goto`/`transfer` to force everyone
     into the sandbox deterministically rather than depending on
     `load_room`, since that's the same pre-existing bug, not a new one.
-    Not yet started: whirlwind/kneestrike/farlook/scribe/bind (25), hide
-    (31), paralyze (33), quivering palm (42), silence (48).
+    Not yet started (as of Session 156): whirlwind, kneestrike,
+    farlook (25), paralyze (33). DONE since this line was written:
+    scribe/bind (25), hide (31), quivering palm (42), silence (48).
 - **Buff spells that conflate distinct effects** -- DONE 2026-08-17
   (Session 156). sanctuary/armor/bless/stone skin/barkskin/protection-from-*/
   plasma mirror no longer all reuse `AFFECT_SANCTUARY`; split into

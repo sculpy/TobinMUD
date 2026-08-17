@@ -85,7 +85,7 @@ def hp_of(sock):
     # directly from the being_t in memory, so HP loss over a fixed window
     # is used as the actual measurable signal instead of parsing hits.
     out = cmd(sock, "score")
-    m = re.search(r"HP:\s*(-?\d+)\s*\(", out)
+    m = re.search(r"HP:\s*(-?\d+)\s*/", out)
     return int(m.group(1)) if m else None
 
 

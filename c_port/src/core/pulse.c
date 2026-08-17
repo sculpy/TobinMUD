@@ -6,16 +6,19 @@
 
 #include "log.h"
 
-#define MAX_PULSE_PROCESSES 32 /* was 8, then 16 (Session 43, gametime_tick),
-                                  then 24 (trigger_pending_tick) -- bumped
-                                  again when Planting's two new registrations
-                                  (planting_tick_run/obj_plant_growth_tick,
-                                  main.c) pushed the count to 26 and got
-                                  silently dropped the same way: the overflow
-                                  guard logs an error but doesn't stop the
-                                  boot, so a whole tick system just quietly
-                                  never fires until someone notices. Some
-                                  headroom left this time, not just +1/+2. */
+#define MAX_PULSE_PROCESSES 64 /* was 8, then 16 (Session 43, gametime_tick),
+                                  then 24 (trigger_pending_tick), then 32 --
+                                  and 32 was already exceeded: main.c now
+                                  registers 34 tick systems, so the last two
+                                  (obj_plant_growth_tick / trophy_pulse_tick)
+                                  were being silently dropped at boot
+                                  (crops never grew/yielded, trophies never
+                                  decayed) -- the overflow guard logs an
+                                  error but doesn't stop the boot, so a whole
+                                  tick system just quietly never fires until
+                                  someone notices. Bumped to 64 (Session 157)
+                                  for real headroom rather than chasing the
+                                  count by +1/+2 every few sessions. */
 
 typedef struct {
     int trigger_pulse;
