@@ -250,6 +250,15 @@ typedef struct obj {
      * 0 for an ephemeral (non-prototype) object. */
     int raw_type;
 
+    /* Per-instance scribed spell (`scribe` spec-proc, Mage level 25). When
+     * non-empty, this scroll casts THIS spell on `use` regardless of vnum,
+     * taking precedence over the vnum-keyed obj_magic table (cmd_use.c) --
+     * the mechanism a handwritten scroll needs, since it is an ephemeral
+     * obj (vnum 0) with no obj_magic row of its own. Empty on every
+     * ordinary object. Not persisted (ephemeral, like the scroll itself --
+     * see cmd_scribe.c's disclosed no-restart-persistence scope-cut). */
+    char scribed_spell[64];
+
     /* Real per-item stat/AC/HP/Vitality bonuses (Magic items, Sneezy ->
      * Tobin feature audit) -- sourced from the upstream-seeded `objaffect`
      * table (vnum, type, mod1, mod2 -- same real, untouched data

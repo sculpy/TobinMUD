@@ -238,8 +238,13 @@ bool cmd_use(descriptor_t *d, const char *args) {
     }
 
     char spell_name[OBJ_MAGIC_SPELL_NAME_LEN];
-    int max_charges;
-    if (!obj_magic_repo_get(o->vnum, spell_name, sizeof(spell_name), &max_charges)) {
+    int max_charges = 1;
+    /* A handwritten scroll (`scribe`, cmd_scribe.c) carries its spell on the
+     * instance itself, not in the vnum-keyed obj_magic table -- honour that
+     * first so an ephemeral vnum-0 scroll still fires. */
+    if (o->scribed_spell[0]) {
+        snprintf(spell_name, sizeof(spell_name), "%s", o->scribed_spell);
+    } else if (!obj_magic_repo_get(o->vnum, spell_name, sizeof(spell_name), &max_charges)) {
         descriptor_send(d, "Nothing happens -- it doesn't seem to be magical after all.\r\n");
         return true;
     }

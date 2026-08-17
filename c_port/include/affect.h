@@ -399,6 +399,11 @@ typedef enum {
      * cost (being.c: Monk max_mana is 0; see cmd_chi.c), so this
      * cooldown is the SOLE balancing gate on the death-touch. */
     AFFECT_QUIVERING_PALM_COOLDOWN,
+    /* `scribe` recast timer (Mage spec-proc, level 25). Tobin does not
+     * model upstream's parchment/spell/scribe component-charge trio, so
+     * a short cooldown stands in as the anti-spam cost for minting a
+     * handwritten scroll (cmd_scribe.c). */
+    AFFECT_SCRIBE_COOLDOWN,
     AFFECT_COUNT,
 } affect_type_t;
 
@@ -456,6 +461,9 @@ affect_type_t affect_random_disease(void);
  * COMBAT_ROUND_PULSES (~1.2s) each -- ~2 min / ~48s. */
 #define QUIV_COOLDOWN_ROUNDS 100
 #define QUIV_COOLDOWN_FAIL_ROUNDS 40
+
+/* `scribe` recast cooldown (rounds, ~1.2s each) -- see AFFECT_SCRIBE_COOLDOWN. */
+#define SCRIBE_COOLDOWN_ROUNDS 20
 
 /* `divine` water-dowsing recast timer -- a bit longer than the gathering
  * cooldowns since pulling drinkable water out of thin air is meant to be
