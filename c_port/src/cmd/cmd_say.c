@@ -11,6 +11,7 @@
 #include <strings.h>
 
 #include "combat.h"
+#include "language.h"
 #include "mob_ai.h"
 #include "room.h"
 #include "socials.h"
@@ -25,8 +26,10 @@
  * sees `<Name> says, "<message>"`. Mirrors the original's TBeing::doSay()
  * (misc/talk.cc): same message format, same empty-message guard, and no
  * auto-added punctuation -- whatever the player typed is used verbatim.
- * Not replicated: the original's garble() (drunk/language distortion) and
- * color-coding of the name/message. */
+ * Language distortion IS replicated (Tier-4, 2026-08-16): if the speaker
+ * has `speak`d a foreign tongue, each listener's copy is garbled per their
+ * proficiency in it (language.c). Not replicated: the original's drunk
+ * garble. */
 /* Case-insensitive "does haystack contain needle" (strcasestr is GNU-only,
  * same duplicated-helper precedent as cmd_scan.c/cmd_who.c/combat.c/...). */
 static bool ci_contains(const char *haystack, const char *needle) {
@@ -202,8 +205,16 @@ bool cmd_say(descriptor_t *d, const char *args) {
      * unterminated tag can never color the quote or bleed onward (the
      * Session 20 finding, preserved). Tags strip cleanly when color is
      * off. */
-    char msg[336];
-    snprintf(msg, sizeof(msg), "<c>You say, \"<z>%s<c>\"<z>\r\n", args);
+    /* The speaker always sees their own words clear -- they know what they
+     * said -- but with an "(in <tongue>)" tag when speaking a foreign
+     * language so they remember the channel is garbled to others. */
+    int lang = d->character->spoken_language;
+    char msg[1024];
+    if (lang != LANG_COMMON)
+        snprintf(msg, sizeof(msg), "<c>You say (in %s), \"<z>%s<c>\"<z>\r\n",
+                 language_name(lang), args);
+    else
+        snprintf(msg, sizeof(msg), "<c>You say, \"<z>%s<c>\"<z>\r\n", args);
     descriptor_send(d, msg);
 
     room_t *r = d->character->base.roomp;
@@ -213,10 +224,20 @@ bool cmd_say(descriptor_t *d, const char *args) {
         being_t *other = (being_t *)t;
         if (!other->desc)
             continue;
-        snprintf(msg, sizeof(msg), "<c>%s says, \"<z>%s<c>\"<z>\r\n",
-                 d->character->base.name, args);
+        if (lang != LANG_COMMON) {
+            char g[768];
+            language_garble(lang, d->character, other, args, g, sizeof(g));
+            snprintf(msg, sizeof(msg), "<c>%s says (in %s), \"<z>%s<c>\"<z>\r\n",
+                     d->character->base.name, language_name(lang), g);
+        } else {
+            snprintf(msg, sizeof(msg), "<c>%s says, \"<z>%s<c>\"<z>\r\n",
+                     d->character->base.name, args);
+        }
         descriptor_notify_comm(other->desc, msg);
     }
+
+    /* Speaking a tongue trains it (learn-by-doing), once per utterance. */
+    language_speaker_practice(d->character, lang);
 
     run_speech_triggers(d->character, r, args);
     try_pet_command(d->character, r, args);

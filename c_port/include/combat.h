@@ -15,6 +15,13 @@
  * pair, once per combat round. */
 void combat_process_run(long pulse_num);
 
+/* Cleanly ends every fight `b` is party to, in place: clears b's own
+ * `fighting` pointer and scrubs the pointer of every other being in b's
+ * current room that was aiming at b. Call this BEFORE relocating a being
+ * out of a fight (e.g. immortal `goto`) so no attacker is left with a
+ * dangling `fighting` pointer and no cross-room fight keeps resolving. */
+void combat_break_fight(being_t *b);
+
 /* Combat music (user, 2026-08-05: "random fight music that will stop
  * when the fight is over") -- MSP `!!MUSIC(...)`. Registered via
  * pulse_register(COMBAT_ROUND_PULSES, combat_music_tick) alongside

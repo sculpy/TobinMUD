@@ -15,7 +15,7 @@ viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups, logged 2026-08-04
 
-- [ ] **Examine how spells are formed in real SneezyMUD and port the approach here** -- user, 2026-08-04, no further detail yet. Likely means reviewing `sneezymud-master/code/code/misc/spell_info.cc`'s discArray[]/spell-casting architecture (already the source used for the spell/skill audit's roster data) for structural/mechanical patterns Tobin's `cmd_cast.c`/`cmd_pray.c` keyword-dispatch approach doesn't currently capture -- scope not yet defined.
+- [x] **Examine how spells are formed in real SneezyMUD and port the approach here** -- DONE 2026-08-16. -- user, 2026-08-04, no further detail yet. Likely means reviewing `sneezymud-master/code/code/misc/spell_info.cc`'s discArray[]/spell-casting architecture (already the source used for the spell/skill audit's roster data) for structural/mechanical patterns Tobin's `cmd_cast.c`/`cmd_pray.c` keyword-dispatch approach doesn't currently capture -- scope not yet defined.
 
 ## Port priority order (ranked 2026-08-15)
 
@@ -33,19 +33,49 @@ gaps). Work top-down; user curates which entry to start.
 - **Tier 2 -- Druid class identity (real gaps; Tobin has CLASS_DRUID):**
   3. Apply herbs (heal; pairs with the wild-component foraging engine).
   4. Beast summon, Sticks to snakes (summon/transform a mob).
-  5. Root control, Transfix, Transform limb (crowd-control affects -- need
-     new AFFECT_* enum entries first, same blocker as the placeholder audit).
-  6. Shapeshift, Creeping doom, Stormy skies (bigger/novel mechanics).
-- **Tier 3 -- self-contained utility skills:**
-  7. Fishing / Fishlore / Seekwater (foraging mini-loop).
-  8. Mend (object repair), Skinning/Dissect (reuse butcher/skin), Read magic.
-  9. Climbing, Encamp, Lumberjack, Fast load, Divine (misc).
-- **Tier 4 -- blocked, defer:** the 8 language skills (Avian, Bullycroak,
-  Common, Fish burble, Gnoll jargon, Gutter cant, Troglodyte pidgin,
-  Trollish) -- no speak-a-language subsystem exists; build that first.
+  5. Transfix, Transform limb -- DONE 2026-08-16. Transfix added new
+     AFFECT_TRANSFIX (a real hold, gated in cmd_attack.c + mob_ai.c);
+     Transform limb added AFFECT_TRANSFORMED_LIMB (STR buff) and reuses
+     AFFECT_WATERBREATH/AFFECT_FLYING for its gills/wings keywords. NOTE:
+     Root control (originally grouped here) turned out NOT to need a new
+     affect -- upstream rootControl() is a knockdown+damage attack, not a
+     lingering affect, so it reused the trip/entangling-roots machinery.
+     DONE 2026-08-16; see the Druid checklist below.
+  6. Shapeshift, Creeping doom, Stormy skies -- DONE 2026-08-16.
+     Shapeshift reuses the polymorph descriptor-swap; creeping doom is
+     damage + AFFECT_POISON; stormy skies is weather-gated (rainy/stormy)
+     outdoor lightning damage. See the Druid checklist below.
+     ==> Tier 2 (Druid class identity) is now fully COMPLETE except the
+     deferred Beast summon (needs mob pathfinding).
+- **Tier 3 -- self-contained utility skills: COMPLETE (2026-08-16), one deferral:**
+  7. Fishing / Fishlore / Seekwater -- DONE (`fish`, `seekwater`).
+  8. Mend / Skinning / Dissect / Read magic -- DONE (all pre-existing from
+     earlier batches; mend, skin, dissect commands + read-magic scroll gate).
+  9. Climbing, Encamp, Lumberjack, Divine -- DONE; Fast load DEFERRED
+     (no ranged-combat system in Tobin to attach it to, like Beast summon).
+     This session added: fish (fishing+fishlore), seekwater, encamp, divine
+     (cmd_fish/seekwater/encamp/divine.c). Climbing/lumberjack/mend/dissect/
+     skin/read-magic were already implemented and merely never checked off.
+     Covered by smoke_test_tier3_survival.py (10 checks). Deployed via copyover.
+- **Tier 4 -- speak-a-language subsystem + 8 tongues: COMPLETE (2026-08-16).**
+  Built the whole subsystem (language.c/language.h + `speak` command;
+  garble wired into say/whisper/tell) and all 8 tongues (Avian,
+  Bullycroak, Common, Fish burble, Gnoll jargon, Gutter cant, Troglodyte
+  pidgin, Trollish). Faithful port of Sneezy's garble.cc + getLanguageChance;
+  each tongue a cross-class learned-by-doing skill. Disclosed divergences:
+  Wisdom stands in for the absent perception stat (listener's ear),
+  transforms emit lowercase (no case-restore), drunk garble not included.
+  Covered by smoke_test_languages.py (11 checks). Deployed via copyover.
+  ==> The ranked port-priority backlog is now fully worked; only Tier 5
+  scope-outs remain (all closed).
 - **Tier 5 -- scope-out (not real gaps):** Mage "Death mist" (actually
-  DISC_SHAMAN, no Shaman class -- close it); "Examine how spells are formed
-  in SneezyMUD" (no defined deliverable -- fold into the Tier 2 Druid work).
+  DISC_SHAMAN, no Shaman class -- now IMPLEMENTED 2026-08-16 as a level-45
+  Advanced Druid spell instead of closed, per user); "Examine how spells are formed
+  in SneezyMUD" -- RESOLVED 2026-08-16: the user gave it a concrete
+  deliverable ("casting text from sneezy for mages and a forest themed
+  version for druids"), done -- Mage casting flavor (spellcast.c) now
+  ported verbatim from discipline.cc's enforceVerbal/enforceGestural,
+  Druid reworked as a forest-parallel of those same authentic beats.
 
 ## Spell/skill/spec-proc coverage audit — logged 2026-08-04
 
@@ -67,35 +97,37 @@ raw checklist, pick from it as capacity allows.
 
 #### Mage (3)
 
-- [ ] Death mist — **re-triaged 2026-08-05:** real upstream discArray[SPELL_DEATH_MIST] is actually DISC_SHAMAN, not DISC_MAGE (TODO's own audit mis-attributed it) -- Tobin has no Shaman class, so this is a class-scope-out item like the rest of the Shaman list below, not a Mage gap.
+- [x] Death mist — **IMPLEMENTED 2026-08-16 as a Druid spell** (was scoped out; user reopened it): real upstream discArray[SPELL_DEATH_MIST] is actually DISC_SHAMAN, not DISC_MAGE (TODO's own audit mis-attributed it) -- Tobin has no Shaman class, so this is a class-scope-out item like the rest of the Shaman list below, not a Mage gap.
 
 #### Druid (9) — no Ranger class in Tobin
 
-- [ ] Creeping doom
-- [ ] Root control
-- [ ] Shapeshift
+- [x] Creeping doom -- DONE 2026-08-16 (cast branch, cmd_cast.c; Druid level 22). Upstream never finished SPELL_CREEPING_DOOM (no cast body in disc_shaman_frog.cc), so ported faithfully-in-spirit: a swarm of venomous insects = initial damage + lingering AFFECT_POISON (HP drain over time).
+- [x] Root control -- DONE 2026-08-16 (cast branch, cmd_cast.c; Druid spell, level 12). Real upstream SPELL_ROOT_CONTROL (disc_shaman_spider.cc), knockdown+damage: unlike `entangling roots` (damage only) it also drops the victim to POSITION_SITTING + spellcast_distract + a lost combat round (same real mechanic as `trip`). Outdoor-gated. help topic + web/help_data.json + wiznews + smoke_test_root_control.py (8 checks).
+- [x] Shapeshift -- DONE 2026-08-16 (cast branch, cmd_cast.c; Druid level 20). Reuses the polymorph descriptor-swap engine (being_start_polymorph); the animal form scales with caster level (rat/wolf/hawk/lion/dire wolf/bear).
 - [x] Sticks to snakes -- DONE 2026-08-15 (cast branch, cmd_cast.c; Druid spell, level 15)
-- [ ] Stormy skies
+- [x] Stormy skies -- DONE 2026-08-16 (cast branch, cmd_cast.c; Druid level 18). Outdoors-only + weather-gated (rainy/stormy, weather.h) in the outer dispatcher; summons a lightning bolt for level-scaled damage.
 - [x] Apply herbs -- DONE 2026-08-15 (cmd_apply.c, Druid `apply` command)
 - [ ] Beast summon -- DEFERRED 2026-08-15: needs a cross-tick mob hunting/pathfinding subsystem (Sneezy's beastSummon() makes distant zone animals hunt/path to the caster; mob_ai.c deliberately has no hunting pointer or pathfinding). A room-only pet scope-down would just duplicate `befriend beast`. Revisit if/when pathfinding lands.
-- [ ] Transfix
-- [ ] Transform limb
+- [x] Transfix -- DONE 2026-08-16 (cast branch, cmd_cast.c; Druid level 18). New AFFECT_TRANSFIX (affect.h) -- a real "can't act" hold gated in cmd_attack.c (target can't attack) and mob_ai.c (a transfixed beast won't aggress). Refuses an already-fighting target, matching upstream !victim->fight().
+- [x] Transform limb -- DONE 2026-08-16 (early cast interceptor, cmd_cast.c; Druid level 15). Keyword self-buff: gills->AFFECT_WATERBREATH, wings->AFFECT_FLYING, claws->new AFFECT_TRANSFORMED_LIMB (STR buff). head/legs scoped out (no clean Tobin hook).
+
+All five (plus root control) covered by smoke_test_druid_batch2_tier2.py (17 checks) + smoke_test_root_control.py. Deployed via copyover.
 
 #### Generic / cross-class (50)
 
-- [ ] Avian (language)
-- [ ] Bullycroak (language)
-- [ ] Climbing
-- [ ] Common (language)
-- [ ] Dissect
-- [ ] Divine (fortune-telling; distinct from Mage's "divination" spell)
-- [ ] Encamp
-- [ ] Fast load
-- [ ] Fish burble (language)
-- [ ] Fishing
-- [ ] Fishlore
-- [ ] Gnoll jargon (language)
-- [ ] Gutter cant (language)
+- [x] Avian (language) -- DONE 2026-08-16 (`speak avian`, language.c/cmd_speak.c; garble ported from Sneezy garble.cc)
+- [x] Bullycroak (language) -- DONE 2026-08-16 (`speak bullycroak`, language.c/cmd_speak.c; garble ported from Sneezy garble.cc)
+- [x] Climbing -- DONE (passive move-cost reduction in mountain/climbing sectors, cmd_move.c 2026-08-10)
+- [x] Common (language) -- DONE 2026-08-16 (`speak common`, language.c/cmd_speak.c; garble ported from Sneezy garble.cc)
+- [x] Dissect -- DONE (cmd_dissect.c, any class)
+- [x] Divine -- DONE 2026-08-16 (`divine <container>`, cmd_divine.c). NOTE: divine is water-DOWSING (fill a container from the ground in nature), NOT fortune-telling -- the old note was wrong; it is separate from the Mage's divination spell.
+- [x] Encamp -- DONE 2026-08-16 (`encamp`, cmd_encamp.c; AFFECT_ENCAMP regen buff wired into regen.c)
+- [DEFER] Fast load -- accelerates reloading ranged weapons; Tobin has NO ranged-combat system to attach it to (same reason Beast summon deferred). Revisit if/when ranged combat is built.
+- [x] Fish burble (language) -- DONE 2026-08-16 (`speak fish burble`, language.c/cmd_speak.c; garble ported from Sneezy garble.cc)
+- [x] Fishing -- DONE 2026-08-16 (`fish`, cmd_fish.c; water-adjacent, one-roll catch + cooldown)
+- [x] Fishlore -- DONE 2026-08-16 (passive bonus to `fish`: bigger named prize catches, cmd_fish.c)
+- [x] Gnoll jargon (language) -- DONE 2026-08-16 (`speak gnoll jargon`, language.c/cmd_speak.c; garble ported from Sneezy garble.cc)
+- [x] Gutter cant (language) -- DONE 2026-08-16 (`speak gutter cant`, language.c/cmd_speak.c; garble ported from Sneezy garble.cc)
 - [x] Know animal (creature lore) -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
 - [x] Know demon -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
 - [x] Know giantkin -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
@@ -104,13 +136,13 @@ raw checklist, pick from it as capacity allows.
 - [x] Know reptile -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
 - [x] Know undead -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
 - [x] Know veggie -- DONE 2026-08-15 (`know` command, cmd_know.c/mob_lore.c)
-- [ ] Lumberjack
-- [ ] Mend
-- [ ] Read magic
-- [ ] Seekwater
-- [ ] Skinning (generic, non-Druid classes)
-- [ ] Troglodyte pidgin (language)
-- [ ] Trollish (language)
+- [x] Lumberjack -- DONE (cmd_lumberjack.c, fell timber for logs in wooded terrain, any class)
+- [x] Mend -- DONE (cmd_mend.c, field-repair a damaged item, any class)
+- [x] Read magic -- DONE (gates scroll-reciting in cmd_use.c 2026-08-10; Mages auto-succeed, others roll)
+- [x] Seekwater -- DONE 2026-08-16 (`seekwater`, cmd_seekwater.c; senses water here/adjacent + direction)
+- [x] Skinning (generic, non-Druid classes) -- DONE (`skin`, cmd_skin.c, any class)
+- [x] Troglodyte pidgin (language) -- DONE 2026-08-16 (`speak troglodyte pidgin`, language.c/cmd_speak.c; garble ported from Sneezy garble.cc)
+- [x] Trollish (language) -- DONE 2026-08-16 (`speak trollish`, language.c/cmd_speak.c; garble ported from Sneezy garble.cc)
 - [x] Turn undead (command `turn`) -- DONE 2026-08-15 (cmd_turn.c, Cleric skill 'turn undead')
 
 ### Spell/skill stub audit — roster-listed but mechanically no-op
@@ -676,14 +708,13 @@ these; each ships with a smoke test + (if player-facing) a news entry.
 ## Buildable now
 
 - Lifeforce in the client status bar reports mana, change to lifeforce for druids -- DEFERRED 2026-08-15: not a simple relabel. Tobin has no real Lifeforce resource pool (druid max_mana is always 0; score/cast only relabel the word -- see resource_pool_label()/cmd_cast.c:3061), and the status bar lives in the Windows client (needs an MSI rebuild). Proper fix = build a Lifeforce resource, then relabel client-side. Revisit with the mana/casting items (#689/#691).
-- Caster-mob spell fidelity (deferred refinement of the now-complete "mobs use skills/spells" item, DONE 2026-08-16 -- casters via mob_cast_combat(), non-casters via mob_skill_combat(), both combat.c, tests smoke_test_mob_caster_combat.py + smoke_test_mob_skill_combat.py): caster mobs currently resolve spells as their damage/heal CORE only. Give them per-spell affect fidelity too -- a Cleric mob's blindness/curse, a Mage's slow/fear, etc. -- once those affects are worth wiring into mob AI. Low priority; the damage/heal behavior already makes caster mobs dangerous.
-- In the client triggers and aliases save to file but they never fire in game
+- DONE 2026-08-17 (client v0.4.30) -- "client triggers and aliases save to file but never fire": investigation found the trigger MATCH + alias EXPAND logic was already correct (correct since v0.4.8/v0.4.10; proven with a 10/10 unit harness; editor Save updates the in-memory tables too), so newline-terminated lines already fired. The real gap was prompt lines: a MUD prompt (e.g. "HP:100 >") is sent with NO trailing newline, and triggers only fired on '\n'. Added trigger_flush_prompt() (main.c), called from poll_socket() when a socket read drains (WSAEWOULDBLOCK -- server waiting on us; SGA is negotiated so there's no telnet GA/EOR marker to use instead), firing matching triggers against the un-terminated prompt line. Idempotent via a per-line fired-set (no double-fire when the line later completes with a newline; a TCP-split partial doesn't suppress the real fire; static prompt fires once). Actions only on a prompt, never gag. 7/7 portable harness. MSI rebuilt + published (auto-update to 0.4.30).
 - Sneezy-DB decoupling -- DONE 2026-08-16: world seed copied into c_port/db/seed/ (owned here), new c_port/db/init-db.sh builds tobin+immortal directly (no sneezy DB, no sneezymud-master dep), cold-build verified zero-error into throwaway DBs; fixed a latent ordering bug (renamed newbie_gear_race.sql -> zz_ so it applies after suit.sql + migrations). apply-tobin-schema.sh header + db/README updated. Optional follow-ups left: (1) the orphaned `sneezy` DB still physically exists -- backed up to ~/db_backups/sneezy_final_20260816.sql, drop it manually when ready (`DROP DATABASE sneezy;`); (2) the db/seed snapshot is a Jul-27 baseline, ~250-900 world rows behind live -- refresh via sneezymud-master/db/update-seed-data.sh if a current-world from-scratch build is wanted; (3) legacy sneezymud-master/db/init-db.sh + c_port/db/fix-workbox.sh remain but are superseded -- delete when confident nothing else calls them.
-- Make room flags and sector types have their intended effects from Sneezy (user 2026-08-16). [ STARTED 2026-08-16: ROOM_FLAG_DEATH (deathtrap kill on entry, combat_death_room_kill_pc) and ROOM_FLAG_PRIVATE (2-player entry cap) now act in cmd_move.c; see smoke_test_room_flags.py. REMAINING: (a) ROOM_FLAG_NO_ESCAPE -- set on ~2325 live rooms; decide whether it should block `flee` (big balance change) and confirm exact Sneezy semantics before wiring; (b) HOSPITAL healing effect, ARENA no-real-death/PK rules -- check if inert; (c) per-sector effects beyond the existing move-cost/fall/water/underwater (regen modifiers, temperature/thirst, no-mob/peaceful sectors, etc.). Cross-check fall.c/room.c/cmd_move.c/mob_ai.c so this fills gaps, not duplicates. ]
-- Mobs should have a chance to join the fights depending on alignment, assist friends
-- Should be able to fight more than one mob and vice versa
-- Guard mobs in rooms should assist each other. When you attack a guard you attack _ALL_ guards. Check how sneezy handles this.
-- Add left margin navigation to the website
+- Make room flags and sector types have their intended effects from Sneezy (user 2026-08-16). [ STARTED 2026-08-16: ROOM_FLAG_DEATH (deathtrap kill on entry, combat_death_room_kill_pc) and ROOM_FLAG_PRIVATE (2-player entry cap) now act in cmd_move.c; see smoke_test_room_flags.py.
+  (a) DONE 2026-08-17 -- resolved the old "NO_ESCAPE blocks flee?" worry as a mis-ID: upstream NO_ESCAPE (bit 6, ~2325 rooms) only ever blocked MAGICAL escape (teleport/word-of-recall, already enforced in cmd_cast.c/cmd_pray.c), NOT the flee command. The flag that blocks `flee` is the separate NO_FLEE (bit 12, only 77 live rooms). Added ROOM_FLAG_NO_FLEE (room.h, bit 12 was already named in ROOM_FLAG_NAMES) and gated cmd_flee.c on it ("A strange power prevents you from escaping!", immortals exempt), matching upstream offense.cc -- small blast radius, no broad balance change.
+  (b) DONE 2026-08-17 -- HOSPITAL (bit 16, 6 rooms): regen.c now doubles HP/Vitality/mana/piety recovery (upstream limits.cc gain*=2). ARENA (bit 14, 21 rooms): combat_defeat() (combat.c) now branches to a non-lethal knockout for a defeated PC (half HP, limbs healed, left standing, no XP loss/corpse/gear-drop/menu-eject/death-taunt), ports upstream's !ROOM_ARENA death-pipeline gating; the other two upstream arena rules (no equip damage, no PK-flag) are already inert here because Tobin has neither system. All guarded by smoke_test_room_flags_combat.py (7 checks: NO_FLEE refusal + ARENA knockout). Deployed via hard restart.
+  REMAINING: (c) per-sector effects beyond the existing move-cost/fall/water/underwater (regen modifiers, temperature/thirst, no-mob/peaceful sectors, etc.). Cross-check fall.c/room.c/cmd_move.c/mob_ai.c so this fills gaps, not duplicates. ]
+- Mob assist / multi-attacker combat -- DONE 2026-08-16: combat_recruit_assist() (combat.c) pulls un-engaged mobs into a fight as EXTRA attackers on the PC (multi-attacker resolved by combat_next_attacker()/combat_process_run()); guards (being_is_guard, keyword-based) assist each other GUARANTEED (attack one guard = every guard in the room piles on), aligned allies join on a per-round ~35% roll. Charmed pets never turn on their master. Test smoke_test_mob_assist.py (guard path) passes. FOLLOW-UP -- DONE 2026-08-17 (data task): seeded cosmic alignment onto mob protos (db/tobin/mob_align.sql) -- undead/demons/devils/mind flayers/banshees/vampires/vampire bats/lycanthropes = evil (-100), angels/pegasi/shedu/lammasu/phoenixes/coatls = good (+100); 338 evil, 10 good, rest neutral. Mortal humanoid raiders + wildlife LEFT neutral on purpose (an aligned aggressive mob stops attacking neutral PCs, so marking every goblin evil would gut low-level danger). The alignment-assist branch AND mob_ai selective aggression/flavor now fire; verified live by smoke_test_mob_align_assist.py. Deployed via copyover (proto reload).
 
 ## Standing rules (learned)
 

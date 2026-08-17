@@ -72,11 +72,63 @@
     .meta .author { color: #1a5fa8; }
     #count, #empty { color: #888; }
   }
+  /* --- shared left-margin site nav --- */
+  body { padding-left: 190px; }
+  .sidenav {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 190px;
+    background: #0a0a0a; border-right: 1px solid #222;
+    padding: 26px 0; overflow-y: auto; z-index: 20;
+  }
+  .sidenav .brand {
+    display: block; color: #e0c060; font-weight: bold; letter-spacing: 1px;
+    font-size: 1.15rem; padding: 0 22px 18px; text-decoration: none;
+  }
+  .sidenav a.nav-link {
+    display: block; color: #cfcfcf; text-decoration: none;
+    padding: 9px 22px; border-left: 3px solid transparent; font-size: 0.98rem;
+  }
+  .sidenav a.nav-link:hover { background: #161616; color: #7fc0ff; }
+  .sidenav a.nav-link.active {
+    color: #e0c060; border-left-color: #e0c060; background: #141414;
+  }
+  .sidenav .sep { height: 1px; background: #1c1c1c; margin: 14px 22px; }
+  .sidenav .ext::after { content: " \2197"; color: #6a6a6a; font-size: 0.85em; }
+  @media (max-width: 819px) {
+    body { padding-left: 0; }
+    .sidenav {
+      position: static; width: auto; bottom: auto;
+      display: flex; flex-wrap: wrap; align-items: center;
+      padding: 8px 10px; border-right: none; border-bottom: 1px solid #222;
+    }
+    .sidenav .brand { padding: 0 12px 0 6px; font-size: 1rem; }
+    .sidenav a.nav-link { border-left: none; padding: 6px 12px; }
+    .sidenav a.nav-link.active {
+      border-left: none; background: transparent; text-decoration: underline;
+    }
+    .sidenav .sep { display: none; }
+  }
+  @media (prefers-color-scheme: light) {
+    .sidenav { background: #efefe9; border-right-color: #ddd; }
+    .sidenav a.nav-link { color: #333; }
+    .sidenav a.nav-link:hover { background: #e4e4dc; color: #1a5fa8; }
+    .sidenav a.nav-link.active { color: #a87a1a; border-left-color: #a87a1a; background: #e8e8e0; }
+    .sidenav .sep { background: #ddd; }
+  }
 </style>
 </head>
 <body>
+<nav class="sidenav">
+  <a class="brand" href="/">TobinMUD</a>
+  <a class="nav-link" href="/">Home</a>
+  <a class="nav-link" href="/play.html">Play</a>
+  <a class="nav-link active" href="/news.html">News</a>
+  <a class="nav-link" href="/help.html">Help</a>
+  <div class="sep"></div>
+  <a class="nav-link" href="/tobinclient/TobinMUDClient.msi">Download</a>
+  <a class="nav-link ext" href="https://github.com/sculpy/TobinMUD" target="_blank" rel="noopener">Source</a>
+</nav>
+
 <div class="wrap">
-  <a class="home-link" href="/">&larr; TobinMUD</a>
   <h1>News</h1>
   <p class="tagline">Updates from the realm &mdash; the same posts <code>news</code> shows you at the prompt, newest first.</p>
 

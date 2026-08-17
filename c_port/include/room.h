@@ -136,6 +136,16 @@ const char *room_flag_name(int bit);
  * NO-ESCAPE room. */
 #define ROOM_FLAG_ARENA (1 << 14)
 
+/* Bit 12 of ROOM_FLAG_NAMES (room.c) -- NO-FLEE, matching the upstream
+ * ROOM_NO_FLEE bit verbatim. Distinct from NO-ESCAPE (bit 6): NO-ESCAPE
+ * blocks only MAGICAL exits (teleport/word-of-recall, already gated in
+ * cmd_cast.c/cmd_pray.c), while NO-FLEE blocks the physical `flee`
+ * command (upstream offense.cc: "a strange power prevents you from
+ * escaping"). Only ~77 live rooms carry it (vs ~2325 for NO-ESCAPE), so
+ * gating `flee` on it is a small, deliberate arena/trap-room effect, not
+ * a broad balance change. Tested directly in cmd_flee.c. */
+#define ROOM_FLAG_NO_FLEE (1 << 12)
+
 /* Sector-based ground-surface word (Sneezy's TRoom::describeGroundType(),
  * misc/create_rooms.cc) -- "street", "road", "water", "mud", "sand",
  * "floor" (indoors), or "ground" (default). Backs the `$$g`/`$g` token in

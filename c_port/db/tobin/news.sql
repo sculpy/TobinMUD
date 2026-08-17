@@ -593,3 +593,11 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Doored Exits Now Stand Out in Red', 'Telling a plain opening from a door is easier now. In both the room [Exits:] line and the exits command, any direction that has a door is drawn in red, while ordinary exits keep their usual color. A quick glance now tells you which ways out you may have to open first.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The dead and the damned close ranks', 'Word from the roads: the undead, demons, devils and their unholy kin have begun to look after their own. Strike at one such creature and its nearby kind may rush to its aid. The truly wicked now sneer at neutral travellers rather than set upon them outright -- while the celestial hosts nod the undecided past. Choose your fights, and your company, with care.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Spellcasting foes turn cunning', 'The realm''s hostile spellcasters have grown craftier in a fight. Enemy priests and mages no longer merely scorch and smite -- expect a curse to sap your strength, a word to strike you blind, a spell of dread to freeze your sword arm, or a silence to still your own incantations. Come prepared, and do not count on trading blows alone.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

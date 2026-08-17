@@ -246,6 +246,7 @@ static const cmd_entry_t COMMANDS[] = {
      * "sho" is ambiguous and shout wins it -- "show" must be typed in
      * full. */
     { "shout",   cmd_shout,   "Shout something to everyone in the game (shout <msg>).", MORTAL_LEVEL_MIN },
+    { "speak",   cmd_speak,   "Choose the language you speak in (speak [language]).", MORTAL_LEVEL_MIN },
     { "tell",    cmd_tell,    "Send a private message to anyone playing (tell <name> <message>).", MORTAL_LEVEL_MIN },
     /* SWAP: inventory before idea/immort, so bare "i" is an inventory
      * check -- always the more useful outcome than a no-op immort attempt.
@@ -691,6 +692,14 @@ static const cmd_entry_t COMMANDS[] = {
     { "skin",    cmd_skin,    "Strip a hide from a slain animal's corpse (any class).", MORTAL_LEVEL_MIN },
     { "dissect", cmd_dissect, "Dissect a corpse for a usable reagent (any class).",  MORTAL_LEVEL_MIN },
     { "lumberjack", cmd_lumberjack, "Fell timber for wood logs in wooded terrain (any class).", MORTAL_LEVEL_MIN },
+    /* Tier-3 survival/utility skills (generic/cross-class, 2026-08-16).
+     * "fis" beats "fill" only at the third letter (fill claims fi/fil);
+     * "seek", "enc", and "div" are all unambiguous abbreviations
+     * (confirmed: no other command shares those prefixes). */
+    { "fish",    cmd_fish,    "Fish a nearby water for a catch (fishing/fishlore, any class).", MORTAL_LEVEL_MIN },
+    { "seekwater", cmd_seekwater, "Sense the nearest water and the way to it (any class).", MORTAL_LEVEL_MIN },
+    { "encamp",  cmd_encamp,  "Set up camp in the wild to speed your recovery (any class).", MORTAL_LEVEL_MIN },
+    { "divine",  cmd_divine,  "Dowse a drink container full of water in the wild (divine <container>, any class).", MORTAL_LEVEL_MIN },
     /* No existing "ch*" command -- unclaimed abbreviation, confirmed via
      * cmd_abbrev_check.py before landing. */
     { "chi",     cmd_chi,     "Unleash a chi-powered strike against a foe (Monk, chi [<target>]; defaults to your current opponent).", MORTAL_LEVEL_MIN },

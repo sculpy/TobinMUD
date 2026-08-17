@@ -1540,6 +1540,46 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
     loser->fighting = NULL;
     winner->fighting = NULL;
 
+    /* ARENA knockout (room-flag effects port): a room flagged
+     * ROOM_FLAG_ARENA is a sporting ring, not a killing field -- upstream
+     * (misc/combat.cc) gates the whole death pipeline on !ROOM_ARENA: no
+     * exp/talens loss, no equipment damage, and the "death" is bookkept as
+     * an arena loss rather than a real one. Ported here as a clean
+     * non-lethal knockout for a defeated PC: patched to half HP, limbs
+     * healed, left STANDING in the ring -- no XP loss, no corpse, no gear
+     * drop, no menu eject, no world death-taunt. Returns before all of
+     * that. A MOB loser still dies normally (the arena courtesy is for
+     * players); Tobin has no equipment-damage or PK-flag system to gate,
+     * so those two upstream arena rules are already inert here. 21 live
+     * rooms carry this bit. */
+    if (loser->base.kind == THING_PC && loser->base.roomp
+        && (loser->base.roomp->room_flag & ROOM_FLAG_ARENA)) {
+        loser->progress.hp = loser->progress.max_hp / 2;
+        if (loser->progress.hp < 1)
+            loser->progress.hp = 1;
+        being_limbs_full_heal(loser);
+        loser->position = POSITION_STANDING;
+        tell(loser, "<y>You are knocked senseless -- but this is the arena, so you'll live.<z>\r\n");
+        tell(winner, "You have bested %s in the arena!\r\n", being_display_name(loser));
+        {
+            char ring[160];
+            snprintf(ring, sizeof(ring),
+                     "<y>%s is knocked out of the bout by %s!<z>\r\n",
+                     being_display_name(loser), being_display_name(winner));
+            if (loser->base.roomp)
+                for (descriptor_t *it = g_descriptors; it; it = it->next)
+                    if (it->character && it->character->base.roomp == loser->base.roomp
+                        && it->character != loser && it->character != winner)
+                        descriptor_notify(it, ring);
+        }
+        log_info("%s was bested by %s in the arena. [%s]",
+                 being_display_name(loser), being_display_name(winner),
+                 loser->desc ? descriptor_display_host(loser->desc) : "?");
+        if (loser->player_id > 0)
+            player_progress_save(loser->player_id, &loser->progress);
+        return;
+    }
+
     bool loser_is_pc = (loser->base.kind == THING_PC);
     /* Gold-to-corpse (user 2026-07-28: "gold should be with the corpse,
      * autoloot or player loot should take care of it" -- reverting both
@@ -2255,6 +2295,105 @@ static const char *const CLERIC_MOB_SPELLS[] = {
     "harm light", "harm serious", "harm critical", "harm", "call lightning",
 };
 
+/* Debuff spells a caster mob can inflict for per-spell affect fidelity
+ * (2026-08-17, TODO "caster-mob per-spell affect fidelity"). Before this,
+ * mob_cast_combat() below resolved every spell as its damage/heal CORE
+ * only -- a Cleric mob's `curse`/`blindness`, a Mage mob's `fear`/`faerie
+ * fog`/`silence` all just landed as generic elemental damage. Each entry
+ * names a REAL roster spell (skill_find() gates it by the mob's level) and
+ * the affect its PC-side cast applies (cmd_pray.c/cmd_cast.c) at the same
+ * magnitude/duration -- so a mob's curse is the same DEX debuff a Cleric
+ * PC's curse is. Druid mobs stay damage-only (upstream Druid combat is
+ * nature-damage, not afflictions -- no clean debuff to mirror). */
+typedef enum {
+    MOB_DBF_BLIND,   /* AFFECT_BLIND   -- to-hit penalty + can't see the room */
+    MOB_DBF_CURSE,   /* AFFECT_CURSE   -- level-scaled DEX penalty */
+    MOB_DBF_FEAR,    /* AFFECT_FEAR    -- can't swing back while afraid */
+    MOB_DBF_SILENCE, /* AFFECT_SILENCE -- can't cast/pray */
+} mob_debuff_kind_t;
+
+typedef struct {
+    const char *name;   /* roster spell name, exact */
+    mob_debuff_kind_t kind;
+} mob_debuff_t;
+
+static const mob_debuff_t MAGE_MOB_DEBUFFS[] = {
+    { "fear", MOB_DBF_FEAR },
+    { "faerie fog", MOB_DBF_BLIND },
+    { "silence", MOB_DBF_SILENCE },
+};
+static const mob_debuff_t CLERIC_MOB_DEBUFFS[] = {
+    { "curse", MOB_DBF_CURSE },
+    { "blindness", MOB_DBF_BLIND },
+};
+
+/* The AFFECT_* a debuff kind applies -- used to skip a victim who already
+ * carries it (no wasted action / doubled message). */
+static affect_type_t mob_debuff_affect(mob_debuff_kind_t k) {
+    switch (k) {
+        case MOB_DBF_BLIND:   return AFFECT_BLIND;
+        case MOB_DBF_CURSE:   return AFFECT_CURSE;
+        case MOB_DBF_FEAR:    return AFFECT_FEAR;
+        case MOB_DBF_SILENCE: return AFFECT_SILENCE;
+    }
+    return AFFECT_BLIND;
+}
+
+/* Applies debuff `db` from caster mob `m` onto `victim`, mirroring the PC
+ * cast's own affect + magnitude (cmd_pray.c curse/blindness, cmd_cast.c
+ * fear/silence; faerie fog blinds only the victim here, not the whole
+ * room, so a mob never blinds its own allies). Announces to victim + room.
+ * Unlike the PC `fear` cast this does NOT force an immediate flee:
+ * mob_cast_combat() runs inside combat_process_run()'s fighter loop, and
+ * moving the PC to another room mid-iteration would mutate the very
+ * fighting pointers that loop is walking -- the affect alone still stops
+ * the feared victim swinging back (cmd_attack.c). */
+static void mob_apply_debuff(being_t *m, being_t *victim, const mob_debuff_t *db,
+                             int min_level) {
+    char capbuf[128];
+    const char *vseen = "";
+    const char *rseen = "";
+    switch (db->kind) {
+        case MOB_DBF_BLIND:
+            being_apply_affect(victim, AFFECT_BLIND, 20 + min_level);
+            vseen = "and your eyes go white and unseeing";
+            rseen = "and their eyes go white and unseeing";
+            break;
+        case MOB_DBF_CURSE: {
+            int penalty = min_level / 3;
+            if (penalty < 1) penalty = 1;
+            if (penalty > 5) penalty = 5;
+            being_apply_stat_affect(victim, AFFECT_CURSE, 100, -penalty);
+            vseen = "and a dark aura settles over you";
+            rseen = "and a dark aura settles over them";
+            break;
+        }
+        case MOB_DBF_FEAR:
+            being_apply_affect(victim, AFFECT_FEAR, 20 + min_level);
+            vseen = "and terror grips you -- you dare not strike back";
+            rseen = "and terror grips them";
+            break;
+        case MOB_DBF_SILENCE:
+            being_apply_affect(victim, AFFECT_SILENCE, 30 * COMBAT_ROUND_PULSES);
+            vseen = "and your voice dies in your throat";
+            rseen = "and their voice dies in their throat";
+            break;
+    }
+    if (victim->desc) {
+        char vmsg[256];
+        snprintf(vmsg, sizeof(vmsg), "<o>%s intones %s at you, %s!<z>\r\n",
+                 being_display_name_cap(m, capbuf, sizeof(capbuf)), db->name, vseen);
+        descriptor_notify(victim->desc, vmsg);
+    }
+    if (m->base.roomp) {
+        char rmsg[256];
+        snprintf(rmsg, sizeof(rmsg), "%s intones %s at %s, %s!\r\n",
+                 being_display_name_cap(m, capbuf, sizeof(capbuf)), db->name,
+                 being_display_name(victim), rseen);
+        descriptor_room_echo(m->base.roomp, victim, rmsg);
+    }
+}
+
 static bool mob_cast_combat(being_t *m, being_t *victim) {
     player_class_t cls = m->char_class;
     if (cls != CLASS_MAGE && cls != CLASS_DRUID && cls != CLASS_CLERIC)
@@ -2275,12 +2414,16 @@ static bool mob_cast_combat(being_t *m, being_t *victim) {
         && m->progress.level >= 17) {
         int amt = spell_damage_for_level(17) + m->progress.level;
         being_heal(m, amt);
+        /* Exclude the VICTIM from the room echo, not the (non-PC) mob:
+         * the victim already gets its own copy via descriptor_notify()
+         * just below, so echoing to the mob's exclusion (a no-op, mobs
+         * aren't PCs) would double the line for the PC being fought. */
         if (m->base.roomp) {
             char rmsg[224];
             snprintf(rmsg, sizeof(rmsg),
                      "%s intones a healing prayer, and %s wounds knit closed.\r\n",
                      being_display_name_cap(m, capbuf, sizeof(capbuf)), gender_possess(m->gender));
-            descriptor_room_echo(m->base.roomp, m, rmsg);
+            descriptor_room_echo(m->base.roomp, victim, rmsg);
         }
         if (victim->desc) {
             char vmsg[224];
@@ -2290,6 +2433,38 @@ static bool mob_cast_combat(being_t *m, being_t *victim) {
             descriptor_notify(victim->desc, vmsg);
         }
         return false; /* healed, nobody defeated */
+    }
+
+    /* Per-spell affect fidelity (2026-08-17): some caster rounds inflict a
+     * class debuff (blindness/curse/fear/silence) the mob knows, instead of
+     * raw damage -- only if the victim isn't already carrying that affect.
+     * Mage and Cleric mobs only; Druid mobs have no debuff table. */
+    const mob_debuff_t *dbpool = NULL;
+    int dbpool_n = 0;
+    if (cls == CLASS_MAGE) {
+        dbpool = MAGE_MOB_DEBUFFS;
+        dbpool_n = (int)(sizeof(MAGE_MOB_DEBUFFS) / sizeof(MAGE_MOB_DEBUFFS[0]));
+    } else if (cls == CLASS_CLERIC) {
+        dbpool = CLERIC_MOB_DEBUFFS;
+        dbpool_n = (int)(sizeof(CLERIC_MOB_DEBUFFS) / sizeof(CLERIC_MOB_DEBUFFS[0]));
+    }
+    if (dbpool) {
+        const mob_debuff_t *dbq[8];
+        int dbqn = 0;
+        for (int i = 0; i < dbpool_n && dbqn < (int)(sizeof(dbq) / sizeof(dbq[0])); i++) {
+            const skill_def_t *dsk = skill_find(cls, dbpool[i].name, false);
+            if (dsk && m->progress.level >= dsk->min_level
+                && !being_has_affect(victim, mob_debuff_affect(dbpool[i].kind)))
+                dbq[dbqn++] = &dbpool[i];
+        }
+        /* ~45% of caster rounds with a fresh debuff available go to it;
+         * the rest fall through to the damage-spell pick below. */
+        if (dbqn > 0 && rand() % 100 < 45) {
+            const mob_debuff_t *pick = dbq[rand() % dbqn];
+            const skill_def_t *psk = skill_find(cls, pick->name, false);
+            mob_apply_debuff(m, victim, pick, psk ? psk->min_level : m->progress.level);
+            return false; /* debuff landed; nobody defeated this round */
+        }
     }
 
     /* Pick a random offensive spell the mob's class + level qualifies for. */
@@ -2340,7 +2515,9 @@ static bool mob_cast_combat(being_t *m, being_t *victim) {
         snprintf(rmsg, sizeof(rmsg), "%s %s %s at %s!\r\n",
                  being_display_name_cap(m, capbuf, sizeof(capbuf)), verb, sk->name,
                  being_display_name(victim));
-        descriptor_room_echo(m->base.roomp, m, rmsg);
+        /* Exclude the victim (already notified above), not the mob -- see
+         * the cleric-heal branch for why echoing past the mob doubles it. */
+        descriptor_room_echo(m->base.roomp, victim, rmsg);
     }
 
     return combat_apply_skill_damage(m, victim, dmg, limb);
@@ -2429,7 +2606,10 @@ static bool mob_skill_combat(being_t *m, being_t *victim) {
         char rmsg[256];
         snprintf(rmsg, sizeof(rmsg), self_room,
                  being_display_name_cap(m, capbuf, sizeof(capbuf)), being_display_name(victim));
-        descriptor_room_echo(m->base.roomp, m, rmsg);
+        /* Exclude the victim (already notified via at_you above), not the
+         * mob -- otherwise the PC being fought sees both lines (the reported
+         * "sweeps your legs... / sweeps <you>'s legs..." double message). */
+        descriptor_room_echo(m->base.roomp, victim, rmsg);
     }
 
     if (distract > 0)
@@ -2488,6 +2668,28 @@ static being_t *combat_next_attacker(being_t *pc, being_t *except) {
             return m;
     }
     return NULL;
+}
+
+/* See combat.h. Cleanly ends every fight `b` is party to, in place: clears
+ * b's own `fighting` pointer and scrubs the pointer of every OTHER being in
+ * b's current room that was aiming at b (multi-attacker mobs, an assist
+ * recruit, or the single foe of a strict 1v1). Called BEFORE a being is
+ * relocated (goto_room()), while it's still standing among its attackers,
+ * so no mob is left with a dangling `fighting` pointer at a PC that walked
+ * away. */
+void combat_break_fight(being_t *b) {
+    if (!b)
+        return;
+    b->fighting = NULL;
+    if (!b->base.roomp)
+        return;
+    for (thing_t *t = b->base.roomp->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_PC && t->kind != THING_MOB)
+            continue; /* objects et al. aren't beings -- don't reinterpret them */
+        being_t *other = (being_t *)t;
+        if (other != b && other->fighting == b)
+            other->fighting = NULL;
+    }
 }
 
 /* True for a "guard"-type mob, recognized by its keywords -- Tobin never
@@ -2587,6 +2789,22 @@ void combat_process_run(long pulse_num) {
             continue; /* already resolved this round via the other participant */
 
         being_t *b = a->fighting;
+
+        /* Same-room guard (user 2026-08-16: "i used goto 43 to escape a
+         * fight, and i kept fighting in a remote room"). A fighter can be
+         * relocated mid-fight -- immortal `goto`, a teleport, any future
+         * move path -- while its `fighting` pointer still aims at a foe now
+         * in another room. Combat is strictly room-local, so end the fight
+         * cleanly instead of resolving strikes across rooms. goto_room()
+         * already breaks the fight proactively (combat_break_fight); this
+         * is the catch-all for every other relocation. */
+        if (!a->base.roomp || a->base.roomp != b->base.roomp) {
+            a->fighting = NULL;
+            if (b->fighting == a)
+                b->fighting = NULL;
+            continue;
+        }
+
         a->last_combat_pulse = pulse_num;
         b->last_combat_pulse = pulse_num;
 

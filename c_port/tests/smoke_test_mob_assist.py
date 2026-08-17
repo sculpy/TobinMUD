@@ -31,7 +31,7 @@ announce("smoke_test_mob_assist", host, port)
 
 _suffix = "".join(chr(ord("a") + (int(time.time() * 1000000) // 26 ** i) % 26) for i in range(6))
 ROOM = 985300 + (int(time.time()) % 50)
-KIN_MOB = 108   # "citizen male", level 4 -- three copies are kin of each other
+KIN_MOB = 101   # "cityguard guard" -- guards assist one another unconditionally
 
 
 def strip(s):
@@ -94,7 +94,7 @@ try:
     check("Assist Arena" in cmd(sv, "look"), "mortal attacker is in the arena with the three kin mobs")
 
     # Attack ONE citizen -- its two kin should rush in.
-    send_line(sv, "kill citizen")
+    send_line(sv, "kill cityguard")
     buf = ""
     t0 = time.time()
     while time.time() - t0 < 8:

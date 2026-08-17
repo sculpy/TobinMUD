@@ -455,6 +455,22 @@ static const skill_def_t SKILLS[] = {
     { "apply herbs",       CLASS_DRUID, SKILL_TIER_CLASS,  2, "See help `apply herbs` for help." },
     { "sticks to snakes",  CLASS_DRUID, SKILL_TIER_CLASS,  15, "See help `sticks to snakes` for help." },
     { "entangling roots",  CLASS_DRUID, SKILL_TIER_CLASS,  5, "See help `entangling roots` for help." },
+    /* Root control (Druid batch, Tier 2 port 2026-08-16): real upstream
+     * SPELL_ROOT_CONTROL (disc_shaman_spider.cc), a Shaman-spider spell
+     * folded onto Druid like storm call/stupidity/raze (no Shaman class
+     * in Tobin). Upstream START_1, but placed above sibling `entangling
+     * roots` (5) here since it's the stronger knockdown-plus-damage
+     * version of the same tree-roots-trip mechanic. See cmd_cast.c. */
+    { "root control",      CLASS_DRUID, SKILL_TIER_CLASS,  12, "See help `root control` for help." },
+    /* Druid Tier-2 batch (2026-08-16): the last of the disc_shaman_spider/
+     * frog nature line, folded onto Druid like the rest of the shaman/
+     * ranger spells. See cmd_cast.c's own branches + AFFECT_TRANSFIX/
+     * AFFECT_TRANSFORMED_LIMB (affect.h) for each one's real effect. */
+    { "transfix",          CLASS_DRUID, SKILL_TIER_CLASS,  18, "See help `transfix` for help." },
+    { "transform limb",    CLASS_DRUID, SKILL_TIER_CLASS,  15, "See help `transform limb` for help." },
+    { "shapeshift",        CLASS_DRUID, SKILL_TIER_CLASS,  20, "See help `shapeshift` for help." },
+    { "creeping doom",     CLASS_DRUID, SKILL_TIER_CLASS,  22, "See help `creeping doom` for help." },
+    { "stormy skies",      CLASS_DRUID, SKILL_TIER_CLASS,  18, "See help `stormy skies` for help." },
     { "know animal",        CLASS_DRUID, SKILL_TIER_CLASS,  4, "See help `know animal` for help." },
     { "know demon",         CLASS_DRUID, SKILL_TIER_CLASS,  4, "See help `know demon` for help." },
     { "know giantkin",      CLASS_DRUID, SKILL_TIER_CLASS,  4, "See help `know giantkin` for help." },
@@ -492,6 +508,13 @@ static const skill_def_t SKILLS[] = {
     { "feral wrath",       CLASS_DRUID, SKILL_TIER_ADVANCED, 28, "See help `feral wrath` for help." },
     { "earthmaw",          CLASS_DRUID, SKILL_TIER_ADVANCED, 28, "See help `earthmaw` for help." },
     { "sky spirit",        CLASS_DRUID, SKILL_TIER_ADVANCED, 28, "See help `sky spirit` for help." },
+    /* Death mist (Tier-5 scope-out reopened by user 2026-08-16: "high
+     * level druid... about level 45"). Real upstream SPELL_DEATH_MIST
+     * is DISC_SHAMAN (disc_shaman_skunk.cc); folded onto Druid as a
+     * high-Advanced spell, same "no Shaman class in Tobin" precedent as
+     * raze/root control. An AoE that infects the room with syphilis --
+     * see cmd_cast_resolve_effect() (cmd_cast.c). */
+    { "death mist",        CLASS_DRUID, SKILL_TIER_ADVANCED, 45, "See help `death mist` for help." },
     /* Pet/charm (Sneezy → Tobin feature audit) -- new, closest real
      * upstream analog is Ranger's own DISC_ANIMAL "beast" mechanics (no
      * Ranger class in Tobin; Druid absorbed its nature-magic flavor).
@@ -832,6 +855,99 @@ static const skill_def_t SKILLS[] = {
     { "mend",                 CLASS_THIEF, SKILL_TIER_ADVANCED,  25, "See help `mend` for help." },
     { "mend",                 CLASS_DRUID, SKILL_TIER_ADVANCED,  25, "See help `mend` for help." },
     { "mend",                 CLASS_MONK, SKILL_TIER_ADVANCED,  25, "See help `mend` for help." },
+    /* Tier-3 survival/utility skills (generic/cross-class, 2026-08-16):
+     * fishing/fishlore (`fish`), seekwater, encamp, divine. All six
+     * classes learn them, same as the other generic gathering skills. */
+    { "fishing",              CLASS_MAGE, SKILL_TIER_COMBAT,     1, "See help `fishing` for help." },
+    { "fishing",              CLASS_CLERIC, SKILL_TIER_COMBAT,     1, "See help `fishing` for help." },
+    { "fishing",              CLASS_WARRIOR, SKILL_TIER_COMBAT,     1, "See help `fishing` for help." },
+    { "fishing",              CLASS_THIEF, SKILL_TIER_COMBAT,     1, "See help `fishing` for help." },
+    { "fishing",              CLASS_DRUID, SKILL_TIER_COMBAT,     1, "See help `fishing` for help." },
+    { "fishing",              CLASS_MONK, SKILL_TIER_COMBAT,     1, "See help `fishing` for help." },
+    { "fishlore",             CLASS_MAGE, SKILL_TIER_ADVANCED,  20, "See help `fishlore` for help." },
+    { "fishlore",             CLASS_CLERIC, SKILL_TIER_ADVANCED,  20, "See help `fishlore` for help." },
+    { "fishlore",             CLASS_WARRIOR, SKILL_TIER_ADVANCED,  20, "See help `fishlore` for help." },
+    { "fishlore",             CLASS_THIEF, SKILL_TIER_ADVANCED,  20, "See help `fishlore` for help." },
+    { "fishlore",             CLASS_DRUID, SKILL_TIER_ADVANCED,  20, "See help `fishlore` for help." },
+    { "fishlore",             CLASS_MONK, SKILL_TIER_ADVANCED,  20, "See help `fishlore` for help." },
+    { "seekwater",            CLASS_MAGE, SKILL_TIER_COMBAT,    10, "See help `seekwater` for help." },
+    { "seekwater",            CLASS_CLERIC, SKILL_TIER_COMBAT,    10, "See help `seekwater` for help." },
+    { "seekwater",            CLASS_WARRIOR, SKILL_TIER_COMBAT,    10, "See help `seekwater` for help." },
+    { "seekwater",            CLASS_THIEF, SKILL_TIER_COMBAT,    10, "See help `seekwater` for help." },
+    { "seekwater",            CLASS_DRUID, SKILL_TIER_COMBAT,    10, "See help `seekwater` for help." },
+    { "seekwater",            CLASS_MONK, SKILL_TIER_COMBAT,    10, "See help `seekwater` for help." },
+    { "encamp",               CLASS_MAGE, SKILL_TIER_COMBAT,     5, "See help `encamp` for help." },
+    { "encamp",               CLASS_CLERIC, SKILL_TIER_COMBAT,     5, "See help `encamp` for help." },
+    { "encamp",               CLASS_WARRIOR, SKILL_TIER_COMBAT,     5, "See help `encamp` for help." },
+    { "encamp",               CLASS_THIEF, SKILL_TIER_COMBAT,     5, "See help `encamp` for help." },
+    { "encamp",               CLASS_DRUID, SKILL_TIER_COMBAT,     5, "See help `encamp` for help." },
+    { "encamp",               CLASS_MONK, SKILL_TIER_COMBAT,     5, "See help `encamp` for help." },
+    { "divine",               CLASS_MAGE, SKILL_TIER_ADVANCED,  15, "See help `divine` for help." },
+    { "divine",               CLASS_CLERIC, SKILL_TIER_ADVANCED,  15, "See help `divine` for help." },
+    { "divine",               CLASS_WARRIOR, SKILL_TIER_ADVANCED,  15, "See help `divine` for help." },
+    { "divine",               CLASS_THIEF, SKILL_TIER_ADVANCED,  15, "See help `divine` for help." },
+    { "divine",               CLASS_DRUID, SKILL_TIER_ADVANCED,  15, "See help `divine` for help." },
+    { "divine",               CLASS_MONK, SKILL_TIER_ADVANCED,  15, "See help `divine` for help." },
+
+    /* ---------------- LANGUAGES (Tier-4, generic/cross-class, 2026-08-16) --
+     * The 8 speak-a-language skills. All real upstream SKILL_GENERAL
+     * entries (spell_info.cc's discArray, DISC_ADVENTURING /
+     * DISC_ADVANCED_ADVENTURING) -- available to every class, not tied to
+     * one -- so each is registered for all six classes at the same
+     * cross-class COMBAT tier fishing/climbing use. Proficiency is learned
+     * by doing: you understand a tongue better the more you're exposed to
+     * it and speak it better the more you use it (language.c). Common is
+     * the lingua franca (never garbled) at level 1; the DISC_ADVENTURING
+     * street tongues at 10; the DISC_ADVANCED_ADVENTURING racial tongues
+     * at 20 (mirroring upstream's base-vs-advanced discipline split). */
+    { "common",                CLASS_MAGE, SKILL_TIER_COMBAT, 1, "See help `common` for help." },
+    { "common",                CLASS_CLERIC, SKILL_TIER_COMBAT, 1, "See help `common` for help." },
+    { "common",                CLASS_WARRIOR, SKILL_TIER_COMBAT, 1, "See help `common` for help." },
+    { "common",                CLASS_THIEF, SKILL_TIER_COMBAT, 1, "See help `common` for help." },
+    { "common",                CLASS_DRUID, SKILL_TIER_COMBAT, 1, "See help `common` for help." },
+    { "common",                CLASS_MONK, SKILL_TIER_COMBAT, 1, "See help `common` for help." },
+    { "gutter cant",           CLASS_MAGE, SKILL_TIER_COMBAT, 10, "See help `gutter cant` for help." },
+    { "gutter cant",           CLASS_CLERIC, SKILL_TIER_COMBAT, 10, "See help `gutter cant` for help." },
+    { "gutter cant",           CLASS_WARRIOR, SKILL_TIER_COMBAT, 10, "See help `gutter cant` for help." },
+    { "gutter cant",           CLASS_THIEF, SKILL_TIER_COMBAT, 10, "See help `gutter cant` for help." },
+    { "gutter cant",           CLASS_DRUID, SKILL_TIER_COMBAT, 10, "See help `gutter cant` for help." },
+    { "gutter cant",           CLASS_MONK, SKILL_TIER_COMBAT, 10, "See help `gutter cant` for help." },
+    { "gnoll jargon",          CLASS_MAGE, SKILL_TIER_COMBAT, 10, "See help `gnoll jargon` for help." },
+    { "gnoll jargon",          CLASS_CLERIC, SKILL_TIER_COMBAT, 10, "See help `gnoll jargon` for help." },
+    { "gnoll jargon",          CLASS_WARRIOR, SKILL_TIER_COMBAT, 10, "See help `gnoll jargon` for help." },
+    { "gnoll jargon",          CLASS_THIEF, SKILL_TIER_COMBAT, 10, "See help `gnoll jargon` for help." },
+    { "gnoll jargon",          CLASS_DRUID, SKILL_TIER_COMBAT, 10, "See help `gnoll jargon` for help." },
+    { "gnoll jargon",          CLASS_MONK, SKILL_TIER_COMBAT, 10, "See help `gnoll jargon` for help." },
+    { "troglodyte pidgin",     CLASS_MAGE, SKILL_TIER_COMBAT, 10, "See help `troglodyte pidgin` for help." },
+    { "troglodyte pidgin",     CLASS_CLERIC, SKILL_TIER_COMBAT, 10, "See help `troglodyte pidgin` for help." },
+    { "troglodyte pidgin",     CLASS_WARRIOR, SKILL_TIER_COMBAT, 10, "See help `troglodyte pidgin` for help." },
+    { "troglodyte pidgin",     CLASS_THIEF, SKILL_TIER_COMBAT, 10, "See help `troglodyte pidgin` for help." },
+    { "troglodyte pidgin",     CLASS_DRUID, SKILL_TIER_COMBAT, 10, "See help `troglodyte pidgin` for help." },
+    { "troglodyte pidgin",     CLASS_MONK, SKILL_TIER_COMBAT, 10, "See help `troglodyte pidgin` for help." },
+    { "trollish",              CLASS_MAGE, SKILL_TIER_COMBAT, 20, "See help `trollish` for help." },
+    { "trollish",              CLASS_CLERIC, SKILL_TIER_COMBAT, 20, "See help `trollish` for help." },
+    { "trollish",              CLASS_WARRIOR, SKILL_TIER_COMBAT, 20, "See help `trollish` for help." },
+    { "trollish",              CLASS_THIEF, SKILL_TIER_COMBAT, 20, "See help `trollish` for help." },
+    { "trollish",              CLASS_DRUID, SKILL_TIER_COMBAT, 20, "See help `trollish` for help." },
+    { "trollish",              CLASS_MONK, SKILL_TIER_COMBAT, 20, "See help `trollish` for help." },
+    { "avian",                 CLASS_MAGE, SKILL_TIER_COMBAT, 20, "See help `avian` for help." },
+    { "avian",                 CLASS_CLERIC, SKILL_TIER_COMBAT, 20, "See help `avian` for help." },
+    { "avian",                 CLASS_WARRIOR, SKILL_TIER_COMBAT, 20, "See help `avian` for help." },
+    { "avian",                 CLASS_THIEF, SKILL_TIER_COMBAT, 20, "See help `avian` for help." },
+    { "avian",                 CLASS_DRUID, SKILL_TIER_COMBAT, 20, "See help `avian` for help." },
+    { "avian",                 CLASS_MONK, SKILL_TIER_COMBAT, 20, "See help `avian` for help." },
+    { "fish burble",           CLASS_MAGE, SKILL_TIER_COMBAT, 20, "See help `fish burble` for help." },
+    { "fish burble",           CLASS_CLERIC, SKILL_TIER_COMBAT, 20, "See help `fish burble` for help." },
+    { "fish burble",           CLASS_WARRIOR, SKILL_TIER_COMBAT, 20, "See help `fish burble` for help." },
+    { "fish burble",           CLASS_THIEF, SKILL_TIER_COMBAT, 20, "See help `fish burble` for help." },
+    { "fish burble",           CLASS_DRUID, SKILL_TIER_COMBAT, 20, "See help `fish burble` for help." },
+    { "fish burble",           CLASS_MONK, SKILL_TIER_COMBAT, 20, "See help `fish burble` for help." },
+    { "bullycroak",            CLASS_MAGE, SKILL_TIER_COMBAT, 20, "See help `bullycroak` for help." },
+    { "bullycroak",            CLASS_CLERIC, SKILL_TIER_COMBAT, 20, "See help `bullycroak` for help." },
+    { "bullycroak",            CLASS_WARRIOR, SKILL_TIER_COMBAT, 20, "See help `bullycroak` for help." },
+    { "bullycroak",            CLASS_THIEF, SKILL_TIER_COMBAT, 20, "See help `bullycroak` for help." },
+    { "bullycroak",            CLASS_DRUID, SKILL_TIER_COMBAT, 20, "See help `bullycroak` for help." },
+    { "bullycroak",            CLASS_MONK, SKILL_TIER_COMBAT, 20, "See help `bullycroak` for help." },
 };
 
 #define SKILL_TOTAL (int)(sizeof(SKILLS) / sizeof(SKILLS[0]))

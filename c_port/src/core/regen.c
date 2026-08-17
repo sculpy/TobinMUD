@@ -4,8 +4,10 @@
  *******************************************************************/
 #include "regen.h"
 
+#include "affect.h"
 #include "being.h"
 #include "descriptor.h"
+#include "room.h"
 #include "skill.h"
 
 /* Placeholder regen formula: 1 HP baseline + 1 per 20 points of
@@ -25,6 +27,15 @@ static int regen_amount(const being_t *b) {
         amount *= 2;
     else if (b->position == POSITION_SITTING)
         amount += amount / 2;
+    /* ROOM_FLAG_HOSPITAL (room-flag effects port): a hospital room
+     * doubles recovery, matching upstream limits.cc's hitGain()/manaGain()/
+     * moveGain() (each does `gain *= 2` when isRoomFlag(ROOM_HOSPITAL)).
+     * Applied to the position-weighted base so HP and Vitality (both go
+     * through regen_amount()) speed up together; the flat encamp bonus is
+     * still added on top by the caller, same layering the original uses
+     * (hospital multiply, then camp fraction). 6 live rooms carry it. */
+    if (b->base.roomp && (b->base.roomp->room_flag & ROOM_FLAG_HOSPITAL))
+        amount *= 2;
     return amount;
 }
 
@@ -80,7 +91,13 @@ void regen_tick_run(long pulse_num) {
             if (fh_sk)
                 fh_bonus = skill_learn_from_doing(b, fh_sk) / 20;
         }
-        being_heal(b, regen_amount(b) + fh_bonus);
+        /* `encamp` (Tier-3 port 2026-08-16): a set-up camp speeds
+         * recovery -- while AFFECT_ENCAMP is up the camper heals an
+         * extra flat increment of both HP and vitality on top of the
+         * normal rest-weighted amount (see affect.h). Camper-only, the
+         * disclosed stand-in for upstream's group-fraction camp boost. */
+        int camp_bonus = being_has_affect(b, AFFECT_ENCAMP) ? ENCAMP_REGEN_BONUS : 0;
+        being_heal(b, regen_amount(b) + fh_bonus + camp_bonus);
         /* Vitality (Sneezy → Tobin feature audit, "Vitality stat +
          * Terrain movement cost"): same weight-by-position amount as HP,
          * per TODO.md's own note this item closed out ("the regen tick
@@ -89,7 +106,7 @@ void regen_tick_run(long pulse_num) {
          * legs recover. Bumped 25% over the shared HP amount (user,
          * 2026-08-03: "vitality gains too slow, adjust it up 25%") --
          * HP's own rate is untouched, only vitality's. */
-        int vit_amount = regen_amount(b) * 5 / 4;
+        int vit_amount = regen_amount(b) * 5 / 4 + camp_bonus;
         if (vit_amount < 1)
             vit_amount = 1;
         being_heal_vit(b, vit_amount);
@@ -154,13 +171,17 @@ void mana_piety_regen_tick_run(long pulse_num) {
             continue;
         if (b->progress.drunk >= 15)
             continue;
+        /* ROOM_FLAG_HOSPITAL doubles mana/piety recovery too, matching
+         * upstream manaGain()'s own `gain *= 2` in a hospital room (see
+         * regen_amount()'s HP/Vitality version above). */
+        int hosp = (b->base.roomp && (b->base.roomp->room_flag & ROOM_FLAG_HOSPITAL)) ? 2 : 1;
         bool changed = false;
         if (b->progress.max_mana > 0 && b->progress.mana < b->progress.max_mana) {
-            being_heal_mana(b, being_mana_gain(b));
+            being_heal_mana(b, being_mana_gain(b) * hosp);
             changed = true;
         }
         if (b->progress.max_piety > 0 && b->progress.piety < b->progress.max_piety) {
-            being_heal_piety(b, being_piety_gain(b));
+            being_heal_piety(b, being_piety_gain(b) * hosp);
             changed = true;
         }
         if (changed)

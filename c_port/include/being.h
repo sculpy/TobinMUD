@@ -1034,6 +1034,13 @@ typedef struct being {
      * niche admin display preference; revisit if that turns out wrong. */
     int severity;
 
+    /* Active spoken language (language.h). Session-only, defaults to
+     * LANG_COMMON (0) via calloc in being_create_pc -- same
+     * not-worth-a-migration reasoning as `severity` above. Set by the
+     * `speak` command; drives per-listener garbling in say/whisper/tell
+     * (Tier-4 languages, 2026-08-16). */
+    int spoken_language;
+
     /* Objects (Phase 2C). Every object attached to this being (carried,
      * worn, or held) lives in the ONE thing_t containment chain
      * (base.stuff_head/stuff_next, parent == &this->base) -- these two

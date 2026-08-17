@@ -12,6 +12,7 @@
 #include "being.h"
 #include "descriptor.h"
 #include "ignore_repo.h"
+#include "language.h"
 #include "tell_history_repo.h"
 
 /* Shared delivery logic for `tell` (below) and `reply` (cmd_reply.c) --
@@ -22,9 +23,19 @@
  * PLR_MUTED before reaching here (a mute blocks composing a tell at all,
  * independent of who it's addressed to). */
 void tell_deliver(descriptor_t *d, being_t *target, const char *msg_text) {
-    char out[400];
-    snprintf(out, sizeof(out), "<p>You tell %s, \"<z>%s<p>\"<z>\r\n", target->base.name, msg_text);
+    /* Language garble (Tier-4, 2026-08-16): the sender sees their own words
+     * clear (tagged with the tongue if foreign); the recipient's copy is
+     * garbled per their proficiency in it, below. The history log keeps the
+     * clear text -- it's the sender's own record of what they meant. */
+    int lang = d->character->spoken_language;
+    char out[768];
+    if (lang != LANG_COMMON)
+        snprintf(out, sizeof(out), "<p>You tell %s (in %s), \"<z>%s<p>\"<z>\r\n",
+                 target->base.name, language_name(lang), msg_text);
+    else
+        snprintf(out, sizeof(out), "<p>You tell %s, \"<z>%s<p>\"<z>\r\n", target->base.name, msg_text);
     descriptor_send(d, out);
+    language_speaker_practice(d->character, lang);
     tell_history_add(d->character->player_id, target->player_id, msg_text);
     snprintf(d->last_told, sizeof(d->last_told), "%s", target->base.name);
 
@@ -48,8 +59,15 @@ void tell_deliver(descriptor_t *d, being_t *target, const char *msg_text) {
     if (ignore_repo_is_ignored(target->player_id, d->character->base.name))
         return;
 
-    snprintf(out, sizeof(out), "<p>%s tells you, \"<z>%s<p>\"<z>\r\n",
-             d->character->base.name, msg_text);
+    if (lang != LANG_COMMON) {
+        char g[512];
+        language_garble(lang, d->character, target, msg_text, g, sizeof(g));
+        snprintf(out, sizeof(out), "<p>%s tells you (in %s), \"<z>%s<p>\"<z>\r\n",
+                 d->character->base.name, language_name(lang), g);
+    } else {
+        snprintf(out, sizeof(out), "<p>%s tells you, \"<z>%s<p>\"<z>\r\n",
+                 d->character->base.name, msg_text);
+    }
     descriptor_notify_comm(target->desc, out);
     snprintf(target->desc->last_teller, sizeof(target->desc->last_teller), "%s",
              d->character->base.name);

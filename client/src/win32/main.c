@@ -143,7 +143,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.29"
+#define CLIENT_VERSION "0.4.30"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -256,6 +256,13 @@ typedef struct {
     char pending_line_text[TRIGGER_LINE_BUF];
     size_t pending_line_len;
     int line_start_offset;
+    /* Which triggers have already fired their ACTION for the line
+     * currently accumulating in pending_line_text -- so a prompt-flush
+     * (trigger_flush_prompt(), fired when the socket drains mid-line at a
+     * no-newline prompt) and the later newline-completion of that same
+     * line don't send the action twice. Indexed by trigger index; reset
+     * to all-zero each time a line completes (trigger_process_line). */
+    unsigned char trigger_fired_this_line[TRIGGER_MAX];
     HBRUSH window_bg_brush; /* dark-mode only, backs the gauge strip's own
                                 static labels via WM_CTLCOLORSTATIC and the
                                 main window class background */
@@ -478,14 +485,20 @@ static void load_triggers(void) {
     fclose(f);
 }
 
-/* Called once a full incoming line's plain text has accumulated in
- * pending_line_text. Every matching trigger's ACTION is sent
- * (multiple triggers can fire on the same line); if ANY matching
- * trigger is flagged gag, the line's already-displayed RichEdit range
- * ([line_start_offset, current end)) is deleted right back out --
- * cheaper and far simpler than holding display back until end-of-line
- * is known, and the flash is imperceptible in practice. */
-static void trigger_process_line(void) {
+/* Sends the ACTION of every trigger whose pattern matches the text
+ * currently in pending_line_text, skipping any trigger that already
+ * fired for THIS line (trigger_fired_this_line) so a prompt-flush and
+ * the later newline-completion of the same line can't double-send.
+ * Returns true if any matching trigger requested a gag; the caller
+ * decides whether to act on it (only line-completion gags, since a gag
+ * deletes already-displayed text and a mid-line prompt isn't a full
+ * displayed line yet). Tracking fired triggers per-index (not a single
+ * "line was prompt-fired" flag) means a line that arrives split across
+ * TCP reads -- a non-matching partial flushed at a drain, then the rest
+ * completing the match on newline -- still fires correctly: the partial
+ * matched nothing, marked nothing, so the completed line is free to
+ * fire. */
+static bool trigger_fire_matches(void) {
     g_app.pending_line_text[g_app.pending_line_len] = '\0';
     bool gag = false;
     for (int i = 0; i < g_app.trigger_count; i++) {
@@ -494,12 +507,26 @@ static void trigger_process_line(void) {
             continue;
         if (t->gag)
             gag = true;
-        if (t->action[0] && g_app.sock != INVALID_SOCKET) {
+        if (!g_app.trigger_fired_this_line[i] && t->action[0]
+            && g_app.sock != INVALID_SOCKET) {
             char sendbuf[TRIGGER_ACTION_MAX + 4];
             int n = snprintf(sendbuf, sizeof(sendbuf), "%s\r\n", t->action);
             send(g_app.sock, sendbuf, n, 0);
+            g_app.trigger_fired_this_line[i] = 1;
         }
     }
+    return gag;
+}
+
+/* Called once a full incoming line's plain text has accumulated in
+ * pending_line_text (a '\n' arrived). Fires any not-yet-fired matching
+ * trigger actions; if ANY matching trigger is flagged gag, the line's
+ * already-displayed RichEdit range ([line_start_offset, current end)) is
+ * deleted right back out -- cheaper and far simpler than holding display
+ * back until end-of-line is known, and the flash is imperceptible in
+ * practice. Resets the per-line fired set for the next line. */
+static void trigger_process_line(void) {
+    bool gag = trigger_fire_matches();
     if (gag) {
         int end = GetWindowTextLengthW(g_app.hwnd_output);
         SendMessageW(g_app.hwnd_output, EM_SETSEL, g_app.line_start_offset, end);
@@ -507,6 +534,24 @@ static void trigger_process_line(void) {
     }
     g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
     g_app.pending_line_len = 0;
+    memset(g_app.trigger_fired_this_line, 0, sizeof(g_app.trigger_fired_this_line));
+}
+
+/* Fires triggers against a PROMPT -- text the server left sitting in
+ * pending_line_text with no trailing newline (a "HP:100 >"-style prompt).
+ * The server negotiates SGA (suppress go-ahead), so there is no telnet
+ * prompt marker to key off; instead poll_socket() calls this the moment a
+ * socket read drains (WSAEWOULDBLOCK), i.e. the server has stopped
+ * sending and is waiting on us -- the practical signal that a prompt is
+ * up. Only the ACTION side fires here, never gag (the prompt is a live,
+ * un-terminated display line, not a completed one to delete); the
+ * per-line fired set makes this idempotent, so a static prompt sitting
+ * across many 50ms poll ticks fires each matching trigger just once, and
+ * the eventual newline that completes the prompt line won't re-send. */
+static void trigger_flush_prompt(void) {
+    if (g_app.pending_line_len == 0 || g_app.trigger_count == 0)
+        return;
+    trigger_fire_matches();
 }
 
 /* Feeds the same plain text append_output() just displayed into the
@@ -1127,8 +1172,16 @@ static void poll_socket(void) {
             return;
         }
         int err = WSAGetLastError();
-        if (err == WSAEWOULDBLOCK)
+        if (err == WSAEWOULDBLOCK) {
+            /* The server has stopped sending and is waiting on us -- the
+             * practical "a prompt is up" signal (SGA is negotiated, so
+             * there's no telnet GA/EOR marker). Fire any triggers that
+             * match the un-terminated prompt line still sitting in the
+             * accumulator, so prompt triggers work, not just triggers on
+             * newline-terminated lines. */
+            trigger_flush_prompt();
             return; /* nothing more right now */
+        }
         append_output("\r\n-- Connection error --\r\n", 26, 1, 1);
     g_app.line_start_offset = GetWindowTextLengthW(g_app.hwnd_output);
     g_app.pending_line_len = 0;

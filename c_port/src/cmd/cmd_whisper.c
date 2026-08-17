@@ -10,6 +10,7 @@
 
 #include "being.h"
 #include "ignore_repo.h"
+#include "language.h"
 #include "room.h"
 #include "thing.h"
 
@@ -56,17 +57,33 @@ bool cmd_whisper(descriptor_t *d, const char *args) {
         return true;
     }
 
-    char out[400];
-    snprintf(out, sizeof(out), "<p>You whisper to %s, \"<z>%s<p>\"<z>\r\n",
-             target->base.name, msg_text);
+    /* Language garble (Tier-4, 2026-08-16): the speaker sees their own
+     * words clear (tagged with the tongue if foreign); the target's copy
+     * is garbled per their proficiency in it. */
+    int lang = ch->spoken_language;
+    char out[768];
+    if (lang != LANG_COMMON)
+        snprintf(out, sizeof(out), "<p>You whisper to %s (in %s), \"<z>%s<p>\"<z>\r\n",
+                 target->base.name, language_name(lang), msg_text);
+    else
+        snprintf(out, sizeof(out), "<p>You whisper to %s, \"<z>%s<p>\"<z>\r\n",
+                 target->base.name, msg_text);
     descriptor_send(d, out);
+    language_speaker_practice(ch, lang);
     /* Ignore lists (Sneezy → Tobin feature audit): fails SILENTLY -- ch
      * already saw "You whisper to ..." above. Bystanders still see the
      * "whispers something to" line below either way (they're not the
      * one being blocked). */
     if (target->desc && !ignore_repo_is_ignored(target->player_id, ch->base.name)) {
-        snprintf(out, sizeof(out), "<p>%s whispers to you, \"<z>%s<p>\"<z>\r\n",
-                 ch->base.name, msg_text);
+        if (lang != LANG_COMMON) {
+            char g[512];
+            language_garble(lang, ch, target, msg_text, g, sizeof(g));
+            snprintf(out, sizeof(out), "<p>%s whispers to you (in %s), \"<z>%s<p>\"<z>\r\n",
+                     ch->base.name, language_name(lang), g);
+        } else {
+            snprintf(out, sizeof(out), "<p>%s whispers to you, \"<z>%s<p>\"<z>\r\n",
+                     ch->base.name, msg_text);
+        }
         descriptor_notify_comm(target->desc, out);
     }
 

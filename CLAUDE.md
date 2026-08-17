@@ -48,15 +48,6 @@ TOBIN_DB_HOST=localhost TOBIN_DB_USER=mud TOBIN_DB_NAME=tobin \
 for f in tests/smoke_test*.py; do python3 "$f"; done   # full suite
 ```
 
-**Always run the server under gdb while testing/developing** (user
-2026-07-20): after every restart, attach immediately —
-```
-setsid nohup gdb -p <pid> -batch -ex "set pagination off" \
-  -ex "handle SIGPIPE nostop noprint pass" -ex "continue" \
-  -ex "echo \n=== CRASH CAUGHT ===\n" -ex "bt full" -ex "info threads" \
-  -ex "thread apply all bt" > ~/TobinMUD/gdb_crash.log 2>&1 < /dev/null &
-disown
-```
 No `sudo` needed (`ptrace_scope=0` on these boxes; `mud` owns the process
 either way). A crash mid-sweep otherwise just looks like the watchdog
 cron quietly restarting the server, and every test after that point fails
@@ -129,4 +120,6 @@ freeze makes tests flake).
   are invisible, not refused.
 - **Colorize tastefully with LOWERCASE color codes** — player/immortal
   output gets tinted with the lowercase (dim) tags by habit.
-- Be less verbose. Only report final brief reports, otherwise, silence.
+- Absolute silence. Only report final brief reports, otherwise, absolutely silent.
+- All smoke tests require the use of helpers.
+

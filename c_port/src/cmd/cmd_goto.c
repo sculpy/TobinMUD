@@ -13,6 +13,7 @@
 
 #include "being.h"
 #include "cmd.h"
+#include "combat.h"
 #include "obj.h"
 #include "practice.h"
 #include "room.h"
@@ -82,6 +83,13 @@ static void announce_bamf(being_t *ch, room_t *room, const char *tmpl, bool arri
  * comment above goto_bfs() for why. */
 static bool goto_room(descriptor_t *d, room_t *r) {
     room_t *from = d->character->base.roomp;
+
+    /* End any fight before leaving (user 2026-08-16: goto'ing away used to
+     * keep resolving the fight across rooms). Break it while still in
+     * `from`, so every attacker still standing here has its `fighting`
+     * pointer scrubbed rather than left dangling at a PC that vanished. */
+    combat_break_fight(d->character);
+
     if (from)
         announce_bamf(d->character, from, d->character->bamfout, false);
 

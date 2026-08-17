@@ -70,6 +70,11 @@ static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "Shield Of Mists",
     "Living Vines",
     "Thornflesh",
+    "Transfixed",
+    "Transformed Limb",
+    "Encamped",
+    "Fished Out",
+    "Divining",
 };
 
 /* HP drained per damage sub-tick for AFFECT_POISON -- its own faster gate
@@ -229,6 +234,7 @@ static int *affect_stat_target(being_t *b, affect_type_t type) {
         case AFFECT_STUPIDITY: return &b->attrs.intelligence;
         case AFFECT_RALLY: return &b->attrs.strength;
         case AFFECT_CURSE: return &b->attrs.dexterity;
+        case AFFECT_TRANSFORMED_LIMB: return &b->attrs.strength;
         case AFFECT_ENHANCE_WEAPON: return &b->attrs.dexterity;
         default: return NULL;
     }

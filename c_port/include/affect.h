@@ -338,6 +338,60 @@ typedef enum {
      * a hit's final damage is known. Plain flag/timer, no stat
      * modifier. */
     AFFECT_THORNFLESH,
+    /* `transfix` (Druid, Tier-2 port 2026-08-16) -- real upstream is a
+     * Shaman-spider spell (disc_shaman_spider.cc's transfix()) that
+     * mesmerizes a DUMB ANIMAL that isn't already fighting: "$N stares
+     * transfixed into your eyes", holding it frozen and staring for a
+     * level-scaled duration. Ported as a real "can't act" hold: checked
+     * by cmd_attack.c (a transfixed being can't initiate an attack, same
+     * gate shape as AFFECT_FEAR) and mob_ai.c's mob_try_aggress() (a
+     * transfixed mob won't pick fresh fights, same gate shape as
+     * AFFECT_CALMED). Distinct from fear (which forces a flee) and calmed
+     * (which only ends/blocks a mob's aggression): transfix roots the
+     * target in place AND blocks its own attacks. Plain flag/timer, no
+     * stat modifier. Tobin has no "dumb animal" flag, so the upstream
+     * dumb-animal-only restriction lands as "any non-fighting target"
+     * (disclosed deviation; the cast branch still refuses an
+     * already-fighting target, matching upstream's !victim->fight()). */
+    AFFECT_TRANSFIX,
+    /* `transform limb` (Druid, Tier-2 port 2026-08-16) -- real upstream
+     * (disc_shaman_frog.cc's transformLimb()) turns one of the caster's
+     * OWN limbs into an animal form, each limb granting a different real
+     * effect (neck->waterbreath, arms->flying, hands->damroll+climb,
+     * legs->swim). Tobin has no per-limb transformation subsystem, so
+     * this maps the limb keywords onto Tobin's existing real affects:
+     * "gills"/neck -> AFFECT_WATERBREATH, "wings"/arms -> AFFECT_FLYING
+     * (both already fully working), and "claws"/hands -> THIS affect, a
+     * STRENGTH buff (stat-modifying affect, see affect_stat_target(),
+     * standing in for upstream's hands-case damroll bonus since Tobin's
+     * barehand damage scales off STRENGTH). The head/legs limb cases are
+     * scoped out (no clean Tobin hook). Self-only, same single-target
+     * scope as the other buff spells. */
+    AFFECT_TRANSFORMED_LIMB,
+    /* `encamp` (missing-skill audit, generic/cross-class, Tier-3 port
+     * 2026-08-16) -- real upstream (disc_advanced_adventuring.cc's
+     * encamp()) sets a persistent camp affect keyed to the current room
+     * that speeds HP/move regen for the camper (and, in a group, their
+     * groupmates at a fraction). Tobin has no group-fraction hook, so
+     * this lands as a camper-only timed regen buff (disclosed
+     * divergence): while AFFECT_ENCAMP is up, regen_tick_run() adds an
+     * extra HP/vitality increment. A plain flag/timer, no stat modifier.
+     * Wears off on its own (a camp doesn't last forever) rather than
+     * PERMANENT_DURATION -- Tobin has no "break camp"/move-cancels-camp
+     * plumbing, so a timer is the honest, self-cleaning scope-cut. */
+    AFFECT_ENCAMP,
+    /* `fish` cooldown (Fishing/Fishlore audit, generic/cross-class,
+     * Tier-3 port 2026-08-16) -- same per-being "picked this spot over
+     * recently" throttle AFFECT_FORAGE_COOLDOWN provides for forage, so
+     * `fish` isn't a free-food loop. Upstream tracks a per-ROOM "fished"
+     * count that slowly recovers; Tobin has no per-room counter, so this
+     * is a per-being cooldown instead (disclosed divergence). */
+    AFFECT_FISH_COOLDOWN,
+    /* `divine` cooldown (water-dowsing audit, generic/cross-class,
+     * Tier-3 port 2026-08-16) -- upstream (disc_advanced_adventuring.cc's
+     * divineMe()) puts a SKILL_DIVINATION recast timer on the dowser so
+     * they can't refill a waterskin every round. Same shape here. */
+    AFFECT_DIVINE_COOLDOWN,
     AFFECT_COUNT,
 } affect_type_t;
 
@@ -384,6 +438,25 @@ affect_type_t affect_random_disease(void);
  * enough to not feel punitive but long enough that spamming `forage`
  * every round isn't a free-food loop. */
 #define FORAGE_COOLDOWN_ROUNDS 50
+
+/* `fish` cooldown -- same magnitude/spirit as FORAGE_COOLDOWN_ROUNDS
+ * (a gathering skill shouldn't be spammable every round), Tier-3 port. */
+#define FISH_COOLDOWN_ROUNDS 50
+
+/* `divine` water-dowsing recast timer -- a bit longer than the gathering
+ * cooldowns since pulling drinkable water out of thin air is meant to be
+ * an occasional survival trick, not an every-minute tap. */
+#define DIVINE_COOLDOWN_ROUNDS 100
+
+/* `encamp` regen-buff lifespan -- a few real minutes of camp benefit
+ * (same ~5-minute magnitude family as PET_CHARM/TRANSFORM above); the
+ * camp then goes cold and must be re-pitched. */
+#define ENCAMP_DURATION_ROUNDS 250
+
+/* Extra HP (and vitality) added per regen tick while AFFECT_ENCAMP is up
+ * -- a modest flat bonus on top of the normal rest-weighted amount, the
+ * camper-only stand-in for upstream's camp regen boost. */
+#define ENCAMP_REGEN_BONUS 2
 
 #define MAX_ACTIVE_AFFECTS 4
 

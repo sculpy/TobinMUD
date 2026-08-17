@@ -1,5 +1,112 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-17 — Session 154 (DO droplet, production port 4000):
+**Website left-margin nav + mob-alignment seed (data task).** Two backlog
+items from the user's autonomous run.
+  - **Website nav:** added a consistent left-margin sidebar (Home / Play /
+    News / Help + Download + Source, current page highlighted) to
+    web/index.html, help.html, news.html -- fixed on desktop, collapses to
+    a top bar under 820px, dark/light aware. play.html (the fullscreen
+    in-browser client) keeps its own header. Removed the now-redundant
+    per-page home-link. Pure web change, served live from
+    /home/mud/TobinMUD/web (nginx docroot); no rebuild.
+  - **Mob alignment seed (db/tobin/mob_align.sql):** all 5685 mob protos
+    shipped align=0, so combat.c combat_recruit_assist()'s aligned-ally
+    branch AND mob_ai.c's aligned aggression/flavor were dead. Seeded the
+    cosmically-aligned races only -- undead/demon/devil/mflayer/banshee/
+    vampire/vampirebat/lycanth = -100 (evil, 338 mobs), angel/pegasus/
+    shedu/lammasu/phoenix/coatl = +100 (good, 10 mobs); everything else
+    (mortal humanoid raiders, wildlife) LEFT neutral on purpose so they
+    keep attacking everyone -- marking every goblin evil would make
+    aggressive mobs ignore the neutral player majority (mob_ai design,
+    2026-07-11). Runtime reads only sign + exact equality, so one shared
+    value per side maximises assist banding. Applied to live DB + appended
+    to the migration (idempotent UPDATEs); protos reloaded via copyover
+    (zero-drop, one connected player preserved). Verified live by the new
+    smoke_test_mob_align_assist.py (two DISTINCT evil undead vnums, so the
+    assist can only be the alignment branch, not kin). wiznews x2 + one
+    player news entry; news_data.json regenerated for the web News page.
+  - **Caster-mob per-spell affect fidelity (combat.c mob_cast_combat):**
+    the 3rd named backlog item (was "low priority"). Caster mobs resolved
+    every spell as its damage/heal core only, so a Cleric mob's curse/
+    blindness and a Mage mob's fear/faerie fog/silence just did generic
+    damage. Added a debuff pass: ~45% of caster rounds with a FRESH debuff
+    available, the mob applies the same affect its PC cast does at the same
+    magnitude -- Mage {fear, faerie fog->blind, silence}, Cleric {curse,
+    blindness}; Druid stays damage-only. Skips a victim already carrying
+    the affect. Divergence from PC `fear`: no forced flee (would corrupt
+    the combat_process_run fighter loop it runs inside); AFFECT_FEAR alone
+    still stops the victim swinging back. Built + copyover-deployed;
+    smoke_test_mob_debuff.py passes, caster-damage + align-assist
+    regressions green. wiznews + player news ("Spellcasting foes turn
+    cunning").
+
+Last updated: 2026-08-17 — Session 153 (DO droplet, production port 4000):
+**Room-flag effects (slice 2) + client prompt-line triggers.** Two
+backlog items.
+  - **Room flags (server):** wired the three remaining inert flags to
+    their Sneezy effects. NO_FLEE (bit 12, 77 rooms) blocks the `flee`
+    command (cmd_flee.c) -- resolved the old "does NO_ESCAPE block flee?"
+    worry as a mis-ID (NO_ESCAPE/bit 6 only ever blocked magical
+    teleport/recall, already enforced; the flee flag is the separate,
+    small NO_FLEE bit). ARENA (bit 14, 21 rooms) makes a defeated PC a
+    non-lethal knockout in combat_defeat() (half HP, limbs healed, left
+    standing, no XP loss/corpse/gear-drop/menu-eject/death-taunt); the
+    other two upstream arena rules (no equip damage, no PK flag) are
+    inert here since Tobin has neither system. HOSPITAL (bit 16, 6 rooms)
+    doubles HP/Vit/mana/piety regen (regen.c). Guarded by
+    smoke_test_room_flags_combat.py (7 checks, 3/3 stable runs). Deployed
+    via hard restart (0 players); 209 component bindings preserved.
+    REMAINING for that TODO item: only (c) per-sector effects.
+  - **Client prompt-line triggers (v0.4.30):** the "triggers/aliases save
+    but never fire" report -- the match/expand logic was already correct
+    (10/10 harness; correct since v0.4.8/v0.4.10). Real gap: triggers
+    only fired on newline-terminated lines, never on a no-newline prompt.
+    Added trigger_flush_prompt() (main.c) off poll_socket()'s
+    WSAEWOULDBLOCK drain (SGA negotiated, so no telnet GA marker), with a
+    per-line fired-set for idempotency (no double-fire on completion,
+    TCP-split-safe, static-prompt-once). 7/7 portable harness
+    (client/tests/). MSI rebuilt (wixl) + published to
+    tobinmud.com/tobinclient (version.txt 0.4.30); clients auto-update.
+  - Pre-existing latent issue noticed (NOT from these changes): boot logs
+    "pulse_register: MAX_PULSE_PROCESSES (32) exceeded, dropping a
+    registration" -- the 32-slot pulse table is full and silently dropping
+    a periodic process. Worth raising the cap / auditing registrations.
+
+Last updated: 2026-08-16 — Session 152 (DO droplet, production port 4000):
+**Tier 4: speak-a-language subsystem + 8 tongues.** The last non-blocked
+entry in the ranked spell/skill port backlog.
+
+New `speak [language]` command chooses the tongue you talk in; `say`,
+`whisper`, and `tell` are then garbled for any listener who has not learned
+it. Faithful port of SneezyMUD's garble system (misc/garble.cc):
+  - **Each tongue is a real cross-class skill** (skill.c roster, all six
+    classes, SKILL_TIER_COMBAT, learned-by-doing). Common at level 1 (never
+    garbled), the DISC_ADVENTURING street tongues (gutter cant / gnoll
+    jargon / troglodyte pidgin) at 10, the DISC_ADVANCED_ADVENTURING racial
+    tongues (trollish / avian / fish burble / bullycroak) at 20 -- mirroring
+    upstream's base-vs-advanced discipline split.
+  - **language.c/language.h:** `language_garble_chance()` ports
+    getLanguageChance() -- garble drops as the LISTENER's proficiency (+ Wis
+    "ear") and the SPEAKER's Common fluency (+ Int) rise. Speaking a tongue
+    trains it; hearing one trains the ear. Per-tongue transforms (consonant
+    swaps, injected squawks/gurgles/bubbles, syllable-chopping) ported
+    table-for-table from garble.cc's garble_trolltalk/frogtalk/birdtalk/
+    fishtalk/gutter/gnoll/trogtalk.
+  - **cmd_speak.c** + garble wired into cmd_say/cmd_whisper/cmd_tell (the
+    speaker sees their own words clear, tagged "(in <tongue>)"; each listener
+    gets a per-listener garbled copy).
+  - **Disclosed divergences:** Tobin has no perception stat, so the
+    listener's "ear" reads Wisdom; transforms emit lowercase rather than
+    restoring each word's case (a plain-accent look); the drunk-speech garble
+    is not ported.
+  - Help topics added (help speak, help languages, one per tongue),
+    web/help_data.json regenerated, wiznews changelog entry,
+    smoke_test_languages.py (11 checks, all pass). Deployed via copyover.
+
+---
+
+
 Last updated: 2026-08-10 — Session 151 (DO droplet, production port 4000):
 **Per-spell spell-component system + Druid class-naming cleanup.**
 User: "you need the right component to cast that particular spell" /

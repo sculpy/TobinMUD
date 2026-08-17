@@ -489,6 +489,84 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
         descriptor_room_echo(dest, ch, msg);
         cmd_dispatch(d, "look");
         return;
+    } else if (strcasecmp(sk->name, "death mist") == 0) {
+        /* Death mist (Druid, level 45, Advanced discipline -- Tier-5
+         * scope-out reopened by user 2026-08-16: "high level druid...
+         * about level 45"). Real upstream SPELL_DEATH_MIST
+         * (disc_shaman_skunk.cc's deathMist) is a DISC_SHAMAN spell,
+         * folded onto Druid on the same "no Shaman class in Tobin"
+         * precedent as raze/root control/the whole shaman-nature line.
+         * The caster breathes out a chilling green mist that infects
+         * every other (non-immortal, not-already-infected) being in the
+         * room with syphilis -- AFFECT_DISEASE_SYPHILIS, Tobin's real
+         * HP-drain-over-time disease affect (affect.c) -- skipping the
+         * caster's own groupmates, exactly as upstream does. Faithful to
+         * upstream's self-infect risk, a failed secondary skill roll
+         * leaves the caster infected too. Placed here as an early
+         * exact-name branch (ahead of every generic ci_contains() check)
+         * on the same principle the flatulence/raze group documents.
+         * Disclosed divergences: upstream also rides a -10 STR modifier
+         * (APPLY_STR) on the affect -- Tobin diseases are fixed-effect by
+         * type with no per-cast stat rider, so that extra is dropped; and
+         * the isImmune(IMMUNE_DISEASE) waist-gear check has no Tobin
+         * equivalent (no disease-immunity item system), so it's skipped. */
+        if (!ch->base.roomp) {
+            descriptor_send(d, "You aren't anywhere.\r\n");
+            return;
+        }
+        /* A nasty, lingering affliction -- longer than the combat
+         * diseases (garrotte 90 / bleeding 40 rounds) to reflect
+         * upstream's ~25-mudhour syphilis, but still bounded. */
+        const int DEATH_MIST_DURATION_ROUNDS = 150;
+        descriptor_send(d, "<g>A chilling green mist escapes your open mouth.<z>\r\n");
+        char dmcap[128];
+        snprintf(msg, sizeof(msg), "<g>%s opens %s mouth and a chilling green mist pours out.<z>\r\n",
+                 being_display_name_cap(ch, dmcap, sizeof(dmcap)), gender_possess(ch->gender));
+        descriptor_room_echo(ch->base.roomp, ch, msg);
+
+        int infected = 0;
+        room_t *dmr = ch->base.roomp;
+        for (thing_t *t = dmr->base.stuff_head; t;) {
+            thing_t *next = t->stuff_next;
+            if (t == &ch->base || (t->kind != THING_PC && t->kind != THING_MOB)) {
+                t = next;
+                continue;
+            }
+            being_t *victim = (being_t *)t;
+            if (t->kind == THING_PC && !victim->desc) {
+                t = next;
+                continue;
+            }
+            if (being_is_immortal(victim) || being_in_group(ch, victim)
+                || being_has_affect(victim, AFFECT_DISEASE_SYPHILIS)) {
+                t = next;
+                continue;
+            }
+            being_apply_affect(victim, AFFECT_DISEASE_SYPHILIS, DEATH_MIST_DURATION_ROUNDS);
+            infected++;
+            if (victim->desc)
+                descriptor_notify(victim->desc,
+                                  "The green mist seeps into you -- you feel a sudden stinging in your waist.\r\n");
+            char vcap[128];
+            snprintf(msg, sizeof(msg), "%s starts to look a little uncomfortable.\r\n",
+                     being_display_name_cap(victim, vcap, sizeof(vcap)));
+            descriptor_room_echo(dmr, victim, msg);
+            t = next;
+        }
+
+        /* Self-infect risk -- upstream re-rolls bSuccess and, on a fail,
+         * the caster catches their own mist. */
+        if (!being_is_immortal(ch) && !being_has_affect(ch, AFFECT_DISEASE_SYPHILIS)) {
+            const skill_def_t *dmsk = skill_find(ch->char_class, "death mist", false);
+            int pct = dmsk ? skill_proficiency(ch, dmsk) : 0;
+            if (!skill_roll_success(pct)) {
+                being_apply_affect(ch, AFFECT_DISEASE_SYPHILIS, DEATH_MIST_DURATION_ROUNDS);
+                descriptor_send(d, "Some of your own mist curls back over you -- you feel a stinging in your waist!\r\n");
+            }
+        }
+
+        if (!infected)
+            descriptor_send(d, "Nothing nearby seems any worse for your mist.\r\n");
     } else if (strcasecmp(sk->name, "flatulence") == 0) {
         /* Shaman/Druid audit batch C, 2026-08-09: real upstream
          * (disc_shaman_skunk.cc) is a room-wide AoE that damages every
@@ -1602,6 +1680,197 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
                      being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
             descriptor_notify(atk_target->desc, msg);
         }
+    } else if (strcasecmp(sk->name, "root control") == 0) {
+        /* Root control (Druid batch, Tier 2 port 2026-08-16). Real
+         * upstream is a Shaman-spider spell (disc_shaman_spider.cc's
+         * rootControl()): "Large tree roots start to form in front of
+         * $N", then on success the caster "commands the tree roots to
+         * trip $N, causing $M to fall to the $g" -- setPosition(SITTING)
+         * + addToWait(combatRound(1)) + reconcileDamage(). Ported as a
+         * genuine knockdown-plus-damage attack: unlike sibling
+         * `entangling roots` (which only damages), this ALSO drops the
+         * victim to POSITION_SITTING and costs them a combat round --
+         * the exact real crowd-control mechanic Tobin's own `trip`
+         * skill uses (cmd_trip.c: spellcast_distract + position +
+         * being_set_wait), the distinguishing effect that made root
+         * control a real port gap rather than a duplicate of entangling
+         * roots. Outdoor-gated ("in nature or on land") in the outer
+         * dispatcher, same as entangling roots/living vines. */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You command tree roots to erupt and trip %s -- they crash to the ground %s!\r\n",
+                 being_display_name(atk_target), intensity);
+        descriptor_send(d, msg);
+        if (!defeated) {
+            /* Knockdown half: same real mechanic as `trip` (cmd_trip.c) --
+             * rattle a mid-cast target, put them on the ground, and cost
+             * them a round. Skipped if the damage already defeated them. */
+            spellcast_distract(atk_target, 1);
+            atk_target->position = POSITION_SITTING;
+            being_set_wait(atk_target, COMBAT_ROUND_PULSES);
+            if (atk_target->desc) {
+                char tcapbuf[128];
+                snprintf(msg, sizeof(msg), "%s commands tree roots to erupt and trip you -- you crash to the ground %s!\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+                descriptor_notify(atk_target->desc, msg);
+            }
+        }
+    } else if (strcasecmp(sk->name, "shapeshift") == 0) {
+        /* Shapeshift (Druid batch, Tier-2 port 2026-08-16). Real upstream
+         * (disc_shaman_frog.cc's shapeShift()) melts the caster's flesh
+         * into an animal form for a level-scaled duration -- mechanically
+         * the SAME descriptor-swap as polymorph (swap d->character to a
+         * temporary mob body, revert on expiry), just Druid-flavored and
+         * with a form chosen by the caster's power rather than a fixed
+         * bear. Reuses being_start_polymorph() exactly like the polymorph
+         * branch above (AFFECT_POLYMORPH auto-reverts). The form scales
+         * with caster level across a short table of real seeded animal
+         * mobs (rat/wolf/hawk/lion/dire wolf/brown bear), mirroring
+         * upstream's own level-gated ShapeShiftList[] rather than letting
+         * a low-level Druid wear a dire form. */
+        room_t *room = ch->base.roomp;
+        char capbuf[128];
+        being_display_name_cap(ch, capbuf, sizeof(capbuf));
+        int lvl = ch->progress.level;
+        int form_vnum; const char *form_name;
+        if (lvl < 10)      { form_vnum = 129; form_name = "a good-sized rat"; }
+        else if (lvl < 20) { form_vnum = 570; form_name = "a fierce gray wolf"; }
+        else if (lvl < 30) { form_vnum = 573; form_name = "a brownish-gold hawk"; }
+        else if (lvl < 40) { form_vnum = 577; form_name = "a young lion"; }
+        else if (lvl < 50) { form_vnum = 583; form_name = "a large dire wolf"; }
+        else               { form_vnum = 585; form_name = "a brown bear"; }
+        if (!being_start_polymorph(d, form_vnum, TRANSFORM_DURATION_ROUNDS)) {
+            descriptor_send(d, "You reach for a wild shape, but the change won't take hold.\r\n");
+            return;
+        }
+        snprintf(msg, sizeof(msg), "Your flesh turns liquid and flows into a new shape -- you are now %s!\r\n", form_name);
+        descriptor_send(d, msg);
+        if (room) {
+            snprintf(msg, sizeof(msg), "%s's flesh melts and flows into the shape of %s!\r\n", capbuf, form_name);
+            descriptor_room_echo(room, NULL, msg);
+        }
+    } else if (strcasecmp(sk->name, "transfix") == 0) {
+        /* Transfix (Druid batch, Tier-2 port 2026-08-16). Real upstream
+         * (disc_shaman_spider.cc's transfix()) mesmerizes a dumb animal
+         * that isn't already fighting -- "$N stares transfixed into your
+         * eyes" -- holding it frozen and staring. Ported as AFFECT_TRANSFIX
+         * (affect.h), a real "can't act" hold gated in cmd_attack.c (the
+         * target can't initiate an attack) and mob_ai.c (a transfixed mob
+         * won't aggress). Upstream refuses a target that is already
+         * fighting (!victim->fight()); kept faithfully. The dumb-animal-
+         * only restriction is dropped (Tobin has no such flag) -- see
+         * AFFECT_TRANSFIX's own doc comment. */
+        if (!atk_target) {
+            descriptor_send(d, "Transfix whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "A god pays no attention to your gaze.\r\n");
+            return;
+        }
+        if (atk_target->fighting || ch->fighting) {
+            descriptor_send(d, "It's far too agitated to be mesmerized right now.\r\n");
+            return;
+        }
+        if (being_has_affect(atk_target, AFFECT_TRANSFIX)) {
+            snprintf(msg, sizeof(msg), "%s is already transfixed.\r\n", being_display_name(atk_target));
+            descriptor_send(d, msg);
+            return;
+        }
+        being_apply_affect(atk_target, AFFECT_TRANSFIX, 20 + sk->min_level);
+        snprintf(msg, sizeof(msg), "You catch %s's gaze -- it stares back, transfixed, and stands frozen in place!\r\n",
+                 being_display_name(atk_target));
+        descriptor_send(d, msg);
+        if (atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s catches your gaze -- you stare, transfixed, unable to look away!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)));
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "creeping doom") == 0) {
+        /* Creeping doom (Druid batch, Tier-2 port 2026-08-16). Real
+         * upstream leaves SPELL_CREEPING_DOOM with no concrete cast
+         * handler (skills.cc registers the discipline slot, but
+         * disc_shaman_frog.cc has no creepingDoom() body -- it was never
+         * finished in Sneezy itself), so there's no exact formula to
+         * copy. Ported faithfully-in-spirit to the name: a summoned
+         * swarm of biting, venomous insects that bites once for damage
+         * and then keeps eating away -- an initial hit plus AFFECT_POISON
+         * (affect.c's own HP-drain-over-time affect), the closest real
+         * "creeping doom" mechanic Tobin already has. */
+        if (!atk_target) {
+            descriptor_send(d, "Loose the swarm upon whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You call forth a creeping doom -- a swarm of venomous insects engulfs %s %s!\r\n",
+                 being_display_name(atk_target), intensity);
+        descriptor_send(d, msg);
+        if (!defeated) {
+            being_apply_affect(atk_target, AFFECT_POISON, 12 * COMBAT_ROUND_PULSES);
+            if (atk_target->desc) {
+                char tcapbuf[128];
+                snprintf(msg, sizeof(msg), "%s calls forth a creeping doom -- venomous insects swarm over you %s, and their bites fester!\r\n",
+                         being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+                descriptor_notify(atk_target->desc, msg);
+            }
+        }
+    } else if (strcasecmp(sk->name, "stormy skies") == 0) {
+        /* Stormy skies (Druid batch, Tier-2 port 2026-08-16). Real
+         * upstream (disc_shaman_frog.cc's stormySkies()) only works
+         * outdoors under RAINY/LIGHTNING/SNOWY weather, calling a
+         * lightning bolt (or hail) down on the victim for damage. Tobin's
+         * weather (weather.h) is a single world-wide sky state; the
+         * outdoor + RAINY/STORMY gate lives in the outer dispatcher
+         * (before the component is consumed, same pattern as entangling
+         * roots' outdoor gate), so by the time this branch runs the sky
+         * is already known to be stormy. Pure level-scaled storm damage,
+         * same combat_apply_skill_damage() shape as the other Druid
+         * attack spells. */
+        if (!atk_target) {
+            descriptor_send(d, "Call the storm down on whom?\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int limb_hp_before = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, limb_hp_before, NULL);
+        snprintf(msg, sizeof(msg), "You summon a lightning bolt from the stormy skies and call it down on %s %s!\r\n",
+                 being_display_name(atk_target), intensity);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcapbuf[128];
+            snprintf(msg, sizeof(msg), "%s summons a lightning bolt from the stormy skies -- it strikes you %s!\r\n",
+                     being_display_name_cap(ch, tcapbuf, sizeof(tcapbuf)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
     } else if (strcasecmp(sk->name, "bramble drain") == 0) {
         /* Level-3 stub-audit fix: "A thorned vine that drains a small
          * amount of life to you" -- real damage + a life-drain heal-
@@ -2220,6 +2489,7 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
             snprintf(msg, sizeof(msg), "%s twists and reshapes into a brown bear!\r\n", capbuf);
             descriptor_room_echo(room, NULL, msg);
         }
+
     } else {
         snprintf(msg, sizeof(msg),
                  "You cast %s, but nothing happens yet -- its real effect isn't implemented.\r\n",
@@ -2477,6 +2747,74 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* `transform limb <part>` (Druid batch, Tier-2 port 2026-08-16).
+     * Intercepted here, BEFORE find_spell_and_target() below, same
+     * free-text-argument precedent as telepathy/scribe/ethereal gate
+     * above: the <part> keyword ("gills"/"wings"/"claws") is not a being
+     * or item target, so letting it fall through to the generic being-
+     * targeting flow would drop the one piece of information this spell
+     * needs. Real upstream (disc_shaman_frog.cc's transformLimb()) turns
+     * one of the caster's OWN limbs into an animal form, each granting a
+     * different real effect; Tobin has no per-limb transform subsystem,
+     * so the keyword maps onto Tobin's existing real affects (see
+     * AFFECT_TRANSFORMED_LIMB's doc comment): gills/neck ->
+     * AFFECT_WATERBREATH, wings/arms -> AFFECT_FLYING, claws/hands -> a
+     * STRENGTH buff (AFFECT_TRANSFORMED_LIMB stat affect, standing in for
+     * upstream's hands-case damroll bonus). Self-only; head/legs scoped
+     * out. */
+    if (strncasecmp(args, "transform limb", 14) == 0 && (args[14] == ' ' || args[14] == '\0')) {
+        const skill_def_t *tlsk = find_spell(ch->char_class, "transform limb", imm);
+        if (!tlsk) {
+            descriptor_send(d, "You don't know a spell by that name.\r\n");
+            return true;
+        }
+        if (!imm && ch->progress.level < tlsk->min_level) {
+            char lvlmsg[96];
+            snprintf(lvlmsg, sizeof(lvlmsg), "You aren't experienced enough to cast %s yet (level %d).\r\n",
+                     tlsk->name, tlsk->min_level);
+            descriptor_send(d, lvlmsg);
+            return true;
+        }
+        if (!imm && tlsk->tier == SKILL_TIER_CLASS && ch->progress.basic_disc_pct <= 0) {
+            descriptor_send(d, "You haven't practiced your Basic discipline yet -- visit a guildmaster.\r\n");
+            return true;
+        }
+        const char *part = args + 14;
+        while (*part == ' ')
+            part++;
+        if (!*part) {
+            descriptor_send(d, "Transform which limb? Try: gills, wings, or claws.\r\n");
+            return true;
+        }
+        obj_t *tlcomp = component_for_cast(ch, "transform limb", imm);
+        if (!tlcomp) {
+            descriptor_send(d, "You don't have the spell components to cast that.\r\n");
+            return true;
+        }
+        if (strncasecmp(part, "gills", 5) == 0 || strncasecmp(part, "neck", 4) == 0) {
+            being_apply_affect(ch, AFFECT_WATERBREATH, 40 * COMBAT_ROUND_PULSES);
+            descriptor_send(d, "Your neck ripples and sprouts fish-like gills -- you can breathe water!\r\n");
+        } else if (strncasecmp(part, "wings", 5) == 0 || strncasecmp(part, "arms", 4) == 0) {
+            being_apply_affect(ch, AFFECT_FLYING, 40 * COMBAT_ROUND_PULSES);
+            descriptor_send(d, "Your arms stretch and feather into broad wings -- you rise into the air!\r\n");
+        } else if (strncasecmp(part, "claws", 5) == 0 || strncasecmp(part, "hands", 5) == 0) {
+            int bonus = 1 + tlsk->min_level / 8;
+            being_apply_stat_affect(ch, AFFECT_TRANSFORMED_LIMB, 40 * COMBAT_ROUND_PULSES, bonus);
+            descriptor_send(d, "Your hands harden into raking bestial claws -- your blows land with brutal force!\r\n");
+        } else {
+            descriptor_send(d, "You can't transform that. Try: gills, wings, or claws.\r\n");
+            return true;
+        }
+        if (ch->base.roomp) {
+            char capbuf[128], tlmsg[224];
+            snprintf(tlmsg, sizeof(tlmsg), "%s's flesh shimmers and one of their limbs takes on a bestial shape!\r\n",
+                     being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+            descriptor_room_echo(ch->base.roomp, ch, tlmsg);
+        }
+        consume_component(d, tlcomp);
+        return true;
+    }
+
     char target_buf[64];
     const char *target_name;
     const skill_def_t *sk = find_spell_and_target(ch->char_class, args, imm, target_buf, sizeof(target_buf), &target_name);
@@ -2549,6 +2887,36 @@ bool cmd_cast(descriptor_t *d, const char *args) {
         && ch->base.roomp && (ch->base.roomp->room_flag & ROOM_FLAG_INDOORS)) {
         descriptor_send(d, "There's no earth to command in here -- living vines only works outdoors.\r\n");
         return true;
+    }
+    /* `root control` (Druid batch, 2026-08-16) -- real upstream refuses
+     * with "You need to be in nature or on land to cast this spell!"
+     * (disc_shaman_spider.cc's rootControl() sector gate). Same
+     * "intercept before the generic component-consumption path" reason
+     * entangling roots/living vines gates above already document. */
+    if (strcasecmp(sk->name, "root control") == 0
+        && ch->base.roomp && (ch->base.roomp->room_flag & ROOM_FLAG_INDOORS)) {
+        descriptor_send(d, "There's no earth to command in here -- root control only works outdoors.\r\n");
+        return true;
+    }
+
+    /* `stormy skies` (Druid batch, Tier-2 port 2026-08-16) -- real
+     * upstream (disc_shaman_frog.cc's stormySkies()) only works OUTDOORS
+     * and only when the weather is actually stormy (RAINY/LIGHTNING/SNOWY
+     * upstream; RAINY/STORMY in Tobin's simpler world-wide weather model,
+     * weather.h). Gated HERE, before the component is consumed, same
+     * pattern/reason as entangling roots' outdoor gate just above -- so a
+     * clear-sky or indoor refusal doesn't cost the caster their
+     * component. */
+    if (strcasecmp(sk->name, "stormy skies") == 0) {
+        if (ch->base.roomp && (ch->base.roomp->room_flag & ROOM_FLAG_INDOORS)) {
+            descriptor_send(d, "You need open sky above you to call down a storm.\r\n");
+            return true;
+        }
+        weather_t w = weather_current();
+        if (w != WEATHER_RAINY && w != WEATHER_STORMY) {
+            descriptor_send(d, "The sky is too calm -- there's no storm here to call upon.\r\n");
+            return true;
+        }
     }
 
     if (strcasecmp(sk->name, "divination") == 0) {

@@ -44,6 +44,14 @@ bool cmd_attack(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* `transfix` (Druid, Tier-2 port 2026-08-16) -- a transfixed being is
+     * mesmerized and rooted in place, unable to act, same "can't act"
+     * gate shape as the fear check just above. */
+    if (being_has_affect(d->character, AFFECT_TRANSFIX)) {
+        descriptor_send(d, "You're transfixed -- you can only stand and stare!\r\n");
+        return true;
+    }
+
     being_t *target = combat_find_room_target(d->character, args);
     if (!target) {
         descriptor_send(d, "They aren't here.\r\n");

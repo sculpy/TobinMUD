@@ -398,6 +398,11 @@ static void mob_try_aggress(being_t *m) {
      * mob doesn't pick fresh fights for the duration. */
     if (being_has_affect(m, AFFECT_CALMED))
         return;
+    /* `transfix` (Druid, Tier-2 port 2026-08-16): a transfixed animal is
+     * mesmerized and rooted in place -- it doesn't pick fresh fights for
+     * the duration, same gate shape as beast soother's calmed check. */
+    if (being_has_affect(m, AFFECT_TRANSFIX))
+        return;
     if (m->fighting || m->position != POSITION_STANDING || !m->base.roomp)
         return;
     if (rand() % 100 >= MOB_AGGRESS_CHANCE_PCT)

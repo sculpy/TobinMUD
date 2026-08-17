@@ -34,6 +34,21 @@ bool cmd_flee(descriptor_t *d, const char *args) {
         return true;
     }
 
+    /* ROOM_FLAG_NO_FLEE (room-flag effects port): some rooms magically
+     * pin you in place -- upstream offense.cc refuses the flee outright
+     * with "a strange power prevents you from escaping" (distinct from
+     * NO-ESCAPE, which only blocks teleport/recall). Immortals ignore it,
+     * same as every other gate here. ~77 live rooms carry this bit. */
+    if (!being_is_immortal(ch) && (ch->base.roomp->room_flag & ROOM_FLAG_NO_FLEE)) {
+        descriptor_send(d, "<r>A strange power prevents you from escaping!<z>\r\n");
+        char pin[128];
+        snprintf(pin, sizeof(pin),
+                 "<y>%s tries to flee, but a strange power holds them fast!<z>\r\n",
+                 ch->base.name);
+        descriptor_room_echo(ch->base.roomp, ch, pin);
+        return true;
+    }
+
     room_t *from = ch->base.roomp;
 
     /* Collect the room's real exits; you can only flee where there's a way. */

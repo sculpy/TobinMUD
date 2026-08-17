@@ -25,48 +25,55 @@ typedef struct {
     const char *room_line;
 } cast_line_t;
 
-/* Mage -- purple (<p>/<P>). */
+/* Mage -- purple (<p>/<P>). Casting TEXT ported from real SneezyMUD
+ * (misc/discipline.cc's enforceVerbal()/enforceGestural()): the verbal
+ * "mysterious and melodic incantation" chant and the authentic gesture
+ * lines (the both-hands gesture, the rune-tracing, and the no-hands
+ * "hop and wiggle... magical runes in the air" variant). Kept purple
+ * to match Tobin's established Mage-purple casting convention (being.h)
+ * -- upstream splits the chant cyan / gestures purple, but the user's
+ * ask was for the TEXT, not the color. The verbal pool is a single line
+ * because upstream mages have exactly one chant line; variety per round
+ * comes from the gesture pool. MAGE_BUILDING is upstream's own
+ * high-wizardry "concentrate intently" line; MAGE_COMPLETE has no
+ * upstream source (completion is per-spell in Sneezy) and is a restrained
+ * closer in the same voice. */
 static const cast_line_t MAGE_GESTURE[] = {
-    { "<p>You trace a burning sigil in the air with your fingertip.<z>",
-      "<p>%s traces a burning sigil in the air with %s fingertip.<z>" },
-    { "<p>Arcane light gathers between your outstretched hands.<z>",
-      "<p>Arcane light gathers between %s's outstretched hands.<z>" },
-    { "<p>You weave your fingers through unseen threads of power.<z>",
-      "<p>%s weaves %s fingers through unseen threads of power.<z>" },
+    { "<p>You perform magical gestures with both of your hands.<z>",
+      "<p>%s performs magical gestures with both of %s hands.<z>" },
+    { "<p>You trace a magical rune in the air with your hands.<z>",
+      "<p>%s traces a magical rune in the air with %s hands.<z>" },
+    { "<p>You hop and wiggle about while creating the magical runes in the air...<z>",
+      "<p>%s hops and wiggles about while creating the magical runes in the air...<z>" },
 };
 static const cast_line_t MAGE_VERBAL[] = {
-    { "<p>You chant a string of harsh, guttural syllables.<z>",
-      "<p>%s chants a string of harsh, guttural syllables.<z>" },
-    { "<p>Your voice rises and falls with the cadence of an old incantation.<z>",
-      "<p>%s's voice rises and falls with the cadence of an old incantation.<z>" },
-    { "<p>You speak a word of power that makes the air itself shiver.<z>",
-      "<p>%s speaks a word of power that makes the air itself shiver.<z>" },
+    { "<p>You begin to chant a mysterious and melodic incantation.<z>",
+      "<p>%s begins to chant a mysterious and melodic incantation.<z>" },
 };
-static const char *const MAGE_BUILDING = "<p>Arcane energy crackles and gathers around you.<z>";
-static const char *const MAGE_COMPLETE = "<p>The gathered magic strains at its limits, ready to be unleashed!<z>";
+static const char *const MAGE_BUILDING = "<p>You concentrate intently upon the magical task at hand...<z>";
+static const char *const MAGE_COMPLETE = "<p>You utter the final word of the incantation -- the spell surges, ready to strike!<z>";
 
 /* Druid -- yellow (<y>/<Y>, user follow-up correction), a forest-flavor
- * reskin of the SAME three gesture/verbal/closing beats as Mage above,
- * not a separately-structured set (user: "modified messages that mages
- * have except... forest flavor"). */
+ * reskin of the SAME authentic Sneezy beats as Mage above (user:
+ * "modified messages that mages have except... forest flavor"): a sung
+ * woodland invocation in place of the chant, growing/green gestures in
+ * place of the arcane ones. Deliberately NOT the upstream druid/shaman
+ * "rada song / ancestors" voodoo flavor (user: "don't reference loa or
+ * any other voodoo type reference"). */
 static const cast_line_t DRUID_GESTURE[] = {
-    { "<y>You trace a living sigil of vine and leaf in the air.<z>",
-      "<y>%s traces a living sigil of vine and leaf in the air.<z>" },
-    { "<y>Sunlight gathers, warm and green, between your outstretched hands.<z>",
-      "<y>Sunlight gathers, warm and green, between %s's outstretched hands.<z>" },
-    { "<y>You weave your fingers through unseen roots and growing things.<z>",
-      "<y>%s weaves %s fingers through unseen roots and growing things.<z>" },
+    { "<y>You weave slow gestures with both of your hands, coaxing the air to life.<z>",
+      "<y>%s weaves slow gestures with both of %s hands, coaxing the air to life.<z>" },
+    { "<y>You trace a living rune of vine and leaf in the air with your hands.<z>",
+      "<y>%s traces a living rune of vine and leaf in the air with %s hands.<z>" },
+    { "<y>You sway and circle, drawing motes of green light into the air...<z>",
+      "<y>%s sways and circles, drawing motes of green light into the air...<z>" },
 };
 static const cast_line_t DRUID_VERBAL[] = {
-    { "<y>You murmur words as old as the deep forest itself.<z>",
-      "<y>%s murmurs words as old as the deep forest itself.<z>" },
-    { "<y>Your voice rises and falls like wind moving through high branches.<z>",
-      "<y>%s's voice rises and falls like wind moving through high branches.<z>" },
-    { "<y>You speak a word of growing that makes the ground itself stir.<z>",
-      "<y>%s speaks a word of growing that makes the ground itself stir.<z>" },
+    { "<y>You begin to sing a low, wandering song in the old speech of the wood.<z>",
+      "<y>%s begins to sing a low, wandering song in the old speech of the wood.<z>" },
 };
-static const char *const DRUID_BUILDING = "<y>The scent of moss and rain grows thick around you.<z>";
-static const char *const DRUID_COMPLETE = "<y>The wild magic strains at its limits, ready to answer your call!<z>";
+static const char *const DRUID_BUILDING = "<y>You breathe slow and deep, drawing the hush of the deep forest around you...<z>";
+static const char *const DRUID_COMPLETE = "<y>The wild magic gathers to a green and trembling point, ready to answer your call!<z>";
 
 /* MSP casting sound (same pool cmd_cast.c's old one-shot flourish played
  * once from) -- played once per round now, one per casting tick. */
@@ -100,7 +107,21 @@ static void show_cast_line(descriptor_t *d, being_t *ch, const cast_line_t *p) {
  * (spellcast_tick_run) always passes is_final=false, so a doomed cast
  * never shows the completion boast right before it fizzles. */
 static void spellcast_show_round(descriptor_t *d, being_t *ch, bool is_final) {
-    bool druid = ch->char_class == CLASS_DRUID;
+    /* Which flavor set to show. Mortals go by their real class. Immortals
+     * have no real class (CLASS_IMMORTAL) -- or a stale pre-promotion one
+     * -- so char_class would wrongly force Mage flavor on a Druid spell
+     * (user hit this casting `barkskin` as an immortal, 2026-08-16); pick
+     * the flavor from the SPELL instead: forest flavor for a Druid-only
+     * spell, arcane otherwise (a spell shared by both rosters falls back
+     * to Mage). */
+    bool druid;
+    if (being_is_immortal(ch)) {
+        bool is_druid = skill_find(CLASS_DRUID, ch->cast_spell_name, false) != NULL;
+        bool is_mage = skill_find(CLASS_MAGE, ch->cast_spell_name, false) != NULL;
+        druid = is_druid && !is_mage;
+    } else {
+        druid = ch->char_class == CLASS_DRUID;
+    }
     const cast_line_t *gestures = druid ? DRUID_GESTURE : MAGE_GESTURE;
     const cast_line_t *verbals = druid ? DRUID_VERBAL : MAGE_VERBAL;
     int gcount = druid ? (int)(sizeof(DRUID_GESTURE) / sizeof(DRUID_GESTURE[0]))

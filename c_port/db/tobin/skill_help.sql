@@ -372,3 +372,8 @@ INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('summon swarm', 'Usage: pray summon swarm\n\nSummons a swarm of locusts to fight at your side. This is a self-cast effect -- no target needed.\nRequires: a holy symbol -- any item keyworded "symbol" (e.g., a wooden holy symbol) (`pray`)\nRelated: skills practice cast pray affects\nApprox. Level: 30\nClasses: Cleric', 'seed'),
 ('animal companion', 'Usage: cast animal companion\n\nCalls a loyal beast companion to your side. This is a self-cast effect -- no target needed.\nRequires: any item keyworded "component" (e.g., a pouch of spell components) (`cast`)\nRelated: skills practice cast pray affects\nApprox. Level: 24\nClasses: Druid', 'seed')
 ON DUPLICATE KEY UPDATE `body` = IF(`updated_by` = 'seed', VALUES(`body`), `body`);
+INSERT INTO help_topic (name, body, updated_by) VALUES
+('death mist',
+ 'Usage: cast death mist\n\nA high Druid working of rot and plague. You breathe out a chilling green mist that rolls across the whole room, infecting every creature caught in it -- friend and foe alike, save your own groupmates -- with a wasting syphilitic sickness that saps their health over time. Handle it with care: some of the mist can curl back over you and leave you infected as well. Ported from real SneezyMUD''s Shaman death mist, folded onto the Druid.\nRelated: cure disease creeping doom\nApprox. Level: 45\nClasses: Druid',
+ 'system')
+ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by=VALUES(updated_by);
