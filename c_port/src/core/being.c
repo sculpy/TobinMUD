@@ -1692,6 +1692,15 @@ void being_notify_vitals_changed(being_t *b) {
     }
 }
 
+/* See being.h. */
+void being_break_hiding(being_t *ch) {
+    if (!ch || !ch->hiding)
+        return;
+    ch->hiding = false;
+    if (ch->desc)
+        descriptor_send(ch->desc, "You break from hiding.\r\n");
+}
+
 /* Real upstream's XP-to-level curve (misc/gaining.cc's
  * getExpClassLevel()), precomputed for levels 1-50 despite the
  * misleading name -- its own code comment says it deliberately

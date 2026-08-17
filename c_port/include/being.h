@@ -1020,6 +1020,17 @@ typedef struct being {
      * above. */
     bool feigning;
 
+    /* `hide` (Thief, level 31 advanced: full concealment, a step beyond
+     * sneak/feign death). Set by cmd_hide.c on a successful skill roll;
+     * conceals the character from another viewer's room person-listing
+     * (cmd_look.c, same immortal/detect gate as AFFECT_INVISIBLE) and is
+     * skipped by mob_try_aggress() (mob_ai.c) like `feigning`. Broken the
+     * moment the hider moves or attacks (being_break_hiding()),
+     * since hiding is a held stillness, not a follow-you buff like
+     * sneaking. In-memory only, same no-reconnect-persistence rule as
+     * `feigning`/`sneaking`. */
+    bool hiding;
+
     /* Pulses remaining before this character can act again (see pulse.h).
      * Mortals accumulate this from `being_set_wait()`; immortals always
      * read/write it as a no-op via being_get_wait()/being_set_wait(). */
@@ -1244,6 +1255,12 @@ const char *being_display_name(const being_t *b);
  * skipping a leading color tag first if present (same bug class as
  * cap_first() elsewhere). */
 const char *being_display_name_cap(const being_t *b, char *buf, size_t bufsz);
+
+/* Break a character out of `hide` (cmd_hide.c) -- no-op if not hiding.
+ * Called wherever concealment should end: moving or attacking.
+ * Sends the hider a short notice; the reveal to onlookers is implicit
+ * (they simply start seeing the character in the room listing again). */
+void being_break_hiding(being_t *ch);
 
 /* Rank title for an immortal level (51-53 "Immortal", 54-57 "God", 58
  * "Greater God", 59 "Administrator", 60+ "Implementor"), or NULL for a

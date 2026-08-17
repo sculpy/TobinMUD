@@ -124,6 +124,15 @@ static int group_room_items(const room_t *r, const being_t *viewer, bool want_fi
             && !being_is_immortal(viewer)
             && !being_has_affect(viewer, AFFECT_DETECT_INVISIBLE))
             continue;
+        /* `hide` (Thief) -- a successfully hidden character (cmd_hide.c)
+         * drops out of the person listing for everyone but an immortal or
+         * a detect-invisible viewer (Tobin stand-in for a sense-hidden
+         * counter; see cmd_hide.c). */
+        if ((t->kind == THING_PC || t->kind == THING_MOB)
+            && ((const being_t *)t)->hiding
+            && !being_is_immortal(viewer)
+            && !being_has_affect(viewer, AFFECT_DETECT_INVISIBLE))
+            continue;
         bool is_fixture = t->kind == THING_OBJ && !obj_takeable(((obj_t *)t)->wear_flag);
         if (is_fixture != want_fixture)
             continue;

@@ -420,7 +420,7 @@ static void mob_try_aggress(being_t *m) {
          * cmd_feigndeath.c's own `feigning` flag) is skipped by
          * aggressive-mob targeting -- the real "avoid attack" half of
          * the roster text. */
-        if (pc->feigning)
+        if (pc->feigning || pc->hiding)
             continue;
 
         if (m->mob_align == 0) {

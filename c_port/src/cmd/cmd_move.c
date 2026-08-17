@@ -342,6 +342,7 @@ static bool do_move(descriptor_t *d, int dir) {
     if (!ch->sneaking)
         descriptor_room_echo(from, ch, msg);
 
+    being_break_hiding(ch);
     thing_set_room(&ch->base, to);
 
     /* A mounted rider's mount comes along for the ride -- otherwise the

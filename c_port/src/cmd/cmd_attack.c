@@ -66,6 +66,7 @@ bool cmd_attack(descriptor_t *d, const char *args) {
         descriptor_send(d, "You scramble to your feet.\r\n");
     }
 
+    being_break_hiding(d->character);
     d->character->fighting = target;
     target->fighting = d->character;
     d->character->sneaking = false;
