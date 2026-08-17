@@ -288,6 +288,13 @@ static being_t *g_destroy_target;
 static void clear_fighting_mob_visit(being_t *m) {
     if (m->fighting == g_destroy_target)
         m->fighting = NULL;
+    /* A mob hunting the being being destroyed would otherwise path
+     * toward (and befriend/engage) freed memory next hunt pulse
+     * (mob_ai.c mob_hunt_tick) -- same dangling-pointer scrub as fighting. */
+    if (m->hunting == g_destroy_target) {
+        m->hunting = NULL;
+        m->hunt_befriend = false;
+    }
 }
 
 /* Tears down a being completely: scrubs every dangling reference to it

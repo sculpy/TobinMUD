@@ -862,6 +862,222 @@ static void mob_ai_visit(being_t *m) {
      * randomly wanders, regardless of where the join logic lives. */
 }
 
+/* ---- Cross-tick mob hunting / pathfinding (Druid beast summon) -------
+ *
+ * The one piece mob_ai_try_pursue() called out as missing: real
+ * cross-tick hunting-pointer state plus a room-to-room pathfinder. A mob
+ * with being_t.hunting set advances one BFS-guided hop per combat-round
+ * pulse toward its target and, on arrival, either engages it or (for
+ * beast summon) becomes its charmed pet. Kept deliberately small: a
+ * bounded breadth-first search over the same exit rules mob wander
+ * already honours (open, non-NO_MOB), loading rooms on demand. */
+
+#define HUNT_BFS_MAX 512   /* cap on rooms searched -- bounds the queue */
+#define HUNT_MAX_DEPTH 24  /* how many hops out a hunt will chase */
+
+int mob_path_next_dir(struct room *from_room, int target_vnum, int max_depth) {
+    room_t *from = (room_t *)from_room;
+    if (!from || from->vnum == target_vnum)
+        return -1;
+
+    int q_vnum[HUNT_BFS_MAX];
+    int q_dir[HUNT_BFS_MAX];
+    int q_depth[HUNT_BFS_MAX];
+    int visited[HUNT_BFS_MAX];
+    int nvis = 0, head = 0, tail = 0;
+
+    visited[nvis++] = from->vnum;
+
+    /* Seed the queue with the source room exits: each carries the
+     * first-hop direction that any room reached through it reports back. */
+    for (int i = 0; i < ROOM_NUM_EXITS; i++) {
+        int dest = from->exits[i];
+        if (dest < 0)
+            continue;
+        if (from->exit_door[i] != 0 && (from->exit_cond[i] & EXIT_COND_CLOSED))
+            continue;
+        if (dest == target_vnum)
+            return i;
+        if (tail < HUNT_BFS_MAX && nvis < HUNT_BFS_MAX) {
+            q_vnum[tail] = dest;
+            q_dir[tail] = i;
+            q_depth[tail] = 1;
+            visited[nvis++] = dest;
+            tail++;
+        }
+    }
+
+    while (head < tail) {
+        int cv = q_vnum[head];
+        int cd = q_dir[head];
+        int cdep = q_depth[head];
+        head++;
+
+        if (cdep >= max_depth)
+            continue;
+
+        room_t *r = world_get_room(cv);
+        if (!r) {
+            r = room_repo_load(cv);
+            if (r)
+                world_register_room(r);
+        }
+        if (!r || (r->room_flag & ROOM_FLAG_NO_MOB))
+            continue;
+
+        for (int i = 0; i < ROOM_NUM_EXITS; i++) {
+            int dest = r->exits[i];
+            if (dest < 0)
+                continue;
+            if (r->exit_door[i] != 0 && (r->exit_cond[i] & EXIT_COND_CLOSED))
+                continue;
+            if (dest == target_vnum)
+                return cd;
+
+            bool seen = false;
+            for (int k = 0; k < nvis; k++)
+                if (visited[k] == dest) { seen = true; break; }
+            if (seen)
+                continue;
+
+            if (tail < HUNT_BFS_MAX && nvis < HUNT_BFS_MAX) {
+                q_vnum[tail] = dest;
+                q_dir[tail] = cd;
+                q_depth[tail] = cdep + 1;
+                visited[nvis++] = dest;
+                tail++;
+            }
+        }
+    }
+    return -1;
+}
+
+bool mob_begin_hunt(being_t *m, being_t *target, bool befriend) {
+    if (!m || !target || !m->base.roomp || !target->base.roomp)
+        return false;
+    m->hunting = target;
+    m->hunt_befriend = befriend;
+    return true;
+}
+
+/* Charm an already-spawned mob to a master as its pet (the beast summon
+ * arrival case) -- same follower-slot + AFFECT_CHARMED wiring as
+ * being_summon_charmed_pet(), but for a mob that already exists in the
+ * world rather than one freshly created. Silently no-ops if the master
+ * already has a pet or has no free follower slot. */
+static void hunt_join_master(being_t *pet, being_t *master) {
+    if (being_find_charmed_pet(master))
+        return;
+    int slot = -1;
+    for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++)
+        if (!master->followers[i]) { slot = i; break; }
+    if (slot < 0)
+        return;
+    pet->master = master;
+    master->followers[slot] = pet;
+    being_apply_affect(pet, AFFECT_CHARMED, PET_CHARM_DURATION_ROUNDS);
+}
+
+/* Move a hunting mob one step in direction dir, with prowl-flavored
+ * enter/leave echoes (distinct from mob_try_wander()s idle stroll). */
+static void hunt_step(being_t *m, int dir) {
+    room_t *from = m->base.roomp;
+    int dest = from->exits[dir];
+    room_t *to = world_get_room(dest);
+    if (!to) {
+        to = room_repo_load(dest);
+        if (to)
+            world_register_room(to);
+    }
+    if (!to || (to->room_flag & ROOM_FLAG_NO_MOB))
+        return;
+
+    static const char *const HUNT_DEPART[ROOM_NUM_EXITS] = {
+        "prowls off to the north", "prowls off to the east",
+        "prowls off to the south", "prowls off to the west",
+        "prowls upward", "prowls downward",
+        "prowls off to the northeast", "prowls off to the northwest",
+        "prowls off to the southeast", "prowls off to the southwest",
+    };
+    static const char *const HUNT_ARRIVE[ROOM_NUM_EXITS] = {
+        "pads in from the north", "pads in from the east",
+        "pads in from the south", "pads in from the west",
+        "pads in from above", "pads in from below",
+        "pads in from the northeast", "pads in from the northwest",
+        "pads in from the southeast", "pads in from the southwest",
+    };
+    char capbuf[128], msg[256];
+    snprintf(msg, sizeof(msg), "%s %s.\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), HUNT_DEPART[dir]);
+    descriptor_room_echo(from, NULL, msg);
+
+    thing_set_room(&m->base, to);
+
+    snprintf(msg, sizeof(msg), "%s %s.\r\n",
+             cap_first(m->base.short_descr, capbuf, sizeof(capbuf)), HUNT_ARRIVE[REV_DIR[dir]]);
+    descriptor_room_echo(to, NULL, msg);
+}
+
+/* world_for_each_mob() visitor: advance one hunt this pulse. */
+static void mob_hunt_visit(being_t *m) {
+    being_t *target = m->hunting;
+    if (!target)
+        return;
+    /* A target destroyed mid-hunt would have NULLed m->hunting via
+     * being_destroy(); a live but roomless target just ends the hunt.
+     * A hunting mob that got pulled into a fight drops the hunt. */
+    if (!target->base.roomp || !m->base.roomp || m->fighting
+        || m->position != POSITION_STANDING) {
+        if (m->fighting) {
+            m->hunting = NULL;
+            m->hunt_befriend = false;
+        }
+        return;
+    }
+
+    /* Arrived: same room as the quarry. */
+    if (m->base.roomp == target->base.roomp) {
+        being_t *quarry = target;
+        bool befriend = m->hunt_befriend;
+        m->hunting = NULL;
+        m->hunt_befriend = false;
+        if (befriend) {
+            char capbuf[128], msg[256];
+            snprintf(msg, sizeof(msg),
+                     "%s pads up to you and nuzzles your hand, won over.\r\n",
+                     cap_first(m->base.short_descr, capbuf, sizeof(capbuf)));
+            if (quarry->desc)
+                descriptor_notify(quarry->desc, msg);
+            hunt_join_master(m, quarry);
+        } else if (!quarry->fighting && !being_is_immortal(quarry)) {
+            m->fighting = quarry;
+            quarry->fighting = m;
+            char capbuf[128], msg[256];
+            snprintf(msg, sizeof(msg),
+                     "%s finishes its hunt and lunges at you!\r\n",
+                     cap_first(m->base.short_descr, capbuf, sizeof(capbuf)));
+            if (quarry->desc)
+                descriptor_notify(quarry->desc, msg);
+        }
+        return;
+    }
+
+    int dir = mob_path_next_dir(m->base.roomp,
+                                target->base.roomp->vnum, HUNT_MAX_DEPTH);
+    if (dir < 0) {
+        /* Unreachable within range -- give up rather than loiter forever. */
+        m->hunting = NULL;
+        m->hunt_befriend = false;
+        return;
+    }
+    hunt_step(m, dir);
+}
+
+void mob_hunt_tick(long pulse_num) {
+    (void)pulse_num;
+    world_for_each_mob(mob_hunt_visit);
+}
+
 /* Runs on a timer (see main.c), roughly every ~60s: visits every mob in
  * the world and lets it take its own independent AI action for this
  * tick (mob_ai_visit() above). Deliberately slow-cadence -- combat

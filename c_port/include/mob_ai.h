@@ -47,6 +47,27 @@ struct room;
  * zone_process_run(). */
 void mob_ai_tick(long pulse_num);
 
+/* Cross-tick mob hunting/pathfinding subsystem (mob_ai.c). Runs on the
+ * combat-round pulse (main.c): every mob with being_t.hunting set takes
+ * one BFS-guided step toward its target room, engaging (or, if
+ * hunt_befriend is set, befriending) once it arrives. Built for Druid
+ * beast summon (cmd_cast.c). */
+void mob_hunt_tick(long pulse_num);
+
+/* Breadth-first search from room from over connected, non-closed,
+ * non-NO_MOB exits for the first-hop direction (0..ROOM_NUM_EXITS-1) that
+ * leads toward target_vnum, searching at most max_depth rooms deep.
+ * Returns the direction to step, or -1 if from IS the target room or no
+ * path is found within max_depth. Loads rooms on demand via the room
+ * repo, same as mob wander. */
+int mob_path_next_dir(struct room *from, int target_vnum, int max_depth);
+
+/* Starts m hunting target: paths toward it one hop per combat pulse,
+ * then engages it -- or, if befriend is true, becomes its charmed pet on
+ * arrival (Druid beast summon). Returns false if either being lacks a
+ * room. */
+bool mob_begin_hunt(struct being *m, struct being *target, bool befriend);
+
 /* Pursuit (Sneezy → Tobin feature audit, "Monster AI & behavior
  * (pursuit)"): called from cmd_flee.c right after a successful flee
  * breaks off combat. If `m` (the mob just left behind) is

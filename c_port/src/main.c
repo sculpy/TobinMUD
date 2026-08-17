@@ -148,6 +148,7 @@ int main(int argc, char **argv) {
     pulse_register(COMBAT_ROUND_PULSES, combat_process_run);
     pulse_register(COMBAT_ROUND_PULSES, combat_music_tick); /* MSP fight music start/stop */
     pulse_register(COMBAT_ROUND_PULSES, affect_tick_run); /* counts down active buffs/debuffs every round */
+    pulse_register(COMBAT_ROUND_PULSES, mob_hunt_tick); /* mob hunting/pathfinding: one hop per round toward a hunt target (beast summon) */
     pulse_register(REGEN_PULSES, regen_tick_run);
     pulse_register(MANA_REGEN_PULSES, mana_piety_regen_tick_run);
     pulse_register(100, descriptor_held_expire); /* ~10s: expire held msgs past TTL */

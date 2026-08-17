@@ -777,6 +777,17 @@ typedef struct being {
     struct being *fighting;
     long last_combat_pulse;
 
+    /* Cross-tick mob hunting/pathfinding (mob_ai.c mob_hunt_tick / BFS
+     * mob_path_next_dir). A mob with hunting set paths one hop per
+     * combat-round pulse toward that being current room; on arrival it
+     * either engages it in combat, or -- if hunt_befriend is set (Druid
+     * beast summon, cmd_cast.c) -- becomes its charmed pet. NULL = not
+     * hunting. Scrubbed by being_destroy() like fighting. This is the
+     * cross-tick hunting-pointer state mob_ai_try_pursue() doc comment
+     * says Tobin lacked -- built for beast summon. */
+    struct being *hunting;
+    bool hunt_befriend;
+
     /* `sneak` (spell/skill functional-completeness audit, 2026-07-27,
      * Thief/Warrior roster entry "Move around without waking sleepers
      * or drawing attention", level 1). A live in-memory toggle, same

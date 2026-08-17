@@ -530,6 +530,14 @@ static const skill_def_t SKILLS[] = {
      * compressed to fit this range, same relative order kept. */
     { "beast charm",        CLASS_DRUID, SKILL_TIER_ADVANCED, 18, "See help `beast charm` for help." },
     { "befriend beast",     CLASS_DRUID, SKILL_TIER_ADVANCED, 22, "See help `befriend beast` for help." },
+    /* Beast summon (Druid) -- real upstream beastSummon()
+     * (disc_ranger_animal.cc) makes distant zone animals hunt/path to
+     * the caster; unlike befriend beast (which pops a wolf into your
+     * own room), this spawns the beast several rooms away and it paths
+     * to you (mob_ai.c mob_hunt_tick / mob_begin_hunt), becoming your
+     * pet on arrival. This is the spell the cross-tick pathfinder was
+     * built for. Same real seeded wolf mob (vnum 570). */
+    { "beast summon",       CLASS_DRUID, SKILL_TIER_ADVANCED, 26, "See help `beast summon` for help." },
     /* 5 Shaman spells (missing-skill audit batch C, 2026-08-09),
      * folded onto Druid same as `storm call`/`stupidity`/etc above
      * (Tobin has no Shaman class either). Real level thresholds

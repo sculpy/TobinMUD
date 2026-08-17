@@ -22,6 +22,7 @@
 #include "room.h"
 #include "spellcast.h"
 #include "spell_mana.h"
+#include "mob_ai.h"
 #include "room_repo.h"
 #include "skill.h"
 #include "spell_component.h"
@@ -2422,6 +2423,73 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
         snprintf(roommsg, sizeof(roommsg), "%s casts %s, and %s appears, obedient to their will!\r\n",
                  being_display_name_cap(ch, capbuf, sizeof(capbuf)), sk->name, pet->base.short_descr);
         descriptor_room_echo(ch->base.roomp, ch, roommsg);
+    } else if (strcasecmp(sk->name, "beast summon") == 0) {
+        /* Beast summon (Druid, Tier-2 port): real upstream beastSummon()
+         * calls distant wilderness animals to hunt down and path to the
+         * caster. Where befriend beast/beast charm pop a wolf straight
+         * into your room, this one spawns the wolf several rooms away and
+         * sets it hunting you (mob_ai.c mob_begin_hunt / mob_hunt_tick) --
+         * it advances one hop per combat round along a BFS path and, on
+         * reaching you, becomes your charmed pet. The wandering-summon
+         * flavor is the whole point; a foe in your room can be dealt with
+         * before the beast even arrives. Same one-pet-at-a-time cap and
+         * real seeded wolf (vnum 570) as the rest of the pet line. */
+        if (being_find_charmed_pet(ch)) {
+            descriptor_send(d, "You already have a charmed creature under your control.\r\n");
+            return;
+        }
+        if (!ch->base.roomp) {
+            descriptor_send(d, "You are nowhere the wild can hear your call.\r\n");
+            return;
+        }
+        /* Random walk a few open hops out from the caster to pick a
+         * spawn room; the beast will path back. Falls through to the
+         * caster room itself if there is nowhere to walk (the wolf then
+         * arrives essentially at once, same as befriend beast). */
+        room_t *spawn = ch->base.roomp;
+        int hops = 2 + rand() % 3; /* 2..4 rooms away */
+        for (int h = 0; h < hops; h++) {
+            int dirs[ROOM_NUM_EXITS], nd = 0;
+            for (int i = 0; i < ROOM_NUM_EXITS; i++) {
+                int dest = spawn->exits[i];
+                if (dest < 0)
+                    continue;
+                if (spawn->exit_door[i] != 0 && (spawn->exit_cond[i] & EXIT_COND_CLOSED))
+                    continue;
+                dirs[nd++] = i;
+            }
+            if (!nd)
+                break;
+            int dest = spawn->exits[dirs[rand() % nd]];
+            room_t *nr = world_get_room(dest);
+            if (!nr) {
+                nr = room_repo_load(dest);
+                if (nr)
+                    world_register_room(nr);
+            }
+            if (!nr || (nr->room_flag & ROOM_FLAG_NO_MOB))
+                break;
+            spawn = nr;
+        }
+        being_t *beast = being_create_mob(570);
+        if (!beast) {
+            descriptor_send(d, "You call into the wild, but nothing answers.\r\n");
+            return;
+        }
+        thing_set_room(&beast->base, spawn);
+        mob_begin_hunt(beast, ch, true);
+        if (spawn == ch->base.roomp) {
+            descriptor_send(d, "A gray wolf slips out of the wild, already at your side!\r\n");
+        } else {
+            descriptor_send(d, "You send your call into the wild; a gray wolf answers, and you sense it loping toward you...\r\n");
+        }
+        {
+            char capbuf[128], roommsg[256];
+            snprintf(roommsg, sizeof(roommsg),
+                     "%s casts beast summon, calling to the wild for a beast to come.\r\n",
+                     being_display_name_cap(ch, capbuf, sizeof(capbuf)));
+            descriptor_room_echo(ch->base.roomp, ch, roommsg);
+        }
     } else if (strcasecmp(sk->name, "sticks to snakes") == 0) {
         /* Druid conjuration (Tier-2 port; Sneezy sticksToSnakes(),
          * disc_shaman_spider.cc -- DISC_SHAMAN upstream, folded into
