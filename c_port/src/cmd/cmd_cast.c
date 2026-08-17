@@ -3526,6 +3526,19 @@ bool cmd_cast(descriptor_t *d, const char *args) {
      * training here is also what makes being_calc_max_mana()'s pool
      * actually grow over time, mirroring real SneezyMUD's own
      * SKILL_MANA-drives-manaLimit() relationship. */
+    if (!imm && ch->char_class == CLASS_DRUID) {
+        /* Druid analog of the Mage mana-training block below: the
+         * "lifeforce" skill trains on every cast (win or lose) and
+         * drives being_calc_max_mana()s Lifeforce pool, so a
+         * Druid's Lifeforce grows with use just as a Mage's mana
+         * does. Recompute the max now that it may have moved. */
+        const skill_def_t *lf_sk = skill_find(CLASS_DRUID, "lifeforce", false);
+        if (lf_sk && lf_sk != sk)
+            skill_learn_from_doing(ch, lf_sk);
+        ch->progress.max_mana = being_calc_max_mana(ch);
+        if (ch->progress.mana > ch->progress.max_mana)
+            ch->progress.mana = ch->progress.max_mana;
+    }
     if (!imm && ch->char_class == CLASS_MAGE) {
         const skill_def_t *wizardry_sk = skill_find(CLASS_MAGE, "wizardry", false);
         if (wizardry_sk && wizardry_sk != sk)

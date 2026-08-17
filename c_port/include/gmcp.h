@@ -32,7 +32,7 @@
  * actually has), not an invented `mana` key a real client would
  * be lied to about. */
 size_t gmcp_build_char_vitals(char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit,
-                               int mana, int maxmana);
+                               int mana, int maxmana, const char *manalabel);
 
 /* "Room.Info {"num":942900,"name":"A bare sandbox room."}" -- `name` is
  * JSON-string-escaped (quotes/backslashes/control bytes) since it's

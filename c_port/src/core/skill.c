@@ -452,6 +452,14 @@ static const skill_def_t SKILLS[] = {
      * a poor fit regardless of renaming. */
     { "riding",               CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `riding` for help." },
     { "sign",                 CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `sign` for help." },
+    /* Lifeforce (Druid resource pool). Real SneezyMUD gives the
+     * Druid/Ranger/Shaman nature line a LIFEFORCE resource instead
+     * of mana (spell_info.cc MANA_n vs LIFEFORCE_n). This is the
+     * Druid analog of Mage SKILL_MANA: a learn-by-doing skill whose
+     * proficiency sets the size of the Lifeforce pool
+     * (being_calc_max_mana()), trained on every cast (cmd_cast.c).
+     * Before this it was a flat 100 placeholder. */
+    { "lifeforce",            CLASS_DRUID, SKILL_TIER_CLASS,  1, "See help `lifeforce` for help." },
     { "slash proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "See help `slash proficiency` for help." },
     { "blunt proficiency",    CLASS_DRUID, SKILL_TIER_COMBAT,  1, "See help `blunt proficiency` for help." },
     { "pierce proficiency",   CLASS_DRUID, SKILL_TIER_COMBAT,  1, "See help `pierce proficiency` for help." },

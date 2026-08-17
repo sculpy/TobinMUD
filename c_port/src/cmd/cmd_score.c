@@ -87,12 +87,10 @@ static int resource_pool_max(const being_t *ch) {
     return 0;
 }
 
+/* Thin wrapper over the shared class_resource_label() (being.c) so
+ * score and the GMCP/MSDP gauge feed never disagree on the label. */
 static const char *resource_pool_label(player_class_t c) {
-    switch (c) {
-        case CLASS_CLERIC: return "Piety";
-        case CLASS_DRUID:  return "Lifeforce";
-        default:           return "Mana";
-    }
+    return class_resource_label(c);
 }
 
 /* `score` command: renders the compact grid-style character sheet

@@ -35,11 +35,14 @@ static void json_escape(const char *src, char *dst, size_t dst_sz) {
 }
 
 size_t gmcp_build_char_vitals(char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit,
-                               int mana, int maxmana) {
+                               int mana, int maxmana, const char *manalabel) {
+    /* manalabel is a fixed class label (Mana/Piety/Lifeforce), no JSON
+     * escaping needed. A client uses it to title its resource gauge. */
     int n = snprintf(buf, bufsz,
                       "Char.Vitals {\"hp\":%d,\"maxhp\":%d,\"vit\":%d,\"maxvit\":%d,"
-                      "\"mana\":%d,\"maxmana\":%d}",
-                      hp, maxhp, vit, maxvit, mana, maxmana);
+                      "\"mana\":%d,\"maxmana\":%d,\"manalabel\":\"%s\"}",
+                      hp, maxhp, vit, maxvit, mana, maxmana,
+                      manalabel ? manalabel : "Mana");
     if (n < 0 || (size_t)n >= bufsz)
         return 0;
     return (size_t)n;

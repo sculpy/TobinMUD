@@ -809,11 +809,26 @@ int being_calc_max_mana(const being_t *b) {
         int pct = mana_sk ? skill_proficiency(b, mana_sk) : 0;
         return (int)((100 + pct * 3) * mult);
     }
-    if (b->char_class == CLASS_DRUID)
-        return (int)(100 * mult);
+    if (b->char_class == CLASS_DRUID) {
+        /* Druid Lifeforce now scales off its own learn-by-doing
+         * "lifeforce" skill exactly as Mage mana scales off
+         * "mana" (was a flat 100 placeholder). cmd_cast.c trains
+         * it on every cast and recomputes this pool. */
+        const skill_def_t *lf_sk = skill_find(CLASS_DRUID, "lifeforce", false);
+        int pct = lf_sk ? skill_proficiency(b, lf_sk) : 0;
+        return (int)((100 + pct * 3) * mult);
+    }
     if (b->char_class == CLASS_MONK)
         return (int)((100 + b->progress.level * 3) * mult);
     return 0;
+}
+
+const char *class_resource_label(player_class_t c) {
+    switch (c) {
+        case CLASS_CLERIC: return "Piety";
+        case CLASS_DRUID:  return "Lifeforce";
+        default:           return "Mana";
+    }
 }
 
 static const char *LIMB_NAMES[LIMB_COUNT] = {
@@ -1684,7 +1699,8 @@ void being_notify_vitals_changed(being_t *b) {
         size_t len = gmcp_build_char_vitals(buf, sizeof(buf), b->progress.hp,
                                              b->progress.max_hp, b->progress.vit,
                                              b->progress.max_vit, b->progress.mana,
-                                             b->progress.max_mana);
+                                             b->progress.max_mana,
+                                             class_resource_label(b->char_class));
         if (len > 0)
             descriptor_send_subneg(d, TOBIN_TN_GMCP, (const unsigned char *)buf, len);
     }
@@ -1693,7 +1709,8 @@ void being_notify_vitals_changed(being_t *b) {
         size_t len = msdp_build_vitals(buf, sizeof(buf), b->progress.hp,
                                         b->progress.max_hp, b->progress.vit,
                                         b->progress.max_vit, b->progress.mana,
-                                        b->progress.max_mana);
+                                        b->progress.max_mana,
+                                        class_resource_label(b->char_class));
         if (len > 0)
             descriptor_send_subneg(d, TOBIN_TN_MSDP, buf, len);
     }

@@ -964,6 +964,15 @@ static void telnet_on_gmcp(void *ctx, const char *package, const char *json) {
         gmcp_json_get_int(json, "maxvit", &maxvit);
         gmcp_json_get_int(json, "mana", &mana);
         gmcp_json_get_int(json, "maxmana", &maxmana);
+        /* Per-class resource label (Mana/Piety/Lifeforce) the server
+         * now sends alongside the numbers (gmcp.c
+         * class_resource_label()); the gauge titles itself from it
+         * instead of a hardcoded "Mana", so a Druid sees "Lifeforce"
+         * and a Cleric "Piety". Falls back to "Mana" for an older
+         * server that omits the field. */
+        char manalabel[24];
+        if (!gmcp_json_get_string(json, "manalabel", manalabel, sizeof(manalabel)))
+            strcpy(manalabel, "Mana");
         set_gauge(g_app.hwnd_gauge_label_hp, g_app.hwnd_gauge_bar_hp, "HP", hp, maxhp);
         /* User, 2026-08-06: "no use for mana shouldnt display mana" --
          * maxmana is 0 for every class but Mage (being_calc_max_mana(),
@@ -972,7 +981,7 @@ static void telnet_on_gmcp(void *ctx, const char *package, const char *json) {
         if (maxmana > 0) {
             ShowWindow(g_app.hwnd_gauge_label_mana, SW_SHOW);
             ShowWindow(g_app.hwnd_gauge_bar_mana, SW_SHOW);
-            set_gauge(g_app.hwnd_gauge_label_mana, g_app.hwnd_gauge_bar_mana, "Mana", mana, maxmana);
+            set_gauge(g_app.hwnd_gauge_label_mana, g_app.hwnd_gauge_bar_mana, manalabel, mana, maxmana);
         } else {
             ShowWindow(g_app.hwnd_gauge_label_mana, SW_HIDE);
             ShowWindow(g_app.hwnd_gauge_bar_mana, SW_HIDE);

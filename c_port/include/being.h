@@ -1346,6 +1346,12 @@ int being_calc_max_vit(const being_t *b);
  * Returns 0 for any class/kind with no mana pool at all (most of the
  * roster). */
 int being_calc_max_mana(const being_t *b);
+
+/* Per-class name of the spellcasting resource pool -- "Piety" for
+ * Cleric, "Lifeforce" for Druid, "Mana" otherwise. The single
+ * source of truth for the label shown in `score`, the prompt, and
+ * the GMCP/MSDP vitals feed a client gauge reads. */
+const char *class_resource_label(player_class_t c);
 int being_calc_max_piety(const being_t *b);
 int being_mana_gain(const being_t *b);
 int being_piety_gain(const being_t *b);
