@@ -402,10 +402,22 @@ static const cmd_entry_t COMMANDS[] = {
      * unambiguous against stand's "sta" and stop's "sto" at 3 chars, so
      * no ordering conflict with either despite the shared "st" prefix. */
     { "steal",   cmd_steal,   "Steal gold or an item from someone (Thief, steal gold|<item> <target>).", MORTAL_LEVEL_MIN },
+    /* Unimplemented skills/spells backlog (Session 158 audit), Thief
+     * level 1 -- see cmd_search.c own header. */
+    { "search",  cmd_search,  "Search the area for hidden passages (Thief).", MORTAL_LEVEL_MIN },
+    /* Unimplemented skills/spells backlog (Session 158 audit), Thief
+     * level 25 -- see cmd_skulk.c / cmd_track.c / cmd_poison_weapon.c. */
+    { "skulk",   cmd_skulk,   "Move unseen -- an aggressive mob won't notice you while skulking (Thief, toggle).", MORTAL_LEVEL_MIN },
+    { "track",   cmd_track,   "Read a trail and point one step toward your quarry (Thief, track <name>).", MORTAL_LEVEL_MIN },
+    { "poison",  cmd_poison_weapon, "Coat your wielded weapon with venom so its hits poison the victim (Thief, poison weapon).", MORTAL_LEVEL_MIN },
     /* Skill-based combat (Sneezy → Tobin feature audit, Warrior). Extra
      * action layered on the automatic per-round exchange -- see
      * cmd_bash.c's own header comment. */
     { "bash",    cmd_bash,    "Bash your opponent, knocking them down (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
+    /* Unimplemented skills/spells backlog (Session 158 audit), Warrior
+     * level 1 -- see cmd_doorbash.c / cmd_fortify.c own headers. */
+    { "doorbash", cmd_doorbash, "Charge a closed or locked door, forcing it open by brute strength (Warrior, doorbash <direction>).", MORTAL_LEVEL_MIN },
+    { "fortify", cmd_fortify, "Raise a shield wall, cutting incoming damage for a short while (Warrior, shield required).", MORTAL_LEVEL_MIN },
     /* Spell/skill functional-completeness audit (2026-07-27): "tr" is free
      * for mortals (transfer/treasury below are IMMORTAL_LEVEL_MIN, so the
      * dispatch loop's level filter skips them for a mortal caller
@@ -422,6 +434,10 @@ static const cmd_entry_t COMMANDS[] = {
     { "kick",    cmd_kick,    "Kick for bonus damage -- kick <target> also starts a fight (Warrior/Thief/Monk).", MORTAL_LEVEL_MIN },
     { "shoot",   cmd_shoot,   "Fire a wielded bow/crossbow/sling at a target, spending ammo (shoot <target>).", MORTAL_LEVEL_MIN },
     { "stomp",   cmd_stomp,   "A crushing stomp attack (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
+    /* Unimplemented skills/spells backlog (Session 158 audit), Monk
+     * actives -- see cmd_defenestrate.c / cmd_bonebreak.c. */
+    { "defenestrate", cmd_defenestrate, "Grab your opponent and hurl them to the ground (Monk, must be fighting them).", MORTAL_LEVEL_MIN },
+    { "bonebreak", cmd_bonebreak, "Wrench a limb until the bone snaps, leaving a lasting break (Monk, must be fighting them).", MORTAL_LEVEL_MIN },
     { "evaluate", cmd_evaluate, "Appraise an item's worth, condition, and material (evaluate <item>).", MORTAL_LEVEL_MIN },
     /* SWAP: pray before practice, so "p"/"pr" stay a Cleric's spell verb;
      * practice needs "prac", prompt needs "pro", put needs "pu". */

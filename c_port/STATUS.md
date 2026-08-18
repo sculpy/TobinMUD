@@ -1,5 +1,111 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-18 — Session 164 (DO droplet, production port 4000):
+**Session 158 backlog: the Monk "iron" family + two actives -- iron flesh
+(31), iron skin (35), iron bones (38), iron muscles (42), iron will (48),
+defenestrate (42), bonebreak (50).**
+  - **Passives (combat.c):** iron flesh = barehand defender to-hit reduction
+    (like oomlat); iron skin = flat %% damage reduction (like toughness);
+    iron muscles = flat barehand damage bonus (beside iron fist). All
+    learn-by-doing.
+  - **iron will (cmd_cast.c):** passive mental resistance -- a new
+    iron_will_resists() helper throws off fear / slumber / transfix.
+  - **defenestrate / bonebreak (cmd_defenestrate.c / cmd_bonebreak.c):**
+    fighting-required actives like bash. Bonebreak deals heavy limb damage +
+    AFFECT_DISEASE_BROKEN_BONE; **iron bones** is its passive counter (the
+    hit lands, the bone holds), wired in cmd_bonebreak.c.
+  - Build clean; smoke_test_monk_iron.py all green (15 checks: 3 passives
+    train, iron will resist, defenestrate, bonebreak snap + affect, iron
+    bones hold). NOTE for future test authors: MORTAL_LEVEL_MAX=50 -- a
+    level-60 "mortal" is actually immortal, which silently skips every
+    !being_is_immortal gate (cost real debugging time here). Help topics
+    refreshed; news.sql "The Monk Turns to Iron". Restarted cold.
+
+
+
+Last updated: 2026-08-18 — Session 163 (DO droplet, production port 4000):
+**Session 158 backlog: concealment (Thief, level 30, passive).** The
+passive counter to the `track` skill built in Session 162: a quarry who
+knows concealment covers their own trail, so a MORTAL tracker's `track`
+goes cold on them (checked in cmd_track.c, after the co-located check --
+concealment hides the trail, not the person, so they stay visible in the
+same room; an immortal tracker still sees through it). Exercising it trains
+the concealed being's own skill. No new command (it's passive).
+  - Build clean; smoke_test_concealment.py green (plain quarry tracked east;
+    concealment-knowing quarry's trail goes cold). Help topic refreshed;
+    news.sql "Some Trails Go Cold". Restarted cold on the new binary.
+
+
+
+Last updated: 2026-08-18 — Session 162 (DO droplet, production port 4000):
+**Session 158 backlog, level-25 Thief cluster: skulk, track, poison weapon.**
+  - **skulk** (cmd_skulk.c) -- stealth-movement toggle in the niche between
+    sneak (echo) and hide (stationary): a new in-memory `skulking` flag on
+    being_t; mob_try_aggress() skips a skulking PC (same skip as feign
+    death/hide).
+  - **track** (cmd_track.c) -- reuses mob_ai's mob_path_next_dir() BFS to
+    point the first-hop direction toward a named being; searches loaded
+    rooms via world_for_each_room() + a file-static search context.
+  - **poison weapon** (cmd_poison_weapon.c) -- new AFFECT_POISON_BLADE self
+    flag/timer (needs a wielded weapon to apply); combat_strike() gives each
+    landed hit a POISON_BLADE_PROC_PCT chance to apply AFFECT_POISON to the
+    (mortal) victim. Command verb is `poison` (multi-word table names don't
+    dispatch; players type `poison weapon`).
+  - Build clean; smoke_test_thief_25.py all green (skulk toggle/train/gate,
+    track direction/here/absent/gate, poison coat/affect/recast/no-weapon +
+    a real in-combat envenom proc). Help topics refreshed; news.sql
+    "Thieves Learn Three Old Tricks". Restarted cold on the new binary.
+
+
+
+Last updated: 2026-08-18 — Session 161 (DO droplet, production port 4000):
+**Session 158 backlog, Druid cast spells (all six): sunscald (16), feral
+wrath (28), wave crash (32), withering touch (32), tree walk (41), leeching
+vine (48).** All added as exact-name branches in cmd_cast.c's
+cmd_cast_resolve_effect(), placed high in the dispatch chain (before any
+generic substring branch), each reusing an existing working mechanic:
+  - **sunscald** -- single-target radiant damage (spell_damage_for_level +
+    combat_apply_skill_damage, opens combat like the generic damage branch).
+  - **withering touch** -- single-target damage + AFFECT_POISON DoT on a
+    surviving victim (Tobin's closest working necrosis stand-in).
+  - **wave crash** -- room-wide area burst via the shared cast_area_damage().
+  - **feral wrath** -- self-only offensive buff, reuses AFFECT_BLESS.
+  - **leeching vine** -- life-drain (damage + being_heal 3/4), life-leech shape.
+  - **tree walk** -- self random teleport (room_repo_random_teleport_vnum +
+    NO_ESCAPE gate, self-only, no offensive path).
+  - Build clean; smoke_test_druid_batch_2026_08_18.py (18 checks, all green:
+    damage/poison/area/buff/drain/teleport). Help topics rewritten (no longer
+    "not yet wired"); news.sql "The Druid's Wild Repertoire Deepens".
+    Restarted cold on the new binary.
+
+
+
+Last updated: 2026-08-18 — Session 160 (DO droplet, production port 4000):
+**Session 158 backlog, level-1 tier: doorbash + fortify (Warrior), search +
+dodge (Thief) -- lowest-level unimplemented skills, built low-to-high.**
+  - **doorbash** (Warrior, cmd_doorbash.c): `doorbash <direction>` forces a
+    CLOSED -- even LOCKED -- door open by brute strength (clears CLOSED|LOCKED,
+    syncs the far side like cmd_open.c). Failure bounces you off for a little
+    self-damage. Heavy combat-lag round win or lose. Scope-cut from upstream:
+    no door-weight/lock_difficulty gauntlet (Tobin exits carry no such data),
+    no AFF_STUNNED daze (no stun affect), no auto-move-through (walk normally).
+  - **fortify** (Warrior, cmd_fortify.c): shield-only defensive stance, new
+    dedicated AFFECT_FORTIFY (flat FORTIFY_DAM_PCT=30 incoming-damage cut in
+    combat_strike(), kept separate from the Cleric AFFECT_PROTECTION family).
+    The affect doubles as the recast gate. 20-round (~24s) duration.
+  - **search** (Thief, cmd_search.c): reveals EXIT_COND_SECRET passages to the
+    searcher (non-destructive -- doesn't strip the bit globally). Hidden-object
+    discovery scoped out (no per-object concealed flag in Tobin).
+  - **dodge** (Thief, passive in combat.c): defender-side proficiency-scaled
+    to-hit reduction, same shape/insertion point as `focused avoidance`;
+    trains on every incoming swing.
+  - Build clean (zero warnings). Four smoke tests all green
+    (smoke_test_{doorbash,fortify,search,dodge}.py). Help topics refreshed
+    (doorbash/fortify/dodge no longer say "not implemented"); news.sql entry
+    "Doors, Shields, and Shadows". Restarted cold on the new binary.
+
+
+
 Last updated: 2026-08-18 — Session 159 (DO droplet, production port 4000):
 **WEAR_PAIRED (two-handed weapons + both-limb armor) + Warrior two-handed
 specialization; cure blindness / word of recall dropped from Druid.**

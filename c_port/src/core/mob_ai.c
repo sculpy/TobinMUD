@@ -420,7 +420,9 @@ static void mob_try_aggress(being_t *m) {
          * cmd_feigndeath.c's own `feigning` flag) is skipped by
          * aggressive-mob targeting -- the real "avoid attack" half of
          * the roster text. */
-        if (pc->feigning || pc->hiding)
+        /* `skulk` (Thief, level 25) -- a skulking PC keeps out of an
+         * aggressive mob's sight, same skip as feign death/hide. */
+        if (pc->feigning || pc->hiding || pc->skulking)
             continue;
 
         if (m->mob_align == 0) {

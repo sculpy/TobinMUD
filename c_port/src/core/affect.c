@@ -83,6 +83,8 @@ static const char *const AFFECT_NAMES[AFFECT_COUNT] = {
     "Blessed",
     "Protected",
     "Reflecting",
+    "Fortified",
+    "Poisoned Blade",
 };
 
 /* HP drained per damage sub-tick for AFFECT_POISON -- its own faster gate

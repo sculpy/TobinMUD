@@ -881,6 +881,18 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             modifier -= skill_learn_from_doing(defender, oomlat_sk) / 8;
     }
 
+    /* `iron flesh` (Monk, level 31 -- Session 158 backlog). A hardened,
+     * unarmored body is tougher to land a clean blow on: a barehanded
+     * defender-side to-hit reduction, same shape/insertion as `oomlat`'s
+     * own barehand AC bonus just above (upstream iron flesh is likewise a
+     * nekkid-monk armor bonus, misc/being.cc). */
+    if (!combat_wielded_weapon(defender) && !being_is_immortal(defender)
+        && being_knows_skill(defender, "iron flesh")) {
+        const skill_def_t *ifl_sk = skill_find(defender->char_class, "iron flesh", false);
+        if (ifl_sk)
+            modifier -= skill_learn_from_doing(defender, ifl_sk) / 8;
+    }
+
     /* `focused avoidance` (missing-skill audit, 2026-08-05, generic/
      * cross-class): real upstream (disc_advanced_defense.cc's
      * canFocusedAvoidance()) is a passive dodge check scaled by agility,
@@ -893,6 +905,19 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         const skill_def_t *avoid_sk = skill_find(defender->char_class, "focused avoidance", false);
         if (avoid_sk)
             modifier -= skill_learn_from_doing(defender, avoid_sk) / 6;
+    }
+    /* `dodge` (Unimplemented skills/spells backlog, Session 158 audit:
+     * Thief, level 1 -- "passive avoidance"). Real upstream (SKILL_DODGE)
+     * is a per-attack passive avoidance check; ported here as the same
+     * flat proficiency-scaled to-hit reduction against the defender as
+     * `focused avoidance` just above (its closest existing analog),
+     * making a trained dodger genuinely harder to land a blow on. Awake-
+     * and-mobile only in spirit; no weapon restriction, same as focused
+     * avoidance. Trains on every incoming swing it's checked against. */
+    if (!being_is_immortal(defender) && being_knows_skill(defender, "dodge")) {
+        const skill_def_t *dodge_sk = skill_find(defender->char_class, "dodge", false);
+        if (dodge_sk)
+            modifier -= skill_learn_from_doing(defender, dodge_sk) / 6;
     }
 
     /* `Oomlat Philosophy` (Monk, missing-skill audit, 2026-08-09) -- the
@@ -1059,6 +1084,17 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
     if (!weapon && being_knows_skill(attacker, "iron fist"))
         dmg += (attacker->attrs.strength - ATTR_BASE) / 4;
 
+    /* `iron muscles` (Monk, level 42 -- Session 158 backlog). Bare-fisted
+     * conditioning: a proficiency-scaled flat damage bonus while unarmed,
+     * the sibling of `iron fist`'s STR-term double just above (up to +5 at
+     * full proficiency). PC attackers only (learn-by-doing). */
+    if (!weapon && attacker->base.kind == THING_PC
+        && being_knows_skill(attacker, "iron muscles")) {
+        const skill_def_t *imu_sk = skill_find(attacker->char_class, "iron muscles", false);
+        if (imu_sk)
+            dmg += skill_learn_from_doing(attacker, imu_sk) / 20;
+    }
+
     /* Handedness (Session 21): strikes alternate hands; the primary hand
      * hits harder (+1), the off-hand weaker (-1). Which hand is primary
      * comes from handed_right chosen at creation. Weapon depth (user
@@ -1157,6 +1193,16 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             dmg = 1;
     }
 
+    /* AFFECT_FORTIFY (Warrior `fortify`, cmd_fortify.c) -- a shield-wall
+     * defensive stance takes a flat FORTIFY_DAM_PCT off the incoming hit,
+     * stacking with Sanctuary/Protection above, same placement and shape
+     * as the AFFECT_PROTECTION cut just above. */
+    if (being_has_affect(defender, AFFECT_FORTIFY)) {
+        dmg -= dmg * FORTIFY_DAM_PCT / 100;
+        if (dmg < 1)
+            dmg = 1;
+    }
+
     /* `toughness` (missing-skill audit, 2026-08-05, generic/cross-class):
      * real upstream is a per-hit chance to gain a stacking damage-
      * immunity buff (combat.cc's doToughness()). Ported as a flat
@@ -1170,6 +1216,21 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         if (tough_sk) {
             int tough_prof = skill_learn_from_doing(defender, tough_sk);
             dmg -= dmg * (tough_prof / 5) / 100;
+            if (dmg < 1)
+                dmg = 1;
+        }
+    }
+
+    /* `iron skin` (Monk, level 35 -- Session 158 backlog). Skin like
+     * hammered iron: a flat passive damage-reduction percentage, same
+     * shape as `toughness` just above (upstream iron skin is a general
+     * damage-immunity amount, misc/immunity.cc). Stacks with the others. */
+    if (defender->base.kind == THING_PC && !being_is_immortal(defender)
+        && being_knows_skill(defender, "iron skin")) {
+        const skill_def_t *isk_sk = skill_find(defender->char_class, "iron skin", false);
+        if (isk_sk) {
+            int isk_prof = skill_learn_from_doing(defender, isk_sk);
+            dmg -= dmg * (isk_prof / 5) / 100;
             if (dmg < 1)
                 dmg = 1;
         }
@@ -1263,6 +1324,23 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             if (defender->desc)
                 descriptor_notify(defender->desc, "<c>Your mirror shield hurls the attack back at its source!<z>\r\n");
         }
+    }
+
+    /* `poison weapon` (Thief, level 25) -- if the attacker's weapon is
+     * venom-coated (AFFECT_POISON_BLADE) and this hit actually bit, a
+     * proc-chance leaves the victim poisoned. Gated on a real wielded
+     * weapon (a coating needs a blade) and never envenoms an immortal.
+     * Uses the SAME final-dmg>0 defender-side placement as thornflesh/
+     * damage-mirror just above. */
+    if (dmg > 0 && !being_is_immortal(defender)
+        && being_has_affect(attacker, AFFECT_POISON_BLADE)
+        && combat_wielded_weapon(attacker)
+        && (rand() % 100) < POISON_BLADE_PROC_PCT) {
+        being_apply_affect(defender, AFFECT_POISON, POISON_BLADE_POISON_ROUNDS);
+        if (attacker->desc)
+            descriptor_notify(attacker->desc, "<g>Your venom-slick edge bites deep -- the poison takes hold!<z>\r\n");
+        if (defender->desc)
+            descriptor_notify(defender->desc, "<g>The blade's venom courses into your wound!<z>\r\n");
     }
 
     limb_t limb = pick_weighted_limb((body_type_t)defender->body_type);

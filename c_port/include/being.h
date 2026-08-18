@@ -1046,6 +1046,10 @@ typedef struct being {
      * sneaking. In-memory only, same no-reconnect-persistence rule as
      * `feigning`/`sneaking`. */
     bool hiding;
+    /* `skulk` (Thief, level 25) -- in-memory stealth-movement toggle,
+     * same no-persistence rule as `sneaking`/`hiding`. While set, an
+     * aggressive mob's mob_try_aggress() skips this PC (cmd_skulk.c). */
+    bool skulking;
 
     /* Pulses remaining before this character can act again (see pulse.h).
      * Mortals accumulate this from `being_set_wait()`; immortals always

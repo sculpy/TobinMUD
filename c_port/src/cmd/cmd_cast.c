@@ -395,6 +395,34 @@ static void cast_area_damage(descriptor_t *d, being_t *ch, const skill_def_t *sk
  * needing a subsystem Tobin doesn't have at all yet (teleport/summon/
  * polymorph/invisibility/...) -- those fall through to the same honest
  * "nothing happens yet" placeholder as before. */
+/* `iron will` (Monk, level 48 -- Session 158 backlog). The passive
+ * mental-resistance counter to the mind-affecting spells (fear,
+ * slumber, transfix): a being who knows it simply throws the effect
+ * off. Returns true (and messages both sides + trains the resister's
+ * own skill) when the effect is resisted, so each caller can early-
+ * out. Immortals aren't handled here (their own per-spell immortal
+ * checks already run first). */
+static bool iron_will_resists(descriptor_t *d, being_t *ch, being_t *victim, const char *effect) {
+    if (!victim || being_is_immortal(victim) || !being_knows_skill(victim, "iron will"))
+        return false;
+    if (victim->base.kind == THING_PC) {
+        const skill_def_t *iw = skill_find(victim->char_class, "iron will", false);
+        if (iw)
+            skill_learn_from_doing(victim, iw);
+    }
+    char m[192];
+    snprintf(m, sizeof(m), "You reach for %s's mind, but their iron will throws off the %s!\r\n",
+             being_display_name(victim), effect);
+    descriptor_send(d, m);
+    if (victim->desc) {
+        char cb[128];
+        snprintf(m, sizeof(m), "%s reaches for your mind, but your iron will throws off the %s!\r\n",
+                 being_display_name_cap(ch, cb, sizeof(cb)), effect);
+        descriptor_notify(victim->desc, m);
+    }
+    return true;
+}
+
 void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, const skill_def_t *sk) {
     char msg[192];
     /* skill_def_t's own `desc` field is a generic "See help `X` for
@@ -488,6 +516,178 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
         thing_set_room(&ch->base, dest);
         snprintf(msg, sizeof(msg), "%s steps out of a gap in reality.\r\n", capbuf);
         descriptor_room_echo(dest, ch, msg);
+        cmd_dispatch(d, "look");
+        return;
+    } else if (strcasecmp(sk->name, "sunscald") == 0) {
+        /* sunscald (Druid, level 16 -- Session 158 backlog, lowest
+         * unimplemented spell). A searing lance of concentrated sunlight:
+         * a straightforward single-target radiant damage spell, same
+         * open-combat + damage shape as the generic damage branch below
+         * but given its own exact-name branch so it never depends on
+         * help-body keyword text (the Session 145 dead-branch lesson). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "You can't do that to an immortal being.\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int hpb = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, hpb, NULL);
+        snprintf(msg, sizeof(msg), "You scald %s with a searing lance of sunlight, burning them %s!\r\n",
+                 being_display_name(atk_target), intensity);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcb[128];
+            snprintf(msg, sizeof(msg), "%s scalds you with a searing lance of sunlight, burning you %s!\r\n",
+                     being_display_name_cap(ch, tcb, sizeof(tcb)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "withering touch") == 0) {
+        /* withering touch (Druid, level 32 -- Session 158 backlog). A
+         * necrotic touch: single-target damage PLUS a lingering decay on
+         * a surviving victim, reusing AFFECT_POISON as the HP-draining
+         * "wither" over the next several rounds (Tobin has no dedicated
+         * necrosis affect; AFFECT_POISON is its closest working DoT, same
+         * reuse precedent as several spells in this file). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "You can't do that to an immortal being.\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int hpb = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, hpb, NULL);
+        if (!defeated)
+            being_apply_affect(atk_target, AFFECT_POISON, 10);
+        snprintf(msg, sizeof(msg), "You lay a withering touch on %s, rotting the flesh %s!\r\n",
+                 being_display_name(atk_target), intensity);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcb[128];
+            snprintf(msg, sizeof(msg), "%s lays a withering touch on you, rotting your flesh %s!\r\n",
+                     being_display_name_cap(ch, tcb, sizeof(tcb)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "wave crash") == 0) {
+        /* wave crash (Druid, level 32 -- Session 158 backlog). A crashing
+         * wall of water: a real room-wide area-effect burst, reusing the
+         * shared cast_area_damage() helper (hits every non-grouped being
+         * in the room, friendly-fire excluded), same as fireball/tsunami/
+         * flatulence. */
+        cast_area_damage(d, ch, sk);
+    } else if (strcasecmp(sk->name, "feral wrath") == 0) {
+        /* feral wrath (Druid, level 28 -- Session 158 backlog). A self
+         * only battle-fury: the caster gives in to animal rage, sharpening
+         * their own blows. Reuses AFFECT_BLESS -- the attacker-side to-hit
+         * + flat-damage buff (combat.c) -- as the "savage blows" effect,
+         * same "map onto the closest existing working affect" precedent as
+         * the rest of this roster. Always lands on the caster, never a
+         * named target (a rage is not something you cast onto someone
+         * else). */
+        being_apply_affect(ch, AFFECT_BLESS, WARD_DURATION_ROUNDS);
+        descriptor_send(d, "You surrender to a feral wrath -- your blows turn savage and sure!\r\n");
+        if (ch->base.roomp) {
+            char rcb[128], recho[160];
+            snprintf(recho, sizeof(recho), "%s's eyes go wild with a feral wrath!\r\n",
+                     being_display_name_cap(ch, rcb, sizeof(rcb)));
+            descriptor_room_echo(ch->base.roomp, ch, recho);
+        }
+    } else if (strcasecmp(sk->name, "leeching vine") == 0) {
+        /* leeching vine (Druid, level 48 -- Session 158 backlog). A
+         * parasitic vine that drains the victim and feeds the caster:
+         * damage plus a heal-back, same combat_apply_skill_damage() +
+         * being_heal() drain shape as life leech/bramble drain (a heavy
+         * 3/4 transfer, befitting a level-48 spell). */
+        if (!atk_target) {
+            descriptor_send(d, "Cast that at whom?\r\n");
+            return;
+        }
+        if (being_is_immortal(atk_target)) {
+            descriptor_send(d, "You can't do that to an immortal being.\r\n");
+            return;
+        }
+        if (!ch->fighting) {
+            ch->fighting = atk_target;
+            atk_target->fighting = ch;
+            being_set_wait(ch, COMBAT_ROUND_PULSES);
+        }
+        int dmg = spell_damage_for_level(sk->min_level);
+        limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int hpb = atk_target->limbs[limb].hp;
+        bool defeated = combat_apply_skill_damage(ch, atk_target, dmg, limb);
+        const char *intensity = describe_dam(dmg, hpb, NULL);
+        int drained = dmg * 3 / 4;
+        if (drained < 1)
+            drained = 1;
+        being_heal(ch, drained);
+        snprintf(msg, sizeof(msg),
+                 "Leeching vines coil around %s, draining them %s and feeding you! (+%d HP)\r\n",
+                 being_display_name(atk_target), intensity, drained);
+        descriptor_send(d, msg);
+        if (!defeated && atk_target->desc) {
+            char tcb[128];
+            snprintf(msg, sizeof(msg), "%s's leeching vines coil around you, draining you %s!\r\n",
+                     being_display_name_cap(ch, tcb, sizeof(tcb)), intensity);
+            descriptor_notify(atk_target->desc, msg);
+        }
+    } else if (strcasecmp(sk->name, "tree walk") == 0) {
+        /* tree walk (Druid, level 41 -- Session 158 backlog). Step into
+         * one tree and out of another far away: a SELF-only random
+         * teleport, reusing the same room_repo_random_teleport_vnum() +
+         * NO_ESCAPE gate the Mage `teleport` spell uses, minus the
+         * offensive/target path (a druid tree-walks themselves, not
+         * others). */
+        if (!ch->base.roomp) {
+            descriptor_send(d, "You aren't anywhere.\r\n");
+            return;
+        }
+        if (ch->base.roomp->room_flag & ROOM_FLAG_NO_ESCAPE) {
+            descriptor_send(d, "The wild refuses you here -- there is no tree to step through.\r\n");
+            return;
+        }
+        int dest_vnum = room_repo_random_teleport_vnum();
+        room_t *dest = dest_vnum > 0 ? world_get_room(dest_vnum) : NULL;
+        if (!dest && dest_vnum > 0) {
+            dest = room_repo_load(dest_vnum);
+            if (dest)
+                world_register_room(dest);
+        }
+        if (!dest) {
+            descriptor_send(d, "You reach for the deep roots, but nothing answers.\r\n");
+            return;
+        }
+        room_t *old_room = ch->base.roomp;
+        if (old_room) {
+            char departmsg[128];
+            snprintf(departmsg, sizeof(departmsg), "%s melts into the bark of a nearby tree!\r\n",
+                     ch->base.name);
+            descriptor_room_echo(old_room, ch, departmsg);
+        }
+        thing_set_room(&ch->base, dest);
+        char arrmsg[128];
+        snprintf(arrmsg, sizeof(arrmsg), "%s steps out from the trunk of a tree!\r\n", ch->base.name);
+        descriptor_room_echo(dest, ch, arrmsg);
+        descriptor_send(d, "You step into the bark and out through a tree far away!\r\n");
         cmd_dispatch(d, "look");
         return;
     } else if (strcasecmp(sk->name, "death mist") == 0) {
@@ -1781,6 +1981,8 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
             descriptor_send(d, "A god pays no attention to your gaze.\r\n");
             return;
         }
+        if (iron_will_resists(d, ch, atk_target, "mesmerising gaze"))
+            return;
         if (atk_target->fighting || ch->fighting) {
             descriptor_send(d, "It's far too agitated to be mesmerized right now.\r\n");
             return;
@@ -2069,6 +2271,8 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
             atk_target->fighting = ch;
             being_set_wait(ch, COMBAT_ROUND_PULSES);
         }
+        if (iron_will_resists(d, ch, atk_target, "terror"))
+            return;
         snprintf(msg, sizeof(msg), "You cast %s at %s -- they're afraid! Look at them run!\r\n",
                  sk->name, being_display_name(atk_target));
         descriptor_send(d, msg);
@@ -2103,6 +2307,8 @@ void cmd_cast_resolve_effect(descriptor_t *d, being_t *ch, being_t *target, cons
             descriptor_send(d, "You can't put an immortal to sleep.\r\n");
             return;
         }
+        if (iron_will_resists(d, ch, atk_target, "drowsiness"))
+            return;
         if (atk_target->position == POSITION_SLEEPING) {
             snprintf(msg, sizeof(msg), "%s is already asleep.\r\n", being_display_name(atk_target));
             descriptor_send(d, msg);

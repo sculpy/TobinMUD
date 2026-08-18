@@ -613,3 +613,23 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Dress for the Weather', 'The sky and the land now press on your skin together. A searing desert or a lava field will still sear you, and a frozen waste still gnaws the bone -- but the weather overhead matters too now: a driving rain or a howling storm chills the open air, while clear skies let the sun beat down all the harder. And what you wear finally counts against it -- the more gear you have on, the more it evens out the extremes, buffering both the killing heat and the biting cold. A well-dressed traveller can walk country that would fell a naked one.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Doors, Shields, and Shadows', 'Four old talents finally answer to the hand that trained them. A Warrior can now DOORBASH a closed or locked door clean off its hinges by sheer muscle -- no key required, though a stubborn door will send you bouncing off the worse for it. A Warrior with a shield can FORTIFY, sinking in behind it to shrug off a share of every blow for a short while. A Thief can SEARCH a room and turn up passages hidden from plain sight. And a Thief now truly DODGES -- a passive knack for slipping incoming blows that only sharpens the more steel comes their way.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Druid''s Wild Repertoire Deepens', 'Six long-dormant druidic gifts finally answer the call. SUNSCALD sears a foe with a lance of concentrated sunlight. A WITHERING TOUCH rots the flesh and leaves it decaying. WAVE CRASH brings a wall of water down on everyone nearby at once. FERAL WRATH gives the druid over to animal rage, turning their own blows savage. LEECHING VINE drains a victim''s life and feeds it back to the caster. And TREE WALK steps the druid into one tree and out of another, far across the world.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Thieves Learn Three Old Tricks', 'Three long-idle rogue talents finally sharpen. SKULK lets a thief slip from room to room unnoticed -- while skulking, an aggressive monster won''t pick a fight with you. TRACK reads a quarry''s trail and points you one step toward them. And POISON WEAPON smears venom along a wielded blade, so its hits have a chance to leave the victim poisoned.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Some Trails Go Cold', 'A thief skilled in CONCEALMENT now covers their own tracks. Once learned, the skill works on its own -- a would-be tracker following your trail finds it simply goes cold. (A god can still see through it, and you are of course still plainly visible to anyone in the same room.)')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Monk Turns to Iron', 'The monastic "iron" disciplines finally harden into effect. IRON FLESH and IRON SKIN make a bare-handed monk far tougher to hurt; IRON MUSCLES lends their fists real weight; IRON WILL throws off fear and other mind-magic; and IRON BONES lets them shrug off a broken limb. Two brutal techniques join the kit too: DEFENESTRATE hurls an opponent bodily to the ground, and BONEBREAK wrenches a limb until it snaps.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

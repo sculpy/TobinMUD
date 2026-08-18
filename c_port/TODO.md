@@ -40,22 +40,17 @@ cmd_pray.c / combat.c / cmd_*.c. Each entry below has ZERO real-handler refs
 wiring). Help-body "does nothing yet" text is STALE/unreliable — the code is
 authoritative. Work top-down within a class; each ships with a smoke test.
 
-**Druid spells (cast):** sunscald (16), feral wrath (28), wave crash (32),
-withering touch (32), tree walk (41), leeching vine (48). (cure blindness +
-word of recall dropped from the Druid roster 2026-08-18 — they are Cleric
-prayers.)
+**Druid spells:** all cleared (sunscald/feral wrath/wave crash/withering
+touch/tree walk/leeching vine done 2026-08-18; cure blindness + word of
+recall dropped — Cleric prayers).
 
 **Cleric spell (pray):** relive (49, corpse resurrection).
 
-**Warrior skills:** fortify (1), doorbash (1), advanced berserking (35).
+**Warrior skills:** advanced berserking (35).
 
-**Thief skills:** search (1, hidden exits/items), dodge (1, passive avoidance),
-poison weapon (25), skulk (25), track (25), concealment (30, passive), spy (38),
-cudgel (41).
+**Thief skills:** spy (38), cudgel (41).
 
-**Monk skills (defensive "iron" family + two actives):** iron flesh (31), iron
-skin (35), iron bones (38), defenestrate (42), iron muscles (42), iron will
-(48), bonebreak (50). [iron fist (25) + iron legs (45) already wired.]
+**Monk skills:** all cleared 2026-08-18 (iron flesh/skin/bones/muscles/will + defenestrate + bonebreak; iron fist/iron legs were already wired).
 
 **Deferred-by-design (source comments say NOT ported — revisit only if wanted):**
 ranged proficiency (25, all 6 classes) + ranged specialization (25, Warrior) —

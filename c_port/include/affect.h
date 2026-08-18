@@ -441,6 +441,20 @@ typedef enum {
      * thornflesh's flat min(dmg-1,3). Covers plasma mirror and any
      * "reflective shield" ward. */
     AFFECT_DAMAGE_MIRROR,
+    /* `fortify` (Unimplemented skills/spells backlog, Session 158
+     * audit: Warrior, level 1) -- a shield-wall defensive maneuver
+     * (cmd_fortify.c). Its own dedicated damage-reduction affect
+     * (FORTIFY_DAM_PCT off incoming damage in combat_strike()), kept
+     * separate from the Cleric protection-from family's
+     * AFFECT_PROTECTION so a Warrior bracing behind a shield and a
+     * protection spell never fight over the same affect slot / recast
+     * gate. Plain flag/timer, no stat modifier. */
+    AFFECT_FORTIFY,
+    /* `poison weapon` (Thief, level 25) -- a self flag/timer on the
+     * thief marking their wielded weapon as venom-coated; while up,
+     * each landed melee hit has a chance to leave the victim poisoned
+     * (AFFECT_POISON), applied in combat_strike(). See cmd_poison_weapon.c. */
+    AFFECT_POISON_BLADE,
     AFFECT_COUNT,
 } affect_type_t;
 
@@ -527,6 +541,11 @@ affect_type_t affect_random_disease(void);
 #define BLESS_DAM_BONUS 2      /* AFFECT_BLESS: attacker flat damage bonus */
 #define PROTECTION_DAM_PCT 25  /* AFFECT_PROTECTION: % incoming damage removed */
 #define DAMAGE_MIRROR_PCT 25   /* AFFECT_DAMAGE_MIRROR: % damage reflected */
+#define FORTIFY_DAM_PCT 30       /* AFFECT_FORTIFY: % incoming damage removed */
+#define FORTIFY_DURATION_ROUNDS 20 /* AFFECT_FORTIFY lifespan + recast gate (~24s) */
+#define POISON_BLADE_DURATION_ROUNDS 30 /* AFFECT_POISON_BLADE coating lifespan + recast gate */
+#define POISON_BLADE_PROC_PCT 40        /* per-landed-hit chance the coating envenoms the victim */
+#define POISON_BLADE_POISON_ROUNDS 8    /* AFFECT_POISON DoT duration a proc inflicts */
 
 /* Ward-buff split (2026-08-17): maps a protective/blessing spell (by its
  * roster name + resolved help/desc keywords) to the specific ward affect
