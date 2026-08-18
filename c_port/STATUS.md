@@ -1,5 +1,61 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-18 — Session 159 (DO droplet, production port 4000):
+**WEAR_PAIRED (two-handed weapons + both-limb armor) + Warrior two-handed
+specialization; cure blindness / word of recall dropped from Druid.**
+  - **WEAR_PAIRED** (new wear-flag, the original layout's never-assigned bit
+    9): an item occupies BOTH members of its paired slot -- both hands for a
+    two-handed weapon (needs two free hands, blocks an off-hand item), both
+    arms/legs/feet/wrists for a both-limb garment. wear/wield require the whole
+    pair free and fill both; remove/disarm/equipment-destruction clear every
+    slot pointing at the item (no dangling partner before obj_destroy); the
+    partner is re-derived on inventory load (a single slot is saved per
+    object). New primitives obj_is_paired() (obj.c) + limb_pair_partner()
+    (being.c); being_render_equipment() de-dupes a paired item to one line.
+  - **Two-handed specialization** (Warrior, level 1, Advanced) now applies a
+    real proficiency-scaled DAMAGE bonus while wielding a WEAR_PAIRED weapon --
+    same learn-by-doing shape as the slash/blunt/pierce specializations,
+    damage-weighted. (obj_is_paired(NULL) is false, so bare hands get nothing.)
+  - **Druid roster:** dropped `cure blindness` (30) and `word of recall` (50)
+    -- they are Cleric prayers; the Druid cast path never handled them, so they
+    were dead roster entries (user 2026-08-18).
+  - Build clean; smoke_test_wear_paired.py (18 checks: occupancy, both-free
+    refusals, remove-clears-both, load-restores-both, paired leg armor).
+    Deployed via copyover. NOTE: no in-world item carries WEAR_PAIRED yet --
+    seeding is a logged follow-up. The two-handed spec DAMAGE bonus itself is
+    code-reviewed (small damroll add on a random hit), same precedent as the
+    other weapon-specialization passives.
+
+
+Last updated: 2026-08-17 — Session 158 (DO droplet, production port 4000):
+**Heat subsystem deferred pieces (gear insulation + weather coupling); farlook
+smoke test; TODO/STATUS pruned.**
+  - **Heat — gear insulation + weather coupling** (the two deferred pieces of
+    the Tobin-original heat subsystem): new `weather_heat_delta()` (weather.c:
+    clear +5, cloudy 0, rainy -10, stormy -20) and `room_ambient_heat()`
+    (room.c) fold world weather into OUTDOOR ambient heat; indoors it doesn't
+    reach. `being_heat_insulation()` (being.c) sums occupied worn slots (4 pts
+    each, cap 20) and `being_effective_heat()` pulls felt temperature toward
+    baseline 60 by that much — symmetric for heat and cold (a labelled
+    simplification). vitals.c's heatstroke/hypothermia HP chip now tests
+    `being_effective_heat()` (was raw sector_heat), so weather + worn gear
+    change who takes temperature damage. cmd_move.c's sweat/shiver cue uses
+    `room_ambient_heat`. The immortal look builder-header keeps intrinsic
+    sector_heat (weather is transient — read via `weather`). Build clean;
+    smoke_test_heat.py 8/8 as a regression; insulation/weather's effect on the
+    ~60s damage tick is code-reviewed (a live drain tick can't be forced, same
+    as the base damage layer). news + wiznews. Deployed via copyover.
+  - **farlook (level-25 audit spell):** added smoke_test_farlook.py (17
+    checks) — real mortal-reagent path + immortal-bypass path, remote
+    cross-room scry of a connected being, no-move proof. Closes the last open
+    item of the level-25 audit batch (whirlwind/kneestrike/paralyze already
+    done).
+  - **Housekeeping:** TODO.md pruned 745 -> ~40 lines and STATUS trimmed (old
+    Sessions 131/150/151 removed) per this file's own "track only what's NEXT"
+    rule; dropped the orphaned `sneezy` + `sneezy_scratch` DBs; deleted the
+    superseded `c_port/db/fix-workbox.sh`.
+
+
 Last updated: 2026-08-17 — Session 157 (DO droplet, production port 4000):
 **Pulse scheduler cap fix + two stale tests refreshed.** Housekeeping pass
 on the loose ends from Session 156's report.
@@ -232,275 +288,6 @@ it. Faithful port of SneezyMUD's garble system (misc/garble.cc):
     smoke_test_languages.py (11 checks, all pass). Deployed via copyover.
 
 ---
-
-
-Last updated: 2026-08-10 — Session 151 (DO droplet, production port 4000):
-**Per-spell spell-component system + Druid class-naming cleanup.**
-User: "you need the right component to cast that particular spell" /
-"component loads on mobs of a level that can cast the spell" / "adjust
-the mob level component load by 2 levels, as if they're saving up for
-future spells" / "spell components should load inside spellbags" /
-"change all references to Deikhan or Shaman to Druid ... give the casting
-text for druids a more forresty flavor, don't reference loa or any other
-voodoo type reference".
-
-Ported the portable core of real SneezyMUD's obj_component.cc (the world
-component_placement spawn table was deliberately skipped -- hundreds of
-Sneezy-vnum/weather-specific rows). New src/core/spell_component.c +
-include/spell_component.h + generated src/core/spell_component_data.h
-(filenum->spell-name map from Sneezy's mapFileToSpellnum()).
-  - **Binding data reused, not invented:** every ITEM_COMPONENT (obj.type
-    =30) row still carries val2 = the Sneezy file-spell-number it is a
-    reagent FOR (val3 = usage flags), imported verbatim. spell_component_init()
-    (called from main.c next to balance_cache_load, runs on cold boot AND
-    copyover) indexes 198 spell->vnum bindings from the live obj table.
-  - **Cast gate (cmd_cast.c):** new component_for_cast(ch, spell, imm) --
-    a bound spell needs its OWN reagent (searched carried/worn/held + one
-    level into a spellbag, via spell_component_find_for); a spell with no
-    bound reagent keeps the old generic "any component-keyword item"
-    fallback (non-breaking). The central gate names the exact reagent the
-    mortal is missing ("You need <short_desc> to cast that."). Immortals
-    (NOHASSLE) fall back to any component -- matches real useComponent().
-    All 14 find_keyword_item(ch,"component") gate sites rewired.
-  - **Merge (doMerge):** spell_component_merge_siblings() folds same-vnum
-    components sitting together (summed charges cap 100, charge-weighted
-    decay, -1/never-decay preserved) -- hooked into get/put/drop
-    (cmd_object.c) and the mob/newbie loaders.
-  - **Mob loading (being.c):** being_grant_class_casting_supplies now calls
-    spell_component_grant_caster(mob, bag, 3) -- loads up to 3 reagents for
-    spells the mob's class can cast at level+2 ("saving up"), nested in the
-    spellbag; falls back to the old random pick if the index is empty.
-  - **Newbie Mage gear (newbie_gear_race.sql + live suit_item):** swapped
-    the old generic 200/201/202 for 258/213/234 -- the reagents for a new
-    Mage's earliest bound spells (mage sight L1, illuminate L2, flare L3).
-  - **db_query %d gotcha:** this codebase's db_query only supports %i/%s/%f/
-    %r, NOT %d -- the first boot indexed 0 bindings until the query used %i.
-  - **Druid naming/flavor:** only mob class-mask 128 (Sneezy Ranger) maps to
-    CLASS_DRUID, so the Druid guildmasters/trainers (class 128) had 'ranger'
-    renamed to 'druid' (mob 204 short_desc is now 'the druid guildmaster' --
-    the goto druid target the user hit); the orphaned shaman/deikhan
-    GUILDMASTER mobs, the class component objects (component shaman/ranger/
-    deikhan -> component druid), and 8 artifact short_descs were likewise
-    renamed to Druid. Flavor MONSTER NPCs (orc/elven/gremlin shaman, voodoo
-    priests, 'Johan the mighty ranger', scout ranger, etc.) were LEFT --
-    they aren't the Druid class; DEFERRED, ask the user if they want those
-    too. raze's player message no longer 'calls upon the spirits' ('the
-    wrath of the wild'); sacrifice help no longer says 'to the loa'. The
-    Druid CASTING flavor was already forest-themed in spellcast.c (vine/
-    leaf/moss, no voodoo) from Session ~150 and verified working -- a
-    spell_flavor.c edit made here was reverted as dead code (that path is
-    prayer-only now; casting flavor lives in spellcast.c).
-  - **Tests:** new tests/smoke_test_spell_component_binding.py (7 checks:
-    exact-reagent refusal + naming, wrong/other reagent rejected, right
-    reagent accepted, immortal bypass, 2->1 merge) PASSES.
-    tests/smoke_test_mob_casting_supplies.py updated (its component pool
-    widened from '%component mage%' to all real components, since Druids now
-    get their own shaman/ranger-lineage reagents) -- PASSES.
-  - **Pre-existing stale tests (NOT regressions, left as-is):** smoke_test_
-    mana.py check 1 greps 'Mana: 0' but score now renders 'Mana:   0/0';
-    smoke_test_component_charges.py assumes `load obj` drops to the floor but
-    it lands in inventory. Both fail independently of this change.
-  - Also closed the TODO curation gate (user defined the spell/skill port
-    list in an Excel sheet, marked done).
-
-
-**Session 151 follow-ups (same day):**
-  - **game_config/rent persistence bug FIXED.** rent.c's rent_config_persist()
-    built its upsert with printf %d, but this codebase's db_query() only
-    supports %i/%s/%f/%r (%d hits the default case and the whole query is
-    rejected) -- so `balance rent tax/free/keeper <n>` silently never
-    persisted. Changed both %d -> %i. Verified live: `balance rent tax 5000`
-    now writes rent_tax_at_max=5000 to game_config with no error. Deployed
-    via copyover. (Spotted in passing during the component work.)
-  - **Two pre-existing stale tests fixed** (both failed independently of any
-    code change): smoke_test_mana.py greps for the OLD 'Mana: 0' score text
-    but score renders 'Mana:  N/M' now (fixed all 4 Mana checks to regex,
-    tolerant of the max-mana-recomputed-on-login and regen drift, and drained
-    the descriptor pager on the long `skills` listing) -- 7/7 pass;
-    smoke_test_component_charges.py assumed `load obj` drops to the floor but
-    it lands in inventory (dropped the stale `get` steps; also added a
-    `drop all` to isolate the test component from the Mage's now-loose newbie
-    reagents that would otherwise satisfy `gust` past the 10-charge limit) --
-    9/9 pass, confirming the component-charge lifecycle still works.
-  - **Client caught up to v0.4.25.** Source was at 0.4.25 (the in-client
-    trigger/alias editors, done earlier 2026-08-10) but the deployed MSI was
-    still 0.4.24 (never published). Cross-compiled the exe (mingw64),
-    repackaged the MSI (wixl), and deployed MSI + version.txt=0.4.25 to
-    /usr/share/nginx/html/tobinclient/. Confirmed http://tobinmud.com/
-    tobinclient/version.txt now serves 0.4.25 and the MSI is 200 OK, so every
-    running 0.4.24 client auto-updates on next launch.
-
-Last updated: 2026-08-10 — Session 150 (DO droplet, production port 4000):
-**Generic combat passives + fast heal (missing-skill audit, generic/
-cross-class).** Six long-open general skills from the roster, all
-available to every class, verified against real upstream first:
-
-- **offense**/**advanced offense** -- attacker-side to-hit bonuses (real
-  combat.cc formulas: level*skillValue/100 and skillValue/4*3), ported
-  as proficiency-scaled hitroll bonuses in combat.c, learn-by-doing.
-- **advanced defense** -- defender-side to-hit reduction, same shape as
-  the existing focused avoidance/defense passives.
-- **inevitability** -- real upstream is a repeatedly-activated stacking
-  +hitroll buff capping at +50; ported as a flat passive to-hit bonus,
-  the same disclosed 'flat instead of true stacking' scope-cut
-  toughness/bloodlust already used (no per-round stacking-affect layer).
-- **tactics** -- real upstream carries NO traced mechanical effect at all
-  (only a learnable/displayed stat, verified across the whole tree);
-  ported as a small learn-by-doing to-hit nudge rather than left purely
-  decorative, disclosed name-driven, same shape as wizardry/casting/
-  praying.
-- **fast heal** -- real upstream SKILL_FAST_HEAL has no wired regen
-  formula in this snapshot; ported as a passive rest-healing bonus
-  scaling with proficiency (regen.c), disclosed name-driven.
-  Help topics + one combined news + one wiznews entry, all applied live and
-  appended to the seed .sql. New tests/smoke_test_combat_passives_generic.py
-  (18 checks, green live): each passive starts untrained and trains from a
-  real swing/hit-taken/rest tick, and every new help topic loads.
-
-Deliberately left alone, both lower-value and higher-risk to touch
-right now: `smoke_test_missing_skills_batchc.py`'s own multi-socket
-`drain(*socks)` (already correct, already tested, just a nicer-shaped
-duplicate of the new shared one -- not broken, no reason to touch a
-passing test for style); `mud_creation.py`'s `finish_char_creation()`
-(the hang risk it could hit is already closed at the `recv_all` layer,
-what's left is pure alignment hardening, and it deliberately accepts
-any test's own I/O helpers rather than a fixed pair -- retrofitting it
-safely needs its own pass, not a blind edit here).
-
-Verified: `smoke_test_practice.py`'s full 40 checks pass against the
-patched shared harness; 2 of the 12 patched files (`smoke_test.py`,
-`smoke_test_login.py`) run clean; all 12 syntax-check clean. No full
-sweep run (house rule) -- this change's real blast radius is "every
-test that calls recv_all", so a representative sample plus the one file
-with the richest existing coverage is the right-sized check, not 289
-files.
-
-Investigation used client-side timestamped raw-byte dumps as a
-substitute for packet capture (`tcpdump` isn't installed on this
-droplet and wasn't installed on production for this) -- equivalent
-evidence in both directions: it's exactly where the keepalive NOP bytes
-above were caught, and the server-side stress tests prove what the real
-server does with adversarial wire bytes regardless of how they were
-captured.
-
-**New login log line.** `[PIO] <name> has entered the game in room
-<vnum>. [host]` (`descriptor.c`'s `enter_world()`), logged right before
-the load-room mechanic resolves/places the character, so it fires once
-for every path through that function -- fresh login, linkdead reconnect,
-and brand-new creation alike. Complements, doesn't replace, the existing
-has-connected/has-reconnected/has-been-created lines just below it,
-which describe the CONNECTION event rather than which room they actually
-landed in.
-
-`tests/smoke_test_practice.py` extended with 6 new checks (reference-vs-
-full listing, class-name-defaults-to-basic, spend-refused-on-a-foreign-
-class, promote sets CLASS_ALL, an all-classes immortal gets the full
-view for any class) -- all 40 checks in the file pass live. The login-
-log line was verified live via a disposable throwaway character
-(deleted after) rather than a dedicated automated test -- it's a single
-`game_log()` call with no branching logic, verified directly against
-the real log output as sufficient coverage. Deployed via copyover
-(zero-warning clean rebuild); gdb re-attached fresh after the earlier
-cold-restart mishap during Batch C's aftermath left it briefly
-undertraced.
-
-Deliberately skipped, real subsystem gaps (not attempted): `sling
-shot`/`stunning arrow` (Tobin has no ranged/missile-weapon subsystem at
-all -- no throw/bow attack command, no ranged bucket in weapon_verb());
-`two-handed specialization` (Tobin's obj.h weapon val[] only stores
-damage-dice count/sides, no per-weapon two-handed/wield-hands flag to
-gate on, and inventing one wouldn't be porting real Sneezy data);
-`set trap (arrow)`/`(mine)`/`(grenade)` (see above).
-
-tests/smoke_test_missing_skills_task1.py (13 checks: pick lock unlocks
-a door with no key; shoulder throw lands and describes the throw;
-set-trap-container rigs/springs/disarms with real HP cost on spring and
-none after disarm; knot teleports the caster to Center Square; Garmul's
-tail casts as a real spell; retreat picks the named exit and skips
-PANIC; counter steal statistically suppresses a thief's own steal
-attempts more than an untrained victim; dufali statistically resists a
-hostile bind spell without being a guaranteed counter; snofalte reduces
-the bleeding chip vs. an untrained Monk; groundfighting/Oomlat
-Philosophy/voplat/power move all train from a real learn-by-doing hit,
-proving their passive modifiers actually fire) passes live.
-
-TODO.md line 57 flipped to `[x]`; the 2026-08-08 "Learn-by-doing roster
-audit" scratch section folded into this note and removed (its list is
-now fully resolved -- implemented, or disclosed-skipped above).
-
-Previous update: Last updated: 2026-08-05 — Session 131 (DO droplet, production port 4000):
-**GMCP/MSDP/MSP protocol layer -- first phase of the TobinMUD Client
-project (user, 2026-08-05: "create a mud client for players to connect
-to their accounts, complete with GMCP MSDP MMP and MSP for music... call
-it the TobinMUD Client", then "an msi installer with a silent option"
-for Windows, macOS dropped from scope per follow-up).** The client
-itself needs a server-side protocol layer to talk to first -- this
-session built that layer; the client (Win32 GUI + MSI installer) is
-still to come.
-
-- **Real telnet option negotiation, for the first time.** Confirmed via
-  a full-tree grep that the server previously had ZERO WILL/WONT/DO/
-  DONT handling -- those bytes were read and silently discarded
-  (`descriptor.c`'s `drain_lines()`), and the only outbound offer was a
-  fixed `IAC WILL ECHO/WILL SGA/DO SGA` triplet. Now also offers `IAC
-  WILL GMCP/MSDP/MSP` on connect (real assigned option numbers 201/69/
-  90, exposed as `TOBIN_TN_GMCP/MSDP/MSP` in descriptor.h since callers
-  outside descriptor.c need them too); a client's `IAC DO <opt>` reply
-  sets a real per-descriptor flag (`opt_gmcp`/`opt_msdp`/`opt_msp`),
-  `IAC DONT` clears it.
-- **Real subnegotiation payload capture**, replacing the old discard-
-  only swallow-to-`IAC SE` loop: the option id and payload bytes
-  between `IAC SB` and `IAC SE` are now captured into a per-descriptor
-  buffer (`DESC_SUBNEG_BUF`, 2048 bytes), correctly un-escaping a
-  doubled `IAC IAC` (a literal 0xFF in the payload) instead of
-  mistaking it for the terminator. Reuses the existing `in_subneg`
-  resumable-across-reads state (Session 20's own split-`SB...SE` fix)
-  rather than replacing it. v1 scope is OUTBOUND pushes only -- a
-  captured INBOUND client-initiated message (MSDP REPORT, GMCP
-  core.hello) is parsed correctly but not yet acted on, disclosed in
-  the code's own comments.
-- **New `descriptor_send_subneg()`**: a sibling to `descriptor_send()`
-  that bypasses its color/CRLF pipeline entirely (would corrupt JSON/
-  binary payloads) and writes a real `IAC SB <opt> <payload, IAC-
-  escaped> IAC SE` packet.
-- **New `gmcp.c`/`gmcp.h`**: hand-built (not a general JSON encoder --
-  a small fixed vocabulary doesn't need one) `Char.Vitals` and
-  `Room.Info` message builders. `Char.Vitals` reports `hp`/`maxhp`/
-  `vit`/`maxvit` -- NOT `mana`, which doesn't exist anywhere in Tobin's
-  `being.h` (`progress_t` has no such field); a client would be lied to
-  by a conventional `mana` key that doesn't correspond to anything
-  real, so this reports Vitality (the actual HP-parallel resource)
-  instead.
-- **New `msdp.c`/`msdp.h`**: same real VAR/VAL wire framing (control
-  bytes 1/2, real assigned values) for the same vitals, flat values
-  only -- no TABLE/ARRAY nesting support yet, same "small vocabulary,
-  no unused generality" scope-cut as GMCP.
-- **MSP**: not a subnegotiation at all -- a plain in-band `!!SOUND(file
-  V=volume)` text marker sent once a client has ack'd `IAC DO MSP`.
-  New `descriptor_send_msp_sound()`.
-- **Hooks**: new `being_notify_vitals_changed()` (being.c) pushes
-  GMCP+MSDP on both real HP-change sites in combat.c (a PC-only,
-  descriptor-gated no-op otherwise); the same combat.c sites also fire
-  an MSP hit sound. `cmd_look.c`'s bare-`look` room-display path (the
-  one true choke point every room-display case -- movement, login,
-  `look` itself -- already funnels through via `cmd_dispatch(d,
-  "look")`) pushes GMCP `Room.Info`.
-- Zero-warning clean build. Manually verified live (raw-socket byte
-  inspection) that the negotiation offer, `Char.Vitals`/MSDP-vitals/
-  MSP-sound combat pushes, and `Room.Info` all fire with correct real
-  content. New `tests/smoke_test_gmcp_msdp_msp.py` written and mostly
-  passing, but **intermittently hangs partway through** on an unrelated,
-  pre-existing issue -- see TODO.md's new "Intermittent hang on quit-
-  then-reconnect..." entry (found while building/debugging this test,
-  reproduced identically against a from-scratch build of the code
-  BEFORE this session's changes, so confirmed not caused by this
-  feature). User directed skipping the full `tests/sweep.sh` run this
-  session (it was still ~80% through after ~4 hours, likely itself
-  contributing load-related flakiness) rather than wait further;
-  committing on the strength of the targeted smoke tests plus the
-  manual verification above, with the pre-existing flakiness logged
-  as its own follow-up rather than block on it.
-
 
 
 ## Architecture decisions (locked — do not re-litigate without discussion)

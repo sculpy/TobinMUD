@@ -609,3 +609,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The World''s Slow Clockwork Turns Again', 'A few of the realm''s quieter rhythms had, without anyone noticing, fallen still. Seeds pressed into the earth were no longer ripening into crops, and the tally of old kills that trims itself back over time had stopped fading. Both have been wound up and set ticking once more -- plant and wait, and your garden will bear; rest on your laurels, and they will slowly yield to newer deeds.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Dress for the Weather', 'The sky and the land now press on your skin together. A searing desert or a lava field will still sear you, and a frozen waste still gnaws the bone -- but the weather overhead matters too now: a driving rain or a howling storm chills the open air, while clear skies let the sun beat down all the harder. And what you wear finally counts against it -- the more gear you have on, the more it evens out the extremes, buffering both the killing heat and the biting cold. A well-dressed traveller can walk country that would fell a naked one.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -825,6 +825,18 @@ static bool wear_one_item(descriptor_t *d, being_t *ch, obj_t *o, bool announce)
         return false;
     }
 
+    /* WEAR_PAIRED (Tobin-original): the item covers BOTH members of its limb
+     * pair. wear_slot_for_flag() already returned one free member; require the
+     * partner free too, and occupy both with the one item. */
+    int paired_partner = obj_is_paired(o) ? limb_pair_partner(slot) : -1;
+    if (paired_partner >= 0) {
+        if (ch->equipment[paired_partner]) {
+            if (announce)
+                descriptor_send(d, "You need both of those free to wear that.\r\n");
+            return false;
+        }
+        ch->equipment[paired_partner] = o;
+    }
     ch->equipment[slot] = o;
     obj_apply_equip_affects(ch, o, 1);
     snprintf(msg, sizeof(msg), "You wear %s on your %s.\r\n", label, limb_name((limb_t)slot));
@@ -939,6 +951,22 @@ static bool do_hold_or_wield(descriptor_t *d, const char *args, bool wielding) {
     }
     if (!wielding && is_weapon) {
         descriptor_send(d, "A weapon must be wielded, not merely held -- try `wield` instead.\r\n");
+        return true;
+    }
+
+    /* WEAR_PAIRED weapon (two-handed): needs BOTH hands free, occupies both. */
+    if (obj_is_paired(o)) {
+        if (ch->held[0] || ch->held[1]) {
+            descriptor_send(d, "You need both hands free to wield that.\r\n");
+            return true;
+        }
+        ch->held[0] = o;
+        ch->held[1] = o;
+        snprintf(msg, sizeof(msg), "You %s %s with both hands.\r\n", verb, label);
+        descriptor_send(d, msg);
+        snprintf(msg, sizeof(msg), "%s %ss %s with both hands.\r\n", ch->base.name, verb, label);
+        descriptor_room_echo(ch->base.roomp, ch, msg);
+        player_inventory_save(ch->player_id, ch);
         return true;
     }
 

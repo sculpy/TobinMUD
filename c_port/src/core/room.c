@@ -3,6 +3,7 @@
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "room.h"
+#include "weather.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -164,6 +165,20 @@ int sector_heat(int sector) {
         || strstr(name, "COLD BEACH"))
         return 0;
     return 60;
+}
+
+/* Effective outdoor ambient heat: the sector's own heat, shifted by the
+ * current world weather (rain/storms cool, a clear sky warms slightly).
+ * Indoors the weather doesn't reach, so the bare sector value stands.
+ * Part of the Tobin-original heat subsystem (see room.h / sector_heat);
+ * gear insulation is applied on top, per-being, in being_effective_heat. */
+int room_ambient_heat(const room_t *r) {
+    if (!r)
+        return HEAT_BASELINE;
+    int heat = sector_heat(r->sector);
+    if (!(r->room_flag & ROOM_FLAG_INDOORS))
+        heat += weather_heat_delta(weather_current());
+    return heat;
 }
 
 /* True for any sector whose name contains "UNDERWATER" (temperate/tropical

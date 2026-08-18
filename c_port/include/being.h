@@ -392,6 +392,11 @@ bool being_has_limb(const struct being *b, limb_t limb);
  * score's limb breakdown. */
 const char *limb_name(limb_t limb);
 
+/* The other limb in `limb`'s left/right pair (arms, wrists, hands, fingers,
+ * legs, feet), or -1 for an unpaired limb -- drives the WEAR_PAIRED
+ * (obj_is_paired) both-slots-at-once mechanic. */
+int limb_pair_partner(int limb);
+
 /* Descriptive sentence fragment completing "Your <limb> ___" / "<Name>'s
  * <limb> ___" for a limb at `pct` percent health -- "is hurt rather badly"
  * (< 20%), "needs medical attention" (< 10%), "is destroyed and needs
@@ -1239,6 +1244,19 @@ bool being_has_destroyed_limb(const being_t *b);
  * fraction of this from the attacker's hit roll. 0 for an unarmored
  * being. */
 int being_total_ac(const being_t *b);
+
+/* Worn-gear insulation for the Tobin-original heat subsystem (room.h):
+ * each occupied equipment slot adds HEAT_INSUL_PER_PIECE, capped at
+ * HEAT_INSUL_MAX. Symmetric -- layers buffer heat and cold alike toward
+ * the comfortable baseline (a labelled simplification: the heat system is
+ * itself an invention, so "gear evens out extremes" is the chosen model). */
+int being_heat_insulation(const being_t *b);
+
+/* The felt ambient temperature `b` actually experiences: room_ambient_heat
+ * (sector + weather) pulled toward HEAT_BASELINE by being_heat_insulation.
+ * vitals.c chips HP past the DAMAGE thresholds against THIS. Baseline
+ * (harmless) for a being with no room. */
+int being_effective_heat(const being_t *b);
 
 /* Renders a being's worn/held equipment as "  <label>: <value>\r\n" lines
  * (one per limb slot plus primary/secondary hold, skipping LIMB_GENITALIA

@@ -464,7 +464,14 @@ static void combat_maybe_damage_equipment(being_t *defender, limb_t limb, int dm
         descriptor_room_echo(defender->base.roomp, defender, room_msg);
     }
 
-    defender->equipment[limb] = NULL;
+    /* Null EVERY slot pointing at `item` (a WEAR_PAIRED item sits in two)
+     * before obj_destroy() below, or the partner slot dangles. */
+    for (int si = 0; si < LIMB_COUNT; si++)
+        if (defender->equipment[si] == item)
+            defender->equipment[si] = NULL;
+    for (int si = 0; si < 2; si++)
+        if (defender->held[si] == item)
+            defender->held[si] = NULL;
     obj_apply_equip_affects(defender, item, -1);
     if (defender->base.kind == THING_PC)
         player_inventory_save(defender->player_id, defender);
@@ -695,6 +702,22 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
             int bloodlust_prof = skill_learn_from_doing(attacker, bloodlust_sk);
             weapon_hitroll += bloodlust_prof / 15;
             weapon_damroll += bloodlust_prof / 10;
+        }
+
+        /* Two-handed specialization (user 2026-08-18): an extra DAMAGE bonus
+         * while wielding a two-handed (WEAR_PAIRED) weapon -- same passive
+         * learn-by-doing shape as the weapon specializations above, but
+         * damage-weighted (a two-hander's payoff is the heavy hit, not
+         * accuracy). obj_is_paired(NULL) is false, so bare hands get nothing. */
+        if (obj_is_paired(weapon)
+            && being_knows_skill(attacker, "two-handed specialization")) {
+            const skill_def_t *th_sk = skill_find(CLASS_WARRIOR, "two-handed specialization", false);
+            if (th_sk) {
+                int th_prof = skill_learn_from_doing(attacker, th_sk);
+                weapon_damroll += th_prof / 12;
+                if (th_prof >= 100)
+                    weapon_damroll += 3;
+            }
         }
     }
 

@@ -450,6 +450,10 @@ obj_category_t category_for_item_type(int orig_item_type);
  * without it is fixed scenery (`get` refuses it). */
 bool obj_takeable(int wear_flag);
 
+/* True iff `o` occupies both members of its paired wear slot (WEAR_PAIRED) --
+ * a two-handed weapon or a both-limb garment. */
+bool obj_is_paired(const obj_t *o);
+
 /* Maps `wear_flag` (the original's bit layout, see obj_t's field comment) to
  * a limb_t slot on `fitter`, or one of the WEAR_SLOT_* sentinels above.
  * Multi-slot bits (FINGERS/ARMS/LEGS/FEET) pick the first empty of the L/R

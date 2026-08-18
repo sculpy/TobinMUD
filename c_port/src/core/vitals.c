@@ -83,7 +83,7 @@ static void vitals_tick_impl(long pulse_num, bool affect_players) {
          * race can shrug off the desert sun. The milder STRESS band is a
          * cosmetic sweat/shiver cue in cmd_move.c, not a drain effect. */
         if (b->base.roomp && !(b->base.roomp->room_flag & ROOM_FLAG_INDOORS)) {
-            int heat = sector_heat(b->base.roomp->sector);
+            int heat = being_effective_heat(b);
             if (heat >= HEAT_DAMAGE_HOT && !being_race_resists(b, RESIST_HEAT)) {
                 b->progress.hp--;
                 if (b->progress.hp < 1)

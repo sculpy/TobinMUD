@@ -1500,6 +1500,37 @@ int being_total_ac(const being_t *b) {
     return total;
 }
 
+/* See being.h -- worn-gear insulation, symmetric buffer toward comfort. */
+int being_heat_insulation(const being_t *b) {
+    if (!b)
+        return 0;
+    int n = 0;
+    for (int i = 0; i < LIMB_COUNT; i++)
+        if (b->equipment[i])
+            n++;
+    int insul = n * HEAT_INSUL_PER_PIECE;
+    return insul > HEAT_INSUL_MAX ? HEAT_INSUL_MAX : insul;
+}
+
+/* See being.h -- room ambient (sector + weather) buffered toward baseline
+ * by worn-gear insulation; this is what vitals.c's HP chip tests. */
+int being_effective_heat(const being_t *b) {
+    if (!b || !b->base.roomp)
+        return HEAT_BASELINE;
+    int heat = room_ambient_heat(b->base.roomp);
+    int insul = being_heat_insulation(b);
+    if (heat > HEAT_BASELINE) {
+        heat -= insul;
+        if (heat < HEAT_BASELINE)
+            heat = HEAT_BASELINE;
+    } else if (heat < HEAT_BASELINE) {
+        heat += insul;
+        if (heat > HEAT_BASELINE)
+            heat = HEAT_BASELINE;
+    }
+    return heat;
+}
+
 /* Right-aligned "<label>: <value>" column, one limb/hand per line (moved
  * here from cmd_object.c's cmd_equipment() 2026-07-12 so `look <person>`
  * can share it -- see being.h's doc comment). EQUIP_LABEL_WIDTH matches
@@ -1525,11 +1556,37 @@ static void equip_line(char *out, size_t out_sz, size_t *n, const char *label,
  * doesn't have, then both hold slots in handedness order) into `out` --
  * the shared implementation behind both `equipment` and `look <person>`
  * (see the comment above equip_line() for why it moved here). */
+/* The other limb in `limb`'s left/right pair, or -1 if unpaired. Used by the
+ * WEAR_PAIRED mechanic to occupy/clear both members at once. */
+int limb_pair_partner(int limb) {
+    switch (limb) {
+        case LIMB_LEFT_ARM:     return LIMB_RIGHT_ARM;
+        case LIMB_RIGHT_ARM:    return LIMB_LEFT_ARM;
+        case LIMB_LEFT_WRIST:   return LIMB_RIGHT_WRIST;
+        case LIMB_RIGHT_WRIST:  return LIMB_LEFT_WRIST;
+        case LIMB_LEFT_HAND:    return LIMB_RIGHT_HAND;
+        case LIMB_RIGHT_HAND:   return LIMB_LEFT_HAND;
+        case LIMB_LEFT_FINGER:  return LIMB_RIGHT_FINGER;
+        case LIMB_RIGHT_FINGER: return LIMB_LEFT_FINGER;
+        case LIMB_LEFT_LEG:     return LIMB_RIGHT_LEG;
+        case LIMB_RIGHT_LEG:    return LIMB_LEFT_LEG;
+        case LIMB_LEFT_FOOT:    return LIMB_RIGHT_FOOT;
+        case LIMB_RIGHT_FOOT:   return LIMB_LEFT_FOOT;
+        default:                return -1;
+    }
+}
+
 void being_render_equipment(const being_t *b, char *out, size_t out_sz, size_t *n) {
     if (!b)
         return;
     for (int i = 0; i < LIMB_COUNT && *n < out_sz; i++) {
         if (i == LIMB_GENITALIA || !being_has_limb(b, (limb_t)i))
+            continue;
+        /* A WEAR_PAIRED item fills two slots but is one item -- list it once,
+         * at the first (lower-index) slot it sits in. */
+        int partner = limb_pair_partner(i);
+        if (b->equipment[i] && partner >= 0 && partner < i
+            && b->equipment[partner] == b->equipment[i])
             continue;
         equip_line(out, out_sz, n, limb_name((limb_t)i), b->equipment[i]);
     }
@@ -1537,7 +1594,7 @@ void being_render_equipment(const being_t *b, char *out, size_t out_sz, size_t *
     int secondary = b->handed_right ? 1 : 0;
     if (*n < out_sz)
         equip_line(out, out_sz, n, "primary hold", b->held[primary]);
-    if (*n < out_sz)
+    if (*n < out_sz && !(b->held[secondary] && b->held[secondary] == b->held[primary]))
         equip_line(out, out_sz, n, "secondary hold", b->held[secondary]);
 }
 

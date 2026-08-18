@@ -148,6 +148,10 @@ obj_category_t category_for_item_type(int orig_item_type) {
 #define WEAR_WRISTS  4096
 #define WEAR_HOLD    16384
 #define WEAR_THROW   32768
+/* Tobin-original: the item occupies BOTH members of its paired slot -- both
+ * hands for a two-handed weapon, both arms/legs/feet/wrists for paired
+ * armor. Reuses the original layout's never-assigned bit 9. */
+#define WEAR_PAIRED  512
 
 /* Whether an object with `wear_flag` can be picked up at all (the
  * WEAR_TAKE bit) -- most objects have it, but a handful of fixed-in-
@@ -156,13 +160,20 @@ bool obj_takeable(int wear_flag) {
     return (wear_flag & WEAR_TAKE) != 0;
 }
 
+/* True iff `o` is a paired-slot item (WEAR_PAIRED) -- occupies BOTH members
+ * of its wear slot's limb pair (both hands for a two-handed weapon, both
+ * arms/legs/feet/wrists for paired armor). See limb_pair_partner() (being.h). */
+bool obj_is_paired(const obj_t *o) {
+    return o && (o->wear_flag & WEAR_PAIRED) != 0;
+}
+
 /* Bit-position-indexed names for the WEAR_* layout above -- "UNUSED" for
  * the original's own two never-assigned bits (9 and 13), kept so a
  * historic wear_flag value that happens to set one still reports
  * something rather than silently vanishing from the readable form. */
 static const char *const WEAR_FLAG_NAMES[16] = {
     "TAKE", "FINGERS", "NECK", "BODY", "HEAD", "LEGS", "FEET", "HANDS",
-    "ARMS", "UNUSED", "BACK", "WAIST", "WRISTS", "UNUSED", "HOLD", "THROW",
+    "ARMS", "PAIRED", "BACK", "WAIST", "WRISTS", "UNUSED", "HOLD", "THROW",
 };
 
 /* Formats every set WEAR_* bit in `flags` as a "[ NAME ]"-joined string

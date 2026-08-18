@@ -28,6 +28,17 @@ weather_t weather_current(void) {
     return g_weather;
 }
 
+/* See weather.h -- how the sky shifts felt outdoor temperature. */
+int weather_heat_delta(weather_t w) {
+    switch (w) {
+        case WEATHER_CLEAR:  return 5;
+        case WEATHER_CLOUDY: return 0;
+        case WEATHER_RAINY:  return -10;
+        case WEATHER_STORMY: return -20;
+        default:             return 0;
+    }
+}
+
 /* Flavor-text hint at what the current weather might do next, e.g. for a
  * `weather` command or a ranger/druid forecasting skill. */
 const char *weather_forecast_hint(void) {

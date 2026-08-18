@@ -307,6 +307,19 @@ void player_inventory_load(long player_id, being_t *b) {
                 b->equipment[rows[i].slot] = o;
                 obj_apply_equip_load_affects(b, o);
             }
+            /* WEAR_PAIRED item: saved under one slot, but occupies both
+             * members of its pair (or both hands) -- restore the partner. */
+            if (obj_is_paired(o)) {
+                if (rows[i].slot == INV_SLOT_HELD_PRIMARY
+                    || rows[i].slot == INV_SLOT_HELD_OFFHAND) {
+                    b->held[0] = o;
+                    b->held[1] = o;
+                } else if (rows[i].slot >= 0 && rows[i].slot < LIMB_COUNT) {
+                    int pp = limb_pair_partner(rows[i].slot);
+                    if (pp >= 0)
+                        b->equipment[pp] = o;
+                }
+            }
             /* else INV_SLOT_CARRIED (or garbage) -- carried loose, already
              * attached above. */
         }

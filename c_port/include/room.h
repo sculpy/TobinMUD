@@ -98,6 +98,18 @@ int sector_heat(int sector);
 #define HEAT_STRESS_COLD  15
 #define HEAT_DAMAGE_HOT   120
 #define HEAT_DAMAGE_COLD  0
+/* Comfortable midpoint gear insulation pulls felt temperature toward, and
+ * the per-worn-slot insulation step + cap (see being_effective_heat /
+ * being_heat_insulation, being.h). */
+#define HEAT_BASELINE        60
+#define HEAT_INSUL_PER_PIECE 4
+#define HEAT_INSUL_MAX       20
+
+/* Effective OUTDOOR ambient heat of a room: sector_heat() shifted by the
+ * current world weather (weather_heat_delta); indoors the weather doesn't
+ * reach, so the bare sector value stands. The per-being felt temperature
+ * (this, buffered by worn-gear insulation) is being_effective_heat(). */
+int room_ambient_heat(const struct room *r);
 
 /* True for a genuinely UNDERWATER sector (e.g. "TEMPERATE UNDERWATER"),
  * false for surface water (OCEAN/RIVER SURFACE/ICEFLOW -- swimmable,

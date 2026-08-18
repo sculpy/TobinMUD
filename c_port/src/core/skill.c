@@ -583,7 +583,6 @@ static const skill_def_t SKILLS[] = {
     { "boiling blood",     CLASS_DRUID, SKILL_TIER_CLASS,    24, "See help `boiling blood` for help." },
     { "vampiric touch",    CLASS_DRUID, SKILL_TIER_ADVANCED, 44, "See help `vampiric touch` for help." },
     { "coronary",          CLASS_DRUID, SKILL_TIER_ADVANCED, 50, "See help `coronary` for help." },
-    { "cure blindness",    CLASS_DRUID, SKILL_TIER_ADVANCED, 30, "See help `cure blindness` for help." },
     { "wave crash",        CLASS_DRUID, SKILL_TIER_ADVANCED, 32, "See help `wave crash` for help." },
     { "withering touch",   CLASS_DRUID, SKILL_TIER_ADVANCED, 32, "See help `withering touch` for help." },
     { "wild agony",        CLASS_DRUID, SKILL_TIER_ADVANCED, 38, "See help `wild agony` for help." },
@@ -592,7 +591,6 @@ static const skill_def_t SKILLS[] = {
     { "nature's wrath",    CLASS_DRUID, SKILL_TIER_ADVANCED, 46, "See help `nature's wrath` for help." },
     { "leeching vine",     CLASS_DRUID, SKILL_TIER_ADVANCED, 48, "See help `leeching vine` for help." },
     { "wildfire",          CLASS_DRUID, SKILL_TIER_ADVANCED, 48, "See help `wildfire` for help." },
-    { "word of recall",    CLASS_DRUID, SKILL_TIER_ADVANCED, 50, "See help `word of recall` for help." },
     /* Crafting & extraction (Sneezy -> Tobin feature audit) -- Druid,
      * Tobin's established Ranger-flavor analog (same mapping the roster-
      * import section above uses for Ranger's own real spell list). */

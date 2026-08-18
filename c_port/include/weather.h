@@ -44,6 +44,12 @@ weather_t weather_current(void);
  * original's help text describing both halves. */
 const char *weather_forecast_hint(void);
 
+/* Temperature shift (on sector_heat()'s scale) the current sky applies to
+ * OUTDOOR ambient heat for the heat subsystem (room.h): clear +5 (sun),
+ * cloudy 0, rainy -10, stormy -20. A labelled Tobin-original coupling --
+ * Sneezy's own weather never fed its (also-unused) TerrainInfo heat. */
+int weather_heat_delta(weather_t w);
+
 /* Restores the persisted sky state from game_config (same key/value
  * table + convention gametime.c already uses) at boot. A missing row
  * (fresh DB) defaults to WEATHER_CLEAR. */
