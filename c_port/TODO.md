@@ -32,6 +32,10 @@ viewers keep plain names (`news`, `wiznews`).
   wear_flag. A keyword-driven data pass, with a balance eye (making a weapon
   two-handed frees/consumes the off-hand).
 
+- When mobs using skills knocks you over with a bash you are in position fighting but can't stand up because you are busy fighting. Fix this.
+
+- Meditate doesnt use POSITION_MEDITATE, examine sneezy for the proper implementation that will gain HP, Mana/Lifeforce, and vitality.
+
 ## Unimplemented skills/spells backlog (audited Session 158)
 
 Grep-verified against `SKILLS[]` (skill.c) vs real handlers in cmd_cast.c /
@@ -77,5 +81,5 @@ should fold into another weapon category.
 - Complete the current task fully before moving to the next.
 - Continue progressing rapidly through the backlog without waiting for additional instructions unless blocked by missing requirements.
 - Document all completed changes, database updates, VNUM allocations, and implementation notes.
-- Help me conserve tokens. No narration, just complete silence. Only exception to this rule is when finished with a task, you can give a brief report. Otherwise, be absolutely quiet.
+- Help me conserve tokens. No narration, just complete silence. Be absolutely quiet.
 - As each item gets built and tested clean, remove that entry in TODO.md. Keep TODO.md and STATUS.md as trimmed as possible.
