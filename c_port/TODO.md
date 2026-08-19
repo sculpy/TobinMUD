@@ -56,16 +56,13 @@ recall dropped — Cleric prayers).
 
 **Monk skills:** all cleared 2026-08-18 (iron flesh/skin/bones/muscles/will + defenestrate + bonebreak; iron fist/iron legs were already wired).
 
-**Deferred-by-design (source comments say NOT ported — revisit only if wanted):**
-ranged proficiency (25, all 6 classes) + ranged specialization (25, Warrior) —
-no ranged-weapon combat-bonus path (though cmd_shoot.c now exists, so revisitable);
-set trap arrow (26) / mine (37) / grenade (50) — cmd_trap.c deliberately ports
-only container/door traps.
+**Common skills (all 6 classes):**
+ranged proficiency (25, all 6 classes) + ranged specialization (35, Warrior) —
+no ranged-weapon combat-bonus path (though cmd_shoot.c now exists);
+set trap arrow (26) / mine (37) / grenade (50) — cmd_trap.c (only container/door traps currently).
 
-**Spot-check flags:** `cure blindness` / `word of recall` are class-routing gaps
-(handled for one class, not the Druid cast path) — confirm intended before
-building. `two-handed specialization` is a silent no-op — confirm whether it
-should fold into another weapon category.
+**Spot-check flags:** `cure blindness` / `word of recall` are cleric only skills.
+`two-handed specialization` is a silent no-op — it should fold into another category.
 
 ## Standing rules (learned)
 
