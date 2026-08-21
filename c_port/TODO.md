@@ -53,7 +53,21 @@ viewers keep plain names (`news`, `wiznews`).
   just explored rooms) -- a separate bulk export path (likely its own
   GMCP push or a generated file, feeding the same `map.dat` format) since
   it needs the WHOLE `roomexit` table, not just what's been visited, and
-  isn't scoped yet.
+  isn't scoped yet. Also still open: a level-60 (above the 59+ export
+  command) command to RECALCULATE the world's coordinates -- walk the
+  whole `roomexit` graph (BFS/flood-fill from exits, same graph the 59+
+  export already needs) and derive x/y/z for every room from it, writing
+  into the `room` table's existing-but-unused x/y/z columns (see this
+  item's earlier scoping note -- `room_t` has no in-memory x/y/z today,
+  Tobin's world isn't grid-mapped yet). The point is to turn the client's
+  graph-walked map into a real positioned one automatically -- rerun any
+  time the world's layout changes (new zone, dug exit, etc.) rather than
+  hand-placing coordinates. Two real open questions: what happens to
+  disconnected exits (one-way/teleport-only links that don't imply a
+  consistent grid position) and to zones whose rooms don't form a planar
+  layout (a coordinate assignment can conflict or need overlap-breaking).
+  Not scoped further yet -- pair with the 59+ export command's design
+  work when this is picked up.
 
 - **Client: enable cut/copy/paste** in the client. DONE 2026-08-21: the
   input box already had this for free (native Win32 Edit control
