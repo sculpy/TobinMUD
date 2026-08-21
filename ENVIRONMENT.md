@@ -121,7 +121,7 @@ gh repo deploy-key add tobinmud_deploy.pub --repo sculpy/TobinMUD --title "<box 
 
 ### 3e. Seed the databases
 ```sh
-~/TobinMUD/sneezymud-master/db/init-db.sh mud     # fresh tobin + immortal, grants mud@localhost
+~/TobinMUD/c_port/db/init-db.sh mud               # fresh tobin + immortal, grants mud@localhost
 ~/TobinMUD/c_port/db/apply-tobin-schema.sh        # Tobin tables + idempotent migrations
 ```
 Both safe to re-run. `apply-tobin-schema.sh` is also the "apply new
@@ -209,7 +209,7 @@ Repo:            https://github.com/sculpy/TobinMUD.git   (branch main)
 Upstream ref:    https://github.com/sneezymud/sneezymud.git → sneezymud-master/  (gitignored, per-location)
 Droplet:         mud@tobinmud.com:~/TobinMUD/c_port   (also live production)
 Databases:       MariaDB `tobin` + `immortal`, unix_socket auth as OS user mud
-Seed a DB:       sneezymud-master/db/init-db.sh mud   &&   c_port/db/apply-tobin-schema.sh
+Seed a DB:       c_port/db/init-db.sh mud   &&   c_port/db/apply-tobin-schema.sh
 Build:           cd ~/TobinMUD/c_port && cmake -S . -B build && cmake --build build   (or: make -j4)
 Run:             cd ~/TobinMUD/c_port && setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &
 Telnet:          tobinmud.com:4000  (or 159.223.121.98:4000)

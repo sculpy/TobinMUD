@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-21 (2). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-21 (3). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -15,15 +15,14 @@ viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
 
-- **Sneezy-DB decoupling — optional cleanups** (main task DONE 2026-08-16;
+- **Sneezy-DB decoupling — optional cleanup** (main task DONE 2026-08-16;
   orphaned `sneezy` + `sneezy_scratch` DBs dropped 2026-08-17;
-  `c_port/db/fix-workbox.sh` deleted 2026-08-17): (1) the `c_port/db/seed`
-  snapshot is a Jul-27 baseline, ~250-900 world rows behind live — refresh
-  via `sneezymud-master/db/update-seed-data.sh` if a current-world
-  from-scratch build is ever wanted. (2) `sneezymud-master/db/init-db.sh` is
-  superseded by `c_port/db/init-db.sh` but is still named as the DB-seed step
-  in 4 docs (README.md, doc/systems/README.md, ENVIRONMENT.md, CLAUDE.md) —
-  update those to the new script before deleting it.
+  `c_port/db/fix-workbox.sh` deleted 2026-08-17; stale
+  `sneezymud-master/db/init-db.sh` references fixed in all 4 docs and the
+  script itself deleted, 2026-08-21): the `c_port/db/seed` snapshot is a
+  Jul-27 baseline, ~250-900 world rows behind live — refresh via
+  `sneezymud-master/db/update-seed-data.sh` if a current-world
+  from-scratch build is ever wanted. Purely optional, no rush.
 
 - **Seed WEAR_PAIRED onto in-world items** (mechanic DONE 2026-08-18, see
   smoke_test_wear_paired.py): no seeded weapon/armor carries the flag yet, so

@@ -55,13 +55,13 @@ sudo dnf install gcc make cmake mariadb-connector-c-devel mariadb-server pkgconf
 
 ## Database setup
 
-Start MariaDB, then seed it in two steps — the upstream world first, then
-Tobin's own tables on top (run from the repo root):
+Start MariaDB, then seed it in two steps — Tobin's own seed data first,
+then Tobin's own tables on top (run from the repo root):
 
 ```bash
 sudo systemctl start mariadb   # or `mariadb-install-db` first on a brand-new install
-sneezymud-master/db/init-db.sh          # upstream seed; grants your OS user
-# or: sneezymud-master/db/init-db.sh myuser
+c_port/db/init-db.sh                    # seed; grants your OS user
+# or: c_port/db/init-db.sh myuser
 c_port/db/apply-tobin-schema.sh         # Tobin tables + migrations
 ```
 

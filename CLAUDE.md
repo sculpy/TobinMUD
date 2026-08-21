@@ -59,11 +59,11 @@ failures across totally unrelated tests, all traced back to one
 overflow-and-underflow bug in the immortal `skills` view. Re-attach after
 every rebuild+restart, not just once per session.
 
-First-time DB seed (or to re-seed) is two steps — upstream world first,
-then Tobin's schema on top:
+First-time DB seed (or to re-seed) is two steps — Tobin's own seed data
+first, then Tobin's schema on top:
 
 ```
-~/TobinMUD/sneezymud-master/db/init-db.sh mud   # fresh tobin + immortal DBs
+~/TobinMUD/c_port/db/init-db.sh mud             # fresh tobin + immortal DBs
 ~/TobinMUD/c_port/db/apply-tobin-schema.sh      # Tobin tables + migrations
 ```
 

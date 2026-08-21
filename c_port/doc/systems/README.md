@@ -43,10 +43,11 @@ c_port/
   doc/systems/     this file
 ```
 
-The upstream SneezyMUD world seed (rooms/mobs/objects/shops, ~19,000 rows)
-lives in the sibling `sneezymud-master/db/tobin/` directory and is loaded
-once via `sneezymud-master/db/init-db.sh` — Tobin never touches that data's
-shape, only adds its own tables alongside it (`c_port/db/apply-tobin-schema.sh`).
+The world seed (rooms/mobs/objects/shops, ~19,000 rows, originally
+sourced from upstream SneezyMUD) lives under Tobin's own `db/seed/` and is
+loaded once via `c_port/db/init-db.sh` — self-contained since the 2026-08-16
+Sneezy-DB decoupling, no dependence on `sneezymud-master/` anymore. Tobin's
+own tables layer on top of it (`c_port/db/apply-tobin-schema.sh`).
 
 ## Core data model
 
