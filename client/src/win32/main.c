@@ -20,11 +20,18 @@
  * updates the window title. On launch, checks
  * UPDATE_VERSION_URL for a newer release and silently re-installs
  * itself via msiexec if one exists -- see check_and_apply_update()'s
- * own comment.
+ * own comment. A small always-on-top splash ("Updating TobinMUD
+ * Client...") covers the up-to-60s download+install wait so a real
+ * update is never mistaken for the client failing to launch -- see
+ * create_update_splash().
  *
  * A `File` menu (user, 2026-08-05) offers Connect/Reconnect/
  * Disconnect/Preferences/Edit Triggers/Reload Triggers/Edit Aliases/
- * Reload Aliases/Exit; a `Help` menu has Check for Updates (manual re-check of the update host, same install path as the silent startup check) and About. Triggers are plain,
+ * Reload Aliases/Exit; an `Edit` menu (2026-08-21) offers Cut/Copy/
+ * Paste/Select All acting on whichever pane has focus, and the
+ * read-only scrollback also gets its own right-click Copy/Select All
+ * menu (RichEdit has no built-in one the way a plain Edit control
+ * does -- see OutputSubclassProc's own comment); a `Help` menu has Check for Updates (manual re-check of the update host, same install path as the silent startup check) and About. Triggers are plain,
  * case-insensitive substring-match rules against incoming lines, each
  * optionally sending a command and/or gagging the line (user,
  * 2026-08-06: "make triggers simple, not lua based" -- see
@@ -89,6 +96,10 @@
 #define ID_MENU_HELP_CHECK_UPDATE 211
 #define ID_MENU_FILE_EDIT_TRIGGERS 209
 #define ID_MENU_FILE_EDIT_ALIASES 210
+#define ID_MENU_EDIT_CUT 212
+#define ID_MENU_EDIT_COPY 213
+#define ID_MENU_EDIT_PASTE 214
+#define ID_MENU_EDIT_SELECTALL 215
 
 #define ID_PREFS_FONTSIZE_EDIT 301
 #define ID_PREFS_WIDTH_EDIT 302
@@ -143,7 +154,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.30"
+#define CLIENT_VERSION "0.4.32"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -1069,6 +1080,36 @@ static void do_reconnect(void) {
  * (so click-drag text selection for copying still works), then hand
  * focus back to the input box right after. */
 static LRESULT CALLBACK OutputSubclassProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    /* Right-click Copy/Select All (client TODO, "enable cut/copy/paste
+     * in the client", 2026-08-21): a plain Edit control (hwnd_input)
+     * already shows its own native Cut/Copy/Paste/Undo/Select All menu
+     * on right-click for free, but RichEdit does not -- it needs one
+     * built explicitly, or the read-only scrollback (the one place a
+     * player actually wants to copy text OUT of -- room descriptions,
+     * combat logs, etc.) has no discoverable way to do it besides
+     * already-known Ctrl+C. TPM_RETURNCMD avoids routing this through
+     * WM_COMMAND on the main window -- simpler to just act on the
+     * result directly here. */
+    if (msg == WM_CONTEXTMENU) {
+        int x = (short)LOWORD(lp);
+        int y = (short)HIWORD(lp);
+        if (x == -1 && y == -1) { /* keyboard-invoked (Shift+F10/Menu key) */
+            RECT rc;
+            GetWindowRect(hwnd, &rc);
+            x = rc.left + 10;
+            y = rc.top + 10;
+        }
+        HMENU pop = CreatePopupMenu();
+        AppendMenuW(pop, MF_STRING, ID_MENU_EDIT_COPY, L"&Copy");
+        AppendMenuW(pop, MF_STRING, ID_MENU_EDIT_SELECTALL, L"Select &All");
+        int cmd = TrackPopupMenu(pop, TPM_RIGHTBUTTON | TPM_RETURNCMD, x, y, 0, hwnd, NULL);
+        DestroyMenu(pop);
+        if (cmd == ID_MENU_EDIT_COPY)
+            SendMessageW(hwnd, WM_COPY, 0, 0);
+        else if (cmd == ID_MENU_EDIT_SELECTALL)
+            SendMessageW(hwnd, EM_SETSEL, 0, -1);
+        return 0;
+    }
     LRESULT result = CallWindowProc(g_app.output_orig_proc, hwnd, msg, wp, lp);
     if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP)
         SetFocus(g_app.hwnd_input);
@@ -2135,6 +2176,25 @@ static HMENU build_menu(void) {
     AppendMenuW(hFile, MF_STRING, ID_MENU_FILE_EXIT, L"E&xit");
     AppendMenuW(hMenuBar, MF_POPUP, (UINT_PTR)hFile, L"&File");
 
+    /* Edit menu (client TODO, "enable cut/copy/paste in the client",
+     * 2026-08-21): the input box (a plain Win32 Edit control) already
+     * gets Cut/Copy/Paste for free from Windows, both via Ctrl+X/C/V
+     * and its own native right-click menu -- neither is intercepted
+     * anywhere in InputSubclassProc. The read-only scrollback
+     * (RichEdit) is different: Ctrl+C already copies a selection (that
+     * works read-only or not), but RichEdit has no built-in right-click
+     * menu of its own, so OutputSubclassProc grows one (Copy/Select
+     * All) below. This menu just makes both paths discoverable/
+     * consistent from the menu bar too -- each item acts on whichever
+     * control currently has keyboard focus. */
+    HMENU hEdit = CreatePopupMenu();
+    AppendMenuW(hEdit, MF_STRING, ID_MENU_EDIT_CUT, L"Cu&t\tCtrl+X");
+    AppendMenuW(hEdit, MF_STRING, ID_MENU_EDIT_COPY, L"&Copy\tCtrl+C");
+    AppendMenuW(hEdit, MF_STRING, ID_MENU_EDIT_PASTE, L"&Paste\tCtrl+V");
+    AppendMenuW(hEdit, MF_SEPARATOR, 0, NULL);
+    AppendMenuW(hEdit, MF_STRING, ID_MENU_EDIT_SELECTALL, L"Select &All\tCtrl+A");
+    AppendMenuW(hMenuBar, MF_POPUP, (UINT_PTR)hEdit, L"&Edit");
+
     HMENU hHelp = CreatePopupMenu();
     AppendMenuW(hHelp, MF_STRING, ID_MENU_HELP_CHECK_UPDATE, L"Check for &Updates...");
     AppendMenuW(hHelp, MF_SEPARATOR, 0, NULL);
@@ -2358,6 +2418,22 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case ID_MENU_HELP_CHECK_UPDATE:
             check_for_updates_interactive(hwnd);
             return 0;
+        /* Edit menu -- acts on whichever of hwnd_input/hwnd_output
+         * currently has keyboard focus. Sending WM_CUT/WM_PASTE to the
+         * read-only output pane is a harmless no-op (RichEdit ignores
+         * both under ES_READONLY); no extra guard needed. */
+        case ID_MENU_EDIT_CUT:
+            SendMessageW(GetFocus(), WM_CUT, 0, 0);
+            return 0;
+        case ID_MENU_EDIT_COPY:
+            SendMessageW(GetFocus(), WM_COPY, 0, 0);
+            return 0;
+        case ID_MENU_EDIT_PASTE:
+            SendMessageW(GetFocus(), WM_PASTE, 0, 0);
+            return 0;
+        case ID_MENU_EDIT_SELECTALL:
+            SendMessageW(GetFocus(), EM_SETSEL, 0, -1);
+            return 0;
         case ID_MENU_HELP_ABOUT: {
             wchar_t msg[128];
             swprintf(msg, 128, L"%ls\n\nA native client for TobinMUD.", CLIENT_TITLE_BASE);
@@ -2426,6 +2502,61 @@ static void debug_log(const char *msg) {
         fprintf(f, "%s\n", msg);
         fclose(f);
     }
+}
+
+#define UPDATE_SPLASH_CLASS L"TobinMUDUpdateSplash"
+static HWND g_update_splash = NULL;
+
+/* Drains any pending Windows messages without blocking, so the update
+ * splash window (below) keeps repainting/responding instead of looking
+ * "(Not Responding)" while check_and_apply_update()'s download+msiexec
+ * wait runs on this same (only) thread -- see download_and_install_
+ * update()'s own pump_messages() calls during that wait. */
+static void pump_messages(void) {
+    MSG msg;
+    while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+}
+
+/* "client wont open" was fixed 2026-08-05 (see download_and_install_
+ * update()'s own comment), but the fix only made the update itself
+ * finish reliably -- there was still NOTHING on screen for however
+ * long that takes (up to 60s: MSI download + a waited-on msiexec
+ * install), same problem from the outside as before ("client hasnt
+ * launched", TODO.md 2026-08-21). This tiny always-on-top popup (one
+ * centered label, no controls) is shown by check_and_apply_update()
+ * the moment a version mismatch is confirmed -- BEFORE download_and_
+ * install_update() starts -- and torn down right after, whether that
+ * call succeeds or fails, so normal startup is never left looking like
+ * a stalled launch either way. */
+static HWND create_update_splash(void) {
+    WNDCLASSW wc = { 0 };
+    wc.lpfnWndProc = DefWindowProcW;
+    wc.hInstance = GetModuleHandleW(NULL);
+    wc.lpszClassName = UPDATE_SPLASH_CLASS;
+    wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    RegisterClassW(&wc);
+
+    int w = 340, h = 110;
+    int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
+    HWND hwnd = CreateWindowExW(WS_EX_TOPMOST, UPDATE_SPLASH_CLASS, L"TobinMUD Client",
+        WS_POPUP | WS_CAPTION | WS_VISIBLE,
+        (sw - w) / 2, (sh - h) / 2, w, h, NULL, NULL, wc.hInstance, NULL);
+    if (!hwnd)
+        return NULL;
+    HWND label = CreateWindowExW(0, L"STATIC",
+        L"Updating TobinMUD Client...\nThis will only take a moment.",
+        WS_CHILD | WS_VISIBLE | SS_CENTER,
+        10, 30, w - 20, 50, hwnd, NULL, wc.hInstance, NULL);
+    if (label)
+        SendMessageW(label, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+    ShowWindow(hwnd, SW_SHOW);
+    UpdateWindow(hwnd);
+    pump_messages(); /* make sure it actually paints before the blocking network call starts */
+    return hwnd;
 }
 
 static bool fetch_remote_version(char *out, size_t outsize) {
@@ -2508,6 +2639,7 @@ static bool download_and_install_update(void) {
             ok = false;
             break;
         }
+        pump_messages(); /* keep the update splash responsive during the download too */
     }
     CloseHandle(hFile);
     InternetCloseHandle(hMsi);
@@ -2536,7 +2668,21 @@ static bool download_and_install_update(void) {
     if (!CreateProcessA(NULL, cmdline, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
         return false; /* couldn't even launch msiexec -- fall through, show the old window instead of nothing */
 
-    WaitForSingleObject(pi.hProcess, 60000);
+    /* Same plain WaitForSingleObject(pi.hProcess, 60000) as before, but
+     * broken into a poll loop so pump_messages() runs between waits --
+     * keeps the update splash (if shown) repainting/responding for the
+     * whole up-to-60s install instead of freezing the moment this call
+     * starts (create_update_splash()'s own comment). Harmless when no
+     * splash exists (pump_messages() with no windows just returns). */
+    DWORD wait_deadline = GetTickCount() + 60000;
+    for (;;) {
+        DWORD now = GetTickCount();
+        DWORD remaining = (now >= wait_deadline) ? 0 : (wait_deadline - now);
+        DWORD wr = MsgWaitForMultipleObjects(1, &pi.hProcess, FALSE, remaining, QS_ALLINPUT);
+        if (wr != WAIT_OBJECT_0 + 1) /* process signaled, or timed out -- either way, done waiting */
+            break;
+        pump_messages();
+    }
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
     DeleteFileA(temp_msi);
@@ -2587,7 +2733,21 @@ static bool check_and_apply_update(void) {
         return false;
     }
     debug_log("update: versions differ -- proceeding to download+install");
-    return download_and_install_update();
+    /* "client hasnt launched" notice (TODO.md, 2026-08-21): this whole
+     * silent startup path runs before WinMain ever creates the real
+     * window, so without this splash there is NOTHING on screen for
+     * the download+install below (up to 60s) -- see create_update_
+     * splash()'s own comment. Torn down whether the update succeeds or
+     * fails; on success the freshly-installed exe owns the screen
+     * next, on failure normal startup falls through to the real window. */
+    g_update_splash = create_update_splash();
+    bool launched = download_and_install_update();
+    if (g_update_splash) {
+        DestroyWindow(g_update_splash);
+        g_update_splash = NULL;
+        pump_messages(); /* let WM_DESTROY actually run before moving on */
+    }
+    return launched;
 }
 
 /* Manual "Help > Check for Updates..." (user request). Unlike the
