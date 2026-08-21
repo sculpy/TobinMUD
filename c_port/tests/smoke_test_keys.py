@@ -4,9 +4,12 @@ Keys are matched by the KEY object's OWN vnum against a door's
 roomexit.key_num / a container's val[2] -- see cmd_lock.c's header comment.
 Covers:
   1. A locked, keyless door refuses lock/unlock with "no keyhole" messages.
-  2. A closed+locked door: unlock fails without the key, succeeds once
+  2. A closed+locked door blocks a MORTAL's movement; unlock fails
+     without the key, succeeds once
      carried, `open` then works; re-closing and `lock`ing without the key
      removed still requires it to be present again (has_key re-checked).
+     An IMMORTAL walks straight through it regardless of lock state
+     (user 2026-08-21 -- see smoke_test_doors.py for the general case).
   3. `lock` on an open door is refused ("close it first").
   4. Door state (the Locked condition bit) persists to roomexit.condition_flag.
   5. Same flow for a closed+locked container (val[1] CONT_LOCKED, val[2] key
@@ -61,6 +64,31 @@ def set_level(name, level):
         f"(SELECT id FROM player WHERE name='{name}');")
 
 
+def make_char(sock, char_name, char_pw):
+    recv_all(sock)
+    send_line(sock, char_name); recv_all(sock)
+    send_line(sock, "y"); recv_all(sock)
+    send_line(sock, char_pw); recv_all(sock)
+    send_line(sock, char_pw); recv_all(sock)
+    send_line(sock, "new"); recv_all(sock)
+    send_line(sock, char_name); recv_all(sock)
+    send_line(sock, "1"); recv_all(sock)  # race: human
+    send_line(sock, "1"); recv_all(sock)  # territory: urban
+    send_line(sock, "1"); recv_all(sock)  # class: mage
+    send_line(sock, "done"); recv_all(sock)
+    send_line(sock, "done"); recv_all(sock)  # alignment: neutral
+
+
+def login(char_name, char_pw):
+    sock = socket.create_connection((host, port), timeout=5)
+    recv_all(sock)
+    send_line(sock, char_name); recv_all(sock)
+    send_line(sock, char_pw); recv_all(sock)
+    send_line(sock, "1"); recv_all(sock)
+    cmd(sock, "color off")
+    return sock
+
+
 def obj_insert(vnum, name, short_desc, long_desc, item_type, wear_flag,
                val0=0, val1=0, val2=0, weight=0):
     sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,"
@@ -87,12 +115,17 @@ send_line(s, "done"); recv_all(s)  # alignment: neutral
 
 set_level(name, 51)
 s.close()
-s = socket.create_connection((host, port), timeout=5)
-recv_all(s)
-send_line(s, name); recv_all(s)
-send_line(s, pw); recv_all(s)
-send_line(s, "1"); recv_all(s)
-cmd(s, "color off")
+s = login(name, pw)
+
+# A genuinely mortal second character (no set_level) -- proves the
+# closed-door-blocks-movement checks below are real mortal behavior,
+# not just "an immortal happened not to test the bypass."
+mortal_name = f"Keymrtl{_suffix}"
+mortal_pw = "keymortalpw123"
+m = socket.create_connection((host, port), timeout=5)
+make_char(m, mortal_name, mortal_pw)
+m.close()
+m = login(mortal_name, mortal_pw)
 
 # --- bootstrap ---
 for vnum, desc in ((ROOM, "Keyroom Origin"), (BEYOND, "Beyond the Locked Door"),
@@ -121,13 +154,16 @@ obj_insert(CHEST, "chest", "a heavy chest", "A heavy chest sits here.",
 obj_insert(GEM, "gem", "a shiny gem", "A shiny gem is lying here.", TYPE_TRINKET, WEAR_TAKE, weight=2)
 
 check("Keyroom Origin" in cmd(s, f"goto {ROOM}"), "goto lands in the sandbox room")
+cmd(s, f"transfer {mortal_name}")
 
 # --- 1: keyless locked door ---
 check("keyhole" in cmd(s, "unlock east").lower(), "unlock refuses a keyhole-less locked door")
 check("keyhole" in cmd(s, "lock east").lower(), "lock also refuses a keyhole-less door")
 
 # --- 2: keyed door, no key carried yet ---
-check("door is closed" in cmd(s, "north"), "the closed+locked door blocks movement")
+check("Beyond the Locked Door" in cmd(s, "north"), "an immortal walks straight through a closed+locked door")
+cmd(s, "south")
+check("door is closed" in cmd(m, "north"), "the closed+locked door blocks a mortal's movement")
 check("don't have the proper key" in cmd(s, "unlock north"), "unlock refuses without the key")
 
 cmd(s, f"load obj {WRONGKEY}"); cmd(s, "get iron")
@@ -149,7 +185,7 @@ cmd(s, "close north")
 out = cmd(s, "lock north")
 check("*Click*" in out, "lock succeeds once closed and the key is carried")
 check("already locked" in cmd(s, "lock north"), "locking an already-locked door is rejected")
-check("door is closed" in cmd(s, "north"), "the door blocks movement again once relocked")
+check("door is closed" in cmd(m, "north"), "the door blocks a mortal's movement again once relocked")
 
 # --- 4: persistence ---
 cond = query(f"SELECT condition_flag FROM roomexit WHERE vnum={ROOM} AND direction=0;")
@@ -182,5 +218,6 @@ check("*Click*" in out, "lock re-locks the chest once closed and the key is carr
 check("locked" in cmd(s, "open chest").lower(), "the relocked chest refuses open again")
 
 s.close()
+m.close()
 announce_done("smoke_test_keys", host, port)
 print("=== ALL CHECKS PASSED ===")

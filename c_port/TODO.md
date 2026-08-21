@@ -15,6 +15,19 @@ viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
 
+- **smoke_test_trap.py: broken Thief "detect trap" assertion (found
+  2026-08-21, unrelated to that session's actual change).** Its "step
+  around the trap" check fails: a freshly-created level-1 Thief does
+  NOT actually know `detect trap` (skill.c: CLASS_THIEF, ADVANCED tier,
+  min_level 25, needs basic/combat/advanced_disc_pct at 100/100/>0 too
+  -- `being_knows_skill()`), contradicting the test's docstring claim
+  it's "always known, Combat tier." Either the skill's tier/level was
+  changed after this test was written, or the test never actually
+  exercised this path before. Needs investigation + either an SQL bump
+  of the test Thief's level/discipline, or a docstring/skill.c
+  reconciliation -- didn't chase it down further, out of scope for the
+  session that found it.
+
 - **Sneezy-DB decoupling — optional cleanup** (main task DONE 2026-08-16;
   orphaned `sneezy` + `sneezy_scratch` DBs dropped 2026-08-17;
   `c_port/db/fix-workbox.sh` deleted 2026-08-17; stale

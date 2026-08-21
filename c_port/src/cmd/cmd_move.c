@@ -187,7 +187,13 @@ static bool do_move(descriptor_t *d, int dir) {
         descriptor_send(d, "You can't go that way.\r\n");
         return true;
     }
-    if (from->exit_door[dir] != 0 && (from->exit_cond[dir] & EXIT_COND_CLOSED)) {
+    /* Immortals walk through any exit -- closed, locked, or otherwise
+     * (user 2026-08-21: handy for manually verifying/recalculating the
+     * map) -- same "no restrictions" bypass shape as the PRIVATE-room
+     * and terrain-cost checks just below. A locked door is necessarily
+     * closed too (nothing separately gates on EXIT_COND_LOCKED for
+     * movement), so this one exemption covers both. */
+    if (!being_is_immortal(ch) && from->exit_door[dir] != 0 && (from->exit_cond[dir] & EXIT_COND_CLOSED)) {
         descriptor_send(d, "The door is closed.\r\n");
         return true;
     }

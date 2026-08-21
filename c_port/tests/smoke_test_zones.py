@@ -3,7 +3,10 @@
 loading? i dont see anything in rooms or mobs wandering around"). Covers:
   1. A REAL, currently-enabled seeded zone actually populated a room with
      its mob at boot -- this is the exact bug reported: the zone_reset
-     data existed since Session 38 but nothing ever executed it.
+     data existed since Session 38 but nothing ever executed it. (Room
+     200's name has since drifted to "Inside the City Gates" from
+     whatever it was when this test was written -- checked live,
+     2026-08-21 -- so this only asserts on the room's real current name.)
   2. The `zone reset <zone>` builder command runs a zone's reset commands
      on demand: M (load mob), E (equip an item onto it), G (give it a
      carried container), and P (place an item inside that container) --
@@ -11,7 +14,9 @@ loading? i dont see anything in rooms or mobs wandering around"). Covers:
      contains everything, reusing the already-tested corpse-on-death
      feature as the inspection tool (mobs have no `stat`/equipment-
      display command yet).
-  3. D (set a door's state) -- closes and locks a sandbox exit.
+  3. D (set a door's state) -- closes and locks a sandbox exit; blocks a
+     MORTAL's movement, but an IMMORTAL walks straight through it (user
+     2026-08-21 -- see smoke_test_doors.py for the general case).
   4. An unhandled opcode (Y, not in the v1 subset) doesn't break the rest
      of the zone's reset -- it's skipped, not fatal.
 
@@ -83,11 +88,18 @@ set_level(imm_name, 51)
 s.close()
 s = login(imm_name, imm_pw)
 
+mortal_name = f"Zonemrtl{_suffix}"
+mortal_pw = "zonemortalpw12"
+m = socket.create_connection((host, port), timeout=5)
+make_char(m, mortal_name, mortal_pw)
+m.close()
+m = login(mortal_name, mortal_pw)
+
 # --- 1: a REAL seeded zone (0, "Void") already populated a real room at
 #     boot -- room 200 ("Inside the Farm House") gets mob 210 (a city
 #     gatekeeper) via a real 'M' command. This is the exact bug reported. ---
 out = cmd(s, "goto 200")
-check("Farm House" in out, "goto reaches the real seeded room")
+check("City Gates" in out, "goto reaches the real seeded room")
 out = cmd(s, "look")
 check("gatekeeper" in out.lower(), "a REAL zone's 'M' command actually populated this room at boot")
 
@@ -142,8 +154,14 @@ check("Zone Sandbox" in out, "goto reaches the sandbox room")
 out = cmd(s, "look")
 check("zone test dummy is here" in out.lower(), "M loaded the sandbox mob")
 
+cmd(s, f"transfer {mortal_name}")
 out = cmd(s, "north")
-check("the door is closed" in out.lower(), "D closed the sandbox door -- movement is blocked")
+check("Zone Sandbox Beyond" in out, "an immortal walks straight through the D-closed+locked sandbox door")
+cmd(s, f"goto {ROOM}")
+
+out = cmd(m, "north")
+check("the door is closed" in out.lower(), "D closed the sandbox door -- movement is blocked for a mortal")
+
 out = cmd(s, "open north")
 check("it's locked" in out.lower(), "D also locked it, not just closed (distinct from merely closed)")
 
@@ -165,5 +183,6 @@ out = cmd(s, "get gem bag")
 check("you get" in out.lower(), "P placed the gem INSIDE the bag (nesting survived the corpse transfer)")
 
 s.close()
+m.close()
 announce_done("smoke_test_zones", host, port)
 print("=== ALL CHECKS PASSED ===")
