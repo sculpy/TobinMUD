@@ -633,3 +633,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The Monk Turns to Iron', 'The monastic "iron" disciplines finally harden into effect. IRON FLESH and IRON SKIN make a bare-handed monk far tougher to hurt; IRON MUSCLES lends their fists real weight; IRON WILL throws off fear and other mind-magic; and IRON BONES lets them shrug off a broken limb. Two brutal techniques join the kit too: DEFENESTRATE hurls an opponent bodily to the ground, and BONEBREAK wrenches a limb until it snaps.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Sound Now Has a Switch', 'Combat sound and music effects can now be turned off. Type TOGGLE to find the new sound option and silence effects at will.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

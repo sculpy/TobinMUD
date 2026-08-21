@@ -551,9 +551,25 @@ void descriptor_send_subneg(descriptor_t *d, unsigned char opt, const unsigned c
     free(out);
 }
 
+/* Gates every descriptor_send_msp_*() call below on BOTH the client's
+ * negotiated MSP capability (`opt_msp`, the telnet option) and the
+ * player's own preference (`toggle msp`, cmd_toggle.c's PLR_NOMSP bit,
+ * being.h) -- previously only the former was checked, so MSP sound
+ * played unconditionally for any client that supported it, with no way
+ * for a player who just doesn't want sound to opt out (TODO.md). No
+ * `d->character` yet (still at the login menu) reads as "wanted" --
+ * same as `opt_msp` alone did before, since MSP sound is never actually
+ * sent this early anyway. */
+static bool msp_wanted(const descriptor_t *d) {
+    if (!d->opt_msp)
+        return false;
+    if (d->character && (d->character->pflags & PLR_NOMSP))
+        return false;
+    return true;
+}
 /* See descriptor.h. GMCP/MSDP/MSP project (2026-08-05). */
 void descriptor_send_msp_sound(descriptor_t *d, const char *filename, int volume) {
-    if (!d->opt_msp)
+    if (!msp_wanted(d))
         return;
     if (volume < 0)
         volume = 0;
@@ -568,14 +584,20 @@ void descriptor_send_msp_sound(descriptor_t *d, const char *filename, int volume
  * the client is responsible for stopping it, either on a matching
  * `!!MUSIC(Off)` or when a different `!!MUSIC(...)` supersedes it. */
 void descriptor_send_msp_music(descriptor_t *d, const char *filename) {
-    if (!d->opt_msp)
+    if (!msp_wanted(d))
         return;
     char msg[160];
     snprintf(msg, sizeof(msg), "!!MUSIC(%s L=-1)\r\n", filename);
     descriptor_send(d, msg);
 }
 
-/* See descriptor.h. */
+/* See descriptor.h. Deliberately gated on `opt_msp` alone, NOT
+ * msp_wanted() -- unlike sound/music (which shouldn't START if the
+ * player has opted out), a stop command should always be allowed
+ * through on a capable client, including right when `toggle msp` turns
+ * the preference off (cmd_toggle.c's tg_msp_set() sends this
+ * immediately so a currently-looping track doesn't keep playing until
+ * the next natural fight-end trigger). */
 void descriptor_send_msp_music_off(descriptor_t *d) {
     if (!d->opt_msp)
         return;

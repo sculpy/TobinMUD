@@ -312,6 +312,16 @@ typedef struct {
  * than the recipient side, since this restricts what a muted player can
  * say, not what reaches them. */
 #define PLR_MUTED 256
+/* PLR_NOMSP = opted out of MSP sound/music playback (default on; toggle
+ * off with `toggle msp`) -- TODO.md, "Rework MSP into a toggle so players
+ * can turn sound on/off": previously MSP played unconditionally for any
+ * client that negotiated the telnet option (d->opt_msp, descriptor.c),
+ * with no way for a player who just doesn't want sound to opt out even
+ * on a client that supports it. Inverted sense like PLR_NOTIPS above, so
+ * the toggle itself still reads naturally ("msp is now on/off"); checked
+ * alongside `opt_msp` at every descriptor_send_msp_*() call site
+ * (descriptor.c) -- both the capability AND the preference must allow it. */
+#define PLR_NOMSP 512
 
 /* Per-limb hit points. A simplified stand-in for the original's real
  * per-slot damage system (`bodyPartsDamage body_parts[MAX_WEAR]` in

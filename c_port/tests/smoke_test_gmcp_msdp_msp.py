@@ -25,6 +25,7 @@ here (out of this feature's scope).
 
     python3 tests/smoke_test_gmcp_msdp_msp.py [host] [port]
 """
+import re
 import socket
 import sys
 import time
@@ -165,7 +166,8 @@ hit_out = recv_for(sw, 8.0)  # several combat rounds' worth, wall-clock bounded
 check('Char.Vitals {"hp":' in hit_out, "taking damage pushes a real Char.Vitals GMCP message")
 check("HEALTH" in hit_out and chr(1) in hit_out,
       "taking damage pushes a real MSDP VAR HEALTH VAL message (raw MSDP_VAR control byte present)")
-check("!!SOUND(hit.wav V=100)" in hit_out, "taking damage fires a real MSP in-band sound marker")
+check(re.search(r"!!SOUND\(\S+\.wav V=100\)", hit_out),
+      "taking damage fires a real MSP in-band sound marker")
 
 send_line(sw, "flee"); recv_for(sw, 3.0)  # disengage before disconnecting -- don't leave
                                           # the throwaway character fighting a real-

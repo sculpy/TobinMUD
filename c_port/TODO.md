@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-21. Companion to STATUS.md, which holds the full
+Last updated: 2026-08-21 (2). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -32,9 +32,16 @@ viewers keep plain names (`news`, `wiznews`).
   wear_flag. A keyword-driven data pass, with a balance eye (making a weapon
   two-handed frees/consumes the off-hand).
 
-- Rework MSP into a toggle so players can turn sound on/off.
+- **Client: mapping support.** Enable GMCP/MXP so the server feeds clean
+  room + coordinate data to a mapping interface; build that interface in
+  the client; add a client-side toggle to enable/disable mapping; store
+  maps in a rereadable file so players can save them across sessions.
 
-- Gametog and toggles should save over reboots.
+- **Client: enable cut/copy/paste** in the client.
+
+- **Client: launch/update notice.** Show a visible "updating..." status
+  when the client is applying an update on launch, so players don't
+  assume it failed to start.
 
 - **Pre-existing test bug found 2026-08-21** (unrelated to that session's
   work, not yet fixed): `smoke_test_bleeding.py` fails at "a fresh (size-1)
@@ -43,7 +50,6 @@ viewers keep plain names (`news`, `wiznews`).
   obj.c's `obj_grow_pool()`/pool-size-tier naming -- separate code path from
   the limb-bleeding tick/display fix that session shipped.
 
-- 
 ## Unimplemented skills/spells backlog (audited Session 158)
 
 Grep-verified against `SKILLS[]` (skill.c) vs real handlers in cmd_cast.c /

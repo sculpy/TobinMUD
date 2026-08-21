@@ -8,6 +8,7 @@ same reason -- see that file's own module docstring.
 
     python3 tests/smoke_test_msp_music.py [host] [port]
 """
+import re
 import socket
 import sys
 import time
@@ -23,8 +24,12 @@ MOB = 943200 + (int(time.time()) % 25000)
 IAC, WILL, DO, SB, SE = 255, 251, 253, 250, 240
 MSP = 90
 
-TRACKS = ("adventure1.wav", "atlasaudio.wav", "audiodollar-adventure.wav",
-          "melodygodzilla.wav", "motivational.wav", "nastelborn.wav")
+# Filenames match combat.c's combat_music_tick() TRACKS[] -- match by
+# pattern (musicN.wav) rather than an exact list, so a future re-pack
+# doesn't go stale here again (found 2026-08-21: this list still had the
+# pre-2026-08-07 sound-pack names, e.g. "adventure1.wav", long since
+# renamed to music1.wav-music25.wav).
+TRACK_RE = re.compile(r"!!MUSIC\(music\d+\.wav L=-1\)")
 
 
 def recv_for(sock, total_seconds):
@@ -79,7 +84,7 @@ send_line(s, imm_pw); recv_all(s)
 create_character(s, imm_name, send_line, recv_all, char_class="1")
 cmd(s, "quit!")
 s.close()
-sql(f"UPDATE player_progress SET level=51 WHERE player_id="
+sql(f"UPDATE player_progress SET level=60 WHERE player_id="
     f"(SELECT id FROM player WHERE name='{imm_name}');")
 
 s = socket.create_connection((host, port), timeout=5)
@@ -102,17 +107,34 @@ sql(f"INSERT INTO mob (vnum,name,short_desc,long_desc,description,actions,affect
     f"damage_precision,gold,race,weight,height,str,bra,con,dex,agi,intel,wis,foc,"
     f"per,cha,kar,spe,pos,def_position,sex,spec_proc,skin,vision,can_be_seen,max_exist) "
     f"VALUES ({MOB},'dummy training','a training dummy','A training dummy stands here.',"
-    f"'desc',0,0,0,0,'A',1.0,50,99,50000,3.0,3.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
+    f"'desc',0,0,0,0,'A',1.0,50,0,50000,0.0,0.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
     f"10,10,1,0,0,0,1,1);")
+# tohit=0 (never lands a hit) -- the standard harmless-sandbox-dummy
+# convention every other smoke test uses (smoke_test_pursuit.py,
+# smoke_test_kick_starts_fight.py, etc). combat_music_tick() (combat.c)
+# runs on its own COMBAT_ROUND_PULSES pulse, separate from per-swing
+# damage in combat_process_run() -- it just needs the fight to still be
+# going by the time that pulse fires. The gmcp_msdp_msp.py test's
+# tohit=99/50000-HP "guaranteed lethal hit" dummy was copy-pasted in
+# here first, but that dummy can one-shot even an HP-boosted PC via a
+# limb-destruction crit (found live 2026-08-21: "Your body is destroyed"
+# -- unrelated to raw HP total) before the tick ever fires. Wrong dummy
+# for this test's purpose; swapped for the harmless one instead of
+# further HP-boosting a lethal one.
 check("You conjure" in cmd(s, f"load mob {MOB}"), "the training dummy is loaded")
 
 send_line(sw, "hit dummy")
 fight_out = recv_for(sw, 3.0)
-found_track = any(f"!!MUSIC({t} L=-1)" in fight_out for t in TRACKS)
-check(found_track, "combat start pushes a real MSP MUSIC marker for one of the real tracks")
+check(TRACK_RE.search(fight_out), "combat start pushes a real MSP MUSIC marker for one of the real tracks")
 
-send_line(sw, "flee")
-flee_out = recv_for(sw, 3.0)
+# flee (cmd_flee.c) has a real ~33% failure chance for an unproficient
+# character -- keep retrying (not looping the assert itself) until it
+# actually breaks off the fight or a generous deadline passes.
+flee_out = ""
+deadline = time.time() + 15.0
+while "!!MUSIC(Off)" not in flee_out and time.time() < deadline:
+    send_line(sw, "flee")
+    flee_out += recv_for(sw, 2.0)
 check("!!MUSIC(Off)" in flee_out, "combat end (flee) pushes a real MSP MUSIC(Off) stop marker")
 
 sw.close()

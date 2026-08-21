@@ -191,6 +191,29 @@ static void tg_afk_set(descriptor_t *d, bool v) {
     player_set_pflags(d->character->player_id, d->character->pflags);
 }
 
+/* --- msp: MSP sound/music playback (player.pflags bit) -- TODO.md,
+ * "Rework MSP into a toggle so players can turn sound on/off". Sense
+ * inverted like `tips` above (PLR_NOMSP means MSP is OFF), so the
+ * toggle itself still reads naturally: "msp is now on/off". Turning it
+ * off also stops any track already looping (descriptor_send_msp_
+ * music_off(), gated on client capability alone, not this preference --
+ * see its own doc comment, descriptor.c) rather than leaving the player
+ * to sit through it until the next natural fight-end trigger. */
+static bool tg_msp_get(descriptor_t *d) {
+    return d->character && !(d->character->pflags & PLR_NOMSP);
+}
+static void tg_msp_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->pflags &= ~PLR_NOMSP;
+    else
+        d->character->pflags |= PLR_NOMSP;
+    player_set_pflags(d->character->player_id, d->character->pflags);
+    if (!v)
+        descriptor_send_msp_music_off(d);
+}
+
 /* --- multiplay: global game toggle (55+) --- */
 static bool tg_multiplay_get(descriptor_t *d) { (void)d; return multiplay_allowed(); }
 static void tg_multiplay_set(descriptor_t *d, bool v) { (void)d; multiplay_set(v); }
@@ -206,6 +229,7 @@ static const toggle_t TOGGLES[] = {
     { "afk",       "auto-away notice on tells",     false, "Communication", tg_afk_get,       tg_afk_set },
     { "tips",      "periodic newbie tip echoes",    false, "Communication", tg_tips_get,      tg_tips_set },
     { "pk",        "willing to fight other players", false, "Preferences",  tg_pk_get,        tg_pk_set },
+    { "msp",       "MSP sound/music playback",      false, "Preferences",   tg_msp_get,       tg_msp_set },
     { "multiplay", "one account, many characters",  true,  NULL,            tg_multiplay_get, tg_multiplay_set },
 };
 #define NUM_TOGGLES (sizeof(TOGGLES) / sizeof(TOGGLES[0]))
