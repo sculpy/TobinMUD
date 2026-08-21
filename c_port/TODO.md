@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-17. Companion to STATUS.md, which holds the full
+Last updated: 2026-08-21. Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -32,10 +32,15 @@ viewers keep plain names (`news`, `wiznews`).
   wear_flag. A keyword-driven data pass, with a balance eye (making a weapon
   two-handed frees/consumes the off-hand).
 
-- When mobs using skills knocks you over with a bash you are in position fighting but can't stand up because you are busy fighting. Fix this.
-
 - Meditate doesnt use POSITION_MEDITATE, examine sneezy for the proper implementation that will gain HP, Mana/Lifeforce, and vitality.
 
+- I wince as my wounds bleed but nothing reports a bleeding limb.
+
+- Rework MSP into a toggle so players can turn sound on/off.
+
+- Gametog and toggles should save over reboots.
+
+- 
 ## Unimplemented skills/spells backlog (audited Session 158)
 
 Grep-verified against `SKILLS[]` (skill.c) vs real handlers in cmd_cast.c /

@@ -42,20 +42,30 @@ static bool busy_fighting(descriptor_t *d) {
 }
 
 /* `stand` command: gets the character back on their feet. Fighting
- * characters are already considered standing (you can't sit/rest/sleep
- * while fighting), so that case gets its own message rather than
- * routing through busy_fighting(). */
+ * characters are normally already standing (you can't sit/rest/sleep
+ * while fighting) -- but a knockdown skill (bash, cmd_bash.c;
+ * combat_apply_skill_damage()'s knockdown path, combat.c) can drop a
+ * *fighting* character to POSITION_SITTING without clearing `fighting`,
+ * so this can't just refuse outright the way busy_fighting() does for
+ * sit/rest/sleep, or a knocked-down fighter could never get back up --
+ * stuck eating combat.c's non-standing defense penalty every round of a
+ * fight they can't leave. Only POSITION_SITTING is reachable this way
+ * today; the lower rungs (stunned/incap/mortallyw) are reserved for
+ * future use (being.h) and still block standing back up. */
 bool cmd_stand(descriptor_t *d, const char *args) {
     (void)args;
     being_t *ch = d->character;
     if (!ch)
         return true;
-    if (ch->fighting) {
-        descriptor_send(d, "You are already on your feet -- and fighting!\r\n");
+    if (ch->position == POSITION_STANDING) {
+        if (ch->fighting)
+            descriptor_send(d, "You are already on your feet -- and fighting!\r\n");
+        else
+            descriptor_send(d, "You are already standing.\r\n");
         return true;
     }
-    if (ch->position == POSITION_STANDING) {
-        descriptor_send(d, "You are already standing.\r\n");
+    if (ch->fighting && ch->position != POSITION_SITTING) {
+        descriptor_send(d, "You're in no condition to stand up!\r\n");
         return true;
     }
     set_position(d, POSITION_STANDING, "You clamber to your feet.\r\n",

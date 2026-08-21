@@ -15,8 +15,8 @@ Covers:
   1. bash: 100%-proficiency success knocks the DEFENDER into a wait-state
      too (their next command is blocked), and the attacker is laggy.
      0%-proficiency always fails (no defender wait-state).
-  2. kick: 100%-proficiency success lands ("solid kick" message), attacker
-     laggy either way. 0%-proficiency always fails (dodge message).
+  2. kick: 100%-proficiency success lands ("boot ... in the head" message),
+     attacker laggy either way. 0%-proficiency always fails (dodge message).
   3. disarm: 100%-proficiency success knocks the defender's wielded
      weapon onto the room floor. 0%-proficiency always fails (weapon
      stays in hand).
@@ -198,6 +198,20 @@ out_b = strip(recv_all(sB, 0.4))
 check("still recovering" in out_a.lower(), "the attacker is laggy after a successful bash")
 check("still recovering" in out_b.lower(),
       "a successful bash also costs the DEFENDER a round (Sneezy's own 'prevent skill-use' effect)")
+
+# Real bug (TODO.md, found 2026-08-21): bash knocks the DEFENDER to
+# POSITION_SITTING without clearing `fighting` -- cmd_stand.c's `stand`
+# used to treat ANY fighting character as already standing (true
+# everywhere else, since sit/rest/sleep are blocked mid-fight) and
+# refuse to change position, leaving a bashed defender stuck sitting
+# for the rest of the fight (permanently eating combat.c's non-standing
+# defense penalty). Wait out B's post-bash lag, then confirm `stand`
+# actually gets them back up instead of the old "already on your feet"
+# no-op.
+time.sleep(1.3)  # ~one COMBAT_ROUND_PULSES round (~1.2s)
+out_b = strip(cmd(sB, "stand"))
+check("clamber" in out_b.lower(),
+      "a bash-knocked-down defender can `stand` back up while still fighting")
 sA.close(); sB.close()
 
 (nameC, sC), (nameD, sD) = make_pair("Bshwz", CLASS_WARRIOR, ROOM_BASH)
@@ -232,7 +246,8 @@ sE.close(); sF.close()
 seed_proficiency(nameE, "kick", 100)
 attack_and_settle(sE, nameF)
 out = strip(cmd(sE, f"kick {nameF}"))
-check("solid kick" in out.lower(), "100%-proficiency kick succeeds and lands")
+check("boot" in out.lower() and "in the head" in out.lower(),
+      "100%-proficiency kick succeeds and lands")
 out_e = strip(cmd(sE, "look"))
 check("still recovering" in out_e.lower(), "the attacker is laggy after a kick attempt")
 sE.close(); sF.close()
