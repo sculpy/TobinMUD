@@ -20,10 +20,15 @@ static int regen_amount(const being_t *b) {
     if (amount < 1)
         amount = 1;
     /* Rest and sleep speed healing (original hitGain() weights by position);
-     * sitting a little, standing none. */
+     * sitting a little, standing none. POSITION_MEDITATE gets RESTING's
+     * weight -- meditating already stacks meditate.c's own tick on top of
+     * this passive one (same stacking a plain `rest` + `yoginsa` combo
+     * always produced before meditating got its own position), and the
+     * underlying sit-vs-rest posture is no longer distinguishable once
+     * meditation is active (both collapse into POSITION_MEDITATE). */
     if (b->position == POSITION_SLEEPING)
         amount *= 3;
-    else if (b->position == POSITION_RESTING)
+    else if (b->position == POSITION_RESTING || b->position == POSITION_MEDITATE)
         amount *= 2;
     else if (b->position == POSITION_SITTING)
         amount += amount / 2;

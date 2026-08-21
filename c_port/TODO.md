@@ -32,8 +32,6 @@ viewers keep plain names (`news`, `wiznews`).
   wear_flag. A keyword-driven data pass, with a balance eye (making a weapon
   two-handed frees/consumes the off-hand).
 
-- Meditate doesnt use POSITION_MEDITATE, examine sneezy for the proper implementation that will gain HP, Mana/Lifeforce, and vitality.
-
 - I wince as my wounds bleed but nothing reports a bleeding limb.
 
 - Rework MSP into a toggle so players can turn sound on/off.

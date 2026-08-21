@@ -20,7 +20,12 @@ void meditate_tick_run(long pulse_num) {
         if (!ch || !ch->meditating)
             continue;
 
-        if (ch->position != POSITION_RESTING && ch->position != POSITION_SITTING) {
+        /* Starting meditation (cmd_yoginsa.c/cmd_meditate.c/
+         * cmd_position.c's auto_start_meditating()) sets position to
+         * POSITION_MEDITATE itself, so any OTHER position by the time
+         * this tick runs means something external knocked it out from
+         * under them (forced to stand, knocked down, ...). */
+        if (ch->position != POSITION_MEDITATE) {
             ch->meditating = false;
             descriptor_send(d, "Your meditation is broken.\r\n");
             continue;

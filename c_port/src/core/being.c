@@ -842,7 +842,7 @@ static const char *LIMB_NAMES[LIMB_COUNT] = {
 static const char *const POSITION_NAMES[] = {
     "Dead", "Mortally wounded", "Incapacitated", "Stunned", "Sleeping",
     "Resting", "Sitting", "Engaged", "Fighting", "Crawling", "Standing",
-    "Mounted", "Flying",
+    "Mounted", "Flying", "Meditating",
 };
 
 /* Display text for a position_t (POSITION_NAMES[] above, ported from

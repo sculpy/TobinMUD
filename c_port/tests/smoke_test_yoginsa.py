@@ -91,12 +91,21 @@ s = relog(name, pw)
 seed_proficiency(name, "yoginsa", 100)
 
 out = strip(cmd(s, "rest"))
-time.sleep(0.5)
-out = strip(cmd(s, "yoginsa"))
-check("refreshes your inner harmonies" in out.lower(), "100%-proficiency yoginsa succeeds")
+# `rest` (cmd_position.c's auto_start_meditating()) already auto-starts
+# meditation on its own for a yoginsa-knowing character -- a separate
+# `yoginsa` right after would just TOGGLE IT BACK OFF ("You stop
+# meditating."), never producing a fresh roll. The per-tick heal message
+# ("Meditating focuses your inner harmonies!", meditate.c's
+# meditate_tick_run(), REGEN_PULSES ~5s cadence) is what actually proves
+# the 100%-proficiency roll succeeds -- wait out a tick and read it live.
+check("begin meditating" in out.lower(), "rest auto-starts meditation for a yoginsa-knowing character")
+send_line(s, "look")
+time.sleep(5.5)
+out = strip(recv_all(s, 0.5))
+check("focuses your inner harmonies" in out.lower(), "100%-proficiency yoginsa succeeds")
 
 out_score = strip(cmd(s, "score"))
-check("50" not in out_score or True, "sanity placeholder")  # score format unknown, skip strict parse
+check("Meditating" in out_score, "score shows Meditating (POSITION_MEDITATE) while yoginsa is active")
 s.close()
 
 # 0%-proficiency case
@@ -108,9 +117,18 @@ set_combat_disc(name2, 100)
 set_basic_disc(name2, 100)
 s2 = relog(name2, pw2)
 seed_proficiency(name2, "yoginsa", 0)
-cmd(s2, "rest")
-out = strip(cmd(s2, "yoginsa"))
-check("won't settle" in out.lower(), "0%-proficiency yoginsa fails")
+out = strip(cmd(s2, "rest"))
+# Same auto-start note as the 100%-proficiency section above: `rest`
+# already starts meditating on its own, and the failure roll ("mind
+# won't settle") happens per-TICK inside meditate_tick_run() (meditate.c),
+# not as an immediate response to either command -- a fresh call to
+# `yoginsa` right after `rest` would just toggle the meditation back off.
+check("begin meditating" in out.lower(), "rest auto-starts meditation even at 0% proficiency")
+send_line(s2, "look")
+time.sleep(5.5)
+out = strip(recv_all(s2, 0.5))
+check("won't settle" in out.lower(), "0%-proficiency yoginsa's tick roll fails")
+check("focuses your inner harmonies" not in out.lower(), "0%-proficiency tick does not also heal")
 s2.close()
 
 # auto-sits while standing (user 2026-07-27: yoginsa/meditate should
@@ -125,7 +143,12 @@ s3 = relog(name3, pw3)
 seed_proficiency(name3, "yoginsa", 100)
 out = strip(cmd(s3, "yoginsa"))
 check("you sit down" in out.lower(), "yoginsa auto-sits instead of refusing while standing")
-check("inner harmonies" in out.lower(), "the meditation roll still runs right after sitting")
+# The actual meditation roll (a fresh "inner harmonies" heal or a "won't
+# settle" miss) only happens on the next background tick (meditate.c's
+# meditate_tick_run(), REGEN_PULSES ~5s), not as an immediate response to
+# the command itself -- section 1 above already covers that tick. Here,
+# just confirm the command's own immediate response starts meditation.
+check("begin meditating" in out.lower(), "the meditation task starts right after auto-sitting")
 s3.close()
 
 announce_done("smoke_test_yoginsa", host, port)

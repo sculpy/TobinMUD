@@ -68,6 +68,17 @@ bool cmd_stand(descriptor_t *d, const char *args) {
         descriptor_send(d, "You're in no condition to stand up!\r\n");
         return true;
     }
+    if (ch->position == POSITION_MEDITATE) {
+        /* Stopping the meditation itself, not just the posture -- same
+         * "you're not just sitting there anymore" logic meditate_tick_run()
+         * (meditate.c) applies when it detects the position changed out
+         * from under it, but with an immediate, specific message instead
+         * of waiting for the next tick's generic "broken" one. */
+        ch->meditating = false;
+        set_position(d, POSITION_STANDING, "You stop meditating and stand up.\r\n",
+                     "%s stops meditating and stands up.\r\n");
+        return true;
+    }
     set_position(d, POSITION_STANDING, "You clamber to your feet.\r\n",
                  "%s clambers to %s feet.\r\n");
     return true;
@@ -88,6 +99,7 @@ static void auto_start_meditating(descriptor_t *d, being_t *ch) {
     if (!imm && !being_knows_skill(ch, "yoginsa"))
         return;
     ch->meditating = true;
+    ch->position = POSITION_MEDITATE;
     descriptor_send(d, "You begin meditating.\r\n");
 }
 
@@ -99,6 +111,10 @@ bool cmd_sit(descriptor_t *d, const char *args) {
         return true;
     if (busy_fighting(d))
         return true;
+    if (ch->position == POSITION_MEDITATE) {
+        descriptor_send(d, "You are already meditating.\r\n");
+        return true;
+    }
     if (ch->position == POSITION_SITTING) {
         descriptor_send(d, "You are already sitting.\r\n");
         return true;
@@ -117,6 +133,10 @@ bool cmd_rest(descriptor_t *d, const char *args) {
         return true;
     if (busy_fighting(d))
         return true;
+    if (ch->position == POSITION_MEDITATE) {
+        descriptor_send(d, "You are already meditating.\r\n");
+        return true;
+    }
     if (ch->position == POSITION_RESTING) {
         descriptor_send(d, "You are already resting.\r\n");
         return true;

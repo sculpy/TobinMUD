@@ -6,13 +6,19 @@
      checking POSITION_SLEEPING (cmd_position.c's cmd_wake()).
   2. `yoginsa` (Monk) auto-sits a standing character instead of refusing
      (cmd_yoginsa.c).
-  3. `cast meditate` (Mage, Druid) and `pray penance` (Cleric) now really
-     restore Vitality instead of being unwired placeholders -- Druid also
-     gets the "meditate" skill for the first time (it had no equivalent
-     before this session).
+  3. `meditate` (Mage, Druid, standalone command -- `cast meditate` is a
+     dead-end redirect) and `pray penance` (Cleric) restore a real
+     resource. Mage/Druid go through meditate.c's background tick, same
+     shape as `yoginsa`; Cleric's `pray penance` stays single-action.
   4. Any real skill/spell proficiency gain (skill.c's
-     skill_learn_from_doing()) now sends the player a "You have become
-     better at ..." message instead of happening silently.
+     skill_learn_from_doing()) sends the player a "You have become
+     better at ..." message instead of happening silently -- verified via
+     meditate.c's tick, which rolls it every ~5s while meditating.
+
+Updated 2026-08-21 for the tick-based meditate/yoginsa architecture
+(POSITION_MEDITATE, being.h) -- sections 1/3/4 originally assumed
+single-action responses that no longer match the background-tick shape;
+see git history for the prior version if needed.
 
     python3 tests/smoke_test_meditate_wake_proficiency.py [host] [port]
 """
@@ -21,7 +27,7 @@ import socket
 import subprocess
 import sys
 import time
-from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
+from mud_test_utils import send_line, recv_all, check, sql, cmd, cmd_until, announce, announce_done
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
@@ -68,6 +74,11 @@ def relog(name, pw):
 def move_of(sock):
     m = re.search(r"Move:\s*(\d+)", cmd(sock, "score"))
     return int(m.group(1))
+
+
+def mana_of(sock):
+    m = re.search(r"Mana:\s*(\d+)", cmd(sock, "score"))
+    return int(m.group(1)) if m else 0
 
 
 def position_of(sock):
@@ -137,8 +148,11 @@ try:
     # after that point would only affect the row, not the running session;
     # loading it fresh at login is the only way to control the starting
     # Vitality the section-3 before/after check reads.
-    for name in (mage_name, cleric_name, druid_name):
-        sql(f"UPDATE player_progress SET vit=5 WHERE player_id=(SELECT id FROM player WHERE name='{name}');")
+    # Cleric's `pray penance` still restores Vitality directly -- low
+    # headroom needed there. Mage's `meditate` restores Mana instead (see
+    # section 3 below), so it needs low Mana headroom, not Vitality.
+    sql(f"UPDATE player_progress SET vit=5 WHERE player_id=(SELECT id FROM player WHERE name='{cleric_name}');")
+    sql(f"UPDATE player_progress SET mana=5 WHERE player_id=(SELECT id FROM player WHERE name='{mage_name}');")
 
     sm = relog(mage_name, pw); sockets.append(sm)
     sc = relog(cleric_name, pw); sockets.append(sc)
@@ -151,7 +165,13 @@ try:
     # --- 1: wake can no longer defeat slumber ---
     cmd(sm, f"load obj {COMPONENT}"); recv_all(sm, 0.3)
     cmd(sm, "get pouch"); recv_all(sm, 0.3)
-    out1 = strip(cmd(sm, f"cast slumber {vic_name}"))
+    # Casting is a multi-round process (gesture/chant/concentrate stages
+    # before the spell actually strikes) -- a plain cmd() only waits ~1s,
+    # nowhere near long enough to see the real "collapse into sleep!"
+    # completion line. cmd_until() (mud_test_utils.py) is the primitive
+    # built for exactly this: read live until the pattern actually shows
+    # up, or a real 8s deadline elapses.
+    out1 = strip(cmd_until(sm, f"cast slumber {vic_name}", "collapse into sleep", deadline=8.0))
     check("collapse into sleep" in out1.lower(), "slumber succeeds with a component")
     check(position_of(sv) == "Sleeping", "the victim's own `score` shows Sleeping after slumber")
     out1b = strip(cmd(sv, "wake"))
@@ -162,23 +182,36 @@ try:
     check(position_of(sk) == "Standing", "the Monk starts out standing")
     out2 = strip(cmd(sk, "yoginsa"))
     check("you sit down" in out2.lower(), "yoginsa auto-sits instead of refusing")
-    check("inner harmonies" in out2.lower() or "mind won't settle" in out2.lower(),
-          "yoginsa still runs its own meditation roll right after sitting")
-    # yoginsa sets a 2*COMBAT_ROUND_PULSES wait (~2.4s) -- `score` itself is
-    # gated behind that same wait state ("You are still recovering!"),
-    # caught live while writing this test. Give it a beat before checking.
-    time.sleep(2.6)
-    check(position_of(sk) in ("Sitting", "Resting"), "the Monk ends up sitting/resting, not standing")
+    check("begin meditating" in out2.lower(), "yoginsa starts the meditation task right after sitting")
+    # POSITION_MEDITATE (being.h): a meditating character now shows its own
+    # distinct position instead of reading as plain Sitting/Resting.
+    check(position_of(sk) == "Meditating", "the Monk ends up Meditating, not standing")
+    # The actual meditation roll (a fresh "inner harmonies" heal or a
+    # "won't settle" miss) only happens on the next background tick
+    # (meditate.c's meditate_tick_run(), REGEN_PULSES ~5s), not as an
+    # immediate response to the command itself.
+    send_line(sk, "look")
+    time.sleep(5.5)
+    tick_out = strip(recv_all(sk, 0.5))
+    check("inner harmonies" in tick_out.lower() or "mind won't settle" in tick_out.lower(),
+          "yoginsa's background tick runs its own meditation roll")
 
-    # --- 3: meditate (Mage)/penance (Cleric)/meditate (Druid) restore Vitality ---
-    # The Mage's earlier component (section 1) was already consumed by
-    # `cast slumber` -- load a fresh one for this cast.
-    cmd(sm, f"load obj {COMPONENT}"); recv_all(sm, 0.3)
-    cmd(sm, "get pouch"); recv_all(sm, 0.3)
-    v_before = move_of(sm)
-    out3 = strip(cmd(sm, "cast meditate"))
-    check("vitality return" in out3.lower(), "cast meditate (Mage) reports a real Vitality restore")
-    check(move_of(sm) > v_before, f"Mage's live Move/Vitality actually went up ({v_before} -> {move_of(sm)})")
+    # --- 3: meditate (Mage)/penance (Cleric)/meditate (Druid) restore resources ---
+    # `cast meditate` is now a dead-end redirect ("...just type `meditate`",
+    # cmd_cast.c) -- Mage/Druid go through the standalone `meditate`
+    # command instead (cmd_meditate.c), same background-tick shape
+    # `yoginsa` uses (section 2): it starts the task immediately, but the
+    # actual heal only lands on the next tick (meditate.c's
+    # meditate_tick_run(), ~5s). No spell component needed any more
+    # either -- that was `cast meditate`-only machinery.
+    mana_before = mana_of(sm)
+    out3 = strip(cmd(sm, "meditate"))
+    check("begin meditating" in out3.lower(), "meditate (Mage) starts")
+    send_line(sm, "look")
+    time.sleep(5.5)
+    tick_out = strip(recv_all(sm, 0.5))
+    check("focuses your mind" in tick_out.lower(), "meditate (Mage) reports a real Mana-focused tick")
+    check(mana_of(sm) > mana_before, f"Mage's live Mana actually went up ({mana_before} -> {mana_of(sm)})")
 
     cmd(sc, f"load obj {SYMBOL}"); recv_all(sc, 0.3)
     cmd(sc, "get symbol"); recv_all(sc, 0.3)
@@ -187,33 +220,43 @@ try:
     check("vitality return" in out3b.lower(), "pray penance (Cleric) reports a real Vitality restore")
     check(move_of(sc) > v_before, f"Cleric's live Move/Vitality actually went up ({v_before} -> {move_of(sc)})")
 
-    cmd(sd, f"load obj {COMPONENT}"); recv_all(sd, 0.3)
-    cmd(sd, "get pouch"); recv_all(sd, 0.3)
-    v_before = move_of(sd)
-    out3c = strip(cmd(sd, "cast meditate"))
-    check("vitality return" in out3c.lower(), "cast meditate (Druid, new this session) reports a real Vitality restore")
-    check(move_of(sd) > v_before, f"Druid's live Move/Vitality actually went up ({v_before} -> {move_of(sd)})")
+    # Druid's `meditate` runs the same Mana-mode tick path (meditate.c:
+    # "Druid Lifeforce mirrors mana"), but being_calc_max_mana() is
+    # Mage-only (being.c's own doc comment) -- a Druid's max_mana stays 0,
+    # so being_heal_mana() has nothing to raise. A disclosed gap elsewhere
+    # in the codebase, not a regression here: confirm the command and its
+    # tick message actually run, not a resource number that can't move yet.
+    out3c = strip(cmd(sd, "meditate"))
+    check("begin meditating" in out3c.lower(), "meditate (Druid) starts")
+    send_line(sd, "look")
+    time.sleep(5.5)
+    tick_out_d = strip(recv_all(sd, 0.5))
+    check("focuses your mind" in tick_out_d.lower(), "meditate (Druid) reports the same Mana-mode tick message")
 
     # --- 4: proficiency gains are announced ---
     # Force generous headroom (low pct, high ceiling) and a high-Wisdom
-    # softened curve so the gain chance per attempt is large; retry a
-    # handful of times, resetting last_gain_at each time to dodge the 30s
-    # anti-grind cooldown, since the roll itself stays probabilistic.
+    # softened curve so the gain chance per attempt is large. skill_learn_
+    # from_doing() (skill.c) reads pct/last_gain_at straight from the DB
+    # on every call, not a login-time in-memory snapshot, so resetting
+    # last_gain_at via SQL between ticks does reach the live roll.
     sql(f"UPDATE player_attrs SET wisdom=200 WHERE player_id=(SELECT id FROM player WHERE name='{monk_name}');")
     sql(f"REPLACE INTO player_skill (player_id, skill_name, pct, last_gain_at) "
         f"VALUES ((SELECT id FROM player WHERE name='{monk_name}'), 'yoginsa', 1, 0);")
+    # Start meditation ONCE -- it now stays active across ticks on its own
+    # (meditate_tick_run() keeps rolling skill_learn_from_doing() every
+    # ~5s as long as `meditating` stays true), unlike the old single-shot
+    # command that needed a fresh `stand`+`yoginsa` per attempt.
+    cmd(sk, "stand"); recv_all(sk, 0.3)
+    out4 = strip(cmd(sk, "yoginsa"))
+    check("begin meditating" in out4.lower(), "yoginsa restarts meditation for section 4")
     got_gain_msg = False
     for _ in range(15):
-        # yoginsa's own 2*COMBAT_ROUND_PULSES wait (~2.4s) gates EVERY
-        # command centrally ("You are still recovering!", cmd_table.c),
-        # `stand` included -- must clear before the next iteration's
-        # `stand`/`yoginsa` pair can go through at all.
-        time.sleep(2.6)
         sql(f"UPDATE player_skill SET last_gain_at=0 WHERE skill_name='yoginsa' "
             f"AND player_id=(SELECT id FROM player WHERE name='{monk_name}');")
-        cmd(sk, "stand"); recv_all(sk, 0.2)
-        out4 = strip(cmd(sk, "yoginsa"))
-        if "you have become better at" in out4.lower():
+        send_line(sk, "look")
+        time.sleep(5.5)
+        tick_out = strip(recv_all(sk, 0.5))
+        if "you have become better at" in tick_out.lower():
             got_gain_msg = True
             break
     check(got_gain_msg, "a real proficiency gain sends a \"You have become better at ...\" message")

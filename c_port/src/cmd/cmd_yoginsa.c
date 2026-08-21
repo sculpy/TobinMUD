@@ -45,6 +45,12 @@ bool cmd_yoginsa(descriptor_t *d, const char *args) {
 
     if (ch->meditating) {
         ch->meditating = false;
+        /* Restore to plain sitting -- POSITION_MEDITATE replaced whatever
+         * sitting/resting posture got them here (see the enum's own doc
+         * comment, being.h), and that distinction isn't tracked anywhere
+         * to restore exactly; sitting is the same baseline the auto-sit
+         * path below already falls back to for a standing caster. */
+        ch->position = POSITION_SITTING;
         descriptor_send(d, "You stop meditating.\r\n");
         return true;
     }
@@ -70,6 +76,7 @@ bool cmd_yoginsa(descriptor_t *d, const char *args) {
     }
 
     ch->meditating = true;
+    ch->position = POSITION_MEDITATE;
     descriptor_send(d, "You begin meditating.\r\n");
     return true;
 }

@@ -410,7 +410,21 @@ const char *limb_status_text(int pct);
  * standing/sitting/resting/sleeping rungs via sit/stand/rest/sleep/wake; the
  * lower rungs (dead/incap/...) and mounted/flying are reserved for future
  * use. "Fighting" is not stored -- it is derived from the `fighting` pointer
- * so combat never has to touch this field. */
+ * so combat never has to touch this field.
+ *
+ * POSITION_MEDITATE is APPENDED after POSITION_FLYING rather than slotted
+ * in next to SITTING/RESTING where it reads most naturally -- these raw
+ * ordinals are persisted (social.min_position, player.pos; see db/tobin/
+ * social.sql and the "pos"/"def_position" fixture fields countless smoke
+ * tests seed) so inserting mid-enum would silently renumber every position
+ * at or after the insertion point. Functionally harmless where it lands:
+ * every comparison against this enum elsewhere in the codebase is an
+ * explicit `== POSITION_X` / `!= POSITION_X` check (combat.c's non-
+ * standing bonus, regen_amount()'s position weighting, ...), never a
+ * "position < some threshold" range test, with the sole exception of
+ * mana_piety_regen_tick_run()'s `position <= POSITION_STUNNED` skip --
+ * and MEDITATE sits well above STUNNED wherever it's appended, so that
+ * still behaves correctly. */
 typedef enum {
     POSITION_DEAD,
     POSITION_MORTALLYW,
@@ -424,7 +438,8 @@ typedef enum {
     POSITION_CRAWLING,
     POSITION_STANDING,
     POSITION_MOUNTED,
-    POSITION_FLYING
+    POSITION_FLYING,
+    POSITION_MEDITATE
 } position_t;
 
 /* Display name ("Standing", "Sleeping", ...) for a position. */
@@ -957,7 +972,11 @@ typedef struct being {
      * same formula cmd_yoginsa.c's own single-shot version used.
      * Cleared -- with a message -- the moment the being stops resting/
      * sitting or starts fighting; also toggled off by typing the
-     * command again while already meditating. `cast meditate`/`pray
+     * command again while already meditating. Position becomes
+     * POSITION_MEDITATE for the duration (cmd_yoginsa.c/cmd_meditate.c/
+     * cmd_position.c's auto_start_meditating()); meditate_tick_run()
+     * itself now uses that position, not this flag, to detect an
+     * externally-forced break. `cast meditate`/`pray
      * penance` (Mage/Druid/Cleric) stay single-action, unaffected --
      * the user's request was scoped to yoginsa specifically. Live
      * in-memory only, same reconnect rule as `fighting`/`sneaking`. */

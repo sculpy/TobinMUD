@@ -43,6 +43,10 @@ bool cmd_meditate(descriptor_t *d, const char *args) {
 
     if (ch->meditating) {
         ch->meditating = false;
+        /* Restore to plain sitting -- see cmd_yoginsa.c's matching branch
+         * for why the original sit/rest posture isn't tracked to restore
+         * exactly. */
+        ch->position = POSITION_SITTING;
         descriptor_send(d, "You stop meditating.\r\n");
         return true;
     }
@@ -66,6 +70,7 @@ bool cmd_meditate(descriptor_t *d, const char *args) {
     }
 
     ch->meditating = true;
+    ch->position = POSITION_MEDITATE;
     descriptor_send(d, "You begin meditating.\r\n");
     return true;
 }
