@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-21 (4). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-21 (5). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -46,13 +46,6 @@ viewers keep plain names (`news`, `wiznews`).
 - **Client: launch/update notice.** Show a visible "updating..." status
   when the client is applying an update on launch, so players don't
   assume it failed to start.
-
-- **Pre-existing test bug found 2026-08-21** (unrelated to that session's
-  work, not yet fixed): `smoke_test_bleeding.py` fails at "a fresh (size-1)
-  blood pool reads as 'a puddle of blood'" -- a freshly-spawned blood pool's
-  room description doesn't read as expected. Room object pool-growth text,
-  obj.c's `obj_grow_pool()`/pool-size-tier naming -- separate code path from
-  the limb-bleeding tick/display fix that session shipped.
 
 ## Unimplemented skills/spells backlog (audited Session 158)
 
