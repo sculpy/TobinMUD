@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-21 (5). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-21 (6). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -39,13 +39,34 @@ viewers keep plain names (`news`, `wiznews`).
 - **Client: mapping support.** Enable GMCP/MXP so the server feeds clean
   room + coordinate data to a mapping interface; build that interface in
   the client; add a client-side toggle to enable/disable mapping; store
-  maps in a rereadable file so players can save them across sessions.
+  maps in a rereadable file so players can save them across sessions. Also
+  add a level-59+ (Administrator) server command to map the ENTIRE world
+  in one shot (not just explored rooms), for building a complete reference
+  map rather than the normal player graph-walk-as-you-go one. Scoping notes
+  (2026-08-21): world data already exists server-side -- `roomexit`
+  (vnum/direction/destination) is already loaded into `room_t.exits[]` in
+  memory; `room_t` has no in-memory x/y/z despite the `room` table having
+  those columns (unused -- Tobin's world isn't grid-mapped). GMCP
+  `Room.Info` (gmcp.c, tiny) currently sends only `{num,name}`, fired only
+  on `look`. Real scope: extend `Room.Info` with exits and fire it on
+  movement too; client builds a Mudlet-style graph-walked map (not
+  absolute-coordinate) from what it's told; the level-59+ command is a
+  separate bulk export path (likely its own GMCP push or a generated file)
+  since it needs the WHOLE `roomexit` table, not just what's been visited.
+  A real multi-day feature, not a quick fix.
 
-- **Client: enable cut/copy/paste** in the client.
+- **Client: enable cut/copy/paste** in the client. DONE 2026-08-21: the
+  input box already had this for free (native Win32 Edit control
+  behavior); added a menu-bar Edit menu (Cut/Copy/Paste/Select All) and a
+  right-click Copy/Select All menu on the read-only scrollback (RichEdit
+  has no built-in one). Shipped in client v0.4.32.
 
-- **Client: launch/update notice.** Show a visible "updating..." status
-  when the client is applying an update on launch, so players don't
-  assume it failed to start.
+- **Client: launch/update notice.** DONE 2026-08-21: the silent
+  auto-update path ran entirely before any window existed, so a real
+  update (MSI download + up to 60s waited-on msiexec install) looked
+  identical to the client failing to launch. Added a small always-on-top
+  "Updating TobinMUD Client..." splash shown for that whole window.
+  Shipped in client v0.4.32.
 
 ## Unimplemented skills/spells backlog (audited Session 158)
 
