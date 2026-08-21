@@ -4,9 +4,8 @@
  *******************************************************************/
 #ifndef TOBIN_GMCP_H
 #define TOBIN_GMCP_H
-
 #include <stddef.h>
-
+#include "room.h"
 /* GMCP (TobinMUD Client project, 2026-08-05) -- "Module.Name
  * {<json>}" text pushed inside an IAC SB GMCP ... IAC SE packet
  * (descriptor_send_subneg(), descriptor.h). v1 scope is OUTBOUND only:
@@ -24,7 +23,6 @@
  * if it didn't fit -- same "won't silently truncate JSON mid-token"
  * caution as anywhere else a fixed buffer meets untrusted-length
  * input, even though `name` here is always server-controlled). */
-
 /* "Char.Vitals {"hp":42,"maxhp":100,"vit":10,"maxvit":20,"mana":5,"maxmana":30}" -- Tobin
  * has no mana stat (confirmed against being.h's progress_t -- no
  * such field exists), so the second resource is Vitality (`vit`/
@@ -33,10 +31,14 @@
  * be lied to about. */
 size_t gmcp_build_char_vitals(char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit,
                                int mana, int maxmana, const char *manalabel);
-
-/* "Room.Info {"num":942900,"name":"A bare sandbox room."}" -- `name` is
- * JSON-string-escaped (quotes/backslashes/control bytes) since it's
- * DB-sourced room-name text, not a fixed literal like the keys above. */
-size_t gmcp_build_room_info(char *buf, size_t bufsz, int vnum, const char *name);
-
+/* "Room.Info {"num":942900,"name":"A bare sandbox room.","exits":{"north":942901}}" --
+ * `name` is JSON-string-escaped (quotes/backslashes/control bytes) since
+ * it's DB-sourced room-name text, not a fixed literal like the keys
+ * above. `exits`/`exit_cond` are a room_t's raw exits[]/exit_cond[]
+ * arrays (ROOM_NUM_EXITS entries, -1 destination = no exit); secret
+ * (undiscovered) exits are omitted from the payload, same convention
+ * `exits`/`look` already use (cmd_exits.c) -- a mapping client should
+ * only ever be told what a player could actually see. */
+size_t gmcp_build_room_info(char *buf, size_t bufsz, int vnum, const char *name,
+                             const int exits[ROOM_NUM_EXITS], const int exit_cond[ROOM_NUM_EXITS]);
 #endif

@@ -4,6 +4,7 @@
  *******************************************************************/
 #include "gmcp.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -48,11 +49,35 @@ size_t gmcp_build_char_vitals(char *buf, size_t bufsz, int hp, int maxhp, int vi
     return (size_t)n;
 }
 
-size_t gmcp_build_room_info(char *buf, size_t bufsz, int vnum, const char *name) {
+/* Appends the `"exits":{...}` object (open, non-secret exits only) and
+ * the closing `}` onto the "Room.Info {...\"exits\":{" prefix already
+ * written into buf[0..written). Returns the new total length, or 0 if
+ * it didn't fit. */
+static size_t append_exits(char *buf, size_t bufsz, size_t written,
+                            const int exits[ROOM_NUM_EXITS], const int exit_cond[ROOM_NUM_EXITS]) {
+    bool first = true;
+    for (int i = 0; i < ROOM_NUM_EXITS; i++) {
+        if (exits[i] < 0 || (exit_cond[i] & EXIT_COND_SECRET))
+            continue;
+        int n = snprintf(buf + written, bufsz - written, "%s\"%s\":%d",
+                          first ? "" : ",", DIR_NAMES[i], exits[i]);
+        if (n < 0 || written + (size_t)n >= bufsz)
+            return 0;
+        written += (size_t)n;
+        first = false;
+    }
+    int n = snprintf(buf + written, bufsz - written, "}}");
+    if (n < 0 || written + (size_t)n >= bufsz)
+        return 0;
+    return written + (size_t)n;
+}
+
+size_t gmcp_build_room_info(char *buf, size_t bufsz, int vnum, const char *name,
+                             const int exits[ROOM_NUM_EXITS], const int exit_cond[ROOM_NUM_EXITS]) {
     char escaped[192];
     json_escape(name, escaped, sizeof(escaped));
-    int n = snprintf(buf, bufsz, "Room.Info {\"num\":%d,\"name\":\"%s\"}", vnum, escaped);
+    int n = snprintf(buf, bufsz, "Room.Info {\"num\":%d,\"name\":\"%s\",\"exits\":{", vnum, escaped);
     if (n < 0 || (size_t)n >= bufsz)
         return 0;
-    return (size_t)n;
+    return append_exits(buf, bufsz, (size_t)n, exits, exit_cond);
 }

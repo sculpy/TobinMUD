@@ -158,6 +158,7 @@ sql(f"INSERT INTO mob (vnum,name,short_desc,long_desc,description,actions,affect
 # is. ---
 look_out = cmd(sw, "look")
 check('Room.Info {"num":' in look_out, "look pushes a real Room.Info GMCP message")
+check('"exits":{' in look_out, "Room.Info payload carries an exits object")
 
 check("You conjure" in cmd(s, f"load mob {MOB}"), "the training dummy is loaded")
 

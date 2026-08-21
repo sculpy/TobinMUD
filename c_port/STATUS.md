@@ -1,4 +1,10 @@
 # Tobin C Port — Status
+Last updated: 2026-08-21 — Session 165 (DO droplet, production port 4000):
+**Client mapping support (TODO item 3), server-side half.** GMCP `Room.Info` now carries an `exits` object (direction -> destination vnum) alongside `num`/`name`, sourced from room_t.exits[]/exit_cond[] already resident in memory. Fires on every real room display (look, movement, login all funnel through cmd_look.c's one choke point), so no separate movement hook was needed -- the TODO's "fire on movement too" scoping note turned out to already be covered by that existing architecture.
+  - Secret (undiscovered) exits omitted, matching cmd_exits.c's existing convention -- a mapping client only ever sees what a player could see.
+  - gmcp_build_room_info() signature grew two params (exits[], exit_cond[]); gbuf at the cmd_look.c call site bumped 256->512 to fit up to 10 exit pairs.
+  - Build clean; smoke_test_gmcp_msdp_msp.py extended (Room.Info payload carries an exits object) and all-green. wiznews.sql entry added (internal protocol change, not player-facing yet -- no client consumes it).
+  - Still open on this TODO item: the client itself building a Mudlet-style graph-walked map from this data (with save/load + a toggle), and the separate level-59+ full-world bulk-export admin command. Restarted cold (server-only; no players connected at restart time).
 
 Last updated: 2026-08-18 — Session 164 (DO droplet, production port 4000):
 **Session 158 backlog: the Monk "iron" family + two actives -- iron flesh
