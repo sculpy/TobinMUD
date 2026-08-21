@@ -200,6 +200,15 @@ bool cmd_score(descriptor_t *d, const char *args) {
         if (status)
             inj_n += snprintf(injuries + inj_n, sizeof(injuries) - (size_t)inj_n,
                               "  <Y>Your %s %s!<1>\r\n", limb_name((limb_t)i), status);
+        /* `bleeding` (combat.c) can't be inferred from `status` alone --
+         * surface it even on the rare limb that's bleeding but whose pct
+         * hasn't (or hasn't yet) crossed limb_status_text()'s own injury
+         * threshold, same TODO.md fix as cmd_limbs.c's unconditional
+         * readout ("I wince as my wounds bleed but nothing reports a
+         * bleeding limb"). */
+        if (ch->limbs[i].bleeding)
+            inj_n += snprintf(injuries + inj_n, sizeof(injuries) - (size_t)inj_n,
+                              "  <r>Your %s is bleeding!<1>\r\n", limb_name((limb_t)i));
     }
 
     if (inj_n > 0 && n < sizeof(out))

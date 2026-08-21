@@ -32,11 +32,16 @@ viewers keep plain names (`news`, `wiznews`).
   wear_flag. A keyword-driven data pass, with a balance eye (making a weapon
   two-handed frees/consumes the off-hand).
 
-- I wince as my wounds bleed but nothing reports a bleeding limb.
-
 - Rework MSP into a toggle so players can turn sound on/off.
 
 - Gametog and toggles should save over reboots.
+
+- **Pre-existing test bug found 2026-08-21** (unrelated to that session's
+  work, not yet fixed): `smoke_test_bleeding.py` fails at "a fresh (size-1)
+  blood pool reads as 'a puddle of blood'" -- a freshly-spawned blood pool's
+  room description doesn't read as expected. Room object pool-growth text,
+  obj.c's `obj_grow_pool()`/pool-size-tier naming -- separate code path from
+  the limb-bleeding tick/display fix that session shipped.
 
 - 
 ## Unimplemented skills/spells backlog (audited Session 158)

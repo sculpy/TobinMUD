@@ -37,9 +37,19 @@ bool cmd_limbs(descriptor_t *d, const char *args) {
         int pct = being_limb_pct(d->character, (limb_t)i);
         const char *word = health_word_for_pct(pct);
         const char *status = limb_status_text(pct);
-        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-13s %-11s (%3d%%)%s%s\r\n",
+        /* `bleeding` (combat.c) is a separate flag from raw HP -- a limb
+         * can sit at a merely "Wounded" percentage yet still be actively
+         * losing blood each tick (vitals.c's own "You wince..." message)
+         * until `bandage`d, so surface it here too (TODO.md, found live:
+         * "I wince as my wounds bleed but nothing reports a bleeding
+         * limb"). Appended after the injury phrase, not folded into it,
+         * so `status` (limb_status_text()) keeps matching combat's own
+         * wording verbatim wherever it's echoed. */
+        bool bleeding = d->character->limbs[i].bleeding;
+        n += snprintf(out + n, sizeof(out) - (size_t)n, "  %-13s %-11s (%3d%%)%s%s%s\r\n",
                       limb_name((limb_t)i), word, pct,
-                      status ? "  -- " : "", status ? status : "");
+                      status ? "  -- " : "", status ? status : "",
+                      bleeding ? "  <r>(bleeding)<1>" : "");
     }
 
     descriptor_send(d, out);

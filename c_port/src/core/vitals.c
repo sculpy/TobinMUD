@@ -5,6 +5,7 @@
 #include "vitals.h"
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "affect.h"
@@ -218,7 +219,28 @@ static void vitals_tick_impl(long pulse_num, bool affect_players) {
             b->progress.hp -= dmg;
             if (b->progress.hp < 1)
                 b->progress.hp = 1;
-            descriptor_send(d, "You wince as your wounds bleed.\r\n");
+            /* Name the actual limb(s) (TODO.md, found live: "I wince as
+             * my wounds bleed but nothing reports a bleeding limb") --
+             * the generic message gave no way to tell WHICH limb needed
+             * `bandage` without also checking `limbs`/`score` separately.
+             * `limbs`/score's own Limbs section (cmd_limbs.c/cmd_score.c)
+             * get the matching "(bleeding)" marker below so the two
+             * views agree on which limbs are actively losing blood. */
+            char limb_list[192];
+            int ln = 0;
+            int named = 0;
+            for (int i = 0; i < LIMB_COUNT; i++) {
+                if (!b->limbs[i].bleeding)
+                    continue;
+                named++;
+                const char *sep = (ln == 0) ? "" : (named == bleeding_limbs ? " and " : ", ");
+                ln += snprintf(limb_list + ln, sizeof(limb_list) - (size_t)ln, "%s%s",
+                                sep, limb_name((limb_t)i));
+            }
+            char msg[256];
+            snprintf(msg, sizeof(msg), "You wince as your %s %s.\r\n", limb_list,
+                     bleeding_limbs == 1 ? "bleeds" : "bleed");
+            descriptor_send(d, msg);
         }
 
         player_progress_save(b->player_id, &b->progress);
