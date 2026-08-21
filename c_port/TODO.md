@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-21 (3). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-21 (4). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -24,12 +24,17 @@ viewers keep plain names (`news`, `wiznews`).
   `sneezymud-master/db/update-seed-data.sh` if a current-world
   from-scratch build is ever wanted. Purely optional, no rush.
 
-- **Seed WEAR_PAIRED onto in-world items** (mechanic DONE 2026-08-18, see
-  smoke_test_wear_paired.py): no seeded weapon/armor carries the flag yet, so
-  players won't meet a two-handed weapon until greatswords/mauls/halberds/
-  claymores/etc. (and any both-limb armor) get bit 9 (512) set on their
-  wear_flag. A keyword-driven data pass, with a balance eye (making a weapon
-  two-handed frees/consumes the off-hand).
+- **Seed WEAR_PAIRED onto in-world armor** (mechanic DONE 2026-08-18, see
+  smoke_test_wear_paired.py; two-handed WEAPONS seeded 2026-08-21 -- 55 real
+  vnums bit-512'd via a keyword pass: battle axes/claymores/flamberges/
+  greatswords/greataxes/halberds/mauls/pikes/two-handed swords & spears/
+  warhammers/zweihander/naginata/quarterstaffs/scythes/longbows; live-
+  verified with a real seeded vnum + smoke_test_wear_paired.py). Still open:
+  both-limb ARMOR (leggings/gauntlets/boots/vambraces/etc.) -- deliberately
+  NOT swept this round: unlike weapons (bounded list, unambiguous by type),
+  armor spans a much larger and fuzzier set (thousands of leg/hand/foot/arm
+  rows) where "should this one be paired" is a real per-item balance call,
+  not a keyword match. Needs its own scoped pass.
 
 - **Client: mapping support.** Enable GMCP/MXP so the server feeds clean
   room + coordinate data to a mapping interface; build that interface in

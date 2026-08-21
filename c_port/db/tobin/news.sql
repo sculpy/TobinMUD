@@ -636,3 +636,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Sound Now Has a Switch', 'Combat sound and music effects can now be turned off. Type TOGGLE to find the new sound option and silence effects at will.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Two-Handed Weapons Take Both Hands', 'Great weapons -- greatswords, greataxes, mauls, halberds, warhammers, claymores, pikes, quarterstaffs, scythes, and longbows among them -- now truly require both hands to wield. Wielding one frees no hand for a shield or second weapon; drop it and both hands come free again.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
