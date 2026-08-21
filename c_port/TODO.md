@@ -36,20 +36,24 @@ viewers keep plain names (`news`, `wiznews`).
   rows) where "should this one be paired" is a real per-item balance call,
   not a keyword match. Needs its own scoped pass.
 
-- **Client: mapping support.** Server side DONE 2026-08-21 (STATUS.md
-  Session 165): `Room.Info` GMCP now sends `{num,name,exits}` (exits keyed
-  by direction -> destination vnum, secret exits omitted); fires on every
-  real room display already (look/movement/login all funnel through
-  cmd_look.c), so no separate movement hook was needed. Still open:
-  **build the client-side interface** -- a Mudlet-style graph-walked map
-  (not absolute-coordinate, since `room_t` has no in-memory x/y/z) drawn
-  from the exits data as a player moves; a client-side toggle to
-  enable/disable mapping; store the map in a rereadable file so it
-  persists across sessions. Also still open: a level-59+ (Administrator)
-  server command to map the ENTIRE world in one shot (not just explored
-  rooms) -- a separate bulk export path (likely its own GMCP push or a
-  generated file) since it needs the WHOLE `roomexit` table, not just
-  what's been visited, and isn't scoped yet.
+- **Client: mapping support.** Server side + client data layer DONE
+  2026-08-21 (STATUS.md Sessions 165/166). Server: `Room.Info` GMCP sends
+  `{num,name,exits}` (exits keyed by direction -> destination vnum, secret
+  exits omitted), fires on every real room display already (look/movement/
+  login all funnel through cmd_look.c). Client: learns a graph-walked map
+  (not absolute-coordinate) from Room.Info as a player moves, keyed by
+  vnum; Map > Enable Mapping toggle (prefs.ini-persisted, default on);
+  saved to `map.dat` (exe_dir) after every learned/changed room, so it
+  survives across sessions; Map > View Map... browses everything learned
+  so far (read-only, sorted by vnum, with a Refresh button) -- see
+  client/README.md's new "Mapping" section. Deliberately NOT a graphical
+  graph-drawing view (real GDI drawing work) -- a possible future
+  follow-up if wanted, not built this round. Still open: a level-59+
+  (Administrator) server command to map the ENTIRE world in one shot (not
+  just explored rooms) -- a separate bulk export path (likely its own
+  GMCP push or a generated file, feeding the same `map.dat` format) since
+  it needs the WHOLE `roomexit` table, not just what's been visited, and
+  isn't scoped yet.
 
 - **Client: enable cut/copy/paste** in the client. DONE 2026-08-21: the
   input box already had this for free (native Win32 Edit control

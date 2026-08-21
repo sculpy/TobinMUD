@@ -144,13 +144,44 @@ since it runs as a normal user with no UAC prompt. Adds a Start Menu
 shortcut. Uninstall via the normal Windows "Apps & features" list, or
 `msiexec /x TobinMUDClient.msi`.
 
+## Mapping
+
+Map > Enable Mapping (on by default, persisted in prefs.ini) learns
+the graph-walked shape of the world as you move -- NOT an absolute-
+coordinate map (the server's rooms have no in-memory x/y/z), a Mudlet-
+style "room X has an exit to room Y in direction D" graph instead,
+built from GMCP `Room.Info`'s `exits` object (server-side, gmcp.c).
+Saved to `map.dat`, next to the exe, after every newly-learned or
+-changed room, so it survives across sessions; toggling mapping off
+just stops learning new rooms, it doesn't discard what's already
+saved. Map > View Map... opens a read-only, sorted-by-vnum text
+browser over everything learned so far, with a Refresh button (new
+rooms can still arrive via GMCP while the window is open). A real
+graphical graph-drawing view is a possible future follow-up, not
+built here -- see TODO.md.
+
+A separate, not-yet-built level-59+ (Administrator) server command to
+export the ENTIRE world in one shot (not just explored rooms) would
+feed the same `map.dat` format for a complete reference map -- still
+open, see TODO.md.
+
 ## Testing
 
 The GUI can't be click-tested from the Linux droplet -- build it here,
 then run/verify on a real Windows machine: connects to
 `tobinmud.com:4000` automatically on launch, colored text should
 render, and the window title should update with HP/Vitality after
-taking a hit in combat (proves the GMCP pipe end-to-end).
+taking a hit in combat (proves the GMCP pipe end-to-end); walking
+around should populate Map > View Map... with real rooms/exits.
+
+The portable core layer (`src/core/*.c`, no Win32 calls) has real
+proof harnesses under `tests/` that link and exercise the actual
+production code directly (unlike `trigger_prompt_test.c`/
+`trigger_alias_fire_test.c`, which transcribe logic out of `main.c`
+since that logic has Win32 dependencies): run with
+```sh
+gcc -Wall -Wextra -o /tmp/t tests/gmcp_json_map_test.c src/core/gmcp_json.c src/core/map_model.c -Iinclude && /tmp/t
+```
 
 ## Auto-update
 

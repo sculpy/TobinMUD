@@ -63,6 +63,7 @@
 #include <wininet.h>
 #include <commdlg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <wchar.h>
@@ -70,6 +71,7 @@
 #include "telnet_client.h"
 #include "ansi_client.h"
 #include "gmcp_json.h"
+#include "map_model.h"
 #include "resource.h"
 
 #define DEFAULT_HOST "tobinmud.com"
@@ -100,6 +102,8 @@
 #define ID_MENU_EDIT_COPY 213
 #define ID_MENU_EDIT_PASTE 214
 #define ID_MENU_EDIT_SELECTALL 215
+#define ID_MENU_MAP_ENABLE 216
+#define ID_MENU_MAP_VIEW 217
 
 #define ID_PREFS_FONTSIZE_EDIT 301
 #define ID_PREFS_WIDTH_EDIT 302
@@ -135,6 +139,10 @@
 #define ID_ALIASEDIT_DELETE 706
 #define ID_ALIASEDIT_SAVE 707
 #define ID_ALIASEDIT_CANCEL 708
+
+#define ID_MAPVIEW_TEXT 801
+#define ID_MAPVIEW_REFRESH 802
+#define ID_MAPVIEW_CLOSE 803
 
 /* Sensible defaults + clamps for the two preferences -- guards against
  * a hand-edited/corrupt prefs.ini producing an unusable (zero-size or
@@ -239,6 +247,19 @@ typedef struct {
      * carries mana (see gmcp.c's server-side change, same date). */
     HWND hwnd_gauge_label_hp, hwnd_gauge_label_mana, hwnd_gauge_label_move;
     HWND hwnd_gauge_bar_hp, hwnd_gauge_bar_mana, hwnd_gauge_bar_move;
+    /* Client mapping support (TODO.md, server-side half landed
+     * 2026-08-21 -- Room.Info GMCP now carries exits): a graph-walked
+     * map, NOT absolute-coordinate (Tobin's room_t has no in-memory
+     * x/y/z), built incrementally as Room.Info pushes arrive. Persisted
+     * to map.dat (exe_dir) so it survives across sessions; mapping_enabled
+     * is a prefs.ini-persisted toggle (File > Enable Mapping) -- off
+     * just stops new rooms from being learned, existing data is kept
+     * either way. hwnd_mapview is non-NULL while the read-only map
+     * browser window (View Map...) is open. */
+    map_model_t map;
+    bool mapping_enabled;
+    char map_path[MAX_PATH + 16];
+    HWND hwnd_mapview;
     /* Simple triggers -- loaded from triggers.txt (exe_dir) at startup
      * and via File > Reload Triggers. pending_line_text/len accumulate
      * the PLAIN (color-stripped) text of whatever line is currently
@@ -1000,10 +1021,37 @@ static void telnet_on_gmcp(void *ctx, const char *package, const char *json) {
         set_gauge(g_app.hwnd_gauge_label_move, g_app.hwnd_gauge_bar_move, "Move", vit, maxvit);
     } else if (strcmp(package, "Room.Info") == 0) {
         char name[128];
-        if (gmcp_json_get_string(json, "name", name, sizeof(name))) {
+        bool have_name = gmcp_json_get_string(json, "name", name, sizeof(name));
+        if (have_name) {
             wchar_t wname[128];
             MultiByteToWideChar(CP_UTF8, 0, name, -1, wname, 128);
             set_status_title(wname);
+        }
+        /* Client mapping support: learn this room's vnum/name/exits
+         * into the graph-walked map, then persist it right away --
+         * rooms are visited at human reaction-time scale, so
+         * save-on-every-update is cheap and means a crash/force-quit
+         * never loses what was already learned (no separate dirty-flag
+         * or periodic-save machinery needed). No-op entirely when
+         * mapping is toggled off (File > Enable Mapping). */
+        int vnum;
+        if (g_app.mapping_enabled && have_name && gmcp_json_get_int(json, "num", &vnum)) {
+            char exits_obj[256];
+            int exits[MAP_NUM_EXITS];
+            for (int i = 0; i < MAP_NUM_EXITS; i++)
+                exits[i] = -1;
+            if (gmcp_json_get_object(json, "exits", exits_obj, sizeof(exits_obj))) {
+                const char *cur = exits_obj;
+                char dir[16];
+                int dest;
+                while (gmcp_json_object_iter_next(&cur, dir, sizeof(dir), &dest)) {
+                    int di = map_dir_index(dir);
+                    if (di >= 0)
+                        exits[di] = dest;
+                }
+            }
+            if (map_model_upsert(&g_app.map, vnum, name, exits))
+                map_model_save(&g_app.map, g_app.map_path);
         }
     }
 }
@@ -1316,6 +1364,7 @@ static void load_prefs(void) {
     if (g_app.win_h < PREFS_MIN_WIN_H) g_app.win_h = PREFS_MIN_WIN_H;
 
     g_app.fullscreen = GetPrivateProfileIntA("Prefs", "Fullscreen", 0, path) != 0;
+    g_app.mapping_enabled = GetPrivateProfileIntA("Prefs", "MappingEnabled", 1, path) != 0;
 }
 
 static void save_prefs(void) {
@@ -1331,6 +1380,7 @@ static void save_prefs(void) {
     snprintf(buf, sizeof(buf), "%d", g_app.win_h);
     WritePrivateProfileStringA("Prefs", "WindowHeight", buf, path);
     WritePrivateProfileStringA("Prefs", "Fullscreen", g_app.fullscreen ? "1" : "0", path);
+    WritePrivateProfileStringA("Prefs", "MappingEnabled", g_app.mapping_enabled ? "1" : "0", path);
 }
 
 /* (Re)builds g_app.font from g_app.font_pt and applies it to the input
@@ -2158,6 +2208,179 @@ static void open_alias_editor(HWND parent) {
     SetFocus(e1);
 }
 
+static int cmp_room_vnum(const void *a, const void *b) {
+    return ((const map_room_t *)a)->vnum - ((const map_room_t *)b)->vnum;
+}
+/* Formats the whole learned map as plain text, one room per line
+ * ("VNUM  Name" followed by an indented "dir->vnum" exit list),
+ * sorted by vnum for stable, predictable browsing -- not a graphical
+ * graph render (that's real GDI drawing work, scoped out of this
+ * pass; see TODO.md), but a genuinely useful, working "mapping
+ * interface": every learned room and exit, at a glance, searchable
+ * by eye or by Ctrl+F once selected/copied elsewhere. Caller frees
+ * the returned buffer. Returns NULL on allocation failure. */
+static wchar_t *build_map_text(void) {
+    int count = g_app.map.count;
+    map_room_t *sorted = NULL;
+    if (count > 0) {
+        sorted = (map_room_t *)malloc(sizeof(map_room_t) * (size_t)count);
+        if (!sorted)
+            return NULL;
+        memcpy(sorted, g_app.map.rooms, sizeof(map_room_t) * (size_t)count);
+        qsort(sorted, (size_t)count, sizeof(map_room_t), cmp_room_vnum);
+    }
+    size_t cap = 4096, len = 0;
+    char *buf = (char *)malloc(cap);
+    if (!buf) {
+        free(sorted);
+        return NULL;
+    }
+    buf[0] = '\0';
+    if (count == 0) {
+        const char *msg = "No rooms learned yet -- walk around with mapping enabled\r\n"
+                           "(Map > Enable Mapping) to populate this.\r\n";
+        size_t n = strlen(msg);
+        memcpy(buf, msg, n + 1);
+        len = n;
+    }
+    char line[600];
+    for (int i = 0; i < count; i++) {
+        const map_room_t *r = &sorted[i];
+        int n = snprintf(line, sizeof(line), "%-8d %s\r\n", r->vnum, r->name);
+        bool any_exit = false;
+        for (int d = 0; d < MAP_NUM_EXITS && n > 0 && (size_t)n < sizeof(line); d++) {
+            if (r->exits[d] < 0)
+                continue;
+            int a = snprintf(line + n, sizeof(line) - (size_t)n, "%s  %s -> %d\r\n",
+                              any_exit ? "" : "        ", MAP_DIR_NAMES[d], r->exits[d]);
+            if (a > 0)
+                n += a;
+            any_exit = true;
+        }
+        if (n < 0)
+            continue;
+        size_t ulen = (size_t)n;
+        if (len + ulen + 1 > cap) {
+            while (len + ulen + 1 > cap)
+                cap *= 2;
+            char *grown = (char *)realloc(buf, cap);
+            if (!grown) {
+                free(buf);
+                free(sorted);
+                return NULL;
+            }
+            buf = grown;
+        }
+        memcpy(buf + len, line, ulen);
+        len += ulen;
+        buf[len] = '\0';
+    }
+    free(sorted);
+    int wlen = MultiByteToWideChar(CP_UTF8, 0, buf, -1, NULL, 0);
+    wchar_t *wbuf = (wchar_t *)malloc((size_t)wlen * sizeof(wchar_t));
+    if (wbuf)
+        MultiByteToWideChar(CP_UTF8, 0, buf, -1, wbuf, wlen);
+    free(buf);
+    return wbuf;
+}
+static HFONT s_mapview_font = NULL; /* owns the Consolas font created below; only one map-view window exists at a time */
+static LRESULT CALLBACK MapViewWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+    case WM_SIZE: {
+        int w = LOWORD(lp), h = HIWORD(lp);
+        HWND text = GetDlgItem(hwnd, ID_MAPVIEW_TEXT);
+        MoveWindow(text, 8, 8, w - 16, h - 48, TRUE);
+        MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_REFRESH), 8, h - 34, 90, 26, TRUE);
+        MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_CLOSE), w - 98, h - 34, 90, 26, TRUE);
+        return 0;
+    }
+    case WM_COMMAND: {
+        switch (LOWORD(wp)) {
+        case ID_MAPVIEW_REFRESH: {
+            wchar_t *text = build_map_text();
+            if (text) {
+                SetWindowTextW(GetDlgItem(hwnd, ID_MAPVIEW_TEXT), text);
+                free(text);
+            }
+            return 0;
+        }
+        case ID_MAPVIEW_CLOSE:
+            EnableWindow(GetParent(g_app.hwnd_output), TRUE);
+            DestroyWindow(hwnd);
+            SetFocus(g_app.hwnd_input);
+            return 0;
+        }
+        break;
+    }
+    case WM_CLOSE:
+        EnableWindow(GetParent(g_app.hwnd_output), TRUE);
+        DestroyWindow(hwnd);
+        SetFocus(g_app.hwnd_input);
+        return 0;
+    case WM_DESTROY:
+        g_app.hwnd_mapview = NULL;
+        if (s_mapview_font) {
+            DeleteObject(s_mapview_font);
+            s_mapview_font = NULL;
+        }
+        return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+static void open_map_view(HWND parent) {
+    if (g_app.hwnd_mapview) {
+        wchar_t *text = build_map_text();
+        if (text) {
+            SetWindowTextW(GetDlgItem(g_app.hwnd_mapview, ID_MAPVIEW_TEXT), text);
+            free(text);
+        }
+        SetForegroundWindow(g_app.hwnd_mapview);
+        return;
+    }
+    static bool cls_registered = false;
+    if (!cls_registered) {
+        WNDCLASSW wc = { 0 };
+        wc.lpfnWndProc = MapViewWndProc;
+        wc.hInstance = GetModuleHandleW(NULL);
+        wc.lpszClassName = L"TobinMUDMapViewWindow";
+        wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+        wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
+        RegisterClassW(&wc);
+        cls_registered = true;
+    }
+    const int win_w = 640, win_h = 480;
+    RECT pr;
+    GetWindowRect(parent, &pr);
+    int x = pr.left + ((pr.right - pr.left) - win_w) / 2;
+    int y = pr.top + ((pr.bottom - pr.top) - win_h) / 2;
+    HWND hwnd = CreateWindowExW(WS_EX_DLGMODALFRAME, L"TobinMUDMapViewWindow", L"Map",
+        WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME, x, y, win_w, win_h, parent, NULL,
+        GetModuleHandleW(NULL), NULL);
+    g_app.hwnd_mapview = hwnd;
+    s_mapview_font = CreateFontW(-14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        FIXED_PITCH | FF_MODERN, L"Consolas");
+    HWND text = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
+        WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
+        8, 8, win_w - 16, win_h - 48, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_TEXT, NULL, NULL);
+    SendMessageW(text, WM_SETFONT, (WPARAM)s_mapview_font, TRUE);
+    HFONT dlgfont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+    HWND refresh = CreateWindowW(L"BUTTON", L"Refresh", WS_CHILD | WS_VISIBLE,
+        8, win_h - 34, 90, 26, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_REFRESH, NULL, NULL);
+    HWND close = CreateWindowW(L"BUTTON", L"Close", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+        win_w - 98, win_h - 34, 90, 26, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_CLOSE, NULL, NULL);
+    SendMessageW(refresh, WM_SETFONT, (WPARAM)dlgfont, TRUE);
+    SendMessageW(close, WM_SETFONT, (WPARAM)dlgfont, TRUE);
+    wchar_t *initial = build_map_text();
+    if (initial) {
+        SetWindowTextW(text, initial);
+        free(initial);
+    }
+    EnableWindow(parent, FALSE);
+    ShowWindow(hwnd, SW_SHOW);
+    SetFocus(close);
+}
+
 static HMENU build_menu(void) {
     HMENU hMenuBar = CreateMenu();
 
@@ -2194,6 +2417,17 @@ static HMENU build_menu(void) {
     AppendMenuW(hEdit, MF_SEPARATOR, 0, NULL);
     AppendMenuW(hEdit, MF_STRING, ID_MENU_EDIT_SELECTALL, L"Select &All\tCtrl+A");
     AppendMenuW(hMenuBar, MF_POPUP, (UINT_PTR)hEdit, L"&Edit");
+    /* Map menu (client TODO "mapping support", server-side half landed
+     * 2026-08-21): Enable Mapping is a checkable toggle mirroring the
+     * prefs.ini-persisted g_app.mapping_enabled (rebuilt fresh here
+     * each time the menu is built, so it never drifts from the real
+     * state); View Map... opens a read-only browser over whatever the
+     * client has learned so far (map_model_t, fed by Room.Info GMCP). */
+    HMENU hMap = CreatePopupMenu();
+    AppendMenuW(hMap, MF_STRING | (g_app.mapping_enabled ? MF_CHECKED : MF_UNCHECKED),
+                ID_MENU_MAP_ENABLE, L"&Enable Mapping");
+    AppendMenuW(hMap, MF_STRING, ID_MENU_MAP_VIEW, L"&View Map...");
+    AppendMenuW(hMenuBar, MF_POPUP, (UINT_PTR)hMap, L"&Map");
 
     HMENU hHelp = CreatePopupMenu();
     AppendMenuW(hHelp, MF_STRING, ID_MENU_HELP_CHECK_UPDATE, L"Check for &Updates...");
@@ -2417,6 +2651,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             return 0;
         case ID_MENU_HELP_CHECK_UPDATE:
             check_for_updates_interactive(hwnd);
+            return 0;
+        case ID_MENU_MAP_ENABLE:
+            g_app.mapping_enabled = !g_app.mapping_enabled;
+            save_prefs();
+            SetMenu(hwnd, build_menu()); /* rebuild so the checkmark reflects the new state */
+            return 0;
+        case ID_MENU_MAP_VIEW:
+            open_map_view(hwnd);
             return 0;
         /* Edit menu -- acts on whichever of hwnd_input/hwnd_output
          * currently has keyboard focus. Sending WM_CUT/WM_PASTE to the
@@ -2801,6 +3043,9 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR cmdline, int show) {
     load_prefs();
     load_triggers();
     load_aliases();
+    map_model_init(&g_app.map);
+    snprintf(g_app.map_path, sizeof(g_app.map_path), "%smap.dat", g_app.exe_dir);
+    map_model_load(&g_app.map, g_app.map_path);
 
     bool updated = check_and_apply_update();
     debug_log(updated ? "WinMain: check_and_apply_update returned TRUE, exiting" :

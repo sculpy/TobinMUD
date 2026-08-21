@@ -17,6 +17,7 @@ add_library(tobinclient_core STATIC
     src/core/telnet_client.c
     src/core/ansi_client.c
     src/core/gmcp_json.c
+    src/core/map_model.c
 )
 target_include_directories(tobinclient_core PUBLIC include)
 

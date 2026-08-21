@@ -113,6 +113,7 @@ Thumbs.db
 
 # TobinMUD Client build artifacts (client/README.md documents the build)
 client/build-win64/
+client/build-native/
 *.msi
 
 # Generated help-search data for the website (regenerated on a cron from
