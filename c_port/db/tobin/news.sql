@@ -655,3 +655,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Ranged Weapons Reward Practice Now', 'Ranged proficiency, every class, and ranged specialization, Warriors only, now actually do something: both grow the more you shoot and fold straight into your shot damage. No command needed -- just keep firing.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Finest Armor Covers You Whole', 'The rarest leg, foot, hand, and arm armor in the world -- Rare and Legendary tier -- now covers both limbs from a single piece, the same convenience the finest two-handed weapons already had. Everyday gear still comes one piece per limb.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
