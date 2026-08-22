@@ -58,10 +58,12 @@ bool cmd_edrules(descriptor_t *d, const char *args) {
 
     int num = 0;
     if (sscanf(args, "%d", &num) != 1 || num <= 0) {
-        descriptor_send(d,
-            "Usage: edit rules <number> <title>\r\n"
+        { char __b[160]; snprintf(__b, sizeof(__b),
+            "Usage: %s <number> <title>\r\n"
             "Then type the rule text; /s saves, /a aborts, /b blanks, "
-            "/f reflows to width.\r\n");
+            "/f reflows to width.\r\n",
+            edit_verb_label(d, "ruleedit", "edit rules"));
+          descriptor_send(d, __b); }
         return true;
     }
 

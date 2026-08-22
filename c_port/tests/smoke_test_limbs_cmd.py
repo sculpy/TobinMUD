@@ -128,7 +128,7 @@ check("LimbCmd Sandbox" in cmd(sv, "look"), "the victim lands directly in the sa
 # sub-tick-precision timing; 2+ ticks (would need several seconds of
 # delay between the two commands) still fails, since that would indicate
 # something actually wrong rather than ordinary scheduling jitter.
-out = cmd(s, f"hurtlimb {victim_name} rightleg 2")
+out = cmd(s, f"crit {victim_name} rightleg 2")
 check("Limb HP set" in out, "hurtlimb confirms (not a decapitation)")
 
 out = cmd(sv, "limbs")

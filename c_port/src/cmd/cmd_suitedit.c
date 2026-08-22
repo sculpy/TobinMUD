@@ -34,7 +34,7 @@
  * creation verb (replaces the old "unmatched name auto-creates"
  * behavior, which doesn't make sense once the primary argument is a
  * number instead of a name). */
-bool cmd_edsuit(descriptor_t *d, const char *args) {
+bool cmd_suitedit(descriptor_t *d, const char *args) {
     while (*args == ' ')
         args++;
 
@@ -42,7 +42,7 @@ bool cmd_edsuit(descriptor_t *d, const char *args) {
         suit_summary_t suits[32];
         int n = suit_repo_list_all(suits, 32);
         if (n == 0) {
-            descriptor_send(d, "No suits defined yet. Usage: edit suit new <name>\r\n");
+            { char __b[80]; snprintf(__b, sizeof(__b), "No suits defined yet. Usage: %s new <name>\r\n", edit_verb_label(d, "suitedit", "edit suit")); descriptor_send(d, __b); }
             return true;
         }
         char out[2048];
@@ -57,7 +57,8 @@ bool cmd_edsuit(descriptor_t *d, const char *args) {
         }
         if (len < sizeof(out))
             snprintf(out + len, sizeof(out) - len,
-                "\r\nUsage: edit suit <id>\r\n       edit suit new <name>\r\n");
+                "\r\nUsage: %s <id>\r\n       %s new <name>\r\n",
+                edit_verb_label(d, "suitedit", "edit suit"), edit_verb_label(d, "suitedit", "edit suit"));
         descriptor_page_start(d, out, 0);
         return true;
     }
@@ -67,7 +68,7 @@ bool cmd_edsuit(descriptor_t *d, const char *args) {
 
     if (strcasecmp(tok, "new") == 0) {
         if (got < 2) {
-            descriptor_send(d, "Usage: edit suit new <name>\r\n");
+            { char __b[64]; snprintf(__b, sizeof(__b), "Usage: %s new <name>\r\n", edit_verb_label(d, "suitedit", "edit suit")); descriptor_send(d, __b); }
             return true;
         }
         int suit_id = suit_repo_create(rest);

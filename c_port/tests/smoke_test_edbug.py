@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke test for `edbug <id> [note]` (TODO.md-planned): resolve a filed
+"""Smoke test for `bugedit <id> [note]` (renamed from `edbug`, TODO.md-planned): resolve a filed
 bug report in place instead of only being able to `delbug` (delete) it,
 so the submitter can be told it was fixed.
 
@@ -77,7 +77,7 @@ make_char(si, imm_name, imm_pw)
 set_level(imm_name, 51)
 si.close()
 si = login(imm_name, imm_pw)
-check("Command not found" in cmd(si, "edbug 1 fixed it"), "edbug is hidden below level 59")
+check("Command not found" in cmd(si, "bugedit 1 fixed it"), "edbug is hidden below level 59")
 
 # --- promote to 59 and find the bug's real id ---
 set_level(imm_name, 59)
@@ -93,7 +93,7 @@ for line in out.splitlines():
 check(bug_id is not None, "the filed bug is found in the outstanding list")
 
 note = "Fixed in the next patch, thanks!"
-out = cmd(si, f"edbug {bug_id} {note}")
+out = cmd(si, f"bugedit {bug_id} {note}")
 check("marked resolved" in out, "edbug confirms the bug is resolved")
 
 # --- the still-online reporter gets a live notice ---
@@ -106,7 +106,7 @@ out = cmd(si, "bug")
 check(reporter_text not in out, "the resolved bug no longer appears in the outstanding bug list")
 
 # --- edbug-ing it again is refused ---
-out = cmd(si, f"edbug {bug_id} again")
+out = cmd(si, f"bugedit {bug_id} again")
 check("already resolved" in out.lower(), "edbug refuses an already-resolved bug id")
 
 # --- the row still exists (not deleted) -- delbug can still remove it ---

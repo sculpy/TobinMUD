@@ -411,9 +411,9 @@ sql(f"UPDATE player_progress SET hunger=1000, thirst=1000, hp=400 WHERE player_i
     f"(SELECT id FROM player WHERE name='{sn2_name}');")
 ssn2 = relog(sn2_name, sn2_pw)  # no snofalte at all
 
-out = strip(cmd(si, f"hurtlimb {sn_name} rightarm 1", timeout=1.5))
+out = strip(cmd(si, f"crit {sn_name} rightarm 1", timeout=1.5))
 check("Limb HP set" in out, "hurtlimb set the limb HP for the snofalte check")
-out = strip(cmd(si, f"hurtlimb {sn2_name} rightarm 1", timeout=1.5))
+out = strip(cmd(si, f"crit {sn2_name} rightarm 1", timeout=1.5))
 check("Limb HP set" in out, "hurtlimb set the limb HP for the baseline check")
 
 hp_before = hp_of(sn_name)

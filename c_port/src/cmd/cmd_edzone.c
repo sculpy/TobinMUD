@@ -24,7 +24,7 @@ bool cmd_edzone(descriptor_t *d, const char *args) {
         return true;
     }
     if (!*args || !isdigit((unsigned char)args[0])) {
-        descriptor_send(d, "Usage: edit zone <zone number>\r\n");
+        { char __b[64]; snprintf(__b, sizeof(__b), "Usage: %s <zone number>\r\n", edit_verb_label(d, "zedit", "edit zone")); descriptor_send(d, __b); }
         return true;
     }
     int zone_nr = atoi(args);

@@ -13,7 +13,7 @@
 
 /* Matches `name` against limb_name(), ignoring spaces/case in both, so an
  * immortal can type "leftarm" for "left arm" without quoting. Immortal-only
- * debug tool, see cmd_hurtlimb(). */
+ * debug tool, see cmd_crit(). */
 static limb_t limb_from_name(const char *name) {
     char norm[32];
     int j = 0;
@@ -36,13 +36,13 @@ static limb_t limb_from_name(const char *name) {
     return (limb_t)-1;
 }
 
-/* Immortal-only debug/testing tool (Session 42): `hurtlimb <target> <limb>
+/* Immortal-only debug/testing tool (Session 42): `crit <target> <limb>
  * <hp>` sets a limb's HP directly, so the sever/decapitate system (see
  * combat_debug_set_limb_hp() in combat.c) can be exercised deterministically
  * instead of waiting on combat RNG to land on a specific limb. Not a normal
  * gameplay command -- no analogue in the original (Sneezy has no equivalent
  * either; QA there relies on the real RNG at scale). */
-bool cmd_hurtlimb(descriptor_t *d, const char *args) {
+bool cmd_crit(descriptor_t *d, const char *args) {
     if (!d->character || !d->character->base.roomp) {
         descriptor_send(d, "You are nowhere.\r\n");
         return true;
@@ -52,7 +52,7 @@ bool cmd_hurtlimb(descriptor_t *d, const char *args) {
     char limb_arg[32] = "";
     int hp = 0;
     if (sscanf(args, "%63s %31s %d", target_name, limb_arg, &hp) != 3) {
-        descriptor_send(d, "Usage: hurtlimb <target> <limb> <hp>\r\n");
+        descriptor_send(d, "Usage: crit <target> <limb> <hp>\r\n");
         return true;
     }
 

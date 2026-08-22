@@ -95,13 +95,13 @@ s_mort = reconnect(mort_name, pw)
 check("Limb Severity Sandbox" in cmd(s_mort, "look"), "the victim lands in the sandbox")
 
 # --- 1: a non-major limb (an arm) is survivable ---
-out = cmd(s_imm, f"hurtlimb {mort_name} leftarm 0")
+out = cmd(s_imm, f"crit {mort_name} leftarm 0")
 check("Limb HP set." in out, "destroying a non-major limb (left arm) does not report instant death")
 check("Limb Severity Sandbox" in cmd(s_mort, "look"), "the victim is still playing after losing an arm")
 
 # --- 2/3: each major limb is instant death; the neck also takes the head ---
 for limb_arg, label in [("waist", "waist"), ("body", "body"), ("head", "head")]:
-    out = cmd(s_imm, f"hurtlimb {mort_name} {limb_arg} 0")
+    out = cmd(s_imm, f"crit {mort_name} {limb_arg} 0")
     check("Instant death" in out, f"destroying the {label} is reported as instant death")
     # Victim was ejected to the account menu (combat_defeat's loser path) --
     # reconnect for the next major-limb case.
@@ -109,7 +109,7 @@ for limb_arg, label in [("waist", "waist"), ("body", "body"), ("head", "head")]:
     s_mort = reconnect(mort_name, pw)
     check("Limb Severity Sandbox" in cmd(s_mort, "look"), f"the victim is back in the sandbox after the {label} test")
 
-out = cmd(s_imm, f"hurtlimb {mort_name} neck 0")
+out = cmd(s_imm, f"crit {mort_name} neck 0")
 check("Instant death" in out, "destroying the neck is reported as instant death")
 check("head clean off along with it" in out or "head comes off" in out,
       "destroying the neck also reports the head coming off with it")

@@ -18,7 +18,7 @@
  * table via EDIT_WIZNEWS in descriptor.c's editor. `edit wiznews delete
  * <headline>` removes an item outright. For news that concerns immortals
  * rather than the general playerbase. */
-bool cmd_edwiznews(descriptor_t *d, const char *args) {
+bool cmd_addwiznews(descriptor_t *d, const char *args) {
     if (!d->character)
         return true;
 
@@ -26,11 +26,13 @@ bool cmd_edwiznews(descriptor_t *d, const char *args) {
         args++;
 
     if (!args[0]) {
-        descriptor_send(d,
-            "Usage: edit wiznews <headline>\r\n"
-            "       edit wiznews delete <headline>\r\n"
+        { char __b[200]; snprintf(__b, sizeof(__b),
+            "Usage: %s <headline>\r\n"
+            "       %s delete <headline>\r\n"
             "Then type the story; /s saves, /a aborts, /b blanks, "
-            "/f reflows to width.\r\n");
+            "/f reflows to width.\r\n",
+            edit_verb_label(d, "addwiznews", "edit wiznews"), edit_verb_label(d, "addwiznews", "edit wiznews"));
+          descriptor_send(d, __b); }
         return true;
     }
 
@@ -39,7 +41,7 @@ bool cmd_edwiznews(descriptor_t *d, const char *args) {
         while (*headline == ' ')
             headline++;
         if (!*headline) {
-            descriptor_send(d, "Usage: edit wiznews delete <headline>\r\n");
+            { char __b[64]; snprintf(__b, sizeof(__b), "Usage: %s delete <headline>\r\n", edit_verb_label(d, "addwiznews", "edit wiznews")); descriptor_send(d, __b); }
             return true;
         }
         if (news_repo_delete(true, headline))

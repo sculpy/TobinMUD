@@ -6,18 +6,18 @@
 
 #include <stdio.h>
 
-/* `edit account <name>`: Administrator (58+, matching edplayer's tier) --
+/* `edit account <name>`: Administrator (58+, matching pedit's tier) --
  * a menu-driven editor for any account: rename it, reset its password, or
  * list its characters (TODO.md). No self-service equivalent -- a player
  * manages their OWN account name/password only by asking an immortal to
- * do this, same as promote/edplayer aren't self-service either. */
-bool cmd_edaccount(descriptor_t *d, const char *args) {
+ * do this, same as promote/pedit aren't self-service either. */
+bool cmd_accedit(descriptor_t *d, const char *args) {
     if (!d->character)
         return true;
 
     char name[80];
     if (sscanf(args, "%79s", name) != 1) {
-        descriptor_send(d, "Usage: edit account <name>\r\n");
+        { char __b[64]; snprintf(__b, sizeof(__b), "Usage: %s <name>\r\n", edit_verb_label(d, "accedit", "edit account")); descriptor_send(d, __b); }
         return true;
     }
 

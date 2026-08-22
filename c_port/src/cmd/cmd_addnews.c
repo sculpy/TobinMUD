@@ -29,11 +29,13 @@ bool cmd_addnews(descriptor_t *d, const char *args) {
         args++;
 
     if (!args[0]) {
-        descriptor_send(d,
-            "Usage: edit news <headline>\r\n"
-            "       edit news delete <headline>\r\n"
+        { char __b[200]; snprintf(__b, sizeof(__b),
+            "Usage: %s <headline>\r\n"
+            "       %s delete <headline>\r\n"
             "Then type the story; /s saves, /a aborts, /b blanks, "
-            "/f reflows to width.\r\n");
+            "/f reflows to width.\r\n",
+            edit_verb_label(d, "addnews", "edit news"), edit_verb_label(d, "addnews", "edit news"));
+          descriptor_send(d, __b); }
         return true;
     }
 
@@ -42,7 +44,7 @@ bool cmd_addnews(descriptor_t *d, const char *args) {
         while (*headline == ' ')
             headline++;
         if (!*headline) {
-            descriptor_send(d, "Usage: edit news delete <headline>\r\n");
+            { char __b[64]; snprintf(__b, sizeof(__b), "Usage: %s delete <headline>\r\n", edit_verb_label(d, "addnews", "edit news")); descriptor_send(d, __b); }
             return true;
         }
         if (news_repo_delete(false, headline))

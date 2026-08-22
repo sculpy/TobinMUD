@@ -40,7 +40,7 @@ static bool edobject_reclaim(descriptor_t *d, const char *rangearg) {
     }
     int low, high;
     if (sscanf(rangearg, "%d-%d", &low, &high) != 2) {
-        descriptor_send(d, "Usage: edit object reclaim <low vnum>-<high vnum>\r\n");
+        { char __b[80]; snprintf(__b, sizeof(__b), "Usage: %s reclaim <low vnum>-<high vnum>\r\n", edit_verb_label(d, "oedit", "edit object")); descriptor_send(d, __b); }
         return true;
     }
     if (low > high) {
@@ -67,7 +67,7 @@ bool cmd_edobject(descriptor_t *d, const char *args) {
         return edobject_reclaim(d, rest);
     }
     if (!*args || !isdigit((unsigned char)args[0])) {
-        descriptor_send(d, "Usage: edit object <vnum>\r\n");
+        { char __b[64]; snprintf(__b, sizeof(__b), "Usage: %s <vnum>\r\n", edit_verb_label(d, "oedit", "edit object")); descriptor_send(d, __b); }
         return true;
     }
     int vnum = atoi(args);

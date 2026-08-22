@@ -62,7 +62,7 @@ int quest_repo_list_player(long player_id, quest_entry_t *out, int max);
 bool quest_repo_def_get(const char *quest_name, int stage, char *buf, size_t bufsz);
 
 /* Creates or replaces the description for (quest_name, stage). Immortal-
- * only (`questdef`, cmd_questdef.c) -- no menu editor, same "no in-game
+ * only (`questdef`, cmd_qedit.c) -- no menu editor, same "no in-game
  * editor for it yet" precedent as several other content types in this
  * codebase; a builder edits an existing description by just running
  * `questdef` again with the corrected text. */

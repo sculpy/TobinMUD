@@ -171,7 +171,7 @@ check("Limb Sandbox" in cmd(sv, "look"), "the victim lands directly in the sandb
 
 # hp=2 against the LIMB_MIN_MAX_HP=15 floor -> 13%, inside the "hurt rather
 # badly" (<20%, >=10%) tier.
-out = cmd(s, f"hurtlimb {victim_name} leftarm 2")
+out = cmd(s, f"crit {victim_name} leftarm 2")
 check("Limb HP set" in out, "hurtlimb confirms (not a decapitation)")
 check(f"{victim_name}'s left arm is hurt rather badly!" in out,
       "hurtlimb's immortal-side message reports the injury tier crossing")

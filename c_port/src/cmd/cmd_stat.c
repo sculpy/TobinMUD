@@ -19,7 +19,7 @@
 
 /* `stat obj|mob|room <vnum>` (Sneezy port, user 2026-07-12: "add stat
  * command so an immortal of level 55+ can see everything about the mob
- * obj or room with a vnum argument"). Unlike `vnum` (cmd_vnum.c), which
+ * obj or room with a vnum argument"). Unlike `vnum` (cmd_show.c), which
  * searches by name/keyword and shows one summary line per match, `stat`
  * takes an exact vnum and dumps EVERY column of that one row -- a
  * generic "<column>: <value>" listing built from `db_col_count()`/
@@ -221,7 +221,7 @@ bool cmd_stat(descriptor_t *d, const char *args) {
     char out[8192];
     size_t n = 0;
 
-    /* A non-numeric arg2 is a name/keyword, not a vnum (cmd_vnum.c's own
+    /* A non-numeric arg2 is a name/keyword, not a vnum (cmd_show.c's own
      * substring convention) -- resolved to the first matching vnum here so
      * `stat obj phos` finds "a vial of red phosphorus" instead of atoi()
      * silently defaulting to vnum 0. */

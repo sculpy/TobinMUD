@@ -122,7 +122,7 @@ recv_all(sb, 0.3)
 # tick-timing checks below is the bleeding flag itself.
 sql(f"UPDATE player_progress SET hunger=1000, thirst=1000, hp=100 WHERE player_id="
     f"(SELECT id FROM player WHERE name='{bd_name}');")
-out = strip(cmd(si, f"hurtlimb {bd_name} rightarm 1", timeout=1.5))
+out = strip(cmd(si, f"crit {bd_name} rightarm 1", timeout=1.5))
 check("Limb HP set" in out, "hurtlimb actually set the limb HP")
 
 hp_before = int(query(f"SELECT hp FROM player_progress WHERE player_id="

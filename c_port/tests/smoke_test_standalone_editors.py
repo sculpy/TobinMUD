@@ -80,8 +80,8 @@ try:
     check("Command not found" not in out and "Huh?" not in out, "zedit is reachable")
     cmd(s, "q")
 
-    out = cmd(s, "edsocial")
-    check("Socials" in out, "edsocial (level-55 gated) is reachable to a level-60 immortal")
+    out = cmd(s, "socedit")
+    check("Socials" in out, "socedit (renamed from edsocial, level-55 gated) is reachable to a level-60 immortal")
     cmd(s, "q")
 
     # The unified `edit <noun>` form still works unchanged, side by side.

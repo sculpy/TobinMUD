@@ -45,10 +45,15 @@ bool cmd_edtrigger(descriptor_t *d, const char *args) {
         return true;
     }
 
-    char usage[] =
-        "Usage: edit trigger <room|mob|obj> <vnum>\r\n"
-        "       edit trigger list <vnum>\r\n"
-        "       edit trigger reclaim <low vnum>-<high vnum>  (59+)\r\n";
+    char usage[200];
+    {
+        const char *v = edit_verb_label(d, "trigedit", "edit trigger");
+        snprintf(usage, sizeof(usage),
+            "Usage: %s <room|mob|obj> <vnum>\r\n"
+            "       %s list <vnum>\r\n"
+            "       %s reclaim <low vnum>-<high vnum>  (59+)\r\n",
+            v, v, v);
+    }
 
     char a[32], b[32];
     int got = sscanf(args, "%31s %31s", a, b);
@@ -66,7 +71,7 @@ bool cmd_edtrigger(descriptor_t *d, const char *args) {
         }
         int low, high;
         if (sscanf(b, "%d-%d", &low, &high) != 2) {
-            descriptor_send(d, "Usage: edit trigger reclaim <low vnum>-<high vnum>\r\n");
+            { char __b[80]; snprintf(__b, sizeof(__b), "Usage: %s reclaim <low vnum>-<high vnum>\r\n", edit_verb_label(d, "trigedit", "edit trigger")); descriptor_send(d, __b); }
             return true;
         }
         if (low > high) {

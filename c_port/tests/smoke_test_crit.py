@@ -14,8 +14,9 @@ decapitation"). Covers:
      reaching 0 HP does NOT sever/decapitate (mobs die the plain way).
 
 Deterministic by design: rather than waiting on combat RNG to land a hit on
-a specific limb, this uses the immortal-only `hurtlimb <target> <limb> <hp>`
-debug command (cmd_hurtlimb.c) to set a limb's HP directly and observe the
+a specific limb, this uses the immortal-only `crit <target> <limb> <hp>`
+debug command (cmd_crit.c, renamed from `hurtlimb`/cmd_hurtlimb.c, user
+2026-08-22) to set a limb's HP directly and observe the
 exact same trigger logic a real combat hit would run.
 
     python3 tests/smoke_test_crit.py [host] [port]
@@ -92,7 +93,7 @@ sv = login(victim_name, victim_pw)
 check("Crit Sandbox" in cmd(sv, "look"), "the victim lands directly in the sandbox room")
 
 # --- 1: a non-head limb reaching 0 HP severs it (survives) ---
-out = cmd(s, f"hurtlimb {victim_name} leftarm 0")
+out = cmd(s, f"crit {victim_name} leftarm 0")
 check("Limb HP set" in out, "hurtlimb confirms (not a decapitation)")
 
 outVictim = recv_all(sv, timeout=1.0)
@@ -104,14 +105,14 @@ check(f"{victim_name}'s severed left arm lies here" in outRoom, "a severed-arm o
 check("DEAD" not in cmd(sv, "score"), "the victim survives a non-head sever (still playing)")
 
 # --- 2: genitalia specifically is severable (user spec) ---
-out = cmd(s, f"hurtlimb {victim_name} genitalia 0")
+out = cmd(s, f"crit {victim_name} genitalia 0")
 check("Limb HP set" in out, "hurtlimb accepts genitalia as a limb name")
 outRoom = cmd(s, "look")
 check(f"{victim_name}'s severed genitalia lies here" in outRoom, "a severed-genitalia object drops in the room")
 check("DEAD" not in cmd(sv, "score"), "the victim survives this sever too")
 
 # --- 3: the head reaching 0 HP decapitates (instant kill) ---
-out = cmd(s, f"hurtlimb {victim_name} head 0")
+out = cmd(s, f"crit {victim_name} head 0")
 check("Instant death" in out, "hurtlimb reports the decapitation")
 
 outVictim = recv_all(sv, timeout=1.0)
@@ -132,7 +133,7 @@ sql(f"INSERT INTO mob (vnum,name,short_desc,long_desc,description,actions,affect
     f"'A stuffed practice dummy.',0,0,0,0,'A',1.0,0,1,0,0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"
     f"10,10,1,0,0,0,1,1);")
 check("You conjure" in cmd(s, f"load mob {MOB}"), "a fresh mob dummy is loaded for the scope check")
-out = cmd(s, f"hurtlimb critdummy{_suffix} head 0")
+out = cmd(s, f"crit critdummy{_suffix} head 0")
 check("Limb HP set" in out, "hurtlimb accepts a mob target without decapitating it")
 check("crit test dummy is here" in cmd(s, "look").lower(), "the mob is still alive/present -- no decapitation fired for a mob")
 check(f"critdummy{_suffix}'s severed head" not in cmd(s, "look"), "no severed-head object drops for a mob's destroyed limb")

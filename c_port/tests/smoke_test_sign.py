@@ -195,10 +195,10 @@ try:
     cmd(a, "remove sword")  # (wielded weapons come off via remove too, freeing both hands)
 
     # --- 9: a badly hurt arm blocks it ---
-    cmd(imm, f"hurtlimb {a_name} leftarm 1")
+    cmd(imm, f"crit {a_name} leftarm 1")
     out = cmd(a, "sign nope")
     check("too hurt" in out.lower(), "can't sign with a badly hurt arm")
-    cmd(imm, f"hurtlimb {a_name} leftarm 999")
+    cmd(imm, f"crit {a_name} leftarm 999")
 
     # --- 10: asleep blocks it ---
     cmd(a, "sleep")

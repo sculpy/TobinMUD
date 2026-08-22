@@ -13,7 +13,7 @@
  * list (browse, or type a name/"new"); an exact existing name jumps
  * straight to that social's detail view. See descriptor_edsocial_begin()
  * and the CONN_EDSOCIAL_* cases in descriptor.c for the actual menus. */
-bool cmd_edsocial(descriptor_t *d, const char *args) {
+bool cmd_socedit(descriptor_t *d, const char *args) {
     if (!d->character)
         return true;
 

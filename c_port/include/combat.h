@@ -66,7 +66,7 @@ struct obj *combat_wielded_weapon(const being_t *attacker);
  * state or wait cost involved. */
 void combat_instakill(being_t *attacker, being_t *target);
 
-/* Admin/debug tool (`hurtlimb`, cmd_hurtlimb.c): sets `target`'s `limb` HP
+/* Admin/debug tool (`hurtlimb`, cmd_crit.c): sets `target`'s `limb` HP
  * directly to `hp` (clamped to [0, that limb's current max]) and runs the
  * exact same injury-tier-crossing/sever/decapitate logic a normal
  * combat_strike() hit would -- lets injury-tier messages, severing, and

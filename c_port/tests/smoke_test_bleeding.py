@@ -86,7 +86,7 @@ check("blood" not in out.lower(), "no blood pool exists yet before any injury")
 
 # hp=2 against the LIMB_MIN_MAX_HP=15 floor -> 13%, inside the "hurt rather
 # badly" (<20%) tier -- same trick smoke_test_limbs.py uses.
-out = cmd(s, f"hurtlimb {victim_name} leftarm 2")
+out = cmd(s, f"crit {victim_name} leftarm 2")
 check("Limb HP set" in out, "hurtlimb confirms (not a decapitation)")
 check(f"Blood pools around {victim_name}!" in out,
       "the immortal is told a blood pool appeared")
@@ -101,7 +101,7 @@ check("a puddle of blood" in out.lower(), "a fresh (size-1) blood pool reads as 
 # A second tier crossing (destroyed, 0%) GROWS the same blood pool instead
 # of dropping a separate object (user, 2026-07-11: "pools should grow in
 # size if multiple puddles of the same type are created in a room").
-out = cmd(s, f"hurtlimb {victim_name} leftarm 0")
+out = cmd(s, f"crit {victim_name} leftarm 0")
 check(f"Blood pools around {victim_name}!" in out,
       "a second injury-tier crossing grows the blood pool again")
 out = cmd(s, "look")

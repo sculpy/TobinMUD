@@ -243,9 +243,11 @@ static const cmd_entry_t COMMANDS[] = {
      * ambiguity risk (transfer/trip/treasury/trance all diverge by the
      * 3rd letter). */
     { "trophy",  cmd_trophy,  "See how the XP you earn from repeat kills has decayed (trophy [name]).", MORTAL_LEVEL_MIN },
-    /* shout before show is already alphabetical, but it is load-bearing:
-     * "sho" is ambiguous and shout wins it -- "show" must be typed in
-     * full. */
+    /* shout before display is already alphabetical, but it is load-bearing:
+     * "sho" is ambiguous and shout wins it -- neither "display" nor the
+     * later builder-level "show" (renamed from vnum, user 2026-08-22) can
+     * be reached by any "sho..." abbreviation shorter than their own full
+     * name. */
     { "shout",   cmd_shout,   "Shout something to everyone in the game (shout <msg>).", MORTAL_LEVEL_MIN },
     { "speak",   cmd_speak,   "Choose the language you speak in (speak [language]).", MORTAL_LEVEL_MIN },
     { "tell",    cmd_tell,    "Send a private message to anyone playing (tell <name> <message>).", MORTAL_LEVEL_MIN },
@@ -325,7 +327,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "time",    cmd_time,    "Show the current mud clock, weekday, and date.",     MORTAL_LEVEL_MIN },
     { "timeshift", cmd_timeshift, "Shift the shared game clock (59+; timeshift <amount> [minutes|hours|days|months]).", 59 },
     { "gametog", cmd_gametog, "View or flip global game-wide switches (58+).",      GAMETOG_MIN_LEVEL },
-    { "hurtlimb", cmd_hurtlimb, "Debug: set a target's limb HP directly (hurtlimb <target> <limb> <hp>).", IMMORTAL_LEVEL_MIN },
+    { "crit",     cmd_crit, "Debug: set a target's limb HP directly (crit <target> <limb> <hp>).", IMMORTAL_LEVEL_MIN },
     { "restore", cmd_restore, "Fully heal an online target and clear their spell affects (restore <target>).", IMMORTAL_LEVEL_MIN },
     /* "load" is a full prefix of "loadroom", so it MUST stay ahead of it
      * and wins every shared abbreviation up to the exact word "load" --
@@ -445,7 +447,7 @@ static const cmd_entry_t COMMANDS[] = {
      * practice needs "prac", prompt needs "pro", put needs "pu". */
     { "pray",    cmd_pray,    "Pray for a spell (Cleric) -- requires a holy symbol.", MORTAL_LEVEL_MIN },
     { "quest",   cmd_quest,   "See your current quests (quest [<name>]).",          MORTAL_LEVEL_MIN },
-    { "questdef", cmd_questdef, "Write/replace a quest stage's description (questdef <name> <stage> <text>).", BUILD_MIN_LEVEL },
+    { "qedit",    cmd_qedit, "Write/replace a quest stage's description (qedit <name> <stage> <text>).", BUILD_MIN_LEVEL },
     { "uptime",  cmd_uptime,  "Show how long the server has been running since the last boot/copyover.", MORTAL_LEVEL_MIN },
     /* Must precede "users" (below, immortal tier) in table order -- both
      * start with "use", and dispatch's strncmp scan takes the first match,
@@ -490,7 +492,6 @@ static const cmd_entry_t COMMANDS[] = {
      * hijack the plain "stat" abbreviation. */
     { "stats",   cmd_stats,   "Aggregate world statistics: rooms/mobiles/objects/accounts/characters, live from the DB.", STAT_MIN_LEVEL },
     { "system",  cmd_system,  "Broadcast an atmosphere line to everyone.",          IMMORTAL_LEVEL_MIN },
-    { "edbug",   cmd_edbug,   "Resolve a bug report in place (edbug <id> [note]).", EDBUG_MIN_LEVEL },
     /* Unified editor dispatcher (user 2026-07-11: "unify all ed* commands
      * into one edit command"): `edit room [vnum]`, `edit zone <num>`,
      * `edit player <name>`, `edit help <name>`, `edit news`, `edit
@@ -511,19 +512,19 @@ static const cmd_entry_t COMMANDS[] = {
     { "oedit",    cmd_edobject,  "Edit an object prototype (oedit [vnum]).", BUILD_MIN_LEVEL },
     { "medit",    cmd_edmobile,  "Edit a mob prototype (medit [vnum]).", BUILD_MIN_LEVEL },
     { "trigedit", cmd_edtrigger, "Edit a trigger (trigedit [vnum]).", BUILD_MIN_LEVEL },
-    { "edplayer", cmd_edplayer,  "Edit a player (edplayer <name>).", EDPLAYER_MIN_LEVEL },
-    { "edaccount", cmd_edaccount, "Edit an account (edaccount <name>).", EDACCOUNT_MIN_LEVEL },
+    { "pedit",    cmd_pedit,  "Edit a player (pedit <name>).", EDPLAYER_MIN_LEVEL },
+    { "accedit",  cmd_accedit, "Edit an account (accedit <name>).", EDACCOUNT_MIN_LEVEL },
     { "hedit",    cmd_hedit,     "Edit a help topic (hedit <name>).", HELP_EDIT_MIN_LEVEL },
     { "addnews",  cmd_addnews,   "Post/edit news.", ADDNEWS_MIN_LEVEL },
-    { "edwiznews", cmd_edwiznews, "Post/edit wiznews.", ADDNEWS_MIN_LEVEL },
-    { "edrules",  cmd_edrules,   "Edit the rules text.", EDRULES_MIN_LEVEL },
-    { "edsocial", cmd_edsocial,  "Edit a social (edsocial <name>).", EDSOCIAL_MIN_LEVEL },
-    { "edsuit",   cmd_edsuit,    "Edit a suit template (edsuit [vnum]).", LOADSUIT_MIN_LEVEL },
+    { "addwiznews", cmd_addwiznews, "Post/edit wiznews.", ADDNEWS_MIN_LEVEL },
+    { "ruleedit", cmd_edrules,   "Edit the rules text.", EDRULES_MIN_LEVEL },
+    { "socedit",  cmd_socedit,  "Edit a social (socedit <name>).", EDSOCIAL_MIN_LEVEL },
+    { "suitedit", cmd_suitedit,    "Edit a suit template (suitedit [vnum]).", LOADSUIT_MIN_LEVEL },
     { "tips",    cmd_tips,    "Show a random gameplay tip.",                        MORTAL_LEVEL_MIN },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
     { "assist",  cmd_assist,  "Join a groupmate's fight, attacking whoever they're fighting (assist <groupmate>).", MORTAL_LEVEL_MIN },
     { "refuel",  cmd_refuel,  "Refuel a light source from a fuel item (refuel <light> <fuel> [held|room]).", MORTAL_LEVEL_MIN },
-    { "show",    cmd_show,    "Show a carried item to someone in the room (show <item> <person>).", MORTAL_LEVEL_MIN },
+    { "display", cmd_display,    "Show a carried item to someone in the room (display <item> <person>).", MORTAL_LEVEL_MIN },
     /* Level-5+ list, spell/skill functional-completeness audit
      * (2026-07-27): first Warrior entry off that list. No existing
      * "bo*" command -- unclaimed abbreviation. */
@@ -624,7 +625,7 @@ static const cmd_entry_t COMMANDS[] = {
      * reserved for sit (see its own comment); "sig" is already
      * unambiguous (no other command starts with it). */
     { "sign",    cmd_sign,    "Communicate silently with hand signals (sign <message>).", MORTAL_LEVEL_MIN },
-    { "vnum",    cmd_vnum,    "List vnums of rooms/objs/mobs by name (vnum <room|obj|mob> <pat>).", BUILD_MIN_LEVEL },
+    { "show",    cmd_show,    "List vnums of rooms/objs/mobs by name (show <room|obj|mob> <pat>).", BUILD_MIN_LEVEL },
     /* SWAP: wiznews before wizhelp/wiznet -- the immortal tier's only
      * non-alphabetical placement. "wiz" reaches wiznews; wizhelp needs
      * "wizh" and wiznet must be typed in full ("wizne" is ambiguous with
@@ -735,6 +736,14 @@ static const cmd_entry_t COMMANDS[] = {
      * abbreviation -- "bank" only needs "ban" to disambiguate. */
     { "bank",    cmd_bank,    "Deposit/withdraw at a bank, or check your balance (bank [deposit|withdraw <amt>]).", MORTAL_LEVEL_MIN },
     { "bug",     cmd_bug,     "Report a bug (bug <text>); immortals list them.",    MORTAL_LEVEL_MIN },
+    /* MUST follow "bug" (Session 182 fix, user rename edbug -> bugedit):
+     * "bugedit" shares the "bug" prefix, so it has to sit later in table
+     * order or an immortal typing bare "bug" (wanting the report list)
+     * would hijack-match "bugedit" instead -- same "first STARTS WITH
+     * wins" rule as the stat/stats and shout/show notes elsewhere in this
+     * file. Mortals never see this collision (bugedit is gated above
+     * MORTAL_LEVEL_MIN and skipped for them during matching). */
+    { "bugedit", cmd_edbug,   "Resolve a bug report in place (bugedit <id> [note]).", EDBUG_MIN_LEVEL },
     /* Crafting & extraction (Sneezy -> Tobin feature audit, Druid). */
     { "butcher", cmd_butcher, "Carve meat from a slain animal's corpse (Druid).",   MORTAL_LEVEL_MIN },
     /* Crafting & extraction (Sneezy -> Tobin feature audit, Druid). "ski"
@@ -934,8 +943,13 @@ bool cmd_dispatch(descriptor_t *d, const char *line) {
     for (size_t k = 0; k < NUM_COMMANDS; k++) {
         if (COMMANDS[k].min_level > level)
             continue;
-        if (strncmp(COMMANDS[k].name, verb, verb_len) == 0)
+        if (strncmp(COMMANDS[k].name, verb, verb_len) == 0) {
+            /* Session 182: record the canonical verb so a handler shared
+             * between `edit <noun>` and a standalone editor verb (redit,
+             * oedit, ...) can tailor its Usage text -- see descriptor.h. */
+            snprintf(d->last_verb, sizeof(d->last_verb), "%s", COMMANDS[k].name);
             return COMMANDS[k].fn(d, args);
+        }
     }
 
     /* Socials (smile/nod/wave/...) are checked after the command table, so a

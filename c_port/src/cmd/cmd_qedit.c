@@ -11,27 +11,27 @@
 #include "being.h"
 #include "quest_repo.h"
 
-/* `questdef <name> <stage> <description...>` (Sneezy → Tobin feature
+/* `qedit <name> <stage> <description...>` (Sneezy → Tobin feature
  * audit, "Quest system", builder tier). Writes/replaces the description a
  * player sees at `quest <name>` once `set <player> quest <name> <stage>`
  * (cmd_set.c) puts them at that stage. No menu editor -- same "no in-game
  * editor for it yet" precedent as several other content types in this
- * codebase (tobin_migrations.sql); re-running `questdef` with corrected
+ * codebase (tobin_migrations.sql); re-running `qedit` with corrected
  * text overwrites the old description outright. */
-bool cmd_questdef(descriptor_t *d, const char *args) {
+bool cmd_qedit(descriptor_t *d, const char *args) {
     char name[QUEST_NAME_LEN];
     int stage = 0;
     int consumed = 0;
 
     if (sscanf(args, "%63s %d%n", name, &stage, &consumed) != 2) {
-        descriptor_send(d, "Usage: questdef <name> <stage> <description>\r\n");
+        descriptor_send(d, "Usage: qedit <name> <stage> <description>\r\n");
         return true;
     }
     const char *desc = args + consumed;
     while (*desc == ' ')
         desc++;
     if (!*desc) {
-        descriptor_send(d, "Usage: questdef <name> <stage> <description>\r\n");
+        descriptor_send(d, "Usage: qedit <name> <stage> <description>\r\n");
         return true;
     }
     if (stage <= 0) {

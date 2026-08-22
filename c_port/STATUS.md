@@ -1,4 +1,44 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 182 (DO droplet, production port 4000):
+**Standalone editor Usage-text gap closed + wizard command renames (user
+decision).** Two pieces of work:
+  - Session 180's known cosmetic gap fixed: each standalone editor verb
+    (redit/oedit/medit/trigedit/pedit/accedit/hedit/addnews/addwiznews/
+    ruleedit/suitedit) now prints a Usage line matching whichever form
+    was actually typed, instead of always saying `edit <noun> ...` even
+    when reached via the standalone verb. New `d->last_verb` field
+    (descriptor.h) records the matched COMMANDS[] entry name in
+    cmd_dispatch() before invoking the handler; a new edit_verb_label()
+    helper (cmd_internal.h) picks the right label from it.
+  - Wizard command renames (user, 2026-08-22): edaccount->accedit,
+    edbug->bugedit, edplayer->pedit, edrules->ruleedit, edsocial->socedit,
+    edsuit->suitedit, edwiznews->addwiznews, hurtlimb->crit,
+    questdef->qedit, vnum->show. The last one collided with the existing
+    mortal `show <item> <person>` command -- user chose to rename THAT to
+    `display` instead, freeing `show` for vnum. Source files renamed to
+    match (git mv), function names renamed to match their files
+    (cmd_edaccount -> cmd_accedit, etc.), every cross-reference fixed
+    (cmd_internal.h prototypes, cmd_edit.c forwarding calls, doc comments
+    naming the old file/function/verb).
+  - Found and fixed a real regression while wiring the renames: `bugedit`
+    landed earlier than `bug` in cmd_table.c's match order, so a 59+
+    immortal typing bare `bug` (wanting the outstanding-reports list) got
+    hijacked into bugedit's usage message instead -- same "first STARTS
+    WITH wins" prefix-matching hazard the file's own stat/stats and
+    shout/show comments already warn about. Reordered so `bug` wins.
+  - Verified (separately, user ask): the crown treasury (`world_treasury`
+    DB table) already survives restarts correctly -- every read/write in
+    treasury_repo.c goes straight to the DB with no in-memory cache, and
+    the schema uses CREATE TABLE IF NOT EXISTS. Confirmed live: the
+    persisted `rent_tax_at_max` game_config override (5000, not the 2000
+    default) is exactly what made smoke_test_rent_treasury.py's hardcoded
+    expectation look wrong -- the config persistence is working exactly
+    as designed, the test's expected value is just stale. Not fixed
+    (pre-existing, unrelated to this session's code changes).
+  - Build clean; all renamed-command and standalone-editor smoke tests
+    updated (invocations + relevant doc comments) and passing; wiznews
+    entry added; deployed via copyover.
+---
 Last updated: 2026-08-22 — Session 181 (DO droplet, production port 4000):
 **Prompt reworked to Sneezy's compact letter format + matching
 toggles added -- user request.** game_loop.c's rendered prompt now

@@ -9,7 +9,7 @@ exact stage) rather than the meaningless bit numbers. Covers:
   1. A stage with no matching quest_def is invisible (`quest` lists
      nothing, `quest <name>` says not on it) -- same "only bits with a
      help file are visible" rule as the original.
-  2. Once an immortal writes a description (`questdef`) and sets a
+  2. Once an immortal writes a description (`qedit`, renamed from `questdef`) and sets a
      player's stage (`set <player> quest <name> <stage>`), it appears in
      both the summary list and the full `quest <name>` view.
   3. Advancing to a stage with no description makes it disappear from the
@@ -82,7 +82,7 @@ out = cmd(sA, f"quest {quest_name}")
 check("aren't currently on" in out, "a stage with no description reports as not-on-that-quest")
 
 # --- 2: writing a description makes it visible in both views ---
-out = cmd(si, f"questdef {quest_name} 1 Find the missing amulet and return it.")
+out = cmd(si, f"qedit {quest_name} 1 Find the missing amulet and return it.")
 check("description set" in out, "questdef confirms")
 out = cmd(sA, "quest")
 check(quest_name in out, "the quest now appears in the summary list")
@@ -95,7 +95,7 @@ out = cmd(sA, "quest")
 check(quest_name not in out, "advancing to a stage with no description hides the quest again")
 
 # --- 4: stage 0 clears it entirely ---
-cmd(si, f"questdef {quest_name} 2 Return the amulet to the shrine.")
+cmd(si, f"qedit {quest_name} 2 Return the amulet to the shrine.")
 out = cmd(sA, "quest")
 check(quest_name in out, "the quest reappears once stage 2 also has a description")
 cmd(si, f"set {mort_name} quest {quest_name} 0")

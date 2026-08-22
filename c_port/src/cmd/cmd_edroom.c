@@ -47,7 +47,7 @@ static bool edroom_reclaim(descriptor_t *d, const char *rangearg) {
     }
     int low, high;
     if (sscanf(rangearg, "%d-%d", &low, &high) != 2) {
-        descriptor_send(d, "Usage: edit room reclaim <low vnum>-<high vnum>\r\n");
+        { char __b[80]; snprintf(__b, sizeof(__b), "Usage: %s reclaim <low vnum>-<high vnum>\r\n", edit_verb_label(d, "redit", "edit room")); descriptor_send(d, __b); }
         return true;
     }
     if (low > high) {

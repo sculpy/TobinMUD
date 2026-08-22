@@ -410,6 +410,11 @@ typedef enum {
 typedef struct descriptor {
     int fd;
     conn_state_t state;
+    /* Canonical COMMANDS[] entry name cmd_dispatch() matched for the line
+     * currently being processed (e.g. "edit" or "redit") -- lets a handler
+     * shared between `edit <noun>` and its standalone verb print a Usage
+     * line matching what was actually typed. Session 182. */
+    char last_verb[16];
 
     /* Duplicate-character-session takeover (TODO.md priority item, user
      * 2026-07-30): set true when enter_world() reclaims this connection's
@@ -865,7 +870,7 @@ bool descriptor_redit_begin(descriptor_t *d, int vnum);
  * account, per player_load_admin()), copies their persisted fields into
  * the descriptor's working copy, and shows the edplayer menu (entering
  * CONN_EDPLAYER_MENU). Returns false if no such player exists. Caller
- * (cmd_edplayer.c) owns the level gate. */
+ * (cmd_pedit.c) owns the level gate. */
 bool descriptor_edplayer_begin(descriptor_t *d, const char *name);
 
 /* Opens the menu-driven zone editor on zone `zone_nr`, copies its DB row
@@ -897,7 +902,7 @@ bool descriptor_balance_begin(descriptor_t *d, bool is_class, int index);
 /* Opens the menu-driven account editor on the account named `name`
  * (rename, password reset, list its characters -- TODO.md), entering
  * CONN_EDACCOUNT_MENU. Returns false if no such account exists. Caller
- * (cmd_edaccount.c) owns the level gate. */
+ * (cmd_accedit.c) owns the level gate. */
 bool descriptor_edaccount_begin(descriptor_t *d, const char *name);
 
 /* Opens the menu-driven social editor. If `name` is non-empty and matches
@@ -920,7 +925,7 @@ void descriptor_trigedit_begin(descriptor_t *d, const char *target_type, int tar
 /* Opens the menu-driven loadsuit editor on `suit_id` (`edit suit
  * [name]`, TODO.md priority item, 2026-08-02), entering CONN_EDSUIT_LIST.
  * Always succeeds (an empty item list is a valid, normal state -- same
- * as an empty trigger list above). Caller (cmd_edsuit.c) owns the level
+ * as an empty trigger list above). Caller (cmd_suitedit.c) owns the level
  * gate and confirms `suit_id` is real (or has just created it) first. */
 void descriptor_edsuit_begin(descriptor_t *d, int suit_id);
 

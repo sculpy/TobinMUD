@@ -162,7 +162,7 @@ typedef struct {
  * (LIMB_COUNT order, then MAX_ACTIVE_AFFECTS slot order) -- both
  * list_hospital() and buy_hospital_cure() call this fresh each time
  * rather than caching, so the two always agree on what number means
- * what, the same "recompute, don't cache" contract cmd_edaccount.c's
+ * what, the same "recompute, don't cache" contract cmd_accedit.c's
  * menu uses. Returns the count found. */
 static int hospital_ailments(const being_t *ch, ailment_t *out, int max) {
     int n = 0;

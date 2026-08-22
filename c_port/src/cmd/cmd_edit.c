@@ -21,7 +21,7 @@
  * rules 59+) checks it here and refuses with the same "Huh?!" wording the
  * command table itself would have given, so nothing was quietly
  * loosened. `trigger` (added 2026-07-11, cmd_edtrigger.c), `account`
- * (added 2026-07-18, cmd_edaccount.c), and `object` (added 2026-07-22,
+ * (added 2026-07-18, cmd_accedit.c), and `object` (added 2026-07-22,
  * cmd_edobject.c -- the object-prototype editor, not the trigger target
  * type of the same name) are nouns that ISN'T a folded-in old command --
  * new editors added straight into this dispatcher rather than getting
@@ -63,14 +63,14 @@ bool cmd_edit(descriptor_t *d, const char *args) {
             descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
-        return cmd_edplayer(d, rest);
+        return cmd_pedit(d, rest);
     }
     if (strcasecmp(noun, "account") == 0) {
         if (level < EDACCOUNT_MIN_LEVEL) {
             descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
-        return cmd_edaccount(d, rest);
+        return cmd_accedit(d, rest);
     }
     if (strcasecmp(noun, "help") == 0) {
         if (level < HELP_EDIT_MIN_LEVEL) {
@@ -91,7 +91,7 @@ bool cmd_edit(descriptor_t *d, const char *args) {
             descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
-        return cmd_edwiznews(d, rest);
+        return cmd_addwiznews(d, rest);
     }
     if (strcasecmp(noun, "rules") == 0) {
         if (level < EDRULES_MIN_LEVEL) {
@@ -105,14 +105,14 @@ bool cmd_edit(descriptor_t *d, const char *args) {
             descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
-        return cmd_edsocial(d, rest);
+        return cmd_socedit(d, rest);
     }
     if (strcasecmp(noun, "suit") == 0) {
         if (level < LOADSUIT_MIN_LEVEL) {
             descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
             return true;
         }
-        return cmd_edsuit(d, rest);
+        return cmd_suitedit(d, rest);
     }
 
     descriptor_send(d,

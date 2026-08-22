@@ -18,7 +18,7 @@
 #include "weather.h"
 
 /* Immortal-only debug/testing tool (Session 43 continued), same precedent
- * as `hurtlimb` (cmd_hurtlimb.c): mob_ai_tick()'s wander/scavenge chances
+ * as `hurtlimb` (cmd_crit.c): mob_ai_tick()'s wander/scavenge chances
  * (20%/25%, also now the lamplighter's light/extinguish check),
  * obj_pool_decay_tick()'s puddle shrinkage, obj_light_burn_tick()'s
  * fuel burn-down, (Sneezy → Tobin feature audit, "Object maintenance")

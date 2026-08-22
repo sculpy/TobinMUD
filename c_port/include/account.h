@@ -29,7 +29,7 @@ bool account_load(const char *name, account_t *out);
 
 /* Same as account_load(), but by account_id -- needed once a caller only
  * has the id, e.g. after account_set_name() changes the name a prior
- * lookup was keyed on (edaccount, cmd_edaccount.c/descriptor.c). */
+ * lookup was keyed on (edaccount, cmd_accedit.c/descriptor.c). */
 bool account_load_by_id(long account_id, account_t *out);
 
 /* Creates a new account row with a freshly salted crypt() hash of

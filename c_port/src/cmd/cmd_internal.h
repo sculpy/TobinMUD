@@ -6,8 +6,19 @@
 #define CMD_INTERNAL_H
 
 #include <stdbool.h>
+#include <strings.h>
 
 #include "descriptor.h"
+/* Session 182: picks the Usage-message verb to show for an editor handler
+ * reachable both as `edit <noun>` (cmd_edit.c forwards directly, so
+ * d->last_verb still reads "edit") and as its own standalone verb
+ * (redit/oedit/medit/trigedit/edplayer/edaccount/hedit/addnews/edwiznews/
+ * edrules/edsuit -- cmd_table.c dispatches straight to the handler, so
+ * d->last_verb reads that verb's own name). Returns `standalone` if that's
+ * how the player reached the handler, else `unified` (e.g. "edit room"). */
+static inline const char *edit_verb_label(descriptor_t *d, const char *standalone, const char *unified) {
+    return (strcasecmp(d->last_verb, standalone) == 0) ? standalone : unified;
+}
 
 /* Internal wiring between cmd_table.c and each cmd_*.c handler -- not part
  * of the public include/ API surface. Each handler returns false to
@@ -100,7 +111,7 @@ bool cmd_mailinglist(descriptor_t *d, const char *args);
 bool cmd_attack(descriptor_t *d, const char *args);
 bool cmd_kill(descriptor_t *d, const char *args);
 bool cmd_hit(descriptor_t *d, const char *args);
-bool cmd_hurtlimb(descriptor_t *d, const char *args);
+bool cmd_crit(descriptor_t *d, const char *args);
 bool cmd_restore(descriptor_t *d, const char *args);
 bool cmd_aitick(descriptor_t *d, const char *args);
 bool cmd_flee(descriptor_t *d, const char *args);
@@ -144,7 +155,7 @@ bool cmd_prompt(descriptor_t *d, const char *args);
 bool cmd_time(descriptor_t *d, const char *args);
 bool cmd_timeshift(descriptor_t *d, const char *args);
 bool cmd_uptime(descriptor_t *d, const char *args);
-bool cmd_edsuit(descriptor_t *d, const char *args);
+bool cmd_suitedit(descriptor_t *d, const char *args);
 bool cmd_title(descriptor_t *d, const char *args);
 bool cmd_save(descriptor_t *d, const char *args);
 bool cmd_rent(descriptor_t *d, const char *args);
@@ -178,7 +189,7 @@ bool cmd_cast(descriptor_t *d, const char *args);
 bool cmd_pray(descriptor_t *d, const char *args);
 bool cmd_wiznews(descriptor_t *d, const char *args);
 bool cmd_wipe(descriptor_t *d, const char *args);
-bool cmd_edwiznews(descriptor_t *d, const char *args);
+bool cmd_addwiznews(descriptor_t *d, const char *args);
 bool cmd_socials(descriptor_t *d, const char *args);
 bool cmd_wiznet(descriptor_t *d, const char *args);
 bool cmd_system(descriptor_t *d, const char *args);
@@ -186,9 +197,9 @@ bool cmd_shutdown(descriptor_t *d, const char *args);
 bool cmd_mudstats(descriptor_t *d, const char *args);
 bool cmd_multiplay(descriptor_t *d, const char *args);
 bool cmd_setsev(descriptor_t *d, const char *args);
-bool cmd_edplayer(descriptor_t *d, const char *args);
-bool cmd_edaccount(descriptor_t *d, const char *args);
-bool cmd_edsocial(descriptor_t *d, const char *args);
+bool cmd_pedit(descriptor_t *d, const char *args);
+bool cmd_accedit(descriptor_t *d, const char *args);
+bool cmd_socedit(descriptor_t *d, const char *args);
 bool cmd_set(descriptor_t *d, const char *args);
 bool cmd_open(descriptor_t *d, const char *args);
 bool cmd_close(descriptor_t *d, const char *args);
@@ -243,14 +254,14 @@ bool cmd_eat(descriptor_t *d, const char *args);
 bool cmd_junk(descriptor_t *d, const char *args);
 bool cmd_identify(descriptor_t *d, const char *args);
 bool cmd_quest(descriptor_t *d, const char *args);
-bool cmd_questdef(descriptor_t *d, const char *args);
+bool cmd_qedit(descriptor_t *d, const char *args);
 bool cmd_weather(descriptor_t *d, const char *args);
 bool cmd_bamfin(descriptor_t *d, const char *args);
 bool cmd_bamfout(descriptor_t *d, const char *args);
 bool cmd_poofin(descriptor_t *d, const char *args);
 bool cmd_poofout(descriptor_t *d, const char *args);
 bool cmd_scan(descriptor_t *d, const char *args);
-bool cmd_vnum(descriptor_t *d, const char *args);
+bool cmd_show(descriptor_t *d, const char *args);
 bool cmd_zone(descriptor_t *d, const char *args);
 bool cmd_edzone(descriptor_t *d, const char *args);
 bool cmd_edobject(descriptor_t *d, const char *args);
@@ -267,7 +278,7 @@ bool cmd_gtell(descriptor_t *d, const char *args);
 bool cmd_assist(descriptor_t *d, const char *args);
 bool cmd_examine(descriptor_t *d, const char *args);
 bool cmd_sip(descriptor_t *d, const char *args);
-bool cmd_show(descriptor_t *d, const char *args);
+bool cmd_display(descriptor_t *d, const char *args);
 bool cmd_tell(descriptor_t *d, const char *args);
 /* Shared tell/reply delivery logic -- see cmd_tell.c's own doc comment. */
 void tell_deliver(descriptor_t *d, being_t *target, const char *msg_text);

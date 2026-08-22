@@ -36,7 +36,7 @@ int suit_repo_find_for_race(int player_race);
  * the sum of quantities) -- suit_grant() expands each by its own qty. */
 int suit_repo_load_items_qty(int suit_id, int *vnums, int *qtys, int max);
 
-/* Menu-driven loadsuit editor (`edit suit`, cmd_edsuit.c) CRUD layer
+/* Menu-driven loadsuit editor (`edit suit`, cmd_suitedit.c) CRUD layer
  * below -- mirrors the "list/get/create/set-field" shape other ed*
  * editors' repo layers already use (e.g. obj_repo.h's obj_proto_*). */
 
