@@ -174,6 +174,33 @@ bool cmd_shoot(descriptor_t *d, const char *args) {
         dmg = 2 + rand() % 5;
     }
     dmg += (ch->attrs.dexterity - ATTR_BASE) / 3;
+    /* `ranged proficiency` (all 6 classes) / `ranged specialization`
+     * (Warrior) -- TODO.md's own "Common skills" backlog note: these two
+     * trained via learn-by-doing already (weapon_verb() has no "ranged"
+     * bucket, so combat.c's own melee proficiency/specialization block
+     * never exercises them), but neither ever applied a combat bonus --
+     * "a disclosed gap, not an oversight, tracked for when ranged combat
+     * exists" (combat.c's own comment on the specialization block).
+     * cmd_shoot.c now exists, so this closes that gap: same damage-only
+     * shape combat_strike() gives kubo/voplat (bonus/20) for proficiency
+     * and the melee specializations (bonus/25, +2 flat at exactly 100%
+     * "mastered") for the Warrior-only specialization -- no hitroll
+     * analog here since `shoot` has no separate to-hit roll to begin
+     * with, only a damage roll. */
+    if (!imm) {
+        const skill_def_t *rprof_sk = skill_find(ch->char_class, "ranged proficiency", false);
+        if (rprof_sk)
+            dmg += skill_learn_from_doing(ch, rprof_sk) / 20;
+        if (ch->char_class == CLASS_WARRIOR) {
+            const skill_def_t *rspec_sk = skill_find(CLASS_WARRIOR, "ranged specialization", false);
+            if (rspec_sk) {
+                int rspec_prof = skill_learn_from_doing(ch, rspec_sk);
+                dmg += rspec_prof / 25;
+                if (rspec_prof >= 100)
+                    dmg += 2;
+            }
+        }
+    }
     if (dmg < 1)
         dmg = 1;
 

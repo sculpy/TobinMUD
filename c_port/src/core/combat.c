@@ -657,11 +657,12 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
      * skill_learn_from_doing() returns 0 here (zero ceiling) and no bonus
      * or gain applies; once unlocked, proficiency grows on every swing and
      * folds straight into this same round's hit/damage bonus, like
-     * kubo/cintai do. weapon_verb() has no "ranged" bucket (Tobin has no
-     * ranged-weapon combat yet), so "ranged specialization" tracks
-     * proficiency but never actually applies a bonus here --
-     * a disclosed gap, not an oversight, tracked for when ranged combat
-     * exists. "lash" (whip/flail) is approximated as blunt -- closer to
+     * kubo/cintai do. weapon_verb() has no "ranged" bucket, so this melee
+     * block still never trains/applies "ranged proficiency"/"ranged
+     * specialization" -- cmd_shoot.c's own `shoot` command (TODO.md's
+     * "Common skills" backlog item) does both instead, the same
+     * damage-only shape this whole block uses. "lash" (whip/flail) is
+     * approximated as blunt -- closer to
      * a flail's real classification than either of the other two. At
      * exactly 100% proficiency ("mastered", user: "bigger passive
      * bonus" rather than a separate advanced-skill unlock), the bonus

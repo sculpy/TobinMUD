@@ -651,3 +651,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Thieves Learn to Cudgel', 'CUDGEL finally answers the call. A Thief wielding a weapon can type cudgel followed by a target for a non-lethal knockout blow -- it deals no real damage, but a clean hit knocks the target out cold for a while.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Ranged Weapons Reward Practice Now', 'Ranged proficiency, every class, and ranged specialization, Warriors only, now actually do something: both grow the more you shoot and fold straight into your shot damage. No command needed -- just keep firing.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
