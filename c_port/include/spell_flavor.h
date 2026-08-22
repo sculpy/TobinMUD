@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.5 - All rights reserved                         *
+ * TobinMUD ver. 0.7 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #ifndef TOBIN_SPELL_FLAVOR_H
