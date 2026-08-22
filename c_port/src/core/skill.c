@@ -305,7 +305,6 @@ static const skill_def_t SKILLS[] = {
     { "heal spray",       CLASS_CLERIC, SKILL_TIER_ADVANCED, 43, "See help `heal spray` for help." },
     { "wither limb",      CLASS_CLERIC, SKILL_TIER_ADVANCED, 48, "See help `wither limb` for help." },
     { "spontaneous combust", CLASS_CLERIC, SKILL_TIER_ADVANCED, 48, "See help `spontaneous combust` for help." },
-    { "relive",           CLASS_CLERIC, SKILL_TIER_ADVANCED, 49, "See help `relive` for help." },
     { "crusade",          CLASS_CLERIC, SKILL_TIER_ADVANCED, 49, "See help `crusade` for help." },
     { "portal",           CLASS_CLERIC, SKILL_TIER_ADVANCED, 49, "See help `portal` for help." },
     { "heal full spray",  CLASS_CLERIC, SKILL_TIER_ADVANCED, 50, "See help `heal full spray` for help." },

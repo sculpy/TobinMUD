@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-22 (13). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-22 (14). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -28,12 +28,6 @@ authoritative. Work top-down within a class; each ships with a smoke test.
 **Druid spells:** all cleared (sunscald/feral wrath/wave crash/withering
 touch/tree walk/leeching vine done 2026-08-18; cure blindness + word of
 recall dropped — Cleric prayers).
-
-**Cleric spell (pray):** relive (49, corpse resurrection) -- likely a
-dead end, not just unimplemented: Tobin's PC death already has no
-corpse (no permadeath; "resurrection" is already covered by soft-
-respawn/relog, see combat.c's XP-loss block comment). Needs a design
-conversation before picking back up, not a straight port.
 
 **Warrior skills:** all cleared 2026-08-22 (advanced berserking done).
 

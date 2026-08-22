@@ -1,4 +1,15 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 177 (DO droplet, production port 4000):
+**relive (49, Cleric prayer) dropped -- user decision.** Real upstream's
+relive is corpse resurrection; Tobin has no permadeath or corpse at
+all (death is soft-respawn/relog, see combat.c's XP-loss block), so
+there was nothing for it to resurrect -- not a design gap to fill,
+a dead skill slot. Removed from skill.c's SKILLS[] and skill_help.sql
+(orphaned help_topic row deleted from the live DB directly, since
+apply-tobin-schema.sh only re-applies rows still present in the seed
+file, never deletes ones removed from it). No player had it trained
+(checked live DB first). Rebuilt, deployed via zero-drop copyover.
+
 Last updated: 2026-08-22 — Session 176 (DO droplet, production port 4000):
 **Version banner bumped 0.5 -> 0.7** (user request) -- every c_port source file's "TobinMUD ver. 0.5" header comment updated to 0.7 (386 files, cosmetic only, no functional version tracking existed before or after). Rebuilt, deployed via zero-drop copyover.
 
