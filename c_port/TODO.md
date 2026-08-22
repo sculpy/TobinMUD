@@ -14,9 +14,13 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
-None open. Everything below (client mapping/draw, Sneezy-DB decoupling,
-WEAR_PAIRED seeding, cut/copy/paste, launch/update notice) shipped --
-see STATUS.md for history.
+Road-shrink initiative (Session 183): pilot zone 11 (First Ring of Roads)
+done, 49->26 rooms. Next: continue down the road/connector zone list
+(13 more built zones, largest Tobin City Roads at 413 rooms) one per
+session, same pattern -- see STATUS.md Session 183 and the plan file
+(user's local Claude Code plans dir, not in this repo). Phase B (global
+vnum cascade-renumber to close gaps) waits until all 14 zones are done
+and soaked.
 ## Unimplemented skills/spells backlog (audited Session 158)
 
 Grep-verified against `SKILLS[]` (skill.c) vs real handlers in cmd_cast.c /

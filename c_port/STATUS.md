@@ -1,4 +1,34 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 -- Session 183 (DO droplet, production port 4000):
+**Road-shrink initiative kicked off; First Ring of Roads (zone 11) is the
+pilot (user decision).** World feels sparse (336 zones, ~19,272 rooms,
+~5,400 mobs) but a past expansion taught that raw size isn't the lever --
+navigability is. Targeting the 14 built road/connector zones (1,752 rooms)
+specifically: shrink each ~50% (Phase A, zone-by-zone), then one global
+cascade vnum-renumber at the end to close the gaps (Phase B, deferred until
+all 14 land and soak). Full plan lives outside the repo (user's local
+Claude Code plan file); see wiznews for the pilot's own summary.
+  - Zone 11 went from 49 rooms to 26: pure single-file corridor stretches
+    thinned by roughly half, every boundary room (exits into the other 9
+    zones this one touches) kept its existing vnum unchanged, so none of
+    those neighboring zones needed any edits.
+  - Also fixed a pre-existing data bug found along the way: rooms 670 and
+    675 were live, connected, reachable rooms inside zone 11's own vnum
+    range but had zone=NULL in the room table; both are now correctly
+    tagged zone 11.
+  - No objects/mobs/component spawns existed in this zone, so the pilot
+    didn't exercise the component/commodity/newbie-gear migration step --
+    that lands whenever the next zone in the list has some.
+  - Migration is db/tobin/road_shrink_zone11.sql, idempotent per the
+    usual db/tobin/ convention (confirmed by a clean replay after fixing
+    one wrong direction code the roomexit foreign key caught on first
+    apply). Verified: no dangling roomexit destinations, full BFS
+    connectivity from room 650 across all 26 surviving rooms, all 9
+    external boundary connections still resolve both directions.
+    News + wiznews entries added. No C code changed -- room data is read
+    live from the DB (room_repo_load()), not cached, so no rebuild/
+    copyover was needed for the change to take effect.
+
 Last updated: 2026-08-22 — Session 182 (DO droplet, production port 4000):
 **Standalone editor Usage-text gap closed + wizard command renames (user
 decision).** Two pieces of work:

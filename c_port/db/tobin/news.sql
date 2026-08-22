@@ -669,3 +669,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Thieves Learn to Throw, Mine, and Rig Grenades', 'Three more finally answer the call. THROW <item> <target> hurls a loose dagger, knife, or other throwable at someone in the room -- Tobin''s first thrown-weapon command. ''Set trap (mine)'' lets a Thief rig the floor of the room they are standing in (SETTRAP MINE, no item or direction needed) -- it springs on whoever next walks in from any direction. ''Set trap (grenade)'' rigs a carried grenade item (SETTRAP GRENADE) to spring when thrown and it lands. See HELP THROW and HELP SETTRAP.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The First Ring of Roads Grows Shorter', 'The winding road ringing the city has been trimmed -- fewer weary steps between the intersections, bridges, and forest paths travelers already knew. Every destination it led to before still connects the same way.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
