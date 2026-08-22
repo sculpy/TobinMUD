@@ -1,4 +1,19 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 180 (DO droplet, production port 4000):
+**Standalone per-noun editor verbs restored (redit/oedit/medit/
+trigedit/etc) -- user decision.** Reverses the 2026-08-02 cmd_table.c
+audit note that had deliberately left these unregistered in favor of
+`edit <noun>` alone (real Sneezy names, documented there as already
+working under Tobin's own unified form). 13 new cmd_table.c entries
+(redit, zedit, oedit, medit, trigedit, edplayer, edaccount, hedit,
+addnews, edwiznews, edrules, edsocial, edsuit), each forwarding to
+the EXACT SAME handler `edit <noun>` already calls, same min level.
+Both forms work side by side; `edit` untouched. Known minor cosmetic
+gap, not fixed: each editor's own "Usage: edit <noun> ..." text
+(shown on a bad/missing argument) still only mentions the unified
+form, not the new standalone verb -- left for a future pass.
+smoke_test_standalone_editors.py.
+
 Last updated: 2026-08-22 — Session 179 (DO droplet, production port 4000):
 **Two user bug reports fixed.**
   - `look <object>` now checks the `objextra` table for a
