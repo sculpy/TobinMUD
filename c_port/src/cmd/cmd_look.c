@@ -13,6 +13,7 @@
 #include "gmcp.h"
 #include "being.h"
 #include "obj.h"
+#include "obj_repo.h"
 #include "room.h"
 #include "room_repo.h"
 #include "thing.h"
@@ -428,13 +429,29 @@ bool look_at_target(descriptor_t *d, const char *args) {
         return true;
     }
 
-    char out[OBJ_LONG_DESCR_LEN + 512];
+    char out[2048 + 512];
     char capbuf[128]; /* matches thing_t.short_descr's size */
     char groundbuf[OBJ_LONG_DESCR_LEN + 32]; /* $$g -> "ocean floor" etc, a few bytes longer */
-    int n = snprintf(out, sizeof(out), "%s\r\n",
+    /* Extra description (missing-skill audit follow-up, 2026-08-22, user
+     * bug report: "look sign doesnt read the extra description") -- a
+     * hand-authored `objextra` row matching the SAME keyword that found
+     * this object replaces the generic long_descr line with the richer
+     * text a builder actually wrote (a real seeded signpost's own
+     * objextra, e.g., carries several paragraphs of in-world lore that
+     * long_descr's one-line ground-listing sentence was never meant to
+     * hold). See obj_repo_extra_desc()'s own doc comment: 6,731 real
+     * seeded objextra rows existed with no code reading them until this,
+     * same gap room_repo_extra_desc() already closed for roomextra. */
+    char extra[2048];
+    int n;
+    if (obj_repo_extra_desc(o->vnum, tok, extra, sizeof(extra))) {
+        n = snprintf(out, sizeof(out), "%s\r\n", extra);
+    } else {
+        n = snprintf(out, sizeof(out), "%s\r\n",
                       o->long_descr[0]
                           ? obj_apply_ground_token(o->long_descr, r, groundbuf, sizeof(groundbuf))
                           : cap_first(o->base.short_descr, capbuf, sizeof(capbuf)));
+    }
     const char *cond = obj_condition_word(o);
     if (cond && (size_t)n < sizeof(out))
         n += snprintf(out + n, sizeof(out) - (size_t)n, "It is %s.\r\n", cond);

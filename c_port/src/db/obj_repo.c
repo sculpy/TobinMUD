@@ -6,6 +6,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <strings.h>
 
 #include "db.h"
 #include "log.h"
@@ -397,4 +399,57 @@ int obj_repo_delete_range(int low, int high) {
 
     db_close(db);
     return (int)n;
+}
+
+/* Case-insensitive per-word prefix match against a space-separated
+ * keyword list -- `tok` matches if it's a prefix of ANY individual
+ * word in it. Local copy, same precedent room_repo.c's own
+ * extra_desc_name_matches() documents (every file in this codebase
+ * that needs this keeps its own small copy rather than sharing one). */
+static bool obj_extra_desc_name_matches(const char *keywords, const char *tok) {
+    size_t tok_len = strlen(tok);
+    if (tok_len == 0)
+        return false;
+    const char *p = keywords;
+    while (*p) {
+        while (*p == ' ')
+            p++;
+        const char *start = p;
+        while (*p && *p != ' ')
+            p++;
+        size_t wlen = (size_t)(p - start);
+        if (wlen >= tok_len && strncasecmp(start, tok, tok_len) == 0)
+            return true;
+    }
+    return false;
+}
+/* `look <keyword>` on an object with a matching hand-authored `objextra`
+ * row shows THAT instead of the object's generic long_descr -- same
+ * "real seeded data, no code reading it until this" gap room_repo_
+ * extra_desc() closed for roomextra (missing-skill audit follow-up,
+ * 2026-08-22, user bug report: "look sign doesnt read the extra
+ * description"). 6,731 real seeded objextra rows existed with no
+ * Tobin code querying the table for display purposes (only
+ * obj_repo_delete_range() above touched it, and only to delete). Same
+ * shape as room_repo_extra_desc(): writes into `buf` (size `bufsz`),
+ * returns false if object `vnum` has no extra description matching
+ * `keyword`. */
+bool obj_repo_extra_desc(int vnum, const char *keyword, char *buf, size_t bufsz) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+
+    bool found = false;
+    if (db_query(db, "select name, description from objextra where vnum=%i", vnum)) {
+        while (db_fetch_row(db)) {
+            if (obj_extra_desc_name_matches(db_get(db, "name"), keyword)) {
+                snprintf(buf, bufsz, "%s", db_get(db, "description"));
+                found = true;
+                break;
+            }
+        }
+    }
+
+    db_close(db);
+    return found;
 }

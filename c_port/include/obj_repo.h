@@ -148,5 +148,11 @@ bool player_inventory_save(long player_id, const being_t *b);
  * the count of `obj` rows deleted (0 on DB error or an empty range).
  * DB-only, same caveat as room_repo_delete_range() above. */
 int obj_repo_delete_range(int low, int high);
+/* Extra descriptions ("look <keyword>" reveals hand-authored detail
+ * on a specific object) -- same shape as room_repo_extra_desc()
+ * (room_repo.h), backed by the `objextra` table. Writes into `buf`
+ * (size `bufsz`); returns false if object `vnum` has no extra
+ * description matching `keyword`. */
+bool obj_repo_extra_desc(int vnum, const char *keyword, char *buf, size_t bufsz);
 
 #endif
