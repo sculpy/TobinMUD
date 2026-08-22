@@ -66,6 +66,12 @@ bool room_repo_save_exit(int vnum, int dir, int dest, int door_type, int conditi
 /* Deletes one exit row. True even if it didn't exist. */
 bool room_repo_delete_exit(int vnum, int dir);
 
+/* Sets/clears just the `mine_trapped` column (cmd_trap.c's `settrap
+ * mine`/`disarmtrap mine`, sprung by cmd_move.c) -- narrow single-column
+ * write, same shape as room_repo_save_exit() above, not a full
+ * room_repo_save(). */
+bool room_repo_save_mine_trap(int vnum, bool trapped);
+
 /* Extra descriptions ("look <keyword>" reveals hidden room detail) --
  * classic Diku-family mechanic, backed by the upstream `roomextra` table
  * (vnum, name/keyword, description), which already carries 8,861 real

@@ -433,6 +433,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* Skill-based combat (Sneezy → Tobin feature audit, Thief/Monk). */
     { "kick",    cmd_kick,    "Kick for bonus damage -- kick <target> also starts a fight (Warrior/Thief/Monk).", MORTAL_LEVEL_MIN },
     { "shoot",   cmd_shoot,   "Fire a wielded bow/crossbow/sling at a target, spending ammo (shoot <target>).", MORTAL_LEVEL_MIN },
+    { "throw",   cmd_throw,   "Hurl a throwable item at a target, spending it (throw <item> <target>).", MORTAL_LEVEL_MIN },
     { "stomp",   cmd_stomp,   "A crushing stomp attack (Warrior, must be fighting them).", MORTAL_LEVEL_MIN },
     /* Unimplemented skills/spells backlog (Session 158 audit), Monk
      * actives -- see cmd_defenestrate.c / cmd_bonebreak.c. */
@@ -670,7 +671,7 @@ static const cmd_entry_t COMMANDS[] = {
      * the mortal tier (where its level says it belongs) the tier rule would
      * put it ahead of `set` and silently reintroduce the exact collision
      * described above. disarmtrap keeps it company for symmetry. */
-    { "settrap", cmd_settrap, "Rig a trap on a closed door or container (Thief, settrap <direction|container>).", MORTAL_LEVEL_MIN },
+    { "settrap", cmd_settrap, "Rig a trap on a door, container, arrow, mine, or grenade (Thief, settrap <direction|container|arrow|mine|grenade>).", MORTAL_LEVEL_MIN },
     { "setsev",  cmd_setsev,  "View or flip which log types echo to you.",          IMMORTAL_LEVEL_MIN },
     { "feigndeath", cmd_feigndeath, "Play dead to avoid an aggressive mob's attention.", MORTAL_LEVEL_MIN },
     { "hide", cmd_hide, "Conceal yourself from view; broken by moving, attacking, or casting (Thief).", MORTAL_LEVEL_MIN },
@@ -683,7 +684,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "kneestrike", cmd_kneestrike, "A knee strike against your opponent (Warrior, must be fighting, can't be crawling).", MORTAL_LEVEL_MIN },
     /* Mortal Thief skill (see settrap's note); needs "disarmt"+ now that
      * combat `disarm` (above) owns the shared "di"/"dis" abbreviation. */
-    { "disarmtrap", cmd_disarmtrap, "Safely remove a trap from a door (Thief, disarmtrap <direction>).", MORTAL_LEVEL_MIN },
+    { "disarmtrap", cmd_disarmtrap, "Safely remove a trap (Thief, disarmtrap <direction|container|arrow|mine|grenade>).", MORTAL_LEVEL_MIN },
     /* Needs "disg"+ to reach -- "disarm"/"disarmtrap" above already own
      * the shared "di"/"dis" prefix, same abbreviation-ownership shape as
      * disarmtrap's own note just above. */

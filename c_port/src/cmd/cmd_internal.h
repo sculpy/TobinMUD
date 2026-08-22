@@ -32,6 +32,7 @@ bool cmd_bonebreak(descriptor_t *d, const char *args);
 bool cmd_bodyslam(descriptor_t *d, const char *args);
 bool cmd_kick(descriptor_t *d, const char *args);
 bool cmd_shoot(descriptor_t *d, const char *args);
+bool cmd_throw(descriptor_t *d, const char *args);
 bool cmd_stomp(descriptor_t *d, const char *args);
 bool cmd_evaluate(descriptor_t *d, const char *args);
 bool cmd_disarm(descriptor_t *d, const char *args);

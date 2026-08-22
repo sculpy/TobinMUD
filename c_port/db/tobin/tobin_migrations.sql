@@ -685,3 +685,7 @@ WHERE (IF(pp.true_level > 0, pp.true_level, pp.level)) >= 51;
 -- Cleric piety pool + persisted current mana/piety (mana/piety gain-and-recovery port, 2026-08-16).
 ALTER TABLE player_progress ADD COLUMN IF NOT EXISTS piety INT NOT NULL DEFAULT 0;
 ALTER TABLE player_progress ADD COLUMN IF NOT EXISTS max_piety INT NOT NULL DEFAULT 0;
+-- Room-floor mine trap (`set trap (mine)`, cmd_trap.c's `settrap mine`) --
+-- a Tobin-only field, not part of the original's verbatim room_flag bit
+-- layout. Sprung by cmd_move.c on arrival from ANY direction.
+ALTER TABLE room ADD COLUMN IF NOT EXISTS mine_trapped TINYINT(1) NOT NULL DEFAULT 0;

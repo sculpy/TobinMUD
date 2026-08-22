@@ -35,7 +35,7 @@ room_t *room_repo_load(int vnum) {
 
     room_t *r = NULL;
     if (db_query(db, "select vnum, name, description, sector, room_flag, "
-                     "capacity, height, x, y, z from room where vnum=%i", vnum)
+                     "capacity, height, x, y, z, mine_trapped from room where vnum=%i", vnum)
         && db_fetch_row(db)) {
         r = room_create(vnum, db_get(db, "name"), db_get(db, "description"), atoi(db_get(db, "sector")));
         if (r) {
@@ -45,6 +45,7 @@ room_t *room_repo_load(int vnum) {
             r->x = atoi(db_get(db, "x"));
             r->y = atoi(db_get(db, "y"));
             r->z = atoi(db_get(db, "z"));
+            r->mine_trapped = atoi(db_get(db, "mine_trapped")) != 0;
         }
     }
     db_close(db);
@@ -192,6 +193,18 @@ bool room_repo_delete_exit(int vnum, int dir) {
 
     bool ok = db_query(db, "delete from roomexit where vnum=%i and direction=%i", vnum, dir);
 
+    db_close(db);
+    return ok;
+}
+
+/* Sets/clears just the room's `mine_trapped` column -- narrow
+ * single-column write, same shape as room_repo_save_exit() above. */
+bool room_repo_save_mine_trap(int vnum, bool trapped) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "update room set mine_trapped=%i where vnum=%i",
+                        trapped ? 1 : 0, vnum);
     db_close(db);
     return ok;
 }

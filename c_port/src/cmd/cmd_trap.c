@@ -36,13 +36,28 @@
  * arrow (obj.h's ARROW_TRAPPED, val[0] -- arrows have no other val[]
  * use). cmd_shoot.c springs it on a landed hit, same flat
  * random-limb damage as the door trap, then the arrow is destroyed as
- * ammo normally is either way. Still deliberately NOT ported: `set
- * trap (mine)`/`(grenade)` -- real upstream's mine/grenade trap
- * targets are room-floor and thrown-explosive mechanics respectively
- * (misc/trap.h's trap_targ_t), neither of which Tobin has a subsystem
- * for (no room-floor trap object type, no thrown-weapon command) --
- * same disclosed-gap pattern as `sling shot`/`stunning arrow`
- * elsewhere in this audit, not a partial or faked implementation. */
+ * ammo normally is either way.
+ *
+ * `set trap (mine)` (2026-08-22, user decision -- build both, scoped
+ * down from upstream's crafting-task version): `settrap mine` rigs
+ * the CURRENT ROOM's own floor (room.h's `mine_trapped`, a Tobin-only
+ * field -- not part of the original's verbatim room_flag bit layout).
+ * No item, no direction -- unlike a door trap, a landmine has no
+ * specific exit to sit on. cmd_move.c springs it on arrival from ANY
+ * direction, same flat random-limb damage and "detect trap" dodge as
+ * the door trap.
+ *
+ * `set trap (grenade)` (2026-08-22, same decision): `settrap grenade
+ * [item]` rigs a carried loose grenade-keyword item (obj.h's
+ * GRENADE_TRAPPED, same val[0] bit as ARROW_TRAPPED -- ammo and
+ * throwables never share one object, so reusing the bit is safe).
+ * cmd_throw.c's new `throw` command springs it on a landed hit.
+ *
+ * Both are disclosed scope-downs from upstream's own mine/grenade,
+ * which are built via a multi-item crafting task (`hasTrapComps()`,
+ * trap.cc) with a dozen elemental damage-type choices -- ported here
+ * as the same single flat-damage rig every other Tobin trap already
+ * is, not the crafting minigame. */
 
 /* Matches `tok` against a direction name (n/north/northeast/...),
  * abbreviation-friendly like every other direction-taking command. */
@@ -106,6 +121,23 @@ static obj_t *find_arrow(being_t *ch, const char *tok) {
         if (!trap_obj_kw(o, "arrow"))
             continue;
         if (len == 0 || strncasecmp(tok, "arrow", len) == 0
+            || thing_name_matches(t->name, tok, len))
+            return o;
+    }
+    return NULL;
+}
+
+/* Same shape as find_arrow() above, matching a "grenade"-keyword loose
+ * carried item instead. */
+static obj_t *find_grenade(being_t *ch, const char *tok) {
+    size_t len = strlen(tok);
+    for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        obj_t *o = (obj_t *)t;
+        if (!trap_obj_kw(o, "grenade"))
+            continue;
+        if (len == 0 || strncasecmp(tok, "grenade", len) == 0
             || thing_name_matches(t->name, tok, len))
             return o;
     }
@@ -181,8 +213,52 @@ bool cmd_settrap(descriptor_t *d, const char *args) {
                 descriptor_send(d, msg);
                 return true;
             }
+            obj_t *grenade = find_grenade(ch, tok);
+            if (grenade) {
+                if (!being_knows_skill(ch, "set trap (grenade)")) {
+                    descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+                    return true;
+                }
+                if (grenade->val[0] & GRENADE_TRAPPED) {
+                    descriptor_send(d, "It's already rigged.\r\n");
+                    return true;
+                }
+                bool imm = being_is_immortal(ch);
+                const skill_def_t *sk = skill_find(ch->char_class, "set trap (grenade)", imm);
+                if (!imm && sk && !skill_roll_success(skill_learn_from_doing(ch, sk))) {
+                    descriptor_send(d, "You fumble rigging the grenade -- it doesn't take.\r\n");
+                    return true;
+                }
+                grenade->val[0] |= GRENADE_TRAPPED;
+                const char *label = grenade->base.short_descr[0] ? grenade->base.short_descr : grenade->base.name;
+                char msg[256];
+                snprintf(msg, sizeof(msg), "You carefully rig a trap into %s.\r\n", label);
+                descriptor_send(d, msg);
+                return true;
+            }
+            size_t tlen = strlen(tok);
+            if (tlen > 0 && strncasecmp(tok, "mine", tlen) == 0) {
+                if (!being_knows_skill(ch, "set trap (mine)")) {
+                    descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+                    return true;
+                }
+                if (ch->base.roomp->mine_trapped) {
+                    descriptor_send(d, "This room is already rigged.\r\n");
+                    return true;
+                }
+                bool imm = being_is_immortal(ch);
+                const skill_def_t *sk = skill_find(ch->char_class, "set trap (mine)", imm);
+                if (!imm && sk && !skill_roll_success(skill_learn_from_doing(ch, sk))) {
+                    descriptor_send(d, "You fumble rigging the mine -- it doesn't take.\r\n");
+                    return true;
+                }
+                ch->base.roomp->mine_trapped = true;
+                room_repo_save_mine_trap(ch->base.roomp->vnum, true);
+                descriptor_send(d, "You carefully bury a mine in the floor.\r\n");
+                return true;
+            }
         }
-        descriptor_send(d, "Usage: settrap <direction|container|arrow>\r\n");
+        descriptor_send(d, "Usage: settrap <direction|container|arrow|mine|grenade>\r\n");
         return true;
     }
 
@@ -275,8 +351,49 @@ bool cmd_disarmtrap(descriptor_t *d, const char *args) {
                 descriptor_send(d, "You carefully disarm the trap.\r\n");
                 return true;
             }
+            obj_t *grenade = find_grenade(ch, tok);
+            if (grenade) {
+                if (!being_knows_skill(ch, "disarm trap")) {
+                    descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+                    return true;
+                }
+                if (!(grenade->val[0] & GRENADE_TRAPPED)) {
+                    descriptor_send(d, "There's no trap there.\r\n");
+                    return true;
+                }
+                bool imm = being_is_immortal(ch);
+                const skill_def_t *sk = skill_find(ch->char_class, "disarm trap", imm);
+                if (!imm && sk && !skill_roll_success(skill_learn_from_doing(ch, sk))) {
+                    descriptor_send(d, "You fumble disarming the grenade -- it's still rigged.\r\n");
+                    return true;
+                }
+                grenade->val[0] &= ~GRENADE_TRAPPED;
+                descriptor_send(d, "You carefully disarm the trap.\r\n");
+                return true;
+            }
+            size_t tlen = strlen(tok);
+            if (tlen > 0 && strncasecmp(tok, "mine", tlen) == 0) {
+                if (!being_knows_skill(ch, "disarm trap")) {
+                    descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+                    return true;
+                }
+                if (!ch->base.roomp->mine_trapped) {
+                    descriptor_send(d, "There's no trap there.\r\n");
+                    return true;
+                }
+                bool imm = being_is_immortal(ch);
+                const skill_def_t *sk = skill_find(ch->char_class, "disarm trap", imm);
+                if (!imm && sk && !skill_roll_success(skill_learn_from_doing(ch, sk))) {
+                    descriptor_send(d, "You fumble disarming the mine -- it's still rigged.\r\n");
+                    return true;
+                }
+                ch->base.roomp->mine_trapped = false;
+                room_repo_save_mine_trap(ch->base.roomp->vnum, false);
+                descriptor_send(d, "You carefully disarm the trap.\r\n");
+                return true;
+            }
         }
-        descriptor_send(d, "Usage: disarmtrap <direction|container|arrow>\r\n");
+        descriptor_send(d, "Usage: disarmtrap <direction|container|arrow|mine|grenade>\r\n");
         return true;
     }
 

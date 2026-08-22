@@ -397,6 +397,29 @@ static bool do_move(descriptor_t *d, int dir) {
         descriptor_room_echo(to, ch, msg);
 
     mob_ai_greet_newbie_equipper(ch, to);
+    /* `set trap (mine)` (cmd_trap.c's `settrap mine`) -- a landmine
+     * rigged into the room's own floor, not a specific exit: springs
+     * on ANYONE arriving from ANY direction, same one-shot flat
+     * random-limb damage and "detect trap" dodge as the door trap
+     * above. Checked right after arrival, same placement precedent as
+     * the death-trap room block right below. */
+    if (to->mine_trapped) {
+        if (being_knows_skill(ch, "detect trap")) {
+            descriptor_send(d, "You spot a mine hidden in the floor and carefully step around it.\r\n");
+        } else {
+            int dmg = 5 + rand() % 10;
+            limb_t limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+            int limb_hp_before = ch->limbs[limb].hp;
+            being_hurt_limb(ch, limb, dmg);
+            char trap_msg[160];
+            snprintf(trap_msg, sizeof(trap_msg),
+                     "A mine hidden in the floor explodes! It catches your %s %s!\r\n",
+                     limb_name(limb), describe_dam(dmg, limb_hp_before, NULL));
+            descriptor_send(d, trap_msg);
+            to->mine_trapped = false;
+            room_repo_save_mine_trap(to->vnum, false);
+        }
+    }
 
     /* Death-trap room (ROOM_FLAG_DEATH, user 2026-08-16 "room flags ...
      * intended effects from sneezy") -- a mortal who steps in is slain on

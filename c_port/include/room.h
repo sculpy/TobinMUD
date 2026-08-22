@@ -255,6 +255,17 @@ typedef struct room {
                                  * purely to reach the client via Room.Info
                                  * GMCP (gmcp.c) for the real GDI map-drawing
                                  * view -- unused by any server-side logic. */
+    bool mine_trapped;          /* room table's `mine_trapped` column
+                                 * (tobin_migrations.sql) -- a Tobin-only
+                                 * field, NOT part of the original's
+                                 * verbatim room_flag bit layout (unlike
+                                 * EXIT_COND_TRAPPED, upstream has no
+                                 * per-room analog to reuse). Set by
+                                 * `settrap mine` (cmd_trap.c), sprung by
+                                 * cmd_move.c on arrival from ANY
+                                 * direction -- a landmine is rigged into
+                                 * the room's own floor, not one specific
+                                 * exit. */
 } room_t;
 
 room_t *room_create(int vnum, const char *name, const char *description, int sector);

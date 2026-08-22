@@ -301,6 +301,12 @@ typedef struct obj {
  * use, so bit 0 is free. Set by `settrap arrow`, sprung by cmd_shoot.c
  * on a landed hit -- see cmd_trap.c. */
 #define ARROW_TRAPPED  (1 << 0)
+/* Same val[0] bit, same shape, for a carried throwable (a keyword-
+ * matched grenade item, cmd_throw.c) instead of ammo -- the two
+ * categories never overlap on one object, so reusing bit 0 is safe.
+ * Set by `settrap grenade`, sprung by cmd_throw.c on a landed hit --
+ * see cmd_trap.c. */
+#define GRENADE_TRAPPED (1 << 0)
 
 /* Weapon sharpness range (obj_t.sharpness above) -- every weapon starts
  * at the default, `sharpen`/`smooth` (cmd_sharpen.c) raise it toward the

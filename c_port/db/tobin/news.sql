@@ -666,3 +666,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Thieves Learn to Rig an Arrow', '\'Set trap (arrow)\' finally answers the call. A Thief who has learned it can type SETTRAP ARROW to rig a hidden trap into a carried arrow -- shoot it at someone and, if it takes, the rig springs a nasty extra hit to a random limb on impact. Same one-shot spirit as the door and container traps, just riding along on your own ammunition this time. See HELP SETTRAP.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Thieves Learn to Throw, Mine, and Rig Grenades', 'Three more finally answer the call. THROW <item> <target> hurls a loose dagger, knife, or other throwable at someone in the room -- Tobin''s first thrown-weapon command. ''Set trap (mine)'' lets a Thief rig the floor of the room they are standing in (SETTRAP MINE, no item or direction needed) -- it springs on whoever next walks in from any direction. ''Set trap (grenade)'' rigs a carried grenade item (SETTRAP GRENADE) to spring when thrown and it lands. See HELP THROW and HELP SETTRAP.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
