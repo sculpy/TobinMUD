@@ -1,4 +1,7 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 176 (DO droplet, production port 4000):
+**Version banner bumped 0.5 -> 0.7** (user request) -- every c_port source file's "TobinMUD ver. 0.5" header comment updated to 0.7 (386 files, cosmetic only, no functional version tracking existed before or after). Rebuilt, deployed via zero-drop copyover.
+
 Last updated: 2026-08-22 — Session 175 (DO droplet, production port 4000):
 **`set trap (arrow)` -- TODO.md's "Common skills" backlog item, closed
 now that cmd_shoot.c's ammo subsystem (Session ~170s) exists to hang it
