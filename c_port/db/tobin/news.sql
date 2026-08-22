@@ -639,3 +639,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Two-Handed Weapons Take Both Hands', 'Great weapons -- greatswords, greataxes, mauls, halberds, warhammers, claymores, pikes, quarterstaffs, scythes, and longbows among them -- now truly require both hands to wield. Wielding one frees no hand for a shield or second weapon; drop it and both hands come free again.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Berserkers Learn to Ride the Rage', 'ADVANCED BERSERKING finally answers the call. A Warrior who has learned it gets a real chance, every round spent berserking, at a bonus follow-up strike on top of their normal swing -- the more the skill is practiced, the more often it fires.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

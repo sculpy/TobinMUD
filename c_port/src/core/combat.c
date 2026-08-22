@@ -2998,6 +2998,32 @@ void combat_process_run(long pulse_num) {
             }
         }
 
+        /* `advanced berserking` (Warrior, level 35, missing-skill audit).
+         * Real upstream (disc_warrior_brawling.cc's doAdvancedBerserk())
+         * rolls each round to auto-fire one of several other known
+         * Warrior maneuvers (slam/bash/headbutt/.../deathstroke) off a
+         * weighted table. Tobin's simplified model reuses the exact same
+         * "genuine bonus combat_strike(), CHANCE-gated per round" shape
+         * the chain attack/blur/advanced kicking block above already
+         * established for this class of skill -- no separate weighted
+         * maneuver table or per-maneuver precondition plumbing needed --
+         * but gated on AFFECT_BERSERK (only while actually berserking,
+         * matching the real skill's "while raging" framing) and scaled by
+         * proficiency (skill_learn_from_doing()) rather than a flat 50,
+         * same proficiency-scaled shape riposte uses just above, since
+         * this is an advanced-tier skill meant to reward practice. */
+        if (being_has_affect(a, AFFECT_BERSERK) && being_knows_skill(a, "advanced berserking")) {
+            const skill_def_t *adv_bers_sk = skill_find(a->char_class, "advanced berserking", false);
+            if (adv_bers_sk && skill_roll_success(skill_learn_from_doing(a, adv_bers_sk))) {
+                tell(a, "Your berserker rage lets you lash out again!\r\n");
+                b_decapitated = combat_strike(a, b);
+                if (b->progress.hp <= 0 || b_decapitated) {
+                    combat_defeat(b, a, b_decapitated);
+                    continue;
+                }
+            }
+        }
+
         bool a_decapitated = combat_strike(b, a);
         if (a->progress.hp <= 0 || a_decapitated) {
             combat_defeat(a, b, a_decapitated);
@@ -3020,6 +3046,19 @@ void combat_process_run(long pulse_num) {
             if (a->progress.hp <= 0 || a_decapitated) {
                 combat_defeat(a, b, a_decapitated);
                 continue;
+            }
+        }
+        /* `advanced berserking`, `b`'s side -- see the identical block
+         * above for `a`'s side. */
+        if (being_has_affect(b, AFFECT_BERSERK) && being_knows_skill(b, "advanced berserking")) {
+            const skill_def_t *adv_bers_sk_b = skill_find(b->char_class, "advanced berserking", false);
+            if (adv_bers_sk_b && skill_roll_success(skill_learn_from_doing(b, adv_bers_sk_b))) {
+                tell(b, "Your berserker rage lets you lash out again!\r\n");
+                a_decapitated = combat_strike(b, a);
+                if (a->progress.hp <= 0 || a_decapitated) {
+                    combat_defeat(a, b, a_decapitated);
+                    continue;
+                }
             }
         }
 
