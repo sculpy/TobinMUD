@@ -1,4 +1,59 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 -- Session 188 (DO droplet, production port 4000):
+**Road-shrink initiative: Phase B investigated and abandoned; initiative
+closed out.** Took a full DB backup first (~/backups/tobin_pre_phaseB_
+20260822_194858.sql.gz, mysqldump --single-transaction, no players
+online at the time) before any Phase B work, per the plan's safety
+requirements.
+
+Before designing the cascade-renumber, checked what state Phase A
+actually left the 14 shrunk zones in, and found the plan's assumption
+didn't hold: road_shrink.py never compacted survivors to the low end of
+each zone's own range (despite that being in the original plan) -- it
+just deletes scattered corridor rooms in place via graph thinning, so
+each shrunk zone still spans its full original vnum range with holes
+scattered throughout, not one clean gap at the tail.
+
+Digging further surfaced a much bigger, pre-existing fact about this
+database: **`zone.bottom`/`zone.top` does not reflect where a zone's
+rooms actually live, for most of the game.** Checked all 336 zones:
+138 have at least one room outside their declared range, totaling
+15,581 of ~19,272 rooms (81%) living outside their own zone's
+boundaries. This isn't limited to road/connector zones -- sampled
+ordinary content zones and found several at 75-100% out-of-range (e.g.
+zone 32 "Saint - Caves of the Ancients" declares 3300-3399 but its
+rooms actually span 570-4867, zero overlap). Confirmed via source
+(src/core/zone.c, src/cmd/cmd_dig.c) that zone.bottom/top is NOT used
+by core gameplay (zone resets are driven by explicit room vnums in the
+zone_reset table, not a range scan) -- it's only consulted by the `dig`
+builder command (to place new rooms) and a manual `zonefile create`
+snapshot utility. So this drift isn't a live bug, just long-accumulated
+bookkeeping debt, most likely from years of incremental building predating
+the C port.
+
+This breaks Phase B's core premise: "shift zone N+1's range down to
+close the gap left by zone N's shrink" assumes vnum ranges are each
+zone's real territory, which isn't true for the great majority of this
+database. There's no clean, contiguous space to reclaim via a cascade,
+and attempting one would either move almost nothing (if restricted to
+in-range rooms) or balloon into an enormous, unrelated undertaking
+(if it also tried to relocate the 15,581 drifted rooms to make ranges
+meaningful again).
+
+**Decision (with user): abandon Phase B as originally conceived.** Not
+worth the risk for a payoff that doesn't cleanly exist given how this
+database actually works. The original goal -- fixing navigability after
+the past world-size complaints -- was already achieved by Phase A's 14
+zone shrinks. The vnum-range/drift situation is a separate, much larger,
+undocumented characteristic of the database that isn't blocking anything
+and isn't connected to why this initiative started; flagged in TODO.md
+as a possible future investigation, not urgent.
+
+**Road-shrink initiative is now considered closed.** No further zones,
+no cascade renumber. The pre-Phase-B backup remains on the droplet as a
+general safety net (~/backups/) but nothing was changed by this session
+-- no SQL applied, read-only investigation only.
+
 Last updated: 2026-08-22 -- Session 187 (DO droplet, production port 4000):
 **Road-shrink initiative Phase A COMPLETE -- all 14 zones shipped.** Zones
 22, 258, 18, 12, 49, 19, 259, and 38 done this session (see Sessions

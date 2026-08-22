@@ -14,29 +14,33 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
-Road-shrink initiative Phase A is COMPLETE (Sessions 183-187): all
-14 built road/connector zones shrunk -- 11, 2, 67, 16, 53, 22, 258,
-18, 12, 49, 19, 259, 38, 146 (146 was already minimal, 0% cuttable,
-no migration needed). db/road_shrink.py went through two real
-bugfixes early on (incoming-edge reciprocity, anchor-direction
-lookup) plus a pre-flight simulation gate; every zone from 16
-onward applied clean on the first try with 0 dangling exits.
-Known loose ends: zone 2 rooms 104 and 167 have no outgoing exit
-(legitimate one-way portal targets from zone 106, not bugs) --
-worth a manual redit pass sometime. Also noticed a handful of
-pre-existing zero-exit orphan rooms while verifying (34770, 1734,
-34034) -- unrelated to this initiative, not touched, not urgent.
+Road-shrink initiative is CLOSED (Sessions 183-188). Phase A
+complete: all 14 built road/connector zones shrunk -- 11, 2, 67,
+16, 53, 22, 258, 18, 12, 49, 19, 259, 38, 146. Phase B (global
+vnum cascade-renumber) was investigated in Session 188 and
+ABANDONED: zone.bottom/top turns out not to reflect where a
+zone's rooms actually live for most of the database (138/336
+zones drifted, 81% of all rooms outside their own zone's declared
+range -- confirmed benign for gameplay, only used by the `dig`
+builder command and a manual zonefile-snapshot tool, not by zone
+resets). This breaks the cascade-renumber's core premise, so it
+was dropped rather than forced. See STATUS.md Session 188 for the
+full writeup. A pre-Phase-B DB backup is on the droplet at
+~/backups/tobin_pre_phaseB_20260822_194858.sql.gz as a general
+safety net (nothing was applied against it -- Session 188 was
+read-only investigation).
+Known loose ends from Phase A: zone 2 rooms 104 and 167 have no
+outgoing exit (legitimate one-way portal targets from zone 106,
+not bugs) -- worth a manual redit pass sometime. A handful of
+pre-existing zero-exit orphan rooms were noticed while verifying
+(34770, 1734, 34034) -- unrelated, not touched, not urgent.
 road_shrink.py has a minor rough edge: a zone with 0% cuttable
 rooms writes an invalid `IN ()` SQL file instead of skipping --
-harmless (caught and deleted manually for zone 146) but worth a
-small guard if the tool gets reused elsewhere.
-Next: Phase B, the one-time global vnum cascade-renumber that
-closes the gaps left by all 14 shrinks. Do NOT start this yet --
-per the plan, let the Phase A changes soak in production first.
-When it's time: full DB backup, precomputed old->new vnum map,
-dry run against a DB copy, and a maintenance window (server
-empty) -- see the plan file (user's local Claude Code plans dir,
-not in this repo) for the full list of tables it touches.
+harmless, just delete the file if it recurs.
+Possible future (not urgent, not requested): investigate why 81%
+of rooms live outside their zone's declared vnum range -- likely
+benign historical drift, but undocumented and worth understanding
+if anyone ever wants zone.bottom/top to mean something again.
 ## Unimplemented skills/spells backlog (audited Session 158)
 
 Grep-verified against `SKILLS[]` (skill.c) vs real handlers in cmd_cast.c /
