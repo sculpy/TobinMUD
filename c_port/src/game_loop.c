@@ -679,19 +679,23 @@ int game_loop_run(int port, const char *copyover_file) {
                      * only the rendered format moved. */
                     char pbuf[208];
                     size_t pn = (size_t)snprintf(pbuf, sizeof(pbuf), "\r\n");
+                    /* Health-family stats first (H/V/M), financial
+                     * (G) after (user request, 2026-08-22: "switch
+                     * mana and gold in the toggle order so the prompt
+                     * displays health info then financial"). */
                     if (p->character->prompt_flags & PROMPT_FLAG_HP)
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "H:%d ",
                                                p->character->progress.hp);
-                    if (p->character->prompt_flags & PROMPT_FLAG_GOLD)
-                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "G:%d ",
-                                               p->character->progress.gold);
-                    if (p->character->prompt_flags & PROMPT_FLAG_VIT)
-                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "V:%d ",
-                                               p->character->progress.vit);
                     if (p->character->prompt_flags & PROMPT_FLAG_MANA)
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "%s:%d ",
                                                p->character->char_class == CLASS_DRUID ? "LF" : "M",
                                                p->character->progress.mana);
+                    if (p->character->prompt_flags & PROMPT_FLAG_VIT)
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "V:%d ",
+                                               p->character->progress.vit);
+                    if (p->character->prompt_flags & PROMPT_FLAG_GOLD)
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "G:%d ",
+                                               p->character->progress.gold);
                     if (p->character->prompt_flags & PROMPT_FLAG_EXP)
                         pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "E:%ld ",
                                                p->character->progress.experience);

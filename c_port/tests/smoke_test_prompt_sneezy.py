@@ -62,6 +62,11 @@ try:
     check("HP:" not in out and "Gold:" not in out and "Vit:" not in out
           and "Exp:" not in out and "ExpNeed:" not in out,
           "the old spelled-out labels are gone")
+    # Health-family stats (H/M/V) group before financial (G) -- user
+    # follow-up, 2026-08-22: "switch mana and gold in the toggle order
+    # so the prompt displays health info then financial".
+    check(out.index("H:") < out.index("M:") < out.index("V:") < out.index("G:"),
+          "H/M/V (health-family) come before G (financial) in the prompt")
 
     out = cmd(s, "toggle gold")
     check("gold is now off" in out, "toggle gold works and reports the new state")
