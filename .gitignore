@@ -71,6 +71,7 @@ __pycache__/
 
 # Game log files (logs/<datetime>.game.log) -- never commit server logs
 c_port/logs/
+c_port/map_exports/
 logs/
 
 # Packaging artifacts

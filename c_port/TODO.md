@@ -15,6 +15,16 @@ viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
 
+- **Client: mapping doesn't actually DRAW a map** (user, 2026-08-22).
+  Everything shipped so far (Room.Info exits, map_model.c, Map > View
+  Map..., mapexport/maprecalc) is DATA -- vnums, names, exit lists, x/y/z
+  -- browsed as read-only sorted TEXT, not rendered as a visual graph/grid.
+  Needs a real GDI drawing view in the client (nodes for rooms, lines for
+  exits, pan/zoom, probably keyed off the x/y/z maprecalc now provides so
+  layout doesn't have to be computed client-side too) -- explicitly scoped
+  OUT of every session so far as "real GDI drawing work." Not scoped
+  further yet.
+
 - **smoke_test_trap.py: broken Thief "detect trap" assertion (found
   2026-08-21, unrelated to that session's actual change).** Its "step
   around the trap" check fails: a freshly-created level-1 Thief does
@@ -49,38 +59,22 @@ viewers keep plain names (`news`, `wiznews`).
   rows) where "should this one be paired" is a real per-item balance call,
   not a keyword match. Needs its own scoped pass.
 
-- **Client: mapping support.** Server side + client data layer DONE
-  2026-08-21 (STATUS.md Sessions 165/166). Server: `Room.Info` GMCP sends
-  `{num,name,exits}` (exits keyed by direction -> destination vnum, secret
-  exits omitted), fires on every real room display already (look/movement/
-  login all funnel through cmd_look.c). Client: learns a graph-walked map
-  (not absolute-coordinate) from Room.Info as a player moves, keyed by
-  vnum; Map > Enable Mapping toggle (prefs.ini-persisted, default on);
-  saved to `map.dat` (exe_dir) after every learned/changed room, so it
-  survives across sessions; Map > View Map... browses everything learned
-  so far (read-only, sorted by vnum, with a Refresh button) -- see
-  client/README.md's new "Mapping" section. Deliberately NOT a graphical
-  graph-drawing view (real GDI drawing work) -- a possible future
-  follow-up if wanted, not built this round. Still open: a level-59+
-  (Administrator) server command to map the ENTIRE world in one shot (not
-  just explored rooms) -- a separate bulk export path (likely its own
-  GMCP push or a generated file, feeding the same `map.dat` format) since
-  it needs the WHOLE `roomexit` table, not just what's been visited, and
-  isn't scoped yet. Also still open: a level-60 (above the 59+ export
-  command) command to RECALCULATE the world's coordinates -- walk the
-  whole `roomexit` graph (BFS/flood-fill from exits, same graph the 59+
-  export already needs) and derive x/y/z for every room from it, writing
-  into the `room` table's existing-but-unused x/y/z columns (see this
-  item's earlier scoping note -- `room_t` has no in-memory x/y/z today,
-  Tobin's world isn't grid-mapped yet). The point is to turn the client's
-  graph-walked map into a real positioned one automatically -- rerun any
-  time the world's layout changes (new zone, dug exit, etc.) rather than
-  hand-placing coordinates. Two real open questions: what happens to
-  disconnected exits (one-way/teleport-only links that don't imply a
-  consistent grid position) and to zones whose rooms don't form a planar
-  layout (a coordinate assignment can conflict or need overlap-breaking).
-  Not scoped further yet -- pair with the 59+ export command's design
-  work when this is picked up.
+- **Client: mapping support.** DONE 2026-08-21/22 (STATUS.md Sessions
+  165-168). Server: `Room.Info` GMCP sends `{num,name,exits}`, fires on
+  every real room display. Client: learns a graph-walked map from
+  Room.Info as a player moves; Map > Enable Mapping toggle; saved to
+  `map.dat` (exe_dir); Map > View Map... browses it (client/README.md's
+  "Mapping" section). `mapexport [filename]` (59+, cmd_mapexport.c)
+  dumps the WHOLE `room`/`roomexit` DB tables to a map.dat-format file
+  in `map_exports/`. `maprecalc` (60+, cmd_maprecalc.c) BFS-derives x/y/z
+  for every room from the roomexit graph and saves them to the `room`
+  table's x/y/z columns (world_map_repo.c backs both). Known, accepted
+  limitation (not solved further): per-connected-component flood fill,
+  first-visit-wins on any room reached twice by different paths (a real
+  cycle, a one-way/teleport link, or non-planar layout) -- geometrically
+  imperfect there, but always well-defined and rerunnable. A real
+  graphical graph-drawing client view is a possible future follow-up,
+  not built.
 
 - **Client: enable cut/copy/paste** in the client. DONE 2026-08-21: the
   input box already had this for free (native Win32 Edit control

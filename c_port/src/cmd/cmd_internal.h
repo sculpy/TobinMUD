@@ -118,6 +118,8 @@ bool cmd_goto(descriptor_t *d, const char *args);
 bool cmd_promote(descriptor_t *d, const char *args);
 bool cmd_hedit(descriptor_t *d, const char *args);
 bool cmd_copyover(descriptor_t *d, const char *args);
+bool cmd_mapexport(descriptor_t *d, const char *args);
+bool cmd_maprecalc(descriptor_t *d, const char *args);
 bool cmd_north(descriptor_t *d, const char *args);
 bool cmd_east(descriptor_t *d, const char *args);
 bool cmd_south(descriptor_t *d, const char *args);
@@ -290,6 +292,14 @@ bool look_at_target(descriptor_t *d, const char *args);
 /* `copyover` reboots the server binary in place -- the most consequential
  * command there is, so it's gated at Administrator (59) and up. */
 #define COPYOVER_MIN_LEVEL 59
+/* `mapexport` dumps the whole `room`/`roomexit` DB tables to a file --
+ * read-only against the DB, but Administrator-gated like `copyover`
+ * since it's a full-world bulk operation. */
+#define MAPEXPORT_MIN_LEVEL 59
+/* `maprecalc` bulk-overwrites x/y/z for EVERY room in the `room` table --
+ * more consequential than a read-only export, so it's gated a tier
+ * above it, at Implementor (60), same tier as `exec`/`shutdown`. */
+#define MAPRECALC_MIN_LEVEL 60
 
 /* `exec` runs shell commands on the host box -- Implementor-only (60). */
 #define EXEC_MIN_LEVEL 60

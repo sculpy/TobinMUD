@@ -557,6 +557,12 @@ static const cmd_entry_t COMMANDS[] = {
     { "bamfin",  cmd_bamfin,  "Set your custom `goto` arrival message (bamfin [msg]).",    IMMORTAL_LEVEL_MIN },
     { "bamfout", cmd_bamfout, "Set your custom `goto` departure message (bamfout [msg]).", IMMORTAL_LEVEL_MIN },
     { "copyover", cmd_copyover, "Reboot the server in place; nobody is disconnected (copyover [seconds|-now|cancel|abort]).", COPYOVER_MIN_LEVEL },
+    /* mapexport/maprecalc share a "map" prefix but diverge at the 4th
+     * letter ("mape"/"mapr", same "sho"/"show"-style pattern as elsewhere
+     * in this table) -- bare "map" matches whichever is listed first,
+     * mapexport here since it's the lower-gated, more commonly-run one. */
+    { "mapexport", cmd_mapexport, "Dump the ENTIRE world (room+roomexit tables) to a map.dat-format file (mapexport [filename]).", MAPEXPORT_MIN_LEVEL },
+    { "maprecalc", cmd_maprecalc, "Recalculate every room's x/y/z from the roomexit graph and save them.", MAPRECALC_MIN_LEVEL },
     { "deathstroke", cmd_deathstroke, "A heavy, finishing-style attack against a single target (Warrior, deathstroke <target>).", MORTAL_LEVEL_MIN },
     /* Must come AFTER sleep -- "sl" is already sleep's abbreviation;
      * slam is only reachable via its own "sla"+ prefix. */
