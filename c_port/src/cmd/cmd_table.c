@@ -118,10 +118,11 @@
  *     above for the full methodology and the mortal-safety analysis.
  * A handful of confirmed like-for-like renames noted inline where Tobin
  * already has the real equivalent under different wording (e.g. Sneezy's
- * "feign death" / "redit"+"medit"+"oedit"+"fedit" -> Tobin's
- * `feigndeath` / unified `edit <noun>`) -- NOT given their own table
- * entry, since they already work under Tobin's own name; noted so a
- * future session doesn't re-flag them as gaps. Everything else in the
+ * "feign death" -> Tobin's `feigndeath`) -- NOT given their own table
+ * entry, since it already works under Tobin's own name.
+ * (redit/medit/oedit/trigedit/zedit -- Sneezy's own names too -- WERE
+ * later given their own standalone entries alongside `edit <noun>`,
+ * user decision 2026-08-22; see those entries just below `edit` above.) Everything else in the
  * "genuinely not yet ported" lists below was NOT individually verified
  * against Tobin's full skill/social/help surface with full precision
  * (262 names is too large to hand-check one by one in a single pass) --
@@ -498,6 +499,26 @@ static const cmd_entry_t COMMANDS[] = {
      * nouns needing more (player 58+, help/news/wiznews 56+, rules 59+)
      * check that internally, in cmd_edit.c. */
     { "edit",    cmd_edit,    "Edit a room/zone/object/player/account/help/news/wiznews/rules/trigger (edit <noun> ...).", BUILD_MIN_LEVEL },
+    /* Standalone per-noun editor verbs (user decision, 2026-08-22: reverses
+     * the 2026-08-02 audit note below this table's header comment, which
+     * had deliberately left these unregistered in favor of `edit <noun>`
+     * alone) -- same real Sneezy names (redit/medit/oedit/trigedit/zedit),
+     * each forwarding to the exact same handler `edit <noun>` already
+     * calls. Both forms work side by side; `edit` is untouched. Gated at
+     * the same min level each noun already checks inside cmd_edit.c. */
+    { "redit",    cmd_edroom,    "Edit a room (redit [vnum]).", BUILD_MIN_LEVEL },
+    { "zedit",    cmd_edzone,    "Edit a zone (zedit [vnum]).", BUILD_MIN_LEVEL },
+    { "oedit",    cmd_edobject,  "Edit an object prototype (oedit [vnum]).", BUILD_MIN_LEVEL },
+    { "medit",    cmd_edmobile,  "Edit a mob prototype (medit [vnum]).", BUILD_MIN_LEVEL },
+    { "trigedit", cmd_edtrigger, "Edit a trigger (trigedit [vnum]).", BUILD_MIN_LEVEL },
+    { "edplayer", cmd_edplayer,  "Edit a player (edplayer <name>).", EDPLAYER_MIN_LEVEL },
+    { "edaccount", cmd_edaccount, "Edit an account (edaccount <name>).", EDACCOUNT_MIN_LEVEL },
+    { "hedit",    cmd_hedit,     "Edit a help topic (hedit <name>).", HELP_EDIT_MIN_LEVEL },
+    { "addnews",  cmd_addnews,   "Post/edit news.", ADDNEWS_MIN_LEVEL },
+    { "edwiznews", cmd_edwiznews, "Post/edit wiznews.", ADDNEWS_MIN_LEVEL },
+    { "edrules",  cmd_edrules,   "Edit the rules text.", EDRULES_MIN_LEVEL },
+    { "edsocial", cmd_edsocial,  "Edit a social (edsocial <name>).", EDSOCIAL_MIN_LEVEL },
+    { "edsuit",   cmd_edsuit,    "Edit a suit template (edsuit [vnum]).", LOADSUIT_MIN_LEVEL },
     { "tips",    cmd_tips,    "Show a random gameplay tip.",                        MORTAL_LEVEL_MIN },
     { "title",   cmd_title,   "Set the title shown after your name in who.",        MORTAL_LEVEL_MIN },
     { "assist",  cmd_assist,  "Join a groupmate's fight, attacking whoever they're fighting (assist <groupmate>).", MORTAL_LEVEL_MIN },
