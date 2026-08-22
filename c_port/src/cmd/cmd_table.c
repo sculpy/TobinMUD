@@ -592,6 +592,7 @@ static const cmd_entry_t COMMANDS[] = {
      * its own full 4-letter "head" prefix, which nothing else in the
      * table starts with. */
     { "headbutt", cmd_headbutt, "Slam your head into an opponent for real damage (Warrior, headbutt <target>).", MORTAL_LEVEL_MIN },
+    { "cudgel",   cmd_cudgel,   "A non-lethal knockout blow with a wielded weapon (Thief, cudgel <target>).", MORTAL_LEVEL_MIN },
     { "stabbing", cmd_stabbing, "A piercing melee attack against your opponent (Thief, must be fighting).", MORTAL_LEVEL_MIN },
     { "subterfuge", cmd_subterfuge, "Redirect your mob opponent's aggression onto someone else (subterfuge <target>).", MORTAL_LEVEL_MIN },
     { "examine", cmd_examine, "Look at something in detail -- a synonym for look <target>.", MORTAL_LEVEL_MIN },

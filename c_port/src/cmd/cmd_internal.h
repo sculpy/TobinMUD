@@ -104,6 +104,7 @@ bool cmd_restore(descriptor_t *d, const char *args);
 bool cmd_aitick(descriptor_t *d, const char *args);
 bool cmd_flee(descriptor_t *d, const char *args);
 bool cmd_headbutt(descriptor_t *d, const char *args);
+bool cmd_cudgel(descriptor_t *d, const char *args);
 bool cmd_spin(descriptor_t *d, const char *args);
 bool cmd_springleap(descriptor_t *d, const char *args);
 bool cmd_slam(descriptor_t *d, const char *args);

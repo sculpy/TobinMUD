@@ -647,3 +647,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Thieves Learn to Spy', 'SPY finally answers the call. A Thief who has learned it can type spy followed by a direction to steal a covert glimpse of the room one exit away without ever setting foot in it -- nobody in either room ever knows it happened. A closed or hidden door still blocks the view.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Thieves Learn to Cudgel', 'CUDGEL finally answers the call. A Thief wielding a weapon can type cudgel followed by a target for a non-lethal knockout blow -- it deals no real damage, but a clean hit knocks the target out cold for a while.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
