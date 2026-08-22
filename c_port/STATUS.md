@@ -1,4 +1,23 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 -- Session 186 (DO droplet, production port 4000):
+**Road-shrink initiative, zone 53 done.** Fifth zone (see Sessions
+183-185): zone 53 (Dolgan - Southern Jungle Road) 202->176 rooms.
+  - Dense, anchor-heavy zone: 157 of 202 rooms are junctions/boundaries/
+    spawn-bearing, leaving only 45 corridor candidates (42 safely
+    reciprocated) -- same situation as zone 2's city grid. Per standing
+    direction, accepted the safe algorithm's 12% cut rather than forcing
+    manual junction surgery.
+  - Applied clean on the first try: pre-flight gate showed 0 uncovered
+    inbound edges before apply, 0 dangling roomexit destinations after.
+  - Post-apply multi-seed BFS (from every external entry point) left 12
+    rooms (9450-9461) unreached. Verified pre-existing, not caused by
+    this change: that cluster has zero inbound edges from anywhere else
+    in the zone (only outbound), and no relink statement in this
+    migration touched any edge pointing at it -- it was already a
+    one-way-out pocket before the shrink.
+  - Migration file is a single, clean, replay-safe SQL. News + wiznews
+    entries added. No C code changed, no rebuild/copyover needed.
+
 Last updated: 2026-08-22 -- Session 185 (DO droplet, production port 4000):
 **Road-shrink initiative, zones 67 and 16 done; found and fixed a second
 real bug in db/road_shrink.py.** Third and fourth zones (see Sessions

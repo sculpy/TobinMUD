@@ -681,3 +681,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The Third Ring of Roads Grows Shorter', 'Another stretch of the roads ringing the city has been trimmed -- fewer weary steps between the crossings travelers already knew. Every destination it led to before still connects the same way.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Southern Jungle Road Grows Shorter', 'The winding jungle road through Dolgan''s southern reaches has been trimmed to a tighter, more walkable stretch. Every landmark and junction along the way is right where it was.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

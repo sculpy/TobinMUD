@@ -1488,3 +1488,10 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Zone 16 shrunk cleanly -- first zone to apply without incident', '2026-08-22. Fourth zone in the road-shrink initiative: zone 16 (Third Ring of Roads), 152 -> 90 rooms, preserving 2 spawn-bearing rooms (component_placement). First zone to go through db/road_shrink.py cleanly on the first apply, no partial commit, no recovery needed -- confirms both bugs from earlier today (zones 2 and 67) are actually fixed, not just patched around. Zero dangling roomexit destinations database-wide afterward; full connectivity verified from every external entry point into the zone (3 pre-existing, untouched rooms remain unreachable -- a tiny self-contained 2-room island and one zero-exit room, neither in the cut list, neither touched by this change).')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Zone 53 (Dolgan - Southern Jungle Road) shrunk -- dense zone, only 12% safely cut', '2026-08-22. Fifth zone in the road-shrink initiative: zone 53, 202 -> 176 rooms. Applied cleanly on the first try, both fixed bugs holding, pre-flight gate showed 0 uncovered inbound edges before apply and 0 dangling roomexit destinations after.
+
+This zone is anchor-heavy -- 157 of its 202 rooms are junctions, boundary rooms, or spawn-bearing rooms, leaving only 45 corridor candidates and 42 of those safely reciprocated. Result was a 12% cut instead of the usual ~50%, same situation as zone 2''s city grid. Per standing direction, accepted whatever the safe algorithm yields rather than forcing manual junction surgery.
+
+Post-apply BFS from every external entry point left 12 rooms (9450-9461) unreached. Verified this is pre-existing, not caused by this change: that cluster has no inbound edges from anywhere in the zone (only outbound), and no relink statement in this migration touched any edge pointing at it. It was already a one-way-out pocket before the shrink.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
