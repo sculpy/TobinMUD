@@ -1,4 +1,37 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 169 (DO droplet, production port 4000):
+**advanced berserking (Warrior, 35) -- last item in the Warrior half of the
+missing-skill/spell backlog (skill.c's own audit list).** Real upstream
+(disc_warrior_brawling.cc's doAdvancedBerserk()) rolls each combat round
+to auto-fire a random other known Warrior maneuver off a weighted table.
+Ported using Tobin's own existing simplification for this exact class of
+skill instead: combat.c's combat_process_run() already gives chain
+attack/blur/advanced kicking (Monk) a "genuine bonus combat_strike(),
+CHANCE-gated per round" -- advanced berserking reuses that identical
+shape, gated on AFFECT_BERSERK and scaled by proficiency
+(skill_learn_from_doing()) rather than chain attack's flat 50, applied
+symmetrically to both fight participants.
+  - Skipped Cleric's own last backlog item, `relive` (corpse
+    resurrection) -- already flagged dead-on-arrival by this file's own
+    Session-era note on combat_defeat()'s XP-loss block: Tobin's PC
+    death has no corpse to resurrect (no permadeath, soft-respawn/relog
+    already covers it). Left as-is in TODO.md/skill.c for a future
+    redesign conversation, not attempted here.
+  - Help text updated (was the old placeholder "An upgraded berserk with
+    a stronger effect"); news.sql entry added.
+  - Found and fixed two PRE-EXISTING unescaped-apostrophe bugs in
+    skill_help.sql (`concealment`'s "a mortal's `track` can't follow",
+    `iron bones`'s "a Monk's bonebreak... won't break") that silently
+    broke `apply-tobin-schema.sh` outright (ERROR 1064, whole file
+    failed) -- unrelated to this session's own change, caught only
+    because this was the first time in a while the full schema script
+    was re-run end to end. Not a regression from this session.
+  - New smoke_test_advanced_berserking.py (proficiency trains from a
+    real round of berserk combat; help topic loads the real body, not
+    the old placeholder). smoke_test_combat_passives_generic.py re-run
+    clean (no regression). Build clean, zero warnings. Deployed via
+    copyover (players may have been connected).
+---
 Last updated: 2026-08-22 — Session 168 (DO droplet, production port 4000):
 **mapexport (59+) / maprecalc (60+) -- the last piece of the client mapping-support TODO item.**
   - New `world_map_repo.c`/`.h`: loads the WHOLE `room`/`roomexit` DB tables directly (two bulk queries merged by ascending vnum, not a ~20000-round-trip per-room loop) into a `world_map_room_t[]` -- shared by both commands below. `world_map_repo_save_coords()` writes x/y/z back inside one transaction.
