@@ -1,4 +1,27 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 179 (DO droplet, production port 4000):
+**Two user bug reports fixed.**
+  - `look <object>` now checks the `objextra` table for a
+    hand-authored extra description matching the keyword that found
+    the object, showing that instead of the generic long_descr
+    fallback (obj_repo_extra_desc(), obj_repo.c/.h, cmd_look.c) --
+    6,731 real seeded objextra rows existed with no code reading
+    them until this, same gap room_repo_extra_desc() already closed
+    for roomextra. Verified live against vnum 118's real seeded
+    signpost lore text ("look sign" was showing only "A large
+    marble signpost stands beside the road. It is brand new.").
+  - Editor menus gained a 'q' exit key everywhere a blank line
+    already worked to back out of a submenu (25 sites across
+    redit/oedit/medit/trigedit/edplayer/etc, descriptor.c). Root
+    cause: the client's repeat-last-command-on-blank-Enter feature
+    (main.c, 2026-08-05) means a bare Enter in these editors never
+    actually reaches the server as blank -- it resends the last
+    real command instead, so a player got stuck unable to back out
+    (reported while editing room exits). 'q' is a real non-empty
+    line, never intercepted by that client feature. Blank still
+    works too, unchanged -- smoke_test_redit.py's existing coverage
+    still passes with no regression. New smoke_test_editor_exit_key.py.
+
 Last updated: 2026-08-22 — Session 178 (DO droplet, production port 4000):
 **set trap (mine)/(grenade) + new `throw` command -- user decision:
 'build both' rather than dropping them.** Closes the last two entries
