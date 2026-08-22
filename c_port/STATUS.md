@@ -1,4 +1,41 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 178 (DO droplet, production port 4000):
+**set trap (mine)/(grenade) + new `throw` command -- user decision:
+'build both' rather than dropping them.** Closes the last two entries
+in TODO.md's old unimplemented-skills backlog.
+  - `throw <item> <target>` (cmd_throw.c, new file): Tobin's first
+    thrown-weapon command. Throws a loose WEAR_THROW-flagged item
+    (522 real seeded items -- daggers, knives, darts) or any
+    grenade-keyword item, same-room, spending it as one-shot ammo.
+    Flat+DEX damage, deliberately NOT val[0]/val[1] dice -- found
+    while building this that real weapon damage actually comes from
+    a separate combat-mods lookup (obj_load_combat_mods(), combat.c),
+    not those fields (a seeded dagger's val[0] is in the thousands),
+    and GRENADE_TRAPPED lives in val[0]'s own bit 0 -- treating it
+    as a dice count would have corrupted the rig flag on every throw.
+  - `set trap (mine)` (cmd_trap.c's `settrap mine`): rigs the
+    CURRENT ROOM's own floor, not a specific exit -- room.h's new
+    `mine_trapped` field (tobin_migrations.sql), a Tobin-only
+    addition, NOT part of the original's verbatim room_flag bit
+    layout (unlike EXIT_COND_TRAPPED, which upstream really does
+    define). Springs in cmd_move.c on arrival from ANY direction,
+    same flat random-limb damage and detect-trap dodge as the door
+    trap.
+  - `set trap (grenade)`: rigs a carried grenade-keyword item
+    (obj.h's GRENADE_TRAPPED, same val[0] bit as ARROW_TRAPPED --
+    ammo and throwables never share one object). `throw` springs it
+    on a landed hit.
+  - Both are disclosed scope-downs from upstream's own mine/grenade,
+    which are built via a multi-item crafting task with a dozen
+    elemental damage-type choices (trap.cc's hasTrapComps()) -- ported
+    as the same single flat-damage rig every other Tobin trap already
+    is, not the crafting minigame.
+  - `help settrap`/`help disarmtrap` widened to cover all five forms;
+    new `help throw`. news.sql entry.
+    `tests/smoke_test_mine_grenade_throw.py`: rig/spring/one-shot/
+    disarm coverage for both mine and grenade, all passing after a
+    `deploy_copyover.py` zero-drop reload.
+
 Last updated: 2026-08-22 — Session 177 (DO droplet, production port 4000):
 **relive (49, Cleric prayer) dropped -- user decision.** Real upstream's
 relive is corpse resurrection; Tobin has no permadeath or corpse at
