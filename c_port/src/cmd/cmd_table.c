@@ -582,6 +582,7 @@ static const cmd_entry_t COMMANDS[] = {
      * one. Mortals never see "pee" at all, so this costs them nothing;
      * "peek" itself still works fine typed in full either way. */
     { "peek",    cmd_peek,    "Attempt to see what someone is carrying, without their knowledge (Thief, peek <target>).", MORTAL_LEVEL_MIN },
+    { "spy",     cmd_spy,     "Covertly glimpse the room one exit away, undetected (Thief, spy <direction>).", MORTAL_LEVEL_MIN },
     { "color",   cmd_color,   "Toggle ANSI color rendering on or off.",             MORTAL_LEVEL_MIN },
     { "email",   cmd_email,   "View or set your account email address (never shared -- MUD communications only).", MORTAL_LEVEL_MIN },
     { "mailinglist", cmd_mailinglist, "Export every opted-in account email address to a file in logs/ for mass-email use.", 60 },

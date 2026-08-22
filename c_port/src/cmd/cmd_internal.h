@@ -88,6 +88,7 @@ bool cmd_balance(descriptor_t *d, const char *args);
 bool cmd_settrap(descriptor_t *d, const char *args);
 bool cmd_disarmtrap(descriptor_t *d, const char *args);
 bool cmd_peek(descriptor_t *d, const char *args);
+bool cmd_spy(descriptor_t *d, const char *args);
 bool cmd_dig(descriptor_t *d, const char *args);
 bool cmd_affects(descriptor_t *d, const char *args);
 bool cmd_alias(descriptor_t *d, const char *args);

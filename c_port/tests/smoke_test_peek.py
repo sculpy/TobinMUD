@@ -97,10 +97,15 @@ cmd(s_thief, "quit!")  # clean logout -- a raw close() leaves them linkdead,
 s_thief.close()        # and a linkdead reconnect resumes the OLD in-memory
                         # room, ignoring the load_room UPDATE below entirely.
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{thief_name}';")
-# being_knows_skill() gates SKILL_TIER_COMBAT on combat_disc_pct > 0, not
+# being_knows_skill() gates SKILL_TIER_CLASS on basic_disc_pct > 0, not
 # just min_level -- a fresh character starts at 0% (same discipline gate
 # smoke_test_affects.py already had to seed for an Advanced-tier skill).
-sql(f"UPDATE player_progress SET combat_disc_pct=100 WHERE player_id="
+# NOTE: `peek` was SKILL_TIER_COMBAT when this test was first written
+# (hence combat_disc_pct below); a later rebalance moved it to
+# SKILL_TIER_CLASS (skill.c) without this test being updated -- found
+# stale while working on a nearby Thief skill (`spy`). Seed both so this
+# stays correct across either tier.
+sql(f"UPDATE player_progress SET basic_disc_pct=100, combat_disc_pct=100 WHERE player_id="
     f"(SELECT id FROM player WHERE name='{thief_name}');")
 sql(f"INSERT INTO player_skill (player_id, skill_name, pct, last_gain_at) "
     f"SELECT id, 'peek', 100, 0 FROM player WHERE name='{thief_name}' "
