@@ -31,7 +31,8 @@ map_room_t *map_model_find(map_model_t *m, int vnum) {
     return NULL;
 }
 
-bool map_model_upsert(map_model_t *m, int vnum, const char *name, const int exits[MAP_NUM_EXITS]) {
+bool map_model_upsert(map_model_t *m, int vnum, const char *name, const int exits[MAP_NUM_EXITS],
+                       int x, int y, int z, bool has_pos) {
     map_room_t *r = map_model_find(m, vnum);
     if (!r) {
         if (m->count >= MAP_ROOM_MAX)
@@ -41,6 +42,10 @@ bool map_model_upsert(map_model_t *m, int vnum, const char *name, const int exit
     }
     snprintf(r->name, sizeof(r->name), "%s", name ? name : "");
     memcpy(r->exits, exits, sizeof(r->exits));
+    r->x = x;
+    r->y = y;
+    r->z = z;
+    r->has_pos = has_pos;
     return true;
 }
 
@@ -76,6 +81,17 @@ void map_model_load(map_model_t *m, const char *path) {
             continue;
         *exits_s++ = '\0';
         int vnum = atoi(vnum_s);
+        /* A trailing "\tX,Y,Z" field is new (TODO.md real-GDI map view) --
+           an older map.dat/world_map.dat saved before it exists has none,
+           so this room stays has_pos=false until re-learned/re-exported. */
+        char *coords_s = strchr(exits_s, '\t');
+        bool has_pos = false;
+        int x = 0, y = 0, z = 0;
+        if (coords_s) {
+            *coords_s++ = '\0';
+            if (sscanf(coords_s, "%d,%d,%d", &x, &y, &z) == 3)
+                has_pos = true;
+        }
         int exits[MAP_NUM_EXITS];
         for (int i = 0; i < MAP_NUM_EXITS; i++)
             exits[i] = -1;
@@ -84,7 +100,7 @@ void map_model_load(map_model_t *m, const char *path) {
             exits[i] = atoi(tok);
             tok = strtok(NULL, ",");
         }
-        map_model_upsert(m, vnum, name_s, exits);
+        map_model_upsert(m, vnum, name_s, exits, x, y, z, has_pos);
     }
     fclose(f);
 }
@@ -100,7 +116,10 @@ bool map_model_save(const map_model_t *m, const char *path) {
         fprintf(f, "%d\t%s\t", r->vnum, safe_name);
         for (int d = 0; d < MAP_NUM_EXITS; d++)
             fprintf(f, "%s%d", d ? "," : "", r->exits[d]);
-        fputc('\n', f);
+        if (r->has_pos)
+            fprintf(f, "\t%d,%d,%d\n", r->x, r->y, r->z);
+        else
+            fputc('\n', f);
     }
     fclose(f);
     return true;

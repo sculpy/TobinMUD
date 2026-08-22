@@ -1,4 +1,66 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 174 (DO droplet, production port 4000):
+**Client map view finally DRAWS a map -- closes the last open piece of
+the client mapping-support TODO item, scoped out as "real GDI drawing
+work" by every session since 165.** Scoped with the user before
+touching anything: layout source is the server (extend mapexport +
+Room.Info GMCP with x/y/z, not a second layout algorithm duplicated
+client-side), and the new view replaces the old text browser outright
+rather than sitting alongside it.
+  - Server: `room_t` gained `x, y, z` (loaded by `room_repo_load`);
+    `gmcp_build_room_info()` grew three params and now sends
+    `"x"/"y"/"z"` in every `Room.Info` push (`cmd_look.c`'s call site
+    updated); `mapexport`'s file format grew a fourth
+    `X,Y,Z` tab field per line (`cmd_mapexport.c`, `client/README.md`
+    updated to match).
+  - Found and fixed a real bug along the way: `world_map_repo_load_all()`
+    (backs both `mapexport` and `maprecalc`) never selected the `room`
+    table's `x`/`y`/`z` columns in the first place, so a freshly
+    `mapexport`ed file always carried `0,0,0` regardless of what
+    `maprecalc` had actually derived -- caught by the new
+    smoke-test coverage (part 5 of `smoke_test_mapexport.py`), not
+    inspection.
+  - Client: `map_model_t`'s `map_room_t` gained `x, y, z, has_pos`
+    (`has_pos` false for a room learned before this field existed, so
+    an old `map.dat` doesn't draw every unpositioned room piled at the
+    origin); `map_model_upsert()`/`_load()`/`_save()` updated, save
+    format matches the server's `mapexport` format exactly. The old
+    `View Map...` plain-text `EDIT` control is gone, replaced by a real
+    owner-drawn GDI canvas (`MapCanvasWndProc`, `main.c`): nodes for
+    rooms, lines for exits, one z-level at a time (toolbar Up/Down),
+    mouse-drag pans, the wheel zooms around the cursor, the player's
+    current room highlighted gold, node labels once zoomed in enough,
+    hover shows a room's name in the status line. A room with no known
+    position, or an exit into a different z-level, is simply not drawn
+    (documented limitation, same spirit as `maprecalc`'s own
+    first-visit-wins note) -- run `maprecalc` (then `mapexport`, or
+    just walk around) to get real positions. Refresh now reloads
+    `map.dat` from disk (not just a repaint), the way to pick up an
+    admin's `mapexport` dump without restarting the client.
+  - `gmcp_json_map_test.c` updated for the new `map_model_upsert()`
+    signature and extended with x/y/z + has_pos round-trip coverage;
+    along the way found and fixed a real pre-existing-but-latent bug
+    the struct's growth finally tipped over: the test stack-allocated
+    two `map_model_t` locals (`MAP_ROOM_MAX`=24000 rooms apiece), and
+    adding x/y/z/has_pos pushed their combined size past the default
+    8MB stack limit, segfaulting before `main()`'s first statement --
+    now heap-allocated. 22/22 checks pass.
+  - Both client toolchains build clean, zero warnings
+    (`build-win64` mingw64 cross-compile, `build-native` portable-core
+    sanity build). Server: clean rebuild, zero warnings.
+    `smoke_test_mapexport.py` (extended with the format/round-trip
+    checks above, 15/15) and `smoke_test_gmcp_msdp_msp.py` (unaffected,
+    11/11) both pass. News/wiznews entries added.
+  - Deployed via copyover (players may have been connected), twice --
+    once for the x/y/z plumbing, once more for the `world_map_repo.c`
+    fix once the smoke test caught it.
+  - Shipped as client v0.4.34: `CLIENT_VERSION` bumped (both
+    `main.c` and the installer's `tobinmud.wxs`), MSI rebuilt and
+    published to the update host (`version.txt` + `TobinMUDClient.msi`
+    under `/home/mud/TobinMUD/web/tobinclient/`, verified served over
+    plain http) -- every client still on an older version picks this up
+    automatically the next time it's launched.
+---
 Last updated: 2026-08-22 — Session 173 (DO droplet, production port 4000):
 **Seed WEAR_PAIRED onto both-limb armor -- closes the TODO.md follow-up
 Session 159 deferred.** Session 159 shipped the WEAR_PAIRED mechanic and

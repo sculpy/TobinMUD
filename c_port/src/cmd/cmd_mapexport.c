@@ -20,7 +20,7 @@
  * in-memory world cache this boot (world_map_repo_load_all()) -- to a
  * plain text file in the TobinMUD Client's own map.dat format
  * (client/src/core/map_model.c): one line per room,
- * "VNUM<TAB>NAME<TAB>e0,e1,...,e9" (destination vnum per direction, in
+ * "VNUM<TAB>NAME<TAB>e0,e1,...,e9<TAB>X,Y,Z" (destination vnum per
  * the fixed north/east/south/west/up/down/northeast/northwest/southeast/
  * southwest order that room.c's DIR_NAMES already uses, -1 = no exit).
  *
@@ -68,7 +68,7 @@ bool cmd_mapexport(descriptor_t *d, const char *args) {
         fprintf(f, "%d\t%s\t", rooms[i].vnum, safe_name);
         for (int dir = 0; dir < ROOM_NUM_EXITS; dir++)
             fprintf(f, "%s%d", dir ? "," : "", rooms[i].exits[dir]);
-        fputc('\n', f);
+        fprintf(f, "\t%d,%d,%d\n", rooms[i].x, rooms[i].y, rooms[i].z);
     }
     fclose(f);
     free(rooms);

@@ -500,7 +500,7 @@ bool cmd_look(descriptor_t *d, const char *args) {
          * than truncating if a future change ever makes that not true. */
         char gbuf[512];
         size_t glen = gmcp_build_room_info(gbuf, sizeof(gbuf), r->vnum, r->base.name,
-                                            r->exits, r->exit_cond);
+                                            r->exits, r->exit_cond, r->x, r->y, r->z);
         if (glen > 0)
             descriptor_send_subneg(d, TOBIN_TN_GMCP, (const unsigned char *)gbuf, glen);
     }

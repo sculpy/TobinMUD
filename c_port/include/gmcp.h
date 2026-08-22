@@ -31,14 +31,18 @@
  * be lied to about. */
 size_t gmcp_build_char_vitals(char *buf, size_t bufsz, int hp, int maxhp, int vit, int maxvit,
                                int mana, int maxmana, const char *manalabel);
-/* "Room.Info {"num":942900,"name":"A bare sandbox room.","exits":{"north":942901}}" --
+/* "Room.Info {"num":942900,"name":"A bare sandbox room.","x":3,"y":-1,"z":0,"exits":{"north":942901}}" --
  * `name` is JSON-string-escaped (quotes/backslashes/control bytes) since
  * it's DB-sourced room-name text, not a fixed literal like the keys
  * above. `exits`/`exit_cond` are a room_t's raw exits[]/exit_cond[]
  * arrays (ROOM_NUM_EXITS entries, -1 destination = no exit); secret
  * (undiscovered) exits are omitted from the payload, same convention
  * `exits`/`look` already use (cmd_exits.c) -- a mapping client should
- * only ever be told what a player could actually see. */
+ * only ever be told what a player could actually see. `x`/`y`/`z` are
+ * the room table's own columns (0,0,0 until `maprecalc` has run) --
+ * feeds the client's real GDI map-drawing view (TODO.md), same layout
+ * `maprecalc`/`mapexport` already agree on. */
 size_t gmcp_build_room_info(char *buf, size_t bufsz, int vnum, const char *name,
-                             const int exits[ROOM_NUM_EXITS], const int exit_cond[ROOM_NUM_EXITS]);
+                             const int exits[ROOM_NUM_EXITS], const int exit_cond[ROOM_NUM_EXITS],
+                             int x, int y, int z);
 #endif

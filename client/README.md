@@ -146,24 +146,43 @@ shortcut. Uninstall via the normal Windows "Apps & features" list, or
 
 ## Mapping
 
-Map > Enable Mapping (on by default, persisted in prefs.ini) learns
-the graph-walked shape of the world as you move -- NOT an absolute-
-coordinate map (the server's rooms have no in-memory x/y/z), a Mudlet-
-style "room X has an exit to room Y in direction D" graph instead,
-built from GMCP `Room.Info`'s `exits` object (server-side, gmcp.c).
-Saved to `map.dat`, next to the exe, after every newly-learned or
--changed room, so it survives across sessions; toggling mapping off
-just stops learning new rooms, it doesn't discard what's already
-saved. Map > View Map... opens a read-only, sorted-by-vnum text
-browser over everything learned so far, with a Refresh button (new
-rooms can still arrive via GMCP while the window is open). A real
-graphical graph-drawing view is a possible future follow-up, not
-built here -- see TODO.md.
 
-A separate, not-yet-built level-59+ (Administrator) server command to
-export the ENTIRE world in one shot (not just explored rooms) would
-feed the same `map.dat` format for a complete reference map -- still
-open, see TODO.md.
+Map > Enable Mapping (on by default, persisted in prefs.ini) learns
+the graph-walked shape of the world as you move -- "room X has an
+exit to room Y in direction D", built from GMCP `Room.Info`'s `exits`
+object (server-side, gmcp.c) -- plus, when present, that room's real
+x/y/z layout position (the `room` table's own columns, derived by the
+immortal-only `maprecalc` command and 0,0,0 until that has been run at
+least once). Saved to `map.dat`, next to the exe, after every newly-
+learned or -changed room, so it survives across sessions; toggling
+mapping off just stops learning new rooms, it doesn't discard what's
+already saved.
+
+
+Map > View Map... is a real GDI-drawn graph view (client/src/win32/
+main.c, MapCanvasWndProc et al.) -- nodes for rooms, lines for exits,
+one z-level at a time (Z: Up/Down), mouse-drag to pan and the wheel to
+zoom around the cursor, the player's current room highlighted gold.
+Only rooms with a known position (x/y/z actually seen, not just
+0,0,0-by-default) are drawn; an exit into an unknown-position room or
+a different z-level isn't drawn as a line either -- run `maprecalc` on
+a fresh world (or `mapexport` after it) to get everything positioned
+at once instead of relying on room-by-room graph-walking. Refresh
+re-reads `map.dat` from disk (not just a repaint) -- the way to pick
+up a `mapexport`-produced file dropped in as your own map.dat without
+restarting the client.
+
+
+A level-59+ (Administrator) server command, `mapexport [filename]`,
+dumps the ENTIRE world (not just explored rooms) to `map_exports/` in
+this same `map.dat` format: one line per room, tab-separated
+`VNUM<TAB>NAME<TAB>e0,e1,...,e9<TAB>X,Y,Z` (destination vnum per
+direction in the server's fixed north/east/south/west/up/down/
+northeast/northwest/southeast/southwest order, -1 = no exit; X,Y,Z is
+the room's `maprecalc`-derived position). A level-60+ (Implementor)
+command, `maprecalc`, BFS-derives x/y/z for every room from the
+`roomexit` graph and saves it to the `room` table -- rerun any time
+the world's layout genuinely changes (new zone, dug exit).
 
 ## Testing
 

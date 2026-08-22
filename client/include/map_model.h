@@ -24,6 +24,11 @@ typedef struct {
     int vnum;
     char name[128];
     int exits[MAP_NUM_EXITS]; /* destination vnum per direction, -1 = no/unknown exit */
+    int x, y, z;    /* maprecalc-derived layout position -- meaningless unless has_pos */
+    bool has_pos;   /* false for a room learned before this field existed (an old
+                       map.dat entry not yet re-visited/re-exported) -- the real-GDI
+                       map view (TODO.md) skips drawing a node with no known position
+                       rather than piling every unknown room up at (0,0,0). */
 } map_room_t;
 /* Tobin's whole `room` table is ~20k rows (checked live, 2026-08-21);
  * rounded up so a future level-59+ full-world export (TODO.md, still
@@ -41,7 +46,8 @@ void map_model_init(map_model_t *m);
  * with fresh name/exits -- a later sighting always wins (a door can be
  * dug or destroyed after first discovery). Returns false only when the
  * room is new and the table is already full (MAP_ROOM_MAX reached). */
-bool map_model_upsert(map_model_t *m, int vnum, const char *name, const int exits[MAP_NUM_EXITS]);
+bool map_model_upsert(map_model_t *m, int vnum, const char *name, const int exits[MAP_NUM_EXITS],
+                       int x, int y, int z, bool has_pos);
 map_room_t *map_model_find(map_model_t *m, int vnum);
 /* Loads the whole table from a simple tab-delimited text file
  * (VNUM<TAB>NAME<TAB>e0,e1,...,e9 per line, -1 for no exit). Additive/

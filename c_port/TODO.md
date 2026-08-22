@@ -15,15 +15,12 @@ viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
 
-- **Client: mapping doesn't actually DRAW a map** (user, 2026-08-22).
-  Everything shipped so far (Room.Info exits, map_model.c, Map > View
-  Map..., mapexport/maprecalc) is DATA -- vnums, names, exit lists, x/y/z
-  -- browsed as read-only sorted TEXT, not rendered as a visual graph/grid.
-  Needs a real GDI drawing view in the client (nodes for rooms, lines for
-  exits, pan/zoom, probably keyed off the x/y/z maprecalc now provides so
-  layout doesn't have to be computed client-side too) -- explicitly scoped
-  OUT of every session so far as "real GDI drawing work." Not scoped
-  further yet.
+- **Client: mapping doesn't actually DRAW a map.** DONE 2026-08-22
+  (STATUS.md Session 174, client v0.4.34). Server now sends x/y/z on
+  Room.Info and in mapexport's file format; Map > View Map... is a real
+  GDI-drawn graph (nodes/lines, pan/zoom, per-z-level, current room
+  highlighted) instead of a text list. Known, accepted limitation: a room
+  with no known position, or an exit to a different z-level, isn't drawn.
 
 - **Sneezy-DB decoupling — optional cleanup** (main task DONE 2026-08-16;
   orphaned `sneezy` + `sneezy_scratch` DBs dropped 2026-08-17;

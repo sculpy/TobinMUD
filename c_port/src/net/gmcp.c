@@ -73,10 +73,13 @@ static size_t append_exits(char *buf, size_t bufsz, size_t written,
 }
 
 size_t gmcp_build_room_info(char *buf, size_t bufsz, int vnum, const char *name,
-                             const int exits[ROOM_NUM_EXITS], const int exit_cond[ROOM_NUM_EXITS]) {
+                             const int exits[ROOM_NUM_EXITS], const int exit_cond[ROOM_NUM_EXITS],
+                             int x, int y, int z) {
     char escaped[192];
     json_escape(name, escaped, sizeof(escaped));
-    int n = snprintf(buf, bufsz, "Room.Info {\"num\":%d,\"name\":\"%s\",\"exits\":{", vnum, escaped);
+    int n = snprintf(buf, bufsz,
+                      "Room.Info {\"num\":%d,\"name\":\"%s\",\"x\":%d,\"y\":%d,\"z\":%d,\"exits\":{",
+                      vnum, escaped, x, y, z);
     if (n < 0 || (size_t)n >= bufsz)
         return 0;
     return append_exits(buf, bufsz, (size_t)n, exits, exit_cond);

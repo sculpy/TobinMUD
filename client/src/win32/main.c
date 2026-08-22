@@ -62,6 +62,7 @@
 #include <mmsystem.h>
 #include <wininet.h>
 #include <commdlg.h>
+#include <windowsx.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -140,9 +141,15 @@
 #define ID_ALIASEDIT_SAVE 707
 #define ID_ALIASEDIT_CANCEL 708
 
-#define ID_MAPVIEW_TEXT 801
+#define ID_MAPVIEW_CANVAS 801
 #define ID_MAPVIEW_REFRESH 802
 #define ID_MAPVIEW_CLOSE 803
+#define ID_MAPVIEW_ZOOMIN 804
+#define ID_MAPVIEW_ZOOMOUT 805
+#define ID_MAPVIEW_ZUP 806
+#define ID_MAPVIEW_ZDOWN 807
+#define ID_MAPVIEW_RESET 808
+#define ID_MAPVIEW_STATUS 809
 
 /* Sensible defaults + clamps for the two preferences -- guards against
  * a hand-edited/corrupt prefs.ini producing an unusable (zero-size or
@@ -162,7 +169,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.33"
+#define CLIENT_VERSION "0.4.34"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -260,6 +267,19 @@ typedef struct {
     bool mapping_enabled;
     char map_path[MAX_PATH + 16];
     HWND hwnd_mapview;
+    HWND hwnd_mapview_canvas; /* the owner-drawn canvas child of hwnd_mapview,
+                                 non-NULL only while that window is open --
+                                 Room.Info invalidates this directly (not the
+                                 whole popup) so live updates repaint without
+                                 a spurious flash of its button toolbar. */
+    /* Current room (real GDI map view, TODO.md) -- tracked independently
+       of mapping_enabled/map_model_upsert so the view window can center
+       and pick a starting z-level on the player's actual position even
+       with mapping turned off. has_current_pos false until the first
+       Room.Info with a real x/y/z arrives (e.g. maprecalc never run). */
+    int current_room_vnum;
+    int current_room_x, current_room_y, current_room_z;
+    bool has_current_pos;
     /* Simple triggers -- loaded from triggers.txt (exe_dir) at startup
      * and via File > Reload Triggers. pending_line_text/len accumulate
      * the PLAIN (color-stripped) text of whatever line is currently
@@ -1035,23 +1055,42 @@ static void telnet_on_gmcp(void *ctx, const char *package, const char *json) {
          * or periodic-save machinery needed). No-op entirely when
          * mapping is toggled off (File > Enable Mapping). */
         int vnum;
-        if (g_app.mapping_enabled && have_name && gmcp_json_get_int(json, "num", &vnum)) {
-            char exits_obj[256];
-            int exits[MAP_NUM_EXITS];
-            for (int i = 0; i < MAP_NUM_EXITS; i++)
-                exits[i] = -1;
-            if (gmcp_json_get_object(json, "exits", exits_obj, sizeof(exits_obj))) {
-                const char *cur = exits_obj;
-                char dir[16];
-                int dest;
-                while (gmcp_json_object_iter_next(&cur, dir, sizeof(dir), &dest)) {
-                    int di = map_dir_index(dir);
-                    if (di >= 0)
-                        exits[di] = dest;
+        if (have_name && gmcp_json_get_int(json, "num", &vnum)) {
+            /* x/y/z (TODO.md real-GDI map view): 0,0,0 until an
+               immortal has run maprecalc at least once -- present in
+               the payload either way (gmcp.c), so has_pos just tracks
+               "this Room.Info actually carried the field" for the
+               current-room case below and map_model_upsert() alike. */
+            int rx = 0, ry = 0, rz = 0;
+            bool have_pos = gmcp_json_get_int(json, "x", &rx)
+                            && gmcp_json_get_int(json, "y", &ry)
+                            && gmcp_json_get_int(json, "z", &rz);
+            g_app.current_room_vnum = vnum;
+            g_app.current_room_x = rx;
+            g_app.current_room_y = ry;
+            g_app.current_room_z = rz;
+            g_app.has_current_pos = have_pos;
+            if (g_app.mapping_enabled) {
+                char exits_obj[256];
+                int exits[MAP_NUM_EXITS];
+                for (int i = 0; i < MAP_NUM_EXITS; i++)
+                    exits[i] = -1;
+                if (gmcp_json_get_object(json, "exits", exits_obj, sizeof(exits_obj))) {
+                    const char *cur = exits_obj;
+                    char dir[16];
+                    int dest;
+                    while (gmcp_json_object_iter_next(&cur, dir, sizeof(dir), &dest)) {
+                        int di = map_dir_index(dir);
+                        if (di >= 0)
+                            exits[di] = dest;
+                    }
+                }
+                if (map_model_upsert(&g_app.map, vnum, name, exits, rx, ry, rz, have_pos)) {
+                    map_model_save(&g_app.map, g_app.map_path);
+                    if (g_app.hwnd_mapview_canvas)
+                        InvalidateRect(g_app.hwnd_mapview_canvas, NULL, FALSE);
                 }
             }
-            if (map_model_upsert(&g_app.map, vnum, name, exits))
-                map_model_save(&g_app.map, g_app.map_path);
         }
     }
 }
@@ -2208,102 +2247,279 @@ static void open_alias_editor(HWND parent) {
     SetFocus(e1);
 }
 
-static int cmp_room_vnum(const void *a, const void *b) {
-    return ((const map_room_t *)a)->vnum - ((const map_room_t *)b)->vnum;
+/* ---- Real GDI map-drawing view (TODO.md: "Client: mapping doesn't
+ * actually DRAW a map") -- draws the learned map as nodes (rooms) and
+ * lines (exits), one z-level at a time, from the x/y/z maprecalc
+ * derives and Room.Info/mapexport now carry (map_model.h) -- NOT a
+ * layout computed client-side, so a walked map and an admin's
+ * mapexport dump always agree. Mouse-drag pans; the wheel zooms
+ * around the cursor; Up/Down steps the z-level shown; the player's
+ * current room is highlighted gold whenever it's on that level.
+ * Known, accepted limitations, same spirit as maprecalc's own
+ * first-visit-wins note: a room with no known position (has_pos
+ * false -- not yet re-visited/re-exported since this field was
+ * added) is simply not drawn, and an exit into a different z-level
+ * or into an unknown-position room isn't drawn as a line either. */
+static double s_map_zoom = 24.0; /* pixels per grid unit */
+#define MAP_ZOOM_MIN 4.0
+#define MAP_ZOOM_MAX 160.0
+static double s_map_pan_x = 0.0, s_map_pan_y = 0.0; /* screen-pixel offset of world (0,0) from center */
+static int s_map_z = 0;
+static bool s_map_dragging = false;
+static POINT s_map_drag_last;
+static int s_map_hover_vnum = -1; /* -1 = nothing under the cursor */
+static HFONT s_mapview_font = NULL; /* Consolas -- node labels + toolbar/status text; only one map-view window exists at a time */
+
+/* World <-> screen transform, shared by painting, hover-testing, and
+ * wheel-zoom's "keep the point under the cursor fixed" math. North
+ * (+y) is drawn up the screen, matching maprecalc's DY convention. */
+static void mapview_world_to_screen(double cx, double cy, int wx, int wy, int *sx, int *sy) {
+    *sx = (int)(cx + s_map_pan_x + wx * s_map_zoom);
+    *sy = (int)(cy + s_map_pan_y - wy * s_map_zoom);
 }
-/* Formats the whole learned map as plain text, one room per line
- * ("VNUM  Name" followed by an indented "dir->vnum" exit list),
- * sorted by vnum for stable, predictable browsing -- not a graphical
- * graph render (that's real GDI drawing work, scoped out of this
- * pass; see TODO.md), but a genuinely useful, working "mapping
- * interface": every learned room and exit, at a glance, searchable
- * by eye or by Ctrl+F once selected/copied elsewhere. Caller frees
- * the returned buffer. Returns NULL on allocation failure. */
-static wchar_t *build_map_text(void) {
-    int count = g_app.map.count;
-    map_room_t *sorted = NULL;
-    if (count > 0) {
-        sorted = (map_room_t *)malloc(sizeof(map_room_t) * (size_t)count);
-        if (!sorted)
-            return NULL;
-        memcpy(sorted, g_app.map.rooms, sizeof(map_room_t) * (size_t)count);
-        qsort(sorted, (size_t)count, sizeof(map_room_t), cmp_room_vnum);
+static void mapview_screen_to_world(HWND canvas, int sx, int sy, double *wx, double *wy) {
+    RECT rc;
+    GetClientRect(canvas, &rc);
+    double cx = (rc.right - rc.left) / 2.0, cy = (rc.bottom - rc.top) / 2.0;
+    *wx = (sx - cx - s_map_pan_x) / s_map_zoom;
+    *wy = -(sy - cy - s_map_pan_y) / s_map_zoom;
+}
+static void mapview_update_status(HWND mapview_hwnd) {
+    HWND status = GetDlgItem(mapview_hwnd, ID_MAPVIEW_STATUS);
+    if (!status)
+        return;
+    int shown = 0;
+    for (int i = 0; i < g_app.map.count; i++) {
+        if (g_app.map.rooms[i].has_pos && g_app.map.rooms[i].z == s_map_z)
+            shown++;
     }
-    size_t cap = 4096, len = 0;
-    char *buf = (char *)malloc(cap);
-    if (!buf) {
-        free(sorted);
-        return NULL;
+    wchar_t text[320];
+    if (s_map_hover_vnum >= 0) {
+        map_room_t *hv = map_model_find(&g_app.map, s_map_hover_vnum);
+        wchar_t wname[128] = L"";
+        if (hv)
+            MultiByteToWideChar(CP_UTF8, 0, hv->name, -1, wname, 128);
+        swprintf(text, 320, L"Z=%d -- %d room(s) on this level (%d learned total) -- #%d %ls",
+                 s_map_z, shown, g_app.map.count, s_map_hover_vnum, wname);
+    } else {
+        swprintf(text, 320, L"Z=%d -- %d room(s) on this level (%d learned total) -- drag to pan, wheel to zoom",
+                 s_map_z, shown, g_app.map.count);
     }
-    buf[0] = '\0';
-    if (count == 0) {
-        const char *msg = "No rooms learned yet -- walk around with mapping enabled\r\n"
-                           "(Map > Enable Mapping) to populate this.\r\n";
-        size_t n = strlen(msg);
-        memcpy(buf, msg, n + 1);
-        len = n;
-    }
-    char line[600];
-    for (int i = 0; i < count; i++) {
-        const map_room_t *r = &sorted[i];
-        int n = snprintf(line, sizeof(line), "%-8d %s\r\n", r->vnum, r->name);
-        bool any_exit = false;
-        for (int d = 0; d < MAP_NUM_EXITS && n > 0 && (size_t)n < sizeof(line); d++) {
-            if (r->exits[d] < 0)
+    SetWindowTextW(status, text);
+}
+static LRESULT CALLBACK MapCanvasWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+    case WM_ERASEBKGND:
+        return 1; /* fully painted (double-buffered) below -- avoids flicker */
+    case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
+        int w = rc.right - rc.left, h = rc.bottom - rc.top;
+        HDC mem = CreateCompatibleDC(hdc);
+        HBITMAP bmp = CreateCompatibleBitmap(hdc, w, h);
+        HBITMAP old_bmp = (HBITMAP)SelectObject(mem, bmp);
+        COLORREF bg = g_app.dark_theme ? RGB(30, 30, 30) : RGB(255, 255, 255);
+        COLORREF edge_c = g_app.dark_theme ? RGB(90, 90, 90) : RGB(170, 170, 170);
+        COLORREF node_c = RGB(70, 130, 180);
+        COLORREF node_border = g_app.dark_theme ? RGB(230, 230, 230) : RGB(20, 20, 20);
+        COLORREF cur_c = RGB(255, 200, 0);
+        COLORREF text_c = g_app.dark_theme ? RGB(220, 220, 220) : RGB(20, 20, 20);
+        HBRUSH bg_brush = CreateSolidBrush(bg);
+        FillRect(mem, &rc, bg_brush);
+        DeleteObject(bg_brush);
+        double cx = w / 2.0, cy = h / 2.0;
+        HPEN edge_pen = CreatePen(PS_SOLID, 1, edge_c);
+        HPEN old_pen = (HPEN)SelectObject(mem, edge_pen);
+        for (int i = 0; i < g_app.map.count; i++) {
+            const map_room_t *r = &g_app.map.rooms[i];
+            if (!r->has_pos || r->z != s_map_z)
                 continue;
-            int a = snprintf(line + n, sizeof(line) - (size_t)n, "%s  %s -> %d\r\n",
-                              any_exit ? "" : "        ", MAP_DIR_NAMES[d], r->exits[d]);
-            if (a > 0)
-                n += a;
-            any_exit = true;
-        }
-        if (n < 0)
-            continue;
-        size_t ulen = (size_t)n;
-        if (len + ulen + 1 > cap) {
-            while (len + ulen + 1 > cap)
-                cap *= 2;
-            char *grown = (char *)realloc(buf, cap);
-            if (!grown) {
-                free(buf);
-                free(sorted);
-                return NULL;
+            int sx, sy;
+            mapview_world_to_screen(cx, cy, r->x, r->y, &sx, &sy);
+            for (int d = 0; d < MAP_NUM_EXITS; d++) {
+                if (r->exits[d] < 0)
+                    continue;
+                map_room_t *dst = map_model_find(&g_app.map, r->exits[d]);
+                if (!dst || !dst->has_pos || dst->z != s_map_z)
+                    continue;
+                int dx, dy;
+                mapview_world_to_screen(cx, cy, dst->x, dst->y, &dx, &dy);
+                MoveToEx(mem, sx, sy, NULL);
+                LineTo(mem, dx, dy);
             }
-            buf = grown;
         }
-        memcpy(buf + len, line, ulen);
-        len += ulen;
-        buf[len] = '\0';
+        SelectObject(mem, old_pen);
+        DeleteObject(edge_pen);
+        int radius = (int)(s_map_zoom / 6.0);
+        if (radius < 3) radius = 3;
+        if (radius > 10) radius = 10;
+        bool show_labels = s_map_zoom >= 40.0;
+        SetBkMode(mem, TRANSPARENT);
+        SetTextColor(mem, text_c);
+        HFONT old_font = (HFONT)SelectObject(mem, s_mapview_font);
+        for (int i = 0; i < g_app.map.count; i++) {
+            const map_room_t *r = &g_app.map.rooms[i];
+            if (!r->has_pos || r->z != s_map_z)
+                continue;
+            int sx, sy;
+            mapview_world_to_screen(cx, cy, r->x, r->y, &sx, &sy);
+            bool is_current = g_app.has_current_pos && r->vnum == g_app.current_room_vnum;
+            HBRUSH fill = CreateSolidBrush(is_current ? cur_c : node_c);
+            HPEN border = CreatePen(PS_SOLID, is_current ? 2 : 1, node_border);
+            HBRUSH old_brush = (HBRUSH)SelectObject(mem, fill);
+            HPEN old_pen2 = (HPEN)SelectObject(mem, border);
+            int rr = is_current ? radius + 2 : radius;
+            Ellipse(mem, sx - rr, sy - rr, sx + rr, sy + rr);
+            SelectObject(mem, old_brush);
+            SelectObject(mem, old_pen2);
+            DeleteObject(fill);
+            DeleteObject(border);
+            if (show_labels || r->vnum == s_map_hover_vnum) {
+                wchar_t wname[128];
+                MultiByteToWideChar(CP_UTF8, 0, r->name, -1, wname, 128);
+                TextOutW(mem, sx + radius + 3, sy - 7, wname, (int)wcslen(wname));
+            }
+        }
+        SelectObject(mem, old_font);
+        BitBlt(hdc, 0, 0, w, h, mem, 0, 0, SRCCOPY);
+        SelectObject(mem, old_bmp);
+        DeleteObject(bmp);
+        DeleteDC(mem);
+        EndPaint(hwnd, &ps);
+        return 0;
     }
-    free(sorted);
-    int wlen = MultiByteToWideChar(CP_UTF8, 0, buf, -1, NULL, 0);
-    wchar_t *wbuf = (wchar_t *)malloc((size_t)wlen * sizeof(wchar_t));
-    if (wbuf)
-        MultiByteToWideChar(CP_UTF8, 0, buf, -1, wbuf, wlen);
-    free(buf);
-    return wbuf;
+    case WM_LBUTTONDOWN:
+        SetCapture(hwnd);
+        s_map_dragging = true;
+        s_map_drag_last.x = GET_X_LPARAM(lp);
+        s_map_drag_last.y = GET_Y_LPARAM(lp);
+        return 0;
+    case WM_LBUTTONUP:
+        if (s_map_dragging) {
+            s_map_dragging = false;
+            ReleaseCapture();
+        }
+        return 0;
+    case WM_MOUSEMOVE: {
+        int mx = GET_X_LPARAM(lp), my = GET_Y_LPARAM(lp);
+        if (s_map_dragging && (wp & MK_LBUTTON)) {
+            s_map_pan_x += (mx - s_map_drag_last.x);
+            s_map_pan_y += (my - s_map_drag_last.y);
+            s_map_drag_last.x = mx;
+            s_map_drag_last.y = my;
+            InvalidateRect(hwnd, NULL, FALSE);
+        }
+        RECT rc;
+        GetClientRect(hwnd, &rc);
+        double cx = (rc.right - rc.left) / 2.0, cy = (rc.bottom - rc.top) / 2.0;
+        int radius = (int)(s_map_zoom / 6.0);
+        if (radius < 3) radius = 3;
+        if (radius > 10) radius = 10;
+        int hit_r2 = (radius + 6) * (radius + 6);
+        int best = -1, best_d2 = hit_r2 + 1;
+        for (int i = 0; i < g_app.map.count; i++) {
+            const map_room_t *r = &g_app.map.rooms[i];
+            if (!r->has_pos || r->z != s_map_z)
+                continue;
+            int sx, sy;
+            mapview_world_to_screen(cx, cy, r->x, r->y, &sx, &sy);
+            int ddx = sx - mx, ddy = sy - my;
+            int d2 = ddx * ddx + ddy * ddy;
+            if (d2 <= hit_r2 && d2 < best_d2) {
+                best_d2 = d2;
+                best = r->vnum;
+            }
+        }
+        if (best != s_map_hover_vnum) {
+            s_map_hover_vnum = best;
+            InvalidateRect(hwnd, NULL, FALSE);
+            mapview_update_status(GetParent(hwnd));
+        }
+        return 0;
+    }
+    case WM_MOUSEWHEEL: {
+        POINT pt;
+        pt.x = GET_X_LPARAM(lp);
+        pt.y = GET_Y_LPARAM(lp);
+        ScreenToClient(hwnd, &pt);
+        double wx, wy;
+        mapview_screen_to_world(hwnd, pt.x, pt.y, &wx, &wy);
+        double old_zoom = s_map_zoom;
+        int delta = GET_WHEEL_DELTA_WPARAM(wp);
+        double factor = delta > 0 ? 1.15 : (1.0 / 1.15);
+        s_map_zoom *= factor;
+        if (s_map_zoom < MAP_ZOOM_MIN) s_map_zoom = MAP_ZOOM_MIN;
+        if (s_map_zoom > MAP_ZOOM_MAX) s_map_zoom = MAP_ZOOM_MAX;
+        /* Keep the world point under the cursor fixed on screen -- see
+           mapview_world_to_screen()'s definition for the algebra this
+           falls out of. */
+        s_map_pan_x += wx * (old_zoom - s_map_zoom);
+        s_map_pan_y += wy * (s_map_zoom - old_zoom);
+        InvalidateRect(hwnd, NULL, FALSE);
+        return 0;
+    }
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
 }
-static HFONT s_mapview_font = NULL; /* owns the Consolas font created below; only one map-view window exists at a time */
 static LRESULT CALLBACK MapViewWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
     case WM_SIZE: {
         int w = LOWORD(lp), h = HIWORD(lp);
-        HWND text = GetDlgItem(hwnd, ID_MAPVIEW_TEXT);
-        MoveWindow(text, 8, 8, w - 16, h - 48, TRUE);
+        int bw = 84, bh = 26, gap = 6, bx = 8;
+        MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_ZOOMIN), bx, 8, bw, bh, TRUE); bx += bw + gap;
+        MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_ZOOMOUT), bx, 8, bw, bh, TRUE); bx += bw + gap;
+        MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_ZUP), bx, 8, bw, bh, TRUE); bx += bw + gap;
+        MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_ZDOWN), bx, 8, bw, bh, TRUE); bx += bw + gap;
+        MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_RESET), bx, 8, bw, bh, TRUE);
+        MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_CANVAS), 8, 42, w - 16, h - 42 - 60, TRUE);
+        MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_STATUS), 8, h - 58, w - 16, 20, TRUE);
         MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_REFRESH), 8, h - 34, 90, 26, TRUE);
         MoveWindow(GetDlgItem(hwnd, ID_MAPVIEW_CLOSE), w - 98, h - 34, 90, 26, TRUE);
         return 0;
     }
     case WM_COMMAND: {
         switch (LOWORD(wp)) {
-        case ID_MAPVIEW_REFRESH: {
-            wchar_t *text = build_map_text();
-            if (text) {
-                SetWindowTextW(GetDlgItem(hwnd, ID_MAPVIEW_TEXT), text);
-                free(text);
-            }
+        case ID_MAPVIEW_ZOOMIN:
+            s_map_zoom *= 1.3;
+            if (s_map_zoom > MAP_ZOOM_MAX) s_map_zoom = MAP_ZOOM_MAX;
+            InvalidateRect(g_app.hwnd_mapview_canvas, NULL, FALSE);
             return 0;
-        }
+        case ID_MAPVIEW_ZOOMOUT:
+            s_map_zoom /= 1.3;
+            if (s_map_zoom < MAP_ZOOM_MIN) s_map_zoom = MAP_ZOOM_MIN;
+            InvalidateRect(g_app.hwnd_mapview_canvas, NULL, FALSE);
+            return 0;
+        case ID_MAPVIEW_ZUP:
+            s_map_z++;
+            InvalidateRect(g_app.hwnd_mapview_canvas, NULL, FALSE);
+            mapview_update_status(hwnd);
+            return 0;
+        case ID_MAPVIEW_ZDOWN:
+            s_map_z--;
+            InvalidateRect(g_app.hwnd_mapview_canvas, NULL, FALSE);
+            mapview_update_status(hwnd);
+            return 0;
+        case ID_MAPVIEW_RESET:
+            s_map_zoom = 24.0;
+            s_map_pan_x = 0.0;
+            s_map_pan_y = 0.0;
+            s_map_z = g_app.has_current_pos ? g_app.current_room_z : 0;
+            InvalidateRect(g_app.hwnd_mapview_canvas, NULL, FALSE);
+            mapview_update_status(hwnd);
+            return 0;
+        case ID_MAPVIEW_REFRESH:
+            /* Reloads from map_path on disk, not just a repaint of what's
+               already in memory -- an admin can \`mapexport\` the whole
+               world and copy the result over map.dat (cmd_mapexport.c's
+               own doc), and Refresh is how a player picks that up without
+               restarting the client. map_model_load() is additive/
+               upsert-by-vnum, so this is safe to hit repeatedly. */
+            map_model_load(&g_app.map, g_app.map_path);
+            InvalidateRect(g_app.hwnd_mapview_canvas, NULL, FALSE);
+            mapview_update_status(hwnd);
+            return 0;
         case ID_MAPVIEW_CLOSE:
             EnableWindow(GetParent(g_app.hwnd_output), TRUE);
             DestroyWindow(hwnd);
@@ -2319,6 +2535,9 @@ static LRESULT CALLBACK MapViewWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp
         return 0;
     case WM_DESTROY:
         g_app.hwnd_mapview = NULL;
+        g_app.hwnd_mapview_canvas = NULL;
+        s_map_dragging = false;
+        s_map_hover_vnum = -1;
         if (s_mapview_font) {
             DeleteObject(s_mapview_font);
             s_mapview_font = NULL;
@@ -2329,15 +2548,11 @@ static LRESULT CALLBACK MapViewWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp
 }
 static void open_map_view(HWND parent) {
     if (g_app.hwnd_mapview) {
-        wchar_t *text = build_map_text();
-        if (text) {
-            SetWindowTextW(GetDlgItem(g_app.hwnd_mapview, ID_MAPVIEW_TEXT), text);
-            free(text);
-        }
         SetForegroundWindow(g_app.hwnd_mapview);
         return;
     }
     static bool cls_registered = false;
+    static bool canvas_cls_registered = false;
     if (!cls_registered) {
         WNDCLASSW wc = { 0 };
         wc.lpfnWndProc = MapViewWndProc;
@@ -2348,7 +2563,17 @@ static void open_map_view(HWND parent) {
         RegisterClassW(&wc);
         cls_registered = true;
     }
-    const int win_w = 640, win_h = 480;
+    if (!canvas_cls_registered) {
+        WNDCLASSW wc = { 0 };
+        wc.lpfnWndProc = MapCanvasWndProc;
+        wc.hInstance = GetModuleHandleW(NULL);
+        wc.lpszClassName = L"TobinMUDMapCanvasWindow";
+        wc.hCursor = LoadCursor(NULL, IDC_CROSS);
+        wc.hbrBackground = NULL; /* fully painted in WM_PAINT (double-buffered) */
+        RegisterClassW(&wc);
+        canvas_cls_registered = true;
+    }
+    const int win_w = 760, win_h = 600;
     RECT pr;
     GetWindowRect(parent, &pr);
     int x = pr.left + ((pr.right - pr.left) - win_w) / 2;
@@ -2360,25 +2585,43 @@ static void open_map_view(HWND parent) {
     s_mapview_font = CreateFontW(-14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
         FIXED_PITCH | FF_MODERN, L"Consolas");
-    HWND text = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
-        WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL,
-        8, 8, win_w - 16, win_h - 48, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_TEXT, NULL, NULL);
-    SendMessageW(text, WM_SETFONT, (WPARAM)s_mapview_font, TRUE);
     HFONT dlgfont = (HFONT)GetStockObject(DEFAULT_GUI_FONT);
+    HWND zin = CreateWindowW(L"BUTTON", L"Zoom In", WS_CHILD | WS_VISIBLE,
+        0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_ZOOMIN, NULL, NULL);
+    HWND zout = CreateWindowW(L"BUTTON", L"Zoom Out", WS_CHILD | WS_VISIBLE,
+        0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_ZOOMOUT, NULL, NULL);
+    HWND zup = CreateWindowW(L"BUTTON", L"Z: Up", WS_CHILD | WS_VISIBLE,
+        0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_ZUP, NULL, NULL);
+    HWND zdown = CreateWindowW(L"BUTTON", L"Z: Down", WS_CHILD | WS_VISIBLE,
+        0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_ZDOWN, NULL, NULL);
+    HWND reset = CreateWindowW(L"BUTTON", L"Reset View", WS_CHILD | WS_VISIBLE,
+        0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_RESET, NULL, NULL);
+    HWND canvas = CreateWindowExW(WS_EX_CLIENTEDGE, L"TobinMUDMapCanvasWindow", L"",
+        WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_CANVAS, NULL, NULL);
+    HWND status = CreateWindowExW(0, L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_LEFT,
+        0, 0, 0, 0, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_STATUS, NULL, NULL);
     HWND refresh = CreateWindowW(L"BUTTON", L"Refresh", WS_CHILD | WS_VISIBLE,
         8, win_h - 34, 90, 26, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_REFRESH, NULL, NULL);
     HWND close = CreateWindowW(L"BUTTON", L"Close", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
         win_w - 98, win_h - 34, 90, 26, hwnd, (HMENU)(INT_PTR)ID_MAPVIEW_CLOSE, NULL, NULL);
-    SendMessageW(refresh, WM_SETFONT, (WPARAM)dlgfont, TRUE);
-    SendMessageW(close, WM_SETFONT, (WPARAM)dlgfont, TRUE);
-    wchar_t *initial = build_map_text();
-    if (initial) {
-        SetWindowTextW(text, initial);
-        free(initial);
-    }
+    HWND toolbar_ctrls[] = { zin, zout, zup, zdown, reset, refresh, close, status };
+    for (size_t i = 0; i < sizeof(toolbar_ctrls) / sizeof(toolbar_ctrls[0]); i++)
+        SendMessageW(toolbar_ctrls[i], WM_SETFONT, (WPARAM)dlgfont, TRUE);
+    g_app.hwnd_mapview_canvas = canvas;
+    s_map_zoom = 24.0;
+    s_map_pan_x = 0.0;
+    s_map_pan_y = 0.0;
+    s_map_z = g_app.has_current_pos ? g_app.current_room_z : 0;
+    s_map_hover_vnum = -1;
+    /* The controls above were all created at 0,0,0,0 -- lay them out for
+       real now instead of duplicating WM_SIZE's math here. */
+    RECT crt;
+    GetClientRect(hwnd, &crt);
+    SendMessageW(hwnd, WM_SIZE, 0, MAKELPARAM(crt.right, crt.bottom));
+    mapview_update_status(hwnd);
     EnableWindow(parent, FALSE);
     ShowWindow(hwnd, SW_SHOW);
-    SetFocus(close);
+    SetFocus(canvas);
 }
 
 static HMENU build_menu(void) {

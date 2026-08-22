@@ -249,6 +249,12 @@ typedef struct room {
                                  * no keyhole). Real upstream seed data, was
                                  * loaded and silently discarded before `lock`/
                                  * `unlock` existed to read it -- see cmd_lock.c. */
+    int x, y, z;                 /* room table's x/y/z columns, written by
+                                 * `maprecalc` (cmd_maprecalc.c); (0,0,0) until
+                                 * that has run at least once. Loaded here
+                                 * purely to reach the client via Room.Info
+                                 * GMCP (gmcp.c) for the real GDI map-drawing
+                                 * view -- unused by any server-side logic. */
 } room_t;
 
 room_t *room_create(int vnum, const char *name, const char *description, int sector);

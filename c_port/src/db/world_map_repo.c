@@ -27,7 +27,14 @@ world_map_room_t *world_map_repo_load_all(int *out_count) {
         db_close(db);
         return NULL;
     }
-    if (!db_query(db, "select vnum, name from room order by vnum")) {
+    /* x/y/z here are just the room table's existing-but-maybe-never-run
+       maprecalc columns (0,0,0 until that has been run at least once) --
+       maprecalc itself overwrites them wholesale during its own BFS and
+       does not depend on what's loaded here, but mapexport (cmd_mapexport.c)
+       reads rooms[i].x/y/z straight out of this same load, so it needs
+       real values, not the calloc-zeroed placeholder a missing select left
+       here before (TODO.md real-GDI map view). */
+    if (!db_query(db, "select vnum, name, x, y, z from room order by vnum")) {
         free(rooms);
         db_close(db);
         return NULL;
@@ -36,6 +43,9 @@ world_map_room_t *world_map_repo_load_all(int *out_count) {
     while (n < cap && db_fetch_row(db)) {
         rooms[n].vnum = atoi(db_get(db, "vnum"));
         snprintf(rooms[n].name, sizeof(rooms[n].name), "%s", db_get(db, "name"));
+        rooms[n].x = atoi(db_get(db, "x"));
+        rooms[n].y = atoi(db_get(db, "y"));
+        rooms[n].z = atoi(db_get(db, "z"));
         for (int i = 0; i < ROOM_NUM_EXITS; i++)
             rooms[n].exits[i] = -1;
         n++;

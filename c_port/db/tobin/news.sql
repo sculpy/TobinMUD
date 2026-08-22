@@ -659,3 +659,7 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The Finest Armor Covers You Whole', 'The rarest leg, foot, hand, and arm armor in the world -- Rare and Legendary tier -- now covers both limbs from a single piece, the same convenience the finest two-handed weapons already had. Everyday gear still comes one piece per limb.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Map Finally Draws Itself', 'The client''s map window now draws a real picture instead of a plain list: rooms as dots, exits as lines, your own position highlighted, with pan and zoom and a way to step between floors. Update your client to see it -- Map > View Map... in the menu bar.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

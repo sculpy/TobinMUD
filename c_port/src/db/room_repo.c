@@ -35,13 +35,16 @@ room_t *room_repo_load(int vnum) {
 
     room_t *r = NULL;
     if (db_query(db, "select vnum, name, description, sector, room_flag, "
-                     "capacity, height from room where vnum=%i", vnum)
+                     "capacity, height, x, y, z from room where vnum=%i", vnum)
         && db_fetch_row(db)) {
         r = room_create(vnum, db_get(db, "name"), db_get(db, "description"), atoi(db_get(db, "sector")));
         if (r) {
             r->room_flag = atoi(db_get(db, "room_flag"));
             r->capacity = atoi(db_get(db, "capacity"));
             r->height = atoi(db_get(db, "height"));
+            r->x = atoi(db_get(db, "x"));
+            r->y = atoi(db_get(db, "y"));
+            r->z = atoi(db_get(db, "z"));
         }
     }
     db_close(db);

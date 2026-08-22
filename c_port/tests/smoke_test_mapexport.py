@@ -129,11 +129,18 @@ with open(remote_path, encoding="utf-8") as f:
 check(str(ROOM_A) in lines, "the sandbox room A appears in the exported file")
 line_a = lines[str(ROOM_A)]
 parts = line_a.split("\t")
-check(len(parts) == 3 and parts[1] == f"Map Sandbox A {_suffix}",
+# VNUM<TAB>NAME<TAB>e0,...,e9<TAB>X,Y,Z (x/y/z added for the real-GDI map
+# view, TODO.md) -- maprecalc hasn't run yet at this point in the test
+# (that's part 4, below), so the coords field is just "0,0,0" here; this
+# only checks the format itself, not the values.
+check(len(parts) == 4 and parts[1] == f"Map Sandbox A {_suffix}",
       "room A's exported line carries its real name")
 exits_a = parts[2].split(",")
 check(len(exits_a) == 10 and exits_a[0] == str(ROOM_B),
       "room A's exported exits carry the north (index 0) exit to room B")
+coords_a = parts[3].split(",")
+check(len(coords_a) == 3 and all(c.lstrip("-").isdigit() for c in coords_a),
+      "room A's exported line carries a well-formed X,Y,Z field")
 os.remove(remote_path)
 
 # --- 4: maprecalc derives coordinates from the exit graph ---
@@ -158,6 +165,19 @@ xb, yb, zb = query(f"SELECT x FROM room WHERE vnum={ROOM_B};"), \
              query(f"SELECT z FROM room WHERE vnum={ROOM_B};")
 check(xa == xb and za == zb, "room A and room B (a north/south pair) share x and z after recalc")
 check(int(yb) - int(ya) == 1, "room B is exactly 1 north (y+1) of room A after recalc")
+
+# --- 5: a mapexport taken after maprecalc carries the real coordinates ---
+export_name2 = f"smoketest2_{_suffix}.dat"
+out = cmd(s, f"mapexport {export_name2}", timeout=8.0)
+check("Exported" in out and "rooms to" in out, "second mapexport confirms and reports a room count")
+remote_path2 = os.path.expanduser(f"~/TobinMUD/c_port/map_exports/{export_name2}")
+with open(remote_path2, encoding="utf-8") as f:
+    lines2 = {ln.split("\t", 1)[0]: ln.rstrip("\n") for ln in f if ln.strip()}
+parts_a2 = lines2[str(ROOM_A)].split("	")
+coords_a2 = [int(v) for v in parts_a2[3].split(",")]
+check(coords_a2[0] == int(xa) and coords_a2[1] == int(ya) and coords_a2[2] == int(za),
+      "a post-maprecalc mapexport carries room A's real recalculated x/y/z")
+os.remove(remote_path2)
 
 s.close()
 announce_done("smoke_test_mapexport", host, port)
