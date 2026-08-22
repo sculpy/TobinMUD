@@ -1,4 +1,30 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 173 (DO droplet, production port 4000):
+**Seed WEAR_PAIRED onto both-limb armor -- closes the TODO.md follow-up
+Session 159 deferred.** Session 159 shipped the WEAR_PAIRED mechanic and
+paired two-handed WEAPONS by keyword (unambiguous by type); armor was
+explicitly left open since "should this be paired" isn't answerable by
+keyword -- confirmed by data, not just assumption: every candidate item
+across the 4 paired-eligible slots (legs/feet/hands/arms, ~1154 rows) is
+named/described singular ("a boot", "a leather boot") even where a real
+pair would be expected, so there's no textual signal to key off at all.
+  - Scoped with the user before touching anything: proposed material
+    tier (Tobin's own 5-tier system, already scales damage/AC/
+    durability/value) as a bounded, non-arbitrary criterion instead --
+    Rare+Legendary armor gets the both-limb convenience perk, everyday
+    gear doesn't. User picked Rare+Legendary over the broader
+    Superior-and-up option (204 vnums vs. 338).
+  - New db/tobin/wear_paired_armor_seed.sql: idempotent UPDATE
+    (verified by re-running it twice live -- second run touched 0
+    rows). 204 real vnums across legs(53)/feet(48)/hands(53)/arms(50).
+  - The WEAR_PAIRED mechanic itself is already covered end to end by
+    smoke_test_wear_paired.py (synthetic objects); new
+    smoke_test_wear_paired_armor_seed.py only checks the seed itself
+    against two real vnums (a Legendary legging pairs, a Fine one
+    doesn't) -- both pass, smoke_test_wear_paired.py re-run clean (no
+    regression). news.sql entry added. Data-only change, no code
+    touched, no copyover needed.
+---
 Last updated: 2026-08-22 — Session 172 (DO droplet, production port 4000):
 **ranged proficiency (all 6 classes) + ranged specialization (Warrior)
 -- first item in the cross-class "Common skills" backlog block.** Both
