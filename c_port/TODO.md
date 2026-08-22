@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-22 (9). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-22 (10). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -101,8 +101,9 @@ conversation before picking back up, not a straight port.
 **Monk skills:** all cleared 2026-08-18 (iron flesh/skin/bones/muscles/will + defenestrate + bonebreak; iron fist/iron legs were already wired).
 
 **Common skills (all 6 classes):**
-ranged proficiency (25, all 6 classes) + ranged specialization (35, Warrior) —
-no ranged-weapon combat-bonus path (though cmd_shoot.c now exists);
+ranged proficiency + ranged specialization done 2026-08-22 (wired into
+cmd_shoot.c's damage roll, same damage-only shape combat_strike() gives
+kubo/voplat/melee specializations).
 set trap arrow (26) / mine (37) / grenade (50) — cmd_trap.c (only container/door traps currently).
 
 **Spot-check flags:** `cure blindness` / `word of recall` are cleric only skills.
