@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-22 (11). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-22 (12). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -100,7 +100,7 @@ conversation before picking back up, not a straight port.
 ranged proficiency + ranged specialization done 2026-08-22 (wired into
 cmd_shoot.c's damage roll, same damage-only shape combat_strike() gives
 kubo/voplat/melee specializations).
-set trap arrow (26) / mine (37) / grenade (50) — cmd_trap.c (only container/door traps currently).
+set trap arrow (26) DONE 2026-08-22 (obj.h's ARROW_TRAPPED, cmd_trap.c's `settrap arrow`, sprung by cmd_shoot.c on a landed hit -- smoke_test_set_trap_arrow.py). mine (37) / grenade (50) still blocked -- no room-floor trap object type, no thrown-weapon command.
 
 **Spot-check flags:** `cure blindness` / `word of recall` are cleric only skills.
 `two-handed specialization` is a silent no-op — it should fold into another category.

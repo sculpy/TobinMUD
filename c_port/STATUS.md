@@ -1,4 +1,31 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 175 (DO droplet, production port 4000):
+**`set trap (arrow)` -- TODO.md's "Common skills" backlog item, closed
+now that cmd_shoot.c's ammo subsystem (Session ~170s) exists to hang it
+on.** `set trap (mine)`/`(grenade)` stay disclosed gaps (no room-floor
+trap object type, no thrown-weapon command).
+  - obj.h: `ARROW_TRAPPED` (`1 << 0`), stored in an ammo object's
+    val[0] -- arrows have no other val[] use, so the bit is free (same
+    "stored verbatim" precedent as CONT_TRAPPED for containers).
+  - cmd_trap.c: `settrap arrow [item]` / `disarmtrap arrow [item]` rig
+    /clear a carried loose arrow (new file-local `find_arrow()`
+    helper), gated on the "set trap (arrow)"/"disarm trap" skills with
+    the same learn-by-doing fumble chance as door/container traps.
+  - cmd_shoot.c: springs the rig on a landed hit -- same flat
+    5-14 random-limb damage as the door trap (cmd_move.c), single-use,
+    then the arrow is destroyed as ammo normally is either way. No
+    "detect trap" dodge check here (unlike the door case): a shot
+    already in flight can't be spotted and stepped around.
+  - `help settrap`/`help disarmtrap` (both the seed INSERT and the
+    seed-only UPDATE) widened to cover the arrow form alongside
+    door/container, which the container form had never gotten added to
+    either -- a pre-existing gap, fixed in the same pass.
+  - `news.sql`: "Thieves Learn to Rig an Arrow" entry.
+  - `tests/smoke_test_set_trap_arrow.py`: rig-refuses-double-rig, a
+    trapped shot springs the rig, a plain shot never does, disarm
+    clears the rig with no spring, and both help topics load real
+    bodies. All passing after a `deploy_copyover.py` zero-drop reload.
+
 Last updated: 2026-08-22 — Session 174 (DO droplet, production port 4000):
 **Client map view finally DRAWS a map -- closes the last open piece of
 the client mapping-support TODO item, scoped out as "real GDI drawing
