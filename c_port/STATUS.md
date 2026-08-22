@@ -1,4 +1,38 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 -- Session 185 (DO droplet, production port 4000):
+**Road-shrink initiative, zones 67 and 16 done; found and fixed a second
+real bug in db/road_shrink.py.** Third and fourth zones (see Sessions
+183-184): zone 67 (Sidartha - Mountain Road Connector) 188->161, zone 16
+(Third Ring of Roads) 152->90 (2 spawn-bearing rooms preserved).
+  - Zone 67 surfaced a genuine chain-splice bug, distinct from zone 2's
+    incoming-edge bug: the anchor at a chain's far end ("b" endpoint) had
+    its own relink computed using the corridor node's stored direction
+    toward it, not the anchor's actual direction back -- those only
+    coincidentally match on a dead-straight chain, so anywhere a chain
+    bent, the UPDATE silently matched zero rows and the anchor kept its
+    stale pre-cut exit. Same failure shape as before: the roomexit->room
+    foreign key caught it on first apply (partial commit, 55 rooms'
+    exits deleted, room rows saved by the FK since 29 still had a stale
+    anchor exit pointing at them). Recovered all 29 via reciprocal-edge
+    reconstruction (all zone-67-internal, no external portals this
+    time); corrected cut was 27 rooms, not the buggy 54.
+  - Fixed properly: road_shrink.py now looks up each anchor's real
+    direction via its own adjacency data instead of assuming it mirrors
+    the corridor node's. Also added a pre-flight gate: before --apply,
+    it simulates whether every current inbound edge into the cut list
+    is covered by a generated relink UPDATE, and refuses to touch the
+    database if anything would be left uncovered.
+  - Zone 16 applied cleanly on the first try with the fixed tool + gate
+    -- no partial commit, no recovery needed. Zero dangling roomexit
+    destinations database-wide afterward (checked, as always). Full
+    connectivity verified from every external entry point (3 pre-
+    existing, untouched rooms remain unreachable: a self-contained
+    2-room island and one zero-exit room, neither in any cut list).
+  - Both zones' migration files are single, clean, replay-safe SQL
+    (verified via replay) reflecting the corrected end state. News +
+    wiznews entries added (wiznews has the full zone-67 incident
+    writeup). No C code changed, no rebuild/copyover needed.
+
 Last updated: 2026-08-22 -- Session 184 (DO droplet, production port 4000):
 **Road-shrink initiative, zone 2 (Tobin City Roads) done; caught and fixed
 a live-data bug along the way.** Second zone in the initiative (see

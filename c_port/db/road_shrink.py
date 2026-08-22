@@ -140,7 +140,15 @@ def main():
                 prev_dir_at_prev = fd
                 cur = fdest
             b = cur
-            chains.append((a, path, b, d, prev_dir_at_prev))
+            if not path:
+                continue  # anchors directly adjacent, no corridor between them
+            # BUG (found on zone 67): prev_dir_at_prev is the direction
+            # stored AT path[-1] pointing toward b -- NOT b's own direction
+            # back toward path[-1]. Using it as b's direction silently
+            # updated the wrong (or no) row at b, leaving b's real exit
+            # toward the corridor untouched. Look up b's actual direction.
+            dir_at_b = [dd for dd, dest in adj[b] if dest == path[-1]][0]
+            chains.append((a, path, b, d, dir_at_b))
 
     print(f"chains found: {len(chains)}  (covering {len(visited_corridor)} corridor rooms)")
 
@@ -213,6 +221,24 @@ def main():
     with open(out_path, "w") as f:
         f.write(sql_text)
     print(f"wrote {out_path}")
+
+    # Pre-flight simulation: every CURRENT edge pointing at a to-be-cut
+    # room must be covered by one of the UPDATE statements above, or it
+    # will dangle/FK-fail once the DELETE runs. Catches relink bugs
+    # before touching the live DB, not after.
+    updated_pairs = {(v, d) for v, d, _ in relinks}
+    inbound_rows = q(
+        f"select vnum,direction,destination from roomexit "
+        f"where destination in ({cut_list})") if cut else []
+    uncovered = [(int(v), int(d), int(dest)) for v, d, dest in inbound_rows
+                 if (int(v), int(d)) not in updated_pairs]
+    print(f"pre-flight: {len(inbound_rows)} inbound edges into cut list, "
+          f"{len(uncovered)} NOT covered by a relink")
+    if uncovered:
+        print(f"UNCOVERED (would dangle/FK-fail): {uncovered}")
+        if apply:
+            print("REFUSING TO APPLY: uncovered inbound edges found.")
+            sys.exit(1)
 
     if not apply:
         print("(dry run -- pass --apply to write to DB)")

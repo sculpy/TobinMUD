@@ -14,17 +14,19 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
-Road-shrink initiative (Session 183-184): zone 11 (49->26) and zone 2
-(413->344) done -- use db/road_shrink.py for remaining zones, it's
-fixed after a Session 184 incident (see STATUS.md). Two known
-loose ends from zone 2: rooms 104 and 167 have no outgoing exit
-(legitimate one-way portal targets from zone 106, not bugs) --
-worth a manual redit pass sometime. Next: continue down the
-road/connector zone list (12 more built zones) one per session,
-same pattern -- see STATUS.md and the plan file (user's local
-Claude Code plans dir, not in this repo). Phase B (global vnum
-cascade-renumber to close gaps) waits until all 14 zones are done
-and soaked.
+Road-shrink initiative (Sessions 183-185): zones 11 (49->26), 2
+(413->344), 67 (188->161), 16 (152->90) done -- use db/road_shrink.py
+for remaining zones; it's been through two real bugfixes (incoming-
+edge reciprocity, anchor-direction lookup) plus a pre-flight
+simulation gate, and zone 16 applied clean on the first try with
+both fixes in place. Known loose ends: zone 2 rooms 104 and 167
+have no outgoing exit (legitimate one-way portal targets from zone
+106, not bugs) -- worth a manual redit pass sometime. Next:
+continue down the road/connector zone list (10 more built zones)
+one per session, same pattern -- see STATUS.md and the plan file
+(user's local Claude Code plans dir, not in this repo). Phase B
+(global vnum cascade-renumber to close gaps) waits until all 14
+zones are done and soaked.
 ## Unimplemented skills/spells backlog (audited Session 158)
 
 Grep-verified against `SKILLS[]` (skill.c) vs real handlers in cmd_cast.c /
