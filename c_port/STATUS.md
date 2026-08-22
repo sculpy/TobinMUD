@@ -1,4 +1,28 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 170 (DO droplet, production port 4000):
+**spy (Thief, 38) -- next item in the Thief half of the missing-skill
+backlog.** Real upstream (disc_thief_stealth.cc's spy()) is a toggle
+affect (AFF_SCRYING) that hides the "$n looks at you" notice when the
+thief later looks at someone in the SAME room -- but Tobin's own
+`look <target>` never sends that notice to begin with, so that exact
+mechanic has no gap to fill here. Ported against what the roster
+description already promises instead ("Covertly watch a room from
+elsewhere, `spy <direction>`"): new cmd_spy.c, a single-hop remote
+glimpse (room name/description/occupants, no items) reusing
+cmd_scan.c's scan_exit() shape verbatim, gated by a proficiency roll
+(cmd_peek.c's shape). Genuinely covert either way: unlike `scan`, spy
+prints nothing to either room, success or failure.
+  - Help text updated (was the placeholder "Covertly watch a room from
+    elsewhere" with no Requires line); news.sql entry added.
+  - New smoke_test_spy.py (class gate, bad direction, no exit, closed
+    door, success shows room + occupant, no notice to either room, help
+    text). Found and fixed a second pre-existing, unrelated broken test
+    while re-running the suite: smoke_test_peek.py seeded only
+    combat_disc_pct, but `peek` was rebalanced from SKILL_TIER_COMBAT to
+    SKILL_TIER_CLASS at some point after the test was written -- silently
+    broken since, unrelated to this session. Build clean, zero warnings.
+    Deployed via copyover (players may have been connected).
+---
 Last updated: 2026-08-22 — Session 169 (DO droplet, production port 4000):
 **advanced berserking (Warrior, 35) -- last item in the Warrior half of the
 missing-skill/spell backlog (skill.c's own audit list).** Real upstream
