@@ -1,4 +1,29 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 171 (DO droplet, production port 4000):
+**cudgel (Thief, 41) -- clears the Thief half of the missing-skill
+backlog.** Pure stun skill, not a damage skill (matches real upstream's
+own reconcileDamage(victim, 0, ...) on both its success and miss paths):
+needs a wielded weapon, one skill_roll_success() roll, success sets
+POSITION_STUNNED (6*COMBAT_ROUND_PULSES, ~7.2s) -- an existing enum
+value nothing had ever actually transitioned a being into before this.
+Dropped real upstream's height/undead/flying/mount checks and its
+partial-success "dazed" tier (no Tobin equivalent state), same
+disclosed-scope-cut shape as advanced berserking/spy this same session.
+  - Help text updated; news.sql entry added.
+  - New smoke_test_cudgel.py. Caught and fixed a real bug in the test
+    itself while writing it, not the game: CLASS_THIEF is 3 in the C
+    enum (being.h: MAGE=0/CLERIC=1/WARRIOR=2/THIEF=3), not 4 -- a
+    redundant `UPDATE player SET class=...` using a wrong hand-copied
+    constant silently overwrote a correctly-created Thief into a
+    Druid, which read as "being_knows_skill fails" until traced back.
+  - smoke_test_peek.py and smoke_test_spy.py re-run clean (no
+    regression). Build clean, zero warnings. Deployed via copyover
+    (players may have been connected).
+  - TODO.md's whole per-class missing-skill/spell backlog is now
+    cleared except the flagged Cleric dead-end (`relive`) and the
+    cross-class "Common skills" block (ranged proficiency/
+    specialization, trap arrow/mine/grenade) -- next up.
+---
 Last updated: 2026-08-22 — Session 170 (DO droplet, production port 4000):
 **spy (Thief, 38) -- next item in the Thief half of the missing-skill
 backlog.** Real upstream (disc_thief_stealth.cc's spy()) is a toggle

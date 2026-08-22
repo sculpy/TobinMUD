@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-22 (8). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-22 (9). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -96,7 +96,7 @@ conversation before picking back up, not a straight port.
 
 **Warrior skills:** all cleared 2026-08-22 (advanced berserking done).
 
-**Thief skills:** cudgel (41). (spy (38) done 2026-08-22.)
+**Thief skills:** all cleared 2026-08-22 (spy, cudgel done).
 
 **Monk skills:** all cleared 2026-08-18 (iron flesh/skin/bones/muscles/will + defenestrate + bonebreak; iron fist/iron legs were already wired).
 
