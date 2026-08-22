@@ -666,23 +666,34 @@ int game_loop_run(int port, const char *copyover_file) {
                         snprintf(waitbuf, sizeof(waitbuf), "[%d.%ds] ", wait / 10, wait % 10);
                 }
                 if (p->character && p->character->prompt_flags) {
+                    /* Sneezy-style compact letter format (user request,
+                     * 2026-08-22: "rework the prompt to be more like
+                     * sneezy") -- real upstream's StPrompts[] table
+                     * (connect.cc) uses "H:%d "/"M:%d "/"V:%d "/"E:%s "/
+                     * "N:%s "/"LF:%d " (getHitPointsPrompt() and friends),
+                     * not spelled-out labels. Ported letter-for-letter
+                     * except gold: Sneezy's own is "T:" for Talens, a
+                     * currency Tobin doesn't have -- Tobin's is gold, so
+                     * "G:" here instead of a confusing borrowed letter.
+                     * Toggle names (`prompt hp|gold|vit|...`) unchanged;
+                     * only the rendered format moved. */
                     char pbuf[208];
                     size_t pn = (size_t)snprintf(pbuf, sizeof(pbuf), "\r\n");
                     if (p->character->prompt_flags & PROMPT_FLAG_HP)
-                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "HP: %d ",
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "H:%d ",
                                                p->character->progress.hp);
                     if (p->character->prompt_flags & PROMPT_FLAG_GOLD)
-                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Gold: %d ",
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "G:%d ",
                                                p->character->progress.gold);
                     if (p->character->prompt_flags & PROMPT_FLAG_VIT)
-                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Vit: %d ",
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "V:%d ",
                                                p->character->progress.vit);
                     if (p->character->prompt_flags & PROMPT_FLAG_MANA)
-                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "%s: %d ",
-                                               p->character->char_class == CLASS_DRUID ? "LF" : "Mana",
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "%s:%d ",
+                                               p->character->char_class == CLASS_DRUID ? "LF" : "M",
                                                p->character->progress.mana);
                     if (p->character->prompt_flags & PROMPT_FLAG_EXP)
-                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "Exp: %ld ",
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "E:%ld ",
                                                p->character->progress.experience);
                     if (p->character->prompt_flags & PROMPT_FLAG_EXPNEED) {
                         long need = 0;
@@ -691,7 +702,7 @@ int game_loop_run(int port, const char *copyover_file) {
                                    - p->character->progress.experience;
                         if (need < 0)
                             need = 0;
-                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "ExpNeed: %ld ", need);
+                        pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "N:%ld ", need);
                     }
                     pn += (size_t)snprintf(pbuf + pn, sizeof(pbuf) - pn, "> %s", waitbuf);
                     pn += (size_t)prompt_append_tank_vict(p->character, pbuf + pn, sizeof(pbuf) - pn);

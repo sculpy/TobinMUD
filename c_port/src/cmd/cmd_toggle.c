@@ -62,6 +62,73 @@ static void tg_hp_set(descriptor_t *d, bool v) {
         d->character->prompt_flags &= ~PROMPT_FLAG_HP;
     player_set_prompt_flags(d->character->player_id, d->character->prompt_flags);
 }
+/* --- gold/vit/mana/exp/expneed: same shape as hp above, one per
+ * remaining PROMPT_FLAG_* bit (user request, 2026-08-22: "update the
+ * toggles related to prompt" -- `toggle hp` already duplicated
+ * `prompt hp`, but the other five stats were reachable only through
+ * `prompt <stat>`, never `toggle`; this closes that gap for
+ * consistency). `prompt <stat>`/`prompt all` still work unchanged --
+ * both commands read/write the exact same player.prompt_flags bits. */
+static bool tg_gold_get(descriptor_t *d) {
+    return d->character && (d->character->prompt_flags & PROMPT_FLAG_GOLD);
+}
+static void tg_gold_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->prompt_flags |= PROMPT_FLAG_GOLD;
+    else
+        d->character->prompt_flags &= ~PROMPT_FLAG_GOLD;
+    player_set_prompt_flags(d->character->player_id, d->character->prompt_flags);
+}
+static bool tg_vit_get(descriptor_t *d) {
+    return d->character && (d->character->prompt_flags & PROMPT_FLAG_VIT);
+}
+static void tg_vit_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->prompt_flags |= PROMPT_FLAG_VIT;
+    else
+        d->character->prompt_flags &= ~PROMPT_FLAG_VIT;
+    player_set_prompt_flags(d->character->player_id, d->character->prompt_flags);
+}
+static bool tg_mana_get(descriptor_t *d) {
+    return d->character && (d->character->prompt_flags & PROMPT_FLAG_MANA);
+}
+static void tg_mana_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->prompt_flags |= PROMPT_FLAG_MANA;
+    else
+        d->character->prompt_flags &= ~PROMPT_FLAG_MANA;
+    player_set_prompt_flags(d->character->player_id, d->character->prompt_flags);
+}
+static bool tg_exp_get(descriptor_t *d) {
+    return d->character && (d->character->prompt_flags & PROMPT_FLAG_EXP);
+}
+static void tg_exp_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->prompt_flags |= PROMPT_FLAG_EXP;
+    else
+        d->character->prompt_flags &= ~PROMPT_FLAG_EXP;
+    player_set_prompt_flags(d->character->player_id, d->character->prompt_flags);
+}
+static bool tg_expneed_get(descriptor_t *d) {
+    return d->character && (d->character->prompt_flags & PROMPT_FLAG_EXPNEED);
+}
+static void tg_expneed_set(descriptor_t *d, bool v) {
+    if (!d->character)
+        return;
+    if (v)
+        d->character->prompt_flags |= PROMPT_FLAG_EXPNEED;
+    else
+        d->character->prompt_flags &= ~PROMPT_FLAG_EXPNEED;
+    player_set_prompt_flags(d->character->player_id, d->character->prompt_flags);
+}
 
 /* --- newbie: on the newbie help channel (player.pflags bit) --- */
 static bool tg_newbie_get(descriptor_t *d) {
@@ -223,6 +290,11 @@ static const toggle_t TOGGLES[] = {
     { "nospam",    "hide combat miss messages",     false, "Preferences",   tg_nospam_get,    tg_nospam_set },
     { "autoloot",  "auto-loot a defeated corpse",   false, "Preferences",   tg_autoloot_get,  tg_autoloot_set },
     { "hp",        "hit points shown in prompt",    false, "Prompt",        tg_hp_get,        tg_hp_set },
+    { "gold",      "gold shown in prompt",          false, "Prompt",        tg_gold_get,      tg_gold_set },
+    { "vit",       "vitality shown in prompt",      false, "Prompt",        tg_vit_get,       tg_vit_set },
+    { "mana",      "mana shown in prompt",          false, "Prompt",        tg_mana_get,      tg_mana_set },
+    { "exp",       "experience shown in prompt",    false, "Prompt",        tg_exp_get,       tg_exp_set },
+    { "expneed",   "exp to next level in prompt",   false, "Prompt",        tg_expneed_get,   tg_expneed_set },
     { "newbie",    "on the newbie help channel",    false, "Communication", tg_newbie_get,    tg_newbie_set },
     { "noshout",   "opted out of hearing shouts",   false, "Communication", tg_noshout_get,   tg_noshout_set },
     { "notell",    "block incoming tells",          false, "Communication", tg_notell_get,    tg_notell_set },
