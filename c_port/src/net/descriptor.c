@@ -1716,7 +1716,7 @@ static void show_redit_menu(descriptor_t *d) {
 static void show_redit_flags(descriptor_t *d) {
     char out[2048];
     size_t n = (size_t)snprintf(out, sizeof(out),
-        "\r\nRoom flags for %d -- toggle by number, blank to return:\r\n",
+        "\r\nRoom flags for %d -- toggle by number, blank or 'q' to return:\r\n",
         d->redit_work.vnum);
     for (int b = 0; b < room_flag_count(); b++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
@@ -1738,7 +1738,7 @@ static void show_redit_flags(descriptor_t *d) {
 static void show_redit_terrain(descriptor_t *d) {
     char out[4096];
     size_t n = (size_t)snprintf(out, sizeof(out),
-        "\r\nTerrain for %d (current %d: %s) -- choose a number, blank to return:\r\n",
+        "\r\nTerrain for %d (current %d: %s) -- choose a number, blank or 'q' to return:\r\n",
         d->redit_work.vnum, d->redit_work.sector, sector_name(d->redit_work.sector));
     for (int s = 0; s < MAX_SECTOR_TYPES; s++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
@@ -1760,7 +1760,7 @@ static void show_redit_exits(descriptor_t *d) {
     room_t *w = &d->redit_work;
     char out[1400];
     size_t n = (size_t)snprintf(out, sizeof(out),
-        "\r\nExits for %d -- choose a direction (name or number) to edit, blank to return:\r\n",
+        "\r\nExits for %d -- choose a direction (name or number) to edit, blank or 'q' to return:\r\n",
         w->vnum);
     for (int i = 0; i < ROOM_NUM_EXITS; i++) {
         char info[96];
@@ -1798,7 +1798,7 @@ static void show_redit_exit_menu(descriptor_t *d) {
         "  Target: %s   Door: %s   Cond: %s\r\n\r\n"
         "  <c>1)<z> <p>Target room<z>      <c>2)<z> <p>Door type<z>\r\n"
         "  <c>3)<z> <p>Conditions<z>       <c>4)<z> <p>Remove this exit<z>\r\n"
-        "  blank) back\r\nexit-%s> ",
+        "  blank/q) back\r\nexit-%s> ",
         DIR_NAMES[dir], tgt, door_type_name(w->exit_door[dir]),
         exit_cond_names(w->exit_cond[dir], cbuf, sizeof(cbuf)), DIR_NAMES[dir]);
     descriptor_send(d, out);
@@ -1834,7 +1834,7 @@ static void show_redit_conditions(descriptor_t *d) {
     int cond = d->redit_work.exit_cond[dir];
     char out[1024];
     size_t n = (size_t)snprintf(out, sizeof(out),
-        "\r\nConditions for %s -- toggle by number, blank to return:\r\n",
+        "\r\nConditions for %s -- toggle by number, blank or 'q' to return:\r\n",
         DIR_NAMES[dir]);
     for (int b = 0; b < exit_cond_count(); b++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
@@ -1864,7 +1864,7 @@ static void show_redit_extra_menu(descriptor_t *d) {
 
     char out[4096];
     size_t len = (size_t)snprintf(out, sizeof(out),
-        "\r\nExtra Descriptions for %d -- choose a number to edit, blank to return:\r\n",
+        "\r\nExtra Descriptions for %d -- choose a number to edit, blank or 'q' to return:\r\n",
         vnum);
     if (n == 0) {
         len += (size_t)snprintf(out + len, sizeof(out) > len ? sizeof(out) - len : 0,
@@ -1901,7 +1901,7 @@ static void show_redit_extra_item(descriptor_t *d) {
         "Description:\r\n%s%s\r\n"
         "  <c>1)<z> <p>Keywords<z>         <c>2)<z> <p>Description<z>\r\n"
         "  <c>3)<z> <p>Delete<z>\r\n"
-        "  blank) back\r\nextra-desc> ",
+        "  blank/q) back\r\nextra-desc> ",
         d->redit_extra_name, desc, descnl);
     descriptor_send(d, out);
     d->state = CONN_REDIT_EXTRA_ITEM;
@@ -2306,7 +2306,7 @@ static void show_oedit_type_picker(descriptor_t *d) {
 static void show_oedit_action_flags(descriptor_t *d) {
     char out[2048];
     size_t n = (size_t)snprintf(out, sizeof(out),
-        "\r\nExtra flags for %d -- toggle by number, blank to return:\r\n",
+        "\r\nExtra flags for %d -- toggle by number, blank or 'q' to return:\r\n",
         d->oedit_work.vnum);
     for (int b = 0; b < obj_action_flag_count(); b++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
@@ -2328,7 +2328,7 @@ static void show_oedit_action_flags(descriptor_t *d) {
 static void show_oedit_wear_flags(descriptor_t *d) {
     char out[1024];
     size_t n = (size_t)snprintf(out, sizeof(out),
-        "\r\nTake flags for %d -- toggle by number, blank to return:\r\n",
+        "\r\nTake flags for %d -- toggle by number, blank or 'q' to return:\r\n",
         d->oedit_work.vnum);
     for (int b = 0; b < obj_wear_flag_count(); b++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
@@ -2353,7 +2353,7 @@ static void show_oedit_wear_flags(descriptor_t *d) {
 static void show_oedit_anti_race_flags(descriptor_t *d) {
     char out[512];
     size_t n = (size_t)snprintf(out, sizeof(out),
-        "\r\nAnti-race flags for %d -- toggle by number, blank to return:\r\n",
+        "\r\nAnti-race flags for %d -- toggle by number, blank or 'q' to return:\r\n",
         d->oedit_work.vnum);
     for (int b = 0; b < obj_anti_race_flag_count(); b++) {
         n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
@@ -2816,7 +2816,7 @@ static void show_edsocial_item(descriptor_t *d) {
             "<c>R)<z> <p>Rename<z>", "<c>D)<z> <p>Delete this social<z>");
     if (n < sizeof(out))
         snprintf(out + n, sizeof(out) - n,
-            "\r\n  blank) back to list\r\nedsocial-%s> ", s.name);
+            "\r\n  blank/q) back to list\r\nedsocial-%s> ", s.name);
     descriptor_send(d, out);
     d->state = CONN_EDSOCIAL_ITEM;
 }
@@ -2918,7 +2918,7 @@ static void show_trigedit_item(descriptor_t *d) {
         "   <c>3)<z> <p>Edit script<z>\r\n"
         "   <c>D)<z> <p>Delete this trigger<z>\r\n\r\n"
         "<c>Current script:<z>\r\n%s\r\n"
-        "   blank) back to list\r\ntrigedit-item> ",
+        "   blank/q) back to list\r\ntrigedit-item> ",
         t.trigger_type, t.target_type, t.target_vnum,
         t.match_text[0] ? t.match_text : "(none)",
         t.chance_pct,
@@ -3039,7 +3039,7 @@ static void show_edsuit_item(descriptor_t *d) {
         "\r\n<c>Editing suit item:<z> %s (vnum %d)\r\n\r\n"
         "   <c>1)<z> <p>Quantity<z>: %d\r\n"
         "   <c>D)<z> <p>Delete this item<z>\r\n\r\n"
-        "   blank) back to list\r\nedsuit-item> ",
+        "   blank/q) back to list\r\nedsuit-item> ",
         label, d->edsuit_item_vnum, qty);
     descriptor_send(d, out);
     d->state = CONN_EDSUIT_ITEM;
@@ -3977,7 +3977,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_REDIT_TERRAIN: {
-            if (!line[0]) { show_redit_menu(d); return true; }
+            if (!line[0] || strcasecmp(line, "q") == 0) { show_redit_menu(d); return true; }
             char *end;
             long s = strtol(line, &end, 10);
             if (end == line || s < 0 || s >= MAX_SECTOR_TYPES) {
@@ -3992,7 +3992,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_REDIT_FLAGS: {
-            if (!line[0]) { show_redit_menu(d); return true; }
+            if (!line[0] || strcasecmp(line, "q") == 0) { show_redit_menu(d); return true; }
             char *end;
             long b = strtol(line, &end, 10);
             if (end == line || b < 0 || b >= room_flag_count()) {
@@ -4037,7 +4037,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_REDIT_EXITS: {
-            if (!line[0]) { show_redit_menu(d); return true; }
+            if (!line[0] || strcasecmp(line, "q") == 0) { show_redit_menu(d); return true; }
             char tok[16];
             sscanf(line, "%15s", tok);
             int dir = redit_parse_dir(tok);
@@ -4052,7 +4052,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_REDIT_EXIT_MENU: {
-            if (!line[0]) { show_redit_exits(d); return true; }
+            if (!line[0] || strcasecmp(line, "q") == 0) { show_redit_exits(d); return true; }
             int dir = d->redit_exit_dir;
             switch (atoi(line)) {
                 case 1:
@@ -4087,7 +4087,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     show_redit_exits(d);
                     break;
                 default:
-                    descriptor_send(d, "Pick 1-4, or blank to go back.\r\n");
+                    descriptor_send(d, "Pick 1-4, or blank or 'q' to go back.\r\n");
                     show_redit_exit_menu(d);
                     break;
             }
@@ -4095,7 +4095,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_REDIT_EXIT_TARGET: {
-            if (!line[0]) { show_redit_exit_menu(d); return true; }
+            if (!line[0] || strcasecmp(line, "q") == 0) { show_redit_exit_menu(d); return true; }
             char *end;
             long v = strtol(line, &end, 10);
             if (end == line) {
@@ -4122,7 +4122,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_REDIT_EXIT_DOORTYPE: {
-            if (!line[0]) { show_redit_exit_menu(d); return true; }
+            if (!line[0] || strcasecmp(line, "q") == 0) { show_redit_exit_menu(d); return true; }
             char *end;
             long t = strtol(line, &end, 10);
             if (end == line || t < 0 || t >= door_type_count()) {
@@ -4137,7 +4137,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_REDIT_EXIT_CONDITIONS: {
-            if (!line[0]) { show_redit_exit_menu(d); return true; }
+            if (!line[0] || strcasecmp(line, "q") == 0) { show_redit_exit_menu(d); return true; }
             char *end;
             long b = strtol(line, &end, 10);
             if (end == line || b < 0 || b >= exit_cond_count()) {
@@ -4167,7 +4167,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_REDIT_EXTRA_MENU: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 show_redit_menu(d);
                 return true;
             }
@@ -4193,13 +4193,13 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     return true;
                 }
             }
-            descriptor_send(d, "Pick a number from the list, A to add, or blank to return.\r\n");
+            descriptor_send(d, "Pick a number from the list, A to add, or blank or 'q' to return.\r\n");
             show_redit_extra_menu(d);
             return true;
         }
 
         case CONN_REDIT_EXTRA_ITEM: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 show_redit_extra_menu(d);
                 return true;
             }
@@ -4242,7 +4242,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     break;
                 }
                 default:
-                    descriptor_send(d, "Pick 1-3, or blank to return.\r\n");
+                    descriptor_send(d, "Pick 1-3, or blank or 'q' to return.\r\n");
                     show_redit_extra_item(d);
                     break;
             }
@@ -4251,7 +4251,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
 
         case CONN_REDIT_EXTRA_KEYWORDS: {
             bool adding_new = d->redit_extra_name[0] == '\0';
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 descriptor_send(d, "Cancelled.\r\n");
                 if (adding_new)
                     show_redit_extra_menu(d);
@@ -4969,7 +4969,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     d->oedit_dirty = true;
                     show_oedit_action_flags(d);
                 } else {
-                    descriptor_send(d, "Pick a flag number, or blank to return.\r\n");
+                    descriptor_send(d, "Pick a flag number, or blank or 'q' to return.\r\n");
                     show_oedit_action_flags(d);
                 }
             } else {
@@ -4987,7 +4987,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     d->oedit_dirty = true;
                     show_oedit_wear_flags(d);
                 } else {
-                    descriptor_send(d, "Pick a flag number, or blank to return.\r\n");
+                    descriptor_send(d, "Pick a flag number, or blank or 'q' to return.\r\n");
                     show_oedit_wear_flags(d);
                 }
             } else {
@@ -5005,7 +5005,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                     d->oedit_dirty = true;
                     show_oedit_anti_race_flags(d);
                 } else {
-                    descriptor_send(d, "Pick a flag number, or blank to return.\r\n");
+                    descriptor_send(d, "Pick a flag number, or blank or 'q' to return.\r\n");
                     show_oedit_anti_race_flags(d);
                 }
             } else {
@@ -5632,7 +5632,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_EDSUIT_LIST: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 descriptor_send(d, "Done editing that suit -- your changes are saved.\r\n");
                 d->state = CONN_PLAYING;
                 return true;
@@ -5684,7 +5684,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_EDSUIT_ITEM: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 show_edsuit_list(d);
                 return true;
             }
@@ -5698,7 +5698,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 d->state = CONN_EDSUIT_ITEM_DELETE_CONFIRM;
                 return true;
             }
-            descriptor_send(d, "Pick 1, D, or blank to go back.\r\n");
+            descriptor_send(d, "Pick 1, D, or blank or 'q' to go back.\r\n");
             show_edsuit_item(d);
             return true;
         }
@@ -5742,7 +5742,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_EDSUIT_ADD_VNUM: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 show_edsuit_list(d);
                 return true;
             }
@@ -5784,7 +5784,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_EDSUIT_CLASS: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 show_edsuit_list(d);
                 return true;
             }
@@ -5805,7 +5805,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_EDSUIT_RACE: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 show_edsuit_list(d);
                 return true;
             }
@@ -5869,7 +5869,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_BALANCE_EDIT: {
-            if (!line[0]) {          /* blank line cancels, leaves field unchanged */
+            if (!line[0] || strcasecmp(line, "q") == 0) {          /* blank line cancels, leaves field unchanged */
                 show_balance_menu(d);
                 return true;
             }
@@ -6001,7 +6001,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_EDSOCIAL_LIST: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 edsocial_leave(d);
                 return true;
             }
@@ -6024,7 +6024,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_EDSOCIAL_NEW_NAME: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 descriptor_send(d, "Cancelled.\r\n");
                 show_edsocial_list(d);
                 return true;
@@ -6056,7 +6056,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_EDSOCIAL_ITEM: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 show_edsocial_list(d);
                 return true;
             }
@@ -6123,13 +6123,13 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 d->state = CONN_EDSOCIAL_DELETE_CONFIRM;
                 return true;
             }
-            descriptor_send(d, "Pick 1-8, H, P, R, D, or blank to return.\r\n");
+            descriptor_send(d, "Pick 1-8, H, P, R, D, or blank or 'q' to return.\r\n");
             show_edsocial_item(d);
             return true;
         }
 
         case CONN_EDSOCIAL_FIELD: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 descriptor_send(d, "Cancelled.\r\n");
                 show_edsocial_item(d);
                 return true;
@@ -6163,7 +6163,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_EDSOCIAL_RENAME: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 descriptor_send(d, "Cancelled.\r\n");
                 show_edsocial_item(d);
                 return true;
@@ -6197,7 +6197,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_TRIGEDIT_LIST: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 d->state = CONN_PLAYING;
                 descriptor_send(d, "Leaving the trigger editor.\r\n");
                 descriptor_editor_exit_notice(d);
@@ -6229,7 +6229,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_TRIGEDIT_ITEM: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 show_trigedit_list(d);
                 return true;
             }
@@ -6287,7 +6287,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 d->state = CONN_TRIGEDIT_DELETE_CONFIRM;
                 return true;
             }
-            descriptor_send(d, "Pick 1, 2, 3, D, or blank to return.\r\n");
+            descriptor_send(d, "Pick 1, 2, 3, D, or blank or 'q' to return.\r\n");
             show_trigedit_item(d);
             return true;
         }
@@ -6331,7 +6331,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_TRIGEDIT_NEW_TYPE: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 descriptor_send(d, "Cancelled.\r\n");
                 show_trigedit_list(d);
                 return true;
@@ -6368,7 +6368,7 @@ static bool handle_line(descriptor_t *d, const char *line) {
         }
 
         case CONN_TRIGEDIT_NEW_MATCH: {
-            if (!line[0]) {
+            if (!line[0] || strcasecmp(line, "q") == 0) {
                 descriptor_send(d, "A speech trigger needs a keyword. Cancelled.\r\n");
                 show_trigedit_list(d);
                 return true;
