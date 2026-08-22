@@ -170,6 +170,15 @@ out = cmd(s_imm, "open north")
 thief_name = f"Trapthf{_suffix}"
 st = make_char(thief_name, pw, "4")
 st.close()
+# "detect trap" is CLASS_THIEF/SKILL_TIER_ADVANCED/min_level 25 (skill.c),
+# and ADVANCED tier also requires basic/combat disc maxed + some advanced
+# disc spent (being_knows_skill(), skill.c) -- a freshly-created level-1
+# Thief does NOT actually know it despite this test's own "always known"
+# assumption (found 2026-08-21, TODO.md). Bumped here so the Thief
+# genuinely qualifies, matching what the test actually exercises.
+sql(f"UPDATE player_progress SET level=25, basic_disc_pct=100, "
+    f"combat_disc_pct=100, advanced_disc_pct=1 WHERE player_id="
+    f"(SELECT id FROM player WHERE name='{thief_name}');")
 # transfer needs the target ONLINE -- reconnect first, then transfer.
 st = socket.create_connection((host, port), timeout=5)
 recv_all(st)
