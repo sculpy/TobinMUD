@@ -14,12 +14,16 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
-Road-shrink initiative (Session 183): pilot zone 11 (First Ring of Roads)
-done, 49->26 rooms. Next: continue down the road/connector zone list
-(13 more built zones, largest Tobin City Roads at 413 rooms) one per
-session, same pattern -- see STATUS.md Session 183 and the plan file
-(user's local Claude Code plans dir, not in this repo). Phase B (global
-vnum cascade-renumber to close gaps) waits until all 14 zones are done
+Road-shrink initiative (Session 183-184): zone 11 (49->26) and zone 2
+(413->344) done -- use db/road_shrink.py for remaining zones, it's
+fixed after a Session 184 incident (see STATUS.md). Two known
+loose ends from zone 2: rooms 104 and 167 have no outgoing exit
+(legitimate one-way portal targets from zone 106, not bugs) --
+worth a manual redit pass sometime. Next: continue down the
+road/connector zone list (12 more built zones) one per session,
+same pattern -- see STATUS.md and the plan file (user's local
+Claude Code plans dir, not in this repo). Phase B (global vnum
+cascade-renumber to close gaps) waits until all 14 zones are done
 and soaked.
 ## Unimplemented skills/spells backlog (audited Session 158)
 

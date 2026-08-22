@@ -1,4 +1,44 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 -- Session 184 (DO droplet, production port 4000):
+**Road-shrink initiative, zone 2 (Tobin City Roads) done; caught and fixed
+a live-data bug along the way.** Second zone in the initiative (see
+Session 183): 413 rooms -> 344. Built a reusable tool, db/road_shrink.py,
+that automates the graph analysis instead of hand-tracing it: finds pure
+single-file corridor stretches (degree-2 rooms with fully reciprocated
+edges), thins them by roughly half, and never touches a junction, an
+external-zone boundary room, or a room referenced by zone_reset/
+component_placement (this zone had a real spawn footprint the pilot
+didn't -- 136 mage-component objects, all preserved at their existing
+vnums with no changes needed).
+  - Incident: the tool's first version only checked each room's own
+    outgoing exits for reciprocity, missing one-way inbound exits from
+    OTHER rooms. That wrongly targeted 45 rooms for removal. The
+    roomexit->room foreign key caught it on first apply -- failed
+    partway (their own exits got deleted, but the FK blocked deleting
+    the room rows themselves, since something still pointed at them).
+    No player positions were in the affected range (checked before
+    applying); server stayed up throughout.
+  - Recovery: 43 of the 45 got their reciprocal exit restored from the
+    surviving inbound edge (opposite-direction inference, confirmed
+    correct by re-checking a sample). The other 2 (rooms 104, 167) are
+    legitimate one-way portal targets from zone 106 with no zone-2-side
+    reciprocal to restore -- they keep their vnum but have no outgoing
+    exit right now; flagged for a manual redit pass later, not a data
+    emergency. Corrected final cut: 69 rooms (down from the buggy 114).
+  - Verified clean: zero dangling roomexit destinations anywhere in the
+    whole database (not just this zone), and full BFS connectivity from
+    every external entry point into the zone (the remaining ~20
+    "unreached from a single start" rooms are pre-existing isolated
+    pockets untouched by this change, confirmed by diffing against the
+    cut list).
+  - db/road_shrink.py is fixed (checks incoming edges from any room, not
+    just each room's own outgoing list) and the zone-2 migration file
+    was rewritten as one clean, replay-safe SQL file reflecting the
+    corrected end state -- a fresh DB seed won't hit the same bug.
+    News + wiznews entries added (wiznews has the full incident writeup).
+    No C code changed, no rebuild/copyover needed (room data reads live
+    from the DB).
+
 Last updated: 2026-08-22 -- Session 183 (DO droplet, production port 4000):
 **Road-shrink initiative kicked off; First Ring of Roads (zone 11) is the
 pilot (user decision).** World feels sparse (336 zones, ~19,272 rooms,
