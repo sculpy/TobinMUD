@@ -1,4 +1,45 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 -- Session 187 (DO droplet, production port 4000):
+**Road-shrink initiative Phase A COMPLETE -- all 14 zones shipped.** Zones
+22, 258, 18, 12, 49, 19, 259, and 38 done this session (see Sessions
+183-186 for zones 11, 2, 67, 16, 53):
+  - Zone 22 (Maror - North Norman's Road): 138->82 (40% cut)
+  - Zone 258 (Damescena - Road Extension 2): 130->75 (42% cut)
+  - Zone 18 (Batopr - Versilard's Highway): 107->63 (41% cut)
+  - Zone 12 (Second Ring of Roads): 104->57 (45% cut)
+  - Zone 49 (Maror - Forest Trail): 94->66 (29% cut, anchor-heavy)
+  - Zone 19 (Batopr - Roads to Lionheart): 79->47 (40% cut)
+  - Zone 259 (Maror - A Misty Trail in Lan'Quin Forest): 75->44 (41% cut)
+  - Zone 38 (Dolgan - Tobin City Outer Pathway): 19->17 (10% cut,
+    junction-dense, only 2 rooms cuttable)
+  - Zone 146 (Therias' Area - Desert Path): 2 rooms, both anchors, 0%
+    cuttable -- no migration written, nothing to do.
+  All eight applied clean on the first try: pre-flight gate always 0
+  uncovered, 0 dangling roomexit destinations after every apply, no
+  incidents. Several zones (22, 18) have many external entry points, so
+  the tool's own single-seed post-apply BFS undercounted reached rooms;
+  ran a full multi-seed BFS from every external entry point for each
+  zone instead and confirmed full connectivity. A few zones (12, 19,
+  259) turned up one pre-existing zero-exit orphan room each (34770
+  "Nada", 1734 "An Overgrown Path", 34034 "Inside a Large Canvas Tent")
+  -- checked each against the migration's relink/cut lists and confirmed
+  none were touched, so these predate this initiative entirely.
+  Note: zone 146's road_shrink.py dry run wrote a SQL file with an empty
+  `IN ()` clause (invalid syntax) since nothing was cuttable -- deleted
+  that file rather than patch the tool for a case that produces no
+  migration at all. Worth a small guard in road_shrink.py if a future
+  zone hits the same 0%-cuttable case.
+  Global dangling-exit check: 0, database-wide. Full db/tobin/ replay
+  verified clean end to end. News + wiznews entries added for all eight
+  zones. No C code changed, no rebuild/copyover needed.
+
+  **Phase A is done: all 14 built road/connector zones have been
+  shrunk.** Phase B (the global vnum cascade-renumber to close the gaps
+  left behind) is NOT started -- per the plan, it should only run after
+  these zones have soaked in production for a while, as its own
+  dedicated maintenance-window session with a full DB backup, a
+  precomputed vnum map, and a dry run against a DB copy first.
+
 Last updated: 2026-08-22 -- Session 186 (DO droplet, production port 4000):
 **Road-shrink initiative, zone 53 done.** Fifth zone (see Sessions
 183-185): zone 53 (Dolgan - Southern Jungle Road) 202->176 rooms.

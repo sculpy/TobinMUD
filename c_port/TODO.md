@@ -14,22 +14,29 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
-Road-shrink initiative (Sessions 183-186): zones 11 (49->26), 2
-(413->344), 67 (188->161), 16 (152->90), 53 (202->176) done -- use
-db/road_shrink.py for remaining zones; it's been through two real
-bugfixes (incoming-edge reciprocity, anchor-direction lookup) plus
-a pre-flight simulation gate, and zones 16 and 53 both applied
-clean on the first try with both fixes in place. Zone 53 was a
-dense anchor-heavy zone (only 12% safely cut, same as zone 2's
-grid) -- accepted per standing direction rather than forcing it.
+Road-shrink initiative Phase A is COMPLETE (Sessions 183-187): all
+14 built road/connector zones shrunk -- 11, 2, 67, 16, 53, 22, 258,
+18, 12, 49, 19, 259, 38, 146 (146 was already minimal, 0% cuttable,
+no migration needed). db/road_shrink.py went through two real
+bugfixes early on (incoming-edge reciprocity, anchor-direction
+lookup) plus a pre-flight simulation gate; every zone from 16
+onward applied clean on the first try with 0 dangling exits.
 Known loose ends: zone 2 rooms 104 and 167 have no outgoing exit
 (legitimate one-way portal targets from zone 106, not bugs) --
-worth a manual redit pass sometime. Next: continue down the
-road/connector zone list (9 more built zones) one per session,
-same pattern -- see STATUS.md and the plan file (user's local
-Claude Code plans dir, not in this repo). Phase B (global vnum
-cascade-renumber to close gaps) waits until all 14 zones are done
-and soaked.
+worth a manual redit pass sometime. Also noticed a handful of
+pre-existing zero-exit orphan rooms while verifying (34770, 1734,
+34034) -- unrelated to this initiative, not touched, not urgent.
+road_shrink.py has a minor rough edge: a zone with 0% cuttable
+rooms writes an invalid `IN ()` SQL file instead of skipping --
+harmless (caught and deleted manually for zone 146) but worth a
+small guard if the tool gets reused elsewhere.
+Next: Phase B, the one-time global vnum cascade-renumber that
+closes the gaps left by all 14 shrinks. Do NOT start this yet --
+per the plan, let the Phase A changes soak in production first.
+When it's time: full DB backup, precomputed old->new vnum map,
+dry run against a DB copy, and a maintenance window (server
+empty) -- see the plan file (user's local Claude Code plans dir,
+not in this repo) for the full list of tables it touches.
 ## Unimplemented skills/spells backlog (audited Session 158)
 
 Grep-verified against `SKILLS[]` (skill.c) vs real handlers in cmd_cast.c /

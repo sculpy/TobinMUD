@@ -684,3 +684,27 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The Southern Jungle Road Grows Shorter', 'The winding jungle road through Dolgan''s southern reaches has been trimmed to a tighter, more walkable stretch. Every landmark and junction along the way is right where it was.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'North Norman''s Road Grows Shorter', 'The road north out of Maror has been trimmed to a tighter stretch. Every junction and landmark along the way is right where it was.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Damescena''s Road Extension Grows Shorter', 'The second stretch of road out of Damescena has been trimmed to a tighter, more walkable path. Every junction and landmark along the way is right where it was.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Versilard''s Highway Grows Shorter', 'The highway through Batopr has been trimmed to a tighter, more walkable path. Every junction and landmark along the way is right where it was.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Second Ring of Roads Grows Shorter', 'Another stretch of the roads ringing the city has been trimmed to a tighter, more walkable path. Every junction and landmark along the way is right where it was.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Maror Forest Trail Grows Shorter', 'The trail through Maror''s forest has been trimmed to a tighter, more walkable path. Every junction and landmark along the way is right where it was.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Roads to Lionheart Grow Shorter', 'The roads out of Batopr toward Lionheart have been trimmed to a tighter, more walkable path. Every junction and landmark along the way is right where it was.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Misty Trail Through Lan''Quin Forest Grows Shorter', 'The misty trail through Maror''s Lan''Quin Forest has been trimmed to a tighter, more walkable path. Every junction and landmark along the way is right where it was.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Tobin City''s Outer Pathway Grows Shorter', 'The outer pathway from Dolgan toward Tobin City has been trimmed slightly. Every junction and landmark along the way is right where it was.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

@@ -1495,3 +1495,29 @@ This zone is anchor-heavy -- 157 of its 202 rooms are junctions, boundary rooms,
 
 Post-apply BFS from every external entry point left 12 rooms (9450-9461) unreached. Verified this is pre-existing, not caused by this change: that cluster has no inbound edges from anywhere in the zone (only outbound), and no relink statement in this migration touched any edge pointing at it. It was already a one-way-out pocket before the shrink.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Zone 22 (Maror - North Norman''s Road) shrunk cleanly, 40% cut', '2026-08-22. Sixth zone in the road-shrink initiative: zone 22, 138 -> 82 rooms. Applied clean on the first try, pre-flight gate 0 uncovered, 0 dangling exits after.
+
+This zone has 41 external entry points from neighboring zones, so the tool''s single-seed post-apply BFS only reached 26 of 82 survivors by itself -- looked alarming at a glance. Ran a full multi-seed BFS from every external entry point instead and confirmed all 82 rooms are reachable; the single-seed check just wasn''t representative for a zone with this many doors in. Worth remembering for zones with lots of external connections.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Zone 258 (Damescena - Road Extension 2) shrunk cleanly, 42% cut', '2026-08-22. Seventh zone in the road-shrink initiative: zone 258, 130 -> 75 rooms. Applied clean on the first try, pre-flight gate 0 uncovered, 0 dangling exits after, full BFS reached all 75 survivors from external entry points. No incidents.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Zone 18 (Batopr - Versilard''s Highway) shrunk cleanly, 41% cut', '2026-08-22. Eighth zone in the road-shrink initiative: zone 18, 107 -> 63 rooms. Applied clean on the first try, pre-flight gate 0 uncovered, 0 dangling exits. 26 external entry points meant the tool''s single-seed BFS only reported 2 of 63 reached -- ran the multi-seed check (same as zone 22) and confirmed all 63 rooms reachable. No incidents.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Zone 12 (Second Ring of Roads) shrunk cleanly, 45% cut', '2026-08-22. Ninth zone in the road-shrink initiative: zone 12, 104 -> 57 rooms. Applied clean on the first try, pre-flight gate 0 uncovered, 0 dangling exits. Multi-seed BFS found one unreached room, 34770 ("Nada", oddly out-of-range vnum for this zone) -- confirmed it has zero roomexit rows in either direction and was not touched by this migration at all, a pre-existing orphan unrelated to the shrink.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Zone 49 (Maror - Forest Trail) shrunk cleanly, 29% cut', '2026-08-22. Tenth zone in the road-shrink initiative: zone 49, 94 -> 66 rooms. Anchor-heavy (54/94 junctions/boundaries/spawn-bearing), similar to zones 2 and 53 -- only 29% safely cut, accepted per standing direction. Applied clean on first try, pre-flight gate 0 uncovered, 0 dangling exits, full BFS reached all 66 survivors. No incidents.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Zone 19 (Batopr - Roads to Lionheart) shrunk cleanly, 40% cut', '2026-08-22. Eleventh zone in the road-shrink initiative: zone 19, 79 -> 47 rooms. Applied clean on first try, pre-flight gate 0 uncovered, 0 dangling exits. Multi-seed BFS found one unreached room, 1734 ("An Overgrown Path") -- confirmed zero exits in either direction and untouched by this migration, a pre-existing orphan.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Zone 259 (Maror - A Misty Trail in Lan''Quin Forest) shrunk cleanly, 41% cut', '2026-08-22. Twelfth zone in the road-shrink initiative: zone 259, 75 -> 44 rooms. Applied clean on first try, pre-flight gate 0 uncovered, 0 dangling exits. Multi-seed BFS found one unreached room, 34034 ("Inside a Large Canvas Tent") -- confirmed zero exits in either direction and untouched by this migration, a pre-existing orphan.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `wiznews` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Zone 38 (Dolgan - Tobin City Outer Pathway) shrunk cleanly, 10% cut', '2026-08-22. Thirteenth zone in the road-shrink initiative: zone 38, 19 -> 17 rooms. Very small, junction-dense zone (7 anchors of 19 rooms) -- only 10% safely cuttable, accepted per standing direction. Applied clean, pre-flight gate 0 uncovered, 0 dangling exits, full multi-seed BFS reached all 17 survivors. No incidents.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
