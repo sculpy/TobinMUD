@@ -297,6 +297,11 @@ typedef struct obj {
 #define CONT_LOCKED    (1 << 3) /* currently locked -- see cmd_lock.c's `lock`/`unlock` */
 #define CONT_TRAPPED   (1 << 4) /* rigged -- see cmd_trap.c's `settrap`/`disarmtrap` (containers) */
 
+/* Ammo (OBJ_CAT_AMMO) val[0] flag bit -- arrows have no other val[]
+ * use, so bit 0 is free. Set by `settrap arrow`, sprung by cmd_shoot.c
+ * on a landed hit -- see cmd_trap.c. */
+#define ARROW_TRAPPED  (1 << 0)
+
 /* Weapon sharpness range (obj_t.sharpness above) -- every weapon starts
  * at the default, `sharpen`/`smooth` (cmd_sharpen.c) raise it toward the
  * max in flat steps. */

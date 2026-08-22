@@ -29,14 +29,20 @@
  * exact same command to a carried/room container object instead of a
  * door, using the real upstream CONT_TRAPPED bit (obj.h, ported
  * verbatim from misc/obj.h's own `1 << 4`) -- cmd_open.c's do_container()
- * springs it on `open`. Deliberately NOT ported here: `set trap
- * (arrow)`/`(mine)`/`(grenade)` -- real upstream's own arrow/mine/
- * grenade trap targets are ammo-quiver, room-floor, and thrown-explosive
- * mechanics respectively (misc/trap.h's trap_targ_t), none of which
- * Tobin has a subsystem for (no ranged/quiver system, no room-floor trap
- * object type, no thrown-weapon command) -- same disclosed-gap pattern
- * as `sling shot`/`stunning arrow` elsewhere in this audit, not a partial
- * or faked implementation. */
+ * springs it on `open`.
+ *
+ * `set trap (arrow)` (2026-08-22, once cmd_shoot.c's ammo subsystem
+ * existed to hang it on): `settrap arrow [item]` rigs a carried loose
+ * arrow (obj.h's ARROW_TRAPPED, val[0] -- arrows have no other val[]
+ * use). cmd_shoot.c springs it on a landed hit, same flat
+ * random-limb damage as the door trap, then the arrow is destroyed as
+ * ammo normally is either way. Still deliberately NOT ported: `set
+ * trap (mine)`/`(grenade)` -- real upstream's mine/grenade trap
+ * targets are room-floor and thrown-explosive mechanics respectively
+ * (misc/trap.h's trap_targ_t), neither of which Tobin has a subsystem
+ * for (no room-floor trap object type, no thrown-weapon command) --
+ * same disclosed-gap pattern as `sling shot`/`stunning arrow`
+ * elsewhere in this audit, not a partial or faked implementation. */
 
 /* Matches `tok` against a direction name (n/north/northeast/...),
  * abbreviation-friendly like every other direction-taking command. */
@@ -67,6 +73,41 @@ static obj_t *find_container(being_t *ch, const char *tok) {
             if (obj_is_container(o) && thing_name_matches(t->name, tok, len))
                 return o;
         }
+    }
+    return NULL;
+}
+
+/* Case-insensitive "does haystack contain needle" (strcasestr is
+ * GNU-only; do it by hand -- same shape as cmd_shoot.c/cmd_who.c's own
+ * file-local copies). */
+static bool trap_sc_contains(const char *haystack, const char *needle) {
+    if (!haystack || !needle)
+        return false;
+    size_t nlen = strlen(needle);
+    for (const char *p = haystack; *p; p++)
+        if (strncasecmp(p, needle, nlen) == 0)
+            return true;
+    return false;
+}
+static bool trap_obj_kw(const obj_t *o, const char *kw) {
+    return trap_sc_contains(o->base.name, kw) || trap_sc_contains(o->base.short_descr, kw);
+}
+/* A loose (carried, not held/worn -- arrows are never worn) arrow among
+ * ch's own inventory matching `tok`, or -- with tok empty/"arrow" itself
+ * -- the first loose arrow found. Room floor is NOT searched: unlike a
+ * door or a room's own container, an arrow trap only makes sense on
+ * ammunition you are about to nock and fire yourself. */
+static obj_t *find_arrow(being_t *ch, const char *tok) {
+    size_t len = strlen(tok);
+    for (thing_t *t = ch->base.stuff_head; t; t = t->stuff_next) {
+        if (t->kind != THING_OBJ)
+            continue;
+        obj_t *o = (obj_t *)t;
+        if (!trap_obj_kw(o, "arrow"))
+            continue;
+        if (len == 0 || strncasecmp(tok, "arrow", len) == 0
+            || thing_name_matches(t->name, tok, len))
+            return o;
     }
     return NULL;
 }
@@ -117,8 +158,31 @@ bool cmd_settrap(descriptor_t *d, const char *args) {
                 descriptor_send(d, msg);
                 return true;
             }
+            obj_t *arrow = find_arrow(ch, tok);
+            if (arrow) {
+                if (!being_knows_skill(ch, "set trap (arrow)")) {
+                    descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+                    return true;
+                }
+                if (arrow->val[0] & ARROW_TRAPPED) {
+                    descriptor_send(d, "It's already rigged.\r\n");
+                    return true;
+                }
+                bool imm = being_is_immortal(ch);
+                const skill_def_t *sk = skill_find(ch->char_class, "set trap (arrow)", imm);
+                if (!imm && sk && !skill_roll_success(skill_learn_from_doing(ch, sk))) {
+                    descriptor_send(d, "You fumble rigging the arrowhead -- it doesn't take.\r\n");
+                    return true;
+                }
+                arrow->val[0] |= ARROW_TRAPPED;
+                const char *label = arrow->base.short_descr[0] ? arrow->base.short_descr : arrow->base.name;
+                char msg[256];
+                snprintf(msg, sizeof(msg), "You carefully rig a trap into %s.\r\n", label);
+                descriptor_send(d, msg);
+                return true;
+            }
         }
-        descriptor_send(d, "Usage: settrap <direction|container>\r\n");
+        descriptor_send(d, "Usage: settrap <direction|container|arrow>\r\n");
         return true;
     }
 
@@ -191,8 +255,28 @@ bool cmd_disarmtrap(descriptor_t *d, const char *args) {
                 descriptor_send(d, "You carefully disarm the trap.\r\n");
                 return true;
             }
+            obj_t *arrow = find_arrow(ch, tok);
+            if (arrow) {
+                if (!being_knows_skill(ch, "disarm trap")) {
+                    descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+                    return true;
+                }
+                if (!(arrow->val[0] & ARROW_TRAPPED)) {
+                    descriptor_send(d, "There's no trap there.\r\n");
+                    return true;
+                }
+                bool imm = being_is_immortal(ch);
+                const skill_def_t *sk = skill_find(ch->char_class, "disarm trap", imm);
+                if (!imm && sk && !skill_roll_success(skill_learn_from_doing(ch, sk))) {
+                    descriptor_send(d, "You fumble disarming the arrowhead -- it's still rigged.\r\n");
+                    return true;
+                }
+                arrow->val[0] &= ~ARROW_TRAPPED;
+                descriptor_send(d, "You carefully disarm the trap.\r\n");
+                return true;
+            }
         }
-        descriptor_send(d, "Usage: disarmtrap <direction|container>\r\n");
+        descriptor_send(d, "Usage: disarmtrap <direction|container|arrow>\r\n");
         return true;
     }
 

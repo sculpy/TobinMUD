@@ -663,3 +663,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The Map Finally Draws Itself', 'The client''s map window now draws a real picture instead of a plain list: rooms as dots, exits as lines, your own position highlighted, with pan and zoom and a way to step between floors. Update your client to see it -- Map > View Map... in the menu bar.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Thieves Learn to Rig an Arrow', '\'Set trap (arrow)\' finally answers the call. A Thief who has learned it can type SETTRAP ARROW to rig a hidden trap into a carried arrow -- shoot it at someone and, if it takes, the rig springs a nasty extra hit to a random limb on impact. Same one-shot spirit as the door and container traps, just riding along on your own ammunition this time. See HELP SETTRAP.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

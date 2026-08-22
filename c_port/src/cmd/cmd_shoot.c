@@ -222,6 +222,25 @@ bool cmd_shoot(descriptor_t *d, const char *args) {
     }
 
     spellcast_distract(target, 1); /* a hit rattles a caster mid-cast */
+    /* `set trap (arrow)` (cmd_trap.c's `settrap arrow`) springs here, on
+     * a landed hit -- same flat random-limb damage as the door trap
+     * (cmd_move.c), single-use like every other trap in Tobin. The
+     * shooter's own "detect trap" has no bearing on a shot already in
+     * flight, so unlike the door case there is no dodge check. */
+    if (ammo->val[0] & ARROW_TRAPPED) {
+        int trap_dmg = 5 + rand() % 10;
+        limb_t trap_limb = (limb_t)(rand() % LIMB_REAL_COUNT);
+        int trap_hp_before = target->limbs[trap_limb].hp;
+        being_hurt_limb(target, trap_limb, trap_dmg);
+        descriptor_send(d, "The trap rigged into your arrow springs!\r\n");
+        if (target->desc) {
+            char trap_msg[160];
+            snprintf(trap_msg, sizeof(trap_msg),
+                     "A trap rigged into the arrow springs! It catches your %s %s!\r\n",
+                     limb_name(trap_limb), describe_dam(trap_dmg, trap_hp_before, NULL));
+            descriptor_send(target->desc, trap_msg);
+        }
+    }
     obj_destroy(ammo);             /* one shot spent */
     combat_apply_skill_damage(ch, target, dmg, LIMB_BODY);
     if (fast)
