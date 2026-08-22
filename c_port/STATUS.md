@@ -1,4 +1,22 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 — Session 181 (DO droplet, production port 4000):
+**Prompt reworked to Sneezy's compact letter format + matching
+toggles added -- user request.** game_loop.c's rendered prompt now
+matches real Sneezy's StPrompts[] table (connect.cc) letter-for-
+letter -- H:/M:/V:/E:/N:/LF: instead of spelled-out HP:/Mana:/Vit:/
+Exp:/ExpNeed:/LF:. Gold uses G: (Sneezy's own is T: for Talens, a
+currency Tobin doesn't have). Order is H:/M:/V:/G:/E:/N: -- health-
+family stats before financial, per a same-session follow-up
+("switch mana and gold in the toggle order"). `prompt <stat>`/
+`prompt all` unchanged, same player.prompt_flags bits.
+  - cmd_toggle.c: `toggle hp` already duplicated `prompt hp`; the
+    other five stats were reachable only through `prompt <stat>`.
+    Added tg_gold/tg_vit/tg_mana/tg_exp/tg_expneed (same shape as
+    tg_hp), so `toggle <stat>` now works for all six.
+  - smoke_test_prompt_sneezy.py covers the format, the old labels
+    being gone, the H/M/V-before-G ordering, and toggle/prompt
+    sharing state correctly both directions.
+
 Last updated: 2026-08-22 — Session 180 (DO droplet, production port 4000):
 **Standalone per-noun editor verbs restored (redit/oedit/medit/
 trigedit/etc) -- user decision.** Reverses the 2026-08-02 cmd_table.c
