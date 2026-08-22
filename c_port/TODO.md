@@ -103,7 +103,10 @@ kubo/voplat/melee specializations).
 set trap arrow (26) DONE 2026-08-22 (obj.h's ARROW_TRAPPED, cmd_trap.c's `settrap arrow`, sprung by cmd_shoot.c on a landed hit -- smoke_test_set_trap_arrow.py). mine (37) / grenade (50) still blocked -- no room-floor trap object type, no thrown-weapon command.
 
 **Spot-check flags:** `cure blindness` / `word of recall` are cleric only skills.
-`two-handed specialization` is a silent no-op — it should fold into another category.
+`two-handed specialization` flag is STALE (checked 2026-08-22): it's fully wired
+in combat.c (2026-08-18, damage bonus while wielding a WEAR_PAIRED weapon,
+same passive learn-by-doing shape as the other Warrior specializations) and
+has real two-handed weapons to trigger on since the 2026-08-21 seed.
 
 ## Standing rules (learned)
 
