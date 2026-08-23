@@ -14,6 +14,29 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
+Per-race flavor systems (Session, 2026-08-23): height/weight/age, move
+verbs, body type, and per-race quest-item tables all landed (see
+STATUS.md/RACE_STATS.md/RACE_PERKS.md). One loose end: `questitem` can
+overwrite a race's reward vnum but has no `list`/`remove` sub-command --
+a builder wanting to REMOVE a race's reward entirely (not replace it)
+has to go straight to SQL. Small, not blocking.
+
+XP-split/pour/account-flow test failures found (Session 191, NOT caused
+by that session -- discovered while regression-testing group/goto/
+transfer reference-parity fixes, all traced away from the session's own
+changes): (1) smoke_test_group.py's grouped-in-room-follower XP-split
+check fails -- traced as far as confirming combat.c's XP-split path
+(group_recipients()/being_group_members()) never calls being_in_group()
+at all, so it can't be that session's mount/rider fix; root cause not
+otherwise pinned down. (2) smoke_test_give_pour_transfer.py's "source
+waterskin is now empty after the transfer" pour check fails -- an
+entirely different (liquid) subsystem, untouched by that session.
+(3) smoke_test_group_features.py fails at its OWN account-creation
+login-flow step (before any group/gtell/assist logic runs at all) --
+its make_char() step sequence is stale against the current account-
+creation flow (missing the ANSI-color/timezone/email prompts). All
+three worth a dedicated look; STATUS.md's Session 191 entry has the
+detail on what was checked.
 get all <container> partial-sweep bug (Session 190): a large
 container (~17 items, e.g. a corpse holding a full starting kit)
 is not always fully emptied by one `get all <container>` in

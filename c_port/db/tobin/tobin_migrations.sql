@@ -689,3 +689,47 @@ ALTER TABLE player_progress ADD COLUMN IF NOT EXISTS max_piety INT NOT NULL DEFA
 -- a Tobin-only field, not part of the original's verbatim room_flag bit
 -- layout. Sprung by cmd_move.c on arrival from ANY direction.
 ALTER TABLE room ADD COLUMN IF NOT EXISTS mine_trapped TINYINT(1) NOT NULL DEFAULT 0;
+-- Per-race flavor systems (Sneezy -> Tobin feature audit, docs/RACE_STATS.md's/
+-- RACE_PERKS.md's "Not imported" list): height/weight/age rolled ONCE at
+-- creation off the chosen race's own SneezyMUD dice formula
+-- (sneezymud-master/lib/races/RACE_*, race_roll_height()/race_roll_weight()/
+-- race_roll_age() in src/core/race_flavor.c) -- see player_repo.c's
+-- player_create(). height/weight are inches/pounds, 0 for every existing
+-- character created before this migration (score.c/being.c treat 0 as
+-- "never rolled", not a real Sneezy race outcome). start_age defaults 0
+-- too -- cmd_score.c falls back to the old flat 17 for any character
+-- with start_age=0, so pre-existing characters keep their exact old
+-- displayed age.
+ALTER TABLE `player`
+  ADD COLUMN IF NOT EXISTS `height` INT NOT NULL DEFAULT 0;
+ALTER TABLE `player`
+  ADD COLUMN IF NOT EXISTS `weight` INT NOT NULL DEFAULT 0;
+ALTER TABLE `player`
+  ADD COLUMN IF NOT EXISTS `start_age` INT NOT NULL DEFAULT 0;
+-- Per-race quest-item tables (Sneezy -> Tobin feature audit). Disclosed:
+-- NOT a port -- checked SneezyMUD's own race data (lib/races/RACE_*, no
+-- `quest`/item field of any kind) and its quest system (cmd_quest.cc's
+-- doMortalQuest()/hasQuestBit(), a flat 454-bit toggle array with zero
+-- race awareness) first; neither carries a per-race item table to port.
+-- This is a Tobin-original addition, same "one authored (quest, stage),
+-- six race-flavored variants" shape as the existing newbie_gear_race suit
+-- system (zz_newbie_gear_race.sql/suit_repo_find_for_race()) applied to
+-- quest rewards instead of starting gear. `quest_item` is the immortal-
+-- authored (quest_name, stage, race) -> obj_vnum table (`questitem`,
+-- cmd_qedit.c); `player_quest_item_claimed` tracks which (player, quest,
+-- stage) rewards have already been handed out via `quest claim`
+-- (cmd_quest.c), so re-running `quest claim` can't duplicate the item.
+CREATE TABLE IF NOT EXISTS `quest_item` (
+  `quest_name` varchar(64) NOT NULL,
+  `stage` int(11) NOT NULL,
+  `race` tinyint(4) NOT NULL,
+  `obj_vnum` int(11) NOT NULL,
+  PRIMARY KEY (`quest_name`, `stage`, `race`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+CREATE TABLE IF NOT EXISTS `player_quest_item_claimed` (
+  `player_id` bigint(20) unsigned NOT NULL,
+  `quest_name` varchar(64) NOT NULL,
+  `stage` int(11) NOT NULL,
+  `claimed_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`player_id`, `quest_name`, `stage`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

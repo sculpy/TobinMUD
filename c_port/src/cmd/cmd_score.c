@@ -46,16 +46,26 @@
  * that number" -- interpreted as real elapsed time since birth_time,
  * converted through gametime.h's own established real-to-mud-year ratio
  * (336 mud-days/year * 96 real minutes/mud-day) rather than a fictional
- * unit invented just for this field. No new persisted field needed --
- * birth_time already exists (being.h). */
+ * unit invented just for this field.
+ *
+ * Per-race starting age (Sneezy -> Tobin feature audit, docs/RACE_STATS.md's/
+ * RACE_PERKS.md's "Not imported" list): being_t.start_age is now rolled
+ * once at creation off the race's own SneezyMUD age dice
+ * (race_roll_age(), player_repo.c's player_create()) instead of this flat
+ * 17 for every race -- a Gnome (age 60+3d12) starts markedly older than a
+ * Human (age 15+1d4), matching the source data. start_age==0 (every
+ * character created before this migration, tobin_migrations.sql) falls
+ * back to the original flat AGE_STARTING_YEARS so pre-existing characters'
+ * displayed age doesn't jump. */
 #define AGE_STARTING_YEARS 17
 #define AGE_SECONDS_PER_MUD_YEAR (336L * 96L * 60L)
 
-static int compute_age_years(long birth_time) {
+static int compute_age_years(long birth_time, int start_age) {
     long elapsed = (long)time(NULL) - birth_time;
     if (elapsed < 0)
         elapsed = 0;
-    return AGE_STARTING_YEARS + (int)(elapsed / AGE_SECONDS_PER_MUD_YEAR);
+    int base = start_age > 0 ? start_age : AGE_STARTING_YEARS;
+    return base + (int)(elapsed / AGE_SECONDS_PER_MUD_YEAR);
 }
 
 /* Resource-pool label for score's third HP-row field (user 2026-07-25:
@@ -123,7 +133,23 @@ bool cmd_score(descriptor_t *d, const char *args) {
     const char *hunger_word = immortal ? "immune" : being_hunger_word(p->hunger);
     const char *thirst_word = immortal ? "immune" : being_thirst_word(p->thirst);
 
-    int age_years = compute_age_years(p->birth_time);
+    int age_years = compute_age_years(p->birth_time, ch->start_age);
+    /* Height/weight (Sneezy -> Tobin feature audit, docs/RACE_STATS.md's/
+     * RACE_PERKS.md's "Not imported" list): rolled once at creation
+     * (race_roll_height()/race_roll_weight(), player_create()) and shown
+     * as feet'inches" / pounds, same convention a player would expect.
+     * 0/0 for a character created before this migration -- shown as
+     * "unknown" rather than a nonsensical "0'0"/0 lbs". */
+    char height_field[16];
+    if (ch->height > 0)
+        snprintf(height_field, sizeof(height_field), "%d'%d\"", ch->height / 12, ch->height % 12);
+    else
+        snprintf(height_field, sizeof(height_field), "unknown");
+    char weight_field[16];
+    if (ch->weight > 0)
+        snprintf(weight_field, sizeof(weight_field), "%d lbs", ch->weight);
+    else
+        snprintf(weight_field, sizeof(weight_field), "unknown");
 
     char out[1536];
     snprintf(out, sizeof(out),
@@ -154,7 +180,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
         "<c>------------------------------------------------------------<1>\r\n"
         " <c>Armor Class :<1> %-4d <c>Pri. Hand :<1> %-12s Sex :<1> %-8s\r\n"
         " <c>Align:<1> %-12s <c>Hunger:<1> %-12s <c>Thirst:<1> %-12s\r\n"
-        " <c>Age:<1> %d years old\r\n"
+        " <c>Age:<1> %d years old <c>Height:<1> %-8s <c>Weight:<1> %s\r\n"
         "<c>============================================================<1>\r\n"
         " <c>Position:<1> %s\r\n",
              ch->base.name, rank_col, level_field, rank_reset, p->experience,
@@ -178,7 +204,7 @@ bool cmd_score(descriptor_t *d, const char *args) {
              a->wisdom, a->constitution, a->charisma,
              being_total_ac(ch), ch->handed_right ? "Right" : "Left", gender_name(ch->gender),
              alignment_word(p->alignment), hunger_word, thirst_word,
-             age_years, pos);
+             age_years, height_field, weight_field, pos);
 
     /* Appearance, if the player set one at creation -- kept out of the
      * grid above, unrelated to the wireframe's fields. */

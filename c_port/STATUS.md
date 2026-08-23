@@ -1,4 +1,67 @@
 # Tobin C Port — Status
+Last updated: 2026-08-23 -- Session 191 (DO droplet, production port 4000):
+**Group/follow/goto/transfer reference-parity audit fixes.** A prior
+read-only audit compared the group/follow system against SneezyMUD's
+own source (misc/utility.cc inGroup(), misc/other.cc doGroup(),
+misc/immortal.cc doGoto()/doTrans()) and found 4 real, undocumented
+gaps -- verified against the reference source directly (not just the
+audit summary) before implementing each:
+  1. `being_in_group()` (being.c) now special-cases mount/rider the
+     same way `TBeing::inGroup()` does: your own mount and your rider
+     are ALWAYS "in group" with you regardless of the `grouped` flag
+     (recursing into the rider's own rider too). Closes a friendly-fire
+     gap in cmd_cast.c's area-effect spells (a caster's own mount could
+     be hit by their own area spell) and an assist-eligibility gap in
+     cmd_assist.c/cmd_pray.c.
+  2. `cmd_group.c`'s `group all`/`group <name>` now enforce the same
+     per-candidate eligibility guards `doGroup()` does before adding
+     someone: skip an already-grouped candidate, skip an invisible/
+     hidden candidate (can't see them), skip your own mount, and refuse
+     (with the reference's own message) an immortal-level NPC follower.
+     Deliberately did NOT port the PLR_SOLOQUEST/PLR_GRPQUEST quest-flag
+     gating -- those player-action flags don't exist in the c_port.
+  3. `group <name>` is now a toggle, matching `doGroup()`: grouping in
+     an already-grouped target now UNGROUPS them instead of being a
+     no-op. Ungrouping a member is blocked while they're fighting.
+     Leader self-ungroup (`group <own name>`) cascades to disband the
+     whole group (clears `grouped` on every follower too).
+  4. `goto` (cmd_goto.c) now drags along any IMMORTAL follower standing
+     in the same room, recursively re-running each follower's OWN goto
+     (their own permission checks still apply -- not an unconditional
+     bypass) -- matches `doGoto()`'s own followers-list walk. `transfer`
+     (cmd_transfer.c) now drags the transferred target's own mount/
+     rider along too (matching `doTrans()`), but deliberately does NOT
+     drag followers -- only goto does that.
+  Two new smoke tests: `smoke_test_group_reference_fixes.py` (fixes
+  1-3) and `smoke_test_goto_transfer_reference_fixes.py` (fix 4), both
+  passing clean. Also ran the pre-existing `smoke_test_goto_
+  guildmaster.py` and `smoke_test_transfer.py` (both exercise code
+  this session touched) -- both pass clean, no regressions.
+  **Found but NOT caused by this session:** `smoke_test_group.py`'s
+  XP-split check and `smoke_test_give_pour_transfer.py`'s pour check
+  both fail on this build; traced both -- neither touches any code this
+  session changed (combat.c's XP-split path never calls
+  `being_in_group()` at all; pour is an unrelated liquid subsystem).
+  `smoke_test_group_features.py` also fails, but at its OWN account-
+  creation login-flow step, before any group logic runs at all -- a
+  stale step sequence (missing prompts a newer account-creation flow
+  added), unrelated to this session. Flagged in TODO.md for a follow-up
+  session; none of the three block this session's own verified-clean
+  fixes.
+  **Also found and completed this session (blocking, not part of the
+  4 fixes above):** the working tree already had a substantial
+  uncommitted "race flavor" feature (height/weight/age dice per race,
+  move verbs, body type -- `being.h`/`being.c`/`player_repo.c`) from an
+  EARLIER, uncommitted session -- discovered because the previously
+  committed HEAD does not compile on its own (`player_repo.c` already
+  references `being_t.height`/`weight`/`start_age`/`race_body_type()`,
+  which only exist in the uncommitted `being.h`/`being.c` changes).
+  Left in place and committed alongside this session's own changes (no
+  code changes made to it) so the tree builds at all; not otherwise
+  reviewed or tested by this session.
+  Clean rebuild (`rm -rf build`), zero warnings. Deployed via cold
+  restart (checked `ss -tn` for established connections on port 4000
+  first -- none found, so no `copyover` needed).
 Last updated: 2026-08-22 -- Session 190 (DO droplet, production port 4000):
 **Fixed 3 stale/broken smoke tests found live-verifying corpse gold**
 (none of these were caused by anything this session touched -- all
@@ -1134,6 +1197,9 @@ it. Faithful port of SneezyMUD's garble system (misc/garble.cc):
 | Mobiles (Phase 2D)                        | A mob is just a `being_t` with `kind = THING_MOB`, `player_id`/`account_id = 0`, `desc` always NULL -- no new struct, matching the original's own `TMonster : TBeing` inheritance (confirmed by reading `misc/monster.h`). `being_create_mob(vnum)` (`being.c`) loads a prototype from the upstream-seeded `mob` table (`mob_repo.c`'s `mob_proto_load()`, no new Tobin table).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Mob `attrs_t` is derived from `level` (`ATTR_BASE + level`, capped `ATTR_MAX`), NOT the mob table's real 12-stat columns (a different, wider scale than Tobin's 6-stat system -- would unbalance `combat_strike()`). `max_hp` uses a placeholder formula built from `hpbonus` (the original's actual per-mob HP-scaling parameter). `combat_find_room_target()`/`combat_defeat()` widened (see decision row above the module table) rather than duplicated; `combat_process_run()` needed no changes at all. No mob-instance persistence (no owning player, no zone-reset system yet) -- an `mload`ed mob is lost on restart, like room-floor objects. `edmobile`, mob AI/aggression, zone resets, and XP-on-kill are all explicitly deferred.                                                                                                                                                                                                                                                                                                                                                                                |
 | `help`/`wizhelp`                          | New `src/cmd/cmd_help.c`, `cmd_entry_t` (moved from `cmd_table.c` into `cmd_internal.h`) gained `help` (one-line description) and `min_level` fields, plus a `cmd_table_entries(int *count)` accessor so `cmd_help.c` can enumerate `cmd_table.c`'s `COMMANDS[]` without duplicating it. `help` lists every command with its one-liner (plus a hardcoded `quit!` line, since that command is deliberately excluded from the dispatch table itself). `wizhelp` rejects a non-immortal caller (`"You are not privileged enough to use that command."`) and otherwise lists commands where `min_level > MORTAL_LEVEL_MAX` -- currently none, so it honestly prints `"(none yet -- no commands are currently immortal-only)"` rather than an empty or broken list.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | **`wizhelp` is a genuine, direct port** of `TBeing::doWizhelp()` (`cmd/cmd_help.cc`): confirmed via source research that it really is a `commandArray[]` scan filtered by `minLevel > MAX_MORT`, not a file lookup -- Tobin's version does the exact same filter over its own command table. **`help` is a deliberate, documented simplification**: the original's `doHelp()` is a full file-based prose-topic system (separate `help/`, `help/_immortal`, `help/_skills`, `help/_spells` directories, a rebuildable index, per-topic `.ansi` variants, an external `bin/helpindex` binary for `help index`) -- entirely out of scope without a help-file content pipeline Tobin doesn't have. Tobin's `help` instead reuses the same command-list pattern `wizhelp` already needed for real, rather than attempting the file-based system. `min_level` is currently display-only metadata (drives the `help`/`wizhelp` split) -- no command's `min_level` is actually enforced by `cmd_dispatch()`, since nothing yet needs real access-gating (unlike the original's genuine `commandInfo::minLevel`-driven dispatch gate). |
 
+| Group/follow reference-parity (Session 191) | NOT a deviation -- closes 4 real gaps vs SneezyMUD's TBeing::inGroup()/doGroup()/doGoto()/doTrans(): mount/rider always-in-group, cmd_group.c eligibility guards (already-grouped/visibility/own-mount/immortal-NPC-follower), `group <name>` toggle (ungroup + leader self-ungroup cascade + fighting-block), and `goto` dragging immortal followers (`transfer` drags mount/rider only, not followers). PLR_SOLOQUEST/PLR_GRPQUEST quest-flag gating deliberately NOT ported (no such flags in the c_port). See STATUS.md's Session 191 log entry for detail. |
+| Per-race flavor systems (Session, 2026-08-23) | Height/weight/age, move verbs, and body type (docs/RACE_STATS.md/RACE_PERKS.md "Not imported" list) now real, rolled/looked-up per race in a NEW file  (kept separate from , which had another session's uncommitted work in flight at the time -- avoids a git collision, not a design choice). Per-race quest-item tables also added (/, /) -- disclosed NOT a port, SneezyMUD carries no such table; Tobin-original, same shape as the existing newbie_gear_race suit system. See RACE_STATS.md/RACE_PERKS.md for the corrected "Not imported" sections. |
+| Per-race flavor systems (Session, 2026-08-23) | Height/weight/age, move verbs, and body type (docs/RACE_STATS.md/RACE_PERKS.md "Not imported" list) now real, rolled/looked-up per race in a NEW file `src/core/race_flavor.c` (kept separate from `being.c`, which had another session's uncommitted work in flight at the time -- avoids a git collision, not a design choice). Per-race quest-item tables also added (`quest_item`/`player_quest_item_claimed`, `questitem`/`quest claim`) -- disclosed NOT a port, SneezyMUD carries no such table; Tobin-original, same shape as the existing newbie_gear_race suit system. See RACE_STATS.md/RACE_PERKS.md for the corrected "Not imported" sections. |
 ## Module port status
 
 | Module (orig)                             | Orig LOC                                   | C port location                                                                       | Status                                                                                                        | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |

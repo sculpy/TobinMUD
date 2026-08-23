@@ -708,3 +708,15 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Tobin City''s Outer Pathway Grows Shorter', 'The outer pathway from Dolgan toward Tobin City has been trimmed slightly. Every junction and landmark along the way is right where it was.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Your Mount Rides Safely Through Your Own Spells', 'A caster whose area-effect spell catches everyone nearby will no longer accidentally catch their own mount or rider in the blast -- your steed (and anyone riding you) now always counts as being on your side, whether or not you have formally grouped up.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Grouping Someone A Second Time Now Ungroups Them', 'The `group` command is now a proper toggle: naming someone who is already in your group ungroups them instead of doing nothing. A leader who ungroups themselves now disbands the whole group at once, and you can no longer ungroup someone who is in the middle of a fight.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Your Race Now Shapes How You Look and Move', 'Character creation now rolls a starting height, weight, and age straight from your chosen race -- an Ogre steps into the world taller and heavier than a Gnome, and a Gnome starts out visibly older than a Human. Check `score` to see your own. Races also move differently now: watch a room as an Ogre lumbers through it, or an Elf strides in, instead of everyone reading the same generic arrival text.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Quests Can Now Hand Out Race-Flavored Rewards', 'Some quests can now give out a different reward item depending on your race when you type `quest claim`, instead of everyone getting the same generic prize.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

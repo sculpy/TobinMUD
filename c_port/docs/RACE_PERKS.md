@@ -62,8 +62,15 @@ vitals.c) so e.g. 0.75 drains one point about three ticks in four.
   never strips a detect-magic a Mage may have cast, so changing a race talent
   later does not retroactively remove it from already-affected characters.
 
-## Not imported
-
-Height/weight/age, move verbs, body type, and per-race quest-item tables from
-the Sneezy files are flavour/systems Tobin doesn't model per PC race. Talents
-beyond the four above are cosmetic labels until a matching system exists.
+## Not imported (updated 2026-08-23)
+~~Height/weight/age, move verbs, body type~~ — **implemented** (see
+RACE_STATS.md's "Not imported" section, corrected, and RACE_FLAVOR.md).
+Per-race quest-item tables are **also implemented**, but disclosed as
+NOT a port: checked the Sneezy `RACE_*` files (no `quest`/item field of
+any kind) and the real quest system (`cmd_quest.cc`'s `hasQuestBit()`/
+`setQuestBit()`, a flat 454-bit toggle array with zero race awareness)
+directly before writing anything, and neither carries a per-race item
+table to port. This is a Tobin-original addition (`quest_item`/
+`player_quest_item_claimed`, `questitem`/`quest claim`) — see
+RACE_FLAVOR.md. Talents beyond the four above are cosmetic labels until
+a matching system exists.

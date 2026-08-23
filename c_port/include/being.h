@@ -645,6 +645,41 @@ const char *race_name(player_race_t r);
  * as class_stat_bonus() -- called once at creation, alongside (not instead
  * of) the class bonus. */
 void race_stat_bonus(player_race_t r, attrs_t *a);
+/* Race flavor systems (Sneezy -> Tobin feature audit, docs/RACE_STATS.md's/
+ * RACE_PERKS.md's "Not imported" list -- height/weight/age dice, move
+ * verbs, body type). Each is read straight off SneezyMUD's own per-race
+ * RACE_* files (sneezymud-master/lib/races/), the same source
+ * race_stat_bonus() above already draws from -- see being.c for the exact
+ * per-race numbers and each RACE_* field they come from.
+ *
+ * Rolls `r`'s (and gender `g`'s, for height/weight) SneezyMUD dice
+ * formula ONCE and returns the result -- called at character creation
+ * (player_create(), player_repo.c) and persisted (being_t.height/weight/
+ * start_age); a mob never calls these (being_create_mob() leaves
+ * height/weight/start_age at their calloc 0). */
+int race_roll_height(player_race_t r, gender_t g);
+int race_roll_weight(player_race_t r, gender_t g);
+int race_roll_age(player_race_t r);
+/* `b`'s race's move verbs (RACE_*'s moveIn/moveOut fields), used by
+ * cmd_move.c's default arrival/departure text in place of the old flat
+ * "has arrived"/"exits" wording -- e.g. an Ogre "lumbers in"/"lumbers to
+ * the north" where a Human just "has arrived"/"exits to the north".
+ * Overridden entirely (both functions unconsulted) by a player's own
+ * poofin/poofout if they've set one (cmd_poof.c) -- same precedence
+ * cmd_move.c already had. Falls back to the Human wording for a mob (its
+ * `race` field is meaningless / usually 0). */
+const char *race_move_verb_in(player_race_t r);
+const char *race_move_verb_out(player_race_t r);
+/* `r`'s body type (RACE_*'s `body` field -- BODY_HUMANOID for every one
+ * of Tobin's 6 playable races, verified against every RACE_HUMAN/
+ * RACE_WOODELF/RACE_OGRE/RACE_DWARF/RACE_HOBBIT/RACE_GNOME file; a real,
+ * table-driven per-race lookup rather than the old bare
+ * `b->body_type = BODY_HUMANOID` hardcode in being_create_pc(), even
+ * though the six playable races all happen to resolve the same way --
+ * see body.h's body_type_t/body_limb_weight() for what this actually
+ * drives (wear-slot/limb-hit-chance). Used by player_create()
+ * (player_repo.c) right after `b->race` is set. */
+int race_body_type(player_race_t r);
 
 /* Territory/Homeland (Sneezy -> Tobin feature audit, `docs/systems/important/
  * territory-system.md`): a permanent "upbringing" chosen at creation, right
@@ -770,6 +805,24 @@ typedef struct being {
     player_territory_t territory; /* player.territory -- see territory_stat_bonus() above.
                                     * Meaningless for mobs, same as race. */
     bool mob_class_known;
+    /* Race flavor data (Sneezy -> Tobin feature audit: height/weight/age
+     * per race, docs/RACE_STATS.md's/RACE_PERKS.md's "Not imported"
+     * list). height/weight are rolled ONCE at creation from the race's
+     * own SneezyMUD dice formula (sneezymud-master/lib/races/RACE_*'s
+     * maleHt/maleWt/femaleHt/femaleWt fields, race_roll_height()/
+     * race_roll_weight() in being.c) and persisted (player.height/
+     * player.weight, inches/pounds) -- 0/0 for a mob (no such roll
+     * happens in being_create_mob()). start_age is the SAME kind of
+     * once-at-creation roll off the race's `age` field
+     * (race_roll_age()), replacing cmd_score.c's old flat
+     * AGE_STARTING_YEARS=17 constant -- `score`'s displayed age is now
+     * start_age + real elapsed years (compute_age_years()), so a Gnome
+     * (age 60+3d12) reads as visibly older on day one than a Human (age
+     * 15+1d4), matching the source data instead of a single shared
+     * number. */
+    int height;
+    int weight;
+    int start_age;
 
     /* Free-text self-description (player.appearance), set at creation and
      * shown by `look <player>`/`score`. Empty = none set. */

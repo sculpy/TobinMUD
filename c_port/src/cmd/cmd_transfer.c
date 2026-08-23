@@ -93,6 +93,16 @@ bool cmd_transfer(descriptor_t *d, const char *args) {
 
     thing_set_room(&target->base, dest);
 
+    /* Drag the target's mount and rider along, matching SneezyMUD's
+     * doTrans() (`victim->riding`/`victim->rider` chain moved with the
+     * transferred target) -- transfer does NOT drag followers, only this
+     * mount/rider pair; goto (cmd_goto.c) is the one that drags immortal
+     * followers. */
+    if (target->mount && target->mount->base.roomp == old_room)
+        thing_set_room(&target->mount->base, dest);
+    if (target->rider && target->rider->base.roomp == old_room)
+        thing_set_room(&target->rider->base, dest);
+
     char arrive_msg[128];
     snprintf(arrive_msg, sizeof(arrive_msg), "%s arrives in a puff of smoke.\r\n", target->base.name);
     descriptor_room_echo(dest, target, arrive_msg);

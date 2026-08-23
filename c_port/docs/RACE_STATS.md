@@ -86,8 +86,18 @@ the bonus above, for want of a Tobin system to hang them on:
 - **Immunities** (poison/charm/sleep/energy/heat/cold/paralysis), **AFF_INFRAVISION**,
   and **talents** (e.g. Hobbit sneak/hide, Gnome detect-magic) — no PC-race
   perk system exists yet.
-- **Height/weight dice, age, move verbs, body type, food/drink mods** — flavour
-  / systems Tobin doesn't model per PC race.
+- ~~Height/weight dice, age, move verbs, body type~~ — **implemented**
+  (2026-08-23, `src/core/race_flavor.c`): height/weight/starting age are
+  rolled once at creation off each race's own RACE_* dice and shown on
+  `score`; move-in/move-out verbs (`race_move_verb_in()`/
+  `race_move_verb_out()`) replace the flat "has arrived"/"exits" default
+  in `cmd_move.c` when no poofin/poofout is set; body type is now a real
+  per-race lookup (`race_body_type()`) rather than a hardcode, though
+  every one of Tobin's 6 playable races' own RACE_* file says `body
+  Humanoid`, so all six resolve the same either way. See RACE_FLAVOR.md.
+  (Corrects this list's earlier claim that food/drink mods aren't
+  modeled either — they are, and already were: race_balance's food/drink
+  decay-rate multipliers, RACE_PERKS.md above, Tier 0 applied.)
 
 Territory/homeland is a **Tobin-original add-on**, unrelated to this Sneezy
 conversion — it stacks as its own net-zero layer (see `territory_stat_bonus()`).

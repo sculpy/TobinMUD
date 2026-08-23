@@ -8,6 +8,7 @@
 #include <string.h>
 #include <strings.h>
 
+#include "affect.h"
 #include "being.h"
 #include "player_repo.h"
 #include "room.h"
@@ -162,6 +163,29 @@ bool cmd_dismiss(descriptor_t *d, const char *args) {
     return true;
 }
 
+/* Visibility gate for grouping candidates -- mirrors the immortal-viewer/
+ * detect-invisible exceptions cmd_look.c's room listing already uses for
+ * AFFECT_INVISIBLE and `hide` (cmd_hide.c's `hiding` flag): the group
+ * leader can't grab someone into their group that they can't actually
+ * see, matching SneezyMUD's doGroup() `canSee(victim)` guard. */
+static bool group_can_see(const being_t *viewer, const being_t *target) {
+    if (being_has_affect(target, AFFECT_INVISIBLE) && !being_is_immortal(viewer)
+        && !being_has_affect(viewer, AFFECT_DETECT_INVISIBLE))
+        return false;
+    if (target->hiding && !being_is_immortal(viewer)
+        && !being_has_affect(viewer, AFFECT_DETECT_INVISIBLE))
+        return false;
+    return true;
+}
+/* True if `candidate` is an immortal-level NPC follower of `leader` --
+ * SneezyMUD's doGroup() refuses to group these in ("is immortal and has
+ * no need of you"); an immortal-level mob following someone is a
+ * builder/staff tool (a summoned helper, a test pet), not a real group
+ * member. */
+static bool group_is_immortal_npc_follower(const being_t *leader, const being_t *candidate) {
+    return candidate->base.kind == THING_MOB && being_is_immortal(candidate)
+        && candidate->master == leader && leader != candidate;
+}
 /* `group` -- with no argument, shows the leader/follower listing and who's
  * actually grouped in yet; otherwise the leader grants group benefits to
  * one follower (or `group all`) by setting their `grouped` flag. Only the
@@ -211,9 +235,23 @@ bool cmd_group(descriptor_t *d, const char *args) {
     if (strcasecmp(tok, "all") == 0) {
         int n = 0;
         for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
-            if (!ch->followers[i])
+            being_t *cand = ch->followers[i];
+            if (!cand)
                 continue;
-            ch->followers[i]->grouped = true;
+            if (cand->grouped)
+                continue; /* already group-flagged -- nothing to do */
+            if (!group_can_see(ch, cand))
+                continue; /* can't grab someone you can't see into the group */
+            if (cand == ch->mount)
+                continue; /* your own mount is never a group candidate */
+            if (group_is_immortal_npc_follower(ch, cand)) {
+                char imsg[128];
+                snprintf(imsg, sizeof(imsg), "%s is immortal and has no need of you. %s does not join your group.\r\n",
+                        being_display_name(cand), being_display_name(cand));
+                descriptor_send(d, imsg);
+                continue;
+            }
+            cand->grouped = true;
             n++;
         }
         if (n == 0) {
@@ -227,11 +265,17 @@ bool cmd_group(descriptor_t *d, const char *args) {
         return true;
     }
 
-    being_t *target = NULL;
-    for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
-        if (ch->followers[i] && strncasecmp(ch->followers[i]->base.name, tok, strlen(tok)) == 0) {
-            target = ch->followers[i];
-            break;
+    /* Self-target (leader typing their own name) toggles the leader
+     * flag itself; SneezyMUD lets `group <own name>` resolve to `this`
+     * via get_char_room_vis() the same way. */
+    bool self_target = strncasecmp(ch->base.name, tok, strlen(tok)) == 0;
+    being_t *target = self_target ? ch : NULL;
+    if (!target) {
+        for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
+            if (ch->followers[i] && strncasecmp(ch->followers[i]->base.name, tok, strlen(tok)) == 0) {
+                target = ch->followers[i];
+                break;
+            }
         }
     }
     if (!target) {
@@ -239,9 +283,61 @@ bool cmd_group(descriptor_t *d, const char *args) {
         return true;
     }
 
+    char msg[128];
+    if (target == ch) {
+        /* `group <name>` is a toggle -- ungrouping the leader (self)
+         * disbands the whole group, clearing `grouped` on every
+         * follower too, matching SneezyMUD's doGroup(). */
+        if (ch->grouped) {
+            ch->grouped = false;
+            for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
+                being_t *f = ch->followers[i];
+                if (!f || !f->grouped)
+                    continue;
+                f->grouped = false;
+                if (f->desc)
+                    descriptor_notify(f->desc, "The group has been disbanded.\r\n");
+            }
+            descriptor_send(d, "You ungroup yourself, causing the rest of the group to be ungrouped.\r\n");
+        } else {
+            ch->grouped = true;
+            descriptor_send(d, "You group yourself.\r\n");
+        }
+        return true;
+    }
+    if (target->grouped) {
+        /* Toggle: already grouped in, so `group <name>` ungroups them.
+         * Blocked while they're fighting, matching SneezyMUD's
+         * doGroup() `victim->fight()` guard. */
+        if (target->fighting) {
+            descriptor_send(d, "You can't ungroup them while they're fighting.\r\n");
+            return true;
+        }
+        target->grouped = false;
+        snprintf(msg, sizeof(msg), "You ungroup %s.\r\n", being_display_name(target));
+        descriptor_send(d, msg);
+        if (target->desc) {
+            snprintf(msg, sizeof(msg), "You are no longer a member of %s's group!\r\n", being_display_name(ch));
+            descriptor_notify(target->desc, msg);
+        }
+        return true;
+    }
+    if (!group_can_see(ch, target)) {
+        descriptor_send(d, "You don't see them here.\r\n");
+        return true;
+    }
+    if (target == ch->mount) {
+        descriptor_send(d, "You can't group your own mount.\r\n");
+        return true;
+    }
+    if (group_is_immortal_npc_follower(ch, target)) {
+        snprintf(msg, sizeof(msg), "%s is immortal and has no need of you. %s does not join your group.\r\n",
+                being_display_name(target), being_display_name(target));
+        descriptor_send(d, msg);
+        return true;
+    }
     target->grouped = true;
     ch->grouped = true;
-    char msg[128];
     snprintf(msg, sizeof(msg), "You group in %s.\r\n", being_display_name(target));
     descriptor_send(d, msg);
     if (target->desc) {

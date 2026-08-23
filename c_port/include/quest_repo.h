@@ -7,6 +7,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include "being.h" /* player_race_t, for quest_repo_reward_item()/quest_repo_reward_set() */
 
 /* DB access for `player_quest`/`quest_def` (db/tobin/tobin_migrations.sql)
  * -- Sneezy → Tobin feature audit, "Quest system". User, AskUserQuestion
@@ -67,5 +68,16 @@ bool quest_repo_def_get(const char *quest_name, int stage, char *buf, size_t buf
  * codebase; a builder edits an existing description by just running
  * `questdef` again with the corrected text. */
 bool quest_repo_def_set(const char *quest_name, int stage, const char *description);
+/* Per-race quest-item tables (Sneezy -> Tobin feature audit -- disclosed
+ * NOT a port, see tobin_migrations.sql's `quest_item` doc comment for why:
+ * SneezyMUD's real race data and quest system carry no per-race item
+ * table at all. Tobin-original, same "one authored thing, six race
+ * variants" shape as the newbie_gear_race suit system, applied to quest
+ * rewards. `questitem` (cmd_qedit.c) authors these; `quest claim`
+ * (cmd_quest.c) grants them. */
+int quest_repo_reward_item(const char *quest_name, int stage, player_race_t race);
+bool quest_repo_reward_set(const char *quest_name, int stage, player_race_t race, int obj_vnum);
+bool quest_repo_reward_claimed(long player_id, const char *quest_name, int stage);
+bool quest_repo_reward_mark_claimed(long player_id, const char *quest_name, int stage);
 
 #endif

@@ -400,6 +400,15 @@ bool being_in_group(const being_t *a, const being_t *b) {
         return false;
     if (a == b)
         return true;
+    /* Self, your mount, and your rider are always considered "in group"
+     * regardless of the AFF_GROUP-equivalent (grouped) flag -- matches
+     * SneezyMUD's TBeing::inGroup() (misc/utility.cc), which also
+     * recurses into the rider's own rider so a mount train (rider of a
+     * rider) all counts as one group for friendly-fire/assist purposes. */
+    if (a->mount == b || a->rider == b)
+        return true;
+    if (b->rider && being_in_group(a, b->rider))
+        return true;
     if (!a->grouped || !b->grouped)
         return false;
     if (a->master == b || b->master == a)

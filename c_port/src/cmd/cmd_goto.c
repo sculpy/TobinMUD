@@ -397,6 +397,36 @@ static bool goto_hospital(descriptor_t *d) {
  * above) -- the command's table-level gate was lowered to mortal so
  * those reach them, but any other form (vnum or player name) still
  * refuses a mortal caller outright. */
+/* Drags along any IMMORTAL follower who was standing in the same room as
+ * the mover before the teleport -- matches SneezyMUD's doGoto(), which
+ * (after its own move) walks `followers` and recursively re-invokes
+ * doGoto() for every immortal follower still found in the pre-move room,
+ * so each follower is subject to their OWN permission checks rather than
+ * an unconditional bypass (a weaker immortal following a stronger one
+ * into a room they personally cannot reach is still blocked). Passes the
+ * mover's now-current room vnum as the follower's own goto argument --
+ * same effect as the original's "goto <mover's name>" re-resolution,
+ * simpler here since the c_port's goto has no name-vs-vnum ambiguity to
+ * preserve. Mortal-only (goto itself is immortal-only past this point);
+ * `transfer` does NOT drag followers -- only its own target's mount/
+ * rider chain (see cmd_transfer.c). */
+static void goto_drag_immortal_followers(being_t *ch, room_t *was_in, room_t *dest) {
+    for (int i = 0; i < GROUP_MAX_FOLLOWERS; i++) {
+        being_t *f = ch->followers[i];
+        if (!f || !f->desc || f == ch)
+            continue;
+        if (!being_is_immortal(f))
+            continue;
+        if (f->base.roomp != was_in)
+            continue;
+        char msg[96];
+        snprintf(msg, sizeof(msg), "You follow %s.\r\n", being_display_name(ch));
+        descriptor_send(f->desc, msg);
+        char destbuf[16];
+        snprintf(destbuf, sizeof(destbuf), "%d", dest->vnum);
+        cmd_goto(f->desc, destbuf);
+    }
+}
 bool cmd_goto(descriptor_t *d, const char *args) {
     if (!d->character) {
         descriptor_send(d, "You are nowhere.\r\n");
@@ -479,5 +509,10 @@ bool cmd_goto(descriptor_t *d, const char *args) {
         r = target->base.roomp;
     }
 
-    return goto_room(d, r);
+    being_t *ch = d->character;
+    room_t *was_in = ch->base.roomp;
+    bool ok = goto_room(d, r);
+    if (ok && being_is_immortal(ch) && was_in && was_in != r)
+        goto_drag_immortal_followers(ch, was_in, r);
+    return ok;
 }

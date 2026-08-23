@@ -1388,3 +1388,22 @@ UPDATE `help_topic` SET `body` = 'Usage: practice                          (stat
 -- Migration: `pray` now spends piety (the Cleric's casting resource).
 UPDATE `help_topic` SET `body` = 'Usage: pray <spell> [target]\n\nClerics only: the Cleric equivalent of `cast` -- draws on your class''s\nroster of prayers instead of spells. You need a holy symbol -- any\ncarried item keyworded "symbol" -- on hand, consumed on every\nsuccessful prayer. Each prayer also spends piety, a Cleric''s divine\ncasting resource shown as Piety in `score`; a prayer is refused if your\npiety runs low, and it recovers on its own over time. A healing prayer\ncan target someone else in the room (`pray heal light <name>`), or,\nleft blank, yourself. An offensive prayer works the same way\n(`pray harm light <name>`) and will draw you into a fight with them if\nyou aren''t already fighting anyone; left blank, it keeps hitting\nwhoever you''re already fighting. See `help continue` to repeat a heal\nautomatically until it is no longer needed.\n\nRelated: cast continue practice skills affects'
   WHERE `name` = 'pray' AND `updated_by` = 'seed';
+-- Migration: race flavor systems (Sneezy -> Tobin feature audit,
+-- docs/RACE_STATS.md's/RACE_PERKS.md's "Not imported" list) -- `score`
+-- now also shows height/weight/age, all rolled once at creation off the
+-- chosen race's own SneezyMUD dice.
+UPDATE `help_topic` SET `body` = 'Usage: score\n\nShows your character sheet: name, level, experience, hit points,\nposition, attributes, handedness, gender, alignment (good vs evil --\nneutral until an immortal sets it, see `help set`), and height/weight/age\n(rolled once at creation from your race''s own dice -- an Ogre starts\ntaller and heavier than a Gnome, a Gnome starts far older than a Human).\nLimbs appear here only once they are hurt -- see `help limbs` for the\nfull breakdown.'
+  WHERE `name` = 'score' AND `updated_by` = 'seed';
+-- New topic: `quest` (Sneezy -> Tobin feature audit, "Quest system",
+-- 2026-07-19) never got its own help_topic row -- `help quest` has been
+-- falling back to cmd_table.c's one-line description this whole time.
+-- Added now alongside `quest claim` (per-race quest-item tables).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('quest', 'Usage: quest [<name>]\n       quest claim <name>\n\nBare `quest` lists every quest you have made progress on (an immortal\nsets your stage with `set <name> quest <quest> <stage>`). `quest <name>`\nshows the description for your current stage of that quest, if one has\nbeen written.\n\n`quest claim <name>` grants your race''s own reward item for your\ncurrent stage, if an immortal has defined one (`questitem`, builder-only)\n-- once per (quest, stage); running it again after claiming does\nnothing. Different races can get different reward items for the exact\nsame quest and stage.\n\nRelated: score', 'seed')
+ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by=VALUES(updated_by);
+-- New topic: `questitem` (per-race quest-item tables, builder tier,
+-- Sneezy -> Tobin feature audit -- disclosed NOT a port, see
+-- tobin_migrations.sql's `quest_item` doc comment).
+INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
+('questitem', 'Usage: questitem <name> <stage> <race> <vnum>\n\nBuilder tier (51+). Sets the reward object a player of <race> (human,\nelf, ogre, dwarf, hobbit, or gnome) receives from `quest claim <name>`\nonce they reach <stage> of quest <name>. <vnum> must be a real,\nloadable object. Re-running with the same name/stage/race replaces the\nprevious reward. Pair with `qedit` to also write that stage''s\ndescription.\n\nRelated: qedit quest', 'seed')
+ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by=VALUES(updated_by);

@@ -104,3 +104,66 @@ bool quest_repo_def_set(const char *quest_name, int stage, const char *descripti
     db_close(db);
     return ok;
 }
+/* Per-race quest reward items (Sneezy -> Tobin feature audit -- see the
+ * `quest_item`/`player_quest_item_claimed` doc comment in
+ * tobin_migrations.sql for why this is a Tobin-original addition, not a
+ * port). Returns the obj_vnum an immortal set for (quest_name, stage,
+ * race) via `questitem`, or -1 if none is defined for that exact triple
+ * (no fallback to a different race -- an unset combination just has no
+ * reward, same "absence means nothing" convention as quest_def). */
+int quest_repo_reward_item(const char *quest_name, int stage, player_race_t race) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return -1;
+    int vnum = -1;
+    if (db_query(db,
+                "select obj_vnum from quest_item where quest_name='%s' and stage=%i and race=%i",
+                quest_name, stage, (int)race)
+        && db_fetch_row(db))
+        vnum = atoi(db_get(db, "obj_vnum"));
+    db_close(db);
+    return vnum;
+}
+/* Creates or replaces the reward item for (quest_name, stage, race). */
+bool quest_repo_reward_set(const char *quest_name, int stage, player_race_t race, int obj_vnum) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db,
+        "insert into quest_item (quest_name, stage, race, obj_vnum) values ('%s', %i, %i, %i) "
+        "on duplicate key update obj_vnum=%i",
+        quest_name, stage, (int)race, obj_vnum, obj_vnum);
+    db_close(db);
+    return ok;
+}
+/* True if player_id has already been handed their (quest_name, stage)
+ * reward item -- `quest claim` (cmd_quest.c) checks this first so
+ * re-running it can't duplicate the item. */
+bool quest_repo_reward_claimed(long player_id, const char *quest_name, int stage) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool claimed = false;
+    if (db_query(db,
+                "select 1 from player_quest_item_claimed where player_id=%i and quest_name='%s' and stage=%i",
+                (int)player_id, quest_name, stage)
+        && db_fetch_row(db))
+        claimed = true;
+    db_close(db);
+    return claimed;
+}
+/* Records that player_id has now claimed their (quest_name, stage)
+ * reward -- called right after the object is actually granted
+ * (cmd_quest.c), never before, so a DB failure here can't mark a claim
+ * that never actually happened. */
+bool quest_repo_reward_mark_claimed(long player_id, const char *quest_name, int stage) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db,
+        "insert into player_quest_item_claimed (player_id, quest_name, stage) values (%i, '%s', %i) "
+        "on duplicate key update claimed_at=claimed_at",
+        (int)player_id, quest_name, stage);
+    db_close(db);
+    return ok;
+}

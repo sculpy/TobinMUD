@@ -128,7 +128,11 @@ static void move_followers_along(being_t *leader, room_t *from, room_t *to) {
         thing_set_room(&f->base, to);
 
         char arrive[96];
-        snprintf(arrive, sizeof(arrive), "%s has arrived.\r\n", f->base.name);
+        /* Race move-in verb (Sneezy -> Tobin feature audit) -- same
+         * default-wording swap as the leader's own arrival message below;
+         * followers don't consult poofin (pre-existing scope, unchanged
+         * here). */
+        snprintf(arrive, sizeof(arrive), "%s %s.\r\n", f->base.name, race_move_verb_in(f->race));
         if (!f->sneaking)
             descriptor_room_echo(to, f, arrive);
 
@@ -329,13 +333,17 @@ static bool do_move(descriptor_t *d, int dir) {
         }
     }
 
-    /* "exits to the north" for compass directions (user-specified
-     * phrasing), "exits upward/downward" where "to the up" won't parse. */
-    static const char *const EXIT_PHRASES[ROOM_NUM_EXITS] = {
-        "exits to the north", "exits to the east", "exits to the south",
-        "exits to the west", "exits upward", "exits downward",
-        "exits to the northeast", "exits to the northwest",
-        "exits to the southeast", "exits to the southwest",
+    /* "<verb> to the north" for compass directions (user-specified
+     * phrasing), "<verb> upward/downward" where "to the up" won't parse.
+     * <verb> defaults to "exits" -- overridden per-race by
+     * race_move_verb_out() (Sneezy -> Tobin feature audit, docs/RACE_STATS.md's/
+     * RACE_PERKS.md's "Not imported" list) below, e.g. an Ogre "lumbers
+     * to the north" instead of "exits to the north". */
+    static const char *const EXIT_DIR_SUFFIX[ROOM_NUM_EXITS] = {
+        "to the north", "to the east", "to the south",
+        "to the west", "upward", "downward",
+        "to the northeast", "to the northwest",
+        "to the southeast", "to the southwest",
     };
     char msg[256];
     char body[BEING_BAMF_LEN + 32];
@@ -343,7 +351,8 @@ static bool do_move(descriptor_t *d, int dir) {
         apply_poof_tokens(ch->poofout, DIR_NAMES[dir], ch->gender, body, sizeof(body));
         snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, body);
     } else {
-        snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, EXIT_PHRASES[dir]);
+        snprintf(msg, sizeof(msg), "%s %s %s.\r\n", ch->base.name,
+                 race_move_verb_out(ch->race), EXIT_DIR_SUFFIX[dir]);
     }
     if (!ch->sneaking)
         descriptor_room_echo(from, ch, msg);
@@ -391,7 +400,12 @@ static bool do_move(descriptor_t *d, int dir) {
         apply_poof_tokens(ch->poofin, DIR_NAMES[REV_DIR[dir]], ch->gender, body, sizeof(body));
         snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, body);
     } else {
-        snprintf(msg, sizeof(msg), "%s has arrived.\r\n", ch->base.name);
+        /* Race move-in verb (Sneezy -> Tobin feature audit, docs/RACE_STATS.md's/
+         * RACE_PERKS.md's "Not imported" list) -- e.g. an Ogre "lumbers
+         * in" or an Elf "strides in" where a Human/Dwarf/Hobbit/Gnome
+         * still just "has arrived", straight from each race's own
+         * RACE_* moveIn field. */
+        snprintf(msg, sizeof(msg), "%s %s.\r\n", ch->base.name, race_move_verb_in(ch->race));
     }
     if (!ch->sneaking)
         descriptor_room_echo(to, ch, msg);

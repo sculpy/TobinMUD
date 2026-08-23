@@ -265,7 +265,7 @@ static const cmd_entry_t COMMANDS[] = {
     /* SWAP: say before save, so "sa" still speaks; save needs "sav".
      * ("s" is south -- movement head.) */
     { "say",     cmd_say,     "Say something to everyone in the room.",             MORTAL_LEVEL_MIN },
-    { "group",   cmd_group,   "List/manage your group (group [<name>|all]) -- leader only to add.", MORTAL_LEVEL_MIN },
+    { "group",   cmd_group,   "List/manage your group (group [<name>|all]) -- leader only; naming an already-grouped member ungroups them.", MORTAL_LEVEL_MIN },
     { "put",     cmd_put,     "Put a carried item into a container (put <item> <container>).", MORTAL_LEVEL_MIN },
     { "help",    cmd_help,    "List available commands.",                           MORTAL_LEVEL_MIN },
     /* SWAP: who before whisper, so "wh" lists players; whisper needs
@@ -446,8 +446,9 @@ static const cmd_entry_t COMMANDS[] = {
     /* SWAP: pray before practice, so "p"/"pr" stay a Cleric's spell verb;
      * practice needs "prac", prompt needs "pro", put needs "pu". */
     { "pray",    cmd_pray,    "Pray for a spell (Cleric) -- requires a holy symbol.", MORTAL_LEVEL_MIN },
-    { "quest",   cmd_quest,   "See your current quests (quest [<name>]).",          MORTAL_LEVEL_MIN },
+    { "quest",   cmd_quest,   "See your current quests, or claim a race reward (quest [<name>], quest claim <name>).", MORTAL_LEVEL_MIN },
     { "qedit",    cmd_qedit, "Write/replace a quest stage's description (qedit <name> <stage> <text>).", BUILD_MIN_LEVEL },
+    { "questitem", cmd_questitem, "Set a quest stage's per-race reward item (questitem <name> <stage> <race> <vnum>).", BUILD_MIN_LEVEL },
     { "uptime",  cmd_uptime,  "Show how long the server has been running since the last boot/copyover.", MORTAL_LEVEL_MIN },
     /* Must precede "users" (below, immortal tier) in table order -- both
      * start with "use", and dispatch's strncmp scan takes the first match,

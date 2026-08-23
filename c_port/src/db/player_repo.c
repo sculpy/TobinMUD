@@ -59,7 +59,7 @@ being_t *player_load(const char *name, long account_id) {
     being_t *b = NULL;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
                       "title, gender, appearance, pflags, poofin, poofout, bamfin, bamfout, "
-                      "class, race, territory from player "
+                      "class, race, territory, height, weight, start_age from player "
                       "where name='%s' and account_id=%i",
                  name, (int)account_id)
         && db_fetch_row(db)) {
@@ -79,6 +79,11 @@ being_t *player_load(const char *name, long account_id) {
             b->char_class = (player_class_t)atoi(db_get(db, "class"));
             b->race = (player_race_t)atoi(db_get(db, "race"));
             b->territory = (player_territory_t)atoi(db_get(db, "territory"));
+            b->height = atoi(db_get(db, "height"));
+            b->weight = atoi(db_get(db, "weight"));
+            b->start_age = atoi(db_get(db, "start_age"));
+            /* Body type (Sneezy -> Tobin feature audit) -- kept consistent with player_create() so a character logged in before this migration also gets the real per-race lookup, not just being_create_pc()'s hardcoded default. */
+            b->body_type = race_body_type(b->race);
         }
     }
 
@@ -177,11 +182,21 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
         return NULL;
     }
 
+    /* Height/weight/age (Sneezy -> Tobin feature audit -- docs/RACE_STATS.md's/
+     * RACE_PERKS.md's "Not imported" list): rolled ONCE here, off the
+     * chosen race's (and gender's, for height/weight) own SneezyMUD dice
+     * formula (race_roll_height()/race_roll_weight()/race_roll_age(),
+     * being.c) -- same "roll once at creation, persist forever" precedent
+     * as everything else in this function. */
+    int rolled_height = race_roll_height(race, gender);
+    int rolled_weight = race_roll_weight(race, gender);
+    int rolled_start_age = race_roll_age(race);
     bool ok = db_query(db,
-        "insert into player (name, talens, account_id, load_room, nutrition, handed, gender, appearance, class, race, territory) "
-        "values ('%s', 0, %i, %i, 100, %i, %i, '%s', %i, %i, %i)",
+        "insert into player (name, talens, account_id, load_room, nutrition, handed, gender, appearance, class, race, territory, height, weight, start_age) "
+        "values ('%s', 0, %i, %i, 100, %i, %i, '%s', %i, %i, %i, %i, %i, %i)",
         name, (int)account_id, DEFAULT_LOAD_ROOM, handed_right ? 1 : 0,
-        (int)gender, appearance ? appearance : "", (int)char_class, (int)race, (int)territory);
+        (int)gender, appearance ? appearance : "", (int)char_class, (int)race, (int)territory,
+        rolled_height, rolled_weight, rolled_start_age);
 
     being_t *b = NULL;
     if (ok) {
@@ -193,6 +208,15 @@ being_t *player_create(const char *name, long account_id, const attrs_t *attrs,
             b->char_class = char_class;
             b->race = race;
             b->territory = territory;
+            b->height = rolled_height;
+            b->weight = rolled_weight;
+            b->start_age = rolled_start_age;
+            /* Body type (Sneezy -> Tobin feature audit): race_body_type()
+             * replaces being_create_pc()'s bare BODY_HUMANOID hardcode
+             * now that the real race is known -- see being.h's
+             * race_body_type() doc comment for why every current PC race
+             * resolves the same way anyway. */
+            b->body_type = race_body_type(race);
             b->pflags = PLR_NEWBIE; /* new players start on the newbie channel */
             snprintf(b->appearance, sizeof(b->appearance), "%s", appearance ? appearance : "");
             if (attrs)
@@ -590,7 +614,7 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
     int load_room = -1;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
                       "title, gender, appearance, pflags, poofin, poofout, bamfin, bamfout, "
-                      "class, race, territory from player "
+                      "class, race, territory, height, weight, start_age from player "
                       "where name='%s'",
                  name)
         && db_fetch_row(db)) {
@@ -611,6 +635,11 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
             b->char_class = (player_class_t)atoi(db_get(db, "class"));
             b->race = (player_race_t)atoi(db_get(db, "race"));
             b->territory = (player_territory_t)atoi(db_get(db, "territory"));
+            b->height = atoi(db_get(db, "height"));
+            b->weight = atoi(db_get(db, "weight"));
+            b->start_age = atoi(db_get(db, "start_age"));
+            /* Body type (Sneezy -> Tobin feature audit) -- kept consistent with player_create() so a character logged in before this migration also gets the real per-race lookup, not just being_create_pc()'s hardcoded default. */
+            b->body_type = race_body_type(b->race);
             load_room = atoi(db_get(db, "load_room"));
         }
     }
