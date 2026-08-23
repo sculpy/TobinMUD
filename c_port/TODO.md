@@ -14,6 +14,22 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
+get all <container> partial-sweep bug (Session 190): a large
+container (~17 items, e.g. a corpse holding a full starting kit)
+is not always fully emptied by one `get all <container>` in
+cmd_object.c -- live-tested, consistently needs exactly 2 calls.
+Root cause not pinned down (suspect the single-pass linked-list
+walk interacting with spell_component_merge_siblings or
+trigger_run mid-iteration -- both run inside the loop body before
+advancing to the captured next pointer). Not blocking gameplay
+(a player can just loot twice) but worth a real fix -- reproduce
+with a corpse holding 15+ items and step through the loop.
+Fixed 3 stale/broken smoke tests along the way (Session 190, see
+STATUS.md): smoke_test_animal_no_gold.py (missing loot step),
+smoke_test_corpse.py (stale load-obj-drops-on-floor assumption +
+the above partial-sweep bug), smoke_test_autoloot.py (stale
+message-text assertion). None were caused by anything recent --
+just never caught since the suite runs each file individually.
 Mob wealth items (Session 189): investigated "moneypouches/
 commodities not loading on mobs." Moneypouches: NOT a bug -- a
 2026-07-28 decision (see combat.c) deliberately replaced

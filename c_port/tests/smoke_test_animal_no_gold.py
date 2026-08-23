@@ -133,6 +133,15 @@ def fight_and_check(imm_sock, pc_sock, pc_name, vnum, mob_tag):
         out += recv_all(pc_sock, 1.5)
     check("You have slain" in out or "You have defeated" in out,
           f"the fight against {mob_tag} resolved with a kill")
+    # Gold lands in the CORPSE as a real lootable OBJ_CAT_MONEY object
+    # (2026-07-28 redesign, combat.c) -- it is not auto-credited to the
+    # wallet on kill. autoloot is an opt-in toggle (default off,
+    # smoke_test_autoloot.py), so this must loot explicitly or the
+    # gold-awarded checks below always see 0 regardless of whether the
+    # underlying drop actually worked (found live, Session 189 --this
+    # test was silently failing on the non-animal case for that exact
+    # reason before this fix).
+    cmd(pc_sock, "get all corpse")
     return out
 
 

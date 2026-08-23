@@ -103,7 +103,11 @@ check("instantly" in out.lower() or "slain" in out.lower() or "defeated" in out.
       "the immortal's kill resolves")
 out2 = recv_all(s_imm, 1.0)
 combined = out + out2
-check("You automatically loot" in combined, "autoloot fires and tells the winner")
+# Message format changed 2026-08-03 (combat.c): autoloot used to print
+# one generic "You automatically loot X'''s corpse." line, now reports
+# each item by name as "You loot <item> from <name>'''s corpse." --
+# this test was never updated to match (found live, Session 190).
+check("You loot" in combined and "corpse" in combined, "autoloot fires and tells the winner")
 check("ring" in cmd(s_imm, "inventory").lower(), "the ring ended up in the winner's inventory")
 
 # --- 3: autoloot OFF -- gear stays in the corpse instead ---
@@ -137,7 +141,7 @@ check("you get" in cmd(s_mort2, "get amulet").lower(), "victim 2 picks up the am
 out = cmd(s_imm, f"kill {mort2}")
 out2 = recv_all(s_imm, 1.0)
 combined = out + out2
-check("You automatically loot" not in combined, "autoloot does not fire while toggled off")
+check("You loot" not in combined, "autoloot does not fire while toggled off")
 check("amulet" not in cmd(s_imm, "inventory").lower(), "the amulet is NOT in the winner's inventory")
 check("amulet" in cmd(s_imm, "look corpse").lower(), "the amulet is still sitting inside the corpse")
 
