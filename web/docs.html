@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TobinMUD Docs</title>
+<style>
+  :root { color-scheme: dark light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Consolas, "Courier New", monospace;
+    background: #0c0c0c;
+    color: #d8d8d8;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  h1 {
+    font-size: 1.8rem;
+    margin: 0 0 4px;
+    color: #e0c060;
+    letter-spacing: 1px;
+  }
+  .tagline { color: #9a9a9a; margin: 0 0 24px; }
+  a { color: #7fc0ff; }
+  a:hover { color: #a9d8ff; }
+  #results {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: minmax(160px, 220px) 1fr;
+    gap: 24px;
+  }
+  #list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    align-self: start;
+  }
+  #list li { border-bottom: 1px solid #202020; }
+  #list li:last-child { border-bottom: none; }
+  #list button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: #d8d8d8;
+    font: inherit;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+  #list button:hover, #list button.active { background: #1e1e1e; color: #7fc0ff; }
+  #body {
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 20px 28px;
+    min-height: 200px;
+    overflow-x: auto;
+  }
+  #body h1, #body h2, #body h3 { color: #e0c060; }
+  #body h1 { font-size: 1.5rem; margin: 0 0 14px; }
+  #body h2 { font-size: 1.2rem; margin: 28px 0 10px; border-bottom: 1px solid #222; padding-bottom: 4px; }
+  #body h3 { font-size: 1.05rem; margin: 20px 0 8px; color: #9fcaff; }
+  #body p, #body ul, #body ol { margin: 0 0 14px; }
+  #body ul, #body ol { padding-left: 24px; }
+  #body li { margin: 4px 0; }
+  #body code {
+    background: #1e1e1e; border: 1px solid #2a2a2a; border-radius: 3px;
+    padding: 1px 5px; color: #9fe89f; font-size: 0.92em;
+  }
+  #body pre {
+    background: #101010; border: 1px solid #2a2a2a; border-radius: 6px;
+    padding: 12px 14px; overflow-x: auto; margin: 0 0 14px;
+  }
+  #body pre code { background: none; border: none; padding: 0; color: #cfe8cf; }
+  #body table { border-collapse: collapse; margin: 0 0 14px; width: 100%; }
+  #body th, #body td { border: 1px solid #2a2a2a; padding: 6px 10px; text-align: left; }
+  #body th { color: #e0c060; }
+  #body blockquote {
+    margin: 0 0 14px; padding: 6px 14px; border-left: 3px solid #3a6aa8; color: #b8b8b8;
+  }
+  #empty { color: #6a6a6a; padding: 40px 0; text-align: center; }
+  @media (max-width: 640px) {
+    #results { grid-template-columns: 1fr; }
+  }
+  @media (prefers-color-scheme: light) {
+    body { background: #f6f6f2; color: #222; }
+    .tagline { color: #555; }
+    #list { border-color: #ddd; }
+    #list li { border-bottom-color: #eee; }
+    #list button { color: #222; }
+    #list button:hover, #list button.active { background: #eee; color: #1a5fa8; }
+    #body { background: #fff; border-color: #ddd; }
+    #body h1, #body h2 { color: #a87a1a; }
+    #body h3 { color: #1a5fa8; }
+    #body code { background: #eee; border-color: #ddd; color: #1a7a1a; }
+    #body pre { background: #f4f4f0; border-color: #ddd; }
+    #body pre code { color: #333; }
+    #body th, #body td { border-color: #ddd; }
+    #body th { color: #a87a1a; }
+    #empty { color: #888; }
+  }
+  /* --- shared left-margin site nav --- */
+  body { padding-left: 190px; }
+  .sidenav {
+    position: fixed; top: 0; left: 0; bottom: 0; width: 190px;
+    background: #0a0a0a; border-right: 1px solid #222;
+    padding: 26px 0; overflow-y: auto; z-index: 20;
+  }
+  .sidenav .brand {
+    display: block; color: #e0c060; font-weight: bold; letter-spacing: 1px;
+    font-size: 1.15rem; padding: 0 22px 18px; text-decoration: none;
+  }
+  .sidenav a.nav-link {
+    display: block; color: #cfcfcf; text-decoration: none;
+    padding: 9px 22px; border-left: 3px solid transparent; font-size: 0.98rem;
+  }
+  .sidenav a.nav-link:hover { background: #161616; color: #7fc0ff; }
+  .sidenav a.nav-link.active {
+    color: #e0c060; border-left-color: #e0c060; background: #141414;
+  }
+  .sidenav .sep { height: 1px; background: #1c1c1c; margin: 14px 22px; }
+  .sidenav .ext::after { content: " \2197"; color: #6a6a6a; font-size: 0.85em; }
+  @media (max-width: 819px) {
+    body { padding-left: 0; }
+    .sidenav {
+      position: static; width: auto; bottom: auto;
+      display: flex; flex-wrap: wrap; align-items: center;
+      padding: 8px 10px; border-right: none; border-bottom: 1px solid #222;
+    }
+    .sidenav .brand { padding: 0 12px 0 6px; font-size: 1rem; }
+    .sidenav a.nav-link { border-left: none; padding: 6px 12px; }
+    .sidenav a.nav-link.active {
+      border-left: none; background: transparent; text-decoration: underline;
+    }
+    .sidenav .sep { display: none; }
+  }
+  @media (prefers-color-scheme: light) {
+    .sidenav { background: #efefe9; border-right-color: #ddd; }
+    .sidenav a.nav-link { color: #333; }
+    .sidenav a.nav-link:hover { background: #e4e4dc; color: #1a5fa8; }
+    .sidenav a.nav-link.active { color: #a87a1a; border-left-color: #a87a1a; background: #e8e8e0; }
+    .sidenav .sep { background: #ddd; }
+  }
+</style>
+</head>
+<body>
+<nav class="sidenav">
+  <a class="brand" href="/">TobinMUD</a>
+  <a class="nav-link" href="/">Home</a>
+  <a class="nav-link" href="/play.html">Play</a>
+  <a class="nav-link" href="/news.html">News</a>
+  <a class="nav-link" href="/help.html">Help</a>
+  <a class="nav-link active" href="/docs.html">Docs</a>
+  <div class="sep"></div>
+  <a class="nav-link" href="/tobinclient/TobinMUDClient.msi">Download</a>
+  <a class="nav-link ext" href="https://github.com/sculpy/TobinMUD" target="_blank" rel="noopener">Source</a>
+</nav>
+
+<div class="wrap">
+  <h1>Docs</h1>
+  <p class="tagline">Builder and scripting reference guides, kept in sync with the repo docs folder.</p>
+
+  <div id="results">
+    <ul id="list"></ul>
+    <div id="body"><p id="empty">Pick a doc on the left.</p></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var DOCS = [
+    { name: "Building Content", file: "/docs/BUILDING.md" },
+    { name: "Trigger Scripting", file: "/docs/TRIGGER_SCRIPTING.md" },
+    { name: "Race Perks", file: "/docs/RACE_PERKS.md" },
+    { name: "Race Stats", file: "/docs/RACE_STATS.md" }
+  ];
+  var listEl = document.getElementById("list");
+  var bodyEl = document.getElementById("body");
+  var activeBtn = null;
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // Minimal markdown -> HTML: headers, bold/italic, inline code, fenced
+  // code blocks, links, tables, unordered/ordered lists, blockquotes,
+  // paragraphs. Covers the subset these docs actually use -- not a
+  // general-purpose CommonMark implementation.
+  function renderInline(s) {
+    s = escapeHtml(s);
+    s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+    s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    s = s.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (m, text, href) {
+      var ext = /^https?:\/\//.test(href);
+      return "<a href=\"" + href + "\"" + (ext ? " target=\"_blank\" rel=\"noopener\"" : "") + ">" + text + "</a>";
+    });
+    return s;
+  }
+
+  function renderMarkdown(md) {
+    var lines = md.replace(/\r\n/g, "\n").split("\n");
+    var out = [];
+    var i = 0;
+    var listStack = null;
+    function closeList() {
+      if (listStack) { out.push("</" + listStack.tag + ">"); listStack = null; }
+    }
+    while (i < lines.length) {
+      var line = lines[i];
+
+      if (/^```/.test(line)) {
+        closeList();
+        var codeLines = [];
+        i++;
+        while (i < lines.length && !/^```/.test(lines[i])) { codeLines.push(lines[i]); i++; }
+        i++;
+        out.push("<pre><code>" + escapeHtml(codeLines.join("\n")) + "</code></pre>");
+        continue;
+      }
+
+      var h = line.match(/^(#{1,3})\s+(.*)$/);
+      if (h) {
+        closeList();
+        var level = h[1].length;
+        out.push("<h" + level + ">" + renderInline(h[2]) + "</h" + level + ">");
+        i++; continue;
+      }
+
+      if (/^\s*[-*]\s+/.test(line)) {
+        if (!listStack || listStack.tag !== "ul") { closeList(); listStack = { tag: "ul" }; out.push("<ul>"); }
+        out.push("<li>" + renderInline(line.replace(/^\s*[-*]\s+/, "")) + "</li>");
+        i++; continue;
+      }
+      if (/^\s*\d+\.\s+/.test(line)) {
+        if (!listStack || listStack.tag !== "ol") { closeList(); listStack = { tag: "ol" }; out.push("<ol>"); }
+        out.push("<li>" + renderInline(line.replace(/^\s*\d+\.\s+/, "")) + "</li>");
+        i++; continue;
+      }
+      closeList();
+
+      if (/^\|.*\|\s*$/.test(line) && i + 1 < lines.length && /^\|[\s:-]+\|\s*$/.test(lines[i + 1])) {
+        var header = line.split("|").slice(1, -1).map(function (c) { return c.trim(); });
+        i += 2;
+        var rows = [];
+        while (i < lines.length && /^\|.*\|\s*$/.test(lines[i])) {
+          rows.push(lines[i].split("|").slice(1, -1).map(function (c) { return c.trim(); }));
+          i++;
+        }
+        var t = "<table><thead><tr>" + header.map(function (c) { return "<th>" + renderInline(c) + "</th>"; }).join("") + "</tr></thead><tbody>";
+        rows.forEach(function (r) {
+          t += "<tr>" + r.map(function (c) { return "<td>" + renderInline(c) + "</td>"; }).join("") + "</tr>";
+        });
+        t += "</tbody></table>";
+        out.push(t);
+        continue;
+      }
+
+      if (/^>\s?/.test(line)) {
+        var quoteLines = [];
+        while (i < lines.length && /^>\s?/.test(lines[i])) { quoteLines.push(lines[i].replace(/^>\s?/, "")); i++; }
+        out.push("<blockquote>" + renderInline(quoteLines.join(" ")) + "</blockquote>");
+        continue;
+      }
+
+      if (line.trim() === "") { i++; continue; }
+
+      var paraLines = [];
+      while (i < lines.length && lines[i].trim() !== "" && !/^```/.test(lines[i]) && !/^#{1,3}\s/.test(lines[i]) && !/^\s*[-*]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^\|.*\|\s*$/.test(lines[i]) && !/^>\s?/.test(lines[i])) {
+        paraLines.push(lines[i]); i++;
+      }
+      out.push("<p>" + renderInline(paraLines.join(" ")) + "</p>");
+    }
+    closeList();
+    return out.join("\n");
+  }
+
+  function showDoc(doc, btn) {
+    if (activeBtn) activeBtn.classList.remove("active");
+    if (btn) { activeBtn = btn; btn.classList.add("active"); }
+    bodyEl.innerHTML = '<p id="empty">Loading&hellip;</p>';
+    fetch(doc.file)
+      .then(function (r) { if (!r.ok) throw new Error("fetch failed"); return r.text(); })
+      .then(function (md) {
+        bodyEl.innerHTML = renderMarkdown(md);
+        history.replaceState(null, "", "#" + encodeURIComponent(doc.name));
+      })
+      .catch(function () {
+        bodyEl.innerHTML = '<p id="empty">Could not load this doc.</p>';
+      });
+  }
+
+  DOCS.forEach(function (doc) {
+    var li = document.createElement("li");
+    var btn = document.createElement("button");
+    btn.textContent = doc.name;
+    btn.addEventListener("click", function () { showDoc(doc, btn); });
+    li.appendChild(btn);
+    listEl.appendChild(li);
+  });
+
+  var hash = decodeURIComponent(location.hash.replace(/^#/, ""));
+  var match = DOCS.findIndex(function (d) { return d.name === hash; });
+  var startIdx = match >= 0 ? match : 0;
+  showDoc(DOCS[startIdx], listEl.children[startIdx].firstChild);
+})();
+</script>
+</body>
+</html>
