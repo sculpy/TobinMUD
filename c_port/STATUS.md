@@ -1,4 +1,39 @@
 # Tobin C Port — Status
+Last updated: 2026-08-22 -- Session 189 (DO droplet, production port 4000):
+**Investigated "moneypouches/commodities not loading on mobs" -- neither
+was actually a regression.** Checked against the original SneezyMUD
+source (`sneezymud-master/code/code/misc/mob_loader.cc`) per house rule
+before touching anything.
+
+  - **Moneypouches**: SneezyMUD spawns a visible, pickpocket-able
+    moneypouch on ~10% of level-9+ humanoid mobs at load time (holding
+    part of their wealth). Traced why Tobin doesn't do this: a
+    deliberate, already-documented design decision from 2026-07-28
+    (combat.c) replaced that with mob gold going into the corpse as a
+    real lootable coin pile at death instead -- that system already
+    works today. User confirmed (AskUserQuestion): keep the corpse-drop
+    design, don't add the pre-spawn pouch.
+    Found one real, small bug along the way: obj vnum 604 ("moneypouch
+    pouch") -- the exact vnum SneezyMUD's source hardcodes as
+    Obj::GENERIC_MONEYPOUCH -- was seeded into Tobin's DB with type=27
+    (ITEM_BAG) instead of type=75 (ITEM_MONEYPOUCH). No STATUS.md
+    decision documents this as deliberate; looks like a data-import
+    mismatch. Fixed via db/tobin/fix_obj604_moneypouch_type.sql
+    (idempotent single UPDATE). Harmless in practice today (nothing
+    currently spawns type-75 objects) but was simply wrong.
+  - **Commodities**: SneezyMUD has a full economic subsystem
+    (`commodLoader`/`TCommodity::demandCurvePrice`, ~200 materials, live
+    supply/demand pricing) that converts part of a mob's wealth into
+    raw-material commodity items. Confirmed via source grep: this was
+    never ported to the C code at all -- no trace of it, and nothing in
+    STATUS.md documents it as a deliberate omission, so it's a genuine
+    gap rather than a decision. Given the size (a real economic
+    simulation, not a small feature), user chose to scope this as its
+    own future project rather than build it now -- see TODO.md.
+
+  No C code changed this session. One small DB data fix applied and
+  committed. Full db/tobin/ replay verified clean.
+
 Last updated: 2026-08-22 -- Session 188 (DO droplet, production port 4000):
 **Road-shrink initiative: Phase B investigated and abandoned; initiative
 closed out.** Took a full DB backup first (~/backups/tobin_pre_phaseB_
