@@ -249,7 +249,7 @@
       }
       closeList();
 
-      if (/^\|.*\|\s*$/.test(line) && i + 1 < lines.length && /^\|[\s:-]+\|\s*$/.test(lines[i + 1])) {
+      if (/^\|.*\|\s*$/.test(line) && i + 1 < lines.length && /^\|[\s:|-]+\|\s*$/.test(lines[i + 1])) {
         var header = line.split("|").slice(1, -1).map(function (c) { return c.trim(); });
         i += 2;
         var rows = [];
@@ -278,6 +278,14 @@
       var paraLines = [];
       while (i < lines.length && lines[i].trim() !== "" && !/^```/.test(lines[i]) && !/^#{1,3}\s/.test(lines[i]) && !/^\s*[-*]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^\|.*\|\s*$/.test(lines[i]) && !/^>\s?/.test(lines[i])) {
         paraLines.push(lines[i]); i++;
+      }
+      if (paraLines.length === 0) {
+        // A line that matched an exclusion above (e.g. a table-header
+        // shape whose separator row didn't validate) but has nowhere
+        // else to go -- without this, i never advances and the outer
+        // loop spins forever, freezing the tab. Force progress.
+        paraLines.push(lines[i]);
+        i++;
       }
       out.push("<p>" + renderInline(paraLines.join(" ")) + "</p>");
     }
