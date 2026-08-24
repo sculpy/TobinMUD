@@ -224,8 +224,20 @@ cmd(imm, "purge")  # clear the resulting wine puddle
 
 out = cmd(giver, "pour waterskin wineskin")
 check("you pour" in out.lower(), "pour now transfers water into the emptied wineskin")
+# NOTE: the waterskin (vnum 410, capacity 70) holds more than the
+# wineskin (vnum 409, capacity 66) can take -- cmd_pour.c's own doc
+# comment says this deliberately: "the source keeps whatever doesn't
+# fit rather than spilling it," so the waterskin is NOT expected to end
+# up empty here, only reduced by however much fit (66, leaving 4).
+# The original version of this check asserted "it's empty" instead,
+# which can never pass given these two containers' real capacities --
+# a test bug, not a product bug (found live, Session 196; flagged as an
+# open TODO.md item since Session 191). Fixed to assert the actual
+# documented behavior instead of picking new same-capacity fixtures,
+# so this keeps exercising the real overflow-retention path.
 out = cmd(giver, "drink waterskin")
-check("it's empty" in out.lower(), "the source waterskin is now empty after the transfer")
+check("it's empty" not in out.lower() and "water" in out.lower(),
+      "the source waterskin still holds its leftover water (66 of 70 moved, not spillable)")
 out = cmd(giver, "drink wineskin")
 check("it's empty" not in out.lower() and "water" in out.lower(),
       "the destination wineskin now holds water, not wine")
