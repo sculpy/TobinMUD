@@ -136,30 +136,34 @@ check("you get" in out.lower() and "corpse" in out.lower(),
 out = cmd(s, "get all corpse")
 check(item2_name in out and "corpse" in out.lower(),
       "`get all corpse` sweeps up the remaining item in one go")
-# get all corpse just swept ~15 items (the victim's full starting kit
-# plus both fixtures) -- another high-output multi-item event like
-# kill above, same drain-before-trusting-the-next-response need (found
-# live, Session 190: without this the second get-all-corpse check
-# below saw leftover trickle from THIS sweep and looked like a real
-# bug).
+# Same high-output multi-item event as kill above -- drain before
+# trusting the next response (found live, Session 190).
 drain(s)
 out = cmd(s, "inventory")
 check(item2_name in out, "the swept-up item lands in the immortal's inventory")
 
-# A large corpse (this victim's full starting kit plus both fixtures,
-# ~17 items) is NOT always fully swept in one `get all <container>`
-# pass -- found live, Session 190: a bounded repro (with the socket
-# backlog properly drained beforehand, ruling out a test-harness
-# artifact) consistently needed exactly 2 calls to fully empty it, the
-# second picking up several worn-slot items (rings/belt/leggings/etc)
-# the first left behind. Root cause not yet pinned down (suspect the C
-# loop's single-pass container walk in cmd_object.c interacts badly
-# with a large item count or something touched by
-# spell_component_merge_siblings mid-iteration) -- flagged in TODO.md
-# for a dedicated fix rather than guessed at here. Loop with a small
-# bound so this test reflects how a player actually experiences it
-# (loot again if the corpse isn't empty) instead of asserting the
-# single-pass behavior the code doesn't actually guarantee.
+# NOTE: this corpse only ever holds the 2 manually-tracked fixtures, NOT
+# "the victim's full starting kit" as earlier session comments here
+# claimed -- `quit!` (not `rent`) intentionally drops everything a
+# character is carrying onto the floor of whatever room they're in at
+# the time (cmd_quit.c, user 2026-07-12) and saves that now-empty
+# inventory; make_char() above quits the victim (to let the SQL
+# load_room override take effect) BEFORE they ever pick up either
+# fixture, so their real starting kit is abandoned on room 100's floor
+# long before this corpse exists. A get-all-container "partial sweep"
+# bug was suspected here (Session 190: a large real-starting-kit corpse
+# apparently needed 2 `get all corpse` calls to empty) and flagged in
+# TODO.md for a dedicated look. Session 195 investigated directly
+# (see STATUS.md): a 22-item mixed container -- including every
+# worn-slot category (rings/belt/leggings/gloves/cloak/etc) named in
+# the original report -- emptied in exactly one `get all <container>`
+# pass, every time, across repeated tries. Root cause of the original
+# observation was never pinned down, but is presumed to be the same
+# class of test-harness/output-timing artifact this file's OWN kill/
+# get-all drain() comments already document elsewhere -- not a real
+# server bug. Kept as a tiny bounded retry (not a bare single-call
+# assert) purely as a defensive margin, not because another call is
+# expected to be needed.
 out = cmd(s, "get all corpse")
 for _ in range(5):
     if "nothing" in out.lower():

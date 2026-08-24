@@ -1406,3 +1406,85 @@ tests/smoke_test_questitem_list_remove.py (11 checks) plus a clean
 re-run of the existing smoke_test_race_quest_items.py (regression check
 on the set path) both pass. Zero-warning clean build. Deployed via
 copyover.
+
+Last updated: 2026-08-24 -- Session 195 (DO droplet, production port 4000):
+**Investigated the get-all-container partial-sweep bug (TODO.md,
+Session 190) -- could not reproduce it; concluded the original
+observation was very likely a test-harness/timing artifact, not a
+real server bug.** Session 190 reported a large corpse (~17 items)
+consistently needing 2  calls to fully empty.
+Static review of the loop (src/cmd/cmd_object.c's 
+handler) found no plausible mechanism:  is captured before every
+mutating call in the loop body, 
+only touches the DESTINATION being's inventory (not the source
+container) and no-ops immediately for non-spell-component items, and
+/ only ever affect the single item
+being processed.
+Live reproduction took several attempts: the obvious approach (kill a
+fresh PC, ) kept producing a corpse with only 1-2
+items instead of the claimed ~17, traced to a real but unrelated
+discovery --  (not ) intentionally drops everything a
+character is carrying onto the floor of their CURRENT room and saves
+that now-empty inventory (cmd_qedit.c's neighbor cmd_quit.c, user
+2026-07-12 decision); smoke_test_corpse.py's own victim setup
+(create ->  -> SQL  override -> relogin) quits
+*before* the SQL override takes effect, so the victim's real ~31-item
+starting kit (confirmed via debug instrumentation: 12 items from the
+class suit + 19 from the race suit, both suit_grant() calls firing
+correctly) gets abandoned on room 100's (Center Square, the default
+creation room) floor long before the test's sandbox-room corpse ever
+exists -- that corpse only ever held the 2 manually-tracked fixture
+items the test itself loads/drops/retrieves. This means the ~15 items,
+
+Last updated: 2026-08-24 -- Session 195 (DO droplet, production port 4000):
+**Investigated the get-all-container partial-sweep bug (TODO.md,
+Session 190) -- could not reproduce it; concluded the original
+observation was very likely a test-harness/timing artifact, not a
+real server bug.** Session 190 reported a large corpse (~17 items)
+consistently needing 2 `get all <container>` calls to fully empty.
+Static review of the loop (src/cmd/cmd_object.c's `get all <container>`
+handler) found no plausible mechanism: `next` is captured before every
+mutating call in the loop body, `spell_component_merge_siblings()`
+only touches the DESTINATION being's inventory (not the source
+container) and no-ops immediately for non-spell-component items, and
+`pick_up_money()`/`obj_destroy()` only ever affect the single item
+being processed.
+Live reproduction took several attempts: the obvious approach (kill a
+fresh PC, `get all corpse`) kept producing a corpse with only 1-2
+items instead of the claimed ~17, traced to a real but unrelated
+discovery -- `quit!` (not `rent`) intentionally drops everything a
+character is carrying onto the floor of their CURRENT room and saves
+that now-empty inventory (cmd_quit.c, user 2026-07-12 decision);
+smoke_test_corpse.py's own victim setup (create -> `quit!` -> SQL
+`load_room` override -> relogin) quits *before* the SQL override takes
+effect, so the victim's real ~31-item starting kit (confirmed via
+debug instrumentation: 12 items from the class suit + 19 from the
+race suit, both suit_grant() calls firing correctly) gets abandoned on
+room 100's (Center Square, the default creation room) floor long
+before the test's sandbox-room corpse ever exists -- that corpse only
+ever held the 2 manually-tracked fixture items the test itself
+loads/drops/retrieves. This means the "~15 items, worn-slot items left
+behind" claim in the existing test's comments was already
+stale/inaccurate; fixed those comments in tests/smoke_test_corpse.py
+to describe what the corpse actually contains and note this
+investigation, without changing the test's assertions (it still
+passes; the small bounded retry loop is kept as a defensive margin,
+not because another call is expected).
+Sidestepped the flaky victim-creation harness entirely for a clean
+repro: `get all <container>` is container-agnostic, so a single
+immortal loaded 22 real items (vnums spanning the same worn-slot
+categories named in the bug report -- rings, belt, leggings, gloves,
+cloak, sleeve, choker, helm, boots, plus a weapon/shield/consumables)
+into their own inventory, `put all`'d them into a backpack, then ran
+`get all backpack` exactly once. Every single item came back in that
+one call (verified via `look backpack` showing "Nothing" immediately
+after), repeated across multiple runs. Root cause of the original
+Session 190 observation was never pinned down, but given (a) this
+result, (b) the loop's own code offering no plausible defect, and (c)
+that very same session already had to correct a DIFFERENT "looks like
+a real corpse/get-all-corpse data bug" false alarm that turned out to
+be an undrained-socket artifact (see that session's own STATUS.md
+entry) -- the most likely explanation is the same class of test-
+harness/output-timing illusion, not a real defect. Closed in TODO.md;
+no code changes to cmd_object.c. If it resurfaces with a solid live
+repro, re-open with the exact reproduction steps.
