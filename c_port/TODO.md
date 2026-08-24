@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-24 (18). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-24 (19). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -47,8 +47,16 @@ Shoptype coverage EXTENDED 2026-08-24: 12 more shops added, chosen by
 theme (forges/smithies now buy 42, jewelers/curio now buy 43, a
 tannery/alchemists now buy 50) -- see
 db/tobin/commodity_shoptype_expansion.sql. Still not done: many shops
-have zero shoptype rows at all; a dedicated commodity-trader mob
-(SneezyMUD's spec_mobs_commod_trader.cc) was not ported either.
+have zero shoptype rows at all.
+Commodity-trader mob DECLINED 2026-08-24: read upstream's
+spec_mobs_commod_trader.cc directly -- it opens with a hard-coded
+`return FALSE;` right after its local variable declarations, before
+any pulse/trading logic runs, so it is dead code in SneezyMUD itself.
+The logic that does exist below that line calls straight into
+TCommodity::sellPrice/shopPrice/buyMe/sellMe -- the live per-material
+demand-curve pricing engine Session 197 already decided not to port.
+Porting a disabled upstream feature onto infrastructure that was
+deliberately left unported isn't worth doing; not building it.
 Road-shrink initiative is CLOSED (Sessions 183-188). Phase A
 complete: all 14 built road/connector zones shrunk -- 11, 2, 67,
 16, 53, 22, 258, 18, 12, 49, 19, 259, 38, 146. Phase B (global

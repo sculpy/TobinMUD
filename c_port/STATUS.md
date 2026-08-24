@@ -1655,3 +1655,24 @@ Session 188's source-level finding that only `dig` (new-room
 placement) and the `zonefile create` snapshot tool still read
 bottom/top. No action taken -- purely explanatory, answers the
 "worth understanding" note. Removed the corresponding TODO.md entry.
+
+
+Session 198 (cont.): commodity-trader mob follow-up investigated and
+declined, closing the last Session 197 open item. Read upstream's
+spec_mobs_commod_trader.cc (the exact file TODO.md pointed at) in
+full: the mob-pulse handler commodTrader() declares its locals, then
+its very next executable line is a bare `return FALSE;`, before the
+`CMD_GENERIC_PULSE`/awake/fight checks or any of the cart-finding,
+selling, price-comparison, or buying logic below it ever run. That
+makes the whole ~200 line handler dead code in SneezyMUD itself --
+whatever it once did, it does not run today, upstream or here. The
+logic that exists past the early return depends entirely on
+TCommodity::sellPrice/shopPrice/buyMe/sellMe and a live rent-table
+price-comparison query across shops -- the per-material demand-curve
+pricing engine Session 197 already decided not to port for this same
+feature. Building a working version of a mob whose upstream reference
+never actually functioned, on top of pricing infrastructure already
+deliberately left out, isn't a good use of scope. Declining. TODO.md's
+"Commodities" section updated to record the decision and reasoning;
+this closes out the last open follow-up from Session 197's original
+commodities work.
