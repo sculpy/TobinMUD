@@ -25,7 +25,7 @@ import socket
 import subprocess
 import sys
 import time
-from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done
+from mud_test_utils import send_line, recv_all, check, sql, cmd, announce, announce_done, drain
 
 host = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
 port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
@@ -56,11 +56,6 @@ def xp_of(name):
 
 def set_gold(name, amount):
     sql(f"UPDATE player_progress SET gold={amount} WHERE player_id="
-        f"(SELECT id FROM player WHERE name='{name}');")
-
-
-def set_hp(name, hp, max_hp):
-    sql(f"UPDATE player_progress SET hp={hp}, max_hp={max_hp} WHERE player_id="
         f"(SELECT id FROM player WHERE name='{name}');")
 
 
@@ -142,13 +137,24 @@ def fight_and_check(imm_sock, pc_sock, pc_name, vnum, mob_tag):
     # test was silently failing on the non-animal case for that exact
     # reason before this fix).
     cmd(pc_sock, "get all corpse")
+    # Combat/loot broadcasts (room echoes, corpse messages) land on every
+    # occupant of the room, including the immortal (imm_sock) who is
+    # standing right there -- an undrained backlog on THAT socket
+    # desyncs its next cmd() call the same way mud_test_utils.py's
+    # drain() doc comment warns about for a just-fought PC socket (see
+    # smoke_test_corpse.py). Found live: the immortal socket occasionally
+    # came back showing a stale account-menu screen on the very next
+    # set-hp call for the SECOND fighter, meaning that set command
+    # never actually landed and the second fight lost to real combat
+    # damage against un-padded HP.
+    drain(imm_sock)
     return out
 
 
 imm_name, imm_pw = f"Golimm{_suffix}", "golimmpw123"
 si = make_char(imm_name, imm_pw)
 cmd(si, "quit!"); si.close()
-sql(f"UPDATE player_progress SET level=51 WHERE player_id=(SELECT id FROM player WHERE name='{imm_name}');")
+sql(f"UPDATE player_progress SET level=59 WHERE player_id=(SELECT id FROM player WHERE name='{imm_name}');")
 si = relog(imm_name, imm_pw)
 cmd(si, f"goto {ROOM}")
 
@@ -157,8 +163,8 @@ sA = make_char(nameA, pwA)
 cmd(sA, "quit!"); sA.close()
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{nameA}';")
 set_gold(nameA, 0)
-set_hp(nameA, 500, 500)
 sA = relog(nameA, pwA)
+cmd(si, f"set {nameA} hp 5000 5000")
 
 before_gold, before_xp = gold_of(nameA), xp_of(nameA)
 fight_and_check(si, sA, nameA, MOB_ANIMAL_VNUM, "goldrodent")
@@ -171,8 +177,8 @@ sB = make_char(nameB, pwB)
 cmd(sB, "quit!"); sB.close()
 sql(f"UPDATE player SET load_room={ROOM} WHERE name='{nameB}';")
 set_gold(nameB, 0)
-set_hp(nameB, 500, 500)
 sB = relog(nameB, pwB)
+cmd(si, f"set {nameB} hp 5000 5000")
 
 before_gold2, before_xp2 = gold_of(nameB), xp_of(nameB)
 fight_and_check(si, sB, nameB, MOB_NORMAL_VNUM, "goldnorace")
