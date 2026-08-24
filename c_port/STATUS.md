@@ -1676,3 +1676,46 @@ deliberately left out, isn't a good use of scope. Declining. TODO.md's
 "Commodities" section updated to record the decision and reasoning;
 this closes out the last open follow-up from Session 197's original
 commodities work.
+
+
+Session 198 (cont.): New shop editor, sedit / edit shop (58+). User
+request ("we need a shop editor sedit"; targeting/scope clarified via
+AskUserQuestion: numbered-field menu like pedit, targeted by the
+immortal's own current room rather than a shop_nr argument, shoptype
+included in-editor). Built directly off the edzone template
+(descriptor.c): a shop_t snapshot working copy (shop_repo.h/c, extended
+from read-only to add shop_repo_save() plus
+shop_repo_shoptype_list()/_add()/_remove()), a new CONN_EDSHOP_* state
+machine (15 states: top menu, 10 scalar-field prompts, a flags toggle,
+a shoptype submenu, its add/remove children, quit-confirm), new
+cmd_sedit.c (mirrors cmd_pedit.c), and a new `shop` noun in cmd_edit.c's
+dispatcher alongside a standalone `sedit` verb in cmd_table.c -- same
+dual-registration precedent as pedit/socedit. EDSHOP_MIN_LEVEL 58,
+matching pedit/accedit's Administrator tier per the user's explicit
+"58+ access only". The shoptype add-picker reuses oedit's own
+obj_type_name()/obj_item_type_count() numbered-listing pattern verbatim
+rather than inventing a new one. Editable: profit_buy/profit_sell,
+keeper, in_room, the six canned messages, is_stable/is_repair/is_bank,
+and the shoptype (accepted raw item type) rows -- shop.temper1/2,
+open1/close1/open2/close2, flags, and expense_ratio were deliberately
+left out, matching shop_repo.h's own documented precedent that Tobin's
+shop model doesn't read those columns anywhere ("no temper/haggling, no
+open/close hours enforcement yet"). Full clean rebuild: zero warnings
+in every touched file (grep-verified against the build log). Deployed
+via copyover, gdb re-attached. New tests/smoke_test_sedit.py (built on
+mud_test_utils.py) covers the level gate on both entry points, a
+field-edit-and-save round-trip verified by re-opening the editor fresh,
+and an add/remove pass through the shoptype submenu against the real
+shop #104 -- restores shop 104's real profit_buy (1.15) and shoptype
+rows (50, 52) afterward so the test has no side effects on live data.
+Ran 3x clean. One test-authoring bug caught and fixed along the way:
+the shoptype submenu (CONN_EDSHOP_SHOPTYPE) is its own state, separate
+from the top menu (CONN_EDSHOP_MENU) -- the first cleanup draft tried
+to select field "1" right after leaving the submenu without an explicit
+"q" step first, which the submenu's own state machine correctly
+absorbed as "go back" rather than "select field 1", silently
+discarding the next line ("1.15") as a menu-number pick instead of a
+typed value. Fixed by sending an explicit "q" to return to the top
+menu before continuing. Re-ran tests/smoke_test_shop_resell.py as an
+adjacent regression check on the existing shop commands -- clean pass,
+confirming sedit's shop_repo.c changes didn't disturb list/buy/sell.

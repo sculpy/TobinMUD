@@ -16,6 +16,7 @@
 #include "player_repo.h"
 #include "room.h"
 #include "room_repo.h"
+#include "shop_repo.h"
 #include "social_repo.h"
 #include "suit_repo.h"
 #include "trigger_repo.h"
@@ -132,6 +133,34 @@ typedef enum {
     CONN_EDZONE_RANGE,
     CONN_EDZONE_BUILDER,
     CONN_EDZONE_QUIT_CONFIRM,
+    /* Menu-driven shop editor (sedit / `edit shop`, 58+) -- same snapshot-
+     * working-copy shape as edzone (a shop isn't kept resident in memory):
+     * targeted by the immortal's OWN current room (shop_repo_find_by_room()),
+     * not a shop_nr argument, so there's no separate "no such shop" name/
+     * number to type -- an immortal just walks into the shop room first.
+     * (S)ave writes every scalar column (pricing, keeper, room, the six
+     * canned messages, stable/repair/bank flags) back at once; the
+     * accepted-item-types submenu (CONN_EDSHOP_SHOPTYPE and its ADD/REMOVE
+     * children) applies each add/remove immediately instead, same
+     * "membership is an atomic toggle" precedent as CONN_EDZONE_BUILDER.
+     * See descriptor_edshop_begin() and the CONN_EDSHOP_* cases in
+     * descriptor.c. */
+    CONN_EDSHOP_MENU,
+    CONN_EDSHOP_PROFIT_BUY,
+    CONN_EDSHOP_PROFIT_SELL,
+    CONN_EDSHOP_KEEPER,
+    CONN_EDSHOP_ROOM,
+    CONN_EDSHOP_NO_SUCH_ITEM1,
+    CONN_EDSHOP_NO_SUCH_ITEM2,
+    CONN_EDSHOP_DO_NOT_BUY,
+    CONN_EDSHOP_MISSING_CASH1,
+    CONN_EDSHOP_MESSAGE_BUY,
+    CONN_EDSHOP_MESSAGE_SELL,
+    CONN_EDSHOP_FLAGS,
+    CONN_EDSHOP_SHOPTYPE,
+    CONN_EDSHOP_SHOPTYPE_ADD,
+    CONN_EDSHOP_SHOPTYPE_REMOVE,
+    CONN_EDSHOP_QUIT_CONFIRM,
     /* Menu-driven class/race balance editor (`balance class|race <name>`,
      * user 2026-07-12: "a balance command (60) where you take args:
      * balance <class|race> that is menu driven to adjust balance
@@ -676,6 +705,16 @@ typedef struct descriptor {
     zone_t edzone_work;
     bool edzone_dirty;
 
+    /* Menu-driven shop editor working copy (CONN_EDSHOP_*). DB snapshot
+     * (shop_repo_find_by_room()), same shape as edzone_work -- a shop row
+     * isn't kept resident like a room is. Accepted-item-types (shoptype)
+     * membership is NOT part of the working copy -- same "applies
+     * immediately, atomic toggle" precedent as edzone_work's builder
+     * assignment above -- so only the scalar shop_t columns participate
+     * in dirty/Save. */
+    shop_t edshop_work;
+    bool edshop_dirty;
+
     /* Menu-driven object-prototype editor working copy (CONN_OEDIT_*).
      * DB snapshot (obj_proto_load()), same shape as edzone_work -- a
      * prototype row isn't kept resident like a room is. */
@@ -878,6 +917,13 @@ bool descriptor_edplayer_begin(descriptor_t *d, const char *name);
  * CONN_EDZONE_MENU). Returns false if no such zone exists. Caller
  * (cmd_edzone.c) owns the level gate + zone_can_edit() ownership check. */
 bool descriptor_edzone_begin(descriptor_t *d, int zone_nr);
+
+/* Opens the menu-driven shop editor on the shop operating out of room
+ * `room_vnum` (the immortal's own current room -- sedit takes no target
+ * argument), copies its DB row into the descriptor's working copy, and
+ * shows the edshop menu (entering CONN_EDSHOP_MENU). Returns false if
+ * room_vnum has no shop. Caller (cmd_sedit.c) owns the level gate. */
+bool descriptor_edshop_begin(descriptor_t *d, int room_vnum);
 
 /* Opens the menu-driven object-prototype editor on `vnum`, copies its DB
  * row into the descriptor's working copy, and shows the oedit menu

@@ -2201,6 +2201,126 @@ bool descriptor_edzone_begin(descriptor_t *d, int zone_nr) {
     return true;
 }
 
+/* Renders the CONN_EDSHOP_MENU top-level screen for the edshop_work
+ * snapshot: pricing, keeper/room vnums, the six canned messages, the
+ * stable/repair/bank flags, and a submenu entry for accepted item types,
+ * plus an "* unsaved changes *" marker -- same shape as show_edzone_menu(). */
+static void show_edshop_menu(descriptor_t *d) {
+    shop_t *w = &d->edshop_work;
+    char flagbuf[64];
+    int fp = 0;
+    flagbuf[0] = '\0';
+    if (w->is_stable)
+        fp += snprintf(flagbuf + fp, sizeof(flagbuf) - (size_t)fp, "%sstable", fp ? " " : "");
+    if (w->is_repair)
+        fp += snprintf(flagbuf + fp, sizeof(flagbuf) - (size_t)fp, "%srepair", fp ? " " : "");
+    if (w->is_bank)
+        fp += snprintf(flagbuf + fp, sizeof(flagbuf) - (size_t)fp, "%sbank", fp ? " " : "");
+    if (fp == 0)
+        snprintf(flagbuf, sizeof(flagbuf), "none");
+
+    char out[2560];
+    snprintf(out, sizeof(out),
+             "\r\n<c>Editing shop:<z> #%d (room %d)\r\n\r\n"
+             "   <c>1)<z> <p>Buy price multiplier<z>: %.2f      <c>2)<z> <p>Sell price multiplier<z>: %.2f\r\n"
+             "   <c>3)<z> <p>Keeper mob vnum<z>: %d              <c>4)<z> <p>Room vnum<z>: %d\r\n"
+             "   <c>5)<z> <p>\"No such item\" (buyer) msg<z>: %s\r\n"
+             "   <c>6)<z> <p>\"No such item\" (seller) msg<z>: %s\r\n"
+             "   <c>7)<z> <p>\"Won't buy this\" msg<z>: %s\r\n"
+             "   <c>8)<z> <p>\"Can't afford\" msg<z>: %s\r\n"
+             "   <c>9)<z> <p>Buy success msg<z>: %s\r\n"
+             "   <c>10)<z> <p>Sell success msg<z>: %s\r\n\r\n"
+             "   <c>F)<z> <p>Special flags<z>: %s\r\n"
+             "   <c>T)<z> <p>Accepted item types<z>\r\n\r\n"
+             "   <c>S)<z> <p>Save<z>    <c>Q)<z> <p>Quit<z>%s\r\n[edit shop] ",
+             w->shop_nr, w->in_room,
+             w->profit_buy, w->profit_sell,
+             w->keeper, w->in_room,
+             w->no_such_item1, w->no_such_item2, w->do_not_buy, w->missing_cash1,
+             w->message_buy, w->message_sell,
+             flagbuf,
+             d->edshop_dirty ? "\r\n   <c>* unsaved changes *<z>" : "");
+    descriptor_send(d, out);
+    d->state = CONN_EDSHOP_MENU;
+}
+
+/* Renders the CONN_EDSHOP_SHOPTYPE submenu: every raw itemTypeT the shop
+ * currently accepts (shop_repo_shoptype_list()), by number and name
+ * (obj_type_name()), plus Add/Remove/Back. Add/Remove apply immediately
+ * against `shoptype` rather than the working copy -- same "membership is
+ * an atomic toggle" precedent as CONN_EDZONE_BUILDER. */
+static void show_edshop_shoptype_menu(descriptor_t *d) {
+    int types[SHOP_TYPE_MAX];
+    int count = shop_repo_shoptype_list(d->edshop_work.shop_nr, types, SHOP_TYPE_MAX);
+
+    char out[2048];
+    size_t n = (size_t)snprintf(out, sizeof(out),
+        "\r\nAccepted item types for shop #%d:\r\n", d->edshop_work.shop_nr);
+    if (count == 0) {
+        n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0, "  (none)\r\n");
+    } else {
+        for (int i = 0; i < count; i++)
+            n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
+                "  #%-2d %s\r\n", types[i], obj_type_name(types[i]));
+    }
+    if (n < sizeof(out))
+        snprintf(out + n, sizeof(out) - n,
+            "\r\n   <c>A)<z> Add a type   <c>R)<z> Remove a type   <c>Q)<z> Back\r\n[edit shop types] ");
+    descriptor_send(d, out);
+    d->state = CONN_EDSHOP_SHOPTYPE;
+}
+
+/* Renders the CONN_EDSHOP_SHOPTYPE_ADD picker -- every raw itemTypeT name,
+ * two per line, same listing shape as show_oedit_type_picker(). */
+static void show_edshop_shoptype_add_picker(descriptor_t *d) {
+    char out[2560];
+    size_t n = (size_t)snprintf(out, sizeof(out),
+        "\r\nItem types -- enter a number to add, blank to cancel:\r\n");
+    int count = obj_item_type_count();
+    for (int t = 0; t < count; t++) {
+        n += (size_t)snprintf(out + n, sizeof(out) > n ? sizeof(out) - n : 0,
+            "  <c>%2d<z> %-16s%s", t, obj_type_name(t), (t % 2 == 1) ? "\r\n" : "");
+        if (n >= sizeof(out))
+            break;
+    }
+    if (count % 2 != 0 && n < sizeof(out))
+        n += (size_t)snprintf(out + n, sizeof(out) - n, "\r\n");
+    if (n < sizeof(out))
+        snprintf(out + n, sizeof(out) - n, "type> ");
+    descriptor_send(d, out);
+    d->state = CONN_EDSHOP_SHOPTYPE_ADD;
+}
+
+/* Commits the edshop working copy's scalar properties back to the DB. */
+static void edshop_save(descriptor_t *d) {
+    if (!shop_repo_save(&d->edshop_work)) {
+        descriptor_send(d, "Save failed -- the DB rejected part of it.\r\n");
+        return;
+    }
+    d->edshop_dirty = false;
+    descriptor_send(d, "Shop saved.\r\n");
+}
+
+/* Quits the shop editor back to CONN_PLAYING, discarding any unsaved
+ * working-copy changes, and flushes any held messages that piled up. */
+static void edshop_leave(descriptor_t *d) {
+    d->state = CONN_PLAYING;
+    d->edshop_dirty = false;
+    descriptor_send(d, "Leaving the shop editor.\r\n");
+    descriptor_editor_exit_notice(d);
+}
+
+/* See descriptor.h. */
+bool descriptor_edshop_begin(descriptor_t *d, int room_vnum) {
+    shop_t loaded;
+    if (!shop_repo_find_by_room(room_vnum, &loaded))
+        return false;
+    d->edshop_work = loaded;
+    d->edshop_dirty = false;
+    show_edshop_menu(d);
+    return true;
+}
+
 /* What val[0..3] mean for the CURRENT item type -- shown inline next to
  * "Four values" so a builder doesn't have to go dig up obj.h's own doc
  * comment to know what they're actually setting (user 2026-07-25: "should
@@ -4781,6 +4901,280 @@ static bool handle_line(descriptor_t *d, const char *line) {
                 edzone_leave(d);
             } else {
                 show_edzone_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_EDSHOP_MENU: {
+            if (isdigit((unsigned char)line[0])) {
+                switch (atoi(line)) {
+                    case 1:
+                        descriptor_send(d, "\r\nEnter new buy price multiplier (blank to cancel): ");
+                        d->state = CONN_EDSHOP_PROFIT_BUY;
+                        break;
+                    case 2:
+                        descriptor_send(d, "\r\nEnter new sell price multiplier (blank to cancel): ");
+                        d->state = CONN_EDSHOP_PROFIT_SELL;
+                        break;
+                    case 3:
+                        descriptor_send(d, "\r\nEnter new keeper mob vnum (blank to cancel): ");
+                        d->state = CONN_EDSHOP_KEEPER;
+                        break;
+                    case 4:
+                        descriptor_send(d, "\r\nEnter new room vnum (blank to cancel): ");
+                        d->state = CONN_EDSHOP_ROOM;
+                        break;
+                    case 5:
+                        descriptor_send(d, "\r\nEnter new \"no such item\" (buyer) message (blank to cancel): ");
+                        d->state = CONN_EDSHOP_NO_SUCH_ITEM1;
+                        break;
+                    case 6:
+                        descriptor_send(d, "\r\nEnter new \"no such item\" (seller) message (blank to cancel): ");
+                        d->state = CONN_EDSHOP_NO_SUCH_ITEM2;
+                        break;
+                    case 7:
+                        descriptor_send(d, "\r\nEnter new \"won't buy this\" message (blank to cancel): ");
+                        d->state = CONN_EDSHOP_DO_NOT_BUY;
+                        break;
+                    case 8:
+                        descriptor_send(d, "\r\nEnter new \"can't afford\" message (blank to cancel): ");
+                        d->state = CONN_EDSHOP_MISSING_CASH1;
+                        break;
+                    case 9:
+                        descriptor_send(d, "\r\nEnter new buy success message, contains %d for price paid (blank to cancel): ");
+                        d->state = CONN_EDSHOP_MESSAGE_BUY;
+                        break;
+                    case 10:
+                        descriptor_send(d, "\r\nEnter new sell success message, contains %d for price received (blank to cancel): ");
+                        d->state = CONN_EDSHOP_MESSAGE_SELL;
+                        break;
+                    default:
+                        descriptor_send(d, "Pick a menu number (1-10), or F/T/S/Q.\r\n");
+                        show_edshop_menu(d);
+                        break;
+                }
+                return true;
+            }
+            switch ((char)toupper((unsigned char)line[0])) {
+                case 'F':
+                    descriptor_send(d,
+                        "\r\nToggle which flag -- (1) stable (2) repair (3) bank, blank to cancel: ");
+                    d->state = CONN_EDSHOP_FLAGS;
+                    break;
+                case 'T':
+                    show_edshop_shoptype_menu(d);
+                    break;
+                case 'S':
+                    edshop_save(d);
+                    show_edshop_menu(d);
+                    break;
+                case 'Q':
+                    if (d->edshop_dirty) {
+                        descriptor_send(d,
+                            "\r\nYou have unsaved changes. (S)ave, (D)iscard, (C)ancel: ");
+                        d->state = CONN_EDSHOP_QUIT_CONFIRM;
+                    } else {
+                        edshop_leave(d);
+                    }
+                    break;
+                default:
+                    descriptor_send(d, "Pick a menu number (1-10), or F/T/S/Q.\r\n");
+                    show_edshop_menu(d);
+                    break;
+            }
+            return true;
+        }
+
+        case CONN_EDSHOP_PROFIT_BUY: {
+            if (line[0]) {
+                char *end;
+                double v = strtod(line, &end);
+                if (end != line && v > 0) {
+                    d->edshop_work.profit_buy = v;
+                    d->edshop_dirty = true;
+                } else {
+                    descriptor_send(d, "Enter a positive number.\r\n");
+                }
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_PROFIT_SELL: {
+            if (line[0]) {
+                char *end;
+                double v = strtod(line, &end);
+                if (end != line && v > 0) {
+                    d->edshop_work.profit_sell = v;
+                    d->edshop_dirty = true;
+                } else {
+                    descriptor_send(d, "Enter a positive number.\r\n");
+                }
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_KEEPER: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->edshop_work.keeper = (int)v;
+                    d->edshop_dirty = true;
+                } else {
+                    descriptor_send(d, "Enter a mob vnum.\r\n");
+                }
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_ROOM: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    d->edshop_work.in_room = (int)v;
+                    d->edshop_dirty = true;
+                } else {
+                    descriptor_send(d, "Enter a room vnum.\r\n");
+                }
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_NO_SUCH_ITEM1: {
+            if (line[0]) {
+                snprintf(d->edshop_work.no_such_item1, SHOP_MSG_LEN, "%s", line);
+                d->edshop_dirty = true;
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_NO_SUCH_ITEM2: {
+            if (line[0]) {
+                snprintf(d->edshop_work.no_such_item2, SHOP_MSG_LEN, "%s", line);
+                d->edshop_dirty = true;
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_DO_NOT_BUY: {
+            if (line[0]) {
+                snprintf(d->edshop_work.do_not_buy, SHOP_MSG_LEN, "%s", line);
+                d->edshop_dirty = true;
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_MISSING_CASH1: {
+            if (line[0]) {
+                snprintf(d->edshop_work.missing_cash1, SHOP_MSG_LEN, "%s", line);
+                d->edshop_dirty = true;
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_MESSAGE_BUY: {
+            if (line[0]) {
+                snprintf(d->edshop_work.message_buy, SHOP_MSG_LEN, "%s", line);
+                d->edshop_dirty = true;
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_MESSAGE_SELL: {
+            if (line[0]) {
+                snprintf(d->edshop_work.message_sell, SHOP_MSG_LEN, "%s", line);
+                d->edshop_dirty = true;
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_FLAGS: {
+            if (line[0]) {
+                switch (atoi(line)) {
+                    case 1:
+                        d->edshop_work.is_stable = !d->edshop_work.is_stable;
+                        d->edshop_dirty = true;
+                        break;
+                    case 2:
+                        d->edshop_work.is_repair = !d->edshop_work.is_repair;
+                        d->edshop_dirty = true;
+                        break;
+                    case 3:
+                        d->edshop_work.is_bank = !d->edshop_work.is_bank;
+                        d->edshop_dirty = true;
+                        break;
+                    default:
+                        descriptor_send(d, "Pick 1, 2, or 3.\r\n");
+                        break;
+                }
+            }
+            show_edshop_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_SHOPTYPE: {
+            char c = (char)toupper((unsigned char)line[0]);
+            if (c == 'A') {
+                show_edshop_shoptype_add_picker(d);
+            } else if (c == 'R') {
+                descriptor_send(d, "\r\nEnter the type number to remove (blank to cancel): ");
+                d->state = CONN_EDSHOP_SHOPTYPE_REMOVE;
+            } else {
+                show_edshop_menu(d);
+            }
+            return true;
+        }
+
+        case CONN_EDSHOP_SHOPTYPE_ADD: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0 && strcmp(obj_type_name((int)v), "?") != 0) {
+                    shop_repo_shoptype_add(d->edshop_work.shop_nr, (int)v);
+                    descriptor_send(d, "Added.\r\n");
+                } else {
+                    descriptor_send(d, "Pick a type number from the list.\r\n");
+                }
+            }
+            show_edshop_shoptype_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_SHOPTYPE_REMOVE: {
+            if (line[0]) {
+                char *end;
+                long v = strtol(line, &end, 10);
+                if (end != line && v >= 0) {
+                    shop_repo_shoptype_remove(d->edshop_work.shop_nr, (int)v);
+                    descriptor_send(d, "Removed.\r\n");
+                } else {
+                    descriptor_send(d, "Enter a type number.\r\n");
+                }
+            }
+            show_edshop_shoptype_menu(d);
+            return true;
+        }
+
+        case CONN_EDSHOP_QUIT_CONFIRM: {
+            char c = (char)toupper((unsigned char)line[0]);
+            if (c == 'S') {
+                edshop_save(d);
+                edshop_leave(d);
+            } else if (c == 'D') {
+                edshop_leave(d);
+            } else {
+                show_edshop_menu(d);
             }
             return true;
         }

@@ -198,6 +198,7 @@ bool cmd_mudstats(descriptor_t *d, const char *args);
 bool cmd_multiplay(descriptor_t *d, const char *args);
 bool cmd_setsev(descriptor_t *d, const char *args);
 bool cmd_pedit(descriptor_t *d, const char *args);
+bool cmd_sedit(descriptor_t *d, const char *args);
 bool cmd_accedit(descriptor_t *d, const char *args);
 bool cmd_socedit(descriptor_t *d, const char *args);
 bool cmd_set(descriptor_t *d, const char *args);
@@ -416,6 +417,10 @@ bool look_at_target(descriptor_t *d, const char *args);
 /* `edplayer`: Administrator (58+), matching `promote`'s tier -- it's an
  * admin superset of promote (TODO.md). */
 #define EDPLAYER_MIN_LEVEL 58
+
+/* `sedit` (menu-driven shop editor): Administrator (58+), same tier as
+ * edplayer/edaccount -- user request, 2026-08-24 ("58+ access only"). */
+#define EDSHOP_MIN_LEVEL 58
 
 /* `edaccount`: Administrator (58+), same tier as edplayer -- both are
  * admin-only account/character management, no self-service equivalent. */

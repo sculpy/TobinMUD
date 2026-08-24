@@ -23,7 +23,8 @@ bool shop_repo_find_by_room(int room_vnum, shop_t *out) {
     if (db_query(db,
                 "select shop_nr, profit_buy, profit_sell, keeper, in_room, "
                 "no_such_item1, no_such_item2, do_not_buy, missing_cash1, "
-                "message_buy, message_sell from shop where in_room=%i limit 1",
+                "message_buy, message_sell, is_stable, is_repair, is_bank "
+                "from shop where in_room=%i limit 1",
                 room_vnum)
         && db_fetch_row(db)) {
         out->shop_nr = atoi(db_get(db, "shop_nr"));
@@ -37,11 +38,75 @@ bool shop_repo_find_by_room(int room_vnum, shop_t *out) {
         snprintf(out->missing_cash1, SHOP_MSG_LEN, "%s", db_get(db, "missing_cash1"));
         snprintf(out->message_buy, SHOP_MSG_LEN, "%s", db_get(db, "message_buy"));
         snprintf(out->message_sell, SHOP_MSG_LEN, "%s", db_get(db, "message_sell"));
+        out->is_stable = atoi(db_get(db, "is_stable")) != 0;
+        out->is_repair = atoi(db_get(db, "is_repair")) != 0;
+        out->is_bank = atoi(db_get(db, "is_bank")) != 0;
         found = true;
     }
 
     db_close(db);
     return found;
+}
+
+/* Updates every sedit-editable column for an existing shop. See
+ * shop_repo.h. */
+bool shop_repo_save(const shop_t *s) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db,
+        "update shop set profit_buy=%f, profit_sell=%f, keeper=%i, in_room=%i, "
+        "no_such_item1='%s', no_such_item2='%s', do_not_buy='%s', "
+        "missing_cash1='%s', message_buy='%s', message_sell='%s', "
+        "is_stable=%i, is_repair=%i, is_bank=%i where shop_nr=%i",
+        s->profit_buy, s->profit_sell, s->keeper, s->in_room,
+        s->no_such_item1, s->no_such_item2, s->do_not_buy, s->missing_cash1,
+        s->message_buy, s->message_sell,
+        s->is_stable ? 1 : 0, s->is_repair ? 1 : 0, s->is_bank ? 1 : 0,
+        s->shop_nr);
+    db_close(db);
+    return ok;
+}
+
+/* Raw itemTypeT values shop_nr currently accepts, type-ascending. See
+ * shop_repo.h. */
+int shop_repo_shoptype_list(int shop_nr, int *out, int max) {
+    int count = 0;
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return 0;
+
+    if (db_query(db, "select type from shoptype where shop_nr=%i order by type", shop_nr)) {
+        while (count < max && db_fetch_row(db)) {
+            out[count] = atoi(db_get(db, "type"));
+            count++;
+        }
+    }
+
+    db_close(db);
+    return count;
+}
+
+/* Adds one accepted raw item type to a shop. See shop_repo.h. */
+bool shop_repo_shoptype_add(int shop_nr, int raw_type) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "insert ignore into shoptype (shop_nr, type) values (%i, %i)",
+                        shop_nr, raw_type);
+    db_close(db);
+    return ok;
+}
+
+/* Removes one accepted raw item type from a shop. See shop_repo.h. */
+bool shop_repo_shoptype_remove(int shop_nr, int raw_type) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "delete from shoptype where shop_nr=%i and type=%i",
+                        shop_nr, raw_type);
+    db_close(db);
+    return ok;
 }
 
 /* True if shop_nr's shoptype rows include an item type that maps to the

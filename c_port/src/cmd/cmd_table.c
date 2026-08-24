@@ -514,6 +514,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "medit",    cmd_edmobile,  "Edit a mob prototype (medit [vnum]).", BUILD_MIN_LEVEL },
     { "trigedit", cmd_edtrigger, "Edit a trigger (trigedit [vnum]).", BUILD_MIN_LEVEL },
     { "pedit",    cmd_pedit,  "Edit a player (pedit <name>).", EDPLAYER_MIN_LEVEL },
+    { "sedit",    cmd_sedit,  "Edit the shop in your current room (sedit).", EDSHOP_MIN_LEVEL },
     { "accedit",  cmd_accedit, "Edit an account (accedit <name>).", EDACCOUNT_MIN_LEVEL },
     { "hedit",    cmd_hedit,     "Edit a help topic (hedit <name>).", HELP_EDIT_MIN_LEVEL },
     { "addnews",  cmd_addnews,   "Post/edit news.", ADDNEWS_MIN_LEVEL },

@@ -7,15 +7,16 @@
 
 #include <stdbool.h>
 
-/* Read-only DB access for the `shop`/`shoptype` tables -- real seeded data
- * from the original SneezyMUD import (264 shops, each with its own
- * keeper mob/room/prices/flavor text; `shoptype` lists which raw itemTypeT
+/* DB access for the `shop`/`shoptype` tables -- real seeded data from the
+ * original SneezyMUD import (264 shops, each with its own keeper
+ * mob/room/prices/flavor text; `shoptype` lists which raw itemTypeT
  * categories each one buys). Tobin's shop model is deliberately simpler
  * than the original's: no temper/haggling, no open/close hours
  * enforcement yet, GOLD-COIN-ONLY (message_buy/message_sell were
  * originally "%d talens" -- bulk-updated to "%d gold" to match, see
  * TODO.md). See cmd_shop.c for the `list`/`buy`/`sell` commands that
- * consume this. */
+ * consume this, and sedit (descriptor.c) for the menu-driven editor that
+ * writes it -- mostly read-only otherwise, since shops are seed data. */
 
 #define SHOP_MSG_LEN 128
 
@@ -31,11 +32,39 @@ typedef struct {
     char missing_cash1[SHOP_MSG_LEN]; /* buyer can't afford it */
     char message_buy[SHOP_MSG_LEN];   /* success message, "%d" -> price paid */
     char message_sell[SHOP_MSG_LEN];  /* success message, "%d" -> price received */
+    bool is_stable;  /* see shop_repo_is_stable() */
+    bool is_repair;  /* see shop_repo_is_repair() */
+    bool is_bank;    /* see shop_repo_is_bank() */
 } shop_t;
 
 /* Finds the shop (if any) operating out of room `room_vnum`. Returns false
- * (out untouched) if no shop.in_room matches. */
+ * (out untouched) if no shop.in_room matches. Includes is_stable/is_repair/
+ * is_bank (added for sedit's working copy, see descriptor_edshop_begin()) --
+ * existing callers that only cared about pricing/messages are unaffected. */
 bool shop_repo_find_by_room(int room_vnum, shop_t *out);
+
+/* Persists every sedit-editable column (pricing, keeper, room, the six
+ * canned messages, and the stable/repair/bank flags) for shop `s->shop_nr`
+ * back to `shop`. Shops are seed data, created via the original import --
+ * this is a plain UPDATE, not an upsert, same precedent as
+ * zone_repo_save(). */
+bool shop_repo_save(const shop_t *s);
+
+#define SHOP_TYPE_MAX 32
+
+/* Raw itemTypeT values (see obj_type_name()) shop `shop_nr` currently
+ * accepts, `type`-ascending, for sedit's "Accepted item types" submenu.
+ * Returns the count loaded (capped at max). */
+int shop_repo_shoptype_list(int shop_nr, int *out, int max);
+
+/* Adds one accepted raw item type to a shop -- INSERT IGNORE, so re-adding
+ * an already-accepted type (composite PK shop_nr+type) is a harmless
+ * no-op rather than a DB error. */
+bool shop_repo_shoptype_add(int shop_nr, int raw_type);
+
+/* Removes one accepted raw item type from a shop. A no-op if it wasn't
+ * accepted to begin with. */
+bool shop_repo_shoptype_remove(int shop_nr, int raw_type);
 
 /* True if shop `shop_nr` deals in `category` (checked against every
  * shoptype row for that shop, each collapsed from the raw seeded

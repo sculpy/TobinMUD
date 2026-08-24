@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-24 (19). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-24 (20). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -10,7 +10,7 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 2026-07-11, superseding the old separate `ed<noun>` verbs from
 2026-07-05): `edit room` (rooms), `edit zone` (zones), `edit help`
 (help), `edit news` (news), `edit wiznews` (wiznews), `edit player`
-(players); future `edit object`/`edit mob`/`edit account`. Read-only
+(players), `edit shop` / `sedit` (shops, 58+, Session 198). Read-only
 viewers keep plain names (`news`, `wiznews`).
 
 

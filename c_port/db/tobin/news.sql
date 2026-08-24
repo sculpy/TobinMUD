@@ -732,3 +732,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'More Merchants Now Buy Raw Materials, Gems, and Organics', 'A dozen more shops -- smithies and forges, jewelers, a tannery, and a couple of alchemists -- will now buy the raw materials, gemstones, and organic components monsters sometimes drop.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Immortals Can Now Edit Shops Directly', 'A new administrator tool lets the TobinMUD staff adjust merchant pricing, messages, and what a shop will buy, right from the room the shop operates in -- expect quicker fixes to shop quirks going forward.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

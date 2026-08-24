@@ -37,7 +37,7 @@ bool cmd_edit(descriptor_t *d, const char *args) {
     int n = sscanf(args, "%31s", noun);
     if (n != 1) {
         descriptor_send(d,
-            "Usage: edit <room|zone|object|mob|player|account|help|news|wiznews|rules|social|trigger|suit> [args]\r\n");
+            "Usage: edit <room|zone|object|mob|player|shop|account|help|news|wiznews|rules|social|trigger|suit> [args]\r\n");
         return true;
     }
 
@@ -64,6 +64,13 @@ bool cmd_edit(descriptor_t *d, const char *args) {
             return true;
         }
         return cmd_pedit(d, rest);
+    }
+    if (strcasecmp(noun, "shop") == 0) {
+        if (level < EDSHOP_MIN_LEVEL) {
+            descriptor_send(d, "Command not found, maybe submit an idea if you believe TobinMUD should have it.\r\n");
+            return true;
+        }
+        return cmd_sedit(d, rest);
     }
     if (strcasecmp(noun, "account") == 0) {
         if (level < EDACCOUNT_MIN_LEVEL) {
@@ -116,6 +123,6 @@ bool cmd_edit(descriptor_t *d, const char *args) {
     }
 
     descriptor_send(d,
-        "Usage: edit <room|zone|object|mob|player|account|help|news|wiznews|rules|social|suit> [args]\r\n");
+        "Usage: edit <room|zone|object|mob|player|shop|account|help|news|wiznews|rules|social|suit> [args]\r\n");
     return true;
 }
