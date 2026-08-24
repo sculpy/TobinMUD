@@ -16,6 +16,7 @@
 #include "combat.h"
 #include "fall.h"
 #include "mob_ai.h"
+#include "monk_quest.h"
 #include "player_repo.h"
 #include "room.h"
 #include "room_repo.h"
@@ -56,6 +57,7 @@ static void run_room_and_greet_triggers(being_t *ch, room_t *to) {
         for (int i = 0; i < mn; i++)
             trigger_run(&mtrigs[i], ch, to, capbuf[0] ? capbuf : NULL);
     }
+    monk_quest_on_room_enter(ch, to);
 }
 
 /* Substitutes `$d` (a direction word) and `$p` (the mover's gender_possess()

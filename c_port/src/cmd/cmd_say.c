@@ -13,6 +13,7 @@
 #include "combat.h"
 #include "language.h"
 #include "mob_ai.h"
+#include "monk_quest.h"
 #include "room.h"
 #include "socials.h"
 #include "suit.h"
@@ -238,6 +239,7 @@ bool cmd_say(descriptor_t *d, const char *args) {
 
     /* Speaking a tongue trains it (learn-by-doing), once per utterance. */
     language_speaker_practice(d->character, lang);
+    monk_quest_on_say(d->character, r, args);
 
     run_speech_triggers(d->character, r, args);
     try_pet_command(d->character, r, args);

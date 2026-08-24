@@ -18,6 +18,7 @@
 #include "extraction.h"
 #include "log.h"
 #include "material.h"
+#include "monk_quest.h"
 #include "obj.h"
 #include "obj_repo.h"
 #include "player_repo.h"
@@ -549,8 +550,10 @@ static bool combat_strike(being_t *attacker, being_t *defender) {
         else if (strcmp(verb, "stab") == 0 || strcmp(verb, "pierce") == 0)
             prof_name = "pierce proficiency";
         const skill_def_t *prof_sk = skill_find(attacker->char_class, prof_name, false);
-        if (prof_sk)
+        if (prof_sk) {
             skill_learn_from_doing(attacker, prof_sk);
+            monk_quest_check_combat_mastery(attacker);
+        }
     }
 
     /* Kubo (Monk, spell/skill functional-completeness audit continued:
@@ -1632,6 +1635,7 @@ static void combat_award_hit_xp(being_t *attacker, being_t *victim, int dmg) {
              * common case; a level-up's max_hp/practice-point payoff is the
              * one thing worth an extra write for immediately. */
             player_progress_save(m->player_id, &m->progress);
+            monk_quest_on_levelup(m);
         }
     }
 }
@@ -1987,6 +1991,13 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         if (loser_is_pc)
             player_inventory_save(loser->player_id, loser);
 
+        /* Monk sash quest chain (leper kill counter, guaranteed shark-corpse
+         * dog collar, wandering-monk trial) -- winner-is-a-questing-Monk and
+         * loser-vnum gating both live inside monk_quest_on_mob_kill() itself;
+         * called here (mob kills only, `corpse` already fully populated,
+         * before autoloot) per monk_quest.h's own doc comment. */
+        if (winner->base.kind == THING_PC && !being_is_immortal(winner) && !loser_is_pc)
+            monk_quest_on_mob_kill(winner, (int)loser->base.id, corpse);
         /* Autoloot (user 2026-07-12: "an autoloot toggle where a player
          * upon opponent death automatically loots all from the corpse")
          * -- winner's own PLR_AUTOLOOT toggle, checked here right after

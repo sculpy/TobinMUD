@@ -733,3 +733,8 @@ CREATE TABLE IF NOT EXISTS `player_quest_item_claimed` (
   `claimed_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`player_id`, `quest_name`, `stage`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+-- Monk sash quest chain (white belt through black sash) progress bits +
+-- purple sash leper-kill counter, player-scoped (monk_quest.h/.c).
+ALTER TABLE `player`
+  ADD COLUMN IF NOT EXISTS `monk_quest_flags` int(10) unsigned NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS `monk_purple_kills` tinyint(3) unsigned NOT NULL DEFAULT 0;

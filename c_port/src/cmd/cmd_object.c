@@ -14,6 +14,7 @@
 #include "combat.h"
 #include "log.h"
 #include "mob_ai.h"
+#include "monk_quest.h"
 #include "obj.h"
 #include "spell_component.h"
 #include "obj_repo.h"
@@ -1277,5 +1278,6 @@ bool cmd_give(descriptor_t *d, const char *args) {
              being_display_name_cap(ch, capbuf, sizeof(capbuf)), label, being_display_name(vict));
     descriptor_room_echo(ch->base.roomp, ch, msg);
     mob_ai_notify_given_item(vict);
+    monk_quest_on_give(ch, vict, item);
     return true;
 }

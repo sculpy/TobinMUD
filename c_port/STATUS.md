@@ -1,5 +1,29 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-24 -- Session 195 (DO droplet, production port 4000):
+**Committed the Monk sash quest chain (white through black), found fully
+built and passing but uncommitted on the droplet from a prior session with
+no STATUS.md/TODO.md record at all.** Verified before touching anything:
+clean zero-warning rebuild, all 7 stages wired (monk_quest.c/.h, hooks in
+cmd_say.c/cmd_object.c/cmd_move.c/combat.c/player_repo.c, a
+`monk_quest_flags`/`monk_purple_kills` migration already in
+tobin_migrations.sql), and its own smoke_test_monk_quest.py (33 checks,
+white/yellow/purple end-to-end plus an eligibility-gating spot-check) green
+against a fresh copyover.
+  - Added the one gap found: sash/belt awards had flavor dialogue but no
+    uniform system announcement. `award_item()` (monk_quest.c) now takes a
+    `label` and always sends "*** You have earned the <label>! ***" on
+    every award (all 7 stages), removing the one duplicate ad-hoc phrase
+    green sash's own room-fall handler had instead.
+  - Re-verified with a clean rebuild, copyover (one player connected,
+    survived), and a rerun of smoke_test_monk_quest.py -- all 33 checks
+    still pass.
+  - Added a `news.sql` entry announcing the sash chain to players
+    (`db/tobin/news.sql`), applied directly to the live DB.
+  - Committed as the first record of this feature; `tmp_monk_quest_spec.md`
+    (the SneezyMUD reverse-engineering doc this was built from) committed
+    alongside it as reference documentation.
+
 Last updated: 2026-08-24 -- Session 194 (DO droplet, production port 4000):
 **Fixed the Session 192 zone-2/zone-38 room restore -- it had NOT actually
 restored exits, despite that session's own STATUS.md claiming otherwise.**

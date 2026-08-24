@@ -782,6 +782,15 @@ typedef struct being {
 
     /* Player flags bitmask (PLR_*), player.pflags. */
     int pflags;
+    /* Monk sash quest-chain progress (white belt through black sash --
+     * see monk_quest.h), player.monk_quest_flags. A dedicated bitfield
+     * scoped to this one quest chain rather than a generic multi-quest
+     * toggle system (SneezyMUD's ~200-toggle player.h field) -- nothing
+     * else needs quest-bit storage yet, so this stays purpose-built until
+     * a second quest chain actually needs the same shape. */
+    unsigned int monk_quest_flags;
+    /* Purple sash leper kill counter (0-5), player.monk_purple_kills. */
+    unsigned char monk_purple_kills;
 
     /* Player-settable title shown after the name in who (player.title). Empty
      * = no title. Set via the `title` command (cmd_title.c). The original's

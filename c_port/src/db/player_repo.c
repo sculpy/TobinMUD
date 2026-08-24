@@ -58,7 +58,7 @@ being_t *player_load(const char *name, long account_id) {
 
     being_t *b = NULL;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
-                      "title, gender, appearance, pflags, poofin, poofout, bamfin, bamfout, "
+                      "title, gender, appearance, pflags, monk_quest_flags, monk_purple_kills, poofin, poofout, bamfin, bamfout, "
                       "class, race, territory, height, weight, start_age from player "
                       "where name='%s' and account_id=%i",
                  name, (int)account_id)
@@ -72,6 +72,8 @@ being_t *player_load(const char *name, long account_id) {
             b->gender = (gender_t)atoi(db_get(db, "gender"));
             snprintf(b->appearance, sizeof(b->appearance), "%s", db_get(db, "appearance"));
             b->pflags = atoi(db_get(db, "pflags"));
+            b->monk_quest_flags = (unsigned int)strtoul(db_get(db, "monk_quest_flags"), NULL, 10);
+            b->monk_purple_kills = (unsigned char)atoi(db_get(db, "monk_purple_kills"));
             snprintf(b->poofin, sizeof(b->poofin), "%s", db_get(db, "poofin"));
             snprintf(b->poofout, sizeof(b->poofout), "%s", db_get(db, "poofout"));
             snprintf(b->bamfin, sizeof(b->bamfin), "%s", db_get(db, "bamfin"));
@@ -613,7 +615,7 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
     being_t *b = NULL;
     int load_room = -1;
     if (db_query(db, "select id, name, account_id, load_room, handed, prompt_flags, "
-                      "title, gender, appearance, pflags, poofin, poofout, bamfin, bamfout, "
+                      "title, gender, appearance, pflags, monk_quest_flags, monk_purple_kills, poofin, poofout, bamfin, bamfout, "
                       "class, race, territory, height, weight, start_age from player "
                       "where name='%s'",
                  name)
@@ -628,6 +630,8 @@ being_t *player_load_admin(const char *name, int *out_load_room) {
             b->gender = (gender_t)atoi(db_get(db, "gender"));
             snprintf(b->appearance, sizeof(b->appearance), "%s", db_get(db, "appearance"));
             b->pflags = atoi(db_get(db, "pflags"));
+            b->monk_quest_flags = (unsigned int)strtoul(db_get(db, "monk_quest_flags"), NULL, 10);
+            b->monk_purple_kills = (unsigned char)atoi(db_get(db, "monk_purple_kills"));
             snprintf(b->poofin, sizeof(b->poofin), "%s", db_get(db, "poofin"));
             snprintf(b->poofout, sizeof(b->poofout), "%s", db_get(db, "poofout"));
             snprintf(b->bamfin, sizeof(b->bamfin), "%s", db_get(db, "bamfin"));
@@ -838,6 +842,18 @@ bool player_set_pflags(long player_id, int flags) {
         return false;
     bool ok = db_query(db, "update player set pflags=%i where id=%i",
                        flags, (int)player_id);
+    db_close(db);
+    return ok;
+}
+/* Updates a player's saved monk sash quest-chain progress bits (white
+ * belt through black sash) and purple-sash leper kill counter. Called by
+ * monk_quest.c whenever a stage bit or the kill counter changes. */
+bool player_set_monk_quest(long player_id, unsigned int flags, unsigned char purple_kills) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "update player set monk_quest_flags=%i, monk_purple_kills=%i where id=%i",
+                       (int)flags, (int)purple_kills, (int)player_id);
     db_close(db);
     return ok;
 }

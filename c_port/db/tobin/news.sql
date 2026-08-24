@@ -723,3 +723,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'The Map Window Finally Shows Your Map', 'The client''s map window was opening centered on a faraway, empty stretch of the world instead of on wherever you actually were -- so it looked blank even once you had walked around and it had learned your surroundings. It now opens centered on your own location, so the rooms and exits you have discovered show up right away.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Monks Can Now Earn Their Sashes', 'Monks can now work their way through the full sash chain, white belt through black, by talking to the right guildmasters, running errands, hunting specific foes, and training their combat styles. Say the sash''s name to your guildmaster to hear what is next. Earning a new sash now prints a clear announcement so you know the moment it happens.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

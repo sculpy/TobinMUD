@@ -118,6 +118,9 @@ bool player_set_wiznews_last_seen(long player_id, long news_id);
 
 /* Persists the player-flags bitmask (player.pflags, PLR_*). */
 bool player_set_pflags(long player_id, int flags);
+/* Persists monk sash quest-chain progress bits + purple-sash leper kill
+ * counter (player.monk_quest_flags/monk_purple_kills). */
+bool player_set_monk_quest(long player_id, unsigned int flags, unsigned char purple_kills);
 
 /* Loads persisted attributes for player_id into *out. Returns false (and
  * leaves *out untouched) if no player_attrs row exists. */
