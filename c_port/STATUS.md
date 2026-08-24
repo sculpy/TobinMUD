@@ -1,5 +1,55 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-24 -- Session 197 (DO droplet, production port 4000):
+**Restored all remaining rooms/exits cut by the road-shrink initiative**
+(user: "restore room exits and rooms that were cut from the shrinkage
+project, that will have to be redone differently") -- the 11 zones not
+already reverted by Sessions 192/194 (zone 2, zone 38): zones 11, 12, 16,
+18, 19, 22, 49, 53, 67, 258, 259. Zone 146 had 0% cuttable originally, so
+nothing to restore there.
+  - Took a full mysqldump backup first (~/backups/tobin_pre_roadshrink_
+    full_restore_20260824_202636.sql). Loaded the pre-shrink seed
+    (db/seed/world/{room,roomexit}.sql, predates every shrink) into a
+    scratch DB and diffed it against live, same method Session 194 used
+    (and fixed) for zone 2/38 -- not just missing rooms, but missing
+    outgoing exits AND un-reverted neighbor relinks (edges on surviving
+    rooms the shrink rewired to bypass around a cut room), since Session
+    194's own postmortem showed the naive version of this restore silently
+    drops the exit rows.
+  - Found and restored: 433 room rows, their 846 outgoing exit rows (the
+    846 rows inserted step 2 count coincidentally matches the 846
+    relink-reverts below -- unrelated numbers, confirmed separately), and
+    846 neighbor-relink edges reverted to their pre-shrink destination.
+    Zero missing boundary edges (nothing was fully deleted rather than
+    rewired). Applied as one transaction.
+  - Verified after commit: 0 rooms still missing in any target zone, 0
+    dangling roomexit destinations database-wide, zone room counts back
+    to their exact pre-shrink values (e.g. zone 53 202, zone 16 152, zone
+    258 130 -- all 10 zones with a real cut matched exactly; zone 11 shows
+    51 instead of 49, the 2 extra being rooms 670/675 from the pre-existing
+    NULL-zone bug fix, unrelated). Spot-checked 34 residual roomexit
+    mismatches the broad re-check flagged and confirmed via the pre-restore
+    backup dump that all 34 destination rooms already existed before this
+    session touched anything -- pre-existing content drift, correctly left
+    alone.
+  - Ran maprecalc (level 60, throwaway admin, same pattern as
+    /tmp/deploy_copyover.py) afterward: the seed's x/y/z are stale local
+    coordinates from before the client map's component-offset scheme
+    existed, so the 433 restored rooms needed a full recompute like every
+    other room gets. 19,421 rooms across 847 connected components,
+    reapplied clean.
+  - Removed all 12 now-obsolete db/tobin/road_shrink_zone*.sql migration
+    files (11, 12, 16, 18, 19, 22, 38, 49, 53, 67, 258, 259) -- same reason
+    Session 194 removed zone 2's: the shrink migrations DELETE rooms that
+    are live again, so a fresh-seed replay hits the same roomexit->room FK
+    error zone 2's did. Confirmed via a full db/init-db.sh throwaway
+    replay (tobin_replaycheck/immortal_replaycheck, dropped after) that
+    this wasn't the cause of the replay's only remaining failure
+    (db/tobin/mob_align.sql: "Unknown column 'align'" -- a pre-existing,
+    unrelated schema-drift bug, not touched this session).
+  - **Road-shrink initiative is now fully reverted, world-wide.** No
+    C code changed. Smoke_test.py green against the live server after.
+
 Last updated: 2026-08-24 -- Session 196 (DO droplet, production port 4000):
 **Made sash awards game-wide, not just visible to the earner** (user
 follow-up: "what about the info message, like the death taunt").

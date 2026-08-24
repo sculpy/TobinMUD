@@ -57,29 +57,7 @@ TCommodity::sellPrice/shopPrice/buyMe/sellMe -- the live per-material
 demand-curve pricing engine Session 197 already decided not to port.
 Porting a disabled upstream feature onto infrastructure that was
 deliberately left unported isn't worth doing; not building it.
-Road-shrink initiative is CLOSED (Sessions 183-188). Phase A
-complete: all 14 built road/connector zones shrunk -- 11, 2, 67,
-16, 53, 22, 258, 18, 12, 49, 19, 259, 38, 146. Phase B (global
-vnum cascade-renumber) was investigated in Session 188 and
-ABANDONED: zone.bottom/top turns out not to reflect where a
-zone's rooms actually live for most of the database (138/336
-zones drifted, 81% of all rooms outside their own zone's declared
-range -- confirmed benign for gameplay, only used by the `dig`
-builder command and a manual zonefile-snapshot tool, not by zone
-resets). This breaks the cascade-renumber's core premise, so it
-was dropped rather than forced. See STATUS.md Session 188 for the
-full writeup. A pre-Phase-B DB backup is on the droplet at
-~/backups/tobin_pre_phaseB_20260822_194858.sql.gz as a general
-safety net (nothing was applied against it -- Session 188 was
-read-only investigation).
-Known loose ends from Phase A: zone 2 rooms 104 and 167 have no
-outgoing exit (legitimate one-way portal targets from zone 106,
-not bugs) -- worth a manual redit pass sometime. A handful of
-pre-existing zero-exit orphan rooms were noticed while verifying
-(34770, 1734, 34034) -- unrelated, not touched, not urgent.
-road_shrink.py has a minor rough edge: a zone with 0% cuttable
-rooms writes an invalid `IN ()` SQL file instead of skipping --
-harmless, just delete the file if it recurs.
+Road-shrink initiative: fully reverted world-wide (Session 197). All 14 shrunk zones (11, 2, 67, 16, 53, 22, 258, 18, 12, 49, 19, 259, 38, 146) are back to their pre-shrink room/exit counts; road_shrink.py and every db/tobin/road_shrink_zone*.sql migration are removed. See STATUS.md Sessions 183-188 (the original shrink) and 192/194/197 (the revert) for the full history if this is ever attempted again -- differently, per the user.
 ## Unimplemented skills/spells backlog (audited Session 158)
 
 Grep-verified against `SKILLS[]` (skill.c) vs real handlers in cmd_cast.c /
