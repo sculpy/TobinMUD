@@ -1634,3 +1634,24 @@ tightening the retry/odds is out of scope for a shoptype-only change.
 Still open, not done here: many shops still have zero shoptype rows at
 all (mostly Open Market Vendor / specialty stub shops); the dedicated
 commodity-trader mob (spec_mobs_commod_trader.cc) was not ported.
+
+
+Session 198 (cont.): zone vnum-range drift explained, closing the
+Session 188 open question. room has its own explicit `zone` FK column
+(room.zone -> zone.zone_nr) -- this, not zone.bottom/top, is the real
+per-room zone assignment, and it is what all gameplay code actually
+reads. Confirmed the drift is exactly this: 15,627 of 18,988 rooms
+have a room.zone value whose declared bottom/top range does not
+contain that room's own vnum (a small delta from Session 188's 15,581
+count, since this query also excludes 1,053 rooms with a NULL zone
+column). Sample check: room 570 has zone=32 directly, matching Session
+188's zone-32 example exactly, despite vnum 570 falling nowhere near
+zone 32's declared 3300-3399 range. So zone.bottom/top isn't drifting
+away from a meaningful truth over time -- it was superseded outright by
+the explicit room.zone column at some point in this database's history
+(likely when SneezyMUD/Tobin moved off pure vnum-block zoning), and
+nothing ever went back to sync or retire the range fields. Matches
+Session 188's source-level finding that only `dig` (new-room
+placement) and the `zonefile create` snapshot tool still read
+bottom/top. No action taken -- purely explanatory, answers the
+"worth understanding" note. Removed the corresponding TODO.md entry.

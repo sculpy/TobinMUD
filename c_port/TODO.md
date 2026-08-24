@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-24 (17). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-24 (18). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -72,10 +72,6 @@ pre-existing zero-exit orphan rooms were noticed while verifying
 road_shrink.py has a minor rough edge: a zone with 0% cuttable
 rooms writes an invalid `IN ()` SQL file instead of skipping --
 harmless, just delete the file if it recurs.
-Possible future (not urgent, not requested): investigate why 81%
-of rooms live outside their zone's declared vnum range -- likely
-benign historical drift, but undocumented and worth understanding
-if anyone ever wants zone.bottom/top to mean something again.
 ## Unimplemented skills/spells backlog (audited Session 158)
 
 Grep-verified against `SKILLS[]` (skill.c) vs real handlers in cmd_cast.c /
