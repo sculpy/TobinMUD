@@ -1,4 +1,28 @@
 # Tobin C Port — Status
+Last updated: 2026-08-24 -- Session 192 (DO droplet, production port 4000):
+**Restored zone 2 (Tobin City Roads) and zone 38 (Dolgan - Tobin City
+Outer Pathway) rooms deleted by the road-shrink initiative (Phase A, Session
+183-185).** User asked to get these
+rooms back. The 71 deleted rooms (69 in zone 2, 2 in zone 38) and their
+original exits still existed in the pre-shrink mysqldump seed
+(`c_port/db/seed/world/{room,roomexit}.sql`, commit 28acbc2,
+2026-08-16) -- that seed was never regenerated after the shrink.
+Loaded it into a scratch DB (`tobin_seed_scratch`) on the same
+MariaDB server, cross-checked column-for-column against live `tobin`
+(live `room` has one extra column, `mine_trapped`, added since the
+seed was taken -- defaulted to 0 on insert), then in one transaction:
+re-inserted the 71 room rows, re-inserted their original outgoing
+exits, and reverted the neighbor relinks the shrink made when it
+spliced around them. Verified zero live players had a `load_room` in
+the affected range before applying, verified zone counts back to
+their pre-shrink values (zone 2: 344->413, zone 38: 17->19) and zero
+dangling exits database-wide, both before commit (inside the
+transaction) and again after (fresh connection). Scratch DB dropped
+after. No code changed -- this only touched the live `tobin` database;
+this STATUS.md update is the only file in the commit. Road-shrink
+itself is unaffected elsewhere; this was a targeted, user-requested
+reversal for these two zones only.
+
 Last updated: 2026-08-23 -- Session 191 (DO droplet, production port 4000):
 **Group/follow/goto/transfer reference-parity audit fixes.** A prior
 read-only audit compared the group/follow system against SneezyMUD's
