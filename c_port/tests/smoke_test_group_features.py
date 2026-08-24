@@ -32,8 +32,13 @@ def make_char(name, pw):
     send_line(s, "y"); recv_all(s)
     send_line(s, pw); recv_all(s)
     send_line(s, pw); recv_all(s)
-    send_line(s, "y"); recv_all(s)
-    send_line(s, ""); recv_all(s)
+    send_line(s, "y"); recv_all(s)   # ANSI color: yes
+    send_line(s, ""); recv_all(s)    # timezone: skip
+    send_line(s, ""); recv_all(s)    # email: skip -- previously missing,
+    # so this "new" landed on the email prompt instead of the account
+    # menu, failing email validation and cascading every step after it
+    # (found live, Session 196 -- this was the stale login-flow failure
+    # TODO.md/STATUS.md's Session 191 entry flagged and left uninvestigated).
     send_line(s, "new"); recv_all(s)
     send_line(s, name); recv_all(s)
     send_line(s, "1"); recv_all(s)
