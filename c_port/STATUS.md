@@ -1,5 +1,51 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-24 -- Session 194 (DO droplet, production port 4000):
+**Fixed the Session 192 zone-2/zone-38 room restore -- it had NOT actually
+restored exits, despite that session's own STATUS.md claiming otherwise.**
+User reported "looping exits in room restore" while walking the restored
+area and named several rooms (112/114, 175/177, 101/103, 172/165) as they
+found them; each turned out to be a symptom of the same underlying gap.
+Audited by parsing the pre-shrink seed (`db/seed/world/roomexit.sql`) and
+diffing every roomexit row for the 71 restored vnums (69 zone 2 + 2 zone
+38) plus every seed-neighbor whose exit points into one of them, against
+the live `roomexit` table:
+  - **138 outgoing exits from the 69 restored zone-2 rooms were entirely
+    missing** -- all 69 rooms had ZERO roomexit rows despite the room
+    rows themselves existing (e.g. room 115 "West King's Way" had no way
+    out at all; walking into it was a dead end). Session 192's room
+    INSERT landed but its roomexit INSERT evidently never did, or was
+    lost -- not root-caused further, just confirmed absent and fixed.
+  - **48 "neighbor relink" exits were never actually reverted** -- these
+    are edges on surviving (non-restored) rooms that the original
+    road-shrink rewired to bypass around the since-deleted segment (e.g.
+    room 103's `gate` exit pointed to 353, a shrink-era bypass, instead
+    of its original destination 350). Session 192 claimed this step was
+    done; it wasn't, for any of these 48 edges.
+  - Fixed by re-parsing the seed and generating a single transaction: 138
+    `INSERT`s (full seed row: name/description/type/condition_flag/
+    lock_difficulty/weight/key_num/destination) + 48 `UPDATE ... SET
+    destination=<seed value>`. Verified every destination vnum in the fix
+    was a real, live room before applying (all were), verified zero
+    players had a `load_room` in the affected 71+97 vnum set, applied,
+    then re-ran the same audit and got 0 missing / 0 mismatched / 0 extra.
+    Also re-verified zero dangling exits database-wide after
+    (`roomexit.destination` with no matching `room.vnum`).
+  - Spot-checked every room the user named (101, 103, 112, 114, 115, 165,
+    172, 175, 177) against the seed post-fix -- all match exactly.
+  - Room 237 ("Market Road"), separately mentioned by the user as dead-
+    ending short of a "Commonwealth" connection near Cameron's shop, was
+    checked and does NOT belong to this bug -- its own exits (east/west)
+    and its neighbors' (236, 238) match the seed exactly, and 238 is
+    already a well-connected hub ("Market Square"). If a Commonwealth
+    connection near there is wanted, that's new content to build, not a
+    restore-bug fix -- flagged for the user rather than guessed at.
+  - No code changed -- this only touched the live `tobin` database's
+    `roomexit` table (via a one-off `/tmp/restore_fix.sql`, not checked
+    into `db/tobin/`, matching Session 192's own precedent of a
+    STATUS.md-only commit for a pure data fix); zone 2's `roomexit` count
+    is now 950 (up from the ~812 the missing rows had left it at).
+
 Last updated: 2026-08-24 -- Session 193 (DO droplet, production port 4000):
 **Fixed the client map view showing a blank canvas (user report: "the
 map appears but doesn't draw from data, shows a blank dark colored
