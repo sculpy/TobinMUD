@@ -73,6 +73,19 @@ static void award_item(being_t *ch, int vnum, const char *label) {
     if (ch->base.kind == THING_PC)
         player_inventory_save(ch->player_id, ch);
     tell(ch, "<W>*** You have earned the %s! ***<z>\r\n", label);
+    /* Game-wide [INFO] announcement, same pattern as combat.c's PC-death
+     * taunts (g_descriptors walk, cyan [INFO] tag, earner excluded --
+     * they already got the line above). Sash earning is comparatively
+     * rare and a genuine milestone, unlike routine mob kills, so this
+     * fires every time rather than being random-flavor/best-effort. */
+    char announce[192];
+    snprintf(announce, sizeof(announce), "\r\n<c>[INFO]<z> %s has earned the %s!\r\n",
+             being_display_name(ch), label);
+    for (descriptor_t *it = g_descriptors; it; it = it->next) {
+        if (!it->character || it->character == ch)
+            continue;
+        descriptor_notify(it, announce);
+    }
 }
 static void set_flags(being_t *b, unsigned int add, unsigned int clear) {
     b->monk_quest_flags = (b->monk_quest_flags & ~clear) | add;

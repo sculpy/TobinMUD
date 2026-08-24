@@ -1,5 +1,17 @@
 # Tobin C Port — Status
 
+Last updated: 2026-08-24 -- Session 196 (DO droplet, production port 4000):
+**Made sash awards game-wide, not just visible to the earner** (user
+follow-up: "what about the info message, like the death taunt").
+`award_item()` (monk_quest.c) now also walks `g_descriptors` and sends a
+cyan `[INFO]` line -- "<name> has earned the <sash>!" -- to every other
+connected character, same broadcast pattern combat.c's PC-death taunts
+already use (earner excluded, they got their own `*** You have earned
+...` line from Session 195). Unlike the death taunts this isn't random
+flavor text and isn't gated (fires every time -- a sash is a rare,
+deliberate milestone, not routine combat spam). Clean rebuild, copyover,
+smoke_test_monk_quest.py rerun -- all 33 checks still pass.
+
 Last updated: 2026-08-24 -- Session 195 (DO droplet, production port 4000):
 **Committed the Monk sash quest chain (white through black), found fully
 built and passing but uncommitted on the droplet from a prior session with
