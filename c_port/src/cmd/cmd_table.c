@@ -448,7 +448,7 @@ static const cmd_entry_t COMMANDS[] = {
     { "pray",    cmd_pray,    "Pray for a spell (Cleric) -- requires a holy symbol.", MORTAL_LEVEL_MIN },
     { "quest",   cmd_quest,   "See your current quests, or claim a race reward (quest [<name>], quest claim <name>).", MORTAL_LEVEL_MIN },
     { "qedit",    cmd_qedit, "Write/replace a quest stage's description (qedit <name> <stage> <text>).", BUILD_MIN_LEVEL },
-    { "questitem", cmd_questitem, "Set a quest stage's per-race reward item (questitem <name> <stage> <race> <vnum>).", BUILD_MIN_LEVEL },
+    { "questitem", cmd_questitem, "Set/remove/list a quest stage's per-race reward item (questitem <name> <stage> <race> <vnum>|remove, or list).", BUILD_MIN_LEVEL },
     { "uptime",  cmd_uptime,  "Show how long the server has been running since the last boot/copyover.", MORTAL_LEVEL_MIN },
     /* Must precede "users" (below, immortal tier) in table order -- both
      * start with "use", and dispatch's strncmp scan takes the first match,

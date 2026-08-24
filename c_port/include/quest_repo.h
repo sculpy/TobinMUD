@@ -80,4 +80,23 @@ bool quest_repo_reward_set(const char *quest_name, int stage, player_race_t race
 bool quest_repo_reward_claimed(long player_id, const char *quest_name, int stage);
 bool quest_repo_reward_mark_claimed(long player_id, const char *quest_name, int stage);
 
+/* Per-race reward row for quest_repo_reward_list(). */
+typedef struct {
+    player_race_t race;
+    int obj_vnum;
+} quest_reward_entry_t;
+
+/* Deletes the reward row for (quest_name, stage, race), if one exists.
+ * Returns true whether or not a row was actually present -- same
+ * "absence is fine" convention as the rest of this file; only a real DB
+ * error returns false. Backs `questitem <name> <stage> <race> remove`
+ * (cmd_qedit.c) -- the only way to clear a reward entirely, since
+ * quest_repo_reward_set() can only replace a vnum, never unset one. */
+bool quest_repo_reward_remove(const char *quest_name, int stage, player_race_t race);
+
+/* Fills `out` (up to `max` entries) with every race/vnum reward row
+ * defined for (quest_name, stage), race-sorted. Returns the count
+ * written. Backs `questitem <name> <stage> list` (cmd_qedit.c). */
+int quest_repo_reward_list(const char *quest_name, int stage, quest_reward_entry_t *out, int max);
+
 #endif

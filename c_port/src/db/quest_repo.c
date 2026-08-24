@@ -136,6 +136,35 @@ bool quest_repo_reward_set(const char *quest_name, int stage, player_race_t race
     db_close(db);
     return ok;
 }
+/* Deletes the reward row for (quest_name, stage, race), if any. */
+bool quest_repo_reward_remove(const char *quest_name, int stage, player_race_t race) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return false;
+    bool ok = db_query(db, "delete from quest_item where quest_name='%s' and stage=%i and race=%i",
+                quest_name, stage, (int)race);
+    db_close(db);
+    return ok;
+}
+/* Lists every race/vnum reward row defined for (quest_name, stage). */
+int quest_repo_reward_list(const char *quest_name, int stage, quest_reward_entry_t *out, int max) {
+    db_conn_t *db = db_open(DB_TOBIN);
+    if (!db)
+        return 0;
+    int n = 0;
+    if (db_query(db,
+                "select race, obj_vnum from quest_item where quest_name='%s' and stage=%i "
+                "order by race",
+                quest_name, stage)) {
+        while (n < max && db_fetch_row(db)) {
+            out[n].race = (player_race_t)atoi(db_get(db, "race"));
+            out[n].obj_vnum = atoi(db_get(db, "obj_vnum"));
+            n++;
+        }
+    }
+    db_close(db);
+    return n;
+}
 /* True if player_id has already been handed their (quest_name, stage)
  * reward item -- `quest claim` (cmd_quest.c) checks this first so
  * re-running it can't duplicate the item. */

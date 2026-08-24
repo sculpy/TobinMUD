@@ -1387,3 +1387,22 @@ live DB. Fix: removed db/tobin/road_shrink_zone2.sql (git rm) rather than
 trying to make its DELETE conditionally skip live rooms, since the
 zone-2 shrink itself is gone, not just this one migration step. Verified
 a full db/apply-tobin-schema.sh run now completes clean end to end.
+
+Last updated: 2026-08-24 -- Session 195 (DO droplet, production port 4000):
+**Added `questitem <name> <stage> list` and `questitem <name> <stage>
+<race> remove` sub-commands** (open follow-up from Session 193's
+per-race quest-item work). Previously a builder could only set/replace a
+race's reward vnum -- clearing one entirely, or seeing what was already
+defined, required a raw SQL query. Added `quest_repo_reward_remove()`/
+`quest_repo_reward_list()` (src/db/quest_repo.c, quest_repo.h) and
+rewired `cmd_questitem` (cmd_qedit.c) to dispatch on a 3rd/4th token:
+`list` (no race) lists every race/vnum row for that quest/stage,
+`<race> remove` deletes that race's row (a no-op success if none
+existed, matching the file's "absence is fine" convention), and the
+existing `<race> <vnum>` set form is unchanged. Help topic and command
+table usage string updated; wiznews entry added (builder-only change, no
+player-facing news entry per house rule). New
+tests/smoke_test_questitem_list_remove.py (11 checks) plus a clean
+re-run of the existing smoke_test_race_quest_items.py (regression check
+on the set path) both pass. Zero-warning clean build. Deployed via
+copyover.

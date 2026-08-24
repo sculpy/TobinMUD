@@ -15,13 +15,6 @@ viewers keep plain names (`news`, `wiznews`).
 
 
 ## Open follow-ups
-Per-race flavor systems (Session, 2026-08-23): height/weight/age, move
-verbs, body type, and per-race quest-item tables all landed (see
-STATUS.md/RACE_STATS.md/RACE_PERKS.md). One loose end: `questitem` can
-overwrite a race's reward vnum but has no `list`/`remove` sub-command --
-a builder wanting to REMOVE a race's reward entirely (not replace it)
-has to go straight to SQL. Small, not blocking.
-
 XP-split/pour/account-flow test failures found (Session 191, NOT caused
 by that session -- discovered while regression-testing group/goto/
 transfer reference-parity fixes, all traced away from the session's own
