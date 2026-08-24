@@ -14,6 +14,7 @@
 #include "affect.h"
 #include "balance.h"
 #include "body.h"
+#include "commodity.h"
 #include "descriptor.h"
 #include "extraction.h"
 #include "log.h"
@@ -1740,6 +1741,10 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
      * is inherently first-whoever-loots-it now, same as any other item
      * in the corpse, not a stat auto-distributed to a group. */
     int corpse_gold = 0;
+    int commodity_vnum = 0; /* Commodities: raw-material item skimmed
+                                 from a mob gold-drop below, see
+                                 commodity.c and the corpse-population
+                                 block further down. */
 
     if (loser_is_pc) {
         loser->progress.hp = loser->progress.max_hp / 2;
@@ -1818,6 +1823,23 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
         && !mob_race_is_animal(loser->mob_race)) {
         int mob_level = loser->progress.level > 0 ? loser->progress.level : 1;
         corpse_gold = mob_level * (1 + rand() % 5);
+
+        /* Commodities (TODO.md 2026-08-22): converts part of the gold
+         * this mob just dropped into a raw-material item instead,
+         * mirroring upstream's commodLoader() -- ported to Tobin's
+         * death-time corpse-gold model rather than SneezyMUD's
+         * spawn-time mob-bag one. 0-50% of corpse_gold, skewed toward
+         * 25% (two independent 0-25 rolls averaged), same ratio as
+         * commodLoader()'s own comment. Picks the priciest cached
+         * commodity that skimmed amount can afford (commodity.c);
+         * no-op (all gold stays as coin) if nothing seeded is cheap
+         * enough. */
+        int commodity_wealth = (int)(((rand() % 26 + rand() % 26) / 100.0) * corpse_gold);
+        int commodity_price = 0;
+        if (commodity_wealth > 0 &&
+            commodity_pick_for_wealth(commodity_wealth, &commodity_vnum, &commodity_price)) {
+            corpse_gold -= commodity_price;
+        }
     }
 
     if (!loser_is_pc)
@@ -1982,6 +2004,16 @@ static void combat_defeat(being_t *loser, being_t *winner, bool slain) {
                 coins->val[0] = corpse_gold;
                 thing_move_to(&coins->base, &corpse->base);
             }
+        }
+
+        /* Commodities: the raw-material item skimmed from corpse_gold
+         * above (if any) drops alongside the coin pile. commodity_vnum
+         * only ever gets set inside the mob gold-drop block above, so
+         * this is mob loot only -- a PvP corpse never gets one. */
+        if (commodity_vnum > 0 && corpse) {
+            obj_t *commod = obj_create_from_proto(commodity_vnum);
+            if (commod)
+                thing_move_to(&commod->base, &corpse->base);
         }
 
         for (int i = 0; i < LIMB_COUNT; i++)

@@ -726,3 +726,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Monks Can Now Earn Their Sashes', 'Monks can now work their way through the full sash chain, white belt through black, by talking to the right guildmasters, running errands, hunting specific foes, and training their combat styles. Say the sash''s name to your guildmaster to hear what is next. Earning a new sash now prints a clear announcement so you know the moment it happens.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Slain Monsters Sometimes Carry Raw Materials Worth Trading', 'Defeating a monster can now leave behind more than coin -- some kills drop a raw material, gemstone, or organic component in the corpse alongside the gold, ready to sell to the right merchant.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

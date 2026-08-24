@@ -11,6 +11,7 @@
 #include "affect.h"
 #include "balance.h"
 #include "combat.h"
+#include "commodity.h"
 #include "config.h"
 #include "crash_handler.h"
 #include "db.h"
@@ -133,6 +134,8 @@ int main(int argc, char **argv) {
     rent_config_load(); /* rent tax / free-level settings (rent.c) */
     social_cache_load(); /* socials (emotes) -- checked on nearly every unmatched
                              player command, see socials.h for why this is cached */
+    commodity_cache_load(); /* raw-material/gemstone/organic prototypes for mob-loot
+                                (commodity.c), see combat.c combat_defeat() */
     game_loop_boot_poll(BOOT_HOLD_MSG);
 
     /* Zones Part 2 (Session 43): populate rooms from the zone_reset data

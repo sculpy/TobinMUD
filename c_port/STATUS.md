@@ -1541,3 +1541,68 @@ and saves it, with no further login-time recompute to undo it.
 Verified clean across 3 consecutive full runs (no flakiness left).
 All 3 fixes are test-only; no product code changed. TODO.md's Session
 191 entry removed.
+
+
+Last updated: 2026-08-24 -- Session 197 (DO droplet, production port 4000):
+**Shipped Commodities (TODO.md 2026-08-22 real gap).** SneezyMUD ports
+a full live supply/demand pricing engine (obj_commodity.cc's
+TCommodity::demandCurvePrice, ~200 materials) that converts mob wealth
+into raw-material items at mob SPAWN time (mob_loader.cc's
+commodLoader()). Investigation before building found more already in
+place than the TODO.md note assumed: 182 commodity object prototypes
+already seeded in `obj` (27 type=42 RAW_MATERIAL, 9 type=43 GEMSTONE,
+146 type=50 RAW_ORGANIC), each with a real fixed price (e.g. vnum 50
+"gold bar commodity" = 3000) and material id; and cmd_shop.c's generic
+`sell`/`sell all` already prices ANY item via
+`price * profit_sell * material_tier_value_mult(material_tier_for_id(...))`
+gated only by shop_repo_buys_category() against the shop's seeded
+shoptype rows -- several shops (9, 15, 56-58, 81, 97, 104, 105, 238)
+already have shoptype rows for 42/43/50, so selling a commodity already
+worked mechanically, it just had no way to enter circulation.
+Decision: do NOT port the live demand-curve pricing engine -- Tobin
+already collapsed the original's 83-material system down to 5 static
+tiers (material.h) rather than porting that, and building a new
+per-material supply/demand table would be exactly the kind of
+un-scoped "full project" TODO.md's note wanted avoided. Net change: a
+new module, commodity.c/commodity.h -- commodity_cache_load() queries
+and caches all 182 prototypes (vnum/price/material) once at boot
+(called from main.c alongside the other *_cache_load() calls);
+commodity_pick_for_wealth(budget) returns the priciest cached
+commodity whose price fits the budget. Hooked into combat.c's
+combat_defeat(), inside the existing mob (non-PvP, non-animal-race)
+gold-drop block: skims 0-50% of the freshly-computed corpse_gold
+(same ratio as commodLoader()'s own two-independent-0-25-rolls-
+averaged formula), and if commodity_pick_for_wealth() finds something
+affordable, subtracts its price from corpse_gold and spawns it
+(obj_create_from_proto()) into the corpse alongside the existing coin
+pile, right where the coins object is created. Mob loot only -- the
+separate PvP gold-to-corpse path is untouched. No DB schema changes;
+no shoptype coverage extended (left as a follow-up, see TODO.md).
+Verified live with a new tests/smoke_test_commodity_loot.py (built on
+mud_test_utils.py per house rules): a level-3 non-animal test mob,
+repeatedly killed by a real (non-immortal) PC fighter with HP padded
+via the immortal `set` command between rounds, reliably drops a
+commodity into its corpse within a handful of kills, and that item
+sells for real gold at whichever of two real shops (15 or 104) is
+configured for its raw type. Two test-authoring traps hit and fixed
+along the way, neither a product bug: (a) an early draft used a
+level-20 test mob "for more gold" -- one-shot the padded-HP fighter in
+2 rounds, since being_create_mob() derives combat attrs straight from
+level, so a big level gap is lethal regardless of HP; dropped back to
+level 3, same weak-mob shape smoke_test_animal_no_gold.py already
+uses. (b) the sell step first tried relocating the fighter to the shop
+via `quit!` + a raw `player.load_room` SQL update + relog, the same
+pattern smoke_test_shop_resell.py uses -- but `quit!` deliberately
+drops every carried item on the floor where it was typed (cmd_quit.c,
+"rent is the safe way to leave with belongings intact"), which dumped
+the very commodity the test needed to sell. Fixed by using the
+immortal `transfer` command instead, which moves the connected
+character without touching their inventory.
+**Found in passing, NOT fixed here (flagged as a separate task):**
+smoke_test_animal_no_gold.py now fails consistently (2/2 runs) --
+same raw-SQL-hp-set-before-relogin bug this session's own test
+tripped over in a different form, and the exact bug already diagnosed
+for smoke_test_group.py in Session 196 above, just never back-ported
+to this file. Confirmed unrelated to the commodities change: the new
+code only runs inside combat_defeat()'s !mob_race_is_animal() branch,
+which this test's failing first fight never enters.

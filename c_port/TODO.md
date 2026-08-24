@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-24 (15). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-24 (16). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -33,20 +33,20 @@ the way: obj vnum 604 ("moneypouch pouch", the exact vnum
 SneezyMUD hardcodes as Obj::GENERIC_MONEYPOUCH) was seeded with
 type=27 (BAG) instead of type=75 (MONEYPOUCH) -- fixed via
 db/tobin/fix_obj604_moneypouch_type.sql.
-**Commodities -- real gap, own future project (user-scoped,
-2026-08-22):** SneezyMUD has a full economic subsystem
-(`commodLoader`/`TCommodity::demandCurvePrice`, ~200 materials,
-live supply/demand pricing) converting mob wealth into raw-
-material commodity items on load. Confirmed via source grep this
-was never ported to the C port at all -- no trace of it, not
-documented as a deliberate omission anywhere. User wants this
-scoped and planned as its own dedicated project, not built
-ad hoc. When picked up: needs (1) a materials/pricing data model
-decision (full live demand-curve vs. something simpler), (2) a
-mob-load-time hook analogous to being_create_mob() in being.c,
-(3) the commodity obj prototypes already exist in the DB (types
-42/43/50 = RAW_MATERIAL/GEMSTONE/RAW_ORGANIC, 27/9/146 of each
-respectively as of Session 189) so seeding isn't blocking.
+**Commodities -- SHIPPED 2026-08-24.** Mob loot now sometimes skims
+part of a mob's corpse_gold (combat.c combat_defeat()) and spends it on
+the priciest already-seeded commodity prototype (obj type 42/43/50)
+that skim can afford, dropping it into the corpse alongside the coin
+pile -- new commodity.c/commodity.h, cached at boot. Deliberately does
+NOT port SneezyMUD's live demand-curve pricing (`commodLoader`/
+`TCommodity::demandCurvePrice`, ~200 materials) -- reuses the already-
+seeded fixed price column on those 182 prototypes and the existing
+5-tier material value system instead, same simplification precedent as
+material.h. Verified with tests/smoke_test_commodity_loot.py.
+Follow-ups, not done here: only a handful of shops currently have
+shoptype rows for 42/43/50 (9, 15, 56-58, 81, 97, 104, 105, 238) -- most
+dropped commodities have nowhere to sell; a dedicated commodity-trader
+mob (SneezyMUD's spec_mobs_commod_trader.cc) was not ported either.
 Road-shrink initiative is CLOSED (Sessions 183-188). Phase A
 complete: all 14 built road/connector zones shrunk -- 11, 2, 67,
 16, 53, 22, 258, 18, 12, 49, 19, 259, 38, 146. Phase B (global
