@@ -15,22 +15,6 @@ viewers keep plain names (`news`, `wiznews`).
 
 
 ## Open follow-ups
-XP-split/pour/account-flow test failures found (Session 191, NOT caused
-by that session -- discovered while regression-testing group/goto/
-transfer reference-parity fixes, all traced away from the session's own
-changes): (1) smoke_test_group.py's grouped-in-room-follower XP-split
-check fails -- traced as far as confirming combat.c's XP-split path
-(group_recipients()/being_group_members()) never calls being_in_group()
-at all, so it can't be that session's mount/rider fix; root cause not
-otherwise pinned down. (2) smoke_test_give_pour_transfer.py's "source
-waterskin is now empty after the transfer" pour check fails -- an
-entirely different (liquid) subsystem, untouched by that session.
-(3) smoke_test_group_features.py fails at its OWN account-creation
-login-flow step (before any group/gtell/assist logic runs at all) --
-its make_char() step sequence is stale against the current account-
-creation flow (missing the ANSI-color/timezone/email prompts). All
-three worth a dedicated look; STATUS.md's Session 191 entry has the
-detail on what was checked.
 Fixed 3 stale/broken smoke tests along the way (Session 190, see
 STATUS.md): smoke_test_animal_no_gold.py (missing loot step),
 smoke_test_corpse.py (stale load-obj-drops-on-floor assumption),

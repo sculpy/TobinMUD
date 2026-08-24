@@ -1488,3 +1488,56 @@ entry) -- the most likely explanation is the same class of test-
 harness/output-timing illusion, not a real defect. Closed in TODO.md;
 no code changes to cmd_object.c. If it resurfaces with a solid live
 repro, re-open with the exact reproduction steps.
+
+Last updated: 2026-08-24 -- Session 196 (DO droplet, production port 4000):
+**Closed the 3-part XP-split/pour/account-flow test-failure backlog
+item (Session 191).** All three were test bugs, not product bugs.
+(3) smoke_test_group_features.py: its make_char() sent `"new"`
+immediately after a single blank line meant to skip both timezone and
+email -- but skipping each needs its OWN blank line (CONN_GET_TIMEZONE
+consumes one blank to reach CONN_GET_EMAIL; email needs a second).
+"new" landed on the email prompt, failed email validation (needs an
+`@` and a `.`), and cascaded a "too short"/invalid-menu-choice failure
+through every remaining step. Fixed by adding the missing blank line.
+(2) smoke_test_give_pour_transfer.py: asserted the source waterskin
+(vnum 410, capacity 70) ends up EMPTY after pouring into a wineskin
+(vnum 409, capacity 66) -- impossible given cmd_pour.c's own documented
+design ("the source keeps whatever doesn't fit rather than spilling
+it"): only 66 of 70 units can ever fit, leaving 4 behind. Fixed the
+assertion to check the actual documented overflow-retention behavior
+instead.
+(1) smoke_test_group.py: the grouped, in-room follower's XP genuinely
+wasn't landing in the DB by the time the test checked -- but the
+group-XP-split itself is correct (confirmed via debug instrumentation:
+group_recipients() reliably returns both leader and follower, same
+room, both grouped, every call). Two compounding causes: (a) the
+test's own "is the mob dead yet" polling loop treated
+"xp_of(leader_name) > xp_before_leader" as proof of a kill, but XP is
+credited PER LANDED HIT (2026-08-03 rework) and the leader (a direct
+fighter) is persisted every combat round regardless of a kill
+(combat_process_run()'s mid-fight HP-persist save, which saves the
+whole progress struct) -- so that condition went true after the FIRST
+hit, well before the mob actually died, and the test moved on to check
+the follower's XP before combat_defeat()'s own unconditional
+per-recipient save (the only path that persists a NON-fighting grouped
+member's earned XP) had ever run. Fixed by polling for a real death
+signal (the async slain/defeated broadcast, or the mob actually gone
+from the room) instead. (b) Once that was fixed, debug instrumentation
+on combat_defeat() showed the MOB winning the fight (kind=THING_MOB),
+not the leader -- root-caused to the test's `set_hp(leader_name, 300,
+300)` running as a raw SQL UPDATE to player_progress BEFORE the
+leader's relogin, which player_repo.c's login path silently clobbers:
+it recomputes max_hp from the character's real level/class on every
+login and clamps current hp DOWN to that (much lower, level-1) value
+("CEILING ONLY, never auto-heals" -- see that function's own comment),
+throwing the SQL-set 300 HP away before the fight ever starts. The
+"harmless" level-1 dummy mob (0 tohit/damage_level/damage_precision,
+weak but not literally zero damage) could then actually kill the
+leader often enough to make the whole test flaky depending on RNG.
+Fixed by using the immortal `set <name> hp <hp> <max_hp>` command
+(SET_MIN_LEVEL/58+, bumped the test's immortal up from 51) AFTER
+relogin instead -- it writes directly to the already-logged-in being
+and saves it, with no further login-time recompute to undo it.
+Verified clean across 3 consecutive full runs (no flakiness left).
+All 3 fixes are test-only; no product code changed. TODO.md's Session
+191 entry removed.

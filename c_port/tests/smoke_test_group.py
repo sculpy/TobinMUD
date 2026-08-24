@@ -60,11 +60,6 @@ def set_level(name, level):
         f"(SELECT id FROM player WHERE name='{name}');")
 
 
-def set_hp(name, hp, max_hp):
-    sql(f"UPDATE player_progress SET hp={hp}, max_hp={max_hp} WHERE player_id="
-        f"(SELECT id FROM player WHERE name='{name}');")
-
-
 def make_char(name, pw):
     s = socket.create_connection((host, port), timeout=5)
     recv_all(s)
@@ -99,7 +94,7 @@ imm_name, imm_pw = f"Grpimmb{_suffix}", "grpimmpw1234"
 sA = make_char(leader_name, leader_pw); sA.close()
 sB = make_char(foll_name, foll_pw); sB.close()
 si = make_char(imm_name, imm_pw); si.close()
-set_level(imm_name, 51)
+set_level(imm_name, 58)  # SET_MIN_LEVEL -- needed for `set <name> hp` below
 
 sA = relog(leader_name, leader_pw)
 sB = relog(foll_name, foll_pw)
@@ -152,12 +147,27 @@ sql(f"INSERT INTO mob ({col_names}) VALUES ({col_values});")
 sql(f"UPDATE player SET load_room={ROOM} WHERE name IN ('{leader_name}','{foll_name}');")
 cmd(sA, "quit!"); cmd(sB, "quit!")
 sA.close(); sB.close()
-# a big HP buffer so the (weak-hitting-on-average, but not zero-damage)
-# sandbox mob can't win the fight before the leader does -- legitimate
-# test setup, not the mechanism under test.
-set_hp(leader_name, 300, 300)
 sA = relog(leader_name, leader_pw)
 sB = relog(foll_name, foll_pw)
+# a big HP buffer so the (weak-hitting-on-average, but not zero-damage)
+# sandbox mob can't win the fight before the leader does -- legitimate
+# test setup, not the mechanism under test. MUST happen via the live
+# `set <name> hp` command AFTER relogin, not a pre-relogin SQL UPDATE:
+# player_repo.c's login path recomputes max_hp from the character's
+# real level/class every login and CLAMPS current hp down to it if the
+# stored value is higher ("CEILING ONLY, never auto-heals" -- see its
+# own comment), which silently threw away a pre-relogin SQL-set 300 HP
+# back down to a real level-1 mage's tiny actual max_hp. That let the
+# "harmless" level-1 dummy mob (0 tohit/damage_level/damage_precision,
+# but not literally zero damage) actually kill the leader in the fight
+# below often enough to make this test flaky -- combat_defeat() then
+# ran with the MOB as winner, not the leader, so the group-XP-split
+# recipients loop never fired for the follower at all. Found live,
+# Session 196 (TODO.md's Session 191 entry flagged the follower XP
+# check as failing with root cause unexplained). `set <name> hp` writes
+# directly to the already-logged-in being and saves it -- no further
+# recompute happens outside login, so it sticks.
+check("HP is now 300/300" in cmd(si, f"set {leader_name} hp 300 300"), "leader's HP is force-set to a real, durable 300/300")
 # group state is in-memory only -- re-follow/re-group after relogging.
 cmd(sB, f"follow {leader_name}")
 cmd(sA, f"group {foll_name}")
@@ -175,11 +185,30 @@ out = cmd(sA, "attack grpdummy")
 check("You attack" in out, "leader engages the mob")
 slain = False
 for _ in range(20):
-    out = cmd(sA, "score")
-    if "slain" in out.lower() or "have defeated" in out.lower() or xp_of(leader_name) > xp_before_leader:
+    # NOTE: this used to also break on "xp_of(leader_name) >
+    # xp_before_leader" as a stand-in for "the mob is dead" -- but XP is
+    # now credited PER LANDED HIT (2026-08-03 rework, combat.c's
+    # combat_award_hit_xp()), and the leader (a direct fighter) is
+    # persisted every combat round regardless of a kill
+    # (combat_process_run()'s mid-fight persistence save), so that
+    # condition went true after the FIRST landed hit -- long before the
+    # mob actually died. That broke the follower check below: a grouped
+    # member who ISN'T personally fighting anything only gets their
+    # earned XP persisted to the DB once the mob is actually dead
+    # (combat_defeat()'s own unconditional per-recipient save) or they
+    # level up -- so checking their XP before the kill lands reads a
+    # stale value even though the split itself is working correctly.
+    # Found live, Session 196 (TODO.md's Session 191 entry flagged this
+    # as unexplained). Wait for a real death signal instead: the async
+    # "You have slain"/"defeated" broadcast landing on sA's socket (cmd()
+    # captures any backlog along with the `look` reply), or the mob
+    # actually gone from the room.
+    out = cmd(sA, "look")
+    if "slain" in out.lower() or "defeated" in out.lower() or "grpdummy" not in out.lower():
         slain = True
         break
     time.sleep(1.5)
+check(slain, "the mob was actually slain within the polling window")
 
 check(xp_of(leader_name) > xp_before_leader, "the leader gained XP from the kill")
 check(xp_of(foll_name) > xp_before_foll, "the grouped, in-room follower ALSO gained XP from the same kill")
