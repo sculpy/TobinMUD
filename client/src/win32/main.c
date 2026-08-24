@@ -169,7 +169,7 @@
  * third party ever publishes a version string here) and "different
  * from what I was built with" is all that's actually needed to decide
  * "go get the new one." */
-#define CLIENT_VERSION "0.4.34"
+#define CLIENT_VERSION "0.4.35"
 #define HISTORY_MAX 100
 #define GAUGE_H 34 /* height in px of the HP/Mana/Move gauge strip */
 
@@ -2284,6 +2284,26 @@ static void mapview_screen_to_world(HWND canvas, int sx, int sy, double *wx, dou
     *wx = (sx - cx - s_map_pan_x) / s_map_zoom;
     *wy = -(sy - cy - s_map_pan_y) / s_map_zoom;
 }
+
+/* Centers the pan so the player's current room sits under the canvas
+ * center, instead of always snapping back to world origin (0,0) --
+ * maprecalc assigns each disconnected component of the roomexit graph
+ * its own large x-offset (componentIndex*100000, cmd_maprecalc.c) so
+ * separate components don't visually overlap; a player whose current
+ * room lands in a component far from index 0 would otherwise open the
+ * map view looking at empty space millions of pixels from any drawn
+ * room. No-op (pan stays 0,0) until the first Room.Info with a real
+ * position arrives, same as the existing has_current_pos gate on
+ * s_map_z. */
+static void mapview_center_on_player(void) {
+    if (g_app.has_current_pos) {
+        s_map_pan_x = -g_app.current_room_x * s_map_zoom;
+        s_map_pan_y = g_app.current_room_y * s_map_zoom;
+    } else {
+        s_map_pan_x = 0.0;
+        s_map_pan_y = 0.0;
+    }
+}
 static void mapview_update_status(HWND mapview_hwnd) {
     HWND status = GetDlgItem(mapview_hwnd, ID_MAPVIEW_STATUS);
     if (!status)
@@ -2503,8 +2523,7 @@ static LRESULT CALLBACK MapViewWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp
             return 0;
         case ID_MAPVIEW_RESET:
             s_map_zoom = 24.0;
-            s_map_pan_x = 0.0;
-            s_map_pan_y = 0.0;
+            mapview_center_on_player();
             s_map_z = g_app.has_current_pos ? g_app.current_room_z : 0;
             InvalidateRect(g_app.hwnd_mapview_canvas, NULL, FALSE);
             mapview_update_status(hwnd);
@@ -2609,8 +2628,7 @@ static void open_map_view(HWND parent) {
         SendMessageW(toolbar_ctrls[i], WM_SETFONT, (WPARAM)dlgfont, TRUE);
     g_app.hwnd_mapview_canvas = canvas;
     s_map_zoom = 24.0;
-    s_map_pan_x = 0.0;
-    s_map_pan_y = 0.0;
+    mapview_center_on_player();
     s_map_z = g_app.has_current_pos ? g_app.current_room_z : 0;
     s_map_hover_vnum = -1;
     /* The controls above were all created at 0,0,0,0 -- lay them out for

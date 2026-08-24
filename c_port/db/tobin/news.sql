@@ -720,3 +720,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Quests Can Now Hand Out Race-Flavored Rewards', 'Some quests can now give out a different reward item depending on your race when you type `quest claim`, instead of everyone getting the same generic prize.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'The Map Window Finally Shows Your Map', 'The client''s map window was opening centered on a faraway, empty stretch of the world instead of on wherever you actually were -- so it looked blank even once you had walked around and it had learned your surroundings. It now opens centered on your own location, so the rooms and exits you have discovered show up right away.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

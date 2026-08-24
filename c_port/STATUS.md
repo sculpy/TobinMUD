@@ -1,4 +1,47 @@
 # Tobin C Port — Status
+
+Last updated: 2026-08-24 -- Session 193 (DO droplet, production port 4000):
+**Fixed the client map view showing a blank canvas (user report: "the
+map appears but doesn't draw from data, shows a blank dark colored
+box").** Root cause was NOT the client's GMCP/parsing/paint code (all
+read through and confirmed sound) and NOT missing server data (`room`
+table already has real x/y/z for 18,842/18,940 rooms) -- it was that
+`open_map_view()`/Reset View always reset pan to world coordinate
+(0,0), while `maprecalc` (cmd_maprecalc.c) assigns each disconnected
+component of the roomexit graph its own large x-offset
+(`componentIndex*100000`) so components don't visually overlap.
+Confirmed live via a raw GMCP probe (`tests/mud_test_utils.py` helpers
+against a throwaway character): room 100 ("Center Square", a
+heavily-connected hub) landed in component 61 (`x=6100000`) because
+roughly 60 tiny disconnected zone-0 rooms (vnums 1-99, mostly
+no-exit/isolated) get enumerated first by vnum order. A player whose
+current room sits in any component other than 0 opened the map to a
+node drawn ~146 million pixels off the visible canvas at the default
+zoom -- reproducing the exact "blank dark box" symptom, and explaining
+why it stayed blank even after walking (has_current_pos/has_pos were
+both fine; only the pan was wrong).
+  - Fix: new `mapview_center_on_player()` (`client/src/win32/main.c`)
+    centers the pan on the player's own current room position (same
+    "no-op until has_current_pos" gate the Z-level already used),
+    called from both `open_map_view()` and the Reset View button
+    instead of hardcoding `s_map_pan_x/y = 0.0`.
+  - Both client toolchains rebuilt clean, zero warnings
+    (`build-win64` mingw64 cross-compile, `build-native` portable-core
+    sanity build). `gcc -Wall -Wextra` proof harness
+    (`tests/gmcp_json_map_test.c`, unaffected by this change) still
+    22/22.
+  - Shipped as client v0.4.35 (`CLIENT_VERSION` in main.c, `Version`
+    in `installer/windows/tobinmud.wxs`), MSI rebuilt via `wixl` and
+    published to the update host (`version.txt` + `TobinMUDClient.msi`
+    under `~/TobinMUD/web/tobinclient/`) -- existing players pick it
+    up via the client's own self-update check on next launch.
+  - News + wiznews entries added (`db/tobin/news.sql`,
+    `db/tobin/wiznews.sql`) and applied directly to the live DB
+    (`mariadb -u mud tobin < db/tobin/wiznews.sql`) rather than via
+    `db/apply-tobin-schema.sh` -- that script now aborts partway
+    through on an unrelated pre-existing issue, see TODO.md.
+  - No server-side (`c_port`) code changed; this session touched only
+    `client/` and the `news`/`wiznews` tables.
 Last updated: 2026-08-24 -- Session 192 (DO droplet, production port 4000):
 **Restored zone 2 (Tobin City Roads) and zone 38 (Dolgan - Tobin City
 Outer Pathway) rooms deleted by the road-shrink initiative (Phase A, Session

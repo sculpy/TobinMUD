@@ -14,6 +14,19 @@ Editor commands are unified under **`edit <noun> [args]`** (user
 viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
+`db/apply-tobin-schema.sh` now aborts partway through (Session
+193, discovered while re-applying migrations for an unrelated news/
+wiznews entry): `db/tobin/road_shrink_zone2.sql` DELETEs a set of
+room vnums that Session 192 already re-inserted directly (reverting
+part of the road-shrink initiative for zone 2), so those rooms now
+have live `roomexit` FK dependents again and the DELETE fails with a
+foreign-key error. Blocks a fresh full `apply-tobin-schema.sh` run
+(a targeted `mariadb -u mud tobin < some_file.sql` still works fine).
+Fix is presumably to make `road_shrink_zone2.sql` idempotent (skip
+rows that no longer need deleting) or drop/rewrite it now that
+Session 192 reverted its effect for zone 2; not fixed here, out of
+scope for the session that found it.
+
 Per-race flavor systems (Session, 2026-08-23): height/weight/age, move
 verbs, body type, and per-race quest-item tables all landed (see
 STATUS.md/RACE_STATS.md/RACE_PERKS.md). One loose end: `questitem` can
