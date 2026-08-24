@@ -187,6 +187,10 @@ registrar/DNS provider. (Already done for the current droplet — DNS is
 live and the domain resolves.)
 
 ### 3k. Prove it works
+One-time exception to the "no full sweeps" rule below: a from-scratch
+rebuild has nothing yet proven working, so the full suite is the right
+bar to clear before calling the droplet live. Routine day-to-day changes
+should NOT run this -- see CLAUDE.md/TODO.md "targeted tests only."
 ```sh
 cd ~/TobinMUD/c_port
 bash tests/sweep.sh                  # expect "SUMMARY: N passed, 0 failed"
@@ -213,5 +217,5 @@ Seed a DB:       c_port/db/init-db.sh mud   &&   c_port/db/apply-tobin-schema.sh
 Build:           cd ~/TobinMUD/c_port && cmake -S . -B build && cmake --build build   (or: make -j4)
 Run:             cd ~/TobinMUD/c_port && setsid nohup ./build/tobin_c > tobin_c.log 2>&1 < /dev/null &
 Telnet:          tobinmud.com:4000  (or 159.223.121.98:4000)
-Sweep:           cd ~/TobinMUD/c_port && bash tests/sweep.sh
+Sweep:           cd ~/TobinMUD/c_port && bash tests/sweep.sh   (from-scratch rebuild only -- NOT routine dev; targeted tests otherwise)
 ```

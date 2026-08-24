@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.7 - All rights reserved                         *
+ * TobinMUD ver. 1.0 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #ifndef CMD_INTERNAL_H

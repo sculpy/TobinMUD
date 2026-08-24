@@ -1,5 +1,5 @@
 /*******************************************************************
- * TobinMUD ver. 0.7 - All rights reserved                         *
+ * TobinMUD ver. 1.0 - All rights reserved                         *
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 /* Per-race flavor systems (Sneezy -> Tobin feature audit, docs/RACE_STATS.md's/
