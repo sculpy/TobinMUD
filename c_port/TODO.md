@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-24 (16). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-24 (17). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -43,10 +43,12 @@ NOT port SneezyMUD's live demand-curve pricing (`commodLoader`/
 seeded fixed price column on those 182 prototypes and the existing
 5-tier material value system instead, same simplification precedent as
 material.h. Verified with tests/smoke_test_commodity_loot.py.
-Follow-ups, not done here: only a handful of shops currently have
-shoptype rows for 42/43/50 (9, 15, 56-58, 81, 97, 104, 105, 238) -- most
-dropped commodities have nowhere to sell; a dedicated commodity-trader
-mob (SneezyMUD's spec_mobs_commod_trader.cc) was not ported either.
+Shoptype coverage EXTENDED 2026-08-24: 12 more shops added, chosen by
+theme (forges/smithies now buy 42, jewelers/curio now buy 43, a
+tannery/alchemists now buy 50) -- see
+db/tobin/commodity_shoptype_expansion.sql. Still not done: many shops
+have zero shoptype rows at all; a dedicated commodity-trader mob
+(SneezyMUD's spec_mobs_commod_trader.cc) was not ported either.
 Road-shrink initiative is CLOSED (Sessions 183-188). Phase A
 complete: all 14 built road/connector zones shrunk -- 11, 2, 67,
 16, 53, 22, 258, 18, 12, 49, 19, 259, 38, 146. Phase B (global

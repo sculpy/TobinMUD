@@ -729,3 +729,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Slain Monsters Sometimes Carry Raw Materials Worth Trading', 'Defeating a monster can now leave behind more than coin -- some kills drop a raw material, gemstone, or organic component in the corpse alongside the gold, ready to sell to the right merchant.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'More Merchants Now Buy Raw Materials, Gems, and Organics', 'A dozen more shops -- smithies and forges, jewelers, a tannery, and a couple of alchemists -- will now buy the raw materials, gemstones, and organic components monsters sometimes drop.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

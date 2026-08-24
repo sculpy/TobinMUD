@@ -1606,3 +1606,31 @@ for smoke_test_group.py in Session 196 above, just never back-ported
 to this file. Confirmed unrelated to the commodities change: the new
 code only runs inside combat_defeat()'s !mob_race_is_animal() branch,
 which this test's failing first fight never enters.
+
+
+Session 198 (DO droplet): Commodities follow-up -- shoptype coverage
+extended. TODO.md's open follow-up from Session 197 (only 6-9 shops
+had shoptype rows for raw type 42/43/50, most dropped commodities had
+nowhere to sell). Queried shop/shoptype/mob/room directly to pick
+targets by theme rather than guessing: 4 forges/smithies (shop_nr 133,
+134, 138, 175) now buy 42 (RAW_MATERIAL); 4 jewelers/curio shops (44,
+61, 73, 236) now buy 43 (GEMSTONE); a tannery and 3 alchemists (29,
+110, 174, 244) now buy 50 (RAW_ORGANIC). New
+db/tobin/commodity_shoptype_expansion.sql, INSERT ... ON DUPLICATE KEY
+UPDATE (idempotent, no schema change, matches the project's re-apply
+convention). news.sql and wiznews.sql entries appended.
+Re-ran tests/smoke_test_commodity_loot.py: first run failed at the
+"drops within 10 kills" check, second run passed clean. Not a
+regression from this change -- the check only exercises the drop
+mechanism (unchanged), not the new shoptype rows, and the drop is
+inherently probabilistic by design (test's own comment: corpse_gold is
+level*(1+rand()%5)=3-15 for the level-3 test mob, the skim is
+(rand(0,25)+rand(0,25))/100 of that truncated to an int, so a run of
+small corpse_gold rolls combined with a low skim roll can legitimately
+truncate to 0 affordable budget across all 10 attempts). Left as-is,
+matching the "found in passing, not fixed here" precedent -- this is
+expected variance in a probabilistic smoke test, not a bug, and
+tightening the retry/odds is out of scope for a shoptype-only change.
+Still open, not done here: many shops still have zero shoptype rows at
+all (mostly Open Market Vendor / specialty stub shops); the dedicated
+commodity-trader mob (spec_mobs_commod_trader.cc) was not ported.
