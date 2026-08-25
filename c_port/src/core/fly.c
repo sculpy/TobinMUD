@@ -16,30 +16,37 @@
 #include "thing.h"
 #include "world.h"
 
-/* Shared "in the sky" waypoints every `fly` route passes through, in
+/* Shared "in the sky" waypoints every `travel` route passes through, in
  * order -- flavor only, no route-specific waypoints (user asked for "a
  * series of rooms", not a full second world per route). Not reachable by
  * ordinary movement (no walk-in exits seeded anywhere); only fly_start()/
  * fly_tick_run() ever put a character in one. Same zone-63 vnum block as
- * the roosts (dragon_ride.sql), immediately following 7900/7901.
+ * the roosts (dragon_ride.sql and friends), immediately following
+ * 7900/7901 -- 7911/7912 (the 2026-08-25 follow-up's two extra legs)
+ * come after the destination-roost block (7907-7910) to avoid a clash.
  *
- * fly_tick_run() is pulse_register()'d on a fixed ~3s cadence keyed off
- * the ABSOLUTE pulse clock (pulse_num % FLY_TICK_PULSES == 0), not an
- * offset from when a given flight started -- so the first leg after
- * `fly <dest>` fires anywhere from just after takeoff up to a full
+ * fly_tick_run() is pulse_register()'d on a fixed cadence keyed off the
+ * ABSOLUTE pulse clock (pulse_num % FLY_TICK_PULSES == 0), not an offset
+ * from when a given flight started -- so the first leg after
+ * `travel <dest>` fires anywhere from just after takeoff up to a full
  * FLY_TICK_PULSES later, and every leg after that is exactly
  * FLY_TICK_PULSES apart. With FLY_LEG_COUNT legs that puts landing
- * (offset + (FLY_LEG_COUNT-1)*3s) in a [12s, 15s) window -- squarely in
- * the user's requested 10-15s range with margin against the low end,
- * rather than a 4-leg [9s, 12s) design that could undershoot 10s on a
- * lucky alignment. */
-#define FLY_LEG_COUNT 5
-#define FLY_TICK_PULSES 30 /* ~3s, same cadence as planting_tick_run() */
-static const int FLY_WAYPOINTS[FLY_LEG_COUNT] = {7902, 7903, 7904, 7906, 7905};
+ * (offset + (FLY_LEG_COUNT-1)*tick) in a real-time window of
+ * [(FLY_LEG_COUNT-1)*tick, FLY_LEG_COUNT*tick) -- the user's requested
+ * 10-15s range. Went through two revisions to land there: a 4-leg/3s
+ * design gave [9s,12s) (could undershoot 10s on a lucky alignment); a
+ * follow-up widened it to 5 legs/3s for [12s,15s); the 2026-08-25
+ * "extend by two more legs" follow-up then meant 7 legs/3s would have
+ * given [18s,21s), well past 15s -- so the per-tick interval was pulled
+ * down to ~2s alongside the extra legs, landing 7 legs/2s squarely at
+ * [12s,14s). */
+#define FLY_LEG_COUNT 7
+#define FLY_TICK_PULSES 20 /* ~2s -- see the doc comment above for why this isn't planting_tick_run()'s 30/~3s */
+static const int FLY_WAYPOINTS[FLY_LEG_COUNT] = {7902, 7903, 7904, 7906, 7911, 7912, 7905};
 
 /* One line of in-flight flavor, shown to the flying player only -- no
  * other player is ever really in these rooms at the same moment to see a
- * room-echo, so unlike cmd_fly.c's roost departure/arrival there's no
+ * room-echo, so unlike cmd_travel.c's roost departure/arrival there's no
  * room-echo half here. Picked at random each leg so a flight doesn't
  * repeat the same line every time (spellcast.c's gesture-line pool is
  * the same spirit). */
@@ -50,6 +57,8 @@ static const char *const FLY_INFLIGHT_LINES[] = {
     "The dragon tilts on an air current, and for a heartbeat you're weightless.\r\n",
     "Sunlight glints off the dragon's scales as it beats higher, chasing the wind.\r\n",
     "You grip tight as the dragon rides a thermal, climbing without a single wingbeat.\r\n",
+    "The dragon lets out a low, rumbling call, answered faintly by the wind.\r\n",
+    "Your ears pop as the dragon shifts height, chasing a smoother current of air.\r\n",
 };
 #define FLY_INFLIGHT_LINE_COUNT (int)(sizeof(FLY_INFLIGHT_LINES) / sizeof(FLY_INFLIGHT_LINES[0]))
 

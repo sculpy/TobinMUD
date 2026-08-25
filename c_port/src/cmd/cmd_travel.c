@@ -15,11 +15,21 @@
 #include "room_repo.h"
 #include "world.h"
 
-/* `fly` -- dragon-ride long-haul transport (user, 2026-08-25: "implement
- * a dragon ride system to take players from one area to another distant
- * area for a fee"). New Tobin feature, no SneezyMUD precedent (checked
- * sneezymud-master -- no dragon/griffon ride system there); documented as
- * a deliberate deviation, see STATUS.md's decisions table.
+/* `travel` -- dragon-ride long-haul transport (user, 2026-08-25:
+ * "implement a dragon ride system to take players from one area to
+ * another distant area for a fee"). New Tobin feature, no SneezyMUD
+ * precedent (checked sneezymud-master -- no dragon/griffon ride system
+ * there); documented as a deliberate deviation, see STATUS.md's
+ * decisions table.
+ *
+ * Originally named `fly` -- renamed the same day (user follow-up:
+ * "fly collides with an existing flight spell/skill already in the
+ * game") to `travel`, confirmed unclaimed in cmd_table.c first. The
+ * underlying fly_start()/fly_tick_run()/fly.c machinery and
+ * being.h's fly_ticks_left/fly_dest_vnum fields keep their original
+ * names -- purely internal, renaming them added churn for no player-
+ * facing benefit. In-world dragon-keeper dialogue still says "fly"
+ * (a dragon literally flies) -- only the command verb changed.
  *
  * Deliberately NOT layered on the existing `ride`/cmd_ride.c mount
  * system -- that command mounts any HORSE-race mob for a movement-cost
@@ -29,13 +39,15 @@
  * directly to a distant roost, same shape as cmd_shop.c's SPEC_TICKET_GUY
  * (`buy ticket`) but with a keyed room-to-room route table instead of one
  * hardcoded destination, so more roosts/routes can be added later purely
- * in data (dragon_route, db/tobin/dragon_ride.sql) with no code change.
+ * in data (dragon_route, db/tobin/dragon_ride.sql and friends) with no
+ * code change -- exactly how the 2026-08-25 destination expansion (Amber,
+ * Logrus, the Xanesla coast, Mithros) landed.
  *
- * `fly` alone: lists routes departing the current room (empty list if
- * the room isn't a roost at all). `fly <destination>` matches a route's
- * dest_name by prefix (case-insensitive), same abbreviation spirit as
- * the rest of the command table. Charges progress.gold up front; no
- * partial charge or state change on any refusal.
+ * `travel` alone: lists routes departing the current room (empty list if
+ * the room isn't a roost at all). `travel <destination>` matches a
+ * route's dest_name by prefix (case-insensitive), same abbreviation
+ * spirit as the rest of the command table. Charges progress.gold up
+ * front; no partial charge or state change on any refusal.
  *
  * The flight itself is NOT instant (user follow-up, 2026-08-25: "there
  * must be a series of rooms to go through for flavor, a flight should
@@ -46,7 +58,7 @@
  * Nothing reachable mid-flight can interrupt it (empty sky, no combat),
  * so once paid for and airborne the trip always completes -- see
  * being.h's fly_ticks_left doc comment. */
-bool cmd_fly(descriptor_t *d, const char *args) {
+bool cmd_travel(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
         descriptor_send(d, "You are nowhere.\r\n");
@@ -63,14 +75,14 @@ bool cmd_fly(descriptor_t *d, const char *args) {
     }
 
     if (!*args) {
-        char out[1024];
+        char out[1536];
         int n = snprintf(out, sizeof(out), "\r\nA dragon-keeper offers passage to:\r\n");
         for (int i = 0; i < count && (size_t)n < sizeof(out); i++) {
             n += snprintf(out + n, sizeof(out) - (size_t)n, " %-30s %d gold\r\n",
                           routes[i].dest_name, routes[i].fee);
         }
         if ((size_t)n < sizeof(out))
-            n += snprintf(out + n, sizeof(out) - (size_t)n, "\r\n(fly <destination>)\r\n");
+            n += snprintf(out + n, sizeof(out) - (size_t)n, "\r\n(travel <destination>)\r\n");
         descriptor_send(d, out);
         return true;
     }

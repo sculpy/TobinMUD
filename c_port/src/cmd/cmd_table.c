@@ -380,7 +380,9 @@ static const cmd_entry_t COMMANDS[] = {
     { "unignore", cmd_unignore, "Stop blocking someone's tells/whispers (unignore <name>).", MORTAL_LEVEL_MIN },
     { "unlock",  cmd_unlock,  "Unlock a locked door or container (unlock <direction|container>).", MORTAL_LEVEL_MIN },
     { "flee",    cmd_flee,    "Try to escape a fight through a random exit.",       MORTAL_LEVEL_MIN },
-    { "fly",     cmd_fly,     "Pay a dragon-keeper for passage to a distant roost (fly [<destination>]).", MORTAL_LEVEL_MIN },
+    /* Renamed from `fly` (user 2026-08-25: collided with an existing
+     * flight spell/skill of the same name already in the game). */
+    { "travel",  cmd_travel,  "Pay a dragon-keeper for passage to a distant roost (travel [<destination>]).", MORTAL_LEVEL_MIN },
     /* Bulletin boards (user 2026-07-18) -- "wr" is already unambiguous
      * (nothing else starts "wr"). */
     { "write",   cmd_write,   "Post a message on a bulletin board (write <subject> <message>).", MORTAL_LEVEL_MIN },

@@ -1033,7 +1033,7 @@ typedef struct being {
     int planting_type;
     struct room *planting_room;
 
-    /* Dragon-flight in-progress task (fly command, cmd_fly.c/fly.c) --
+    /* Dragon-flight in-progress task (`travel` command, cmd_travel.c/fly.c, renamed from `fly` 2026-08-25) --
      * same countdown shape as planting_ticks_left above: fly_ticks_left
      * counts down from a fixed leg count to 0, decremented once per
      * fly_tick_run() tick (~3s), moving the being through a shared
@@ -1043,7 +1043,7 @@ typedef struct being {
      * not flying. Live in-memory only, same reconnect rule as
      * planting/fighting -- a disconnect simply abandons the flight (no
      * refund; nothing to interrupt it with mid-air either, see
-     * cmd_fly.c's doc comment). */
+     * cmd_travel.c's doc comment). */
     int fly_ticks_left;
     int fly_dest_vnum;
 

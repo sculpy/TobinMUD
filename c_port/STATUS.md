@@ -1981,3 +1981,62 @@ player was connected both times this session deployed, confirmed via
 `ss`). Targeted regression pass: smoke_test_fly_dragon.py (new shape),
 smoke_test_goto_guildmaster.py, smoke_test_goto_transfer_reference_fixes.py
 all clean. news.sql and wiznews.sql follow-up entries added and applied.
+
+
+Session 203 (DO droplet): dragon ride renamed to travel, five more
+destinations, longer flight sequence. Three same-day user follow-ups on
+the dragon ride feature, done together (same overlapping files):
+
+1. Renamed `fly` -> `travel` -- `fly` collided with an existing flight
+spell/skill. Confirmed `travel` unclaimed in cmd_table.c first. Renamed
+the command table row, cmd_internal.h's declaration, the source file
+(cmd_fly.c -> cmd_travel.c, cmd_fly -> cmd_travel), the help topic (old
+`fly` row deleted so it doesn't linger pointing at a dead command, new
+`travel` row added), and all doc-comment/news references. Deliberately
+did NOT rename the internal fly_start()/fly_tick_run()/fly.c machinery
+or being.h's fly_ticks_left/fly_dest_vnum fields -- purely internal,
+renaming adds churn for no player-facing benefit; in-world dragon-keeper
+dialogue still says "fly" (a dragon literally flies).
+
+2. Added four more destination roosts (user: "offer other major areas to
+travel to") -- Amber (room 7907, anchored off room 3011 "Inside The
+South Gate", zone 29), Logrus (7908, off 3726 "Dread Square", zone 34),
+a coastal roost above Xanesla (7909, off 6314 "Before a Large
+Lighthouse", zone 54 -- the zone's actual seeded content is a harbor/
+lighthouse area rather than a city center, so the roost leans into that),
+and one above the Obsidian Citadel of Mithros (7910, off 7119 "Inside
+the Bailey Gates", zone 57). Each anchor room was confirmed to have no
+existing `up` exit before picking it. New db/tobin/dragon_ride_destinations.sql
+(rooms, keeper mobs, exits, dragon_route rows, idempotent) plus 4 new
+zone_reset load rows appended to zone_reset_tobin.sql. Routes are
+hub-and-spoke through Tobin City (room 7900) rather than a full mesh --
+Araxus stays connected only to Tobin City as before, so e.g. Amber ->
+Logrus now requires connecting through Tobin City, same as a real
+capital-hub network. All pure data, zero code changes to routing logic
+(dragon_route_repo.c/cmd_travel.c untouched by this part).
+
+3. Extended the flight sequence by 2 more legs (7 total, up from 5) per
+user request. A straight 7-leg extension at the existing ~3s/leg cadence
+would have pushed landing to a real [18s,21s) window, well past the
+user's original 10-15s target -- so the per-leg interval was reduced to
+~2s (FLY_TICK_PULSES 30->20) alongside the 2 extra legs, landing back at
+a real [12s,14s) window, comfortably inside 10-15s. Flagged this
+tradeoff to the user per the coordinator's ask. Two new shared sky
+waypoint rooms (7911 "Skimming a Wide River", 7912 "The City Lights
+Ahead") wired into fly.c's FLY_WAYPOINTS sequence between the existing
+mountain-pass leg and the final descent leg; two new randomized in-flight
+flavor lines added to the pool.
+
+tests/smoke_test_fly_dragon.py renamed to smoke_test_travel_dragon.py
+and rewritten for `travel`, the new 7-leg/2s timing, a check that the
+bare route listing includes all 4 new destinations, and a full real
+flight to the newly added Amber roost (not just a route-listing check)
+to prove the data-only expansion actually works end to end. Clean
+rebuild (`rm -rf build`), zero warnings. Applied both new SQL files via
+apply-tobin-schema.sh (idempotent, verified: old `fly` help_topic row
+gone, new `travel` row present). Deployed via copyover (a player was
+connected, confirmed via `ss`). Targeted regression pass: the renamed
+smoke test, smoke_test_goto_guildmaster.py, and
+smoke_test_goto_transfer_reference_fixes.py (both touch cmd_table.c
+indirectly) all clean. news.sql and wiznews.sql follow-up entries added
+and applied.

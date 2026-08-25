@@ -5,11 +5,13 @@
 #ifndef TOBIN_DRAGON_ROUTE_REPO_H
 #define TOBIN_DRAGON_ROUTE_REPO_H
 
-/* DB access for the `dragon_route` table (db/tobin/dragon_ride.sql) --
- * backs `fly` (cmd_fly.c). Each row is one directed route: standing in
- * room `from_room` (a dragon roost), `fly <dest_name>` flies the player
- * to `to_room` for `fee` gold. New roosts/routes are pure data -- no
- * code change needed to add one. */
+/* DB access for the `dragon_route` table (db/tobin/dragon_ride.sql and
+ * dragon_ride_destinations.sql) -- backs `travel` (cmd_travel.c, renamed
+ * from `fly` 2026-08-25). Each row is one directed route: standing in
+ * room `from_room` (a dragon roost), `travel <dest_name>` flies the
+ * player to `to_room` for `fee` gold. New roosts/routes are pure data --
+ * no code change needed to add one, as the 2026-08-25 destination
+ * expansion (Amber, Logrus, the Xanesla coast, Mithros) demonstrated. */
 
 #define DRAGON_ROUTE_MAX 16
 #define DRAGON_ROUTE_NAME_LEN 64

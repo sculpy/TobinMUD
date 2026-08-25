@@ -750,3 +750,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Dragon Flights Now Take Real Time to Complete', 'Riding a dragon between the roosts above Market Square and the Araxus walls no longer happens in the blink of an eye. You now climb aboard and are carried through a stretch of open sky -- clouds, hills, mountains, and a final descent -- before the dragon actually lands, the same way a long journey should feel. You cannot act while airborne, same as being lagged from a big swing or a spell, and there is no way to fall or bail out partway through.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Dragon Rides Renamed to Travel, and Now Reach Five Cities', 'The dragon-riding command has been renamed from fly to travel, since fly was already the name of an existing spell. Dragon roosts have also opened above four more major destinations -- Amber, Logrus, the Xanesla coast, and the Obsidian Citadel of Mithros -- all reachable from the roost above Market Square in Tobin City, with a return trip back to Tobin City from each. Type travel while standing at any roost to see where the dragons from there will take you.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

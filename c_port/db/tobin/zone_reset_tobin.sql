@@ -30,3 +30,19 @@ ON DUPLICATE KEY UPDATE `arg1` = VALUES(`arg1`), `arg3` = VALUES(`arg3`);
 INSERT INTO `zone_reset` (`zone_nr`,`cmd_no`,`command`,`if_flag`,`arg1`,`arg2`,`arg3`,`arg4`,`comment`)
 VALUES (63, 2, 'M', 0, 7901, 1, 7901, 0, 'Dragon-keeper Sorha, roost above the Araxus walls')
 ON DUPLICATE KEY UPDATE `arg1` = VALUES(`arg1`), `arg3` = VALUES(`arg3`);
+
+-- Dragon-keeper flavor mobs for the 2026-08-25 destination expansion
+-- (dragon_ride_destinations.sql, cmd_travel.c). Continuing zone 63's
+-- cmd_no sequence from the original two roosts above.
+INSERT INTO `zone_reset` (`zone_nr`,`cmd_no`,`command`,`if_flag`,`arg1`,`arg2`,`arg3`,`arg4`,`comment`)
+VALUES (63, 3, 'M', 0, 7907, 1, 7907, 0, 'Dragon-keeper Wenna, roost above Amber Castle')
+ON DUPLICATE KEY UPDATE `arg1` = VALUES(`arg1`), `arg3` = VALUES(`arg3`);
+INSERT INTO `zone_reset` (`zone_nr`,`cmd_no`,`command`,`if_flag`,`arg1`,`arg2`,`arg3`,`arg4`,`comment`)
+VALUES (63, 4, 'M', 0, 7908, 1, 7908, 0, 'Dragon-keeper Torvald, roost above Logrus')
+ON DUPLICATE KEY UPDATE `arg1` = VALUES(`arg1`), `arg3` = VALUES(`arg3`);
+INSERT INTO `zone_reset` (`zone_nr`,`cmd_no`,`command`,`if_flag`,`arg1`,`arg2`,`arg3`,`arg4`,`comment`)
+VALUES (63, 5, 'M', 0, 7909, 1, 7909, 0, 'Dragon-keeper Marisol, roost above the Xanesla coast')
+ON DUPLICATE KEY UPDATE `arg1` = VALUES(`arg1`), `arg3` = VALUES(`arg3`);
+INSERT INTO `zone_reset` (`zone_nr`,`cmd_no`,`command`,`if_flag`,`arg1`,`arg2`,`arg3`,`arg4`,`comment`)
+VALUES (63, 6, 'M', 0, 7910, 1, 7910, 0, 'Dragon-keeper Ghurn, roost above the Obsidian Citadel')
+ON DUPLICATE KEY UPDATE `arg1` = VALUES(`arg1`), `arg3` = VALUES(`arg3`);

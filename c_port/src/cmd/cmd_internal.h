@@ -471,6 +471,6 @@ typedef struct {
  * cmd_help.c lists it as a hardcoded extra line instead. */
 const cmd_entry_t *cmd_table_entries(int *count);
 
-bool cmd_fly(descriptor_t *d, const char *args);
+bool cmd_travel(descriptor_t *d, const char *args);
 
 #endif

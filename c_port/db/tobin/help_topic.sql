@@ -1407,9 +1407,16 @@ ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by=VALUES(updated_by);
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
 ('questitem', 'Usage: questitem <name> <stage> <race> <vnum>\n       questitem <name> <stage> <race> remove\n       questitem <name> <stage> list\n\nBuilder tier (51+). Sets the reward object a player of <race> (human,\nelf, ogre, dwarf, hobbit, or gnome) receives from `quest claim <name>`\nonce they reach <stage> of quest <name>. <vnum> must be a real,\nloadable object. Re-running with the same name/stage/race replaces the\nprevious reward. `questitem <name> <stage> <race> remove` clears a\nrace''s reward entirely. `questitem <name> <stage> list` shows every\nrace/vnum reward row currently defined for that quest/stage. Pair with\n`qedit` to also write that stage''s description.\n\nRelated: qedit quest', 'seed')
 ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by=VALUES(updated_by);
--- New topic: `fly` (dragon ride system, user 2026-08-25: "implement a
+-- Topic `fly` renamed to `travel` (user follow-up, 2026-08-25: "fly
+-- collides with an existing flight spell/skill already in the game").
+-- Old `fly` topic row removed so it doesn't linger pointing at a command
+-- that no longer exists; same pattern other renamed-topic cleanups in
+-- this file use.
+DELETE FROM `help_topic` WHERE `name` = 'fly' AND `updated_by` = 'seed';
+-- New topic: `travel` (dragon ride system, user 2026-08-25: "implement a
 -- dragon ride system to take players from one area to another distant
--- area for a fee"). New Tobin feature, not a port -- see cmd_fly.c.
+-- area for a fee"; renamed from `fly` same day; destination roosts
+-- expanded same day). New Tobin feature, not a port -- see cmd_travel.c.
 INSERT INTO `help_topic` (`name`, `body`, `updated_by`) VALUES
-('fly', 'Usage: fly [<destination>]\n\nAt a dragon roost, a dragon-keeper will fly you to another distant\nroost for a flat gold fee, paid up front. Bare `fly` lists every\ndestination reachable from where you are standing along with its fee;\n`fly <destination>` pays and takes off immediately if you can afford\nit. Away from a roost, there is nothing to fly on.\n\nRelated: goto ride', 'seed')
+('travel', 'Usage: travel [<destination>]\n\nAt a dragon roost, a dragon-keeper will fly you to another distant\nroost for a flat gold fee, paid up front. Bare `travel` lists every\ndestination reachable from where you are standing along with its fee;\n`travel <destination>` pays and takes off immediately if you can\nafford it. The flight itself takes a while -- you will pass through a\nseries of rooms high in the sky before landing, roughly ten to fifteen\nseconds in all, and cannot act until you touch down. Away from a\nroost, there is nothing to fly on.\n\nRelated: goto ride', 'seed')
 ON DUPLICATE KEY UPDATE body=VALUES(body), updated_by=VALUES(updated_by);
