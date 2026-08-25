@@ -741,3 +741,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Your Monster Lore Now Speaks Up On Its Own', 'The know-animal/demon/giantkin/other/people/reptile/undead/veggie lore skills used to require typing `know <creature>` as its own command. They now also fire automatically -- for free, no time cost -- whenever you `look` at or `consider` a creature you have the matching lore skill for. The explicit `know <creature>` command still works exactly as before for a deliberate, focused study.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'A Few More Shops Now Buy What They Sell', 'A fishing shop and a small clothing bazaar were quietly refusing to buy anything back from customers, even though their shelves were fully stocked. Both now buy back the same kinds of gear they sell.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

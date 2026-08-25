@@ -1846,3 +1846,30 @@ hit "You are still recovering!" before ever reaching the component
 gate, undercounting real attempts against the fixed loop bound of 11.
 The loop now polls past wait-state refusals instead of counting them.
 Passes clean, reran twice to rule out flakiness from the skill-roll RNG.
+
+Session 200 (DO droplet): shoptype coverage audit, closing TODO.md's
+last open follow-up. 119 of 264 shops had zero shoptype rows. Rather
+than filling blindly, cross-checked each shop_nr against shopproducing
+(what it actually stocks) and shopowned (corp/market membership): only
+6 of the 119 stock anything at all -- shop 109 (A Fishing Shop, Keirk,
+vnum room 15345) and shops 218/219/220/221/224 (a small clothing/weapon
+bazaar in the Trolley zone: Brotherhood of the Knot, Cult of Tailoring,
+Gnucci, Furtive Florimel's). The other 113 are genuine service NPCs
+(banks, tax collectors, postmasters, innkeepers, doctors/medics,
+receptionists, repairmen/sharpeners/barbers, butlers) that correctly
+buy nothing from players by design, plus shop_nr 85-103 (corp_id 21 in
+shopowned -- a separate player/corp market-stall mechanic cmd_shop.c
+doesn't even reference) -- none of these were touched. Confirmed
+is_bank/is_repair/is_stable can't be used to auto-filter service shops:
+they're inconsistently seeded (shop 4 an obese banker has is_bank=1,
+but shops 123/140/141/142, also named bankers, have is_bank=0).
+New db/tobin/shoptype_coverage_expansion.sql adds shoptype rows to the
+6 real stores, matched to the raw obj.type values shopproducing lists
+for each: 109 gets WORN(11)/TRASH(13)/BAG(27)/TOOL(35) (TRASH here is
+an existing upstream fishing-pole seed quirk, left as-is, not this
+session's concern); 218 and 220 get WORN(11); 219 and 221 get
+WEAPON(5)+WORN(11); 224 gets WEAPON(5). Applied directly (mariadb <
+file), idempotent INSERT ... ON DUPLICATE KEY UPDATE, no schema change,
+no rebuild/copyover needed (DB-data-only change, cmd_shop.c's buy-gate
+logic was untouched). news.sql and wiznews.sql entries added and
+applied. TODO.md's Open follow-ups section is now empty.

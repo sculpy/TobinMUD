@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-25. Companion to STATUS.md, which holds the full
+Last updated: 2026-08-25 (shoptype coverage audit closed). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -16,19 +16,7 @@ viewers keep plain names (`news`, `wiznews`).
 
 ## Open follow-ups
 
-Shoptype coverage: 119 of 264 shops have zero `shoptype` rows (nothing
-they will buy from players at all). Session 199 added rows to 12
-commodity-themed shops (forges/smithies->42, jewelers/curio->43, tannery/
-alchemists->50). Most of the remaining 119 are service NPCs (banks, tax
-collectors, postmasters, innkeepers, doctors/medics, receptionists,
-repairmen/sharpeners/barbers) that plausibly buy nothing at all by
-design -- `is_bank`/`is_repair`/`is_stable` flags on those rows are
-inconsistently set (e.g. shop 4 "an obese banker" has is_bank=1, but
-shops 123/140/141/142, also named bankers, have is_bank=0), so the flags
-can't be trusted to separate service shops from real unstocked general
-stores automatically. Needs a per-shop pass (verify against
-sneezymud-master where available) before adding shoptype rows, not a
-blanket fill.
+None currently open.
 
 ## Standing rules (learned)
 
