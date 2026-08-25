@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-24 (20). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-24 (Session 199). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 
@@ -15,6 +15,16 @@ viewers keep plain names (`news`, `wiznews`).
 
 
 ## Open follow-ups
+sell-all/component category bug FIXED Session 199: OBJ_CAT_COMPONENT
+split out of OBJ_CAT_OTHER (obj.h/obj.c) so a commodity shop's `sell
+all` no longer sweeps up carried spell/prayer components (they used to
+share a category with raw materials/organics). See STATUS.md.
+
+smoke_test_component_charges.py FAILING (found Session 199, unrelated
+to the fix above -- neither the test nor spell_component.c's charge
+logic reference category/OBJ_CAT_* at all): expects a component to
+survive exactly 10 mortal casts before being used up, got None instead.
+Needs investigation.
 Fixed 3 stale/broken smoke tests along the way (Session 190, see
 STATUS.md): smoke_test_animal_no_gold.py (missing loot step),
 smoke_test_corpse.py (stale load-obj-drops-on-floor assumption),

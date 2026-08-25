@@ -1769,3 +1769,24 @@ typed value. Fixed by sending an explicit "q" to return to the top
 menu before continuing. Re-ran tests/smoke_test_shop_resell.py as an
 adjacent regression check on the existing shop commands -- clean pass,
 confirming sedit's shop_repo.c changes didn't disturb list/buy/sell.
+
+Session 199 (DO droplet): sell-all-vs-components category bug fixed.
+User reported "sell all at commodity trader also processes components".
+Root cause: category_for_item_type() (obj.c) collapsed ITEM_COMPONENT
+(type 30) into the same OBJ_CAT_OTHER bucket as ITEM_RAW_MATERIAL (42)
+and ITEM_RAW_ORGANIC (50) -- shop_repo_buys_category() matches by
+category, not raw type, so any commodity-buying shop (shoptype row for
+42/50) also matched carried spell/prayer components, and `sell all`
+would silently sell them off. Fixed by splitting a new OBJ_CAT_COMPONENT
+out of OBJ_CAT_OTHER (obj.h enum, obj.c's ITEM_TYPE_CATEGORY[]/
+OBJ_CATEGORY_NAMES[]), repointing type 30 there. No other switch over
+obj_category_t needed a new case (all have a default arm). Clean rebuild,
+zero warnings. Deployed via copyover. Targeted regression pass (not a
+full sweep, per standing rule): smoke_test_sell_all.py,
+smoke_test_commodity_loot.py, smoke_test_component_binding_fix.py,
+smoke_test_spell_component_binding.py, smoke_test_shop_resell.py all
+clean. smoke_test_component_charges.py failed, but pre-existing/
+unrelated -- neither that test nor spell_component.c's charge-tracking
+logic reference category/OBJ_CAT_* at all, so the category split can't
+be the cause; left as a separate open follow-up. news.sql entry added
+and applied.

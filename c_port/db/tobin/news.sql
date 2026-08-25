@@ -735,3 +735,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Immortals Can Now Edit Shops Directly', 'A new administrator tool lets the TobinMUD staff adjust merchant pricing, messages, and what a shop will buy, right from the room the shop operates in -- expect quicker fixes to shop quirks going forward.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Selling Your Whole Pack No Longer Costs You Your Spell Reagents', 'A bug in `sell all` at merchants who buy raw materials, gems, or organics could also sweep up spell and prayer components you were carrying -- the two shared an internal bookkeeping category. Components now have their own category, so bulk-selling at a commodity trader leaves your spellcasting reagents alone.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

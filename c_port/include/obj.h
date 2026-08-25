@@ -42,6 +42,11 @@ typedef enum {
     OBJ_CAT_WRITTEN,
     OBJ_CAT_TRASH,
     OBJ_CAT_OTHER,
+    OBJ_CAT_COMPONENT,   /* spell/prayer components -- split out of OBJ_CAT_OTHER
+                          * so a commodity shop's `sell all` (matched by category,
+                          * shop_repo_buys_category()) can't also sweep up carried
+                          * spell components, which used to share OTHER with raw
+                          * materials/organics. */
     OBJ_CAT_COUNT
 } obj_category_t;
 

@@ -22,7 +22,7 @@
 static const char *const OBJ_CATEGORY_NAMES[OBJ_CAT_COUNT] = {
     "light", "weapon", "ammo", "armor", "container", "drink", "food",
     "money", "key", "magic device", "tool", "furniture", "treasure",
-    "written", "trash", "other",
+    "written", "trash", "other", "component",
 };
 
 /* Display name for a Tobin obj_category_t (OBJ_CATEGORY_NAMES[] above)
@@ -35,10 +35,10 @@ const char *obj_category_name(obj_category_t cat) {
 
 /* Collapses the original's 60 itemTypeT values (misc/obj.h, verbatim
  * upstream 0-based numbering -- confirmed by reading the enum directly, not
- * reassigned anywhere) into Tobin's 16 obj_category_t buckets. Indexed
+ * reassigned anywhere) into Tobin's 17 obj_category_t buckets. Indexed
  * directly by the DB `obj.type` column; a handful of types that don't fit
- * neatly anywhere gameplay-relevant yet (corpses, quest components, raw
- * materials, ...) land in TRASH/OTHER as a placeholder, same precedent as
+ * neatly anywhere gameplay-relevant yet (corpses, raw materials, ...) land
+ * in TRASH/OTHER as a placeholder, same precedent as
  * sector_color()'s keyword bucketing. */
 static const obj_category_t ITEM_TYPE_CATEGORY[] = {
     OBJ_CAT_OTHER,        /* 0  ITEM_UNDEFINED */
@@ -71,7 +71,7 @@ static const obj_category_t ITEM_TYPE_CATEGORY[] = {
     OBJ_CAT_CONTAINER,    /* 27 ITEM_BAG */
     OBJ_CAT_TRASH,        /* 28 ITEM_CORPSE */
     OBJ_CAT_CONTAINER,    /* 29 ITEM_SPELLBAG */
-    OBJ_CAT_OTHER,        /* 30 ITEM_COMPONENT */
+    OBJ_CAT_COMPONENT,    /* 30 ITEM_COMPONENT */
     OBJ_CAT_WRITTEN,      /* 31 ITEM_BOOK */
     OBJ_CAT_OTHER,        /* 32 ITEM_PORTAL */
     OBJ_CAT_FURNITURE,    /* 33 ITEM_WINDOW */
