@@ -744,3 +744,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'A Few More Shops Now Buy What They Sell', 'A fishing shop and a small clothing bazaar were quietly refusing to buy anything back from customers, even though their shelves were fully stocked. Both now buy back the same kinds of gear they sell.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Dragons Now Ferry Travelers Between Distant Cities', 'Two dragon roosts have opened, perched high above Market Square and the walls of Araxus. A dragon-keeper at either one will fly you straight to the other for a gold fee, paid before you climb aboard -- a fast alternative to the long walk between the two cities. Type `fly` while standing at a roost to see where the dragons go and what the trip costs.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

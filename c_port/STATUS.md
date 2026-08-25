@@ -1399,6 +1399,7 @@ it. Faithful port of SneezyMUD's garble system (misc/garble.cc):
 | Group/follow reference-parity (Session 191) | NOT a deviation -- closes 4 real gaps vs SneezyMUD's TBeing::inGroup()/doGroup()/doGoto()/doTrans(): mount/rider always-in-group, cmd_group.c eligibility guards (already-grouped/visibility/own-mount/immortal-NPC-follower), `group <name>` toggle (ungroup + leader self-ungroup cascade + fighting-block), and `goto` dragging immortal followers (`transfer` drags mount/rider only, not followers). PLR_SOLOQUEST/PLR_GRPQUEST quest-flag gating deliberately NOT ported (no such flags in the c_port). See STATUS.md's Session 191 log entry for detail. |
 | Per-race flavor systems (Session, 2026-08-23) | Height/weight/age, move verbs, and body type (docs/RACE_STATS.md/RACE_PERKS.md "Not imported" list) now real, rolled/looked-up per race in a NEW file  (kept separate from , which had another session's uncommitted work in flight at the time -- avoids a git collision, not a design choice). Per-race quest-item tables also added (/, /) -- disclosed NOT a port, SneezyMUD carries no such table; Tobin-original, same shape as the existing newbie_gear_race suit system. See RACE_STATS.md/RACE_PERKS.md for the corrected "Not imported" sections. |
 | Per-race flavor systems (Session, 2026-08-23) | Height/weight/age, move verbs, and body type (docs/RACE_STATS.md/RACE_PERKS.md "Not imported" list) now real, rolled/looked-up per race in a NEW file `src/core/race_flavor.c` (kept separate from `being.c`, which had another session's uncommitted work in flight at the time -- avoids a git collision, not a design choice). Per-race quest-item tables also added (`quest_item`/`player_quest_item_claimed`, `questitem`/`quest claim`) -- disclosed NOT a port, SneezyMUD carries no such table; Tobin-original, same shape as the existing newbie_gear_race suit system. See RACE_STATS.md/RACE_PERKS.md for the corrected "Not imported" sections. |
+| Dragon ride system (Session 201, 2026-08-25) | NEW Tobin feature, NOT a port -- checked sneezymud-master, no dragon/griffon ride system exists there. New `fly` command (cmd_fly.c) works only from one of two new "dragon roost" rooms (7900 above Market Square, 7901 above the Araxus walls), each reachable by a plain walkable `up` exit from a real existing hub room; the two roosts are deliberately NOT connected to each other by any walkable exit, so `fly` is the only route between them. Route/fee data lives in a new `dragon_route` table (dragon_route_repo.c/h, db/tobin/dragon_ride.sql) so more roosts can be added later as pure data. Deliberately separate from the existing `ride`/cmd_ride.c mount system (which only mounts a HORSE-race mob for a walking-speed discount, does not teleport, and already owns the `ride` command name). | Fee 1500 gold each way, anchored above cmd_shop.c's SPEC_TICKET_GUY flat fee (1000 gold, one hardcoded destination) as a longer, pricier haul. Flavor-only dragon-keeper mobs (7900/7901, zone_reset_tobin.sql) sit at each roost for atmosphere; `fly` does not require them to be present. |
 ## Module port status
 
 | Module (orig)                             | Orig LOC                                   | C port location                                                                       | Status                                                                                                        | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -1873,3 +1874,53 @@ file), idempotent INSERT ... ON DUPLICATE KEY UPDATE, no schema change,
 no rebuild/copyover needed (DB-data-only change, cmd_shop.c's buy-gate
 logic was untouched). news.sql and wiznews.sql entries added and
 applied. TODO.md's Open follow-ups section is now empty.
+
+
+Session 201 (DO droplet): new dragon ride transport system. User request
+(2026-08-25): "implement a dragon ride system to take players from one
+area to another distant area for a fee". Checked sneezymud-master first --
+no dragon/griffon ride system exists there, so this is a genuinely new
+Tobin feature, not a port (see decisions table). New `fly` command
+(cmd_fly.c) works only while standing in one of two new "dragon roost"
+rooms: vnum 7900 above Market Square (Tobin City Roads), reached by
+walking `up` from room 238, and vnum 7901 above the Araxus walls, reached
+by walking `up` from room 1216 (Outside the Town Walls, near Araxus's main
+gatekeep) -- both new rooms placed in zone 63 ("Permanent General
+Purpose"), vnum range otherwise unused above 7870. The two roosts are
+deliberately NOT connected to each other by any walkable exit; `fly` is
+the only route between them. Bare `fly` lists every route (and its fee)
+departing the current room; `fly <destination>` (prefix-matched,
+case-insensitive) pays the fee up front and flies the player straight to
+the matching roost, with its own departure/arrival room-echoes distinct
+from goto/transfer's teleport wording, then runs `look` for them
+(cmd_transfer.c's pattern). Route/fee data lives in a new `dragon_route`
+table (from_room, to_room, dest_name, fee), backed by new
+dragon_route_repo.h/.c -- adding a roost or route later is pure data, no
+code change. Fee is 1500 gold each way, priced above cmd_shop.c's
+SPEC_TICKET_GUY flat fee (1000 gold, one hardcoded destination) as a
+longer, pricier haul. Each roost also seeds a flavor-only dragon-keeper
+mob (Keirath / Sorha, zone_reset_tobin.sql) -- not mechanically
+load-bearing, `fly` doesn't check for their presence.
+
+Deliberately NOT built as a new use of the existing `ride`/cmd_ride.c
+mount command -- that command already owns the name `ride` and is a
+different mechanic entirely (mounts any HORSE-race mob for a
+movement-cost discount while walking; doesn't teleport). `fly` was picked
+as a free, unclaimed command name with no abbreviation collisions.
+
+New files: include/dragon_route_repo.h, src/db/dragon_route_repo.c,
+src/cmd/cmd_fly.c, db/tobin/dragon_ride.sql (dragon_route table + the two
+rooms/exits/mobs, idempotent), tests/smoke_test_fly_dragon.py. Also
+touched: cmd_internal.h (declaration), cmd_table.c (registration, right
+after `flee`), db/tobin/zone_reset_tobin.sql (2 new mob-load rows, zone
+63 cmd_no 1-2), db/tobin/help_topic.sql (new `fly` topic), news.sql and
+wiznews.sql entries. Clean rebuild, zero warnings. Applied via
+apply-tobin-schema.sh (idempotent, verified by re-checking the seeded
+rows). Deployed via copyover (no one connected at the time, confirmed via
+`ss`). Targeted regression pass (not a full sweep, per standing rule):
+smoke_test_fly_dragon.py (new -- lists routes, successful flight + gold
+deduction verified indirectly via a same-character return-trip
+insufficient-gold check, insufficient-gold refusal with no state change,
+refusal from a non-roost room) and smoke_test_goto_guildmaster.py /
+smoke_test_goto_transfer_reference_fixes.py (adjacent room-teleport
+commands, unaffected) all clean.

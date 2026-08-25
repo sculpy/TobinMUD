@@ -1,6 +1,6 @@
 # Tobin — TODO
 
-Last updated: 2026-08-25 (shoptype coverage audit closed). Companion to STATUS.md, which holds the full
+Last updated: 2026-08-25 (dragon ride system shipped). Companion to STATUS.md, which holds the full
 session log, decisions, and history — **this file tracks only what's NEXT.**
 Completed items are pruned from here as they land (find them in STATUS.md).
 

@@ -20,3 +20,13 @@
 INSERT INTO `zone_reset` (`zone_nr`,`cmd_no`,`command`,`if_flag`,`arg1`,`arg2`,`arg3`,`arg4`,`comment`)
 VALUES (2, 9000, 'M', 0, 239, 1, 111, 0, 'Combat trainer, Perimeter Road near town')
 ON DUPLICATE KEY UPDATE `arg1` = VALUES(`arg1`), `arg3` = VALUES(`arg3`);
+
+-- Dragon-keeper flavor mobs for the new dragon roost rooms (dragon_ride.sql,
+-- cmd_fly.c). Zone 63 ("Permanent General Purpose") had zero zone_reset
+-- rows before this, so cmd_no starts at 1.
+INSERT INTO `zone_reset` (`zone_nr`,`cmd_no`,`command`,`if_flag`,`arg1`,`arg2`,`arg3`,`arg4`,`comment`)
+VALUES (63, 1, 'M', 0, 7900, 1, 7900, 0, 'Dragon-keeper Keirath, roost above Market Square')
+ON DUPLICATE KEY UPDATE `arg1` = VALUES(`arg1`), `arg3` = VALUES(`arg3`);
+INSERT INTO `zone_reset` (`zone_nr`,`cmd_no`,`command`,`if_flag`,`arg1`,`arg2`,`arg3`,`arg4`,`comment`)
+VALUES (63, 2, 'M', 0, 7901, 1, 7901, 0, 'Dragon-keeper Sorha, roost above the Araxus walls')
+ON DUPLICATE KEY UPDATE `arg1` = VALUES(`arg1`), `arg3` = VALUES(`arg3`);
