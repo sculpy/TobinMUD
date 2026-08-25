@@ -20,11 +20,16 @@ split out of OBJ_CAT_OTHER (obj.h/obj.c) so a commodity shop's `sell
 all` no longer sweeps up carried spell/prayer components (they used to
 share a category with raw materials/organics). See STATUS.md.
 
-smoke_test_component_charges.py FAILING (found Session 199, unrelated
-to the fix above -- neither the test nor spell_component.c's charge
-logic reference category/OBJ_CAT_* at all): expects a component to
-survive exactly 10 mortal casts before being used up, got None instead.
-Needs investigation.
+Fixed smoke_test_component_charges.py (Session 199 cont.): two stale
+assumptions, both unrelated to OBJ_CAT_COMPONENT. (a) It fabricated a
+throwaway generic component object at runtime, but sorcerer's globe
+was moved onto a specific bound reagent (session 197 binding fix) --
+now uses the real seeded vnum 242 (an air daemon's tail) instead, and
+expects its own "You need <reagent> to cast that" refusal message. (b)
+Casting now runs over a 1-3 round wait state (spellcast.c); firing
+casts back-to-back hit "You are still recovering!" before ever
+reaching the component gate, undercounting real attempts -- the loop
+now polls past those instead of counting them. Passes clean.
 
 know*/consider/look lore automation SHIPPED Session 199 (cont.): the
 know-X lore skills (animal/demon/giantkin/other/people/reptile/undead/

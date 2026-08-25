@@ -1821,3 +1821,28 @@ session before `load mob` is ever sent. Every other passing look test's
 own make_char() has no such prompts. Left as a new open follow-up
 (TODO.md) rather than fixed here -- out of scope for this session's
 change.
+
+
+Session 199 (cont.): fixed two stale/broken smoke tests, neither caused
+by anything shipped this session -- just never caught since the suite
+runs each file individually.
+smoke_test_look_capitalization.py: hand-rolled login sent two stale
+color/timezone-default prompts (`send_line(s, ""); recv_all(s)` x2
+right after the password confirm) the account-creation flow no longer
+asks for, corrupting the session before `load mob` was ever reached.
+Brought in line with make_char()-style tests (e.g.
+smoke_test_look_equipment.py). Passes clean.
+smoke_test_component_charges.py: two stale assumptions. (a) It
+fabricated a throwaway generic (type=12) component object at runtime,
+but sorcerer's globe was moved onto a specific bound reagent by the
+session 197 binding fix (obj.val2, spell_component.c) -- a
+freshly-inserted row is never indexed (g_binds is built once at boot),
+so the spell could never find it. Switched to the real seeded reagent,
+vnum 242 ("an air daemon's tail", already bound to sorcerer's globe),
+and to its own "You need <reagent> to cast that" refusal message
+instead of the old generic one. (b) Casting now runs over a 1-3 round
+wait state (spellcast.c, user 2026-08-09); firing casts back-to-back
+hit "You are still recovering!" before ever reaching the component
+gate, undercounting real attempts against the fixed loop bound of 11.
+The loop now polls past wait-state refusals instead of counting them.
+Passes clean, reran twice to rule out flakiness from the skill-roll RNG.

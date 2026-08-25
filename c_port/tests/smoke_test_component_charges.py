@@ -8,11 +8,16 @@ requirement entirely (NOHASSLE -- consume_component()/consume_symbol()
 skip the immortal sentinel), so only a mortal actually spends charges.
 
   1. A fresh component (val[0]/val[1] seeded 10/10) survives exactly 10
-     `cast` attempts before being destroyed with a "used up" message; an
-     11th attempt reports missing components again. Cast by a mortal Mage
-     using a cheap unbound spell (sorcerer's globe, a self-ward with no
-     bound reagent, so the generic test component satisfies it) whose
-     mana cost fits the Mage's natural pool across all 11 attempts.
+     real `cast` attempts before being destroyed with a "used up" message
+     (attempts refused with "You are still recovering!" -- the 1-3 round
+     post-cast wait state, spellcast.c -- don't count; they're rejected
+     before ever reaching the component gate); an 11th real attempt
+     reports missing components again. Cast by a mortal Mage using a
+     cheap spell (sorcerer's globe, a self-ward) whose real seeded bound
+     reagent (vnum 242, session 197 binding fix) is used directly -- a
+     fabricated generic component wouldn't be picked up without a
+     restart, and this spell is no longer on the generic gate -- whose
+     mana cost fits the Mage's natural pool across every attempt.
   2. A fresh holy symbol survives more than one `pray` attempt (real
      decay, 1-2 strength lost per use out of 10) and eventually shatters,
      then a further prayer reports the missing symbol. Prayed by a mortal
@@ -32,8 +37,13 @@ port = int(sys.argv[2]) if len(sys.argv) > 2 else 4000
 announce("smoke_test_component_charges", host, port)
 
 _sfx = "".join(chr(ord("a") + (int(time.time() * 1000000) // 26 ** i) % 26) for i in range(6))
-COMPONENT = 900000 + (int(time.time() * 1000) % 60000)
-SYMBOL = COMPONENT + 1
+# Real seeded reagent (session 197 binding fix) bound to sorcerer's globe
+# (val2=6, indexed at boot by spell_component_init()) -- a freshly-inserted
+# fake component would NOT be picked up without a restart, and sorcerer's
+# globe is no longer on the generic "any component-keyword item" gate, so
+# the test must use a real bound reagent instead of fabricating one.
+COMPONENT = 242  # "an air daemon's tail", type=30, val2=6 -> sorcerer's globe
+SYMBOL = 900000 + (int(time.time() * 1000) % 60000)
 pw = "chgpw123"
 
 
@@ -65,12 +75,11 @@ def clear_and_seed(name, vnum):
     sql(f"INSERT INTO player_inventory (player_id, vnum, slot) VALUES ({pid}, {vnum}, -1);")
 
 
-# Prototypes: a generic "component"-keyword reagent and a "symbol"-keyword
-# holy symbol, both type 12 (OTHER) with 10/10 charges.
-sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen,val0,val1) "
-    f"VALUES ({COMPONENT},'pouch component reagent','a pouch of spell components',"
-    f"'A pouch of spell components is lying here.',12,1,1,10,10) "
-    f"ON DUPLICATE KEY UPDATE val0=10,val1=10;")
+# COMPONENT is a real seeded reagent (vnum 242) already bound to sorcerer's
+# globe -- just reset its charges. SYMBOL stays a fabricated generic
+# "symbol"-keyword item (type 12), since holy symbols are still on the old
+# generic gate (find_holy_symbol() in cmd_pray.c), unaffected by the binding fix.
+sql(f"UPDATE obj SET val0=10, val1=10 WHERE vnum={COMPONENT};")
 sql(f"INSERT INTO obj (vnum,name,short_desc,long_desc,type,wear_flag,can_be_seen,val0,val1) "
     f"VALUES ({SYMBOL},'symbol holy silver','a tarnished silver holy symbol',"
     f"'A tarnished silver holy symbol is lying here.',12,1,1,10,10) "
@@ -84,17 +93,34 @@ sql("UPDATE player_progress SET level=20, basic_disc_pct=100, mana=100, max_mana
     f"WHERE player_id=(SELECT id FROM player WHERE name='{mage}');")
 sm = login(mage)
 
-SPELL = "sorcerer's globe"  # L1 self-ward, unbound (generic component satisfies it), cheap
+SPELL = "sorcerer's globe"  # L1 self-ward, bound to vnum 242's reagent, cheap
+# Casting now runs over a 1-3 round wait state (spellcast.c) -- a cast
+# attempt sent before the previous one's wait clears is refused outright
+# ("You are still recovering!") *before* ever reaching the component
+# gate, so it must not count as one of the 10 real attempts. Poll past
+# those instead of firing blind back-to-back casts.
 used_up_on = None
-for i in range(1, 12):
+attempts = 0
+tries = 0
+while attempts < 10 and tries < 40:
+    tries += 1
     out = cmd(sm, f"cast {SPELL}")
+    if "still recovering" in out:
+        time.sleep(1)
+        continue
+    attempts += 1
     if "is used up" in out:
-        used_up_on = i
+        used_up_on = attempts
         break
 check(used_up_on == 10, f"the component survives exactly 10 mortal casts, not {used_up_on}")
 
 out = cmd(sm, f"cast {SPELL}")
-check("don't have the spell components" in out, "an 11th cast correctly finds no component left")
+while "still recovering" in out:
+    time.sleep(1)
+    out = cmd(sm, f"cast {SPELL}")
+check("You need an air daemon's tail to cast that" in out,
+      "an 11th cast correctly finds no component left (named -- sorcerer's "
+      "globe has a bound reagent, not the generic refusal)")
 sm.close()
 
 # --- 2: a holy symbol decays over several mortal prayers, then shatters ---
