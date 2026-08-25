@@ -9,12 +9,10 @@
 #include <strings.h>
 
 #include "being.h"
-#include "cmd.h"
 #include "dragon_route_repo.h"
-#include "log.h"
+#include "fly.h"
 #include "room.h"
 #include "room_repo.h"
-#include "thing.h"
 #include "world.h"
 
 /* `fly` -- dragon-ride long-haul transport (user, 2026-08-25: "implement
@@ -37,7 +35,17 @@
  * the room isn't a roost at all). `fly <destination>` matches a route's
  * dest_name by prefix (case-insensitive), same abbreviation spirit as
  * the rest of the command table. Charges progress.gold up front; no
- * partial charge or state change on any refusal. */
+ * partial charge or state change on any refusal.
+ *
+ * The flight itself is NOT instant (user follow-up, 2026-08-25: "there
+ * must be a series of rooms to go through for flavor, a flight should
+ * take between 10-15 seconds to complete") -- this command only validates
+ * the route, charges the fee, and hands off to fly_start()/fly_tick_run()
+ * (fly.c), which move the character through a shared sequence of "in the
+ * sky" waypoint rooms over several ticks before landing them in `dest`.
+ * Nothing reachable mid-flight can interrupt it (empty sky, no combat),
+ * so once paid for and airborne the trip always completes -- see
+ * being.h's fly_ticks_left doc comment. */
 bool cmd_fly(descriptor_t *d, const char *args) {
     being_t *ch = d->character;
     if (!ch || !ch->base.roomp) {
@@ -114,17 +122,6 @@ bool cmd_fly(descriptor_t *d, const char *args) {
     descriptor_send(d, "You climb onto the dragon's back. It leaps skyward, wings beating hard,\r\n"
                         "and the ground falls away beneath you...\r\n");
 
-    thing_set_room(&ch->base, dest);
-
-    char arrive_msg[192];
-    snprintf(arrive_msg, sizeof(arrive_msg),
-             "%s swoops in on a dragon and dismounts.\r\n", ch_name_cap);
-    descriptor_room_echo(dest, ch, arrive_msg);
-
-    descriptor_send(d, "...until the dragon banks and lands, talons gripping the roost.\r\n");
-    cmd_dispatch(d, "look");
-
-    game_log(LOG_GAME, "%s flew by dragon to room %d for %d gold.",
-             ch->base.name, dest->vnum, route->fee);
+    fly_start(d, ch, route->to_room);
     return true;
 }

@@ -1924,3 +1924,60 @@ insufficient-gold check, insufficient-gold refusal with no state change,
 refusal from a non-roost room) and smoke_test_goto_guildmaster.py /
 smoke_test_goto_transfer_reference_fixes.py (adjacent room-teleport
 commands, unaffected) all clean.
+
+
+Session 202 (DO droplet): dragon flights now take real time. User
+follow-up (2026-08-25, same day as the dragon ride system): "there must
+be a series of rooms to go through for flavor, a flight should take
+between 10-15 seconds to complete" -- the shipped `fly` command was
+teleporting instantly. Built the same countdown-task shape planting.c
+(dig/sow/cover) and spellcast.c (delayed cast) already use: new
+`fly_ticks_left`/`fly_dest_vnum` fields on being_t (being.h), a new
+fly_start()/fly_tick_run() pair (new src/core/fly.c + include/fly.h),
+pulse-registered at 30 pulses (~3s, same cadence as planting_tick_run())
+in main.c. cmd_fly.c now validates the route and charges the fee as
+before, then hands off to fly_start() instead of moving the player
+directly.
+
+Five new shared "in the sky" waypoint rooms (vnums 7902-7906, zone 63,
+appended to db/tobin/dragon_ride.sql), no walk-in exits -- every route
+flies through the same sequence (7902 -> 7903 -> 7904 -> 7906 -> 7905;
+7906 was seeded after 7905 to widen the landing window, so its vnum
+doesn't match travel order -- easier than renumbering the earlier four).
+Landing
+sits in a real [12s, 15s) window: fly_tick_run() is pulse_register()'d
+on the ABSOLUTE pulse clock (`pulse_num % 30 == 0`), not an offset from
+when a given flight started, so the first leg after `fly <dest>` fires
+anywhere from just after takeoff up to a full ~3s later, then every leg
+after that is exactly ~3s apart -- with 5 legs that lands in [12s, 15s),
+squarely inside the user's 10-15s ask (a 4-leg version was tried first
+and rejected for undershooting to as little as ~9s on a lucky alignment).
+
+That same alignment jitter caused a real bug worth flagging: fly_start()
+sets the wait-lockout (being_set_wait(), same convention spellcast_start()
+uses) for the WHOLE trip up front, a fixed FLY_LEG_COUNT*30 pulses from
+takeoff -- but since the first leg can fire early, a flight can
+physically land a few seconds before that fixed timer would have expired
+on its own. Landing calls cmd_dispatch(d, "look") to show the destination
+room, and while the wait-lockout was still counting down that internal
+look call was itself getting swallowed by the same wait-state gate
+(cmd_table.c), printing "You are still recovering!" instead of the room
+-- a flier who had already landed stayed unable to act (or see where they
+were) for a few more seconds. Fixed by clearing the wait explicitly the
+moment landing fires (being_set_wait(ch, 0) right before the arrival
+messages/look), rather than just waiting the fixed timer out.
+
+tests/smoke_test_fly_dragon.py rewritten for the new async shape: waits
+out a real flight (no shortcut -- aitick forces which waypoint a flier is
+in but NOT the real-time wait-lockout, so it can't actually speed this
+up), confirms the wait-state gate blocks other commands mid-air, and
+confirms arrival via `fly`'s own route listing rather than `look` -- the
+roost rooms are outdoor with no permanent light, so `look` there depends
+on the unrelated in-game day/night cycle (hit this live: the original
+look-based version of this test intermittently failed at night). Clean
+rebuild (`rm -rf build`), zero warnings. Applied db/tobin/dragon_ride.sql's
+new rows via apply-tobin-schema.sh (idempotent). Deployed via copyover (a
+player was connected both times this session deployed, confirmed via
+`ss`). Targeted regression pass: smoke_test_fly_dragon.py (new shape),
+smoke_test_goto_guildmaster.py, smoke_test_goto_transfer_reference_fixes.py
+all clean. news.sql and wiznews.sql follow-up entries added and applied.

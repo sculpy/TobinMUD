@@ -75,3 +75,48 @@ ON DUPLICATE KEY UPDATE `dest_name`=VALUES(`dest_name`), `fee`=VALUES(`fee`);
 INSERT INTO `dragon_route` (`from_room`,`to_room`,`dest_name`,`fee`) VALUES
 (7901, 7900, 'Tobin City', 1500)
 ON DUPLICATE KEY UPDATE `dest_name`=VALUES(`dest_name`), `fee`=VALUES(`fee`);
+
+
+-- Follow-up (user, 2026-08-25: "there must be a series of rooms to go
+-- through for flavor, a flight should take between 10-15 seconds to
+-- complete"). Five shared "in the sky" waypoint rooms, vnums
+-- 7902-7906, same zone-63 block as the roosts -- every `fly` route now
+-- passes through this same sequence, in order 7902 -> 7903 -> 7904 ->
+-- 7906 -> 7905 (fly.c's FLY_WAYPOINTS; 7906 was added after 7905 to
+-- widen a too-tight 4-leg landing window to a reliable 12-15s one, so
+-- the vnum order doesn't match travel order), rather than teleporting
+-- instantly. No walk-in exits: only fly_start()/fly_tick_run() ever
+-- place a character here.
+--
+-- Idempotent: every INSERT below is ON DUPLICATE KEY UPDATE, safe to
+-- re-run (apply-tobin-schema.sh always re-applies every file).
+
+INSERT INTO `room` (`vnum`,`x`,`y`,`z`,`name`,`description`,`zone`,`room_flag`,`sector`,`teletime`,`teletarg`,`telelook`,`river_speed`,`river_dir`,`capacity`,`height`,`spec`,`mine_trapped`) VALUES
+(7902, 6099993, -5, 2, 'High Above the Clouds',
+ '  You are far above the world now, riding a dragon through open sky. A\r\nsea of white cloud stretches out beneath you, broken here and there by\r\nglimpses of the land far below. The air is thin and bitterly cold, and\r\nthe wind tears at your clothes.\r\n',
+ 63, 0, 29, 0, 0, 0, 0, 0, 0, -1, 0, 0)
+ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `description`=VALUES(`description`);
+
+INSERT INTO `room` (`vnum`,`x`,`y`,`z`,`name`,`description`,`zone`,`room_flag`,`sector`,`teletime`,`teletarg`,`telelook`,`river_speed`,`river_dir`,`capacity`,`height`,`spec`,`mine_trapped`) VALUES
+(7903, 6099995, -5, 3, 'Over Rolling Hills',
+ '  The dragon banks and levels out, carrying you over a broad stretch of\r\ncountryside. Rolling hills and dark forest pass beneath you in a\r\nblur, and a distant thread of river catches the light. The dragon''s\r\nwingbeats settle into a long, steady rhythm.\r\n',
+ 63, 0, 29, 0, 0, 0, 0, 0, 0, -1, 0, 0)
+ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `description`=VALUES(`description`);
+
+INSERT INTO `room` (`vnum`,`x`,`y`,`z`,`name`,`description`,`zone`,`room_flag`,`sector`,`teletime`,`teletarg`,`telelook`,`river_speed`,`river_dir`,`capacity`,`height`,`spec`,`mine_trapped`) VALUES
+(7904, 6099997, -5, 4, 'Riding a Mountain Wind',
+ '  Jagged peaks rise up on either side as the dragon threads its way\r\nthrough a high mountain pass, riding the currents that pour off the\r\nrock faces. Snow streams off distant summits in long white banners,\r\nand your ears pop with the changing air.\r\n',
+ 63, 0, 29, 0, 0, 0, 0, 0, 0, -1, 0, 0)
+ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `description`=VALUES(`description`);
+
+INSERT INTO `room` (`vnum`,`x`,`y`,`z`,`name`,`description`,`zone`,`room_flag`,`sector`,`teletime`,`teletarg`,`telelook`,`river_speed`,`river_dir`,`capacity`,`height`,`spec`,`mine_trapped`) VALUES
+(7905, 6099999, -5, 5, 'Descending Toward the Horizon',
+ '  The dragon tips into a long, gentle dive, wings half-folded, and a\r\nfamiliar stretch of land begins to resolve out of the haze ahead. Smoke\r\nrises from distant chimneys, and rooftops sharpen into focus as the\r\nground rushes closer.\r\n',
+ 63, 0, 29, 0, 0, 0, 0, 0, 0, -1, 0, 0)
+ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `description`=VALUES(`description`);
+
+INSERT INTO `room` (`vnum`,`x`,`y`,`z`,`name`,`description`,`zone`,`room_flag`,`sector`,`teletime`,`teletarg`,`telelook`,`river_speed`,`river_dir`,`capacity`,`height`,`spec`,`mine_trapped`) VALUES
+(7906, 6099998, -5, 6, 'Crossing an Open Valley',
+ '  The mountains fall away behind you, and the dragon glides out over a\r\nwide, open valley, wings barely moving. Patchwork fields and winding\r\nfences stitch the ground together far below, and the air grows warmer\r\nand thicker the lower you drift.\r\n',
+ 63, 0, 29, 0, 0, 0, 0, 0, 0, -1, 0, 0)
+ON DUPLICATE KEY UPDATE `name`=VALUES(`name`), `description`=VALUES(`description`);

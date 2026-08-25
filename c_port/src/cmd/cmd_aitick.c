@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "drug.h"
+#include "fly.h"
 #include "gametime.h"
 #include "mob_ai.h"
 #include "obj.h"
@@ -75,6 +76,7 @@ bool cmd_aitick(descriptor_t *d, const char *args) {
         gametime_tick(0);
         weather_tick_run(0);
         planting_tick_run(0);
+        fly_tick_run(0);
         obj_plant_growth_tick(0);
     }
 

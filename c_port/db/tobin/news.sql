@@ -747,3 +747,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Dragons Now Ferry Travelers Between Distant Cities', 'Two dragon roosts have opened, perched high above Market Square and the walls of Araxus. A dragon-keeper at either one will fly you straight to the other for a gold fee, paid before you climb aboard -- a fast alternative to the long walk between the two cities. Type `fly` while standing at a roost to see where the dragons go and what the trip costs.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Dragon Flights Now Take Real Time to Complete', 'Riding a dragon between the roosts above Market Square and the Araxus walls no longer happens in the blink of an eye. You now climb aboard and are carried through a stretch of open sky -- clouds, hills, mountains, and a final descent -- before the dragon actually lands, the same way a long journey should feel. You cannot act while airborne, same as being lagged from a big swing or a spell, and there is no way to fall or bail out partway through.')
+ON DUPLICATE KEY UPDATE `title` = `title`;
