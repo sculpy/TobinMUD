@@ -68,13 +68,13 @@ cmd(si, "load mob 10")     # a vrock demon -- DEMON
 
 # 1. auto-select by race + immortal full reveal ladder
 out = cmd(si, "know cat")
-check("it is a feline" in out.lower() and "knowledge of animals" in out.lower(),
+check("is a feline" in out.lower() and "knowledge of animals" in out.lower(),
       "know on a cat auto-selects animal lore and reads its race (feline)")
 check("vitality:" in out.lower() and "defenses:" in out.lower()
       and "disposition:" in out.lower(),
       "an immortal (full mastery) sees the whole graded reveal ladder")
 out = cmd(si, "know dragon")
-check("dragonkind" in out.lower() and "it is a dragon" in out.lower(),
+check("dragonkind" in out.lower() and "is a dragon" in out.lower(),
       "know on the ice dragon auto-selects reptile/dragonkind lore")
 out = cmd(si, "know vrock")
 check("demons and aberrations" in out.lower(),
@@ -98,7 +98,7 @@ sql("UPDATE player_progress SET level=10, basic_disc_pct=100 "
 sd = login(dru)
 cmd(si, f"transfer {dru} {ROOM}")
 out = cmd(sd, "know cat")
-check("it is a feline" in out.lower() and "nothing of animals" not in out.lower(),
+check("is a feline" in out.lower() and "nothing of animals" not in out.lower(),
       "a Druid knows animal lore and reads the cat's race")
 sd.close()
 

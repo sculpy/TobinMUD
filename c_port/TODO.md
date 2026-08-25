@@ -25,6 +25,20 @@ to the fix above -- neither the test nor spell_component.c's charge
 logic reference category/OBJ_CAT_* at all): expects a component to
 survive exactly 10 mortal casts before being used up, got None instead.
 Needs investigation.
+
+know*/consider/look lore automation SHIPPED Session 199 (cont.): the
+know-X lore skills (animal/demon/giantkin/other/people/reptile/undead/
+veggie) now also auto-fire (free, no wait) off `consider` and
+`look <mob>` when the viewer has the matching lore skill, sharing
+mob_lore_try_reveal() (mob_lore.c) with the explicit `know <target>`
+command. See STATUS.md.
+
+smoke_test_look_capitalization.py FAILING (found Session 199, unrelated
+to the automation change above): its hand-rolled login script sends two
+stale color/timezone-default prompts the account-creation flow no
+longer has, so it never even reaches `load mob` -- fails at the very
+first check. Needs its login sequence brought in line with
+make_char()-style tests (e.g. smoke_test_look_equipment.py).
 Fixed 3 stale/broken smoke tests along the way (Session 190, see
 STATUS.md): smoke_test_animal_no_gold.py (missing loot step),
 smoke_test_corpse.py (stale load-obj-drops-on-floor assumption),

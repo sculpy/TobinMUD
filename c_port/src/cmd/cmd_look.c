@@ -402,6 +402,13 @@ bool look_at_target(descriptor_t *d, const char *args) {
          * nothing beyond the equipment listing above, same as before. */
         if (n < sizeof(out) && being_is_immortal(d->character))
             render_immortal_inventory(tgt, display, d->character, out, sizeof(out), &n);
+        /* Auto-triggered Know-X read (mob_lore.c) -- real Sneezy folds
+         * lore-skill creature identification into look/consider output
+         * (user 2026-08-24: "fix the know* skills to be automatic when
+         * you look at or consider the target mob"); silently does
+         * nothing if you lack the matching lore skill. */
+        if (n < sizeof(out))
+            mob_lore_try_reveal(d->character, tgt, false, out, sizeof(out), &n);
         descriptor_send(d, out);
         return true;
     }

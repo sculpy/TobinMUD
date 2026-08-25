@@ -84,8 +84,13 @@ bool cmd_consider(descriptor_t *d, const char *args) {
     else if (diff <= 30)  verdict = "You'll win if it never hits you.";
     else                  verdict = "There are better ways to suicide.";
 
-    char msg[160];
-    snprintf(msg, sizeof(msg), "%s\r\n", verdict);
+    char msg[1024];
+    size_t n = (size_t)snprintf(msg, sizeof(msg), "%s\r\n", verdict);
+    /* Auto-triggered Know-X read (mob_lore.c) -- real Sneezy folds its
+     * lore-skill creature identification into consider's own read-out
+     * instead of a separate command; silently does nothing if you lack
+     * the matching lore skill (user 2026-08-24). */
+    mob_lore_try_reveal(ch, victim, false, msg, sizeof(msg), &n);
     descriptor_send(d, msg);
     return true;
 }

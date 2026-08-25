@@ -738,3 +738,6 @@ ON DUPLICATE KEY UPDATE `title` = `title`;
 INSERT INTO `news` (`author`, `title`, `body`) VALUES
 ('The TobinMUD Team', 'Selling Your Whole Pack No Longer Costs You Your Spell Reagents', 'A bug in `sell all` at merchants who buy raw materials, gems, or organics could also sweep up spell and prayer components you were carrying -- the two shared an internal bookkeeping category. Components now have their own category, so bulk-selling at a commodity trader leaves your spellcasting reagents alone.')
 ON DUPLICATE KEY UPDATE `title` = `title`;
+INSERT INTO `news` (`author`, `title`, `body`) VALUES
+('The TobinMUD Team', 'Your Monster Lore Now Speaks Up On Its Own', 'The know-animal/demon/giantkin/other/people/reptile/undead/veggie lore skills used to require typing `know <creature>` as its own command. They now also fire automatically -- for free, no time cost -- whenever you `look` at or `consider` a creature you have the matching lore skill for. The explicit `know <creature>` command still works exactly as before for a deliberate, focused study.')
+ON DUPLICATE KEY UPDATE `title` = `title`;

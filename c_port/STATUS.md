@@ -1790,3 +1790,34 @@ unrelated -- neither that test nor spell_component.c's charge-tracking
 logic reference category/OBJ_CAT_* at all, so the category split can't
 be the cause; left as a separate open follow-up. news.sql entry added
 and applied.
+
+Session 199 (cont.): know* lore skills made automatic on look/consider.
+User: "fix the know* skills to be automatic when you look at or consider
+the target mob" -- matches real Sneezy, where the SKILL_CONS_* lore
+skills deepen consider's own read-out rather than being a standalone
+command. Refactor: the reveal logic (race name, then HP/AC/disposition
+gated by proficiency) moved out of cmd_know.c into a new shared
+mob_lore_try_reveal() (mob_lore.c, declared in being.h), taking a
+spend_wait flag. cmd_know.c's explicit `know <target>` still spends the
+~1-round wait and gives an explicit "you would need the X skill"
+refusal; the new auto-triggers wired into cmd_consider.c and
+look_at_target() (cmd_look.c) are free (no wait charged) and silently do
+nothing if the viewer lacks the matching lore skill, since they're a
+bonus tacked onto another command rather than a command of their own.
+Wording changed slightly ("you discern that X is a Y" replacing "you
+study X. It is a Y") to read naturally inline after consider's verdict
+line / look's equipment listing. Clean rebuild, zero warnings, deployed
+via copyover. tests/smoke_test_know_lore.py updated for the wording
+change (3 assertions), reran clean. news.sql entry added and applied.
+Also ran the full tests/smoke_test_look_*.py + smoke_test_farlook.py set
+as an adjacent regression check: all clean except
+smoke_test_look_capitalization.py, which fails at its very first step
+(logging a fresh mortal in before ever reaching `load mob`) -- confirmed
+unrelated and pre-existing: that test's hand-rolled login script sends
+two stale color/timezone-default prompts
+(`send_line(s, ""); recv_all(s)` x2 right after the password confirm)
+that the current account-creation flow no longer has, corrupting the
+session before `load mob` is ever sent. Every other passing look test's
+own make_char() has no such prompts. Left as a new open follow-up
+(TODO.md) rather than fixed here -- out of scope for this session's
+change.

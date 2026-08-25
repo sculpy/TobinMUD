@@ -3,6 +3,12 @@
  * The TobinMUD Development Team                                   *
  *******************************************************************/
 #include "being.h"
+#include "combat.h"
+#include "skill.h"
+#include "thing.h"
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 
 /* Monster-lore classification -- the data behind the Know-X lore skills
  * (know animal / demon / giantkin / other / people / reptile / undead /
@@ -186,4 +192,84 @@ const char *mob_lore_field_name(mob_lore_t cat) {
         case LORE_OTHER:   return "strange creatures";
     }
     return "strange creatures";
+}
+
+static const char *mob_lore_hp_ratio_word(int mob_max, int self_max) {
+    if (self_max <= 0)
+        self_max = 1;
+    /* mob HP as a multiple of the studier's own -- descriptive, never a
+     * raw number, same spirit as Sneezy's DescRatio(). */
+    int pct = (mob_max * 100) / self_max;
+    if (pct >= 400) return "vastly greater than your own";
+    if (pct >= 200) return "far greater than your own";
+    if (pct >= 130) return "greater than your own";
+    if (pct >= 80)  return "about the same as your own";
+    if (pct >= 45)  return "less than your own";
+    return "far less than your own";
+}
+
+static const char *mob_lore_ac_word(int ac) {
+    if (ac >= 40) return "all but impenetrable";
+    if (ac >= 25) return "very well protected";
+    if (ac >= 12) return "well protected";
+    if (ac >= 5)  return "lightly protected";
+    if (ac > 0)   return "poorly protected";
+    return "unarmored";
+}
+
+/* Auto-triggered Know-X reveal, shared by cmd_know.c (explicit `know`),
+ * cmd_consider.c, and cmd_look.c (user 2026-08-24: "fix the know* skills
+ * to be automatic when you look at or consider the target mob"). */
+bool mob_lore_try_reveal(being_t *ch, being_t *victim, bool spend_wait,
+                          char *out, size_t outsz, size_t *n) {
+    if (!ch || !victim || victim == ch || victim->base.kind != THING_MOB)
+        return false;
+    mob_lore_t cat = mob_race_lore_category(victim->mob_race);
+    const char *skname = mob_lore_skill_name(cat);
+    bool imm = being_is_immortal(ch);
+    if (!imm && !being_knows_skill(ch, skname))
+        return false;
+    /* Learn-by-doing + proficiency read. Immortals read at full mastery. */
+    int learn = 100;
+    if (!imm) {
+        const skill_def_t *sk = skill_find(ch->char_class, skname, false);
+        if (sk) {
+            learn = skill_learn_from_doing(ch, sk);
+            if (learn < skill_proficiency(ch, sk))
+                learn = skill_proficiency(ch, sk);
+        }
+        if (spend_wait)
+            being_set_wait(ch, 12); /* ~1 combat round of study */
+    }
+    /* Nice-cased race name. */
+    char race[48];
+    snprintf(race, sizeof(race), "%s", mob_race_name(victim->mob_race));
+    for (char *p = race; *p; p++)
+        *p = (char)tolower((unsigned char)*p);
+    const char *art = strchr("aeiou", race[0]) ? "an" : "a";
+    const char *vname = victim->base.short_descr[0] ? victim->base.short_descr
+                                                    : victim->base.name;
+    *n += (size_t)snprintf(out + *n, outsz - *n,
+                     "<g>Drawing on your knowledge of %s, you discern that %s is %s %s.<1>\r\n",
+                     mob_lore_field_name(cat), vname, art, race);
+    /* Reveal ladder, gated by proficiency (Sneezy's learnedness tiers). */
+    if (learn > 20)
+        *n += (size_t)snprintf(out + *n, outsz - *n,
+                      "<c>Vitality:<1> its constitution seems %s.\r\n",
+                      mob_lore_hp_ratio_word(victim->progress.max_hp, ch->progress.max_hp));
+    if (learn > 45)
+        *n += (size_t)snprintf(out + *n, outsz - *n,
+                      "<c>Defenses:<1> it appears %s.\r\n",
+                      mob_lore_ac_word(being_total_ac(victim)));
+    if (learn > 70) {
+        const char *disp = victim->mob_align > 200 ? "benevolent"
+                         : victim->mob_align < -200 ? "malevolent"
+                         : "indifferent";
+        *n += (size_t)snprintf(out + *n, outsz - *n,
+                      "<c>Disposition:<1> it regards the world as %s.\r\n", disp);
+    }
+    if (!imm && learn <= 20)
+        *n += (size_t)snprintf(out + *n, outsz - *n,
+                      "Deeper study will come with practice.\r\n");
+    return true;
 }

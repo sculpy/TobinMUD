@@ -1269,6 +1269,20 @@ bool being_start_polymorph(struct descriptor *d, int vnum, int duration_rounds);
 
 /* True iff b->progress.level >= IMMORTAL_LEVEL_MIN. */
 bool being_is_immortal(const being_t *b);
+/* Auto-triggered Know-X reveal: if `ch` (immortals always pass) knows the
+ * lore skill for `victim`'s race kingdom, appends the same reveal ladder
+ * `know` prints (race always; HP/AC/disposition as proficiency climbs) to
+ * `out` at `*n` and returns true. Does nothing and returns false for a
+ * non-mob victim, self, or a lore skill the player doesn't have -- callers
+ * (cmd_consider.c, cmd_look.c) rely on that to silently skip the block
+ * rather than printing a "you don't know that" refusal, since this is a
+ * bonus tacked onto another command, not a command of its own. Only rolls
+ * learn-by-doing and eats the ~1-round study wait when `spend_wait` is
+ * true (cmd_know.c's own explicit `know <target>`); consider/look reveals
+ * are a free read at the player's current proficiency, no wait charged. */
+bool mob_lore_try_reveal(being_t *ch, being_t *victim, bool spend_wait,
+                          char *out, size_t outsz, size_t *n);
+
 
 /* True iff b is carrying/wearing/holding at least one currently-lit
  * OBJ_CAT_LIGHT object (val[3], obj.h) anywhere in its stuff_head chain --
