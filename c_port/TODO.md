@@ -33,12 +33,9 @@ veggie) now also auto-fire (free, no wait) off `consider` and
 mob_lore_try_reveal() (mob_lore.c) with the explicit `know <target>`
 command. See STATUS.md.
 
-smoke_test_look_capitalization.py FAILING (found Session 199, unrelated
-to the automation change above): its hand-rolled login script sends two
-stale color/timezone-default prompts the account-creation flow no
-longer has, so it never even reaches `load mob` -- fails at the very
-first check. Needs its login sequence brought in line with
-make_char()-style tests (e.g. smoke_test_look_equipment.py).
+Fixed smoke_test_look_capitalization.py (Session 199 cont.): stale
+hand-rolled login script sent two obsolete color/timezone-default
+prompts, brought in line with make_char()-style tests. Passes clean.
 Fixed 3 stale/broken smoke tests along the way (Session 190, see
 STATUS.md): smoke_test_animal_no_gold.py (missing loot step),
 smoke_test_corpse.py (stale load-obj-drops-on-floor assumption),

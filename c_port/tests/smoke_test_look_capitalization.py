@@ -52,8 +52,6 @@ send_line(s, name); recv_all(s)
 send_line(s, "y"); recv_all(s)
 send_line(s, pw); recv_all(s)
 send_line(s, pw); recv_all(s)
-send_line(s, ""); recv_all(s)   # color default
-send_line(s, ""); recv_all(s)   # timezone default
 send_line(s, "new"); recv_all(s)
 send_line(s, name); recv_all(s)
 cmd(s, "1")  # race: human (zero stat modifier)
